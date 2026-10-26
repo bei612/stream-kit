@@ -3,6 +3,42 @@
 > 本手册面向在 Windows 环境下部署和使用 Stream-Kit 的用户。
 > Stream-Kit 通过 ⓪ Orchestrator 统一管理串流服务，实现应用的上传、部署和浏览器远程串流。
 
+## 本地源码构建与验证（2026-10-26）
+
+本目录已建立独立 Git 仓库，默认分支为 `main`。`docs/src` 中三个上游项目按当前源码快照保存；导入资料没有原 Git 元数据和确定的上游提交号，`.gitmodules` 中的地址仅保留来源信息，不代表已建立可更新的 Git 子模块。Go 的 `vendor` 目录随源码保存。运行配置、数据库、上传应用、依赖安装目录、编译产物和验证截图不进入版本管理。
+
+构建需要 Git、Go（至少 1.25）和 Node.js/npm 在当前终端的 PATH 中。本次实际使用 Go 1.27.3、Node.js 24.22.0、Git 2.56.0.windows.3。以下命令在仓库根目录执行；PowerShell 的执行策略仅对启动的脚本进程生效：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File orchestrator/build.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File example/build.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File example/smoke-test.ps1
+
+Push-Location orchestrator
+go test -mod=vendor ./cmd/... ./internal/...
+Pop-Location
+```
+
+管理端产物为 `orchestrator/dist/orchestrator.exe`，配套页面在 `orchestrator/dist/dist`。example 产物为 `artifacts/example/checkerboard.exe`，可上传包为 `artifacts/example/example.zip`。直接运行 example：
+
+```powershell
+& ./artifacts/example/checkerboard.exe
+& ./artifacts/example/checkerboard.exe 12 6
+& ./artifacts/example/checkerboard.exe -fullscreen 10
+```
+
+`example/smoke-test.ps1` 会临时打开测试窗口，验证棋盘颜色、绿色边框、窗口标题、缩放及正常退出，并将截图和 JSON 结果保存到 `artifacts/example`。
+
+本次验证结果：
+
+- 管理端前端与 Windows x64 后端编译通过，Go 测试通过。
+- example 默认 8×8、自定义 12×6、全屏 10×10 均正常绘制并以退出码 0 关闭；本机全屏客户区为 3440×1440。已修复默认窗口说明文字裁切问题。
+- 修复 Windows 上对 `/file`、`\file` 等根路径归档条目的校验，并补充回归用例。
+- 使用独立配置和数据库验证管理端健康接口、登录保护、浏览器登录、应用列表、详情页和管理 WebSocket；无浏览器未捕获异常。新编译的 example.zip 上传、解压、入口识别通过，解压 EXE 与构建 EXE 字节一致。
+- 此次管理端测试关闭了外部串流集成，因此 `ready` 仅表示本地应用准备完成。现场未发现运行中的 Sunshine、Moonlight 网关，示例配置指向的安装目录也不存在；上述结果不代表浏览器视频串流已验证通过，亦未构建三个上游项目。
+
+管理端自动验证脚本为 `orchestrator/smoke-test.cjs`。它要求已经启动一个监听 `127.0.0.1`、关闭 Sunshine/Moonlight 集成的独立测试实例，接收配置文件路径作为参数，并依赖 Playwright 和 Chrome。可通过 `PLAYWRIGHT_MODULE` 环境变量指定已有 Playwright 模块路径。脚本只将无凭据的检查结果和截图保存到 `artifacts/orchestrator`；测试配置及数据库应放在被忽略的 `.local` 目录。
+
 ---
 
 ## 目录

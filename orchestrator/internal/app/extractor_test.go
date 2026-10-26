@@ -37,8 +37,12 @@ func TestValidateEntryName_PathTraversal(t *testing.T) {
 }
 
 func TestValidateEntryName_AbsolutePath(t *testing.T) {
-	if err := validateEntryName("/etc/passwd"); err == nil {
-		t.Error("expected absolute path error, got nil")
+	for _, name := range []string{"/etc/passwd", `\Windows\system.ini`, `\\server\share\file`, `C:\Windows\system.ini`} {
+		t.Run(name, func(t *testing.T) {
+			if err := validateEntryName(name); err == nil {
+				t.Error("expected rooted path error, got nil")
+			}
+		})
 	}
 }
 

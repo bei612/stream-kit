@@ -243,7 +243,9 @@ func validateEntryName(name string) error {
 	if strings.Contains(name, "..") {
 		return fmt.Errorf("路径穿越: %s", name)
 	}
-	if filepath.IsAbs(name) {
+	// Archive entry names use slash separators even on Windows, where
+	// filepath.IsAbs("/file") is false because no volume is specified.
+	if filepath.IsAbs(name) || strings.HasPrefix(name, "/") || strings.HasPrefix(name, `\`) {
 		return fmt.Errorf("绝对路径: %s", name)
 	}
 

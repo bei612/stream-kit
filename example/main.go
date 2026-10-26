@@ -36,6 +36,7 @@ var (
 	pDrawTextW        = user32.NewProc("DrawTextW")
 	pSelectObject     = gdi32.NewProc("SelectObject")
 	pCreateFontW      = gdi32.NewProc("CreateFontW")
+	pGetTextExtent    = gdi32.NewProc("GetTextExtentPoint32W")
 )
 
 const (
@@ -149,12 +150,29 @@ func wndProc(hwnd syscall.Handle, msg uint32, wParam, lParam uintptr) uintptr {
 		textPtr, _ := syscall.UTF16PtrFromString(text)
 
 		fontName, _ := syscall.UTF16PtrFromString("Consolas")
-		font, _, _ := pCreateFontW.Call(
-			uintptr(uint32(0xFFFFFFE0)),
-			0, 0, 0, 700, 0, 0, 0, 0, 0, 0, 0, 0,
-			uintptr(unsafe.Pointer(fontName)),
-		)
+		fontHeight := int32(-32)
+		createFont := func(height int32) uintptr {
+			font, _, _ := pCreateFontW.Call(
+				uintptr(height),
+				0, 0, 0, 700, 0, 0, 0, 0, 0, 0, 0, 0,
+				uintptr(unsafe.Pointer(fontName)),
+			)
+			return font
+		}
+		font := createFont(fontHeight)
 		oldFont, _, _ := pSelectObject.Call(hdc, font)
+		var textSize struct{ Width, Height int32 }
+		pGetTextExtent.Call(hdc, uintptr(unsafe.Pointer(textPtr)), uintptr(len(text)), uintptr(unsafe.Pointer(&textSize)))
+		if available := int32(w) - 24; available > 0 && textSize.Width > available {
+			fontHeight = fontHeight * available / textSize.Width
+			if fontHeight > -1 {
+				fontHeight = -1
+			}
+			pSelectObject.Call(hdc, oldFont)
+			pDeleteObject.Call(font)
+			font = createFont(fontHeight)
+			pSelectObject.Call(hdc, font)
+		}
 		pSetTextColor.Call(hdc, rgb(34, 197, 94))
 		pSetBkMode.Call(hdc, TRANSPARENT)
 
