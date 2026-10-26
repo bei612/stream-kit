@@ -67,6 +67,8 @@ node scripts/configure-local-passwordless.cjs --disable
 
 `node scripts/smoke-streaming.cjs --direct --video-only` 用全新浏览器会话验证原串流链接免密连接及视频解码，记录在 `artifacts/streaming/passwordless-results.json`，结束后停止测试应用。省略 `--video-only` 会进一步验证棋盘格、鼠标和 Esc。Windows 锁屏时串流会显示锁屏画面，须在本机解锁后才能验证 example 交互；网关免密不会解除 Windows 锁屏。
 
+2026-10-26 晚间复测：Windows 已解锁，免密连接与棋盘格视频正常，但键鼠回传未通过，不能沿用此前完整交互通过的结论。网关及 Sunshine 日志均确认收到输入包；本机原生 `SendInput` 返回成功但鼠标坐标不变，`SetCursorPos` 则能改变坐标。待核查 Windows 模拟输入限制；现场 ToDesk 正在运行，但尚未确认它是否为原因。管理端停止应用正常，临时诊断日志级别已恢复。最新运行状态及失败原因记录在 `artifacts/streaming/latest-run.json`；历史 `live-results.json` 不能代替最新结果。颜色校验允许因缩放、留黑边导致深浅格采样顺序互换。
+
 ---
 
 ## 目录

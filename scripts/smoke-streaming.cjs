@@ -6,7 +6,10 @@ const creds=JSON.parse(fs.readFileSync(runtime+'/credentials.json','utf8'));
 const base='http://127.0.0.1:9000',gateway='http://127.0.0.1:8080';
 const output=path.join(root,'artifacts/streaming');fs.mkdirSync(output,{recursive:true});
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
+const run={startedAt:new Date().toISOString(),status:'running',direct:process.argv.includes('--direct'),videoOnly:process.argv.includes('--video-only')};
+const saveRun=()=>fs.writeFileSync(output+'/latest-run.json',JSON.stringify(run,null,2));
 async function main(){
+  saveRun();
   const anonymousUser=await fetch(gateway+'/api/user');
   assert.equal(anonymousUser.status,200,'Fresh gateway requests should not require a password');
   const viewer=await anonymousUser.json();
@@ -67,6 +70,7 @@ async function main(){
     for(let i=0;i<40;i++){app=await api('/apps/'+app.id);if(app.status==='running')break;await delay(250);}
     evidence.orchestratorState=app.status;assert.equal(app.status,'running');
     evidence.passwordlessUser=viewer.name;
+    run.evidence=evidence;
     if(process.argv.includes('--video-only')){
       evidence.uiWorkflow='fresh browser -> passwordless gateway -> decoded video';
       evidence.inputVerification='not performed (--video-only); Windows may be locked';
@@ -74,7 +78,11 @@ async function main(){
       console.log(JSON.stringify({width:evidence.width,height:evidence.height,frames:evidence.frames,passwordlessUser:viewer.name}));
       return;
     }
-    assert.ok(Math.abs(evidence.sample1[2]-59)<12 && Math.abs(evidence.sample2[2]-42)<12,'Decoded image is not the checkerboard; unlock the Windows desktop before testing input');
+    // Letterboxing can move these samples into the next checkerboard row.
+    // Check both tile colors without assuming which sample is the lighter tile.
+    const samples=[evidence.sample1,evidence.sample2].sort((a,b)=>a[2]-b[2]);
+    const expected=[[15,23,42],[30,41,59]];
+    assert.ok(samples.every((color,index)=>expected[index].every((channel,c)=>Math.abs(color[c]-channel)<10)) && samples[1][2]-samples[0][2]>10,'Decoded image is not the checkerboard; inspect the captured frame and Windows lock state before testing input');
     const videoRect=await page.locator('video').boundingBox();
     await page.mouse.move(videoRect.x+320,videoRect.y+260);await delay(500);
     const probe=()=>JSON.parse(require('node:child_process').execFileSync('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',path.join(root,'scripts/probe-example.ps1')],{encoding:'utf8',windowsHide:true}));
@@ -85,6 +93,7 @@ async function main(){
     await page.mouse.click(videoRect.x+880,videoRect.y+460);await delay(200);
     const secondPosition=probe();
     evidence.mouseMovement={before:firstPosition.cursor,after:secondPosition.cursor};
+    console.log('Input probes:',JSON.stringify({before:firstPosition,after:secondPosition}));
     assert.notDeepEqual(firstPosition.cursor,secondPosition.cursor,'Mouse input did not reach Windows');
     evidence.foregroundIsExample=secondPosition.foregroundIsExample;
     assert.equal(secondPosition.responding,true,'Example window is unresponsive');
@@ -105,4 +114,4 @@ async function main(){
     if(current.status==='running')await api('/apps/'+app.id+'/stop',{method:'POST'});
   }
 }
-main().catch(e=>{console.error(e);process.exitCode=1});
+main().then(()=>{run.status='passed';}).catch(e=>{run.status='failed';run.error=e.message;console.error(e);process.exitCode=1;}).finally(()=>{run.finishedAt=new Date().toISOString();saveRun();});
