@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strconv"
 	"syscall"
 	"unsafe"
@@ -22,6 +23,7 @@ var (
 	pDispatchMessage  = user32.NewProc("DispatchMessageW")
 	pDefWindowProc    = user32.NewProc("DefWindowProcW")
 	pPostQuitMessage  = user32.NewProc("PostQuitMessage")
+	pDestroyWindow    = user32.NewProc("DestroyWindow")
 	pBeginPaint       = user32.NewProc("BeginPaint")
 	pEndPaint         = user32.NewProc("EndPaint")
 	pGetSystemMetrics = user32.NewProc("GetSystemMetrics")
@@ -42,9 +44,12 @@ var (
 const (
 	WS_OVERLAPPEDWINDOW = 0x00CF0000
 	WS_VISIBLE          = 0x10000000
+	WS_EX_TOPMOST       = 0x00000008
 	CW_USEDEFAULT       = 0x80000000
 	WM_DESTROY          = 0x0002
 	WM_PAINT            = 0x000F
+	WM_KEYDOWN          = 0x0100
+	VK_ESCAPE           = 0x1B
 	SW_SHOW             = 5
 	SM_CXSCREEN         = 0
 	SM_CYSCREEN         = 1
@@ -146,7 +151,7 @@ func wndProc(hwnd syscall.Handle, msg uint32, wParam, lParam uintptr) uintptr {
 		}
 		pDeleteObject.Call(green)
 
-		text := fmt.Sprintf("Grid: %dx%d  |  Resolution: %dx%d  |  Screen: %dx%d", gridCols, gridRows, w, h, screenW, screenH)
+		text := fmt.Sprintf("Grid: %dx%d  |  Resolution: %dx%d  |  Screen: %dx%d  |  Esc: Close", gridCols, gridRows, w, h, screenW, screenH)
 		textPtr, _ := syscall.UTF16PtrFromString(text)
 
 		fontName, _ := syscall.UTF16PtrFromString("Consolas")
@@ -186,6 +191,11 @@ func wndProc(hwnd syscall.Handle, msg uint32, wParam, lParam uintptr) uintptr {
 		pEndPaint.Call(uintptr(hwnd), uintptr(unsafe.Pointer(&ps)))
 		return 0
 
+	case WM_KEYDOWN:
+		if wParam == VK_ESCAPE {
+			pDestroyWindow.Call(uintptr(hwnd))
+			return 0
+		}
 	case WM_DESTROY:
 		pPostQuitMessage.Call(0)
 		return 0
@@ -196,6 +206,11 @@ func wndProc(hwnd syscall.Handle, msg uint32, wParam, lParam uintptr) uintptr {
 }
 
 func main() {
+	// A Win32 window and its message pump must stay on the same OS thread.
+	// Go may otherwise move this goroutine after a blocking syscall, leaving
+	// the window unable to repaint or receive streamed keyboard/mouse input.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	// Parse args: checkerboard.exe [-fullscreen] [cols] [rows]
 	var numArgs []string
 	for _, arg := range os.Args[1:] {
@@ -242,16 +257,18 @@ func main() {
 	pRegisterClassEx.Call(uintptr(unsafe.Pointer(&wc)))
 
 	var style uintptr = WS_OVERLAPPEDWINDOW | WS_VISIBLE
+	var extendedStyle uintptr
 	winX, winY, winW, winH := uintptr(CW_USEDEFAULT), uintptr(CW_USEDEFAULT), uintptr(800), uintptr(600)
 	if fullscreen {
 		// WS_POPUP + full screen size = borderless fullscreen
 		style = 0x80000000 | WS_VISIBLE // WS_POPUP | WS_VISIBLE
+		extendedStyle = WS_EX_TOPMOST
 		winX, winY = 0, 0
 		winW, winH = uintptr(screenW), uintptr(screenH)
 	}
 
 	hwnd, _, _ := pCreateWindowEx.Call(
-		0,
+		extendedStyle,
 		uintptr(unsafe.Pointer(className)),
 		uintptr(unsafe.Pointer(windowTitle)),
 		style,

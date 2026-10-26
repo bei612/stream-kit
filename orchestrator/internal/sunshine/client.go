@@ -5,10 +5,13 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
-	"strings"
+	"net/url"
+	"strconv"
 	"sync"
 	"time"
 
@@ -17,15 +20,15 @@ import (
 )
 
 type SunshineApp struct {
-	Name       string `json:"name"`
-	Cmd        string `json:"cmd,omitempty"`
-	WorkingDir string `json:"working-dir,omitempty"`
-	Output     string `json:"output,omitempty"`
-	AutoDetach bool   `json:"auto-detach"`
-	WaitAll    bool   `json:"wait-all"`
-	ExitTimeout int   `json:"exit-timeout"`
-	Elevated   bool   `json:"elevated"`
-	ImagePath  string `json:"image-path,omitempty"`
+	Name        string `json:"name"`
+	Cmd         string `json:"cmd,omitempty"`
+	WorkingDir  string `json:"working-dir,omitempty"`
+	Output      string `json:"output,omitempty"`
+	AutoDetach  bool   `json:"auto-detach"`
+	WaitAll     bool   `json:"wait-all"`
+	ExitTimeout int    `json:"exit-timeout"`
+	Elevated    bool   `json:"elevated"`
+	ImagePath   string `json:"image-path,omitempty"`
 }
 
 type Client struct {
@@ -198,47 +201,54 @@ type ServerInfo struct {
 	State       string // e.g. "SUNSHINE_SERVER_FREE", "SUNSHINE_SERVER_BUSY"
 }
 
-// GetServerInfo queries Sunshine's /serverinfo endpoint (XML) to check streaming state.
+// serverInfoURL keeps the public GameStream endpoint separate from the management API.
+func (c *Client) serverInfoURL() (string, error) {
+	if c.cfg.ServerInfoURL != "" {
+		return c.cfg.ServerInfoURL, nil
+	}
+	u, err := url.Parse(c.cfg.BaseURL)
+	if err != nil || u.Hostname() == "" {
+		return "", fmt.Errorf("请配置 sunshine_api.server_info_url")
+	}
+	port, err := strconv.Atoi(u.Port())
+	if err != nil || port < 2 || port > 65535 || (u.Path != "" && u.Path != "/") {
+		return "", fmt.Errorf("无法从管理地址推导 GameStream 端口，请配置 sunshine_api.server_info_url")
+	}
+	// Sunshine's management HTTPS port is base+1; GameStream HTTP is base.
+	return "http://" + net.JoinHostPort(u.Hostname(), strconv.Itoa(port-1)) + "/serverinfo", nil
+}
+
 func (c *Client) GetServerInfo(ctx context.Context) (*ServerInfo, error) {
-	url := c.cfg.BaseURL + "/serverinfo"
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	endpoint, err := c.serverInfoURL()
 	if err != nil {
 		return nil, err
 	}
-	c.setBasicAuth(req)
-
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("查询编码器状态失败: %w", err)
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("读取编码器响应失败: %w", err)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("查询编码器状态失败: HTTP %d", resp.StatusCode)
 	}
-
-	// Parse XML: <root><currentgame>0</currentgame><state>...</state></root>
-	info := &ServerInfo{}
-	bodyStr := string(body)
-
-	// Extract currentgame
-	if start := strings.Index(bodyStr, "<currentgame>"); start >= 0 {
-		start += len("<currentgame>")
-		if end := strings.Index(bodyStr[start:], "</currentgame>"); end >= 0 {
-			fmt.Sscanf(bodyStr[start:start+end], "%d", &info.CurrentGame)
-		}
+	var result struct {
+		XMLName     xml.Name `xml:"root"`
+		StatusCode  string   `xml:"status_code,attr"`
+		CurrentGame *int     `xml:"currentgame"`
+		State       string   `xml:"state"`
 	}
-
-	// Extract state
-	if start := strings.Index(bodyStr, "<state>"); start >= 0 {
-		start += len("<state>")
-		if end := strings.Index(bodyStr[start:], "</state>"); end >= 0 {
-			info.State = bodyStr[start : start+end]
-		}
+	if err := xml.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&result); err != nil {
+		return nil, fmt.Errorf("解析编码器状态失败: %w", err)
 	}
-
-	return info, nil
+	if result.CurrentGame == nil || (result.StatusCode != "" && result.StatusCode != "200") {
+		return nil, fmt.Errorf("编码器状态响应缺少 currentgame 或返回错误状态")
+	}
+	return &ServerInfo{CurrentGame: *result.CurrentGame, State: result.State}, nil
 }
 
 // FindAppIndex finds an app by name and returns its index.
@@ -264,18 +274,18 @@ func (c *Client) doAppWrite(ctx context.Context, method string, app SunshineApp,
 	}
 
 	payload := map[string]interface{}{
-		"index":          index,
-		"name":           app.Name,
-		"cmd":            app.Cmd,
-		"working-dir":    app.WorkingDir,
-		"output":         app.Output,
-		"image-path":     app.ImagePath,
-		"auto-detach":    app.AutoDetach,
-		"wait-all":       app.WaitAll,
-		"exit-timeout":   app.ExitTimeout,
-		"elevated":       app.Elevated,
-		"prep-cmd":       []interface{}{},
-		"detached":       []interface{}{},
+		"index":        index,
+		"name":         app.Name,
+		"cmd":          app.Cmd,
+		"working-dir":  app.WorkingDir,
+		"output":       app.Output,
+		"image-path":   app.ImagePath,
+		"auto-detach":  app.AutoDetach,
+		"wait-all":     app.WaitAll,
+		"exit-timeout": app.ExitTimeout,
+		"elevated":     app.Elevated,
+		"prep-cmd":     []interface{}{},
+		"detached":     []interface{}{},
 	}
 
 	body, _ := json.Marshal(payload)

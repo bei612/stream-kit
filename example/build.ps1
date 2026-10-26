@@ -14,6 +14,9 @@ try {
     go build -trimpath -ldflags '-H=windowsgui' -o $exe .
     if ($LASTEXITCODE -ne 0) { throw "Example build failed (exit $LASTEXITCODE)" }
     Compress-Archive -LiteralPath $exe -DestinationPath (Join-Path $outputDir 'example.zip') -Force
+    # Refresh the original sample locations as well, so they cannot launch an old binary.
+    Copy-Item -LiteralPath $exe -Destination (Join-Path $PSScriptRoot 'checkerboard.exe') -Force
+    Copy-Item -LiteralPath (Join-Path $outputDir 'example.zip') -Destination (Join-Path (Split-Path $PSScriptRoot -Parent) 'example.zip') -Force
     Write-Host "Example built: $exe"
 } finally {
     $env:CGO_ENABLED = $savedCGO

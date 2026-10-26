@@ -14,6 +14,7 @@ public static class CheckerboardProbe {
     [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr window, out Rect rect);
     [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr window, IntPtr dc, uint flags);
     [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr window, IntPtr after, int x, int y, int w, int h, uint flags);
+    [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr window, uint message, IntPtr wparam, IntPtr lparam);
     public static string Capture(IntPtr window, string path, int cols, int rows) {
         Rect rect;
         if (!GetClientRect(window, out rect) || rect.Right < 100 || rect.Bottom < 100)
@@ -71,8 +72,10 @@ foreach ($case in @(
             $resized = [CheckerboardProbe]::Capture($process.MainWindowHandle, (Join-Path $outputDir 'custom-resized.png'), $case.Cols, $case.Rows)
             if ($resized -eq $size) { throw 'Client dimensions did not change after resizing' }
         }
-        if (-not $process.CloseMainWindow()) { throw 'WM_CLOSE could not be sent' }
-        if (-not $process.WaitForExit(5000)) { throw 'Example did not exit after WM_CLOSE' }
+        if ($case.Name -eq 'fullscreen') {
+            if (-not [CheckerboardProbe]::PostMessage($process.MainWindowHandle, 0x0100, [IntPtr]0x1B, [IntPtr]::Zero)) { throw 'Escape could not be sent' }
+        } elseif (-not $process.CloseMainWindow()) { throw 'WM_CLOSE could not be sent' }
+        if (-not $process.WaitForExit(5000)) { throw 'Example did not exit after close/Escape' }
         if ($process.ExitCode -ne 0) { throw "Example exited with code $($process.ExitCode)" }
         $results += [pscustomobject]@{ Case = $case.Name; ClientSize = $size; Resized = $resized; Screenshot = $screenshot; ExitCode = $process.ExitCode; Passed = $true }
     } finally {

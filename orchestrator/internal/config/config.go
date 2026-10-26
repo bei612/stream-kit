@@ -12,14 +12,14 @@ import (
 
 type Config struct {
 	Server        ServerConfig               `json:"server" mapstructure:"server"`
-	Components    map[string]ComponentConfig  `json:"components" mapstructure:"components"`
-	SunshineAPI   SunshineAPIConfig           `json:"sunshine_api" mapstructure:"sunshine_api"`
-	MoonlightWeb  MoonlightWebConfig          `json:"moonlight_web" mapstructure:"moonlight_web"`
-	Storage       StorageConfig               `json:"storage" mapstructure:"storage"`
-	Process       ProcessConfig               `json:"process" mapstructure:"process"`
-	Notifications NotificationsConfig         `json:"notifications" mapstructure:"notifications"`
-	Log           LogConfig                   `json:"log" mapstructure:"log"`
-	Templates     map[string]string           `json:"templates" mapstructure:"templates"`
+	Components    map[string]ComponentConfig `json:"components" mapstructure:"components"`
+	SunshineAPI   SunshineAPIConfig          `json:"sunshine_api" mapstructure:"sunshine_api"`
+	MoonlightWeb  MoonlightWebConfig         `json:"moonlight_web" mapstructure:"moonlight_web"`
+	Storage       StorageConfig              `json:"storage" mapstructure:"storage"`
+	Process       ProcessConfig              `json:"process" mapstructure:"process"`
+	Notifications NotificationsConfig        `json:"notifications" mapstructure:"notifications"`
+	Log           LogConfig                  `json:"log" mapstructure:"log"`
+	Templates     map[string]string          `json:"templates" mapstructure:"templates"`
 }
 
 type ServerConfig struct {
@@ -55,10 +55,11 @@ type HealthCheckConfig struct {
 }
 
 type SunshineAPIConfig struct {
-	BaseURL   string `json:"base_url" mapstructure:"base_url"`
-	Username  string `json:"username" mapstructure:"username"`
-	Password  string `json:"password" mapstructure:"password"`
-	VerifySSL bool   `json:"verify_ssl" mapstructure:"verify_ssl"`
+	BaseURL       string `json:"base_url" mapstructure:"base_url"`
+	ServerInfoURL string `json:"server_info_url,omitempty" mapstructure:"server_info_url"`
+	Username      string `json:"username" mapstructure:"username"`
+	Password      string `json:"password" mapstructure:"password"`
+	VerifySSL     bool   `json:"verify_ssl" mapstructure:"verify_ssl"`
 }
 
 type MoonlightWebConfig struct {
@@ -68,17 +69,17 @@ type MoonlightWebConfig struct {
 }
 
 type StorageConfig struct {
-	AppsDir          string `json:"apps_dir" mapstructure:"apps_dir"`
-	TempDir          string `json:"temp_dir" mapstructure:"temp_dir"`
-	DBPath           string `json:"db_path" mapstructure:"db_path"`
-	MaxUploadSize    int64  `json:"max_upload_size_bytes" mapstructure:"max_upload_size_bytes"`
-	MaxExtractSize   int64  `json:"max_extract_size_bytes" mapstructure:"max_extract_size_bytes"`
-	MaxFileCount     int    `json:"max_file_count" mapstructure:"max_file_count"`
+	AppsDir        string `json:"apps_dir" mapstructure:"apps_dir"`
+	TempDir        string `json:"temp_dir" mapstructure:"temp_dir"`
+	DBPath         string `json:"db_path" mapstructure:"db_path"`
+	MaxUploadSize  int64  `json:"max_upload_size_bytes" mapstructure:"max_upload_size_bytes"`
+	MaxExtractSize int64  `json:"max_extract_size_bytes" mapstructure:"max_extract_size_bytes"`
+	MaxFileCount   int    `json:"max_file_count" mapstructure:"max_file_count"`
 }
 
 type ProcessConfig struct {
-	MonitorInterval          int `json:"monitor_interval_seconds" mapstructure:"monitor_interval_seconds"`
-	GracefulShutdownTimeout  int `json:"graceful_shutdown_timeout_seconds" mapstructure:"graceful_shutdown_timeout_seconds"`
+	MonitorInterval         int `json:"monitor_interval_seconds" mapstructure:"monitor_interval_seconds"`
+	GracefulShutdownTimeout int `json:"graceful_shutdown_timeout_seconds" mapstructure:"graceful_shutdown_timeout_seconds"`
 }
 
 type NotificationsConfig struct {
@@ -210,9 +211,9 @@ func generateDefaultConfig(path string) error {
 			},
 			"components": map[string]interface{}{},
 			"storage": map[string]interface{}{
-				"apps_dir":             "./apps",
-				"temp_dir":             "./temp",
-				"db_path":              "./data/orchestrator.db",
+				"apps_dir":              "./apps",
+				"temp_dir":              "./temp",
+				"db_path":               "./data/orchestrator.db",
 				"max_upload_size_bytes": 53687091200,
 			},
 			"process": map[string]interface{}{
@@ -247,9 +248,13 @@ func (c *Config) Sanitized() map[string]interface{} {
 	}
 	if srv, ok := m["server"].(map[string]interface{}); ok {
 		mask(srv, "password")
+		mask(srv, "jwt_secret")
 	}
 	if sun, ok := m["sunshine_api"].(map[string]interface{}); ok {
 		mask(sun, "password")
+	}
+	if moon, ok := m["moonlight_web"].(map[string]interface{}); ok {
+		mask(moon, "password")
 	}
 	return m
 }

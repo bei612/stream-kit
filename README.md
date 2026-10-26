@@ -35,9 +35,27 @@ Pop-Location
 - example 默认 8×8、自定义 12×6、全屏 10×10 均正常绘制并以退出码 0 关闭；本机全屏客户区为 3440×1440。已修复默认窗口说明文字裁切问题。
 - 修复 Windows 上对 `/file`、`\file` 等根路径归档条目的校验，并补充回归用例。
 - 使用独立配置和数据库验证管理端健康接口、登录保护、浏览器登录、应用列表、详情页和管理 WebSocket；无浏览器未捕获异常。新编译的 example.zip 上传、解压、入口识别通过，解压 EXE 与构建 EXE 字节一致。
-- 此次管理端测试关闭了外部串流集成，因此 `ready` 仅表示本地应用准备完成。现场未发现运行中的 Sunshine、Moonlight 网关，示例配置指向的安装目录也不存在；上述结果不代表浏览器视频串流已验证通过，亦未构建三个上游项目。
+- 首轮管理端测试关闭了外部串流集成；随后已完成下述实际串流部署和验证。上游运行组件使用经过哈希校验的官方发行二进制，没有将它们描述为本次从上游源码编译的产物。
 
 管理端自动验证脚本为 `orchestrator/smoke-test.cjs`。它要求已经启动一个监听 `127.0.0.1`、关闭 Sunshine/Moonlight 集成的独立测试实例，接收配置文件路径作为参数，并依赖 Playwright 和 Chrome。可通过 `PLAYWRIGHT_MODULE` 环境变量指定已有 Playwright 模块路径。脚本只将无凭据的检查结果和截图保存到 `artifacts/orchestrator`；测试配置及数据库应放在被忽略的 `.local` 目录。
+
+本机实际串流部署（2026-10-26）：
+
+- Sunshine `v2026.914.233613` 位于 `.local/sunshine/Sunshine`；Moonlight Web `v2.10.0` 位于 `.local/moonlight/package`。发行版下载地址及 SHA-256 固定在 `scripts/local-components.json`，可运行 `scripts/download-local.ps1` 下载并校验。运行组件版本与 `docs/src` 中保留的历史源码快照应区分。
+- 管理页为 `http://127.0.0.1:9000`，串流网关为 `http://127.0.0.1:8080`，Sunshine 管理页为 `https://127.0.0.1:47990`。三个服务目前均绑定本机地址，尚未配置局域网或公网访问。
+- 本机账号在 `.local/runtime/credentials.json`，管理端实际配置在 `.local/runtime/config.json`；这些文件不进入 Git。管理端负责启动、监控 Sunshine 和 Moonlight，首次配对已完成。网关登录与管理端登录独立，首次打开串流窗口时使用同一份本机账号登录网关。
+- 已从浏览器管理页面完整走通“登录 → 启动 example → 网关登录 → WebRTC 视频 → 鼠标回传 → Esc 退出”。实际视频为 H.264 1280×720，使用 RTX 5060 Ti NVENC；统计确认解码帧和 Opus 音频包到达。棋盘格不产生测试音，因此没有据此宣称听感或数字人音频验收完成。
+- example 原先在串流启动后偶发无响应：Win32 窗口创建和消息循环必须处于同一操作系统线程，已通过 `runtime.LockOSThread` 修复。全屏窗口设为置顶以避免后台启动时被编辑器遮挡；点击画面取得焦点后可按 `Esc` 或 `Alt+F4` 关闭。管理端停止按钮也可结束程序。
+- 已修复管理端把 `/serverinfo` 发往管理端口的问题，新增 `sunshine_api.server_info_url`，并拒绝将 HTTP 错误或缺字段响应当作空闲。JWT 密钥和网关密码也纳入配置脱敏。
+- 远程视频、鼠标与退出验证记录在 `artifacts/streaming/live-results.json`，浏览器收到的帧截图在 `artifacts/streaming/received-frame.png`。
+
+后续启动本机部署：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/start-local.ps1
+```
+
+`scripts/smoke-streaming.cjs` 可复测实际串流（需要 Playwright 模块和 Chrome，支持 `PLAYWRIGHT_MODULE` 环境变量）。它会启动全屏 example、移动鼠标并发送 Esc；应在允许短暂操作测试窗口时运行。`scripts/pair-local.cjs` 用于本机网关配对，读取上述本机账号文件，不输出密码或配对 PIN。
 
 ---
 
