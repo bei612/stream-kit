@@ -43,7 +43,7 @@ Pop-Location
 
 - Sunshine `v2026.914.233613` 位于 `.local/sunshine/Sunshine`；Moonlight Web `v2.10.0` 位于 `.local/moonlight/package`。发行版下载地址及 SHA-256 固定在 `scripts/local-components.json`，可运行 `scripts/download-local.ps1` 下载并校验。运行组件版本与 `docs/src` 中保留的历史源码快照应区分。
 - 管理页为 `http://127.0.0.1:9000`，串流网关为 `http://127.0.0.1:8080`，Sunshine 管理页为 `https://127.0.0.1:47990`。三个服务目前均绑定本机地址，尚未配置局域网或公网访问。
-- 本机账号在 `.local/runtime/credentials.json`，管理端实际配置在 `.local/runtime/config.json`；这些文件不进入 Git。管理端负责启动、监控 Sunshine 和 Moonlight，首次配对已完成。网关登录与管理端登录独立，首次打开串流窗口时使用同一份本机账号登录网关。
+- 本机管理员账号在 `.local/runtime/credentials.json`，管理端实际配置在 `.local/runtime/config.json`；这些文件不进入 Git。管理端负责启动、监控 Sunshine 和 Moonlight，首次配对已完成。串流网关已启用原生默认用户 `local-viewer`（普通 User，禁止新增主机），打开串流链接无需登录；9000 管理端和 Sunshine 管理页仍需管理员密码。
 - 已从浏览器管理页面完整走通“登录 → 启动 example → 网关登录 → WebRTC 视频 → 鼠标回传 → Esc 退出”。实际视频为 H.264 1280×720，使用 RTX 5060 Ti NVENC；统计确认解码帧和 Opus 音频包到达。棋盘格不产生测试音，因此没有据此宣称听感或数字人音频验收完成。
 - example 原先在串流启动后偶发无响应：Win32 窗口创建和消息循环必须处于同一操作系统线程，已通过 `runtime.LockOSThread` 修复。全屏窗口设为置顶以避免后台启动时被编辑器遮挡；点击画面取得焦点后可按 `Esc` 或 `Alt+F4` 关闭。管理端停止按钮也可结束程序。
 - 已修复管理端把 `/serverinfo` 发往管理端口的问题，新增 `sunshine_api.server_info_url`，并拒绝将 HTTP 错误或缺字段响应当作空闲。JWT 密钥和网关密码也纳入配置脱敏。
@@ -56,6 +56,16 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/start-local.ps1
 ```
 
 `scripts/smoke-streaming.cjs` 可复测实际串流（需要 Playwright 模块和 Chrome，支持 `PLAYWRIGHT_MODULE` 环境变量）。它会启动全屏 example、移动鼠标并发送 Esc；应在允许短暂操作测试窗口时运行。`scripts/pair-local.cjs` 用于本机网关配对，读取上述本机账号文件，不输出密码或配对 PIN。
+
+本机免密通过 `.local/moonlight/package/server/config.json` 的 `web_server.default_user_id` 指向普通用户实现，已配对的本机主机设为 Global 供该用户访问。配置及账号均保留在被 Git 忽略的运行目录。配置脚本只允许绑定 `127.0.0.1:8080` 的网关，会重启网关并验证匿名串流身份及管理接口权限：
+
+```powershell
+node scripts/configure-local-passwordless.cjs
+# 恢复网关密码登录（default_user_id = null）
+node scripts/configure-local-passwordless.cjs --disable
+```
+
+`node scripts/smoke-streaming.cjs --direct --video-only` 用全新浏览器会话验证原串流链接免密连接及视频解码，记录在 `artifacts/streaming/passwordless-results.json`，结束后停止测试应用。省略 `--video-only` 会进一步验证棋盘格、鼠标和 Esc。Windows 锁屏时串流会显示锁屏画面，须在本机解锁后才能验证 example 交互；网关免密不会解除 Windows 锁屏。
 
 ---
 

@@ -7,6 +7,12 @@ const base='http://127.0.0.1:9000',gateway='http://127.0.0.1:8080';
 const output=path.join(root,'artifacts/streaming');fs.mkdirSync(output,{recursive:true});
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 async function main(){
+  const anonymousUser=await fetch(gateway+'/api/user');
+  assert.equal(anonymousUser.status,200,'Fresh gateway requests should not require a password');
+  const viewer=await anonymousUser.json();
+  assert.equal(viewer.is_default_user,true);
+  assert.equal(viewer.role,'User');
+  assert.ok([401,403].includes((await fetch(gateway+'/api/users')).status));
   const login=await fetch(base+'/api/v1/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:creds.username,password:creds.password})});
   assert.equal(login.status,200);const token=(await login.json()).data.token;
   const headers={Authorization:'Bearer '+token};
@@ -24,24 +30,29 @@ async function main(){
     window.__pcs=[];const Original=window.RTCPeerConnection;window.RTCPeerConnection=class extends Original{constructor(...args){super(...args);window.__pcs.push(this)}};
     localStorage.setItem('mlSettings',JSON.stringify({videoSize:'720p',fps:30,bitrate:8000,videoCodec:'h264',dataTransport:'webrtc',forceVideoElementRenderer:true,canvasRenderer:false,playAudioLocal:true,language:'en'}));
   });
-  const management=await context.newPage();
-  await management.goto(base+'/login');
-  await management.locator('#username').fill(creds.username);
-  await management.locator('#password').fill(creds.password);
-  await management.locator('button[type="submit"]').click();
-  await management.waitForURL(base+'/');
-  await management.goto(base+'/apps/'+app.id);
-  await management.getByText('checkerboard.exe',{exact:true}).waitFor();
-  const popup=context.waitForEvent('page');
-  await management.getByRole('button',{name:'启动串流',exact:true}).click();
-  const page=await popup;const logs=[];
+  let page;
+  if(process.argv.includes('--direct')){
+    page=await context.newPage();
+    await page.goto(gateway+'/stream.html'+new URL('http://127.0.0.1:'+launch.stream_url).search);
+  }else{
+    const management=await context.newPage();
+    await management.goto(base+'/login');
+    await management.locator('#username').fill(creds.username);
+    await management.locator('#password').fill(creds.password);
+    await management.locator('button[type="submit"]').click();
+    await management.waitForURL(base+'/');
+    await management.goto(base+'/apps/'+app.id);
+    await management.getByText('checkerboard.exe',{exact:true}).waitFor();
+    const popup=context.waitForEvent('page');
+    await management.getByRole('button',{name:'启动串流',exact:true}).click();
+    page=await popup;
+  }
+  const logs=[];
   page.on('console',m=>logs.push(m.type()+': '+m.text()));page.on('pageerror',e=>logs.push('PAGEERROR: '+e.message));
   try{
     await page.waitForLoadState('domcontentloaded');
-    await page.locator('#ml-api-name').fill(creds.username);
-    await page.locator('#ml-api-password').fill(creds.password);
-    await page.locator('#ml-api-password').press('Enter');
     await page.waitForFunction(()=>{const v=document.querySelector('video');return v&&v.videoWidth>0&&v.readyState>=2&&v.getVideoPlaybackQuality().totalVideoFrames>10},{},{timeout:60000});
+    assert.equal(await page.locator('#ml-api-name').isVisible(),false,'Passwordless stream displayed a login form');
     console.log('Video frames received');
     await delay(3000);
     const evidence=await page.evaluate(async()=>{
@@ -55,6 +66,15 @@ async function main(){
     assert.ok(evidence.frames>10,'No decoded frames');
     for(let i=0;i<40;i++){app=await api('/apps/'+app.id);if(app.status==='running')break;await delay(250);}
     evidence.orchestratorState=app.status;assert.equal(app.status,'running');
+    evidence.passwordlessUser=viewer.name;
+    if(process.argv.includes('--video-only')){
+      evidence.uiWorkflow='fresh browser -> passwordless gateway -> decoded video';
+      evidence.inputVerification='not performed (--video-only); Windows may be locked';
+      fs.writeFileSync(output+'/passwordless-results.json',JSON.stringify(evidence,null,2));
+      console.log(JSON.stringify({width:evidence.width,height:evidence.height,frames:evidence.frames,passwordlessUser:viewer.name}));
+      return;
+    }
+    assert.ok(Math.abs(evidence.sample1[2]-59)<12 && Math.abs(evidence.sample2[2]-42)<12,'Decoded image is not the checkerboard; unlock the Windows desktop before testing input');
     const videoRect=await page.locator('video').boundingBox();
     await page.mouse.move(videoRect.x+320,videoRect.y+260);await delay(500);
     const probe=()=>JSON.parse(require('node:child_process').execFileSync('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',path.join(root,'scripts/probe-example.ps1')],{encoding:'utf8',windowsHide:true}));
@@ -69,12 +89,11 @@ async function main(){
     evidence.foregroundIsExample=secondPosition.foregroundIsExample;
     assert.equal(secondPosition.responding,true,'Example window is unresponsive');
     console.log('Foreground is example:',evidence.foregroundIsExample);
-    assert.ok(Math.abs(evidence.sample1[2]-59)<12 && Math.abs(evidence.sample2[2]-42)<12,'Decoded image is not the checkerboard');
     assert.equal(evidence.foregroundIsExample,true,'Refusing keyboard test when example is not foreground');
     await page.keyboard.press('Escape');
     let stopped=false;for(let i=0;i<50;i++){app=await api('/apps/'+app.id);if(app.status==='stopped'){stopped=true;break;}await delay(250);}
     evidence.keyboardEscapeStoppedApp=stopped;
-    evidence.uiWorkflow='management login -> launch popup -> gateway login -> decoded video -> mouse movement -> Escape exit';
+    evidence.uiWorkflow=(process.argv.includes('--direct')?'fresh browser direct URL':'management login -> launch popup')+' -> passwordless gateway -> decoded video -> mouse movement -> Escape exit';
     fs.writeFileSync(output+'/live-results.json',JSON.stringify(evidence,null,2));
     console.log(JSON.stringify({width:evidence.width,height:evidence.height,frames:evidence.frames,state:evidence.orchestratorState,keyboardEscapeStoppedApp:stopped,mouseMovement:evidence.mouseMovement}));
     assert.equal(stopped,true,'Remote Escape did not stop the example');
@@ -82,6 +101,8 @@ async function main(){
     fs.writeFileSync(output+'/browser.log',logs.join('\n'));
     await page.screenshot({path:output+'/last-screen.png'}).catch(()=>{});
     await browser.close();
+    const current=await api('/apps/'+app.id);
+    if(current.status==='running')await api('/apps/'+app.id+'/stop',{method:'POST'});
   }
 }
 main().catch(e=>{console.error(e);process.exitCode=1});
