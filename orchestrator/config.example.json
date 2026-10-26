@@ -1,0 +1,111 @@
+{
+  "server": {
+    "bind_address": "0.0.0.0:9000",
+    "username": "admin",
+    "password": "admin",
+    "jwt_secret": "",
+    "tls_cert": "",
+    "tls_key": ""
+  },
+
+  "components": {
+    "sunshine": {
+      "exe_path": "C:\\Program Files\\Sunshine\\sunshine.exe",
+      "args": "",
+      "working_dir": "C:\\Program Files\\Sunshine\\",
+      "env": {},
+      "auto_start": true,
+      "restart_on_crash": true,
+      "restart_delay_seconds": 5,
+      "max_restart_attempts": 3,
+      "health_check": {
+        "type": "http",
+        "url": "https://localhost:47990/api/configLocale",
+        "interval_seconds": 10,
+        "timeout_seconds": 5,
+        "unhealthy_threshold": 3,
+        "healthy_threshold": 1,
+        "startup_timeout_seconds": 60,
+        "verify_ssl": false
+      }
+    },
+    "web_server": {
+      "exe_path": "C:\\Program Files\\Moonlight\\moonlight-web-x86_64-pc-windows-gnu\\web-server.exe",
+      "args": "",
+      "working_dir": "C:\\Program Files\\Moonlight\\moonlight-web-x86_64-pc-windows-gnu\\",
+      "env": {},
+      "auto_start": true,
+      "restart_on_crash": true,
+      "restart_delay_seconds": 3,
+      "max_restart_attempts": 3,
+      "health_check": {
+        "type": "http",
+        "url": "http://localhost:8080",
+        "interval_seconds": 10,
+        "timeout_seconds": 5,
+        "unhealthy_threshold": 3,
+        "healthy_threshold": 1,
+        "startup_timeout_seconds": 60
+      }
+    }
+  },
+
+  "sunshine_api": {
+    "base_url": "https://localhost:47990",
+    "username": "admin",
+    "password": "",
+    "verify_ssl": false
+  },
+
+  "moonlight_web": {
+    "base_url": "http://localhost:8080",
+    "username": "admin",
+    "password": "admin"
+  },
+
+  "storage": {
+    "apps_dir": "./apps",
+    "temp_dir": "./temp",
+    "db_path": "./data/orchestrator.db",
+    "max_upload_size_bytes": 53687091200,
+    "max_extract_size_bytes": 53687091200,
+    "max_file_count": 100000
+  },
+
+  "process": {
+    "monitor_interval_seconds": 5,
+    "graceful_shutdown_timeout_seconds": 5
+  },
+
+  "notifications": {
+    "webhook_url": "",
+    "events": ["component_error", "component_crashed", "app_crashed", "disk_low"]
+  },
+
+  "log": {
+    "level": "info",
+    "file": {
+      "enabled": true,
+      "path": "./logs/orchestrator.log",
+      "max_size_mb": 100,
+      "max_backups": 5,
+      "max_age_days": 30,
+      "compress": true
+    },
+    "access_log": {
+      "enabled": true,
+      "exclude_paths": ["/api/v1/health", "/api/v1/ws"]
+    },
+    "operation_log": {
+      "max_age_days": 30,
+      "max_count": 100000
+    }
+  },
+
+  "templates": {
+    "fullscreen_1080p": "-game -fullscreen -ResX=1920 -ResY=1080 -ForceRes",
+    "fullscreen_2k": "-game -fullscreen -ResX=2560 -ResY=1440 -ForceRes",
+    "fullscreen_4k": "-game -fullscreen -ResX=3840 -ResY=2160 -ForceRes",
+    "windowed_1080p": "-game -windowed -ResX=1920 -ResY=1080 -ForceRes"
+  }
+}

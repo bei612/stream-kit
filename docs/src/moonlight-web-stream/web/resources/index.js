@@ -1,0 +1,12 @@
+"use strict";
+exports.__esModule = true;
+exports.LOGOUT_IMAGE = exports.APP_NO_IMAGE = exports.ERROR_IMAGE = exports.WARN_IMAGE = exports.HOST_OVERLAY_LOCK = exports.HOST_OVERLAY_OFFLINE = exports.HOST_OVERLAY_NONE = exports.HOST_IMAGE = void 0;
+var config__js_1 = require("../config_.js");
+exports.HOST_IMAGE = (0, config__js_1.buildUrl)("/resources/desktop_windows-48px.svg");
+exports.HOST_OVERLAY_NONE = "";
+exports.HOST_OVERLAY_OFFLINE = (0, config__js_1.buildUrl)("/resources/baseline-error_outline-24px.svg");
+exports.HOST_OVERLAY_LOCK = (0, config__js_1.buildUrl)("/resources/baseline-lock-24px.svg");
+exports.WARN_IMAGE = (0, config__js_1.buildUrl)("/resources/baseline-warning-24px.svg");
+exports.ERROR_IMAGE = (0, config__js_1.buildUrl)("/resources/baseline-error_outline-24px.svg");
+exports.APP_NO_IMAGE = (0, config__js_1.buildUrl)("/resources/no_app_image.png");
+exports.LOGOUT_IMAGE = (0, config__js_1.buildUrl)("/resources/new/logout-svgrepo-com.svg");

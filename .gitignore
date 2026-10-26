@@ -1,0 +1,46 @@
+# Go build artifacts
+orchestrator/orchestrator
+orchestrator/orchestrator.exe
+orchestrator/dist/
+
+# Frontend
+orchestrator/web/node_modules/
+orchestrator/web/dist/
+
+# Runtime data
+orchestrator/data/
+orchestrator/apps/
+orchestrator/temp/
+orchestrator/logs/
+
+# Local configuration, credentials and validation output
+orchestrator/config.json
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+.local/
+artifacts/
+
+# Example build output
+example/*.exe
+/example.zip
+
+# Toolchain/build caches (upstream source snapshots are tracked)
+**/node_modules/
+**/target/
+**/finalOutput/
+**/build/
+**/CMakeFiles/
+**/CMakeCache.txt
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

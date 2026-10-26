@@ -1,0 +1,12 @@
+# Upstream provenance retained from the imported project.
+# This repository tracks these directories as source snapshots, not gitlinks:
+# the imported files did not include Git metadata or pinned upstream commits.
+[submodule "docs/src/moonlight-qt"]
+	path = docs/src/moonlight-qt
+	url = https://github.com/moonlight-stream/moonlight-qt
+[submodule "docs/src/moonlight-web-stream"]
+	path = docs/src/moonlight-web-stream
+	url = https://github.com/MrCreativ3001/moonlight-web-stream
+[submodule "docs/src/sunshine"]
+	path = docs/src/sunshine
+	url = https://github.com/lizardbyte/sunshine

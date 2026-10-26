@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+/* Stream-Kit Dark Cyber Theme */
+:root {
+  --background: 222 47% 6%;
+  --foreground: 142 70% 80%;
+
+  --card: 222 47% 9%;
+  --card-foreground: 210 20% 85%;
+
+  --muted: 215 28% 14%;
+  --muted-foreground: 215 20% 55%;
+
+  --accent: 215 28% 18%;
+  --accent-foreground: 142 70% 80%;
+
+  --primary: 142 70% 45%;
+  --primary-foreground: 222 47% 6%;
+
+  --secondary: 215 28% 14%;
+  --secondary-foreground: 210 20% 85%;
+
+  --destructive: 0 45% 50%;
+  --destructive-foreground: 0 0% 90%;
+
+  --border: 215 28% 18%;
+  --input: 215 28% 18%;
+  --ring: 142 70% 45%;
+
+  --radius: 0.5rem;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  background-color: hsl(var(--background));
+  color: hsl(var(--card-foreground));
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: hsl(var(--background)); }
+::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
+
+@utility bg-background { background-color: hsl(var(--background)); }
+@utility bg-foreground { background-color: hsl(var(--foreground)); }
+@utility bg-card { background-color: hsl(var(--card)); }
+@utility bg-muted { background-color: hsl(var(--muted)); }
+@utility bg-accent { background-color: hsl(var(--accent)); }
+@utility bg-primary { background-color: hsl(var(--primary)); }
+@utility bg-secondary { background-color: hsl(var(--secondary)); }
+@utility bg-destructive { background-color: hsl(var(--destructive)); }
+
+@utility text-foreground { color: hsl(var(--foreground)); }
+@utility text-card-foreground { color: hsl(var(--card-foreground)); }
+@utility text-muted-foreground { color: hsl(var(--muted-foreground)); }
+@utility text-accent-foreground { color: hsl(var(--accent-foreground)); }
+@utility text-primary { color: hsl(var(--primary)); }
+@utility text-primary-foreground { color: hsl(var(--primary-foreground)); }
+@utility text-secondary-foreground { color: hsl(var(--secondary-foreground)); }
+@utility text-destructive { color: hsl(var(--destructive)); }
+@utility text-destructive-foreground { color: hsl(var(--destructive-foreground)); }
+
+@utility border-border { border-color: hsl(var(--border)); }
+@utility border-input { border-color: hsl(var(--input)); }
+@utility ring-ring { --tw-ring-color: hsl(var(--ring)); }
