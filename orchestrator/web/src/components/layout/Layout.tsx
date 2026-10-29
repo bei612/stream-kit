@@ -1,13 +1,14 @@
 import { type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router'
 import { cn } from '@/lib/utils'
-import { LayoutDashboard, Box, AppWindow, Upload, ScrollText, Settings, Zap } from 'lucide-react'
+import { LayoutDashboard, Box, AppWindow, Upload, ScrollText, Settings, Zap, Radio } from 'lucide-react'
 
 const navItems = [
   { path: '/', label: '仪表盘', icon: LayoutDashboard },
   { path: '/components', label: '组件管理', icon: Box },
   { path: '/apps', label: '应用管理', icon: AppWindow },
   { path: '/upload', label: '上传应用', icon: Upload },
+  { path: '/stream-sessions', label: '渲染会话', icon: Radio },
   { path: '/logs', label: '操作日志', icon: ScrollText },
   { path: '/settings', label: '系统设置', icon: Settings },
 ]

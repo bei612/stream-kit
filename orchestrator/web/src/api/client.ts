@@ -105,6 +105,16 @@ export const api = {
   startAllComponents: () => request<any>('/components/start-all', { method: 'POST' }),
   stopAllComponents: () => request<any>('/components/stop-all', { method: 'POST' }),
 
+  // Shared stream sessions
+  listStreamSessions: () => request<any[]>('/stream-sessions'),
+  getStreamSession: (id: string) => request<any>(`/stream-sessions/${id}`),
+  claimStreamController: (sessionId: string, connectionId: string) =>
+    request<any>(`/stream-sessions/${sessionId}/controller/${connectionId}`, { method: 'POST' }),
+  releaseStreamController: (sessionId: string) =>
+    request<any>(`/stream-sessions/${sessionId}/controller`, { method: 'DELETE' }),
+  disconnectStreamConnection: (sessionId: string, connectionId: string) =>
+    request<any>(`/stream-sessions/${sessionId}/connections/${connectionId}`, { method: 'DELETE' }),
+
   // Apps
   listApps: () => request<any[]>('/apps'),
   getApp: (id: string) => request<any>(`/apps/${id}`),

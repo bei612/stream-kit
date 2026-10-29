@@ -8,6 +8,7 @@ import AppDetail from '@/pages/AppDetail'
 import Upload from '@/pages/Upload'
 import Logs from '@/pages/Logs'
 import Settings from '@/pages/Settings'
+import StreamSessions from '@/pages/StreamSessions'
 import Login from '@/pages/Login'
 import { useWSStore } from '@/stores/websocket'
 import { useEffect } from 'react'
@@ -126,6 +127,7 @@ export default function App() {
                   <Route path="/upload" element={<Upload />} />
                   <Route path="/logs" element={<Logs />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/stream-sessions" element={<StreamSessions />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Layout>
