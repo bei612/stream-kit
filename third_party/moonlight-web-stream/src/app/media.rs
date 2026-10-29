@@ -77,6 +77,7 @@ pub struct MediaSessionSnapshot {
     pub key: MediaSessionKey,
     pub peers: Vec<MediaPeer>,
     pub controller_id: Option<String>,
+    pub upstream_owner_id: Option<String>,
 }
 
 #[derive(Debug)]
@@ -220,7 +221,12 @@ impl MediaSessionRegistry {
 }
 
 fn snapshot(key: &MediaSessionKey, session: &MediaSessionState) -> MediaSessionSnapshot {
-    MediaSessionSnapshot { key: key.clone(), peers: session.peers.values().cloned().collect(), controller_id: session.controller_id.clone() }
+    MediaSessionSnapshot {
+        key: key.clone(),
+        peers: session.peers.values().cloned().collect(),
+        controller_id: session.controller_id.clone(),
+        upstream_owner_id: session.upstream_owner.clone(),
+    }
 }
 
 #[cfg(test)]
