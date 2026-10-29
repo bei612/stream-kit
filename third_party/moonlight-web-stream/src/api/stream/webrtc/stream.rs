@@ -59,7 +59,7 @@ pub async fn webrtc_loop(
     let mut moonlight_disconnected = false;
     let mut peer_was_disconnected = true;
     loop {
-        if !stream.is_alive() {
+        if upstream_owner && !stream.is_alive() {
             info!("stopping stream because the moonlight stream is dead");
             break;
         }
@@ -119,7 +119,7 @@ pub async fn webrtc_loop(
                     mic_channel.set_track(track);
                 }
             }
-            result = stream.drive() => {
+            result = stream.drive(), if upstream_owner => {
                 if moonlight_disconnected {
                     continue;
                 }
