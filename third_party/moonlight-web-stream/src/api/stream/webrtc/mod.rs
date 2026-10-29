@@ -47,6 +47,7 @@ use tokio::sync::Notify;
 use tokio::sync::mpsc::{self};
 use tokio::time::sleep;
 use tokio::{select, spawn};
+use uuid::Uuid;
 use tracing::{Instrument, debug, debug_span, error, info, instrument, warn};
 use webrtc::data_channel::DataChannel;
 use webrtc::media_stream::track_remote::TrackRemote;
@@ -585,11 +586,22 @@ pub async fn webrtc_post(
         return Err(err.into());
     }
 
+    // Register only after negotiation has succeeded. This gives the shared
+    // media driver one authoritative attach/detach boundary and avoids
+    // exposing half-open SDP offers as online clients.
+    let media_key = crate::app::media::MediaSessionKey { host_id, app_id };
+    let media_peer_id = Uuid::new_v4().to_string();
+    app.media_sessions().attach(media_key.clone(), media_peer_id.clone()).await?;
+    info!(peer_id = %media_peer_id, "attached peer to media session");
+
     // Keep the Moonlight transport alive while STUN/ICE gathering runs. Waiting here can
     // take several seconds when a configured STUN server is unreachable.
     spawn({
         let peer = peer.clone();
         let handler = handler.clone();
+        let media_registry = app.media_sessions().clone();
+        let cleanup_key = media_key.clone();
+        let cleanup_peer_id = media_peer_id.clone();
 
         async move {
             if let Err(err) = webrtc_loop(
@@ -607,6 +619,9 @@ pub async fn webrtc_post(
             {
                 error!(error = %err, "webrtc main loop errored, closing stream");
             }
+
+            media_registry.detach(&cleanup_key, &cleanup_peer_id).await;
+            info!(peer_id = %cleanup_peer_id, "detached peer from media session");
 
             info!("stopped main webrtc loop, cleaning up");
 
@@ -658,7 +673,7 @@ pub async fn webrtc_post(
     let stream = match Stream::new(&app, &user, event_sender).await {
         Ok(value) => value,
         Err(err) => {
-            // TODO: cleanup the stream
+            app.media_sessions().detach(&media_key, &media_peer_id).await;
 
             return Err(err);
         }
