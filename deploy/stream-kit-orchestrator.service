@@ -1,0 +1,20 @@
+[Unit]
+Description=Stream-Kit Orchestrator
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/stream-kit/orchestrator
+ExecStart=/opt/stream-kit/orchestrator/orchestrator --config /etc/stream-kit/orchestrator.json
+Restart=always
+RestartSec=3
+User=streamkit
+Group=streamkit
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/stream-kit /var/log/stream-kit
+
+[Install]
+WantedBy=multi-user.target
