@@ -1,0 +1,28 @@
+[package]
+name = "moonlight-common-sys"
+version.workspace = true
+edition = "2024"
+license.workspace = true
+
+[dependencies]
+openssl-sys.workspace = true
+
+printf-compat = "0.5.0"
+
+[package.metadata.cargo-shear]
+# openssl sys is required for moonlight common c to compile
+ignored = ["openssl-sys"]
+
+[features]
+default = ["vendored", "openssl-sys/vendored"]
+
+# Vendored
+vendored = ["dep:cmake"]
+
+[build-dependencies]
+bindgen = "0.72.1"
+cmake = { version = "0.1.57", optional = true }
+
+[lib]
+test = false
+doctest = false

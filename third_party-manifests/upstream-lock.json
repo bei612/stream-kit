@@ -15,6 +15,13 @@
       "license": "GPL-3.0",
       "features_used": ["browser_microphone_uplink", "webrtc_audio_track"]
     },
+    "moonlight-common-rust": {
+      "repository": "https://github.com/MrCreativ3001/moonlight-common-rust.git",
+      "version": "revision-pinned",
+      "commit": "a972937b2e84b21a6a390873930e3afe4cfa767d",
+      "license": "GPL-3.0",
+      "dependency_mode": "vendored-path"
+    },
     "moonlight-qt": {
       "repository": "https://github.com/moonlight-stream/moonlight-qt.git",
       "version": "v6.2.0",

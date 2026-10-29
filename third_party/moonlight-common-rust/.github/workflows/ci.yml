@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - 'v*'
+  pull_request:
+
+jobs:
+  test:
+    name: Test x86_64-unknown-linux-gnu
+    runs-on: ubuntu-latest
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        features:
+        # base features
+        - ""
+        - "std"
+        - "ureq"
+        - "tokio"
+        - "tokio-hyper"
+        - "stream-proto"
+        - "stream-c"
+        - "openssl"
+        - "rustcrypto"
+        # common feature combinations
+        - "ureq openssl stream-c"
+        - "ureq rustcrypto std"
+        - "ureq std openssl stream-c rustcrypto std tokio tokio-hyper"
+  
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: nightly
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+
+      # Install GStreamer
+      - name: Install GStreamer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+            gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly \
+            gstreamer1.0-libav libgstrtspserver-1.0-dev libges-1.0-dev
+
+      # Format check
+      - name: Rustfmt
+        run: cargo fmt --all -- --check
+
+      # Clippy
+      - name: Clippy
+        run: cargo clippy --all-targets --no-default-features --features "${{ matrix.features }}" -- -D warnings
+
+      # Binstall
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@main
+
+      # Cargo Shear
+      - name: Install cargo-shear
+        run: cargo binstall --force --no-confirm cargo-shear
+      - name: Cargo Shear
+        run: cargo shear --expand
+  
+      # Test
+      - name: Test
+        run: cargo test --workspace --locked --no-default-features --features "${{ matrix.features }}"
+
+  build-bindings:
+    name: Build Bindings for ${{ matrix.target }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - wasm32-unknown-unknown
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: |
+          if [ "${{ matrix.target }}" = "wasm32-unknown-unknown" ]; then
+            cargo build -p moonlight-common-bindings \
+              --target ${{ matrix.target }} \
+              --features web
+          else
+            cargo build -p moonlight-common-bindings \
+              --target ${{ matrix.target }}
+          fi

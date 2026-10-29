@@ -1,0 +1,27 @@
+[package]
+name = "moonlight-common-bindings"
+edition = "2024"
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+moonlight-common = { workspace = true, default-features = false, features = [
+    "stream-proto",
+    "rustcrypto",
+] }
+uniffi.workspace = true
+thiserror.workspace = true
+
+tracing-subscriber = "0.3.23"
+tracing = "0.1.44"
+
+[features]
+web = ["uniffi/wasm-unstable-single-threaded"]
+
+[lib]
+crate-type = ["rlib", "cdylib", "staticlib"]
+test = false
+doctest = false
+
+[lints]
+workspace = true
