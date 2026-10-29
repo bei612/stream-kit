@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -71,6 +72,25 @@ func (h *SystemHandler) Health(c *gin.Context) {
 		"data":       resp,
 		"request_id": getRequestID(c),
 	})
+}
+
+// Metrics exposes a small Prometheus-compatible surface without adding a
+// runtime dependency. It is protected by the API JWT middleware.
+func (h *SystemHandler) Metrics(c *gin.Context) {
+	apps, _ := h.Store.ListApps()
+	running := 0
+	for _, app := range apps {
+		if app.Status == "running" {
+			running++
+		}
+	}
+	c.Header("Content-Type", "text/plain; version=0.0.4")
+	fmt.Fprintf(c.Writer, "streamkit_apps_total %d\nstreamkit_apps_running %d\n", len(apps), running)
+	if h.CompMgr != nil {
+		for _, status := range h.CompMgr.GetAll() {
+			fmt.Fprintf(c.Writer, "streamkit_component_crashes_total{component=%q} %d\n", status.Name, status.CrashCount)
+		}
+	}
 }
 
 func (h *SystemHandler) GetConfig(c *gin.Context) {

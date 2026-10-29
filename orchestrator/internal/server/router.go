@@ -77,6 +77,7 @@ func (s *Server) setupRoutes() {
 	authed.GET("/config", h.GetConfig)
 	authed.GET("/templates", h.GetTemplates)
 	authed.GET("/logs", h.GetLogs)
+	authed.GET("/metrics", h.Metrics)
 
 	// WebSocket (JWT via query param, validated by same middleware)
 	if s.WSHub != nil {
