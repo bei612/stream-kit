@@ -1,0 +1,73 @@
+[package]
+name = "web-server"
+version = "3.0.1"
+edition = "2024"
+license = "GPL-3.0-or-later"
+
+[dependencies]
+# Cli
+clap = { version = "4.5.53", features = ["derive", "env"] }
+ts-rs = "11.0.1"
+
+# Async
+tokio = { version = "1.47.1", features = ["net", "fs", "process"] }
+futures = "0.3.31"
+futures-concurrency = "7.7.1"
+bytes = "1.12.0"
+async-trait = "0.1.92"
+
+# Http Server
+actix-web = { version = "4.11.0", features = ["rustls-0_23"] }
+rustls = { version = "0.23.40", default-features = false, features = [
+    "std",
+    "ring",
+] }
+actix-files = "0.6.6"
+actix-ws = "0.4.0"
+
+# Moonlight
+# Make sure to keep the ubrn.config.yaml repo the same as this
+moonlight-common = { git = "https://github.com/MrCreativ3001/moonlight-common-rust.git", rev = "a972937b2e84b21a6a390873930e3afe4cfa767d", features = [
+    "tokio",
+    "tokio-hyper",
+    "rustcrypto",
+    "stream-proto",
+    "serde",
+], default-features = false }
+
+# WebRTC
+webrtc = "0.21.1"
+rtc = "0.21.1"
+
+# Log
+log = { version = "0.4.28", features = ["serde"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
+tracing-appender = "0.2.4"
+tracing-actix-web = "0.7.21"
+venator = "1.1.0"
+
+# Serialization
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.142"
+pem = { version = "3.0.5", features = ["serde"] }
+
+# Error
+anyhow = "1.0.99"
+thiserror = "2.0.16"
+
+# Security / Password
+sha2 = "0.10.9"
+pbkdf2 = { version = "0.13.0", features = ["sha2"] }
+
+# Other
+uuid = { version = "1.24.0" }
+hex = { version = "0.4.3" }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = ["Win32_System_Console"] }
+
+[lints.clippy]
+too_many_arguments = "allow"
+unwrap_used = "warn"
+todo = "warn"

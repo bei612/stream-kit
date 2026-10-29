@@ -4,12 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
-	"net/http"
-	"os"
-	"os/signal"
-	"path/filepath"
-	"time"
 	"github.com/stream-kit/orchestrator/internal/app"
 	"github.com/stream-kit/orchestrator/internal/component"
 	"github.com/stream-kit/orchestrator/internal/config"
@@ -17,6 +11,7 @@ import (
 	"github.com/stream-kit/orchestrator/internal/moonlight"
 	"github.com/stream-kit/orchestrator/internal/server"
 	"github.com/stream-kit/orchestrator/internal/server/handlers"
+	"github.com/stream-kit/orchestrator/internal/session"
 	"github.com/stream-kit/orchestrator/internal/store"
 	"github.com/stream-kit/orchestrator/internal/sunshine"
 	"github.com/stream-kit/orchestrator/internal/util"
@@ -24,6 +19,12 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
+	"net"
+	"net/http"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"time"
 )
 
 var (
@@ -99,6 +100,7 @@ func main() {
 
 	// WebSocket Hub
 	wsHub := ws.NewHub(logger)
+	sessionMgr := session.NewManager(wsHub)
 
 	// Component Manager — with event callback wired to WebSocket
 	shutdownTimeout := cfg.Process.GracefulShutdownTimeout
@@ -143,7 +145,7 @@ func main() {
 	)
 
 	// HTTP server
-	srv := server.New(cfg, st, compMgr, appMgr, wsHub, logger)
+	srv := server.New(cfg, st, compMgr, appMgr, wsHub, sessionMgr, logger)
 
 	httpServer := &http.Server{
 		Addr:    cfg.Server.BindAddress,
@@ -200,9 +202,9 @@ func recoverStaleApps(st *store.Store, logger *zap.Logger) {
 		return
 	}
 	staleStates := map[model.AppStatus]bool{
-		model.AppStatusUploading:  true,
-		model.AppStatusExtracting: true,
-		model.AppStatusDetecting:  true,
+		model.AppStatusUploading:   true,
+		model.AppStatusExtracting:  true,
+		model.AppStatusDetecting:   true,
 		model.AppStatusRegistering: true,
 	}
 	for _, a := range apps {

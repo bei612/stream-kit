@@ -1,0 +1,697 @@
+use std::{
+    collections::HashMap,
+    io, mem,
+    ops::Deref,
+    sync::{Arc, Weak},
+};
+
+use crate::{
+    app::host::AppId,
+    config::{Config, ForwardedHeaders},
+};
+use actix_web::{HttpResponse, ResponseError, body::BoxBody, http::StatusCode, web::Bytes};
+use futures::future::try_join_all;
+use futures_concurrency::future::RaceOk;
+use hex::FromHexError;
+use moonlight_common::{
+    crypto::rustcrypto::{RustCryptoBackend, RustCryptoError},
+    http::{client::tokio_hyper::TokioHyperClient, pair::PairingCryptoBackend},
+};
+use thiserror::Error;
+use tokio::sync::RwLock;
+use tracing::{error, info, warn};
+
+use crate::app::{
+    auth::{SessionToken, UserAuth},
+    host::HostId,
+    password::StoragePassword,
+    role::{Role, RoleId},
+    storage::{
+        Either, Storage, StorageHostModify, StorageRoleAdd, StorageRoleDefaultSettings,
+        StorageRolePermissions, StorageUserAdd, create_storage,
+    },
+    stream::{Stream, StreamId},
+    user::{Admin, AuthenticatedUser, RoleType, User, UserId},
+};
+
+pub mod auth;
+pub mod host;
+pub mod password;
+pub mod role;
+pub mod storage;
+pub mod stream;
+pub mod user;
+
+#[derive(Debug, Error)]
+pub enum AppError {
+    #[error("the app got destroyed")]
+    AppDestroyed,
+    #[error("the user was not found")]
+    UserNotFound,
+    #[error("a default user was specified but not found")]
+    DefaultUserNotFound,
+    #[error("the role was not found")]
+    RoleNotFound,
+    #[error("more than one user already exists")]
+    FirstUserAlreadyExists,
+    #[error("the config option first_login_create_admin is not true")]
+    FirstLoginCreateAdminNotSet,
+    #[error("the user already exists")]
+    UserAlreadyExists,
+    /// Could happen when using ignore case for usernames in the request header
+    #[error("multiple users where found to match the request")]
+    MultipleUsersFound,
+    #[error("the host was not found")]
+    HostNotFound,
+    #[error("the host was already paired")]
+    HostPaired,
+    #[error("the host must be paired for this action")]
+    HostNotPaired,
+    #[error("the client doesn't support the required codecs")]
+    WebRtcClientCodecNotSupported,
+    #[error("the stream was already closed")]
+    StreamClosed,
+    // -- Unauthorized
+    #[error("the credentials don't exists")]
+    CredentialsWrong,
+    #[error("the host was not found")]
+    SessionTokenNotFound,
+    #[error("the action is not allowed because the user is not authorized, 401")]
+    Unauthorized,
+    #[error("using a custom header for authorization is disabled")]
+    HeaderAuthDisabled,
+    // --
+    #[error("the action is not allowed with the current privileges, 403")]
+    Forbidden,
+    // -- Bad Request
+    #[error("the authorization header is not a bearer")]
+    AuthorizationNotBearer,
+    #[error("the custom header used to authorize is malformed")]
+    HeaderAuthMalformed,
+    #[error("the authorization header is not a bearer")]
+    BearerMalformed,
+    #[error("the password is empty")]
+    PasswordEmpty,
+    #[error("the password is empty")]
+    UserNameEmpty,
+    #[error("the authorization header is not a bearer")]
+    BadRequest,
+    // --
+    #[error("rustcrypto error occured: {0}")]
+    RustCrypto(#[from] RustCryptoError),
+    #[error("hex error occured: {0}")]
+    Hex(#[from] FromHexError),
+    #[error("io error: {0}")]
+    Io(#[from] io::Error),
+    #[error("moonlight error: {0}")]
+    Moonlight(#[from] moonlight_common::error::Error),
+    #[error("failed to parse the given sdp: {0}")]
+    WebRTCSdp(#[from] moonlight_common::webrtc::sdp::ParserError),
+    #[error("webrtc: {0}")]
+    WebRTC(#[from] webrtc::error::Error),
+}
+
+impl ResponseError for AppError {
+    fn status_code(&self) -> StatusCode {
+        self.error_response().status()
+    }
+
+    fn error_response(&self) -> HttpResponse<BoxBody> {
+        match self {
+            Self::AppDestroyed => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+            Self::FirstUserAlreadyExists => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+            Self::FirstLoginCreateAdminNotSet => {
+                HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+            Self::HostNotFound => {
+                HttpResponse::new(StatusCode::NOT_FOUND).set_body(BoxBody::new("host not found"))
+            }
+            Self::HostNotPaired => HttpResponse::new(StatusCode::FORBIDDEN),
+            Self::HostPaired => HttpResponse::new(StatusCode::NOT_MODIFIED)
+                .set_body(BoxBody::new("host not paired")),
+            Self::WebRtcClientCodecNotSupported => HttpResponse::new(StatusCode::BAD_REQUEST),
+            Self::UserNotFound => {
+                HttpResponse::new(StatusCode::NOT_FOUND).set_body(BoxBody::new("user not found"))
+            }
+            Self::DefaultUserNotFound => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+            Self::RoleNotFound => {
+                HttpResponse::new(StatusCode::NOT_FOUND).set_body(BoxBody::new("role not found"))
+            }
+            Self::StreamClosed => {
+                HttpResponse::new(StatusCode::NOT_FOUND).set_body(BoxBody::new("stream not found"))
+            }
+            Self::UserAlreadyExists => HttpResponse::new(StatusCode::CONFLICT),
+            Self::MultipleUsersFound => HttpResponse::new(StatusCode::CONFLICT)
+                .set_body(BoxBody::new("multiple users match the requested user name")),
+            Self::CredentialsWrong => HttpResponse::new(StatusCode::UNAUTHORIZED),
+            Self::SessionTokenNotFound => HttpResponse::new(StatusCode::UNAUTHORIZED),
+            Self::Unauthorized => HttpResponse::new(StatusCode::UNAUTHORIZED),
+            Self::Forbidden => HttpResponse::new(StatusCode::FORBIDDEN),
+            Self::RustCrypto(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+            Self::HeaderAuthDisabled => HttpResponse::new(StatusCode::UNAUTHORIZED),
+            Self::Hex(_) => HttpResponse::new(StatusCode::BAD_REQUEST),
+            Self::AuthorizationNotBearer => HttpResponse::new(StatusCode::BAD_REQUEST),
+            Self::HeaderAuthMalformed => HttpResponse::new(StatusCode::BAD_REQUEST),
+            Self::BearerMalformed => HttpResponse::new(StatusCode::BAD_REQUEST),
+            Self::PasswordEmpty => HttpResponse::new(StatusCode::BAD_REQUEST),
+            Self::UserNameEmpty => HttpResponse::new(StatusCode::BAD_REQUEST),
+            Self::BadRequest => HttpResponse::new(StatusCode::BAD_REQUEST),
+            Self::WebRTCSdp(error) => HttpResponse::new(StatusCode::BAD_REQUEST)
+                .set_body(BoxBody::new(format!("{error}"))),
+            Self::Moonlight(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+            Self::WebRTC(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+            Self::Io(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+        }
+    }
+}
+
+#[derive(Clone)]
+struct AppRef {
+    inner: Weak<AppInner>,
+}
+
+impl AppRef {
+    fn access(&self) -> Result<impl Deref<Target = AppInner> + 'static, AppError> {
+        Weak::upgrade(&self.inner).ok_or(AppError::AppDestroyed)
+    }
+}
+
+struct AppInner {
+    config: Config,
+    storage: Arc<dyn Storage + Send + Sync>,
+    app_image_cache: RwLock<HashMap<(UserId, HostId, AppId), Bytes>>,
+    streams: RwLock<HashMap<StreamId, Stream>>,
+}
+
+pub type RequestClient = TokioHyperClient;
+
+pub struct App {
+    inner: Arc<AppInner>,
+}
+
+impl App {
+    pub async fn new(config: Config) -> Result<Self, anyhow::Error> {
+        let app = AppInner {
+            storage: create_storage(config.data_storage.clone()).await?,
+            config,
+            app_image_cache: Default::default(),
+            streams: Default::default(),
+        };
+        let inner = Arc::new(app);
+
+        Ok(Self { inner })
+    }
+
+    fn new_ref(&self) -> AppRef {
+        AppRef {
+            inner: Arc::downgrade(&self.inner),
+        }
+    }
+
+    pub fn config(&self) -> &Config {
+        &self.inner.config
+    }
+
+    // -- Streams
+
+    async fn insert_stream(&self, f: impl FnOnce(StreamId) -> Stream) -> Result<Stream, AppError> {
+        let mut streams = self.inner.streams.write().await;
+
+        let mut id = StreamId(0);
+        while streams.contains_key(&id) {
+            let mut random = [0; _];
+            RustCryptoBackend.random_bytes(&mut random)?;
+            id = StreamId(u32::from_be_bytes(random));
+        }
+
+        let stream = f(id);
+        streams.insert(id, stream.clone());
+
+        Ok(stream)
+    }
+    pub async fn stream_by_id(&self, id: StreamId) -> Result<Stream, AppError> {
+        let streams = self.inner.streams.read().await;
+
+        let stream = streams.get(&id).ok_or(AppError::StreamClosed)?;
+
+        Ok(stream.clone())
+    }
+
+    // -- Users
+
+    /// Handles all logic related to adding the first user:
+    /// - Is this even currently allowed?
+    /// - Moving hosts from global to first user
+    pub async fn try_add_first_login(
+        &self,
+        username: String,
+        password: String,
+    ) -> Result<AuthenticatedUser, AppError> {
+        if !self.config().web_server.first_login_create_admin {
+            return Err(AppError::FirstLoginCreateAdminNotSet);
+        }
+
+        let any_user_exists = self.inner.storage.any_user_exists().await?;
+        if any_user_exists {
+            return Err(AppError::FirstUserAlreadyExists);
+        }
+
+        let admin_role = self.admin_role().await?;
+
+        let mut user = self
+            .add_user_no_auth(StorageUserAdd {
+                name: username.clone(),
+                password: Some(StoragePassword::new(&password)?),
+                role_id: admin_role.id(),
+                client_unique_id: username,
+            })
+            .await?;
+
+        if self.config().web_server.first_login_assign_global_hosts {
+            // Note: only this user exists and all hosts are global, if migrated from v1 to v2
+            // -> list_hosts will show just global hosts
+
+            let hosts = user.hosts().await?;
+
+            let user_id = user.id();
+            for mut host in hosts {
+                match host
+                    .modify(
+                        &mut user,
+                        StorageHostModify {
+                            owner: Some(Some(user_id)),
+                            ..Default::default()
+                        },
+                    )
+                    .await
+                {
+                    Ok(_) => {}
+                    Err(err) => {
+                        warn!("failed to move global host to new user {user_id:?}: {err}");
+                    }
+                }
+            }
+        }
+
+        Ok(user)
+    }
+
+    /// admin: The admin that tries to do this action
+    pub async fn add_user(
+        &self,
+        _: &Admin,
+        user: StorageUserAdd,
+    ) -> Result<AuthenticatedUser, AppError> {
+        self.add_user_no_auth(user).await
+    }
+
+    async fn add_user_no_auth(&self, user: StorageUserAdd) -> Result<AuthenticatedUser, AppError> {
+        if user.name.is_empty() {
+            return Err(AppError::UserNameEmpty);
+        }
+
+        let user = self.inner.storage.add_user(user).await?;
+
+        Ok(AuthenticatedUser {
+            inner: User {
+                app: self.new_ref(),
+                id: user.id,
+                cache_storage: Some(user.into()),
+            },
+        })
+    }
+
+    pub async fn user_by_auth(&self, auth: UserAuth) -> Result<AuthenticatedUser, AppError> {
+        match auth {
+            UserAuth::None => {
+                let Some(user) = self.default_user().await? else {
+                    return Err(AppError::Unauthorized);
+                };
+
+                user.authenticate(&UserAuth::None).await
+            }
+            UserAuth::UserPassword { ref username, .. } => {
+                let user = self.user_by_name(username).await?;
+
+                user.authenticate(&auth).await
+            }
+            UserAuth::Session(session) => {
+                let user = self.user_by_session(session).await?;
+
+                Ok(user)
+            }
+            UserAuth::ForwardedHeaders { ref username } => {
+                let config_forwarded_header = ForwardedHeaders::default();
+                let config_forwarded_header = self
+                    .config()
+                    .web_server
+                    .forwarded_header
+                    .as_ref()
+                    .unwrap_or(&config_forwarded_header);
+
+                let result = if config_forwarded_header.ignore_case {
+                    self.user_by_name_ignore_case(username).await
+                } else {
+                    self.user_by_name(username).await
+                };
+
+                let user = match result {
+                    Ok(user) => user,
+                    Err(AppError::UserNotFound) => {
+                        let Some(config_forwarded_headers) =
+                            &self.config().web_server.forwarded_header
+                        else {
+                            return Err(AppError::Unauthorized);
+                        };
+
+                        if !config_forwarded_headers.auto_create_missing_user {
+                            return Err(AppError::Unauthorized);
+                        }
+
+                        let role = self.default_role().await?;
+
+                        info!("Adding new user {username:?} from proxy.");
+
+                        let user = self
+                            .add_user_no_auth(StorageUserAdd {
+                                role_id: role.id(),
+                                name: username.clone(),
+                                password: None,
+                                client_unique_id: username.clone(),
+                            })
+                            .await?;
+
+                        return Ok(user);
+                    }
+                    Err(err) => return Err(err),
+                };
+
+                user.authenticate(&auth).await
+            }
+        }
+    }
+
+    pub async fn user_by_id(&self, user_id: UserId) -> Result<User, AppError> {
+        let user = self.inner.storage.get_user(user_id).await?;
+
+        Ok(User {
+            app: self.new_ref(),
+            id: user_id,
+            cache_storage: Some(user.into()),
+        })
+    }
+    pub async fn user_by_name(&self, name: &str) -> Result<User, AppError> {
+        let (user_id, user) = self.inner.storage.get_user_by_name(name).await?;
+
+        Ok(User {
+            app: self.new_ref(),
+            id: user_id,
+            cache_storage: user.map(Into::into),
+        })
+    }
+    pub async fn user_by_name_ignore_case(&self, name: &str) -> Result<User, AppError> {
+        let users = self.inner.storage.list_users().await?;
+
+        let users = match users {
+            Either::Left(user_ids) => {
+                try_join_all(
+                    user_ids
+                        .into_iter()
+                        .map(|user_id| self.inner.storage.get_user(user_id)),
+                )
+                .await?
+            }
+            Either::Right(users) => users,
+        };
+        let mut iter = users
+            .into_iter()
+            .filter(|user| user.name.eq_ignore_ascii_case(name));
+
+        let Some(user) = iter.next() else {
+            return Err(AppError::UserNotFound);
+        };
+
+        if iter.next().is_some() {
+            return Err(AppError::MultipleUsersFound);
+        }
+
+        Ok(User {
+            app: self.new_ref(),
+            id: user.id,
+            cache_storage: Some(Arc::new(user)),
+        })
+    }
+    pub async fn user_by_session(
+        &self,
+        session: SessionToken,
+    ) -> Result<AuthenticatedUser, AppError> {
+        let (user_id, user) = self
+            .inner
+            .storage
+            .get_user_by_session_token(session)
+            .await?;
+
+        Ok(AuthenticatedUser {
+            inner: User {
+                app: self.new_ref(),
+                id: user_id,
+                cache_storage: user.map(Into::into),
+            },
+        })
+    }
+
+    pub async fn all_users(&self, _: Admin) -> Result<Vec<User>, AppError> {
+        let users = self.inner.storage.list_users().await?;
+
+        let users = match users {
+            Either::Left(user_ids) => user_ids
+                .into_iter()
+                .map(|id| User {
+                    app: self.new_ref(),
+                    id,
+                    cache_storage: None,
+                })
+                .collect::<Vec<_>>(),
+            Either::Right(users) => users
+                .into_iter()
+                .map(|user| User {
+                    app: self.new_ref(),
+                    id: user.id,
+                    cache_storage: Some(user.into()),
+                })
+                .collect::<Vec<_>>(),
+        };
+
+        Ok(users)
+    }
+
+    pub async fn delete_session(&self, session: SessionToken) -> Result<(), AppError> {
+        self.inner.storage.remove_session_token(session).await
+    }
+
+    // -- Roles
+
+    async fn find_role(
+        &self,
+        filter: impl AsyncFn(&mut Role) -> Result<bool, AppError>,
+    ) -> Result<Role, AppError> {
+        let roles = self.all_roles_no_auth().await?;
+
+        let role = roles
+            .into_iter()
+            .map(|mut role| async {
+                if filter(&mut role).await? {
+                    Ok(role)
+                } else {
+                    Err(AppError::RoleNotFound)
+                }
+            })
+            .collect::<Vec<_>>()
+            .race_ok()
+            .await
+            .map_err(|mut err| {
+                let err = mem::take(&mut *err);
+                err.into_iter()
+                    .find(|x| !matches!(x, AppError::RoleNotFound))
+                    .unwrap_or(AppError::RoleNotFound)
+            })?;
+
+        Ok(role)
+    }
+
+    /// Returns any role that is an Admin
+    pub async fn admin_role(&self) -> Result<Role, AppError> {
+        let result = self
+            .find_role(async |role| {
+                let ty = role.ty().await?;
+
+                Ok(matches!(ty, RoleType::Admin))
+            })
+            .await;
+
+        match result {
+            Ok(value) => Ok(value),
+            Err(AppError::RoleNotFound) => {
+                // We've got no admin role -> add an admin role
+
+                info!("There was no admin role found. Adding an Admin role");
+
+                let role = self
+                    .add_role_no_auth(StorageRoleAdd {
+                        name: "Admin".to_owned(),
+                        ty: RoleType::Admin,
+                        default_settings: StorageRoleDefaultSettings::default(),
+                        permissions: StorageRolePermissions::default(),
+                    })
+                    .await?;
+
+                info!("Added admin role: {role:?}");
+
+                Ok(role)
+            }
+            Err(err) => Err(err),
+        }
+    }
+    /// Returns the first user role it finds
+    pub async fn default_role(&self) -> Result<Role, AppError> {
+        let default_role = self.inner.storage.default_role().await?;
+
+        match default_role {
+            None => {
+                let result = self
+                    .find_role(async |role| {
+                        let ty = role.ty().await?;
+
+                        Ok(matches!(ty, RoleType::User))
+                    })
+                    .await;
+
+                match result {
+                    Ok(value) => Ok(value),
+                    Err(AppError::RoleNotFound) => {
+                        // We've got no admin role -> add an admin role
+
+                        info!("There was no default role found. Adding a new default user role");
+
+                        let role = self
+                            .add_role_no_auth(StorageRoleAdd {
+                                name: "User".to_owned(),
+                                ty: RoleType::User,
+                                default_settings: StorageRoleDefaultSettings::default(),
+                                permissions: StorageRolePermissions::default(),
+                            })
+                            .await?;
+
+                        info!("Added user role: {role:?}");
+
+                        Ok(role)
+                    }
+                    Err(err) => Err(err),
+                }
+            }
+            Some(Either::Left(role_id)) => self.role_by_id(role_id).await,
+            Some(Either::Right(role)) => Ok(Role {
+                app: self.new_ref(),
+                id: role.id,
+                cache_storage: Some(Arc::new(role)),
+            }),
+        }
+    }
+
+    pub async fn add_role(&self, _admin: &Admin, role: StorageRoleAdd) -> Result<Role, AppError> {
+        self.add_role_no_auth(role).await
+    }
+    pub async fn add_role_no_auth(&self, role: StorageRoleAdd) -> Result<Role, AppError> {
+        let role = self.inner.storage.add_role(role).await?;
+
+        Ok(Role {
+            app: self.new_ref(),
+            id: role.id,
+            cache_storage: Some(role.into()),
+        })
+    }
+
+    pub async fn role_by_id(&self, id: RoleId) -> Result<Role, AppError> {
+        let role = self.inner.storage.get_role(id).await?;
+
+        Ok(Role {
+            app: self.new_ref(),
+            id: role.id,
+            cache_storage: Some(role.into()),
+        })
+    }
+
+    pub async fn all_roles(&self, _admin: &Admin) -> Result<Vec<Role>, AppError> {
+        self.all_roles_no_auth().await
+    }
+
+    pub async fn all_roles_no_auth(&self) -> Result<Vec<Role>, AppError> {
+        let roles = self.inner.storage.list_roles().await?;
+
+        let roles = match roles {
+            Either::Left(role_ids) => role_ids
+                .into_iter()
+                .map(|id| Role {
+                    app: self.new_ref(),
+                    id,
+                    cache_storage: None,
+                })
+                .collect::<Vec<_>>(),
+            Either::Right(roles) => roles
+                .into_iter()
+                .map(|role| Role {
+                    app: self.new_ref(),
+                    id: role.id,
+                    cache_storage: Some(role.into()),
+                })
+                .collect::<Vec<_>>(),
+        };
+
+        Ok(roles)
+    }
+
+    pub async fn set_default_user(
+        &self,
+        _admin: &Admin,
+        user: Option<&User>,
+    ) -> Result<(), AppError> {
+        self.inner
+            .storage
+            .set_default_user(user.map(User::id))
+            .await
+    }
+    pub async fn default_user(&self) -> Result<Option<User>, AppError> {
+        let Some(user) = self.inner.storage.default_user().await? else {
+            return Ok(None);
+        };
+
+        let user = match user {
+            Either::Right(storage) => User {
+                app: self.new_ref(),
+                id: storage.id,
+                cache_storage: Some(Arc::new(storage)),
+            },
+            Either::Left(user_id) => match self.user_by_id(user_id).await {
+                Ok(user) => user,
+                Err(AppError::UserNotFound) => {
+                    error!("the default user {user_id:?} was not found!");
+                    return Err(AppError::DefaultUserNotFound);
+                }
+                Err(err) => return Err(err),
+            },
+        };
+
+        Ok(Some(user))
+    }
+
+    pub async fn set_default_role(
+        &self,
+        _admin: &Admin,
+        role: Option<&Role>,
+    ) -> Result<(), AppError> {
+        self.inner
+            .storage
+            .set_default_role(role.map(Role::id))
+            .await
+    }
+}

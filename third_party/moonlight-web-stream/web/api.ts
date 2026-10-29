@@ -1,0 +1,568 @@
+import { App, DeleteHostQuery, DeleteUserRequest, DetailedHost, DetailedUser, GetAppImageQuery, GetAppsQuery, GetAppsResponse, GetHostQuery, GetHostResponse, GetHostsResponse, GetUserQuery, GetUsersResponse, PatchUserRequest, PostCancelRequest, PostCancelResponse, PostLoginRequest, PostPairRequest, PostPairResponse1, PostPairResponse2, PostUserRequest, PostWakeUpRequest, PostHostRequest, PostHostResponse, UndetailedHost, PatchHostRequest, GetRolesResponse, GetRoleResponse, GetRoleQuery, DeleteRoleQuery, PatchRoleRequest, PostRoleResponse, PostRoleRequest, DetailedRole, PutDefaultUserRequest, PutDefaultRoleRequest, GetDefaultRoleResponse, GetDefaultUserResponse, } from "./api_bindings"
+import { showNotification } from "./component/notification"
+import { showMessage, showModal } from "./component/modal/index"
+import { ApiUserPasswordPrompt } from "./component/modal/login"
+import { buildUrl } from "./config_"
+import { WebRtcLinkHeader_Tags, webrtcLinkHeaderParse } from "./uniffi/moonlight_common_bindings"
+
+// IMPORTANT: this should be a bit bigger than the moonlight-common reqwest backend timeout if some hosts are offline!
+const API_TIMEOUT = 12000
+
+// -- Any errors related to auth will reload page -> show the auth modal
+function handleError(event: ErrorEvent) {
+    onError(event.error)
+}
+function handleRejection(event: PromiseRejectionEvent) {
+    onError(event.reason)
+}
+function onError(error: any) {
+    if (error instanceof FetchError) {
+        const response = error.getResponse()
+        // 401 = Unauthorized
+        if (response?.status == 401) {
+            window.location.reload()
+        }
+    }
+}
+
+window.addEventListener("error", handleError)
+window.addEventListener("unhandledrejection", handleRejection)
+
+export async function getApi(): Promise<Api> {
+    const host_url = buildUrl("/api")
+
+    let api = { host_url, bearer: null, user: null, role: null }
+
+    if (await apiAuthenticate(api)) {
+        return api
+    }
+
+    let newApi: Api
+    while (true) {
+        const api = await tryLogin()
+        if (api) {
+            newApi = api
+            break
+        }
+    }
+
+    return newApi
+}
+export async function tryLogin(): Promise<Api | null> {
+    const host_url = buildUrl("/api")
+
+    let api = { host_url, bearer: null, user: null, role: null }
+
+    const prompt = new ApiUserPasswordPrompt()
+    const userAuth = await showModal(prompt)
+
+    if (userAuth == null) {
+        return null
+    }
+
+    if (await apiLogin(api, userAuth)) {
+        if (!await apiAuthenticate(api)) {
+            showNotification("Login was successful but authentication doesn't work!")
+        }
+        return api
+    } else {
+        await showMessage("Credentials are not Valid")
+        return null
+    }
+}
+
+const OPTIONS = "OPTIONS"
+const GET = "GET"
+const PUT = "PUT"
+const POST = "POST"
+const PATCH = "PATCH"
+const DELETE = "DELETE"
+
+export type Api = {
+    host_url: string
+    bearer: string | null,
+    // User cache
+    user: DetailedUser | null,
+    role: DetailedRole | null,
+}
+
+export type ApiFetchInit = {
+    noUrlModify?: boolean,
+    query?: any,
+    noTimeout?: boolean,
+    keepalive?: boolean,
+} & (
+        { json?: any, }
+        | { sdp?: string }
+        | { trickleIceSdpFrag?: string }
+    )
+
+export function isDetailedHost(host: UndetailedHost | DetailedHost): host is DetailedHost {
+    return (host as DetailedHost).https_port !== undefined
+}
+
+function buildRequest(api: Api, endpoint: string, method: string, init?: ApiFetchInit): [string, RequestInit] {
+    const queryObj = init?.query || {};
+    const queryParts = [];
+    for (const key in queryObj) {
+        // Remove all null values from query, these cause problems in rust
+        if (queryObj[key] != null) {
+            queryParts.push(
+                encodeURIComponent(key) + "=" + encodeURIComponent(queryObj[key])
+            );
+        }
+    }
+    const queryString = queryParts.length > 0 ? "?" + queryParts.join("&") : "";
+
+    let url
+    if (init?.noUrlModify) {
+        url = `${endpoint}${queryString}`
+    } else {
+        url = `${api.host_url}${endpoint}${queryString}`
+    }
+
+    const headers: any = {};
+
+    if (api.bearer) {
+        headers["Authorization"] = `Bearer ${api.bearer}`;
+    }
+
+    let body = null
+    if (init) {
+        if ("json" in init) {
+            headers["Content-Type"] = "application/json"
+            body = JSON.stringify(init.json)
+        } else if ("sdp" in init) {
+            headers["Content-Type"] = "application/sdp"
+            body = init.sdp
+        } else if ("trickleIceSdpFrag" in init) {
+            headers["Content-Type"] = "application/trickle-ice-sdpfrag"
+            body = init.trickleIceSdpFrag
+        }
+    }
+
+    const request: RequestInit = {
+        method: method,
+        headers,
+        body,
+        credentials: "include"
+    }
+
+    if (init?.keepalive) {
+        request.keepalive = true
+    }
+
+    return [url, request]
+}
+
+export class FetchError extends Error {
+    private response?: Response
+
+
+    constructor(message: string, response?: Response) {
+        super(message)
+        this.response = response
+    }
+
+    static create(type: "timeout", endpoint: string, method: string): Promise<FetchError>
+    static create(type: "failed", endpoint: string, method: string, response: Response, reason?: string): Promise<FetchError>
+    static create(type: "unknown", endpoint: string, method: string, error: Error): Promise<FetchError>
+
+    static async create(type: "timeout" | "failed" | "unknown", endpoint: string, method: string, responseOrError?: Response | any, reason?: string): Promise<FetchError> {
+        if (type == "timeout") {
+            return new FetchError(`failed to fetch ${method} at ${endpoint} because of timeout`)
+        } else if (type == "failed") {
+            const response = responseOrError as Response
+            const text = await response.text()
+
+            return new FetchError(`failed to fetch ${method} at ${endpoint} with "${response.statusText}"(${response?.status}) ${text ? `and response ${text}` : ""} ${reason ? `because of ${reason}` : ""}`, response)
+        } else if (type == "unknown") {
+            const error = responseOrError as Error
+            return new FetchError(`failed to fetch ${method} at ${endpoint} because of ${error}`)
+        }
+
+        throw "invalid fetch error type"
+    }
+
+    getResponse(): Response | null {
+        return this.response ?? null
+    }
+}
+
+class StreamedJsonResponse<Initial, Other> {
+    response: Initial
+
+    private reader
+    private decoder = new TextDecoder()
+    private bufferedText = ""
+
+    constructor(body: ReadableStreamDefaultReader, response: Initial) {
+        this.reader = body
+        this.response = response
+    }
+
+    async next(): Promise<Other | null> {
+        while (true) {
+            const { done, value } = await this.reader.read()
+
+            if (done) {
+                return null
+            }
+
+            this.bufferedText += this.decoder.decode(value)
+
+            const split = this.bufferedText.split("\n", 2)
+            if (split.length == 2) {
+                this.bufferedText = split[1]
+
+                const text = split[0]
+                const json = JSON.parse(text)
+
+                return json
+            }
+        }
+    }
+}
+
+export async function fetchApi(api: Api, endpoint: string, method: string, init?: { response?: "json" } & ApiFetchInit, timeout?: number): Promise<any>
+export async function fetchApi(api: Api, endpoint: string, method: string, init: { response: "ignore" } & ApiFetchInit, timeout?: number): Promise<Response>
+export async function fetchApi<Initial, Other>(api: Api, endpoint: string, method: string, init: { response: "jsonStreaming" } & ApiFetchInit, timeout?: number): Promise<StreamedJsonResponse<Initial, Other>>
+
+export async function fetchApi(api: Api, endpoint: string, method: string = GET, init?: { response?: "json" | "ignore" | "jsonStreaming" } & ApiFetchInit, timeout: number = API_TIMEOUT) {
+    const [url, request] = buildRequest(api, endpoint, method, init)
+
+    if (!init?.noTimeout) {
+        request.signal = AbortSignal.timeout(timeout)
+    }
+
+    let response
+    try {
+        response = await fetch(url, request)
+    } catch (e: any) {
+        throw await FetchError.create("unknown", endpoint, method, e)
+    }
+
+    if (!response.ok) {
+        throw await FetchError.create("failed", endpoint, method, response)
+    }
+
+    if (init?.response == "ignore") {
+        return response
+    }
+
+    if (init?.response == undefined || init.response == "json") {
+        const json = await response.json()
+
+        return json
+    } else if (init?.response == "jsonStreaming") {
+        if (!response.body) {
+            throw await FetchError.create("failed", endpoint, method, response)
+        }
+
+        // @ts-ignore
+        const stream = new StreamedJsonResponse(response.body?.getReader())
+        const data = await stream.next()
+        stream.response = data
+
+        return stream
+    }
+}
+
+export async function apiLogin(api: Api, request: PostLoginRequest): Promise<boolean> {
+    let response
+
+    try {
+        response = await fetchApi(api, "/login", "post", {
+            json: request,
+            response: "ignore"
+        })
+    } catch (e) {
+        if (e instanceof FetchError) {
+            const response = e.getResponse()
+
+            if (response && (response.status == 401 || response.status == 404)) {
+                return false
+            } else {
+                showNotification(e.message)
+                return false
+            }
+        }
+    }
+
+    return true
+}
+
+export async function apiLogout(api: Api): Promise<boolean> {
+    let response
+    try {
+        response = await fetchApi(api, "/logout", "post", { response: "ignore" })
+    } catch (e) {
+        throw e
+    }
+
+    return true
+}
+
+export async function apiAuthenticate(api: Api, retryOnFail?: boolean): Promise<boolean> {
+    const retryOnFail_ = retryOnFail === undefined ? true : retryOnFail
+
+    let response
+    try {
+        response = await fetchApi(api, "/authenticate", GET, { response: "ignore" })
+    } catch (e) {
+        if (e instanceof FetchError) {
+            const response = e.getResponse()
+            if (response?.status == 401) {
+                return false
+            } else if (response?.status == 409 && retryOnFail_) {
+                // 409 = Conflict, SessionTokenNotFound -> requires a new request
+                return await apiAuthenticate(api, false)
+            } else {
+                throw e
+            }
+        }
+        throw e
+    }
+
+    return response != null
+}
+
+export async function apiGetUser(api: Api, query?: GetUserQuery): Promise<DetailedUser> {
+    if (!query || (query.name == null && query.user_id == null)) {
+        if (api.user) {
+            return api.user
+        }
+    }
+
+    const response = await fetchApi(api, "/user", GET, {
+        query: query ?? { name: null, user_id: null }
+    })
+
+    return response as DetailedUser
+}
+export async function apiGetUsers(api: Api): Promise<GetUsersResponse> {
+    const response = await fetchApi(api, "/users", GET)
+
+    return response as GetUsersResponse
+}
+export async function apiPostUser(api: Api, data: PostUserRequest): Promise<DetailedUser> {
+    const response = await fetchApi(api, "/user", POST, { json: data })
+
+    return response as DetailedUser
+}
+export async function apiPatchUser(api: Api, data: PatchUserRequest): Promise<void> {
+    await fetchApi(api, "/user", PATCH, {
+        json: data,
+        response: "ignore"
+    })
+}
+export async function apiDeleteUser(api: Api, data: DeleteUserRequest): Promise<void> {
+    await fetchApi(api, "/user", DELETE, {
+        json: data,
+        response: "ignore"
+    })
+}
+
+export async function apiPutDefaultUser(api: Api, data: PutDefaultUserRequest): Promise<void> {
+    await fetchApi(api, "/user/default", PUT, {
+        json: data,
+        response: "ignore"
+    })
+}
+export async function apiDeleteDefaultUser(api: Api): Promise<void> {
+    await fetchApi(api, "/user/default", DELETE, {
+        response: "ignore"
+    })
+}
+export async function apiGetDefaultUser(api: Api): Promise<GetDefaultUserResponse> {
+    return await fetchApi(api, "/user/default", GET)
+}
+
+export async function apiGetRoles(api: Api): Promise<GetRolesResponse> {
+    const response = await fetchApi(api, "/roles", GET, {
+        response: "json"
+    })
+
+    return response as GetRolesResponse
+}
+export async function apiGetRole(api: Api, query: GetRoleQuery): Promise<GetRoleResponse> {
+    const response = await fetchApi(api, "/role", GET, {
+        query,
+        response: "json"
+    })
+    return response as GetRoleResponse
+}
+export async function apiPostRole(api: Api, request: PostRoleRequest): Promise<PostRoleResponse> {
+    const response = await fetchApi(api, "/role", POST, {
+        json: request,
+        response: "json"
+    });
+
+    return response as PostRoleResponse
+}
+export async function apiPatchRole(api: Api, request: PatchRoleRequest): Promise<void> {
+    await fetchApi(api, "/role", PATCH, {
+        json: request,
+        response: "ignore",
+    })
+}
+export async function apiDeleteRole(api: Api, query: DeleteRoleQuery): Promise<void> {
+    await fetchApi(api, "/role", DELETE, {
+        query,
+        response: "ignore",
+    })
+}
+
+export async function apiPutDefaultRole(api: Api, data: PutDefaultRoleRequest): Promise<void> {
+    await fetchApi(api, "/role/default", PUT, {
+        json: data,
+        response: "ignore"
+    })
+}
+export async function apiDeleteDefaultRole(api: Api): Promise<void> {
+    await fetchApi(api, "/role/default", DELETE, {
+        response: "ignore"
+    })
+}
+export async function apiGetDefaultRole(api: Api): Promise<GetDefaultRoleResponse> {
+    return await fetchApi(api, "/role/default", GET)
+}
+
+export async function apiGetHosts(api: Api): Promise<StreamedJsonResponse<GetHostsResponse, UndetailedHost>> {
+    return await fetchApi<GetHostsResponse, UndetailedHost>(api, "/hosts", GET, { response: "jsonStreaming" })
+}
+export async function apiGetHost(api: Api, query: GetHostQuery): Promise<DetailedHost> {
+    const response = await fetchApi(api, "/host", GET, { query })
+
+    return (response as GetHostResponse).host
+}
+export async function apiPostHost(api: Api, data: PostHostRequest): Promise<DetailedHost> {
+    const response = await fetchApi(api, "/host", "post", { json: data })
+
+    return (response as PostHostResponse).host
+}
+export async function apiPatchHost(api: Api, data: PatchHostRequest): Promise<void> {
+    await fetchApi(api, "/host", PATCH, {
+        json: data,
+        response: "ignore"
+    })
+}
+export async function apiDeleteHost(api: Api, query: DeleteHostQuery): Promise<void> {
+    await fetchApi(api, "/host", "delete", { query, response: "ignore" })
+}
+
+export async function apiPostPair(api: Api, request: PostPairRequest): Promise<StreamedJsonResponse<PostPairResponse1, PostPairResponse2>> {
+    return await fetchApi(api, "/pair", "post", {
+        json: request,
+        response: "jsonStreaming",
+        noTimeout: true
+    })
+}
+
+export async function apiWakeUp(api: Api, request: PostWakeUpRequest): Promise<void> {
+    await fetchApi(api, "/host/wake", "post", {
+        json: request,
+        response: "ignore"
+    })
+}
+
+export async function apiGetApps(api: Api, query: GetAppsQuery): Promise<Array<App>> {
+    const response = await fetchApi(api, "/apps", GET, { query }) as GetAppsResponse
+
+    return response.apps
+}
+
+export async function apiGetAppImage(api: Api, query: GetAppImageQuery): Promise<Blob> {
+    const response = await fetchApi(api, "/app/image", GET, {
+        query,
+        response: "ignore"
+    },
+        60000)
+
+    return await response.blob()
+}
+
+export async function apiHostCancel(api: Api, request: PostCancelRequest): Promise<PostCancelResponse> {
+    const response = await fetchApi(api, "/host/cancel", POST, {
+        json: request
+    })
+
+    return response as PostCancelResponse
+}
+
+export type WebRTCConfiguration = {
+    iceServers: Array<RTCIceServer>
+}
+
+export async function apiWebRTCConfiguration(api: Api): Promise<WebRTCConfiguration> {
+    const ENDPOINT = "/host/stream/webrtc"
+
+    const [url, request] = buildRequest(api, ENDPOINT, OPTIONS)
+
+    let response
+    try {
+        response = await fetch(url, request)
+    } catch (e: any) {
+        throw await FetchError.create("unknown", ENDPOINT, OPTIONS, e)
+    }
+
+    const iceServers: Array<RTCIceServer> = []
+
+    const rawLinks = response.headers.get("Link")
+    if (rawLinks) {
+        const links = webrtcLinkHeaderParse(rawLinks)
+        for (const link of links) {
+            if (link.tag == WebRtcLinkHeader_Tags.IceServer) {
+                iceServers.push({
+                    urls: link.inner.url,
+                    username: link.inner.username,
+                    credential: link.inner.credential,
+                })
+            }
+        }
+    }
+
+    return {
+        iceServers
+    }
+}
+
+export type WebRTCAnswer = {
+    answerSdp: string,
+    location: string | null,
+}
+
+export async function apiWebRTCOffer(api: Api, offerSdp: string): Promise<WebRTCAnswer> {
+    const ENDPOINT = "/host/stream/webrtc"
+
+    const [url, request] = buildRequest(api, ENDPOINT, POST, { sdp: offerSdp })
+
+    let response
+    try {
+        response = await fetch(url, request)
+    } catch (e: any) {
+        throw await FetchError.create("unknown", ENDPOINT, POST, e)
+    }
+
+    // 201 == Created
+    if (response.status != 201) {
+        const reason = await response.text()
+        throw await FetchError.create("failed", ENDPOINT, POST, response, reason)
+    }
+
+    // Get sdp
+    const answerSdp = await response.text()
+
+    // get location, if set
+    let location = null
+    for (const [name, value] of response.headers) {
+        if (name.trim().toLowerCase() == "location") {
+            location = value
+        }
+    }
+
+    return {
+        answerSdp,
+        location,
+    }
+}

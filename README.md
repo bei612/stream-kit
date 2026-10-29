@@ -7,6 +7,12 @@
 
 本目录已建立独立 Git 仓库，默认分支为 `main`。`docs/src` 中三个上游项目按当前源码快照保存；导入资料没有原 Git 元数据和确定的上游提交号，`.gitmodules` 中的地址仅保留来源信息，不代表已建立可更新的 Git 子模块。Go 的 `vendor` 目录随源码保存。运行配置、数据库、上传应用、依赖安装目录、编译产物和验证截图不进入版本管理。
 
+## 单仓源码纳管（2026-10-29）
+
+三个上游项目已直接纳入 `third_party/`，不使用 Git 子模块：Sunshine `v2026.914.233613`、Moonlight-Web-Stream `v3.0.1`、Moonlight-Qt `v6.2.0`。版本、commit 和许可证记录在 `third_party-manifests/upstream-lock.json`。Moonlight-Web-Stream v3.0.1 已包含浏览器麦克风采集和 WebRTC 上行基础能力。
+
+Orchestrator 已增加渲染会话管理基础层：会话登记、客户端连接/心跳/断开、唯一控制者、音频配置、会话策略和管理 WebSocket 事件。接口位于 `/api/v1/stream-sessions`。当前这些接口已经可以供后续 Web 网关接入；媒体层的单一渲染会话复用、服务器端音频混音和多客户端音频广播仍需接入 Moonlight-Web-Stream 的媒体循环后才算完整交付，不能把当前阶段描述为已完成麦克风广播。
+
 构建需要 Git、Go（至少 1.25）和 Node.js/npm 在当前终端的 PATH 中。本次实际使用 Go 1.27.3、Node.js 24.22.0、Git 2.56.0.windows.3。以下命令在仓库根目录执行；PowerShell 的执行策略仅对启动的脚本进程生效：
 
 ```powershell

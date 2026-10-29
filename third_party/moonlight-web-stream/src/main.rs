@@ -1,0 +1,325 @@
+use crate::{cli::ConfigCommand, config::Config};
+use rustls::{
+    ServerConfig,
+    pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject},
+};
+use std::{
+    fs::OpenOptions,
+    io::{self, IsTerminal},
+    path::PathBuf,
+    str::FromStr,
+};
+use tokio::fs::{self};
+use tracing::{Level, Span, level_filters::LevelFilter, span};
+use tracing_actix_web::{RootSpanBuilder, TracingLogger};
+use tracing_appender::non_blocking;
+use tracing_subscriber::{
+    EnvFilter, Registry,
+    fmt::{self},
+    layer::SubscriberExt,
+    util::SubscriberInitExt,
+};
+use venator::Venator;
+
+use actix_web::{
+    App as ActixApp, HttpServer,
+    body::MessageBody,
+    dev::{ServiceRequest, ServiceResponse},
+    http::header::HeaderMap,
+    middleware::{self},
+    web::{Data, scope},
+};
+use tracing::{error, info, trace};
+
+use crate::{
+    api::api_service,
+    app::App,
+    cli::{Cli, Command},
+    human_json::preprocess_human_json,
+    web::{web_config_js_service, web_service},
+};
+
+mod api;
+mod app;
+mod web;
+
+mod cli;
+mod config;
+mod human_json;
+
+#[actix_web::main]
+async fn main() {
+    let cli = Cli::load();
+
+    // Load Config
+    let config_path = PathBuf::from_str(&cli.config_path).expect("invalid config file path");
+    let mut config = match fs::read_to_string(&config_path).await {
+        Ok(mut value) => {
+            value = preprocess_human_json(value);
+
+            serde_json::from_str(&value).expect("invalid file")
+        }
+        Err(err) if matches!(err.kind(), io::ErrorKind::NotFound) => Config::default(),
+        Err(err) => {
+            panic!("failed to read config: {err}");
+        }
+    };
+    cli.options.apply(&mut config);
+
+    match cli.command {
+        Some(Command::Config(ConfigCommand::Print)) => {
+            let json =
+                serde_json::to_string_pretty(&config).expect("failed to serialize config to json");
+            println!("{json}");
+            return;
+        }
+        Some(Command::Config(ConfigCommand::Generate)) => {
+            let value_str =
+                serde_json::to_string_pretty(&config).expect("failed to serialize file");
+
+            if let Some(parent) = config_path.parent() {
+                fs::create_dir_all(parent)
+                    .await
+                    .expect("failed to create directories to file");
+            }
+            fs::write(&config_path, value_str)
+                .await
+                .expect("failed to write default file");
+
+            println!("Successfully generate config at {config_path:?}");
+            return;
+        }
+        None | Some(Command::Run) => {
+            // Fallthrough
+        }
+    }
+
+    let guard = init_log(&config);
+
+    // Initialize crypto provider
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .expect("failed to set ring crypto provider as default");
+
+    // Start the server
+    if let Err(err) = start(config).await {
+        error!("{err:?}");
+    }
+
+    drop(guard);
+}
+
+fn init_log(config: &Config) -> Option<non_blocking::WorkerGuard> {
+    let config_level_filter = match config.log.level_filter {
+        log::LevelFilter::Off => LevelFilter::OFF,
+        log::LevelFilter::Error => LevelFilter::ERROR,
+        log::LevelFilter::Info => LevelFilter::INFO,
+        log::LevelFilter::Warn => LevelFilter::WARN,
+        log::LevelFilter::Debug => LevelFilter::DEBUG,
+        log::LevelFilter::Trace => LevelFilter::TRACE,
+    };
+
+    let env_filter = EnvFilter::builder()
+        .with_default_directive(config_level_filter.into())
+        .from_env_lossy()
+        // Add default directives
+        .add_directive(
+            "actix_http::h1=debug"
+                .parse()
+                .expect("failed to add actix-web tracing directive"),
+        )
+        .add_directive(
+            "h2=debug"
+                .parse()
+                .expect("failed to add h2 tracing directive"),
+        )
+        .add_directive(
+            "mio::poll=debug"
+                .parse()
+                .expect("failed to add mio tracing directive"),
+        )
+        // Filter out webrtc specific modules, because they just debug log everything
+        .add_directive(
+            "rtc::peer_connection::handler::sctp=info"
+                .parse()
+                .expect("failed to add rtc tracing directive"),
+        )
+        .add_directive(
+            "rtc::peer_connection::handler=info"
+                .parse()
+                .expect("failed to add rtc tracing directive"),
+        )
+        .add_directive(
+            "rtc_sctp::association=info"
+                .parse()
+                .expect("failed to add rtc tracing directive"),
+        );
+
+    #[cfg(windows)]
+    enable_ansi_windows();
+
+    let stdout_layer = fmt::layer().with_ansi(io::stdout().is_terminal());
+
+    let (file_layer, guard) = if let Some(log_file) = &config.log.file_path {
+        let file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(log_file)
+            .expect("failed to open log file");
+
+        let (writer, guard) = non_blocking(file);
+
+        let fmt_layer = fmt::layer().with_writer(writer).with_ansi(false);
+
+        (Some(fmt_layer), Some(guard))
+    } else {
+        (None, None)
+    };
+
+    let venator = config.log.dev_venator.then(Venator::default);
+
+    Registry::default()
+        .with(venator)
+        .with(env_filter.clone())
+        .with(file_layer)
+        .with(stdout_layer)
+        .init();
+
+    trace!("Using env_filter: {env_filter}");
+
+    guard
+}
+
+#[cfg(windows)]
+fn enable_ansi_windows() {
+    use std::io;
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::System::Console::{
+        ENABLE_VIRTUAL_TERMINAL_PROCESSING, GetConsoleMode, SetConsoleMode,
+    };
+
+    unsafe {
+        let handle = io::stdout().as_raw_handle();
+        let mut mode = 0;
+        if GetConsoleMode(handle as _, &mut mode) != 0 {
+            SetConsoleMode(handle as _, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+        }
+    }
+}
+
+struct ActixDebugSpan;
+
+impl ActixDebugSpan {
+    fn sanitize_headers(headers: &HeaderMap) -> Vec<(String, String)> {
+        const SENSITIVE: &[&str] = &[
+            "authorization",
+            "cookie",
+            "set-cookie",
+            "host",
+            "origin",
+            "x-forwarded-host",
+            "x-forwarded-for",
+        ];
+
+        headers
+            .iter()
+            .map(|(name, value)| {
+                let name_str = name.as_str().to_string();
+
+                let value_str = if SENSITIVE.contains(&name_str.to_ascii_lowercase().as_str()) {
+                    "<redacted>".to_string()
+                } else {
+                    value.to_str().unwrap_or("<binary>").to_string()
+                };
+
+                (name_str, value_str)
+            })
+            .collect()
+    }
+}
+
+impl RootSpanBuilder for ActixDebugSpan {
+    fn on_request_start(request: &ServiceRequest) -> Span {
+        let span = span!(
+            Level::DEBUG,
+            "http_request",
+            method = %request.method(),
+            path = %request.uri().path_and_query().map(|x| x.as_str()).unwrap_or(""),
+        );
+
+        span.in_scope(|| {
+            trace!(
+                headers = ?Self::sanitize_headers(request.headers()),
+                peer_addr = ?request.peer_addr(),
+                "request details",
+            )
+        });
+
+        span
+    }
+    fn on_request_end<B: MessageBody>(
+        _span: Span,
+        _outcome: &Result<ServiceResponse<B>, actix_web::Error>,
+    ) {
+    }
+}
+
+async fn start(config: Config) -> Result<(), anyhow::Error> {
+    let app = App::new(config.clone()).await?;
+    let app = Data::new(app);
+
+    let bind_address = app.config().web_server.bind_address;
+    let server = HttpServer::new({
+        let url_path_prefix = config.web_server.url_path_prefix.clone();
+        let app = app.clone();
+
+        move || {
+            ActixApp::new()
+                .wrap(TracingLogger::<ActixDebugSpan>::new())
+                .service(
+                    scope(&url_path_prefix)
+                        .app_data(app.clone())
+                        .wrap(
+                            middleware::DefaultHeaders::new()
+                                .add((
+                                    "Cache-Control",
+                                    "no-store, no-cache, must-revalidate, private",
+                                ))
+                                .add(("Pragma", "no-cache"))
+                                .add(("Expires", "0")),
+                        )
+                        .service(api_service())
+                        .service(web_config_js_service())
+                        .service(web_service()),
+                )
+        }
+    });
+
+    if let Some(certificate) = app.config().web_server.certificate.as_ref() {
+        info!("[Server]: Running Https Server with ssl tls");
+
+        let certificate_chain = {
+            let results =
+                CertificateDer::pem_file_iter(&certificate.certificate_pem)?.collect::<Vec<_>>();
+            let mut chain = Vec::with_capacity(results.len());
+
+            for result in results {
+                chain.push(result?);
+            }
+
+            chain
+        };
+        let private_key = PrivateKeyDer::from_pem_file(&certificate.private_key_pem)?;
+
+        let config = ServerConfig::builder()
+            .with_no_client_auth()
+            .with_single_cert(certificate_chain, private_key)?;
+
+        server.bind_rustls_0_23(bind_address, config)?.run().await?;
+    } else {
+        server.bind(bind_address)?.run().await?;
+    }
+
+    Ok(())
+}

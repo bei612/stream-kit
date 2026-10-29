@@ -12,22 +12,24 @@ import (
 	"github.com/stream-kit/orchestrator/internal/component"
 	"github.com/stream-kit/orchestrator/internal/config"
 	"github.com/stream-kit/orchestrator/internal/server/handlers"
+	"github.com/stream-kit/orchestrator/internal/session"
 	"github.com/stream-kit/orchestrator/internal/store"
 	"github.com/stream-kit/orchestrator/internal/ws"
 	"go.uber.org/zap"
 )
 
 type Server struct {
-	Engine       *gin.Engine
-	Config       *config.Config
-	Store        *store.Store
-	Logger       *zap.Logger
-	CompManager  *component.Manager
-	AppManager   *app.Manager
-	WSHub        *ws.Hub
+	Engine      *gin.Engine
+	Config      *config.Config
+	Store       *store.Store
+	Logger      *zap.Logger
+	CompManager *component.Manager
+	AppManager  *app.Manager
+	WSHub       *ws.Hub
+	SessionMgr  *session.Manager
 }
 
-func New(cfg *config.Config, st *store.Store, compMgr *component.Manager, appMgr *app.Manager, wsHub *ws.Hub, logger *zap.Logger) *Server {
+func New(cfg *config.Config, st *store.Store, compMgr *component.Manager, appMgr *app.Manager, wsHub *ws.Hub, sessionMgr *session.Manager, logger *zap.Logger) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
 	engine.Use(gin.Recovery())
@@ -39,6 +41,7 @@ func New(cfg *config.Config, st *store.Store, compMgr *component.Manager, appMgr
 		CompManager: compMgr,
 		AppManager:  appMgr,
 		WSHub:       wsHub,
+		SessionMgr:  sessionMgr,
 		Logger:      logger,
 	}
 
@@ -113,6 +116,20 @@ func (s *Server) setupRoutes() {
 		comp.GET("/:name/logs", ch.Logs)
 		comp.POST("/start-all", ch.StartAll)
 		comp.POST("/stop-all", ch.StopAll)
+	}
+	if s.SessionMgr != nil {
+		sh := handlers.NewSessionHandler(s.SessionMgr)
+		sessions := authed.Group("/stream-sessions")
+		sessions.GET("", sh.List)
+		sessions.POST("", sh.Ensure)
+		sessions.GET("/:session_id", sh.Get)
+		sessions.POST("/:session_id/connections", sh.Connect)
+		sessions.DELETE("/:session_id/connections/:connection_id", sh.Disconnect)
+		sessions.POST("/:session_id/connections/:connection_id/heartbeat", sh.Heartbeat)
+		sessions.POST("/:session_id/controller/:connection_id", sh.Claim)
+		sessions.DELETE("/:session_id/controller", sh.Release)
+		sessions.PATCH("/:session_id/audio", sh.Audio)
+		sessions.PATCH("/:session_id/policy", sh.Policy)
 	}
 }
 

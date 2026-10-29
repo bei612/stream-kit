@@ -1,0 +1,26 @@
+{
+  "generated_at": "2026-10-29",
+  "policy": "stable-release",
+  "components": {
+    "sunshine": {
+      "repository": "https://github.com/LizardByte/Sunshine.git",
+      "version": "v2026.914.233613",
+      "commit": "63d35f702ee9e362e43263742981836ec0710384",
+      "license": "GPL-3.0"
+    },
+    "moonlight-web-stream": {
+      "repository": "https://github.com/MrCreativ3001/moonlight-web-stream.git",
+      "version": "v3.0.1",
+      "commit": "922c2e155d1d76b84932c42491f7c973509bfe29",
+      "license": "GPL-3.0",
+      "features_used": ["browser_microphone_uplink", "webrtc_audio_track"]
+    },
+    "moonlight-qt": {
+      "repository": "https://github.com/moonlight-stream/moonlight-qt.git",
+      "version": "v6.2.0",
+      "commit": "de2467e433821664cdd2224aad8c89a625be1ad9",
+      "license": "GPL-3.0"
+    }
+  },
+  "research_note": "Sunshine v2026.1028.122642 was available as a pre-release on 2026-10-29 and is retained outside the production source tree for compatibility review."
+}
