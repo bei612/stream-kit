@@ -4,6 +4,7 @@
     "username": "admin",
     "password": "admin",
     "jwt_secret": "",
+    "media_ticket_secret": "",
     "tls_cert": "",
     "tls_key": ""
   },

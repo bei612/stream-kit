@@ -118,7 +118,7 @@ func (s *Server) setupRoutes() {
 		comp.POST("/stop-all", ch.StopAll)
 	}
 	if s.SessionMgr != nil {
-		sh := handlers.NewSessionHandler(s.SessionMgr, jwtSecret)
+		sh := handlers.NewSessionHandler(s.SessionMgr, []byte(s.Config.Server.MediaTicketSecret))
 		sessions := authed.Group("/stream-sessions")
 		sessions.GET("", sh.List)
 		sessions.POST("", sh.Ensure)

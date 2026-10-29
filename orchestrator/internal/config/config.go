@@ -27,6 +27,7 @@ type ServerConfig struct {
 	Username    string `json:"username" mapstructure:"username"`
 	Password    string `json:"password" mapstructure:"password"`
 	JWTSecret   string `json:"jwt_secret" mapstructure:"jwt_secret"`
+	MediaTicketSecret string `json:"media_ticket_secret" mapstructure:"media_ticket_secret"`
 	TLSCert     string `json:"tls_cert" mapstructure:"tls_cert"`
 	TLSKey      string `json:"tls_key" mapstructure:"tls_key"`
 }
@@ -249,6 +250,7 @@ func (c *Config) Sanitized() map[string]interface{} {
 	if srv, ok := m["server"].(map[string]interface{}); ok {
 		mask(srv, "password")
 		mask(srv, "jwt_secret")
+		mask(srv, "media_ticket_secret")
 	}
 	if sun, ok := m["sunshine_api"].(map[string]interface{}); ok {
 		mask(sun, "password")
