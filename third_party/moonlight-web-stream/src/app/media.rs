@@ -272,4 +272,17 @@ mod tests {
         assert_eq!(owner.audio.recv().await.unwrap().buffer, b"opus");
         assert_eq!(viewer.audio.recv().await.unwrap().buffer, b"opus");
     }
+
+    #[tokio::test]
+    async fn upstream_owner_is_reassigned_when_owner_detaches() {
+        let registry = MediaSessionRegistry::new();
+        registry.attach(key(), "owner".into()).await.unwrap();
+        registry.attach(key(), "viewer".into()).await.unwrap();
+        assert!(registry.is_upstream_owner(&key(), "owner").await);
+
+        registry.detach(&key(), "owner").await.unwrap();
+
+        assert!(registry.is_upstream_owner(&key(), "viewer").await);
+        assert!(!registry.is_upstream_owner(&key(), "owner").await);
+    }
 }
