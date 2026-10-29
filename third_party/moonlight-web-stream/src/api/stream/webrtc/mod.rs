@@ -613,6 +613,8 @@ pub async fn webrtc_post(
     if media_role == crate::app::media::PeerRole::Controller {
         app.media_sessions().claim_controller(&media_key, &media_peer_id, false).await?;
     }
+    let upstream_owner = app.media_sessions().is_upstream_owner(&media_key, &media_peer_id).await;
+    let media_subscription = app.media_sessions().subscribe(&media_key).await?;
     info!(peer_id = %media_peer_id, "attached peer to media session");
 
     // Keep the Moonlight transport alive while STUN/ICE gathering runs. Waiting here can
@@ -640,6 +642,8 @@ pub async fn webrtc_post(
                 media_registry.clone(),
                 loop_key,
                 loop_peer_id,
+                upstream_owner,
+                media_subscription,
             )
             .await
             {

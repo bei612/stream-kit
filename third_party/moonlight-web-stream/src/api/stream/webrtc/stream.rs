@@ -1,6 +1,9 @@
 use std::{future::pending, sync::Arc, time::Duration};
 
+use bytes::Bytes;
+
 use moonlight_common::stream::{
+    audio::AudioFrame,
     control::{
         CompactKeyStates, KeyAction, KeyCode, KeyFlags, KeyModifiers, MouseButton,
         MouseButtonAction,
@@ -29,7 +32,7 @@ use crate::{
         video::{VideoChannel, VideoChannelEvent},
     },
     app::AppError,
-    app::media::{MediaSessionKey, MediaSessionRegistry},
+    app::media::{MediaSessionKey, MediaSessionRegistry, MediaSubscription},
 };
 
 pub async fn webrtc_loop(
@@ -45,6 +48,8 @@ pub async fn webrtc_loop(
     media_registry: MediaSessionRegistry,
     media_key: MediaSessionKey,
     media_peer_id: String,
+    upstream_owner: bool,
+    mut media_subscription: MediaSubscription,
 ) -> Result<(), AppError> {
     info!("started main webrtc loop");
 
@@ -82,6 +87,23 @@ pub async fn webrtc_loop(
         }
 
         select! {
+            result = media_subscription.audio.recv(), if !upstream_owner => {
+                if let Ok(frame) = result {
+                    if matches!(peer_state, RTCPeerConnectionState::Connected) {
+                        audio_channel.on_frame(AudioFrame {
+                            timestamp: frame.timestamp,
+                            buffer: Bytes::copy_from_slice(&frame.buffer),
+                        });
+                    }
+                }
+            }
+            result = media_subscription.video.recv(), if !upstream_owner => {
+                if let Ok(frame) = result {
+                    if matches!(peer_state, RTCPeerConnectionState::Connected) {
+                        video_channel.on_frame(frame);
+                    }
+                }
+            }
             Some(data_channel) = async { if on_data_channel.is_closed() { pending().await } else { on_data_channel.recv().await } } => {
                 let label = data_channel.label().await?;
                 debug!(data_channel = ?label, "got data channel");
@@ -106,10 +128,14 @@ pub async fn webrtc_loop(
 
                 match event {
                     MoonlightStreamEvent::Audio(AudioStreamEvent::OnFrame(frame)) => {
+                        if !upstream_owner {
+                            continue;
+                        }
                         if !matches!(peer_state, RTCPeerConnectionState::Connected) {
                             continue;
                         }
 
+                        media_registry.publish_audio(&media_key, &frame).await;
                         audio_channel.on_frame(frame);
                     }
                     MoonlightStreamEvent::Video(VideoStreamEvent::SignalIdr) => {
@@ -119,10 +145,14 @@ pub async fn webrtc_loop(
                         }
                     }
                     MoonlightStreamEvent::Video(VideoStreamEvent::OnFrame(frame)) => {
+                        if !upstream_owner {
+                            continue;
+                        }
                         if !matches!(peer_state, RTCPeerConnectionState::Connected) {
                             continue;
                         }
 
+                        media_registry.publish_video(&media_key, frame.clone()).await;
                         video_channel.on_frame(frame);
                     }
                     MoonlightStreamEvent::Control(ControlStreamEvent::Packet(packet)) => {

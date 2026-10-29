@@ -5,7 +5,8 @@ use hmac::{Hmac, Mac};
 use serde::Deserialize;
 use sha2::Sha256;
 
-use tokio::sync::RwLock;
+use tokio::sync::{broadcast, RwLock};
+use moonlight_common::stream::{audio::AudioFrame, proto::video::frame::OwnedVideoFrame};
 
 use super::{host::{AppId, HostId}, AppError};
 
@@ -82,6 +83,27 @@ pub struct MediaSessionSnapshot {
 struct MediaSessionState {
     peers: HashMap<String, MediaPeer>,
     controller_id: Option<String>,
+    upstream_owner: Option<String>,
+    fanout: MediaFanout,
+}
+
+#[derive(Clone, Debug)]
+struct MediaFanout {
+    video: broadcast::Sender<OwnedVideoFrame>,
+    audio: broadcast::Sender<Arc<AudioFrame<Vec<u8>>>>,
+}
+
+impl MediaFanout {
+    fn new() -> Self {
+        let (video, _) = broadcast::channel(64);
+        let (audio, _) = broadcast::channel(128);
+        Self { video, audio }
+    }
+}
+
+pub struct MediaSubscription {
+    pub video: broadcast::Receiver<OwnedVideoFrame>,
+    pub audio: broadcast::Receiver<Arc<AudioFrame<Vec<u8>>>>,
 }
 
 #[derive(Clone, Debug)]
@@ -109,6 +131,8 @@ impl MediaSessionRegistry {
         let session = sessions.entry(key.clone()).or_insert_with(|| MediaSessionState {
             peers: HashMap::new(),
             controller_id: None,
+            upstream_owner: None,
+            fanout: MediaFanout::new(),
         });
         if session.peers.contains_key(&peer_id) {
             return Err(AppError::BadRequest);
@@ -118,6 +142,9 @@ impl MediaSessionRegistry {
             role,
             attached_at: SystemTime::now(),
         });
+        if session.upstream_owner.is_none() {
+            session.upstream_owner = Some(peer_id.clone());
+        }
         Ok(snapshot(&key, session))
     }
 
@@ -125,6 +152,9 @@ impl MediaSessionRegistry {
         let mut sessions = self.sessions.write().await;
         let session = sessions.get_mut(key)?;
         session.peers.remove(peer_id)?;
+        if session.upstream_owner.as_deref() == Some(peer_id) {
+            session.upstream_owner = session.peers.keys().next().cloned();
+        }
         if session.controller_id.as_deref() == Some(peer_id) {
             session.controller_id = None;
         }
@@ -156,6 +186,32 @@ impl MediaSessionRegistry {
 
     pub async fn can_control(&self, key: &MediaSessionKey, peer_id: &str) -> bool {
         self.sessions.read().await.get(key).and_then(|s| s.controller_id.as_deref()).is_some_and(|id| id == peer_id)
+    }
+
+    pub async fn is_upstream_owner(&self, key: &MediaSessionKey, peer_id: &str) -> bool {
+        self.sessions.read().await.get(key)
+            .and_then(|s| s.upstream_owner.as_deref()) == Some(peer_id)
+    }
+
+    pub async fn subscribe(&self, key: &MediaSessionKey) -> Result<MediaSubscription, AppError> {
+        let sessions = self.sessions.read().await;
+        let session = sessions.get(key).ok_or(AppError::StreamClosed)?;
+        Ok(MediaSubscription {
+            video: session.fanout.video.subscribe(),
+            audio: session.fanout.audio.subscribe(),
+        })
+    }
+
+    pub async fn publish_video(&self, key: &MediaSessionKey, frame: OwnedVideoFrame) {
+        if let Some(session) = self.sessions.read().await.get(key) {
+            let _ = session.fanout.video.send(frame);
+        }
+    }
+
+    pub async fn publish_audio(&self, key: &MediaSessionKey, frame: &AudioFrame<bytes::Bytes>) {
+        if let Some(session) = self.sessions.read().await.get(key) {
+            let _ = session.fanout.audio.send(Arc::new(frame.to_vec()));
+        }
     }
 
     pub async fn snapshot(&self, key: &MediaSessionKey) -> Option<MediaSessionSnapshot> {
