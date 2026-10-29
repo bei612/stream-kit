@@ -226,6 +226,8 @@ fn snapshot(key: &MediaSessionKey, session: &MediaSessionState) -> MediaSessionS
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bytes::Bytes;
+    use std::time::Duration;
 
     fn key() -> MediaSessionKey { MediaSessionKey { host_id: HostId(1), app_id: AppId(2) } }
 
@@ -249,5 +251,19 @@ mod tests {
         registry.claim_controller(&key(), "a", false).await.unwrap();
         registry.detach(&key(), "a").await.unwrap();
         assert!(registry.snapshot(&key()).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn media_frames_are_fanned_out_to_every_subscriber() {
+        let registry = MediaSessionRegistry::new();
+        registry.attach(key(), "owner".into()).await.unwrap();
+        registry.attach(key(), "viewer".into()).await.unwrap();
+        let mut owner = registry.subscribe(&key()).await.unwrap();
+        let mut viewer = registry.subscribe(&key()).await.unwrap();
+
+        registry.publish_audio(&key(), &AudioFrame { timestamp: Duration::from_millis(1), buffer: Bytes::from_static(b"opus") }).await;
+
+        assert_eq!(owner.audio.recv().await.unwrap().buffer, b"opus");
+        assert_eq!(viewer.audio.recv().await.unwrap().buffer, b"opus");
     }
 }
