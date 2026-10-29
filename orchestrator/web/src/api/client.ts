@@ -114,6 +114,8 @@ export const api = {
     request<any>(`/stream-sessions/${sessionId}/controller`, { method: 'DELETE' }),
   disconnectStreamConnection: (sessionId: string, connectionId: string) =>
     request<any>(`/stream-sessions/${sessionId}/connections/${connectionId}`, { method: 'DELETE' }),
+  issueStreamMediaTicket: (sessionId: string, connectionId: string) =>
+    request<any>(`/stream-sessions/${sessionId}/connections/${connectionId}/ticket`, { method: 'POST' }),
 
   // Apps
   listApps: () => request<any[]>('/apps'),

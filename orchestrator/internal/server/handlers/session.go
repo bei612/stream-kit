@@ -3,14 +3,18 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stream-kit/orchestrator/internal/session"
 )
 
-type SessionHandler struct{ Manager *session.Manager }
+type SessionHandler struct {
+	Manager    *session.Manager
+	TicketSecret []byte
+}
 
-func NewSessionHandler(m *session.Manager) *SessionHandler { return &SessionHandler{Manager: m} }
+func NewSessionHandler(m *session.Manager, ticketSecret []byte) *SessionHandler { return &SessionHandler{Manager: m, TicketSecret: ticketSecret} }
 func (h *SessionHandler) List(c *gin.Context)              { okResponse(c, h.Manager.List()) }
 func (h *SessionHandler) Get(c *gin.Context) {
 	s, err := h.Manager.Get(c.Param("session_id"))
@@ -77,6 +81,24 @@ func (h *SessionHandler) Heartbeat(c *gin.Context) {
 		return
 	}
 	okResponse(c, gin.H{"ok": true})
+}
+
+func (h *SessionHandler) MediaTicket(c *gin.Context) {
+	if len(h.TicketSecret) == 0 {
+		errResponse(c, http.StatusServiceUnavailable, "MEDIA_TICKET_DISABLED", "media ticket signing is not configured")
+		return
+	}
+	s, err := h.Manager.Get(c.Param("session_id"))
+	if err != nil { errResponse(c, http.StatusNotFound, "SESSION_NOT_FOUND", err.Error()); return }
+	connection, ok := s.Connections[c.Param("connection_id")]
+	if !ok { errResponse(c, http.StatusNotFound, "CONNECTION_NOT_FOUND", "connection not found"); return }
+	now := time.Now().UTC()
+	ticket := SignMediaTicket(MediaTicketClaims{
+		Purpose: "stream-media", SessionID: s.ID, ConnectionID: connection.ID,
+		HostID: s.HostID, AppID: s.AppID, Role: connection.Role,
+		Iat: now.Unix(), Exp: now.Add(2 * time.Minute).Unix(),
+	}, h.TicketSecret)
+	okResponse(c, gin.H{"ticket": ticket, "expires_at": now.Add(2 * time.Minute).Format(time.RFC3339), "role": connection.Role})
 }
 func (h *SessionHandler) Claim(c *gin.Context) {
 	if err := h.Manager.Claim(c.Param("session_id"), c.Param("connection_id")); err != nil {

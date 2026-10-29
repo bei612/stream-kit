@@ -28,6 +28,17 @@ type Claims struct {
 	Iat int64  `json:"iat"`
 }
 
+type MediaTicketClaims struct {
+	Purpose      string `json:"purpose"`
+	SessionID    string `json:"session_id"`
+	ConnectionID string `json:"connection_id"`
+	HostID       int64  `json:"host_id"`
+	AppID        int64  `json:"app_id"`
+	Role         string `json:"role"`
+	Exp          int64  `json:"exp"`
+	Iat          int64  `json:"iat"`
+}
+
 // ResolveJWTSecret returns the JWT signing key.
 // If a dedicated jwt_secret is configured, use it. Otherwise derive from password (legacy).
 func ResolveJWTSecret(configuredSecret, password string) []byte {
@@ -80,6 +91,34 @@ func VerifyJWT(tokenStr string, secret []byte) (*Claims, error) {
 		return nil, errors.New("token expired")
 	}
 
+	return &claims, nil
+}
+
+func SignMediaTicket(claims MediaTicketClaims, secret []byte) string {
+	header, _ := json.Marshal(jwtHeader{Alg: "HS256", Typ: "MEDIA"})
+	payload, _ := json.Marshal(claims)
+	seg1 := base64.RawURLEncoding.EncodeToString(header)
+	seg2 := base64.RawURLEncoding.EncodeToString(payload)
+	input := seg1 + "." + seg2
+	mac := hmac.New(sha256.New, secret)
+	_, _ = mac.Write([]byte(input))
+	return input + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+}
+
+func VerifyMediaTicket(token string, secret []byte) (*MediaTicketClaims, error) {
+	parts := strings.SplitN(token, ".", 3)
+	if len(parts) != 3 { return nil, errors.New("invalid media ticket format") }
+	mac := hmac.New(sha256.New, secret)
+	_, _ = mac.Write([]byte(parts[0] + "." + parts[1]))
+	expected := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	if !hmac.Equal([]byte(parts[2]), []byte(expected)) { return nil, errors.New("invalid media ticket signature") }
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil { return nil, err }
+	var claims MediaTicketClaims
+	if err := json.Unmarshal(payload, &claims); err != nil { return nil, err }
+	if claims.Purpose != "stream-media" || claims.SessionID == "" || claims.ConnectionID == "" || time.Now().Unix() > claims.Exp {
+		return nil, errors.New("invalid or expired media ticket")
+	}
 	return &claims, nil
 }
 

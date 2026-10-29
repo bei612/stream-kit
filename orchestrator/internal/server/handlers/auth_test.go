@@ -146,3 +146,18 @@ func TestRateLimiter(t *testing.T) {
 		}
 	})
 }
+
+func TestMediaTicketRoundTripAndExpiry(t *testing.T) {
+	secret := []byte("media-secret")
+	now := time.Now()
+	claims := MediaTicketClaims{Purpose: "stream-media", SessionID: "s1", ConnectionID: "c1", HostID: 1, AppID: 2, Role: "controller", Iat: now.Unix(), Exp: now.Add(time.Minute).Unix()}
+	token := SignMediaTicket(claims, secret)
+	got, err := VerifyMediaTicket(token, secret)
+	if err != nil || got.Role != "controller" || got.SessionID != "s1" {
+		t.Fatalf("ticket round trip failed: claims=%+v err=%v", got, err)
+	}
+	claims.Exp = now.Add(-time.Minute).Unix()
+	if _, err := VerifyMediaTicket(SignMediaTicket(claims, secret), secret); err == nil {
+		t.Fatal("expected expired media ticket to be rejected")
+	}
+}

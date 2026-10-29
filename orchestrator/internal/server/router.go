@@ -118,7 +118,7 @@ func (s *Server) setupRoutes() {
 		comp.POST("/stop-all", ch.StopAll)
 	}
 	if s.SessionMgr != nil {
-		sh := handlers.NewSessionHandler(s.SessionMgr)
+		sh := handlers.NewSessionHandler(s.SessionMgr, jwtSecret)
 		sessions := authed.Group("/stream-sessions")
 		sessions.GET("", sh.List)
 		sessions.POST("", sh.Ensure)
@@ -126,6 +126,7 @@ func (s *Server) setupRoutes() {
 		sessions.POST("/:session_id/connections", sh.Connect)
 		sessions.DELETE("/:session_id/connections/:connection_id", sh.Disconnect)
 		sessions.POST("/:session_id/connections/:connection_id/heartbeat", sh.Heartbeat)
+		sessions.POST("/:session_id/connections/:connection_id/ticket", sh.MediaTicket)
 		sessions.POST("/:session_id/controller/:connection_id", sh.Claim)
 		sessions.DELETE("/:session_id/controller", sh.Release)
 		sessions.PATCH("/:session_id/audio", sh.Audio)
