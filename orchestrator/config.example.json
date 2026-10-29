@@ -5,6 +5,7 @@
     "password": "admin",
     "jwt_secret": "",
     "media_ticket_secret": "",
+    "cors_origins": [],
     "tls_cert": "",
     "tls_key": ""
   },

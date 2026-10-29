@@ -28,6 +28,7 @@ type ServerConfig struct {
 	Password    string `json:"password" mapstructure:"password"`
 	JWTSecret   string `json:"jwt_secret" mapstructure:"jwt_secret"`
 	MediaTicketSecret string `json:"media_ticket_secret" mapstructure:"media_ticket_secret"`
+	CORSOrigins []string `json:"cors_origins" mapstructure:"cors_origins"`
 	TLSCert     string `json:"tls_cert" mapstructure:"tls_cert"`
 	TLSKey      string `json:"tls_key" mapstructure:"tls_key"`
 }

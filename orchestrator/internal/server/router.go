@@ -55,6 +55,7 @@ func New(cfg *config.Config, st *store.Store, compMgr *component.Manager, appMgr
 func (s *Server) setupMiddleware() {
 	s.Engine.Use(RequestIDMiddleware())
 	s.Engine.Use(AccessLogMiddleware(s.Logger, s.Config.Log.AccessLog))
+	s.Engine.Use(CORSMiddleware(s.Config.Server.CORSOrigins))
 	// Auth middleware applied to /api/v1/ group below
 }
 
