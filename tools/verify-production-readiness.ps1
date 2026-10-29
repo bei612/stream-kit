@@ -13,6 +13,7 @@ Require-Path 'third_party-manifests/upstream-lock.json'
 Require-Path 'third_party/sunshine'
 Require-Path 'third_party/moonlight-web-stream'
 Require-Path 'third_party/moonlight-qt'
+Require-Path 'orchestrator/internal/server/handlers/system.go'
 
 $lock = Get-Content 'third_party-manifests/upstream-lock.json' -Raw | ConvertFrom-Json
 foreach ($name in @('sunshine', 'moonlight-web-stream', 'moonlight-qt', 'moonlight-common-rust')) {
@@ -28,5 +29,8 @@ $webrtc = Get-Content 'third_party/moonlight-web-stream/src/api/stream/webrtc/st
 foreach ($needle in @('can_control', 'dropping viewer microphone frame', 'if upstream_owner')) {
   if ($webrtc -notmatch [regex]::Escape($needle)) { throw "Missing WebRTC invariant: $needle" }
 }
+
+$system = Get-Content 'orchestrator/internal/server/handlers/system.go' -Raw
+if ($system -notmatch 'func \(h \*SystemHandler\) Metrics') { throw 'Missing Prometheus metrics endpoint' }
 
 Write-Output 'stream-kit production-readiness static checks passed'
