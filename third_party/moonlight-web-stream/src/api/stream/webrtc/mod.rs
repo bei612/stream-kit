@@ -623,6 +623,8 @@ pub async fn webrtc_post(
         let media_registry = app.media_sessions().clone();
         let cleanup_key = media_key.clone();
         let cleanup_peer_id = media_peer_id.clone();
+        let loop_key = media_key.clone();
+        let loop_peer_id = media_peer_id.clone();
 
         async move {
             if let Err(err) = webrtc_loop(
@@ -635,6 +637,9 @@ pub async fn webrtc_post(
                 on_data_channel,
                 on_track,
                 &handler,
+                media_registry.clone(),
+                loop_key,
+                loop_peer_id,
             )
             .await
             {

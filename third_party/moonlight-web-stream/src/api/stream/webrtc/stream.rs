@@ -29,6 +29,7 @@ use crate::{
         video::{VideoChannel, VideoChannelEvent},
     },
     app::AppError,
+    app::media::{MediaSessionKey, MediaSessionRegistry},
 };
 
 pub async fn webrtc_loop(
@@ -41,6 +42,9 @@ pub async fn webrtc_loop(
     mut on_data_channel: mpsc::UnboundedReceiver<Arc<dyn DataChannel>>,
     mut on_track: mpsc::UnboundedReceiver<Arc<dyn TrackRemote>>,
     handler: &WebRtcHandler,
+    media_registry: MediaSessionRegistry,
+    media_key: MediaSessionKey,
+    media_peer_id: String,
 ) -> Result<(), AppError> {
     info!("started main webrtc loop");
 
@@ -164,6 +168,10 @@ pub async fn webrtc_loop(
 
                 match event {
                     ControlChannelEvent::Packet(ControlPacket::WebState { sequence_number, keys }) => {
+                        if !media_registry.can_control(&media_key, &media_peer_id).await {
+                            debug!(peer_id = %media_peer_id, "dropping viewer keyboard state");
+                            continue;
+                        }
                         // The server doesn't support this packet, so we must remove it
                         if sequence_number <= last_key_states_sequence_number && sequence_number.abs_diff(last_key_states_sequence_number) < 1000 {
                             // packets can be dropped when the sequence number is larger than the last the sequence number
@@ -190,6 +198,10 @@ pub async fn webrtc_loop(
                         continue;
                     }
                     ControlChannelEvent::Packet(packet) => {
+                        if !media_registry.can_control(&media_key, &media_peer_id).await {
+                            debug!(peer_id = %media_peer_id, "dropping viewer control packet");
+                            continue;
+                        }
                         if let Err(err) = stream.send_raw(packet) {
                             warn!(error = %err, "failed to relay webrtc client packet to server");
                         }
@@ -207,7 +219,11 @@ pub async fn webrtc_loop(
                         timestamp,
                         data,
                     } => {
-                        stream.send_microphone_opus_data(timestamp, &data);
+                        if media_registry.can_control(&media_key, &media_peer_id).await {
+                            stream.send_microphone_opus_data(timestamp, &data);
+                        } else {
+                            debug!(peer_id = %media_peer_id, "dropping viewer microphone frame");
+                        }
                     }
                     MicChannelEvent::Closed => {
                         warn!("the microphone channel got closed");
