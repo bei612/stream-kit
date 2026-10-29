@@ -171,6 +171,9 @@ func main() {
 	// Monitor streaming state (detects when apps start/stop via Sunshine)
 	streamCtx, streamCancel := context.WithCancel(context.Background())
 	defer streamCancel()
+	util.SafeGo(logger, "session-lease-reaper", func() {
+		sessionMgr.RunLeaseReaper(streamCtx, 5*time.Second)
+	})
 	util.SafeGo(logger, "stream-monitor", func() { appMgr.MonitorStreaming(streamCtx) })
 
 	// Auto-start components in background

@@ -118,6 +118,10 @@ func (h *SessionHandler) Policy(c *gin.Context) {
 		return
 	}
 	if err := h.Manager.UpdatePolicy(c.Param("session_id"), p); err != nil {
+		if err == session.ErrInvalidState {
+			errResponse(c, http.StatusBadRequest, "POLICY_INVALID", err.Error())
+			return
+		}
 		errResponse(c, http.StatusNotFound, "SESSION_NOT_FOUND", err.Error())
 		return
 	}

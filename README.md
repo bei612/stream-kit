@@ -13,6 +13,10 @@
 
 Orchestrator 已增加渲染会话管理基础层：会话登记、客户端连接/心跳/断开、唯一控制者、音频配置、会话策略和管理 WebSocket 事件。接口位于 `/api/v1/stream-sessions`。当前这些接口已经可以供后续 Web 网关接入；媒体层的单一渲染会话复用、服务器端音频混音和多客户端音频广播仍需接入 Moonlight-Web-Stream 的媒体循环后才算完整交付，不能把当前阶段描述为已完成麦克风广播。
 
+会话控制面现在使用显式的 `starting/running/degraded/stopping/stopped` 生命周期，并为每个连接维护 15 秒心跳租约。Orchestrator 启动后会在 Windows 和 Linux 都运行租约清理器，过期连接会释放控制权并广播状态事件。当前状态仍是控制面增强阶段，媒体网关和统一管理页面尚未完成，生产环境不得启用匿名访问或把旧版官方二进制当作源码构建产物。
+
+客户端目标是跨平台浏览器/PWA；服务端目标是 Windows 与 Linux 双平台。管理页面只维护一套 Web 页面，通过 Orchestrator 提供统一的会话、连接、控制权、音频和健康状态管理，不按服务端操作系统复制页面。
+
 构建需要 Git、Go（至少 1.25）和 Node.js/npm 在当前终端的 PATH 中。本次实际使用 Go 1.27.3、Node.js 24.22.0、Git 2.56.0.windows.3。以下命令在仓库根目录执行；PowerShell 的执行策略仅对启动的脚本进程生效：
 
 ```powershell

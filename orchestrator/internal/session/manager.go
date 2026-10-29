@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"errors"
 	"sort"
 	"sync"
@@ -12,6 +13,15 @@ import (
 
 var ErrNotFound = errors.New("stream session or connection not found")
 var ErrControllerExists = errors.New("stream session already has a controller")
+var ErrInvalidState = errors.New("invalid stream session state")
+
+const (
+	StateStarting = "starting"
+	StateRunning  = "running"
+	StateDegraded = "degraded"
+	StateStopping = "stopping"
+	StateStopped  = "stopped"
+)
 
 type AudioConfig struct {
 	ProgramGainDB          float64 `json:"program_gain_db"`
@@ -36,6 +46,7 @@ type Connection struct {
 	MicrophoneLive  bool      `json:"microphone_live"`
 	ConnectedAt     time.Time `json:"connected_at"`
 	LastHeartbeatAt time.Time `json:"last_heartbeat_at"`
+	ExpiresAt       time.Time `json:"expires_at"`
 }
 
 type RenderSession struct {
@@ -84,22 +95,45 @@ func (m *Manager) Get(id string) (*RenderSession, error) {
 
 func (m *Manager) Ensure(hostID, appID int64) *RenderSession {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	for _, s := range m.sessions {
 		if s.HostID == hostID && s.AppID == appID && s.State != "stopped" {
-			return clone(s)
+			result := clone(s)
+			m.mu.Unlock()
+			return result
 		}
 	}
 	now := time.Now().UTC()
-	s := &RenderSession{ID: uuid.NewString(), HostID: hostID, AppID: appID, State: "viewing", Audio: AudioConfig{MicrophoneEnabled: true, BroadcastControllerMic: true}, Policy: Policy{ControllerDisconnectPolicy: "manual", MaxViewers: 20}, Connections: map[string]*Connection{}, CreatedAt: now, UpdatedAt: now}
+	s := &RenderSession{ID: uuid.NewString(), HostID: hostID, AppID: appID, State: StateStarting, Audio: AudioConfig{MicrophoneEnabled: true, BroadcastControllerMic: true}, Policy: Policy{ControllerDisconnectPolicy: "release", MaxViewers: 20}, Connections: map[string]*Connection{}, CreatedAt: now, UpdatedAt: now}
 	m.sessions[s.ID] = s
-	m.emit("stream_session_created", s)
-	return clone(s)
+	result := clone(s)
+	m.mu.Unlock()
+	m.emit("stream_session_created", result)
+	return result
+}
+
+// SetState changes the media lifecycle state. It is intentionally explicit so
+// the media gateway and control plane cannot silently disagree about whether a
+// session is usable.
+func (m *Manager) SetState(sessionID, state string) error {
+	if state != StateStarting && state != StateRunning && state != StateDegraded && state != StateStopping && state != StateStopped {
+		return ErrInvalidState
+	}
+	m.mu.Lock()
+	s, ok := m.sessions[sessionID]
+	if !ok {
+		m.mu.Unlock()
+		return ErrNotFound
+	}
+	s.State = state
+	s.UpdatedAt = time.Now().UTC()
+	snapshot := clone(s)
+	m.mu.Unlock()
+	m.emit("stream_session_state_changed", snapshot)
+	return nil
 }
 
 func (m *Manager) AddConnection(sessionID, userID string) (*Connection, error) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	s, ok := m.sessions[sessionID]
 	if !ok {
 		return nil, ErrNotFound
@@ -108,24 +142,29 @@ func (m *Manager) AddConnection(sessionID, userID string) (*Connection, error) {
 		return nil, errors.New("viewer limit reached")
 	}
 	now := time.Now().UTC()
-	c := &Connection{ID: uuid.NewString(), UserID: userID, Role: "viewer", State: "connected", ConnectedAt: now, LastHeartbeatAt: now, Microphone: false}
+	c := &Connection{ID: uuid.NewString(), UserID: userID, Role: "viewer", State: "connected", ConnectedAt: now, LastHeartbeatAt: now, ExpiresAt: now.Add(15 * time.Second), Microphone: false}
 	s.Connections[c.ID] = c
 	s.UpdatedAt = now
-	m.emit("stream_connection_changed", s)
-	return copyConnection(c), nil
+	result := copyConnection(c)
+	snapshot := clone(s)
+	m.mu.Unlock()
+	m.emit("stream_connection_changed", snapshot)
+	return result, nil
 }
 
 func (m *Manager) Claim(sessionID, connectionID string) error {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	s, ok := m.sessions[sessionID]
 	if !ok {
+		m.mu.Unlock()
 		return ErrNotFound
 	}
 	if _, ok = s.Connections[connectionID]; !ok {
+		m.mu.Unlock()
 		return ErrNotFound
 	}
 	if s.ControllerConnectionID != "" && s.ControllerConnectionID != connectionID {
+		m.mu.Unlock()
 		return ErrControllerExists
 	}
 	for _, c := range s.Connections {
@@ -134,15 +173,17 @@ func (m *Manager) Claim(sessionID, connectionID string) error {
 	s.Connections[connectionID].Role = "controller"
 	s.ControllerConnectionID = connectionID
 	s.UpdatedAt = time.Now().UTC()
-	m.emit("stream_controller_changed", s)
+	snapshot := clone(s)
+	m.mu.Unlock()
+	m.emit("stream_controller_changed", snapshot)
 	return nil
 }
 
 func (m *Manager) Release(sessionID string) error {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	s, ok := m.sessions[sessionID]
 	if !ok {
+		m.mu.Unlock()
 		return ErrNotFound
 	}
 	for _, c := range s.Connections {
@@ -150,43 +191,53 @@ func (m *Manager) Release(sessionID string) error {
 	}
 	s.ControllerConnectionID = ""
 	s.UpdatedAt = time.Now().UTC()
-	m.emit("stream_controller_changed", s)
+	snapshot := clone(s)
+	m.mu.Unlock()
+	m.emit("stream_controller_changed", snapshot)
 	return nil
 }
 
 func (m *Manager) UpdateAudio(sessionID string, cfg AudioConfig) error {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	s, ok := m.sessions[sessionID]
 	if !ok {
+		m.mu.Unlock()
 		return ErrNotFound
 	}
 	s.Audio = cfg
 	s.UpdatedAt = time.Now().UTC()
-	m.emit("stream_audio_changed", s)
+	snapshot := clone(s)
+	m.mu.Unlock()
+	m.emit("stream_audio_changed", snapshot)
 	return nil
 }
 func (m *Manager) UpdatePolicy(sessionID string, p Policy) error {
+	if p.MaxViewers < 0 || (p.ControllerDisconnectPolicy != "release" && p.ControllerDisconnectPolicy != "manual") {
+		return ErrInvalidState
+	}
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	s, ok := m.sessions[sessionID]
 	if !ok {
+		m.mu.Unlock()
 		return ErrNotFound
 	}
 	s.Policy = p
 	s.UpdatedAt = time.Now().UTC()
-	m.emit("stream_policy_changed", s)
+	snapshot := clone(s)
+	m.mu.Unlock()
+	m.emit("stream_policy_changed", snapshot)
 	return nil
 }
 
 func (m *Manager) Disconnect(sessionID, connectionID string) error {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	s, ok := m.sessions[sessionID]
 	if !ok {
+		m.mu.Unlock()
 		return ErrNotFound
 	}
 	if _, ok := s.Connections[connectionID]; !ok {
+		m.mu.Unlock()
 		return ErrNotFound
 	}
 	delete(s.Connections, connectionID)
@@ -194,27 +245,85 @@ func (m *Manager) Disconnect(sessionID, connectionID string) error {
 		s.ControllerConnectionID = ""
 	}
 	s.UpdatedAt = time.Now().UTC()
-	m.emit("stream_connection_changed", s)
+	snapshot := clone(s)
+	m.mu.Unlock()
+	m.emit("stream_connection_changed", snapshot)
+	if snapshot.ControllerConnectionID == "" {
+		m.emit("stream_controller_changed", snapshot)
+	}
 	return nil
 }
 
 func (m *Manager) Heartbeat(sessionID, connectionID string, microphone, live bool) error {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	s, ok := m.sessions[sessionID]
 	if !ok {
+		m.mu.Unlock()
 		return ErrNotFound
 	}
 	c, ok := s.Connections[connectionID]
 	if !ok {
+		m.mu.Unlock()
 		return ErrNotFound
 	}
 	c.LastHeartbeatAt = time.Now().UTC()
+	c.ExpiresAt = c.LastHeartbeatAt.Add(15 * time.Second)
 	c.Microphone = microphone
 	c.MicrophoneLive = live
 	s.UpdatedAt = c.LastHeartbeatAt
-	m.emit("stream_connection_changed", s)
+	snapshot := clone(s)
+	m.mu.Unlock()
+	m.emit("stream_connection_changed", snapshot)
 	return nil
+}
+
+// SweepExpired removes connections whose heartbeat lease has elapsed. The
+// caller supplies the clock so this behavior is deterministic in tests.
+func (m *Manager) SweepExpired(now time.Time) int {
+	m.mu.Lock()
+	var expired []*RenderSession
+	count := 0
+	for _, s := range m.sessions {
+		for id, c := range s.Connections {
+			if !c.ExpiresAt.IsZero() && !now.Before(c.ExpiresAt) {
+				wasController := s.ControllerConnectionID == id
+				delete(s.Connections, id)
+				if wasController {
+					s.ControllerConnectionID = ""
+				}
+				s.UpdatedAt = now.UTC()
+				count++
+				expired = append(expired, clone(s))
+			}
+		}
+	}
+	m.mu.Unlock()
+	for _, s := range expired {
+		m.emit("stream_connection_expired", s)
+		m.emit("stream_connection_changed", s)
+		if s.ControllerConnectionID == "" {
+			m.emit("stream_controller_changed", s)
+		}
+	}
+	return count
+}
+
+// RunLeaseReaper runs until ctx is cancelled. It is safe to run on Windows or
+// Linux because it only uses Go timers and the manager's in-process state.
+func (m *Manager) RunLeaseReaper(ctx context.Context, interval time.Duration) {
+	if interval <= 0 {
+		interval = 5 * time.Second
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case now := <-ticker.C:
+			m.SweepExpired(now)
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 func (m *Manager) emit(typ string, s *RenderSession) {
