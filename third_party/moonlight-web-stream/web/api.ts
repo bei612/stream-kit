@@ -532,10 +532,13 @@ export type WebRTCAnswer = {
     location: string | null,
 }
 
-export async function apiWebRTCOffer(api: Api, offerSdp: string): Promise<WebRTCAnswer> {
+export async function apiWebRTCOffer(api: Api, offerSdp: string, mediaTicket?: string | null): Promise<WebRTCAnswer> {
     const ENDPOINT = "/host/stream/webrtc"
 
     const [url, request] = buildRequest(api, ENDPOINT, POST, { sdp: offerSdp })
+    if (mediaTicket) {
+        ;(request.headers as Record<string, string>)['X-Stream-Media-Ticket'] = mediaTicket
+    }
 
     let response
     try {

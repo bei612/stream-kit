@@ -251,6 +251,7 @@ export class Stream implements Component {
             },
             this.logger
         )
+        const mediaTicket = new URLSearchParams(window.location.search).get("mediaTicket")
         transport.controlStream.onreceive = this.boundReceivePacket
 
         const onConnect = new Promise<TransportConnectData>(resolve => {
@@ -271,7 +272,7 @@ export class Stream implements Component {
 
             // Send Request
             this.debugLog("Sending Offer and waiting for Answer")
-            const answer = await apiWebRTCOffer(this.api, offer)
+            const answer = await apiWebRTCOffer(this.api, offer, mediaTicket)
             this.debugLog("Got Response")
 
             // Apply answer
