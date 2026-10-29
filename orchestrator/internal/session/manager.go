@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/stream-kit/orchestrator/internal/model"
+	"github.com/stream-kit/orchestrator/internal/store"
 	"github.com/stream-kit/orchestrator/internal/ws"
 )
 
@@ -66,10 +68,30 @@ type Manager struct {
 	mu       sync.RWMutex
 	sessions map[string]*RenderSession
 	hub      *ws.Hub
+	store    *store.Store
 }
 
 func NewManager(hub *ws.Hub) *Manager {
 	return &Manager{sessions: make(map[string]*RenderSession), hub: hub}
+}
+
+func NewManagerWithStore(hub *ws.Hub, st *store.Store) (*Manager, error) {
+	m := &Manager{sessions: make(map[string]*RenderSession), hub: hub, store: st}
+	if st == nil {
+		return m, nil
+	}
+	records, err := st.ListStreamSessions()
+	if err != nil {
+		return nil, err
+	}
+	for _, record := range records {
+		s, err := fromRecord(record)
+		if err != nil {
+			return nil, err
+		}
+		m.sessions[s.ID] = s
+	}
+	return m, nil
 }
 
 func (m *Manager) List() []*RenderSession {
@@ -108,6 +130,7 @@ func (m *Manager) Ensure(hostID, appID int64) *RenderSession {
 	result := clone(s)
 	m.mu.Unlock()
 	m.emit("stream_session_created", result)
+	m.persist(result)
 	return result
 }
 
@@ -129,6 +152,7 @@ func (m *Manager) SetState(sessionID, state string) error {
 	snapshot := clone(s)
 	m.mu.Unlock()
 	m.emit("stream_session_state_changed", snapshot)
+	m.persist(snapshot)
 	return nil
 }
 
@@ -149,6 +173,7 @@ func (m *Manager) AddConnection(sessionID, userID string) (*Connection, error) {
 	snapshot := clone(s)
 	m.mu.Unlock()
 	m.emit("stream_connection_changed", snapshot)
+	m.persist(snapshot)
 	return result, nil
 }
 
@@ -176,6 +201,7 @@ func (m *Manager) Claim(sessionID, connectionID string) error {
 	snapshot := clone(s)
 	m.mu.Unlock()
 	m.emit("stream_controller_changed", snapshot)
+	m.persist(snapshot)
 	return nil
 }
 
@@ -194,6 +220,7 @@ func (m *Manager) Release(sessionID string) error {
 	snapshot := clone(s)
 	m.mu.Unlock()
 	m.emit("stream_controller_changed", snapshot)
+	m.persist(snapshot)
 	return nil
 }
 
@@ -209,6 +236,7 @@ func (m *Manager) UpdateAudio(sessionID string, cfg AudioConfig) error {
 	snapshot := clone(s)
 	m.mu.Unlock()
 	m.emit("stream_audio_changed", snapshot)
+	m.persist(snapshot)
 	return nil
 }
 func (m *Manager) UpdatePolicy(sessionID string, p Policy) error {
@@ -226,6 +254,7 @@ func (m *Manager) UpdatePolicy(sessionID string, p Policy) error {
 	snapshot := clone(s)
 	m.mu.Unlock()
 	m.emit("stream_policy_changed", snapshot)
+	m.persist(snapshot)
 	return nil
 }
 
@@ -251,6 +280,7 @@ func (m *Manager) Disconnect(sessionID, connectionID string) error {
 	if snapshot.ControllerConnectionID == "" {
 		m.emit("stream_controller_changed", snapshot)
 	}
+	m.persist(snapshot)
 	return nil
 }
 
@@ -274,6 +304,7 @@ func (m *Manager) Heartbeat(sessionID, connectionID string, microphone, live boo
 	snapshot := clone(s)
 	m.mu.Unlock()
 	m.emit("stream_connection_changed", snapshot)
+	m.persist(snapshot)
 	return nil
 }
 
@@ -304,6 +335,7 @@ func (m *Manager) SweepExpired(now time.Time) int {
 		if s.ControllerConnectionID == "" {
 			m.emit("stream_controller_changed", s)
 		}
+		m.persist(s)
 	}
 	return count
 }
@@ -330,6 +362,24 @@ func (m *Manager) emit(typ string, s *RenderSession) {
 	if m.hub != nil {
 		m.hub.Broadcast(ws.Event{Type: typ, Data: clone(s)})
 	}
+}
+
+func (m *Manager) persist(s *RenderSession) {
+	if m.store == nil || s == nil { return }
+	audio, policy, connections, err := store.EncodeStreamSessionSnapshot(s.Audio, s.Policy, s.Connections)
+	if err != nil { return }
+	_ = m.store.UpsertStreamSession(&model.StreamSession{
+		ID: s.ID, HostID: s.HostID, AppID: s.AppID, State: s.State,
+		ControllerConnectionID: s.ControllerConnectionID, AudioJSON: audio,
+		PolicyJSON: policy, ConnectionsJSON: connections, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt,
+	})
+}
+
+func fromRecord(record model.StreamSession) (*RenderSession, error) {
+	s := &RenderSession{ID: record.ID, HostID: record.HostID, AppID: record.AppID, State: record.State, ControllerConnectionID: record.ControllerConnectionID, CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt, Connections: map[string]*Connection{}}
+	if err := store.DecodeStreamSessionSnapshot(&record, &s.Audio, &s.Policy, &s.Connections); err != nil { return nil, err }
+	if s.Connections == nil { s.Connections = map[string]*Connection{} }
+	return s, nil
 }
 func clone(s *RenderSession) *RenderSession {
 	if s == nil {

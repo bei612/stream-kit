@@ -39,7 +39,7 @@ func New(dbPath string) (*Store, error) {
 	db.Exec("PRAGMA busy_timeout=5000")
 
 	// Auto-migrate
-	if err := db.AutoMigrate(&model.App{}, &model.OperationLog{}); err != nil {
+	if err := db.AutoMigrate(&model.App{}, &model.OperationLog{}, &model.StreamSession{}); err != nil {
 		return nil, fmt.Errorf("auto migrate: %w", err)
 	}
 
