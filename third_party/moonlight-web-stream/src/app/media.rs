@@ -1,5 +1,10 @@
 use std::{collections::HashMap, sync::Arc, time::SystemTime};
 
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use hmac::{Hmac, Mac};
+use serde::Deserialize;
+use sha2::Sha256;
+
 use tokio::sync::RwLock;
 
 use super::{host::{AppId, HostId}, AppError};
@@ -14,6 +19,49 @@ pub struct MediaSessionKey {
 pub enum PeerRole {
     Viewer,
     Controller,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct MediaTicketClaims {
+    pub purpose: String,
+    pub session_id: String,
+    pub connection_id: String,
+    pub host_id: i64,
+    pub app_id: i64,
+    pub role: String,
+    pub exp: i64,
+    pub iat: i64,
+}
+
+#[derive(Deserialize)]
+struct MediaTicketHeader {
+    alg: String,
+    typ: String,
+}
+
+pub fn verify_media_ticket(token: &str, secret: &str) -> Result<MediaTicketClaims, AppError> {
+    let mut parts = token.split('.');
+    let (header, payload, signature) = match (parts.next(), parts.next(), parts.next(), parts.next()) {
+        (Some(header), Some(payload), Some(signature), None) => (header, payload, signature),
+        _ => return Err(AppError::Unauthorized),
+    };
+    let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).map_err(|_| AppError::Unauthorized)?;
+    mac.update(format!("{header}.{payload}").as_bytes());
+    let provided = URL_SAFE_NO_PAD.decode(signature).map_err(|_| AppError::Unauthorized)?;
+    mac.verify_slice(&provided).map_err(|_| AppError::Unauthorized)?;
+    let header: MediaTicketHeader = serde_json::from_slice(&URL_SAFE_NO_PAD.decode(header).map_err(|_| AppError::Unauthorized)?)
+        .map_err(|_| AppError::Unauthorized)?;
+    if header.alg != "HS256" || header.typ != "MEDIA" { return Err(AppError::Unauthorized); }
+    let claims: MediaTicketClaims = serde_json::from_slice(&URL_SAFE_NO_PAD.decode(payload).map_err(|_| AppError::Unauthorized)?)
+        .map_err(|_| AppError::Unauthorized)?;
+    if claims.purpose != "stream-media" || claims.session_id.is_empty() || claims.connection_id.is_empty() || claims.exp < chrono_like_now() {
+        return Err(AppError::Unauthorized);
+    }
+    Ok(claims)
+}
+
+fn chrono_like_now() -> i64 {
+    SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs() as i64
 }
 
 #[derive(Clone, Debug)]
@@ -53,6 +101,10 @@ impl MediaSessionRegistry {
     }
 
     pub async fn attach(&self, key: MediaSessionKey, peer_id: String) -> Result<MediaSessionSnapshot, AppError> {
+		self.attach_as(key, peer_id, PeerRole::Viewer).await
+	}
+
+	pub async fn attach_as(&self, key: MediaSessionKey, peer_id: String, role: PeerRole) -> Result<MediaSessionSnapshot, AppError> {
         let mut sessions = self.sessions.write().await;
         let session = sessions.entry(key.clone()).or_insert_with(|| MediaSessionState {
             peers: HashMap::new(),
@@ -63,7 +115,7 @@ impl MediaSessionRegistry {
         }
         session.peers.insert(peer_id.clone(), MediaPeer {
             id: peer_id,
-            role: PeerRole::Viewer,
+            role,
             attached_at: SystemTime::now(),
         });
         Ok(snapshot(&key, session))

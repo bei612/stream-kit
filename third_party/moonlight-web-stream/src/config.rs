@@ -175,6 +175,8 @@ pub struct WebServerConfig {
     pub first_login_create_admin: bool,
     pub first_login_assign_global_hosts: bool,
     pub forwarded_header: Option<ForwardedHeaders>,
+    #[serde(default)]
+    pub media_ticket_secret: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -194,6 +196,7 @@ impl Default for WebServerConfig {
             first_login_create_admin: true,
             first_login_assign_global_hosts: true,
             forwarded_header: None,
+            media_ticket_secret: None,
         }
     }
 }

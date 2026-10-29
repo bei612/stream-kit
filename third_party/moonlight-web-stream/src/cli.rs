@@ -106,6 +106,9 @@ pub struct CliConfig {
     /// Overwrites `web_server.forwarded_header.username_header`.
     #[arg(long, env = "FORWARDED_HEADER")]
     pub forwarded_header: Option<String>,
+    /// Overwrites `web_server.media_ticket_secret`.
+    #[arg(long, env = "MEDIA_TICKET_SECRET")]
+    pub media_ticket_secret: Option<String>,
     /// Overwrites `log.level_filter`.
     #[arg(long, env = "LOG_LEVEL")]
     pub log_level_filter: Option<LevelFilter>,
@@ -176,6 +179,9 @@ impl CliConfig {
                     .unwrap_or_default()
                     .ignore_case,
             });
+        }
+        if let Some(media_ticket_secret) = self.media_ticket_secret {
+            config.web_server.media_ticket_secret = Some(media_ticket_secret);
         }
         if let Some(log_level_filter) = self.log_level_filter {
             config.log.level_filter = log_level_filter;

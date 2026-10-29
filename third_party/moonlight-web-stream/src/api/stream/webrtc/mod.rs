@@ -590,8 +590,29 @@ pub async fn webrtc_post(
     // media driver one authoritative attach/detach boundary and avoids
     // exposing half-open SDP offers as online clients.
     let media_key = crate::app::media::MediaSessionKey { host_id, app_id };
-    let media_peer_id = Uuid::new_v4().to_string();
-    app.media_sessions().attach(media_key.clone(), media_peer_id.clone()).await?;
+    let (media_peer_id, media_role) = if let Some(secret) = app.config().web_server.media_ticket_secret.as_deref() {
+        let token = req
+            .headers()
+            .get("x-stream-media-ticket")
+            .and_then(|value| value.to_str().ok())
+            .ok_or(AppError::Unauthorized)?;
+        let claims = crate::app::media::verify_media_ticket(token, secret)?;
+        if claims.host_id != i64::from(host_id.0) || claims.app_id != i64::from(app_id.0) {
+            return Err(AppError::Unauthorized);
+        }
+        let role = if claims.role == "controller" {
+            crate::app::media::PeerRole::Controller
+        } else {
+            crate::app::media::PeerRole::Viewer
+        };
+        (claims.connection_id, role)
+    } else {
+        (Uuid::new_v4().to_string(), crate::app::media::PeerRole::Viewer)
+    };
+    app.media_sessions().attach_as(media_key.clone(), media_peer_id.clone(), media_role).await?;
+    if media_role == crate::app::media::PeerRole::Controller {
+        app.media_sessions().claim_controller(&media_key, &media_peer_id, false).await?;
+    }
     info!(peer_id = %media_peer_id, "attached peer to media session");
 
     // Keep the Moonlight transport alive while STUN/ICE gathering runs. Waiting here can
