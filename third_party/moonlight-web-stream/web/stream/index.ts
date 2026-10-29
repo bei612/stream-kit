@@ -166,30 +166,29 @@ export class Stream implements Component {
 
     async startConnection() {
         this.debugLog(`Permissions: ${JSON.stringify(this.permissions)}`)
+        let retryDelay = 1000
+        for (;;) {
+            const desiredTransport = this.transportOverride ?? this.settings.dataTransport
+            this.debugLog(`Using transport: ${desiredTransport}`)
 
-        const desiredTransport = this.transportOverride ?? this.settings.dataTransport
-        this.debugLog(`Using transport: ${desiredTransport}`)
-
-        let shutdownReason: TransportShutdown | null = null
-        if (desiredTransport == "auto") {
-            shutdownReason = await this.tryWebRTCTransport()
-
-            if (shutdownReason == "failednoconnect") {
-                this.debugLog("Failed to establish WebRTC connection. Falling back to Web Socket transport.", { type: "ifErrorDescription" })
+            let shutdownReason: TransportShutdown | null = null
+            if (desiredTransport == "auto") {
+                shutdownReason = await this.tryWebRTCTransport()
+                if (shutdownReason == "failednoconnect") {
+                    this.debugLog("Failed to establish WebRTC connection. Falling back to Web Socket transport.", { type: "ifErrorDescription" })
+                    shutdownReason = await this.tryWebSocketTransport()
+                }
+            } else if (desiredTransport == "webrtc") {
+                shutdownReason = await this.tryWebRTCTransport()
+            } else if (desiredTransport == "websocket") {
                 shutdownReason = await this.tryWebSocketTransport()
             }
-        } else if (desiredTransport == "webrtc") {
-            shutdownReason = await this.tryWebRTCTransport()
-        } else if (desiredTransport == "websocket") {
-            shutdownReason = await this.tryWebSocketTransport()
-        }
 
-        if (shutdownReason == "disconnect") {
-            return
+            if (shutdownReason == "disconnect") return
+            this.debugLog("Stream disconnected; reconnecting", { type: "ifErrorDescription" })
+            await wait(retryDelay)
+            retryDelay = Math.min(retryDelay * 2, 30000)
         }
-        this.debugLog(shutdownReason == "failed"
-            ? "The stream connection was lost"
-            : "Tried all configured transport options but no connection was possible", { type: "fatal" })
     }
 
     private transport: Transport | null = null
