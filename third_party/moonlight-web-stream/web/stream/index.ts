@@ -310,6 +310,13 @@ export class Stream implements Component {
         return await onClose
     }
     private async tryWebSocketTransport(): Promise<TransportShutdown | null> {
+        // A signed media ticket is an explicit authorization for the WebRTC
+        // gateway. Do not silently downgrade to the legacy WebSocket path,
+        // which cannot carry the ticket header and would bypass admission.
+        if (new URLSearchParams(window.location.search).has("mediaTicket")) {
+            this.debugLog("Not trying WebSocket transport because a media ticket requires WebRTC admission")
+            return "failednoconnect"
+        }
         if (!this.permissions.allow_transport_websockets) {
             this.debugLog("Not trying WebSocket transport becaues permissions disallow it")
             return null
