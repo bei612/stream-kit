@@ -36,6 +36,7 @@ use crate::app::{
 
 pub mod auth;
 pub mod host;
+pub mod media;
 pub mod password;
 pub mod role;
 pub mod storage;
@@ -181,6 +182,7 @@ struct AppInner {
     storage: Arc<dyn Storage + Send + Sync>,
     app_image_cache: RwLock<HashMap<(UserId, HostId, AppId), Bytes>>,
     streams: RwLock<HashMap<StreamId, Stream>>,
+    media_sessions: media::MediaSessionRegistry,
 }
 
 pub type RequestClient = TokioHyperClient;
@@ -196,6 +198,7 @@ impl App {
             config,
             app_image_cache: Default::default(),
             streams: Default::default(),
+            media_sessions: Default::default(),
         };
         let inner = Arc::new(app);
 
@@ -235,6 +238,10 @@ impl App {
         let stream = streams.get(&id).ok_or(AppError::StreamClosed)?;
 
         Ok(stream.clone())
+    }
+
+    pub fn media_sessions(&self) -> &media::MediaSessionRegistry {
+        &self.inner.media_sessions
     }
 
     // -- Users
