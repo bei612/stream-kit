@@ -28,6 +28,11 @@ jobs:
           cache-dependency-path: orchestrator/go.sum
       - run: go test ./...
       - run: go build -trimpath -ldflags "-s -w" -o dist/orchestrator${{ runner.os == 'Windows' && '.exe' || '' }} ./cmd/orchestrator
+      - uses: actions/upload-artifact@v4
+        with:
+          name: orchestrator-${{ runner.os }}-${{ runner.arch }}
+          path: orchestrator/dist/orchestrator${{ runner.os == 'Windows' && '.exe' || '' }}
+          if-no-files-found: error
 
   web:
     name: Management Web
@@ -67,6 +72,14 @@ jobs:
       - run: cargo test --locked
       - run: cargo fmt --all -- --check
       - run: cargo clippy --locked --all-targets -- -D warnings
+      - run: cargo build --locked --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moonlight-web-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            third_party/moonlight-web-stream/target/release/web-server${{ runner.os == 'Windows' && '.exe' || '' }}
+            third_party/moonlight-web-stream/target/release/web-server
+          if-no-files-found: error
 
   sbom:
     name: Source SBOM
