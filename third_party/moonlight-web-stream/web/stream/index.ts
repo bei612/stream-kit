@@ -1,4 +1,4 @@
-import { Api, apiWebRTCConfiguration, apiWebRTCOffer } from "../api"
+import { Api, apiEnsureMediaAccess, apiMediaHeartbeat, apiReleaseMediaAccess, apiWebRTCConfiguration, apiWebRTCOffer, MediaAccess } from "../api"
 import { Component } from "../component/index"
 import { Settings, TransportType } from "../component/settings_menu"
 import { ControlPacket, ControlPacket_Tags, TerminationReason_Tags, VideoFormats } from "../uniffi/moonlight_common_bindings"
@@ -119,6 +119,8 @@ export class Stream implements Component {
     private stats: StreamStats
 
     private streamerSize: [number, number]
+    private mediaAccess: MediaAccess | null = null
+    private mediaHeartbeatTimer: number | null = null
 
     constructor(api: Api, hostId: number, appId: number, settings: Settings, viewerScreenSize: [number, number], permissions: StreamPermissions) {
         this.logger.addInfoListener((info, type) => {
@@ -238,6 +240,15 @@ export class Stream implements Component {
 
         this.debugLog("Trying WebRTC transport")
 
+        let mediaAccess: MediaAccess | null = null
+        try {
+            mediaAccess = await apiEnsureMediaAccess(this.api, this.hostId, this.appId)
+            this.mediaAccess = mediaAccess
+        } catch (error) {
+            this.debugLog(`Media control admission failed: ${error}`)
+            return "failednoconnect"
+        }
+
         // Get configuration
         const config = await apiWebRTCConfiguration(this.api)
 
@@ -251,7 +262,7 @@ export class Stream implements Component {
             },
             this.logger
         )
-        const mediaTicket = new URLSearchParams(window.location.search).get("mediaTicket")
+        const mediaTicket = mediaAccess?.ticket ?? new URLSearchParams(window.location.search).get("mediaTicket")
         transport.controlStream.onreceive = this.boundReceivePacket
 
         const onConnect = new Promise<TransportConnectData>(resolve => {
@@ -300,20 +311,47 @@ export class Stream implements Component {
         if (typeof connectData == "string") {
             this.debugLog(`webrtc connection failed: ${connectData}`)
             await transport.close()
+            await this.releaseMediaAccess()
             // connection failed
             return connectData
         }
 
         // -- Connection successful
         await this.onConnect(connectData)
+        this.startMediaHeartbeat()
 
-        return await onClose
+        const shutdown = await onClose
+        await this.releaseMediaAccess()
+        return shutdown
+    }
+
+    private startMediaHeartbeat() {
+        if (!this.mediaAccess || this.mediaHeartbeatTimer != null) return
+        const send = () => {
+            if (!this.mediaAccess) return
+            apiMediaHeartbeat(this.mediaAccess, this.settings.microphone, this.settings.microphone)
+                .catch(error => this.debugLog(`Media heartbeat failed: ${error}`))
+        }
+        send()
+        this.mediaHeartbeatTimer = window.setInterval(send, 5000)
+    }
+
+    private async releaseMediaAccess() {
+        if (this.mediaHeartbeatTimer != null) {
+            window.clearInterval(this.mediaHeartbeatTimer)
+            this.mediaHeartbeatTimer = null
+        }
+        if (!this.mediaAccess) return
+        const access = this.mediaAccess
+        this.mediaAccess = null
+        try { await apiReleaseMediaAccess(access) } catch (error) { this.debugLog(`Media disconnect failed: ${error}`) }
     }
     private async tryWebSocketTransport(): Promise<TransportShutdown | null> {
         // A signed media ticket is an explicit authorization for the WebRTC
         // gateway. Do not silently downgrade to the legacy WebSocket path,
         // which cannot carry the ticket header and would bypass admission.
-        if (new URLSearchParams(window.location.search).has("mediaTicket")) {
+        const mediaQuery = new URLSearchParams(window.location.search)
+        if (mediaQuery.has("mediaTicket") || mediaQuery.has("mediaControlUrl")) {
             this.debugLog("Not trying WebSocket transport because a media ticket requires WebRTC admission")
             return "failednoconnect"
         }
