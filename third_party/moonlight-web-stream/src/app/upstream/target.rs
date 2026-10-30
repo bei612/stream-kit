@@ -8,6 +8,7 @@ use std::{
 use stream_kit_audio_target::{AudioTarget, EndpointPair, TargetStatus};
 use tokio::sync::{OwnedMutexGuard, oneshot};
 #[cfg(test)]
+#[path = "target_tests.rs"]
 mod tests;
 
 pub(super) trait OutputDevice: Send + 'static {
