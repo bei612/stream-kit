@@ -1419,8 +1419,9 @@ namespace stream {
    * @brief Receive thread data.
    *
    * @param ctx Native context object used by the operation or callback.
+   * @param broadcast_shutdown_event Stop signal owned by this broadcast receiver.
    */
-  void recvThread(broadcast_ctx_t &ctx) {
+  void recvThread(broadcast_ctx_t &ctx, safe::mail_raw_t::event_t<bool> broadcast_shutdown_event) {
     std::map<av_session_id_t, message_queue_t> peer_to_video_session;
     std::map<av_session_id_t, message_queue_t> peer_to_audio_session;
 
@@ -1428,11 +1429,12 @@ namespace stream {
     auto &audio_sock = ctx.audio_sock;
 
     auto &message_queue_queue = ctx.message_queue_queue;
-    auto broadcast_shutdown_event = mail::man->event<bool>(mail::broadcast_shutdown);
 
     auto &io = ctx.io_context;
 
-    udp::endpoint peer;
+    // Each outstanding receive owns its output endpoint until its callback.
+    // Sharing this storage lets audio completion overwrite the video address.
+    std::array<udp::endpoint, 2> peers;
 
     std::array<char, 2048> buf[2];
     std::function<void(const boost::system::error_code, size_t)> recv_func[2];
@@ -1465,6 +1467,7 @@ namespace stream {
 
     auto recv_func_init = [&](udp::socket &sock, int buf_elem, std::map<av_session_id_t, message_queue_t> &peer_to_session) {
       recv_func[buf_elem] = [&, buf_elem](const boost::system::error_code &ec, size_t bytes) {
+        auto &peer = peers[buf_elem];
         auto fg = util::fail_guard([&]() {
           sock.async_receive_from(asio::buffer(buf[buf_elem]), peer, 0, recv_func[buf_elem]);
         });
@@ -1507,13 +1510,70 @@ namespace stream {
     recv_func_init(video_sock, 0, peer_to_video_session);
     recv_func_init(audio_sock, 1, peer_to_audio_session);
 
-    video_sock.async_receive_from(asio::buffer(buf[0]), peer, 0, recv_func[0]);
-    audio_sock.async_receive_from(asio::buffer(buf[1]), peer, 0, recv_func[1]);
+    video_sock.async_receive_from(asio::buffer(buf[0]), peers[0], 0, recv_func[0]);
+    audio_sock.async_receive_from(asio::buffer(buf[1]), peers[1], 0, recv_func[1]);
 
     while (!broadcast_shutdown_event->peek()) {
       io.run();
     }
   }
+
+#ifdef SUNSHINE_TESTS
+  /**
+   * @brief Exercise the production receiver with both UDP packets queued before dispatch.
+   * @param video_first Whether to send the video ping before the audio ping.
+   * @param modern Whether to use session-tagged pings rather than legacy address lookup.
+   * @return Observed video/audio ports followed by their expected source ports.
+   */
+  std::array<std::uint16_t, 4> test_av_ping_routing(bool video_first, bool modern) {
+    broadcast_ctx_t ctx;
+    const udp::endpoint loopback(asio::ip::address_v4::loopback(), 0);
+    ctx.video_sock.open(udp::v4());
+    ctx.audio_sock.open(udp::v4());
+    ctx.video_sock.bind(loopback);
+    ctx.audio_sock.bind(loopback);
+    udp::socket video_client(ctx.io_context, loopback);
+    udp::socket audio_client(ctx.io_context, loopback);
+    auto video_messages = std::make_shared<message_queue_t::element_type>(4);
+    auto audio_messages = std::make_shared<message_queue_t::element_type>(4);
+    ctx.message_queue_queue = std::make_shared<message_queue_queue_t::element_type>(4);
+    std::string video_ping("PING"), audio_ping("PING");
+    if (modern) {
+      SS_PING video_packet {}, audio_packet {};
+      const std::string video_id(sizeof(video_packet.payload), 'V');
+      const std::string audio_id(sizeof(audio_packet.payload), 'A');
+      std::copy(video_id.begin(), video_id.end(), video_packet.payload);
+      std::copy(audio_id.begin(), audio_id.end(), audio_packet.payload);
+      video_ping.assign(reinterpret_cast<const char *>(&video_packet), sizeof(video_packet));
+      audio_ping.assign(reinterpret_cast<const char *>(&audio_packet), sizeof(audio_packet));
+      ctx.message_queue_queue->raise(socket_e::video, video_id, video_messages);
+      ctx.message_queue_queue->raise(socket_e::audio, audio_id, audio_messages);
+    } else {
+      ctx.message_queue_queue->raise(socket_e::video, loopback.address(), video_messages);
+      ctx.message_queue_queue->raise(socket_e::audio, loopback.address(), audio_messages);
+    }
+    const auto send_video = [&] { video_client.send_to(asio::buffer(video_ping), ctx.video_sock.local_endpoint()); };
+    const auto send_audio = [&] { audio_client.send_to(asio::buffer(audio_ping), ctx.audio_sock.local_endpoint()); };
+    if (video_first) {
+      send_video();
+      send_audio();
+    } else {
+      send_audio();
+      send_video();
+    }
+    auto mailbox = std::make_shared<safe::mail_raw_t>();
+    auto shutdown = mailbox->event<bool>("receiver-test-stop");
+    std::jthread receiver(recvThread, std::ref(ctx), shutdown);
+    auto cleanup = util::fail_guard([&] {
+      shutdown->raise(true);
+      ctx.io_context.stop();
+      receiver.join();
+    });
+    const auto video = video_messages->pop(std::chrono::seconds(2));
+    const auto audio = audio_messages->pop(std::chrono::seconds(2));
+    return {video ? video->first.port() : std::uint16_t(0), audio ? audio->first.port() : std::uint16_t(0), video_client.local_endpoint().port(), audio_client.local_endpoint().port()};
+  }
+#endif
 
   /**
    * @brief Run the broadcast video sender thread.
@@ -2017,7 +2077,7 @@ namespace stream {
     ctx.audio_thread = std::jthread {audioBroadcastThread, std::ref(ctx.audio_sock)};
     ctx.control_thread = std::jthread {controlBroadcastThread, &ctx.control_server};
 
-    ctx.recv_thread = std::jthread {recvThread, std::ref(ctx)};
+    ctx.recv_thread = std::jthread {recvThread, std::ref(ctx), mail::man->event<bool>(mail::broadcast_shutdown)};
 
     return 0;
   }

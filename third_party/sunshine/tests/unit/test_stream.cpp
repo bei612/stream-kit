@@ -20,9 +20,28 @@
 #include <src/network.h>
 
 namespace stream {
+  std::array<std::uint16_t, 4> test_av_ping_routing(bool video_first, bool modern);
   std::vector<uint8_t> concat_and_insert(uint64_t insert_size, uint64_t slice_size, const std::string_view &data1, const std::string_view &data2);
   std::optional<std::pair<std::uint16_t, std::string_view>> parse_control_packet(const ENetPacket &packet);
 }  // namespace stream
+
+TEST(AVPingRoutingTests, KeepsVideoAndAudioSourcePortsSeparate) {
+  for (bool video_first : {true, false}) {
+    const auto ports = stream::test_av_ping_routing(video_first, false);
+    ASSERT_NE(ports[2], ports[3]);
+    EXPECT_EQ(ports[0], ports[2]);
+    EXPECT_EQ(ports[1], ports[3]);
+  }
+}
+
+TEST(AVPingRoutingTests, KeepsSessionTaggedPingSourcePortsSeparate) {
+  for (bool video_first : {true, false}) {
+    const auto ports = stream::test_av_ping_routing(video_first, true);
+    ASSERT_NE(ports[2], ports[3]);
+    EXPECT_EQ(ports[0], ports[2]);
+    EXPECT_EQ(ports[1], ports[3]);
+  }
+}
 
 TEST(ConcatAndInsertTests, ConcatNoInsertionTest) {
   char b1[] = {'a', 'b'};
