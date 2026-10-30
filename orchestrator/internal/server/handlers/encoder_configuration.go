@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"sort"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stream-kit/orchestrator/internal/sunshine"
@@ -20,14 +19,6 @@ type EncoderConfigurationClient interface {
 
 // Unknown fields are write-only until classified. This also protects credentials
 // in extensions, command arrays and future native configuration keys.
-var encoderVisibleKeys = func() map[string]bool {
-	keys := make(map[string]bool)
-	for _, key := range strings.Fields(`sunshine_name capture encoder adapter_name output_name audio_sink virtual_sink stream_audio max_bitrate mouse keyboard controller native_pen_touch high_resolution_scrolling always_send_scancodes system_tray min_log_level`) {
-		keys[key] = true
-	}
-	return keys
-}()
-
 func EncoderConfiguration(client EncoderConfigurationClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")
@@ -56,6 +47,12 @@ func EncoderConfiguration(client EncoderConfigurationClient) gin.HandlerFunc {
 				fail(sunshine.ErrConfigurationInvalid)
 				return
 			}
+			for key, value := range edit.Changes {
+				if !validEncoderField(key, value) {
+					fail(sunshine.ErrConfigurationInvalid)
+					return
+				}
+			}
 			revision, err := client.PatchConfiguration(c.Request.Context(), edit.Revision, edit.Changes)
 			if err != nil {
 				fail(err)
@@ -73,7 +70,7 @@ func EncoderConfiguration(client EncoderConfigurationClient) gin.HandlerFunc {
 		values := make(map[string]json.RawMessage, len(snapshot.Values))
 		redacted := make([]string, 0)
 		for key, value := range snapshot.Values {
-			if encoderVisibleKeys[key] {
+			if _, visible := encoderFieldByKey[key]; visible {
 				values[key] = value
 			} else {
 				values[key] = json.RawMessage("null")
@@ -82,6 +79,7 @@ func EncoderConfiguration(client EncoderConfigurationClient) gin.HandlerFunc {
 		}
 		sort.Strings(redacted)
 		view := gin.H{"revision": snapshot.Revision, "values": values, "redacted_keys": redacted, "apply_policy": "encoder_restart", "runtime_verified": false}
+		view["fields"] = encoderFields
 		if snapshot.State != nil && snapshot.State.RuntimeAvailable {
 			view["loaded_revision"] = snapshot.State.LoadedRevision
 			view["instance_id"] = snapshot.State.InstanceID

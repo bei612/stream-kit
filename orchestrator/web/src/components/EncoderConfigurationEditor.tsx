@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { Input, Label, Select } from '@/components/ui/input'
 import { Alert } from '@/components/ui/alert'
 
-const labels:Record<string,string>={sunshine_name:'渲染节点名称',capture:'画面采集方式',encoder:'编码器',adapter_name:'显卡',output_name:'显示输出',audio_sink:'主机声音设备',virtual_sink:'虚拟声音设备',stream_audio:'传输主机声音',max_bitrate:'最大码率',mouse:'鼠标输入',keyboard:'键盘输入',controller:'手柄输入',native_pen_touch:'原生触控与笔输入',min_log_level:'日志级别'}
 type Draft={mode:'text'|'json'|'reset';text:string}
 
 export function EncoderConfigurationEditor() {
@@ -60,6 +59,7 @@ export function EncoderConfigurationEditor() {
     finally{setBusy(false)}
   }
   const keys=[...new Set([...Object.keys(view?.values||{}),...Object.keys(drafts)])].sort()
+  const fields=new Map((view?.fields||[]).map(field=>[field.key,field]))
   return <Card>
     <CardHeader><CardTitle>渲染编码器配置</CardTitle><p className="text-sm text-muted-foreground">管理画面、声音与输入的原生参数。以下配置均在编码器重启后生效；控制权和会话音量在会话页面实时调整。</p></CardHeader>
     <CardContent className="space-y-4">
@@ -81,20 +81,24 @@ export function EncoderConfigurationEditor() {
         {keys.map(key=>{
           const draft=Object.hasOwn(drafts,key)?drafts[key]:undefined,hidden=view?.redacted_keys.includes(key)
           const original=view?.values[key]
+          const field=fields.get(key)
           const mode=draft?.mode??(typeof original==='string'||hidden?'text':'json')
           const text=draft?.text??(hidden?'':typeof original==='string'?original:JSON.stringify(original)??'')
           const id='encoder-setting-'+key
           return <div key={key} className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
-            <Label htmlFor={id}>{labels[key]||key}<span className="ml-2 text-xs text-muted-foreground">重启生效</span></Label>
+            <Label htmlFor={id}>{field?.label||key}<span className="ml-2 text-xs text-muted-foreground">重启生效</span></Label>
             <p className="text-xs text-muted-foreground break-all">{key}</p>
             <Select aria-label={`${key} 编辑方式`} value={mode} onChange={e=>edit(key,{mode:e.target.value as Draft['mode'],text})}><option value="text">文本值</option><option value="json">结构化 JSON 值</option><option value="reset">恢复默认（删除覆盖）</option></Select>
-            {mode==='reset'?<p className="text-sm text-amber-400">保存后删除此项配置覆盖。</p>:<Input id={id} type={hidden?'password':'text'} autoComplete="off" value={text} placeholder={hidden?'值已隐藏，未编辑则保留':''} onChange={e=>edit(key,{mode,text:e.target.value})}/>}
+            {mode==='reset'?<p className="text-sm text-amber-400">保存后删除此项配置覆盖。</p>:field?.type==='boolean'?<Select id={id} value={text} onChange={e=>edit(key,{mode:'json',text:e.target.value})}>
+              {!['true','false'].includes(text)&&<option value={text}>{text||'未设置'}</option>}<option value="true">开启</option><option value="false">关闭</option>
+            </Select>:<Input id={id} type={hidden?'password':field?.type==='integer'?'number':'text'} min={field?.type==='integer'?(field.minimum??0):undefined} max={field?.maximum} step={field?.type==='integer'?1:undefined} autoComplete="off" value={text} placeholder={hidden?'值已隐藏，未编辑则保留':''} onChange={e=>edit(key,{mode,text:e.target.value})}/>}
             {draft&&<Button size="sm" variant="ghost" onClick={()=>setDrafts(current=>Object.fromEntries(Object.entries(current).filter(([name])=>name!==key)))}>撤销此项修改</Button>}
           </div>
         })}
         {view&&<div className="rounded-lg border border-border p-3 space-y-2">
           <Label htmlFor="encoder-new-key">添加原生参数</Label>
-          <p className="text-xs text-muted-foreground">使用编码器支持的参数名。完整参数目录与范围校验尚未接入。</p>
+          {!!view.fields?.length&&<Select aria-label="选择常用编码参数" value="" onChange={e=>{if(e.target.value)edit(e.target.value,{mode:'text',text:''})}}><option value="">选择尚未配置的常用参数</option>{view.fields.filter(field=>!keys.includes(field.key)).map(field=><option key={field.key} value={field.key}>{field.label} · {field.key}</option>)}</Select>}
+          <p className="text-xs text-muted-foreground">常用参数由服务端校验类型。其他原生参数可按名称添加；平台支持和完整参数范围仍以编码器为准。</p>
           <div className="flex gap-2"><Input id="encoder-new-key" value={newKey} onChange={e=>setNewKey(e.target.value)} placeholder="例如 sunshine_name"/><Button variant="outline" disabled={!/^[a-zA-Z0-9_]{1,128}$/.test(newKey)||['status','platform','version','__proto__','constructor','prototype'].includes(newKey)||keys.includes(newKey)} onClick={()=>{edit(newKey,{mode:'text',text:''});setNewKey('')}}>添加</Button></div>
         </div>}
       </fieldset>

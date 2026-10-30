@@ -30,7 +30,7 @@ const {chromium}=createRequire(path.resolve('third_party/moonlight-web-stream/pa
             if(!failure)desiredRevision='"'+'b'.repeat(64)+'"';
             return route.fulfill({status:failure?409:200,json:failure?{status:'error',message:'配置已变化，请重新读取'}:{status:'ok',data:{revision:'"'+'b'.repeat(64)+'"',apply_policy:'encoder_restart',runtime_verified:false}}});
           }
-          return route.fulfill({status:readFailure?503:200,json:readFailure?{status:'error',message:'编码器读取失败'}:{status:'ok',data:{revision:desiredRevision,loaded_revision:loadedRevision,instance_id:instance,process_id:700,managed_instance_id:'d'.repeat(32),restart_required:desiredRevision!==loadedRevision,overridden_keys:['sunshine_name'],apply_policy:'encoder_restart',runtime_verified:false,values:{sunshine_name:'Renderer',pkey:null},redacted_keys:['pkey']}}});
+          return route.fulfill({status:readFailure?503:200,json:readFailure?{status:'error',message:'编码器读取失败'}:{status:'ok',data:{revision:desiredRevision,loaded_revision:loadedRevision,instance_id:instance,process_id:700,managed_instance_id:'d'.repeat(32),restart_required:desiredRevision!==loadedRevision,overridden_keys:['sunshine_name'],apply_policy:'encoder_restart',runtime_verified:false,fields:[{key:'sunshine_name',label:'渲染节点名称',type:'string'},{key:'stream_audio',label:'传输主机声音',type:'boolean'},{key:'max_bitrate',label:'最大码率',type:'integer'}],values:{sunshine_name:'Renderer',pkey:null},redacted_keys:['pkey']}}});
         }
         return route.fulfill({status:503,json:{status:'error',message:'测试中未连接此服务'}});
       }
@@ -62,6 +62,14 @@ const {chromium}=createRequire(path.resolve('third_party/moonlight-web-stream/pa
     await page.getByRole('button',{name:'重启编码器并加载配置',exact:true}).click();
     await page.getByRole('status').filter({hasText:'编码器已重启，新实例已读取目标配置文件'}).waitFor();
     assert.equal(applyCalls,1);
+    await page.getByRole('combobox',{name:'选择常用编码参数',exact:true}).selectOption('stream_audio');
+    await page.locator('#encoder-setting-stream_audio').selectOption('true');
+    await page.getByRole('combobox',{name:'选择常用编码参数',exact:true}).selectOption('max_bitrate');
+    assert.equal(await page.locator('#encoder-setting-max_bitrate').getAttribute('type'),'number');
+    await page.locator('#encoder-setting-max_bitrate').fill('20000');
+    await save.click();
+    await page.getByRole('status').filter({hasText:'配置已保存'}).waitFor();
+    assert.deepEqual(writes[2],{revision:desiredRevision,changes:{stream_audio:true,max_bitrate:'20000'}});
     readFailure=true;
     await page.getByRole('button',{name:'重新读取编码器配置',exact:true}).click();
     await page.getByRole('alert').filter({hasText:'编码器读取失败'}).waitFor();
@@ -69,7 +77,7 @@ const {chromium}=createRequire(path.resolve('third_party/moonlight-web-stream/pa
     assert.deepEqual(errors,[]);
     const out=path.resolve('artifacts/encoder-configuration');fs.mkdirSync(out,{recursive:true});
     await page.screenshot({path:path.join(out,'admin-configuration.png'),fullPage:true});
-    fs.writeFileSync(path.join(out,'admin-browser-result.json'),JSON.stringify({passed:true,patches:writes.length,cases:['preserve-hidden','conflict-preserves-draft','explicit-reset','save-not-runtime','read-failure-locks-editor'],errors},null,2));
+    fs.writeFileSync(path.join(out,'admin-browser-result.json'),JSON.stringify({passed:true,patches:writes.length,cases:['preserve-hidden','conflict-preserves-draft','explicit-reset','save-not-runtime','read-failure-locks-editor','catalog-selection','boolean-typed-value','integer-input'],errors},null,2));
     console.log('Admin encoder configuration browser checks passed');
   }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});
