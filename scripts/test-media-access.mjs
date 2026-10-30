@@ -27,7 +27,7 @@ function browser(replies, config = { managed_streaming: true, control_plane_url:
   vm.runInNewContext(compiled, sandbox)
   return { api: exports, window, calls }
 }
-const joined = { status: 200, body: { status: 'ok', data: { session_id: 'session', host_id: 1, app_id: 2, connection_token: 'own-connection', connection: { connection_id: 'client', role: 'viewer' }, audio: { microphone_enabled: true } } } }
+const joined = { status: 200, body: { status: 'ok', data: { revision: 1, control_epoch: 0, session_id: 'session', host_id: 1, app_id: 2, connection_token: 'own-connection', connection: { connection_id: 'client', role: 'viewer' }, audio: { microphone_enabled: true } } } }
 const ticket = { status: 200, body: { status: 'ok', data: { ticket: 'media-admission', expires_at: 'later', role: 'viewer' } } }
 
 test('delayed heartbeat cannot restore authority from an older control epoch', async () => {
@@ -43,6 +43,46 @@ test('delayed heartbeat cannot restore authority from an older control epoch', a
   assert.equal(access.controlEpoch, 4)
   assert.equal(access.revision, 12)
   assert.equal(access.bearer, 'new-token')
+})
+
+test('malformed authority snapshots cannot replace credentials or grant microphone access', async () => {
+  for (const change of [
+    { revision: undefined }, { revision: -1 }, { revision: 1.5 },
+    { revision: Number.MAX_SAFE_INTEGER + 1 }, { control_epoch: undefined },
+    { control_epoch: -1 }, { control_epoch: 0.5 }, { connection_token: '' },
+    { connection_token: 42 }, { session_id: 42 },
+    { connection: { connection_id: 'client', role: 'administrator' } },
+    { audio: { microphone_enabled: 'true' } },
+  ]) {
+    const invalid = structuredClone(joined)
+    Object.assign(invalid.body.data, change)
+    const { api, calls } = browser([joined, ticket, invalid])
+    const access = await api.acquireMediaAccess(1, 2), before = { ...access }
+    await assert.rejects(api.resumeMediaAccess(access), error => error instanceof api.MediaAccessError && error.status === 502)
+    assert.deepEqual({ ...access }, before)
+    assert.equal(calls.length, 3, 'invalid resume cannot obtain a media ticket')
+  }
+})
+
+test('newer revision cannot roll back the control epoch', async () => {
+  const invalid = structuredClone(joined)
+  invalid.body.data.revision = 3
+  const { api } = browser([joined, ticket, invalid])
+  const access = await api.acquireMediaAccess(1, 2)
+  access.revision = 2; access.controlEpoch = 1
+  await assert.rejects(api.mediaHeartbeat(access, true, false), /epoch regressed/)
+  assert.equal(access.controlEpoch, 1)
+  assert.equal(access.revision, 2)
+})
+
+test('join with missing authority version releases its allocated connection', async () => {
+  const invalid = structuredClone(joined)
+  delete invalid.body.data.control_epoch
+  const { api, calls } = browser([invalid, { status: 200, body: { status: 'ok', data: {} } }])
+  await assert.rejects(api.acquireMediaAccess(1, 2), /Invalid connection authority/)
+  assert.equal(calls.length, 2)
+  assert.equal(calls[1].options.method, 'DELETE')
+  assert.equal(calls[1].options.headers.Authorization, 'Bearer own-connection')
 })
 
 test('admission uses configured origin and distinct credentials, scrubs URL secrets', async () => {

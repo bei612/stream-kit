@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -42,6 +43,25 @@ func TestClientResumeCredentialIsolationAndExplicitRevocation(t *testing.T) {
 		r.ServeHTTP(res, req)
 		if res.Code != want {
 			t.Fatalf("%s %s: got %d want %d: %s", method, suffix, res.Code, want, res.Body.String())
+		}
+		if want == http.StatusOK && suffix == "/resume" {
+			var response struct {
+				Data struct {
+					Revision     *uint64 `json:"revision"`
+					ControlEpoch *uint64 `json:"control_epoch"`
+				} `json:"data"`
+			}
+			if err := json.Unmarshal(res.Body.Bytes(), &response); err != nil {
+				t.Fatal(err)
+			}
+			current, err := m.Get(s.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if response.Data.Revision == nil || response.Data.ControlEpoch == nil ||
+				*response.Data.Revision != current.Revision || *response.Data.ControlEpoch != current.ControlEpoch {
+				t.Fatalf("resume omitted or changed authoritative versions: %s", res.Body.String())
+			}
 		}
 	}
 	request(http.MethodGet, "", valid, 410)

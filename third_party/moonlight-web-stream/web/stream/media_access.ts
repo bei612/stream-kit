@@ -14,8 +14,8 @@ export type MediaAccess = {
 }
 
 type ConnectionResponse = {
-    revision?: number
-    control_epoch?: number
+    revision: number
+    control_epoch: number
     session_id: string
     host_id: number
     app_id: number
@@ -85,6 +85,7 @@ export async function acquireMediaAccess(hostId: number, appId: number): Promise
         ticket: "", expiresAt: "",
     }
     try {
+        validateConnectionState(joined)
         if (joined.host_id !== hostId || joined.app_id !== appId) throw new Error("Viewing link does not match this rendering application")
         await refreshMediaTicket(access)
         return access
@@ -107,11 +108,27 @@ export async function mediaHeartbeat(access: MediaAccess, microphone: boolean, l
     applyConnectionState(access, current)
 }
 
+function validateConnectionState(current: ConnectionResponse): void {
+    if (!Number.isSafeInteger(current?.revision) || current.revision! < 0 ||
+        !Number.isSafeInteger(current?.control_epoch) || current.control_epoch! < 0 ||
+        typeof current.session_id !== "string" || !current.session_id ||
+        typeof current.connection?.connection_id !== "string" || !current.connection.connection_id ||
+        typeof current.connection_token !== "string" || !current.connection_token ||
+        !["viewer", "controller"].includes(current.connection.role) ||
+        typeof current.audio?.microphone_enabled !== "boolean") {
+        throw new MediaAccessError("Invalid connection authority snapshot", 502)
+    }
+}
+
 function applyConnectionState(access: MediaAccess, current: ConnectionResponse): void {
+    validateConnectionState(current)
     if (current.session_id !== access.sessionId || current.connection.connection_id !== access.connectionId) {
         throw new MediaAccessError("Connection identity does not match", 401)
     }
     if (Number.isSafeInteger(current.revision) && Number.isSafeInteger(access.revision) && current.revision! < access.revision!) return
+    if (Number.isSafeInteger(access.controlEpoch) && current.control_epoch! < access.controlEpoch!) {
+        throw new MediaAccessError("Connection control epoch regressed", 502)
+    }
     access.bearer = current.connection_token
     access.role = current.connection.role
     access.microphoneEnabled = current.audio?.microphone_enabled === true
@@ -125,9 +142,6 @@ export async function releaseMediaAccess(access: MediaAccess): Promise<void> {
 
 export async function resumeMediaAccess(access: MediaAccess): Promise<void> {
     const current = await request<ConnectionResponse>(access.baseUrl, access.bearer, `${path(access)}/resume`, "POST")
-    if (current.session_id !== access.sessionId || current.connection.connection_id !== access.connectionId) {
-        throw new MediaAccessError("Resumed connection identity does not match", 401)
-    }
     applyConnectionState(access, current)
     await refreshMediaTicket(access)
 }
