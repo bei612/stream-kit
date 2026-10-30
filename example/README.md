@@ -21,6 +21,7 @@ Windows 原生窗口保留棋盘格、分辨率与全屏测试，并增加实时
 - `example/smoke-test.ps1`：真实窗口、设备列表、未选设备错误、停止、缩放、关闭、子控件 Esc 及音频子进程退出。
 - `node scripts/test-example-audio.cjs`：真实原生设备枚举、协议/设备校验、无默认设备回退、管道关闭退出。
 - `node scripts/accept-source-stream.cjs --sunshine <源码构建的 sunshine.exe> --gateway <源码构建的 web-server.exe> --orchestrator <orchestrator.exe> --example <checkerboard.exe> --example-output <明确的输出设备>`：在独立回环端口启动编码器，经管理接口注册程序采集，由两个真实浏览器验证共享画面、程序测试音和按实例停止；加 `--microphone-tone` 同时验证 1499 Hz 浏览器测试麦克风与 997 Hz 程序音的混音和撤权。完整结果、帧图像和日志写入 `artifacts/source-stream/`。
+- 上述命令追加 `--edit-gateway-configuration --apply-managed-gateway --clients 20 --hold-seconds 30 --delete-active`：控制服务实际托管隔离网关，在活动串流中通过真实管理页面修改配对名称和 UDP 范围、点击应用，再核验运行实例、20 路画面及程序声音恢复、唯一控制权和单上游。退出时先通过组件接口停止受管网关，再停止控制服务；不要与 `--restart-services`、麦克风或租约过期用例合并。此项不测试自动回滚。
 - `cargo test --locked --all-targets` 与 `cargo clippy --locked --all-targets -- -D warnings`（组件目录）：录音缓冲上限、PCM 电平、测试音及输出幅度与既有目标队列检查。
 
 源码链路验收还支持 `--stop-active` 或 `--delete-active`：保留一个浏览器正在播放时执行管理停止或删除，检查观看会话终止、旧凭据拒绝、传输关闭，并持续观察 12 秒确认浏览器没有重新启动程序。删除用例只删除测试创建的注册与平台文件，同时核对外部 example 可执行文件的哈希保持不变。

@@ -12,6 +12,7 @@ const { once } = require('node:events');
 const { setTimeout: delay } = require('node:timers/promises');
 const { createRequire } = require('node:module');
 const { startAudioProbe } = require('./lib/audio-probe.cjs');
+const { waitForPageCondition } = require('./lib/browser-condition.cjs');
 const root = path.resolve(__dirname, '..');
 const argument = name => {
   const index = process.argv.indexOf(name);
@@ -49,6 +50,8 @@ const targetSwitch = process.argv.includes('--target-switch');
 assert.ok(!(targetRecording && targetSwitch), 'Run local recording and disabled/upstream switching as separate acceptance cases');
 assert.ok(!targetSwitch || microphoneTest, 'Target mode switching acceptance requires the microphone tone case');
 const restartServices = process.argv.includes('--restart-services');
+const applyManagedGateway = process.argv.includes('--apply-managed-gateway');
+assert.ok(!applyManagedGateway || (process.argv.includes('--edit-gateway-configuration')&&!restartServices&&!microphoneTest&&!expireClientLease), 'Managed apply requires configuration editing and a separate recovery case');
 assert.ok(!restartServices || !microphoneTest, 'Run recovery and microphone isolation as separate acceptance cases');
 assert.ok(!microphoneTest || clientCount === 2, 'Microphone isolation acceptance uses two clients');
 assert.ok(Number.isInteger(clientCount) && clientCount >= 2 && clientCount <= 20);
@@ -72,6 +75,7 @@ save();
 const children = [];
 let browser;
 let cleanupRenderer;
+let cleanupManagedGateway;
 let audioProbe;
 const sha = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 async function port() {
@@ -110,14 +114,19 @@ async function json(url, options = {}) {
 }
 async function measureReceivedTone(page, frequency = 997) {
   return page.evaluate(async frequency => {
+    const audioTrack = window.__acceptancePeers.at(-1)?.getReceivers().find(r => r.track.kind === 'audio')?.track;
+    if(!audioTrack)throw new Error('Current peer has no received audio track');
+    if(window.__toneProbe&&(window.__toneProbe.track!==audioTrack||window.__toneProbe.context.state==='closed')) {
+      if(window.__toneProbe.context.state!=='closed')await window.__toneProbe.context.close();
+      window.__toneProbe=null;
+    }
     if (!window.__toneProbe) {
-      const audioTrack = window.__acceptancePeers.flatMap(pc => pc.getReceivers()).find(r => r.track.kind === 'audio').track;
       const context = new AudioContext(); await context.resume();
       const source = context.createMediaStreamSource(new MediaStream([audioTrack]));
       const analyser = context.createAnalyser(); analyser.fftSize = 4096; analyser.smoothingTimeConstant = 0;
       const mute = context.createGain(); mute.gain.value = 0;
       source.connect(analyser); analyser.connect(mute); mute.connect(context.destination);
-      window.__toneProbe = { context, source, analyser, mute };
+      window.__toneProbe = { context, source, analyser, mute, track:audioTrack };
     }
     const { analyser, context } = window.__toneProbe;
     const bins = new Float32Array(analyser.frequencyBinCount);
@@ -192,9 +201,18 @@ async function main() {
     result.management_assets_sha256=Object.fromEntries(fs.readdirSync(path.join(scratch,'control/dist/assets')).map(name=>[name,sha(path.join(scratch,'control/dist/assets',name))]));
   }
   if (applicationExample) controlConfig.sunshine_api = sun;
+  if(applyManagedGateway)controlConfig.components.web_server={exe_path:gatewayBinary,args:`--config-path "${gatewayConfigFile}" run`,preflight_args:`--config-path "${gatewayConfigFile}" config check`,working_dir:scratch,auto_start:true,env:{WEBRTC_ICE_SERVER_COUNT:'0'}};
   fs.writeFileSync(controlConfigFile, JSON.stringify(controlConfig));
-  let gatewayProcess = launch(gatewayBinary, ['--config-path', gatewayConfigFile, 'run'], 'gateway');
+  let gatewayProcess = applyManagedGateway?null:launch(gatewayBinary, ['--config-path', gatewayConfigFile, 'run'], 'gateway');
   const controlProcess = launch(orchestratorBinary, ['--config', controlConfigFile], 'orchestrator');
+  if(applyManagedGateway)cleanupManagedGateway=async()=>{
+    const login=await json(control+'/api/v1/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(credentials)});
+    const headers={Authorization:'Bearer '+login.data.token};
+    await json(control+'/api/v1/components/web_server/stop',{method:'POST',headers});
+    const stopped=await json(control+'/api/v1/components/web_server',{headers});
+    assert.equal(stopped.data.pid,0,'Managed gateway must exit before its owner is stopped');
+    result.managed_gateway_stopped=true;
+  };
   await ready(gateway + '/config.js');
   await ready(control + '/api/v1/health');
   async function gatewayLogin() {
@@ -397,6 +415,7 @@ async function main() {
   assert.equal(Object.values(transferred.connections).filter(c => c.role === 'controller').length, 1);
   await api(`/stream-sessions/${invite.session_id}/controller`, 'DELETE');
   result.control_transfer = { unique_controller: true, epoch_before: claimed.control_epoch, epoch_after: transferred.control_epoch };
+  let configurationPage;
   if (process.argv.includes('--edit-gateway-configuration')) {
     const before = await api('/gateway-configuration');
     assert.equal(before.apply_policy,'gateway_restart');
@@ -431,22 +450,43 @@ async function main() {
       body:JSON.stringify({revision:before.revision,changes:{'/moonlight/pair_device_name':'stale'}})});
     assert.equal(stale.status,409);
     await adminPage.screenshot({path:path.join(output,'gateway-settings.png'),fullPage:true});
-    await adminPage.close();
+    if(applyManagedGateway)configurationPage=adminPage;
+    else await adminPage.close();
     result.gateway_configuration = {passed:true,apply_policy:saved.apply_policy,saved_revision:saved.revision,restart_required:true,conflict_rejected:true,browser_form:true,
       scope:'Production administrator form through signed native file operation during active media; no gateway restart.'};
   }
-  if (restartServices) {
+  if (restartServices||applyManagedGateway) {
     const selected = await api(`/stream-sessions/${invite.session_id}/controller/${ids[0]}`, 'POST');
     const peerCounts = await Promise.all(pages.map(page => page.evaluate(() => window.__acceptancePeers.length)));
     const started = Date.now();
     // Terminate only the isolated child owned by this acceptance run. Restart
     // from the same config/data on the same port, without reloading browsers.
-    await stopProcess(gatewayProcess);
-    const gatewayStoppedAt = Date.now();
-    gatewayProcess = launch(gatewayBinary, ['--config-path', gatewayConfigFile, 'run'], 'gateway-restarted');
+    let gatewayStoppedAt;
+    if(applyManagedGateway){
+      fs.writeFileSync(path.join(output,'gateway.log'),(await api('/components/web_server/logs?lines=2000')).join('\n')+'\n');
+      const before=await api('/gateway-configuration');
+      const response=configurationPage.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/gateway-configuration/apply',{timeout:100000});
+      await configurationPage.getByRole('button',{name:'重启并应用已保存配置',exact:true}).click();
+      const appliedResponse=await response;
+      assert.equal(appliedResponse.status(),200);
+      const applied=(await appliedResponse.json()).data;
+      assert.equal(applied.running_revision,before.revision);
+      assert.equal(applied.restart_required,false);
+      assert.notEqual(applied.runtime.instance_id,before.runtime.instance_id);
+      assert.equal(applied.runtime.process_id,(await api('/components/web_server')).pid);
+      await configurationPage.getByText('网关已完成配置应用核验，当前进程已加载目标配置文件版本。',{exact:true}).waitFor();
+      await configurationPage.screenshot({path:path.join(output,'gateway-applied.png'),fullPage:true});
+      await configurationPage.close();
+      result.managed_gateway_apply={passed:true,browser_form:true,runtime:applied.runtime,running_revision:applied.running_revision};
+      gatewayStoppedAt=Date.now();
+    }else{
+      await stopProcess(gatewayProcess);
+      gatewayStoppedAt=Date.now();
+      gatewayProcess=launch(gatewayBinary,['--config-path',gatewayConfigFile,'run'],'gateway-restarted');
+    }
     await ready(gateway + '/config.js');
     cookie = await gatewayLogin();
-    await Promise.all(pages.map((page,index) => page.waitForFunction(async count => {
+    await Promise.all(pages.map((page,index) => waitForPageCondition(page,async count => {
       const peers = window.__acceptancePeers;
       if(peers.length <= count) return false;
       const peer = peers.at(-1);
@@ -488,6 +528,28 @@ async function main() {
       result.gateway_restart.remote_udp_ports=ports;
     }
     console.log('Gateway restart recovered without page reload');
+    if(applyManagedGateway&&applicationExample){
+      const audioState=page=>page.evaluate(async()=>{
+        const peer=window.__acceptancePeers.at(-1),track=peer.getReceivers().find(r=>r.track.kind==='audio')?.track;
+        const stats=[...(await peer.getStats()).values()];
+        return {peer_count:window.__acceptancePeers.length,state:peer.connectionState,track:track?{state:track.readyState,muted:track.muted,enabled:track.enabled}:null,
+          inbound:stats.filter(s=>s.type==='inbound-rtp'&&s.kind==='audio').map(s=>({packets:s.packetsReceived,bytes:s.bytesReceived,energy:s.totalAudioEnergy,level:s.audioLevel,samples:s.totalSamplesReceived,concealed:s.concealedSamples}))};
+      });
+      result.managed_gateway_apply.audio_before=await Promise.all(pages.map(audioState));
+      try {
+        await Promise.all(pages.map(page=>waitForPageCondition(page,async()=>{
+          const peer=window.__acceptancePeers.at(-1),track=peer.getReceivers().find(r=>r.track.kind==='audio')?.track;
+          if(peer.connectionState!=='connected'||!track||track.readyState!=='live'||track.muted)return false;
+          return [...(await peer.getStats()).values()].some(s=>s.type==='inbound-rtp'&&s.kind==='audio'&&s.packetsReceived>=50);
+        },null,{timeout:15000})));
+      } finally {
+        result.managed_gateway_apply.audio_ready=await Promise.all(pages.map(audioState));save();
+      }
+      result.managed_gateway_apply.program_audio_db=await Promise.all(pages.map(page=>measureReceivedTone(page,997)));
+      assert.ok(result.managed_gateway_apply.program_audio_db.every(level=>level>-65),'Program audio must resume on every current peer after managed apply');
+      await Promise.all(pages.map(page=>page.evaluate(()=>window.__toneProbe.context.close())));
+    }
+    if(restartServices){
     const beforeControl = await Promise.all(pages.map(videoFrames));
     await stopProcess(controlProcess);
     launch(orchestratorBinary, ['--config', controlConfigFile], 'orchestrator-restarted');
@@ -514,6 +576,7 @@ async function main() {
     result.control_restart = { restored_connections:true, retained_control_epoch:true, video_continued:true };
     await api(`/stream-sessions/${invite.session_id}/controller`, 'DELETE');
     console.log('Control restart retained session and unique controller');
+    }else await api(`/stream-sessions/${invite.session_id}/controller`, 'DELETE');
   }
   if (microphoneTest) {
     const measure = page => measureReceivedTone(page, microphoneFrequency);
@@ -809,9 +872,10 @@ async function main() {
   cleanupRenderer = null;
   assert.deepEqual(pageErrors, []);
   const upstreamCount = name => (fs.readFileSync(path.join(output, name), 'utf8').match(/: connected control stream\r?\n/g) || []).length;
+  if(applyManagedGateway)fs.writeFileSync(path.join(output,'gateway-restarted.log'),(await api('/components/web_server/logs?lines=2000')).join('\n')+'\n');
   result.upstream_connections = upstreamCount('gateway.log');
   assert.equal(result.upstream_connections, 1, 'All viewers must share exactly one Moonlight transport connection');
-  if (restartServices) {
+  if (restartServices||applyManagedGateway) {
     result.restarted_upstream_connections = upstreamCount('gateway-restarted.log');
     assert.equal(result.restarted_upstream_connections, 1, 'Restarted gateway must still share one upstream');
   }
@@ -834,7 +898,12 @@ main().catch(error => { result.error = error.message; process.exitCode = 1; }).f
     try { await cleanupRenderer(); }
     catch (error) { result.cleanup_error = error.message; result.passed = false; process.exitCode = 1; }
   }
-  for (const record of children.reverse()) await stopProcess(record);
+  let mayStopOwner=true;
+  if(cleanupManagedGateway){
+    try{await cleanupManagedGateway()}
+    catch(error){mayStopOwner=false;result.managed_cleanup_error=error.message;result.passed=false;process.exitCode=1}
+  }
+  if(mayStopOwner)for (const record of children.reverse()) await stopProcess(record);
   result.finished_at = new Date().toISOString();
   result.status = result.passed ? 'passed' : 'failed';
   save();
