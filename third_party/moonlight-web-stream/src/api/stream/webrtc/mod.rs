@@ -281,7 +281,7 @@ pub async fn webrtc_post(
         return Err(AppError::Forbidden);
     }
 
-    debug!(req = ?req, session_description = ?session_description, "webrtc request");
+    debug!("received webrtc offer");
 
     let offer_sdp = Session::parse(session_description.as_bytes())?;
     let session = WebRTCSessionOffer::from_sdp(&offer_sdp)?;
@@ -303,7 +303,10 @@ pub async fn webrtc_post(
     // Get app
     let app_id = AppId(session.app_id);
 
-    let media_key = crate::app::media::MediaSessionKey { host_id, app_id };
+    let media_key = crate::app::media::MediaSessionKey {
+        host_id,
+        app_id: crate::app::host::AppId(app_id.0),
+    };
     let (media_peer_id, media_role) = if let Some(secret) = app.config().web_server.media_ticket_secret.as_deref() {
         let token = req
             .headers()

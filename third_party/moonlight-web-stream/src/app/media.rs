@@ -41,6 +41,9 @@ struct MediaTicketHeader {
 }
 
 pub fn verify_media_ticket(token: &str, secret: &str) -> Result<MediaTicketClaims, AppError> {
+    if secret.is_empty() || token.len() > 8192 {
+        return Err(AppError::Unauthorized);
+    }
     let mut parts = token.split('.');
     let (header, payload, signature) = match (parts.next(), parts.next(), parts.next(), parts.next()) {
         (Some(header), Some(payload), Some(signature), None) => (header, payload, signature),
@@ -55,7 +58,8 @@ pub fn verify_media_ticket(token: &str, secret: &str) -> Result<MediaTicketClaim
     if header.alg != "HS256" || header.typ != "MEDIA" { return Err(AppError::Unauthorized); }
     let claims: MediaTicketClaims = serde_json::from_slice(&URL_SAFE_NO_PAD.decode(payload).map_err(|_| AppError::Unauthorized)?)
         .map_err(|_| AppError::Unauthorized)?;
-    if claims.purpose != "stream-media" || claims.session_id.is_empty() || claims.connection_id.is_empty() || claims.exp < chrono_like_now() {
+    if claims.purpose != "stream-media" || claims.session_id.is_empty() || claims.connection_id.is_empty() || claims.exp <= chrono_like_now()
+        || !matches!(claims.role.as_str(), "controller" | "viewer") {
         return Err(AppError::Unauthorized);
     }
     Ok(claims)
@@ -234,6 +238,30 @@ mod tests {
     use super::*;
     use bytes::Bytes;
     use std::time::Duration;
+
+    fn signed_ticket(exp: i64, role: &str) -> String {
+        let header = URL_SAFE_NO_PAD.encode(br#"{"alg":"HS256","typ":"MEDIA"}"#);
+        let payload = URL_SAFE_NO_PAD.encode(serde_json::to_vec(&serde_json::json!({
+            "purpose": "stream-media", "session_id": "session", "connection_id": "peer",
+            "host_id": 1, "app_id": 2, "role": role, "exp": exp, "iat": 1
+        })).unwrap());
+        let input = format!("{header}.{payload}");
+        let mut mac = Hmac::<Sha256>::new_from_slice(b"test-secret").unwrap();
+        mac.update(input.as_bytes());
+        format!("{input}.{}", URL_SAFE_NO_PAD.encode(mac.finalize().into_bytes()))
+    }
+
+    #[test]
+    fn ticket_admission_rejects_expired_forged_and_invalid_roles() {
+        let now = chrono_like_now();
+        let valid = signed_ticket(now + 120, "controller");
+        assert!(verify_media_ticket(&valid, "test-secret").is_ok());
+        assert!(verify_media_ticket(&valid, "wrong-secret").is_err());
+        assert!(verify_media_ticket(&valid, "").is_err());
+        assert!(verify_media_ticket(&signed_ticket(now, "viewer"), "test-secret").is_err());
+        assert!(verify_media_ticket(&signed_ticket(now + 120, "admin"), "test-secret").is_err());
+        assert!(verify_media_ticket(&(valid + ".extra"), "test-secret").is_err());
+    }
 
     fn key() -> MediaSessionKey { MediaSessionKey { host_id: HostId(1), app_id: AppId(2) } }
 
