@@ -102,8 +102,39 @@ var screenW, screenH int
 var gridCols, gridRows = 8, 8
 var fullscreen = false
 
-func wndProc(hwnd syscall.Handle, msg uint32, wParam, lParam uintptr) uintptr {
+func wndProc(hwnd syscall.Handle, msg uint32, wParam uintptr, lParam unsafe.Pointer) uintptr {
 	switch msg {
+	case 0x0024: // WM_GETMINMAXINFO: keep controls reachable at the minimum size.
+		info := (*[10]int32)(lParam)
+		info[6] = 640
+		info[7] = 540
+		return 0
+	case 0x002B: // WM_DRAWITEM
+		drawAudioButton((*drawItem)(lParam))
+		return 1
+	case 0x0014: // WM_ERASEBKGND: the canvas paints its own background.
+		return 1
+	case 0x0138: // WM_CTLCOLORSTATIC
+		pSetTextColor.Call(wParam, rgb(210, 220, 235))
+		gdi32.NewProc("SetBkColor").Call(wParam, rgb(15, 23, 42))
+		return audioBackground
+	case 0x0005: // WM_SIZE
+		if probe != nil {
+			layoutAudio(uintptr(hwnd))
+		}
+	case 0x0111: // WM_COMMAND
+		if wParam>>16 == 0 {
+			audioCommand(wParam & 0xffff)
+		}
+	case audioMessage:
+		refreshAudio()
+		return 0
+	case 0x0113: // WM_TIMER: lightweight visual liveness and input counters.
+		frameCount++
+		pInvalidateRect.Call(uintptr(hwnd), 0, 0)
+		return 0
+	case 0x0201, 0x0204, 0x0207: // Pointer buttons on the test canvas.
+		pointerCount++
 	case WM_PAINT:
 		var ps PAINTSTRUCT
 		hdc, _, _ := pBeginPaint.Call(uintptr(hwnd), uintptr(unsafe.Pointer(&ps)))
@@ -138,6 +169,19 @@ func wndProc(hwnd syscall.Handle, msg uint32, wParam, lParam uintptr) uintptr {
 
 		pDeleteObject.Call(dark)
 		pDeleteObject.Call(light)
+		if audioBackground != 0 {
+			panelWidth := w - 48
+			if panelWidth > 840 {
+				panelWidth = 840
+			}
+			panelX := (w - panelWidth) / 2
+			panelY := h/2 - 160
+			if panelY < 90 {
+				panelY = 90
+			}
+			panel := RECT{int32(panelX - 12), int32(panelY - 12), int32(panelX + panelWidth + 12), int32(panelY + 336)}
+			pFillRect.Call(hdc, uintptr(unsafe.Pointer(&panel)), audioBackground)
+		}
 
 		green, _, _ := pCreateSolidBrush.Call(rgb(34, 197, 94))
 		borders := []RECT{
@@ -151,7 +195,7 @@ func wndProc(hwnd syscall.Handle, msg uint32, wParam, lParam uintptr) uintptr {
 		}
 		pDeleteObject.Call(green)
 
-		text := fmt.Sprintf("Grid: %dx%d  |  Resolution: %dx%d  |  Screen: %dx%d  |  Esc: Close", gridCols, gridRows, w, h, screenW, screenH)
+		text := fmt.Sprintf("%dx%d  |  %dx%d  |  Tick %d  Keys %d  Clicks %d  |  Esc: Close", gridCols, gridRows, w, h, frameCount, inputCount, pointerCount)
 		textPtr, _ := syscall.UTF16PtrFromString(text)
 
 		fontName, _ := syscall.UTF16PtrFromString("Consolas")
@@ -181,7 +225,7 @@ func wndProc(hwnd syscall.Handle, msg uint32, wParam, lParam uintptr) uintptr {
 		pSetTextColor.Call(hdc, rgb(34, 197, 94))
 		pSetBkMode.Call(hdc, TRANSPARENT)
 
-		textRect := RECT{0, 0, int32(w), int32(h)}
+		textRect := RECT{0, 20, int32(w), 70}
 		pDrawTextW.Call(hdc, uintptr(unsafe.Pointer(textPtr)), ^uintptr(0),
 			uintptr(unsafe.Pointer(&textRect)), DT_CENTER|DT_VCENTER|DT_SINGLELINE)
 
@@ -197,11 +241,12 @@ func wndProc(hwnd syscall.Handle, msg uint32, wParam, lParam uintptr) uintptr {
 			return 0
 		}
 	case WM_DESTROY:
+		pKillTimer.Call(uintptr(hwnd), 1)
 		pPostQuitMessage.Call(0)
 		return 0
 	}
 
-	ret, _, _ := pDefWindowProc.Call(uintptr(hwnd), uintptr(msg), wParam, lParam)
+	ret, _, _ := pDefWindowProc.Call(uintptr(hwnd), uintptr(msg), wParam, uintptr(lParam))
 	return ret
 }
 
@@ -256,12 +301,12 @@ func main() {
 
 	pRegisterClassEx.Call(uintptr(unsafe.Pointer(&wc)))
 
-	var style uintptr = WS_OVERLAPPEDWINDOW | WS_VISIBLE
+	var style uintptr = WS_OVERLAPPEDWINDOW | WS_VISIBLE | 0x02000000 // WS_CLIPCHILDREN
 	var extendedStyle uintptr
 	winX, winY, winW, winH := uintptr(CW_USEDEFAULT), uintptr(CW_USEDEFAULT), uintptr(800), uintptr(600)
 	if fullscreen {
 		// WS_POPUP + full screen size = borderless fullscreen
-		style = 0x80000000 | WS_VISIBLE // WS_POPUP | WS_VISIBLE
+		style = 0x80000000 | WS_VISIBLE | 0x02000000 // WS_POPUP | WS_VISIBLE | WS_CLIPCHILDREN
 		extendedStyle = WS_EX_TOPMOST
 		winX, winY = 0, 0
 		winW, winH = uintptr(screenW), uintptr(screenH)
@@ -278,13 +323,28 @@ func main() {
 	)
 
 	pShowWindow.Call(hwnd, SW_SHOW)
+	setupAudio(hwnd)
+	defer probe.close()
+	defer pDeleteObject.Call(audioFont)
+	defer pDeleteObject.Call(audioBackground)
 	pUpdateWindow.Call(hwnd)
 
 	var msg MSG
 	for {
 		ret, _, _ := pGetMessage.Call(uintptr(unsafe.Pointer(&msg)), 0, 0, 0)
-		if ret == 0 {
+		if ret == 0 || int32(ret) == -1 {
 			break
+		}
+		// Escape closes the owning example even while a child control has focus.
+		if msg.Message == WM_KEYDOWN && msg.WParam == VK_ESCAPE {
+			pDestroyWindow.Call(hwnd)
+			continue
+		}
+		if msg.Message == WM_KEYDOWN {
+			inputCount++
+		}
+		if handled, _, _ := user32.NewProc("IsDialogMessageW").Call(hwnd, uintptr(unsafe.Pointer(&msg))); handled != 0 {
+			continue
 		}
 		pTranslateMessage.Call(uintptr(unsafe.Pointer(&msg)))
 		pDispatchMessage.Call(uintptr(unsafe.Pointer(&msg)))

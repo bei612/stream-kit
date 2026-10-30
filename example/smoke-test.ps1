@@ -9,12 +9,17 @@ using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
+using System.Text;
 public static class CheckerboardProbe {
     [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left, Top, Right, Bottom; }
     [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr window, out Rect rect);
     [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr window, IntPtr dc, uint flags);
     [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr window, IntPtr after, int x, int y, int w, int h, uint flags);
     [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr window, uint message, IntPtr wparam, IntPtr lparam);
+    [DllImport("user32.dll")] public static extern IntPtr GetDlgItem(IntPtr window, int id);
+    [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wparam, IntPtr lparam);
+    [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr window, StringBuilder text, int length);
+    public static string Text(IntPtr window) { var text=new StringBuilder(2048); GetWindowText(window,text,text.Capacity); return text.ToString(); }
     public static string Capture(IntPtr window, string path, int cols, int rows) {
         Rect rect;
         if (!GetClientRect(window, out rect) || rect.Right < 100 || rect.Bottom < 100)
@@ -26,8 +31,8 @@ public static class CheckerboardProbe {
                 finally { graphics.ReleaseHdc(dc); }
             }
             int cellW = rect.Right / cols, cellH = rect.Bottom / rows;
-            var first = bitmap.GetPixel(cellW / 2, cellH / 2);
-            var second = bitmap.GetPixel(cellW + cellW / 2, cellH / 2);
+            var first = bitmap.GetPixel(cellW / 2, 5);
+            var second = bitmap.GetPixel(cellW + cellW / 2, 5);
             var border = bitmap.GetPixel(0, 0);
             if (first.ToArgb() != Color.FromArgb(30, 41, 59).ToArgb() ||
                 second.ToArgb() != Color.FromArgb(15, 23, 42).ToArgb() ||
@@ -61,6 +66,27 @@ foreach ($case in @(
         if ($process.MainWindowTitle -notlike "Checkerboard $($case.Cols)x$($case.Rows)*") {
             throw "Unexpected title: $($process.MainWindowTitle)"
         }
+        $inputControl = [CheckerboardProbe]::GetDlgItem($process.MainWindowHandle, 200)
+        $outputControl = [CheckerboardProbe]::GetDlgItem($process.MainWindowHandle, 201)
+        $deadline = [DateTime]::UtcNow.AddSeconds(15)
+        do {
+            Start-Sleep -Milliseconds 100
+            $inputCount = [CheckerboardProbe]::SendMessage($inputControl, 0x0146, [IntPtr]::Zero, [IntPtr]::Zero).ToInt32()
+            $outputCount = [CheckerboardProbe]::SendMessage($outputControl, 0x0146, [IntPtr]::Zero, [IntPtr]::Zero).ToInt32()
+        } while (($inputCount -le 0 -or $outputCount -le 0) -and [DateTime]::UtcNow -lt $deadline)
+        if ($inputCount -le 0 -or $outputCount -le 0) { throw 'Native audio inventory did not reach the example UI' }
+        if ([CheckerboardProbe]::SendMessage($inputControl, 0x0147, [IntPtr]::Zero, [IntPtr]::Zero).ToInt32() -ne -1) { throw 'Example selected an input without explicit choice' }
+        $statusControl = [CheckerboardProbe]::GetDlgItem($process.MainWindowHandle, 220)
+        [CheckerboardProbe]::SendMessage([CheckerboardProbe]::GetDlgItem($process.MainWindowHandle, 211), 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+        $deadline = [DateTime]::UtcNow.AddSeconds(5)
+        do { Start-Sleep -Milliseconds 50; $statusText = [CheckerboardProbe]::Text($statusControl) } while ($statusText -notlike '*explicit audio device*' -and [DateTime]::UtcNow -lt $deadline)
+        if ($statusText -notlike '*explicit audio device*') { throw "Unselected recording did not fail visibly: $statusText" }
+        [CheckerboardProbe]::SendMessage([CheckerboardProbe]::GetDlgItem($process.MainWindowHandle, 212), 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+        $deadline = [DateTime]::UtcNow.AddSeconds(5)
+        do { Start-Sleep -Milliseconds 50; $statusText = [CheckerboardProbe]::Text($statusControl) } while ($statusText -notlike 'State: idle*' -and [DateTime]::UtcNow -lt $deadline)
+        if ($statusText -notlike 'State: idle*') { throw 'Stop did not restore idle state' }
+        $audioChildren = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$($process.Id)" | Where-Object { $_.Name -eq 'audio-probe.exe' } | Select-Object -ExpandProperty ProcessId)
+        if ($audioChildren.Count -ne 1) { throw 'Example does not own exactly one audio component' }
         $screenshot = Join-Path $outputDir ($case.Name + '.png')
         $size = [CheckerboardProbe]::Capture($process.MainWindowHandle, $screenshot, $case.Cols, $case.Rows)
         $resized = $null
@@ -73,11 +99,12 @@ foreach ($case in @(
             if ($resized -eq $size) { throw 'Client dimensions did not change after resizing' }
         }
         if ($case.Name -eq 'fullscreen') {
-            if (-not [CheckerboardProbe]::PostMessage($process.MainWindowHandle, 0x0100, [IntPtr]0x1B, [IntPtr]::Zero)) { throw 'Escape could not be sent' }
+            if (-not [CheckerboardProbe]::PostMessage($inputControl, 0x0100, [IntPtr]0x1B, [IntPtr]::Zero)) { throw 'Escape could not be sent to the focused child control' }
         } elseif (-not $process.CloseMainWindow()) { throw 'WM_CLOSE could not be sent' }
         if (-not $process.WaitForExit(5000)) { throw 'Example did not exit after close/Escape' }
         if ($process.ExitCode -ne 0) { throw "Example exited with code $($process.ExitCode)" }
-        $results += [pscustomobject]@{ Case = $case.Name; ClientSize = $size; Resized = $resized; Screenshot = $screenshot; ExitCode = $process.ExitCode; Passed = $true }
+        foreach ($childId in $audioChildren) { if (Get-Process -Id $childId -ErrorAction SilentlyContinue) { throw 'Audio child outlived the example window' } }
+        $results += [pscustomobject]@{ Case = $case.Name; ClientSize = $size; Resized = $resized; Screenshot = $screenshot; Inputs = $inputCount; Outputs = $outputCount; AudioChildReleased = $true; ExitCode = $process.ExitCode; Passed = $true }
     } finally {
         if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
         $process.Dispose()
