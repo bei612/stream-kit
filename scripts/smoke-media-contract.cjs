@@ -95,6 +95,45 @@ async function main() {
       assert.equal(new Set(inventory.devices.map(device => device.id)).size, inventory.devices.length);
       assert.deepEqual(inventory.configured_routes, config.local_audio_targets);
     }
+    const configurationURL = `http://127.0.0.1:${port}/gateway/internal/v1/configuration`;
+    const configurationRequest = async (operation, extra = {}, domain = 'stream-kit/gateway-configuration/request/v1\n') => {
+      const request = {schema_version:1,request_id:crypto.randomBytes(16).toString('hex'),issued_at_ms:Date.now(),operation,...extra};
+      const body = JSON.stringify(request);
+      const response = await fetch(configurationURL, {method:'POST',headers:{'Content-Type':'application/json','x-stream-control-signature':sign(domain,body)},body,signal:AbortSignal.timeout(3000)});
+      const raw = await response.text();
+      if (response.headers.has('x-stream-control-signature')) {
+        assert.equal(response.headers.get('x-stream-control-signature'),sign('stream-kit/gateway-configuration/response/v1\n',raw));
+        const decoded = JSON.parse(raw);
+        assert.equal(decoded.request_id,request.request_id);
+        assert.equal(decoded.request_issued_at_ms,request.issued_at_ms);
+        assert.ok(!raw.includes(secret),'Native configuration response disclosed trust secret');
+        return {status:response.status,result:decoded.result};
+      }
+      return {status:response.status};
+    };
+    assert.equal((await fetch(configurationURL,{method:'POST',body:'{}'})).status,401);
+    assert.equal((await configurationRequest('read',{},'stream-kit/audio-devices/request/v1\n')).status,401);
+    assert.equal((await configurationRequest('read',{issued_at_ms:Date.now()-10000})).status,400);
+    const beforeSettings = await configurationRequest('read');
+    assert.equal(beforeSettings.status,200);
+    assert.equal(beforeSettings.result.data.restart_required,false);
+    assert.equal(beforeSettings.result.data.values.web_server.media_ticket_secret,null);
+    const revision = beforeSettings.result.data.revision;
+    const changed = await configurationRequest('save',{revision,changes:{'/moonlight/pair_device_name':'Unified native settings'}});
+    assert.equal(changed.status,200);
+    assert.equal(changed.result.data.restart_required,true);
+    assert.equal(changed.result.data.apply_policy,'gateway_restart');
+    assert.equal(JSON.parse(fs.readFileSync(configPath,'utf8')).web_server.media_ticket_secret,secret);
+    assert.equal((await configurationRequest('save',{revision,changes:{'/moonlight/pair_device_name':'stale'}})).status,409);
+    const savedFile = fs.readFileSync(configPath,'utf8');
+    assert.equal((await configurationRequest('save',{revision:changed.result.data.revision,changes:{'/webrtc/port_range':{min:90,max:80}}})).status,400);
+    assert.equal(fs.readFileSync(configPath,'utf8'),savedFile);
+    const replacementSecret = crypto.randomBytes(32).toString('hex');
+    const rotation = await configurationRequest('save',{revision:changed.result.data.revision,changes:{'/web_server/media_ticket_secret':replacementSecret}});
+    assert.equal(rotation.status,200);
+    assert.ok(!JSON.stringify(rotation).includes(replacementSecret));
+    assert.equal(JSON.parse(fs.readFileSync(configPath,'utf8')).web_server.media_ticket_secret,replacementSecret);
+    assert.equal((await configurationRequest('read')).status,200,'Pending trust setting must not change the running gateway');
     const state = JSON.parse(fs.readFileSync(path.join(root, 'contracts/media-state/v3.fixture.json'), 'utf8'));
     state.issued_at_ms = Date.now(); state.expires_at_ms = state.issued_at_ms + 10000;
     for (const connection of state.sessions[0].connections) connection.expires_at_ms = state.expires_at_ms;
@@ -167,7 +206,8 @@ async function main() {
     const result = { passed: true, platform: process.platform, architecture: process.arch, at: new Date().toISOString(), gateway_sha256: crypto.createHash('sha256').update(fs.readFileSync(binary)).digest('hex'),
       audio_inventory_status: inventoryResponse.status,
       checks: [inventoryResponse.ok ? 'signed audio inventory with nonce and configured routes' : 'native audio backend unavailable reported as HTTP 503', 'inventory rejects unsigned/wrong-domain/stale requests', 'signed HTTP acknowledgement', 'request/revision binding', 'unsigned rejection', 'replay rejection', 'configured idle target', 'v1 rejection', 'invalid/rollback epoch rejection', 'coalesced ownership transfer', 'revocation',
-        'account-free viewer profile and WHEP configuration', 'media capability cannot authenticate gateway account', 'anonymous denial', 'session/connection/application/expiry admission scope', 'revocation invalidates unexpired admission'],
+        'account-free viewer profile and WHEP configuration', 'media capability cannot authenticate gateway account', 'anonymous denial', 'session/connection/application/expiry admission scope', 'revocation invalidates unexpired admission',
+        'signed native configuration read/save with redaction and request binding', 'configuration rejects unsigned/wrong-domain/stale requests', 'configuration version conflict and invalid edit preserve file', 'pending native trust configuration does not alter runtime'],
       management_inventory: managementInventory,
       scope: 'Isolated real gateway HTTP contract; no active media or target recording.' };
     fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(result, null, 2));

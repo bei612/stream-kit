@@ -345,10 +345,15 @@ mod managed_config_tests {
         assert!(
             !config
                 .validate()
-                .unwrap_err()
+                .expect_err("invalid NAT address must be rejected")
                 .contains("invalid-secret-value")
         );
-        config.webrtc.nat_1to1.as_mut().unwrap().ips = vec!["127.0.0.1".into(), "::1".into()];
+        config
+            .webrtc
+            .nat_1to1
+            .as_mut()
+            .expect("NAT fixture exists")
+            .ips = vec!["127.0.0.1".into(), "::1".into()];
         assert!(config.validate().is_ok());
         config.web_server.session_cookie_expiration = Duration::ZERO;
         assert!(config.validate().is_err());
@@ -363,7 +368,8 @@ mod managed_config_tests {
 
     #[test]
     fn native_configuration_rejects_unknown_fields_instead_of_ignoring_edits() {
-        let original = serde_json::to_value(Config::default()).unwrap();
+        let original =
+            serde_json::to_value(Config::default()).expect("serialize default configuration");
         for path in [
             "",
             "/webrtc",
@@ -375,16 +381,17 @@ mod managed_config_tests {
             let mut value = original.clone();
             value
                 .pointer_mut(path)
-                .unwrap()
+                .expect("fixture contains configuration section")
                 .as_object_mut()
-                .unwrap()
+                .expect("configuration section is an object")
                 .insert("unknown_setting".into(), serde_json::json!(true));
             assert!(
                 serde_json::from_value::<Config>(value).is_err(),
                 "accepted {path}"
             );
         }
-        let config: Config = serde_json::from_value(original).unwrap();
+        let config: Config =
+            serde_json::from_value(original).expect("default configuration round trip");
         assert!(config.validate().is_ok());
     }
 

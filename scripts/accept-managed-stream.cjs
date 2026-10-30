@@ -361,6 +361,21 @@ async function main() {
   assert.equal(Object.values(transferred.connections).filter(c => c.role === 'controller').length, 1);
   await api(`/stream-sessions/${invite.session_id}/controller`, 'DELETE');
   result.control_transfer = { unique_controller: true, epoch_before: claimed.control_epoch, epoch_after: transferred.control_epoch };
+  if (process.argv.includes('--edit-gateway-configuration')) {
+    const before = await api('/gateway-configuration');
+    assert.equal(before.apply_policy,'gateway_restart');
+    assert.equal(before.restart_required,false);
+    assert.equal(before.values.web_server.media_ticket_secret,null);
+    const saved = await api('/gateway-configuration','PATCH',{revision:before.revision,changes:{'/moonlight/pair_device_name':'Stream Kit managed acceptance'}});
+    assert.equal(saved.restart_required,true);
+    assert.notEqual(saved.revision,before.revision);
+    assert.equal((await api('/gateway-configuration')).revision,saved.revision);
+    const stale = await fetch(control+'/api/v1/gateway-configuration',{method:'PATCH',headers:{Authorization:'Bearer '+login.data.token,'Content-Type':'application/json'},
+      body:JSON.stringify({revision:before.revision,changes:{'/moonlight/pair_device_name':'stale'}})});
+    assert.equal(stale.status,409);
+    result.gateway_configuration = {passed:true,apply_policy:saved.apply_policy,restart_required:true,conflict_rejected:true,
+      scope:'Management API to signed native file operation during active media; no gateway restart or browser form interaction.'};
+  }
   if (restartServices) {
     const selected = await api(`/stream-sessions/${invite.session_id}/controller/${ids[0]}`, 'POST');
     const peerCounts = await Promise.all(pages.map(page => page.evaluate(() => window.__acceptancePeers.length)));

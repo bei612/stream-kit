@@ -37,5 +37,77 @@ the source file.
 `scripts/test-gateway-config.cjs <binary>` exercises the real executable,
 including overridden values, missing files, failure exit status and absence of
 storage side effects. It is included in the Windows/Linux build workflow.
-The unified management UI and versioned native-file save operation are still
-separate implementation work; this preflight alone is not that integration.
+The unified management UI remains separate integration work; this preflight
+alone is not that integration.
+
+## Signed native configuration API v1
+
+`POST /internal/v1/configuration` (under the configured gateway URL prefix)
+accepts a bounded JSON request with `schema_version: 1`, a 32-character hex
+`request_id`, `issued_at_ms`, and `operation` (`read` or `save`). Save also
+requires `revision` and a `changes` object mapping existing JSON Pointer paths
+to replacement values. Read cannot carry revision or changes. Overlapping
+parent/child edits, unknown paths, more than 256 edits and invalid typed results
+are rejected. Optional objects can be replaced as a whole at their existing
+path; array members use JSON Pointer indices.
+
+`x-stream-control-signature` is HMAC-SHA256 hex over the request domain
+`stream-kit/gateway-configuration/request/v1\n` followed by the exact body.
+The key is the running gateway's media trust secret. Timestamps may be at most
+5 seconds old or 2 seconds in the future. Other signature purposes and browser
+credentials do not authorize configuration access.
+
+Successful domain processing returns an envelope containing `schema_version`,
+`request_id`, `request_issued_at_ms`, and `result`. Both success and domain-error
+envelopes use the response domain
+`stream-kit/gateway-configuration/response/v1\n`. The caller must verify the
+signature and request binding before trusting values or errors. Authentication,
+malformed input and resource admission failures can return unsigned rejection;
+these responses must never be interpreted as configuration snapshots.
+
+The result's data contains `revision`, `restart_required`,
+`apply_policy: gateway_restart`, `values`, `redacted_paths`, and
+`overridden_paths`. Trust secrets, TLS material, ICE script and ICE credentials
+or URLs are redacted to null and identified explicitly. Omitted changes retain
+their original values; null is an explicit replacement, not a retain marker.
+Overrides are captured from the running gateway's CLI/environment. Their values
+are never persisted by configuration editing.
+
+Save checks the raw file revision, derives and validates the effective native
+configuration, writes and syncs a new same-directory file, and replaces the
+source. Unix also syncs the directory and creates the file with mode 0600.
+The configured source must be an existing regular file of at most 1 MiB, not a
+symlink. Human-JSON comments and formatting are normalized on save. Operations
+are serialized and bounded in-process. External changes already present before
+replacement are detected, but this is not a cross-process editor transaction.
+A post-replacement durability error may require re-reading to learn whether the
+file changed.
+
+Conflicts return HTTP 409 / `CONFIGURATION_CONFLICT`, invalid changes HTTP 400 /
+`CONFIGURATION_INVALID`, unavailable files HTTP 503 /
+`CONFIGURATION_UNAVAILABLE`. All responses disable caching. No save mutates
+runtime configuration or restarts a service. Changes to trust, listeners or
+control-plane addressing need coordinated deployment before restart.
+
+## Unified administrator API
+
+The Orchestrator exposes authenticated `GET /api/v1/gateway-configuration` and
+`PATCH /api/v1/gateway-configuration`. PATCH accepts only `revision` and
+`changes`, with a 256 KiB body limit. The existing single-administrator
+authentication applies to both routes. The publisher signs native requests and
+verifies the response signature, protocol version, request ID, timestamp and
+error/status mapping before returning the redacted view. Native fields remain
+owned and validated by the gateway; no duplicate Go configuration schema is
+introduced. Device inventory and configuration reuse the same signature helper
+with separate protocol domains.
+
+These requests do not acquire the media-state publisher lock or delay its lease
+renewal. The native gateway admits one configuration operation at a time, with
+the permit retained by its blocking file task even if HTTP is cancelled.
+Unsigned or mismatched native responses become a generic unavailable error;
+untrusted diagnostic text is never forwarded to the administrator.
+
+The API integration is implemented. Browser form integration and coordinated
+component restart remain outstanding. `--edit-gateway-configuration` on the
+source-stream acceptance runner exercises the administrator API while video and
+audio are active, including pending restart and stale-version rejection.

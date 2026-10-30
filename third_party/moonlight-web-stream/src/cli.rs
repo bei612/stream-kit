@@ -81,7 +81,7 @@ pub enum ConfigCommand {
     Print,
 }
 
-#[derive(Args)]
+#[derive(Args, Clone, Default)]
 pub struct CliConfig {
     /// Overwrites `webrtc.port_range`. Specify like this: "MIN:MAX".
     #[arg(long, env = "WEBRTC_PORT_RANGE")]

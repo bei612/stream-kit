@@ -17,7 +17,6 @@ import (
 
 const audioRequestContext = "stream-kit/audio-devices/request/v1\n"
 const audioResponseContext = "stream-kit/audio-devices/response/v1\n"
-const audioSignatureHeader = "X-Stream-Control-Signature"
 const audioMaxBytes = 1 << 20
 
 type AudioDevice struct {
@@ -81,13 +80,6 @@ type AudioInventory struct {
 	ConfiguredRoutes []AudioRoute  `json:"configured_routes"`
 }
 
-func audioSignature(secret []byte, domain string, body []byte) string {
-	mac := hmac.New(sha256.New, secret)
-	mac.Write([]byte(domain))
-	mac.Write(body)
-	return hex.EncodeToString(mac.Sum(nil))
-}
-
 // AudioDevices enumerates in the gateway's OS user context, on explicit demand.
 // It must not hold the state publisher mutex or delay control-lease renewal.
 func (p *Publisher) AudioDevices(ctx context.Context) (AudioInventory, error) {
@@ -106,7 +98,7 @@ func (p *Publisher) AudioDevices(ctx context.Context) (AudioInventory, error) {
 		return empty, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set(audioSignatureHeader, audioSignature(p.secret, audioRequestContext, body))
+	req.Header.Set(controlSignatureHeader, controlSignature(p.secret, audioRequestContext, body))
 	resp, err := p.client.Do(req)
 	if err != nil {
 		return empty, err
@@ -119,7 +111,7 @@ func (p *Publisher) AudioDevices(ctx context.Context) (AudioInventory, error) {
 	if err != nil {
 		return empty, err
 	}
-	return decodeAudioInventory(p.secret, resp.Header.Get(audioSignatureHeader), responseBody, request, time.Now().UnixMilli())
+	return decodeAudioInventory(p.secret, resp.Header.Get(controlSignatureHeader), responseBody, request, time.Now().UnixMilli())
 }
 
 func decodeAudioInventory(secret []byte, signature string, body []byte, request audioInventoryRequest, now int64) (AudioInventory, error) {
@@ -128,7 +120,7 @@ func decodeAudioInventory(secret []byte, signature string, body []byte, request 
 	if err != nil || len(raw) != sha256.Size || len(body) > audioMaxBytes || len(secret) == 0 {
 		return inventory, fmt.Errorf("invalid audio inventory signature or size")
 	}
-	want, _ := hex.DecodeString(audioSignature(secret, audioResponseContext, body))
+	want, _ := hex.DecodeString(controlSignature(secret, audioResponseContext, body))
 	if !hmac.Equal(raw, want) {
 		return inventory, fmt.Errorf("unauthenticated audio inventory")
 	}

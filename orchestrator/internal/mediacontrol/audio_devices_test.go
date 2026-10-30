@@ -57,14 +57,14 @@ func TestAudioInventoryResponseBoundary(t *testing.T) {
 			if now == 0 {
 				now = request.IssuedAt
 			}
-			_, err := decodeAudioInventory(secret, audioSignature(secret, domain, body), body, request, now)
+			_, err := decodeAudioInventory(secret, controlSignature(secret, domain, body), body, request, now)
 			if (err == nil) != tc.valid {
 				t.Fatalf("valid=%t, error=%v", tc.valid, err)
 			}
 		})
 	}
 	body, _ := json.Marshal(fixture)
-	signature := audioSignature(secret, audioResponseContext, body)
+	signature := controlSignature(secret, audioResponseContext, body)
 	for _, key := range [][]byte{nil, []byte("other")} {
 		if _, err := decodeAudioInventory(key, signature, body, request, request.IssuedAt); err == nil {
 			t.Fatal("wrong key accepted")
@@ -80,7 +80,7 @@ func TestAudioInventoryUsesConfiguredGatewayAndDoesNotBlockState(t *testing.T) {
 	entered, release := make(chan struct{}), make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
-		if r.Method != "POST" || r.URL.Path != "/gateway/internal/v1/audio-devices" || r.Header.Get(audioSignatureHeader) != audioSignature(secret, audioRequestContext, body) {
+		if r.Method != "POST" || r.URL.Path != "/gateway/internal/v1/audio-devices" || r.Header.Get(controlSignatureHeader) != controlSignature(secret, audioRequestContext, body) {
 			t.Error("invalid signed inventory request")
 			w.WriteHeader(401)
 			return
@@ -92,7 +92,7 @@ func TestAudioInventoryUsesConfiguredGatewayAndDoesNotBlockState(t *testing.T) {
 		close(entered)
 		<-release
 		body, _ = json.Marshal(AudioInventory{1, request.RequestID, request.IssuedAt, time.Now().UnixMilli(), []AudioDevice{}, []AudioRoute{}})
-		w.Header().Set(audioSignatureHeader, audioSignature(secret, audioResponseContext, body))
+		w.Header().Set(controlSignatureHeader, controlSignature(secret, audioResponseContext, body))
 		_, _ = w.Write(body)
 	}))
 	defer server.Close()
@@ -151,7 +151,7 @@ func TestAudioTargetSelectionUsesSignedInventoryDirections(t *testing.T) {
 		}
 		body, _ := json.Marshal(AudioInventory{1, request.RequestID, request.IssuedAt, time.Now().UnixMilli(),
 			[]AudioDevice{{"render", "Output", false, true}, {"capture", "Input", true, false}}, []AudioRoute{}})
-		w.Header().Set(audioSignatureHeader, audioSignature(secret, audioResponseContext, body))
+		w.Header().Set(controlSignatureHeader, controlSignature(secret, audioResponseContext, body))
 		_, _ = w.Write(body)
 	}))
 	defer server.Close()

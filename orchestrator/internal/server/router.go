@@ -91,6 +91,12 @@ func (s *Server) setupRoutes() {
 	authed.GET("/templates", h.GetTemplates)
 	authed.GET("/logs", h.GetLogs)
 	authed.GET("/metrics", h.Metrics)
+	var gatewayConfiguration handlers.GatewayConfigurationClient
+	if s.MediaControl != nil {
+		gatewayConfiguration = s.MediaControl
+	}
+	authed.GET("/gateway-configuration", handlers.GatewayConfiguration(gatewayConfiguration))
+	authed.PATCH("/gateway-configuration", handlers.GatewayConfiguration(gatewayConfiguration))
 	authed.GET("/audio-devices", func(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")
 		if s.MediaControl == nil {

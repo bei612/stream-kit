@@ -45,6 +45,7 @@ mod web;
 
 mod cli;
 mod config;
+mod configuration;
 mod human_json;
 
 #[actix_web::main]
@@ -53,9 +54,10 @@ async fn main() {
 
     // Load Config
     let config_path = PathBuf::from_str(&cli.config_path).expect("invalid config file path");
-    let mut config = match fs::read_to_string(&config_path).await {
-        Ok(mut value) => {
-            value = preprocess_human_json(value);
+    let source = fs::read_to_string(&config_path).await;
+    let mut config = match &source {
+        Ok(value) => {
+            let value = preprocess_human_json(value.clone());
 
             serde_json::from_str(&value).unwrap_or_else(|err: serde_json::Error| {
                 eprintln!(
@@ -80,6 +82,11 @@ async fn main() {
             panic!("failed to read config: {err}");
         }
     };
+    let settings = Data::new(configuration::Settings::new(
+        std::path::absolute(&config_path).expect("resolve configuration path"),
+        source.as_ref().ok().map(String::as_str),
+        cli.options.clone(),
+    ));
     cli.options.apply(&mut config);
 
     match cli.command {
@@ -139,7 +146,7 @@ async fn main() {
         .expect("failed to set ring crypto provider as default");
 
     // Start the server
-    if let Err(err) = start(config).await {
+    if let Err(err) = start(config, settings).await {
         error!("{err:?}");
         drop(guard);
         std::process::exit(1);
@@ -304,7 +311,10 @@ impl RootSpanBuilder for ActixDebugSpan {
     }
 }
 
-async fn start(config: Config) -> Result<(), anyhow::Error> {
+async fn start(
+    config: Config,
+    settings: Data<configuration::Settings>,
+) -> Result<(), anyhow::Error> {
     let app = App::new(config.clone()).await?;
     let app = Data::new(app);
 
@@ -319,6 +329,7 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
                 .service(
                     scope(&url_path_prefix)
                         .app_data(app.clone())
+                        .app_data(settings.clone())
                         .wrap(
                             middleware::DefaultHeaders::new()
                                 .add((
@@ -331,6 +342,7 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
                         .service(api_service())
                         .service(api::control_state::apply)
                         .service(api::audio_devices::list)
+                        .service(api::configuration::manage)
                         .service(web_config_js_service())
                         .service(web_service()),
                 )
