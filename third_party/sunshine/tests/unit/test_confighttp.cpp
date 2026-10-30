@@ -29,6 +29,7 @@
 // local includes
 #include <src/app_registry.h>
 #include <src/config.h>
+#include <src/config_transaction.h>
 #include <src/confighttp.h>
 #include <src/crypto.h>
 #include <src/httpcommon.h>
@@ -332,6 +333,7 @@ protected:
     server->resource["^/capture-capabilities-test$"]["GET"] = confighttp::getCaptureCapabilities;
     server->resource["^/encoder-config-test$"]["POST"] = confighttp::saveConfig;
     server->resource["^/encoder-config-test$"]["GET"] = confighttp::getConfig;
+    server->resource["^/encoder-state-test$"]["GET"] = confighttp::getConfigState;
     for (const auto method : {"GET", "PUT", "DELETE"}) {
       server->resource["^/managed-apps-test/([0-9a-f-]+)$"][method] = confighttp::managedApp;
     }
@@ -649,6 +651,40 @@ TEST_F(EncoderConfigurationHttpTest, PreservesMultilineNativeListsWithoutAccepti
   const std::string windows_commands = "[\r\n  {\"do\":\"echo hello\"}\r\n]";
   EXPECT_EQ(client->request("POST", "/encoder-config-test", nlohmann::json {{"global_prep_cmd", windows_commands}}.dump(), headers())->status_code, "200 OK");
   EXPECT_EQ(config::parse_config(contents()).at("global_prep_cmd"), windows_commands);
+}
+
+TEST_F(EncoderConfigurationHttpTest, ReportsLoadedRevisionWithoutTreatingSaveAsRuntimeApplication) {
+  const auto auth = headers();
+  const auto revision = auth.find("If-Match")->second;
+  config_transaction::loaded_t original;
+  {
+    std::lock_guard lock {config_transaction::mutex};
+    original = config_transaction::loaded;
+    config_transaction::loaded = {revision, std::string(64, 'a'), {"sunshine_name"}};
+  }
+  const auto restore = util::fail_guard([&]() {
+    std::lock_guard lock {config_transaction::mutex};
+    config_transaction::loaded = std::move(original);
+  });
+  EXPECT_EQ(client->request("GET", "/encoder-state-test")->status_code, "401 Unauthorized");
+  auto before = nlohmann::json::parse(client->request("GET", "/encoder-state-test", "", auth)->content.string());
+  EXPECT_EQ(before["loaded_revision"], revision);
+  EXPECT_EQ(before["restart_required"], false);
+  EXPECT_EQ(before["overridden_keys"], nlohmann::json::array({"sunshine_name"}));
+  ASSERT_EQ(client->request("POST", "/encoder-config-test", R"({"mouse":"disabled"})", auth)->status_code, "200 OK");
+  const auto after = nlohmann::json::parse(client->request("GET", "/encoder-state-test", "", auth)->content.string());
+  EXPECT_EQ(after["loaded_revision"], revision);
+  EXPECT_NE(after["revision"], revision);
+  EXPECT_EQ(after["instance_id"], before["instance_id"]);
+  EXPECT_EQ(after["restart_required"], true);
+  {
+    std::lock_guard lock {config_transaction::mutex};
+    config_transaction::loaded = {};
+  }
+  const auto unknown = nlohmann::json::parse(client->request("GET", "/encoder-state-test", "", auth)->content.string());
+  EXPECT_EQ(unknown["runtime_available"], false);
+  EXPECT_FALSE(unknown.contains("restart_required"));
+  EXPECT_FALSE(unknown.contains("loaded_revision"));
 }
 
 TEST_F(EncoderConfigurationHttpTest, ReportsPersistenceFailureInsteadOfSuccess) {

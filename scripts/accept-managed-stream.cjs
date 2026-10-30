@@ -421,6 +421,9 @@ async function main() {
     const before=await api('/encoder-configuration');
     assert.equal(before.apply_policy,'encoder_restart');
     assert.equal(before.runtime_verified,false);
+    assert.match(before.loaded_revision,/^"[a-f0-9]{64}"$/i);
+    assert.match(before.instance_id,/^[a-f0-9]{64}$/i);
+    assert.ok(before.overridden_keys.includes('sunshine_name'));
     assert.ok(before.redacted_keys.includes('pkey'));
     assert.equal(before.values.pkey,null);
     const adminPage=await context.newPage();
@@ -438,6 +441,9 @@ async function main() {
     assert.notEqual(saved.revision,before.revision);
     assert.equal(saved.values.sunshine_name,'Stream Kit encoder acceptance');
     assert.equal(saved.values.pkey,null);
+    assert.equal(saved.loaded_revision,before.loaded_revision);
+    assert.equal(saved.instance_id,before.instance_id);
+    assert.equal(saved.restart_required,true);
     const stale=await fetch(control+'/api/v1/encoder-configuration',{method:'PATCH',headers:{Authorization:'Bearer '+login.data.token,'Content-Type':'application/json'},body:JSON.stringify({revision:before.revision,changes:{sunshine_name:'stale'}})});
     assert.equal(stale.status,409);
     assert.equal((await api('/encoder-configuration')).revision,saved.revision);
@@ -445,7 +451,7 @@ async function main() {
     await Promise.all(pages.map((page,index)=>waitForPageCondition(page,previous=>document.querySelector('video').getVideoPlaybackQuality().totalVideoFrames>previous,frames[index],{timeout:15000})));
     await adminPage.screenshot({path:path.join(output,'encoder-settings.png'),fullPage:true});
     await adminPage.close();
-    result.encoder_configuration={passed:true,browser_form:true,conflict_rejected:true,video_continued:true,apply_policy:saved.apply_policy,runtime_verified:false};
+    result.encoder_configuration={passed:true,browser_form:true,conflict_rejected:true,video_continued:true,apply_policy:saved.apply_policy,runtime_verified:false,loaded_revision_preserved:true,command_line_override_reported:true,restart_required:saved.restart_required};
   }
   if (process.argv.includes('--edit-gateway-configuration')) {
     const before = await api('/gateway-configuration');

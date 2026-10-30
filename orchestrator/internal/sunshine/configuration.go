@@ -19,6 +19,39 @@ var ErrConfigurationInvalid = errors.New("invalid encoder configuration patch")
 type EncoderConfiguration struct {
 	Revision string
 	Values   map[string]json.RawMessage
+	State    *EncoderConfigurationState
+}
+
+// EncoderConfigurationState proves which file was read at startup, not that
+// every option was accepted by the native parser or overrides are absent.
+type EncoderConfigurationState struct {
+	Status           bool     `json:"status"`
+	SchemaVersion    int      `json:"schema_version"`
+	Revision         string   `json:"revision"`
+	ApplyPolicy      string   `json:"apply_policy"`
+	RuntimeAvailable bool     `json:"runtime_available"`
+	LoadedRevision   string   `json:"loaded_revision"`
+	InstanceID       string   `json:"instance_id"`
+	OverriddenKeys   []string `json:"overridden_keys"`
+	RestartRequired  *bool    `json:"restart_required"`
+}
+
+func (c *Client) ConfigurationState(ctx context.Context) (*EncoderConfigurationState, error) {
+	var state EncoderConfigurationState
+	if err := c.requestManagedJSON(ctx, http.MethodGet, "/api/stream-kit/configuration-state", nil, 65536, &state); err != nil {
+		return nil, err
+	}
+	if !state.Status || state.SchemaVersion != 1 || !configurationRevision(state.Revision) || state.ApplyPolicy != "encoder_restart" {
+		return nil, errors.New("invalid encoder configuration state")
+	}
+	if state.RuntimeAvailable {
+		if !configurationRevision(state.LoadedRevision) || !configurationRevision(`"`+state.InstanceID+`"`) || state.RestartRequired == nil || *state.RestartRequired != (state.Revision != state.LoadedRevision) || state.OverriddenKeys == nil {
+			return nil, errors.New("incomplete encoder startup evidence")
+		}
+	} else if state.LoadedRevision != "" || state.InstanceID != "" || state.RestartRequired != nil {
+		return nil, errors.New("contradictory encoder startup evidence")
+	}
+	return &state, nil
 }
 
 func configurationRevision(value string) bool {
@@ -90,7 +123,14 @@ func (c *Client) ReadConfiguration(ctx context.Context) (EncoderConfiguration, e
 	for _, key := range []string{"status", "platform", "version"} {
 		delete(values, key)
 	}
-	return EncoderConfiguration{Revision: revision, Values: values}, nil
+	state, err := c.ConfigurationState(ctx)
+	if err != nil {
+		return EncoderConfiguration{}, err
+	}
+	if state.Revision != revision {
+		return EncoderConfiguration{}, ErrConfigurationConflict
+	}
+	return EncoderConfiguration{Revision: revision, Values: values, State: state}, nil
 }
 
 // PatchConfiguration merges explicitly changed native keys into a fresh snapshot.

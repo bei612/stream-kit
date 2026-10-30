@@ -22,6 +22,7 @@
 // local includes
 #include "config.h"
 #include "config_transaction.h"
+#include "crypto.h"
 #include "entry_handler.h"
 #include "file_handler.h"
 #include "logging.h"
@@ -2035,21 +2036,37 @@ namespace config {
       }
 
       // Read config file
-      auto vars = parse_config(file_handler::read_file(sunshine.config_file.c_str()));
+      std::string content;
+      {
+        std::lock_guard lock {config_transaction::mutex};
+        content = config_transaction::read(file_handler::from_utf8(sunshine.config_file));
+      }
+      auto vars = parse_config(content);
+      config_transaction::loaded_t evidence;
+      evidence.revision = "\"" + util::hex(crypto::hash(content)).to_string() + "\"";
+      evidence.instance_id = util::hex(crypto::hash(crypto::rand(32))).to_string();
 
       for (auto &[name, value] : cmd_vars) {
+        evidence.overridden_keys.emplace_back(name);
         vars.insert_or_assign(std::move(name), std::move(value));
       }
+      std::sort(evidence.overridden_keys.begin(), evidence.overridden_keys.end());
 
       // Apply the config. Note: This will try to create any paths
       // referenced in the config, so we may receive exceptions if
       // the path is incorrect or inaccessible.
       apply_config(std::move(vars));
+      {
+        std::lock_guard lock {config_transaction::mutex};
+        config_transaction::loaded = std::move(evidence);
+      }
       config_loaded = true;
     } catch (const std::filesystem::filesystem_error &err) {
       BOOST_LOG(fatal) << "Failed to apply config: "sv << err.what();
     } catch (const boost::filesystem::filesystem_error &err) {
       BOOST_LOG(fatal) << "Failed to apply config: "sv << err.what();
+    } catch (const std::exception &) {
+      BOOST_LOG(fatal) << "Failed to read or apply encoder configuration";
     }
 
 #ifdef _WIN32

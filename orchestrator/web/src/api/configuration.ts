@@ -7,6 +7,10 @@ export interface EncoderConfigurationAcknowledgement {
 export interface EncoderConfigurationView extends EncoderConfigurationAcknowledgement {
   values:Record<string,ConfigValue>
   redacted_keys:string[]
+  loaded_revision?:string
+  instance_id?:string
+  overridden_keys?:string[]
+  restart_required?:boolean
 }
 export interface ConfigurationView {
   revision:string

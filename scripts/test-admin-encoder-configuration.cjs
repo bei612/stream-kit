@@ -22,7 +22,7 @@ const {chromium}=createRequire(path.resolve('third_party/moonlight-web-stream/pa
             writes.push(route.request().postDataJSON());
             return route.fulfill({status:failure?409:200,json:failure?{status:'error',message:'配置已变化，请重新读取'}:{status:'ok',data:{revision:'"'+'b'.repeat(64)+'"',apply_policy:'encoder_restart',runtime_verified:false}}});
           }
-          return route.fulfill({status:readFailure?503:200,json:readFailure?{status:'error',message:'编码器读取失败'}:{status:'ok',data:{revision,apply_policy:'encoder_restart',runtime_verified:false,values:{sunshine_name:'Renderer',pkey:null},redacted_keys:['pkey']}}});
+          return route.fulfill({status:readFailure?503:200,json:readFailure?{status:'error',message:'编码器读取失败'}:{status:'ok',data:{revision,loaded_revision:revision,instance_id:'c'.repeat(64),restart_required:false,overridden_keys:['sunshine_name'],apply_policy:'encoder_restart',runtime_verified:false,values:{sunshine_name:'Renderer',pkey:null},redacted_keys:['pkey']}}});
         }
         return route.fulfill({status:503,json:{status:'error',message:'测试中未连接此服务'}});
       }
@@ -33,6 +33,7 @@ const {chromium}=createRequire(path.resolve('third_party/moonlight-web-stream/pa
     await page.goto('http://admin.test/settings');
     const name=page.locator('#encoder-setting-sunshine_name');
     await name.waitFor();
+    await page.getByRole('status').filter({hasText:'当前进程启动时已读取此配置文件版本'}).waitFor();
     assert.equal(await page.locator('#encoder-setting-pkey').inputValue(),'');
     const save=page.getByRole('button',{name:'保存编码器配置',exact:true});
     await name.fill('Draft');await save.click();
@@ -45,6 +46,7 @@ const {chromium}=createRequire(path.resolve('third_party/moonlight-web-stream/pa
     await page.getByRole('combobox',{name:'pkey 编辑方式',exact:true}).selectOption('reset');
     await save.click();
     await page.getByRole('status').filter({hasText:'配置已保存'}).waitFor();
+    await page.getByRole('status').filter({hasText:'配置文件已变化，需重启编码器加载'}).waitFor();
     assert.deepEqual(writes[1],{revision,changes:{pkey:null}});
     assert.equal(await save.isDisabled(),true);
     readFailure=true;

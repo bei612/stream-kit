@@ -55,6 +55,8 @@ namespace confighttp {
   void saveConfig(const resp_https_t &response, const req_https_t &request);
   /** @brief Read desired settings with an ETag required by subsequent saves. @param response Authenticated response. @param request Configuration request. */
   void getConfig(const resp_https_t &response, const req_https_t &request);
+  /** @brief Read startup file-version evidence without disclosing configuration values. @param response Authenticated response. @param request State request. */
+  void getConfigState(const resp_https_t &response, const req_https_t &request);
 
   void print_req(const req_https_t &request);
   void send_response(const resp_https_t &response, const nlohmann::json &output_tree);

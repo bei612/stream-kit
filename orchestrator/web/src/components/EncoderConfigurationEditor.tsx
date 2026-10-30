@@ -40,6 +40,7 @@ export function EncoderConfigurationEditor() {
       const {data}=await api.saveEncoderConfiguration(view.revision,changes)
       if(!data||!/^"[a-f0-9]{64}"$/i.test(data.revision)||data.apply_policy!=='encoder_restart'||data.runtime_verified!==false)throw new Error('保存确认不完整，请重新读取。')
       // Reload before another transaction; native normalization may omit overrides.
+      setView({...view,revision:data.revision,restart_required:view.loaded_revision?view.loaded_revision!==data.revision:undefined})
       setReloadRequired(true);setDrafts({})
       setNotice('配置已保存，需重启编码器后生效。尚未核验运行版本；继续编辑前请重新读取。')
     }catch(e){setReloadRequired(true);setError(e instanceof Error?e.message:'保存未确认，请重新读取后再操作')}
@@ -49,7 +50,13 @@ export function EncoderConfigurationEditor() {
   return <Card>
     <CardHeader><CardTitle>渲染编码器配置</CardTitle><p className="text-sm text-muted-foreground">管理画面、声音与输入的原生参数。以下配置均在编码器重启后生效；控制权和会话音量在会话页面实时调整。</p></CardHeader>
     <CardContent className="space-y-4">
-      <Alert variant="warning">此处显示文件中的显式配置，未设置项使用编码器默认值。当前尚未提供运行版本确认。</Alert>
+      <p className="text-sm text-muted-foreground">此处显示文件中的显式配置，未设置项使用编码器默认值。</p>
+      {view?.loaded_revision?<div className="rounded-lg border border-border p-3 space-y-2 text-xs text-muted-foreground">
+        <p className="break-all">启动读取版本：<code>{view.loaded_revision}</code></p>
+        <p role="status" className={view.restart_required?'text-amber-400':'text-emerald-400'}>{view.restart_required?'配置文件已变化，需重启编码器加载。':'当前进程启动时已读取此配置文件版本。'}</p>
+        <p>文件版本一致不代表所有参数均被接受；启动覆盖与平台支持仍影响实际行为。</p>
+        {!!view.overridden_keys?.length&&<p>启动参数覆盖：{view.overridden_keys.join('、')}</p>}
+      </div>:<Alert variant="warning">尚未取得编码器启动配置版本。</Alert>}
       {error&&<Alert variant="error" role="alert">{error}</Alert>}
       {notice&&<Alert variant="success" role="status">{notice}</Alert>}
       <fieldset disabled={busy||reloadRequired} className="space-y-3 min-w-0">

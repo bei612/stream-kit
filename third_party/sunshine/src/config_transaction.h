@@ -9,10 +9,18 @@
 #include <mutex>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace config_transaction {
   inline std::mutex mutex;  ///< Serializes API reads/commits and automatic option persistence.
   inline constexpr std::size_t max_bytes = 1024 * 1024;  ///< Maximum desired configuration size.
+  /** @brief Evidence captured only after startup configuration application succeeds. */
+  struct loaded_t {
+    std::string revision;  ///< Strong hash of the exact file bytes passed to the startup parser.
+    std::string instance_id;  ///< Random identity of this successful startup configuration load.
+    std::vector<std::string> overridden_keys;  ///< Command-line override names; never their values.
+  };
+  inline loaded_t loaded;  ///< Startup evidence protected by mutex; API saves never update it.
 
   /** @brief Read a complete bounded regular configuration file. Caller holds mutex.
    * @param path Native configuration path.

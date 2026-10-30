@@ -81,6 +81,13 @@ func EncoderConfiguration(client EncoderConfigurationClient) gin.HandlerFunc {
 			}
 		}
 		sort.Strings(redacted)
-		okResponse(c, gin.H{"revision": snapshot.Revision, "values": values, "redacted_keys": redacted, "apply_policy": "encoder_restart", "runtime_verified": false})
+		view := gin.H{"revision": snapshot.Revision, "values": values, "redacted_keys": redacted, "apply_policy": "encoder_restart", "runtime_verified": false}
+		if snapshot.State != nil && snapshot.State.RuntimeAvailable {
+			view["loaded_revision"] = snapshot.State.LoadedRevision
+			view["instance_id"] = snapshot.State.InstanceID
+			view["overridden_keys"] = snapshot.State.OverriddenKeys
+			view["restart_required"] = snapshot.State.RestartRequired
+		}
+		okResponse(c, view)
 	}
 }

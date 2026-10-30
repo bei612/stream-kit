@@ -70,7 +70,7 @@ async function main() {
   try { execFileSync(encoder,[configFile,'--creds',credentials.username,credentials.password],{cwd:scratch,windowsHide:true,stdio:'ignore',timeout:30000}); }
   catch { throw new Error('Failed to initialize isolated native credentials'); }
   const fd=fs.openSync(path.join(output,'sunshine.log'),'w');
-  child=spawn(encoder,[configFile],{cwd:scratch,windowsHide:true,stdio:['ignore',fd,fd]}); fs.closeSync(fd); exited=once(child,'exit');
+  child=spawn(encoder,[configFile,...(process.argv.includes('--edit-encoder-configuration')?['sunshine_name=StreamKit startup override']:[])],{cwd:scratch,windowsHide:true,stdio:['ignore',fd,fd]}); fs.closeSync(fd); exited=once(child,'exit');
   const info=`http://127.0.0.1:${base}/serverinfo`;
   let ready=false;
   for(let i=0;i<150;i++) {

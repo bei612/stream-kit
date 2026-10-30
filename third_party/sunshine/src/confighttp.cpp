@@ -1572,6 +1572,30 @@ namespace confighttp {
                                   {"X-Frame-Options", "DENY"}, {"Content-Security-Policy", "frame-ancestors 'none';"}});
   }
 
+  /** @brief Read immutable startup evidence alongside the current desired revision. @param response HTTP response. @param request Authenticated request. */
+  void getConfigState(const resp_https_t &response, const req_https_t &request) {
+    if (!authenticate(response, request)) {
+      return;
+    }
+    try {
+      std::lock_guard lock {config_transaction::mutex};
+      const auto revision = config_etag(config_transaction::read(file_handler::from_utf8(config::sunshine.config_file)));
+      const auto &loaded = config_transaction::loaded;
+      nlohmann::json result {{"schema_version", 1}, {"status", true}, {"revision", revision}, {"apply_policy", "encoder_restart"}, {"runtime_available", !loaded.revision.empty()}};
+      if (!loaded.revision.empty()) {
+        result["loaded_revision"] = loaded.revision;
+        result["instance_id"] = loaded.instance_id;
+        result["overridden_keys"] = loaded.overridden_keys;
+        result["restart_required"] = revision != loaded.revision;
+      }
+      send_config_response(response, result, revision);
+    } catch (const std::exception &) {
+      response->write(SimpleWeb::StatusCode::server_error_internal_server_error,
+                      nlohmann::json {{"status", false}, {"error", "Encoder configuration state is unavailable"}}.dump(),
+                      {{"Content-Type", "application/json"}, {"Cache-Control", "no-store"}});
+    }
+  }
+
   /** @brief Get desired configuration and its strong revision. @param response HTTP response. @param request Authenticated request. */
   void getConfig(const resp_https_t &response, const req_https_t &request) {
     if (!authenticate(response, request)) {
@@ -2585,6 +2609,7 @@ namespace confighttp {
     server.resource["^/api/clients/unpair-all$"]["POST"] = unpairAll;
     server.resource["^/api/clients/update$"]["POST"] = updateClient;
     server.resource["^/api/config$"]["GET"] = getConfig;
+    server.resource["^/api/stream-kit/configuration-state$"]["GET"] = getConfigState;
     server.resource["^/api/config$"]["POST"] = saveConfig;
     server.resource["^/api/configLocale$"]["GET"] = getLocale;
     server.resource["^/api/covers/([0-9]+)$"]["GET"] = getCover;
