@@ -72,6 +72,8 @@ pub enum Command {
 
 #[derive(Subcommand)]
 pub enum ConfigCommand {
+    /// Validates the existing configuration and overrides without starting services or printing secrets.
+    Check,
     /// Creates the current config at the specified `config_path` or "./server/config.json" if no path is specified.
     Generate,
     /// Prints the currently used config into stdout in json format.

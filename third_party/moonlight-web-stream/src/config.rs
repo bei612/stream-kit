@@ -12,6 +12,7 @@ use thiserror::Error;
 use crate::api::bindings::RtcIceServer;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 pub struct Config {
     #[serde(default)]
     pub data_storage: StorageConfig,
@@ -36,6 +37,45 @@ pub struct LocalAudioTarget {
 }
 
 impl Config {
+    /// Shared by startup and configuration tooling before allocating resources.
+    pub fn validate(&self) -> Result<(), &'static str> {
+        self.web_server.validate_managed()?;
+        self.validate_audio_targets()?;
+        let StorageConfig::Json {
+            path,
+            session_expiration_check_interval,
+        } = &self.data_storage;
+        if path.trim().is_empty() || session_expiration_check_interval.is_zero() {
+            return Err("data_storage requires a path and a positive expiration check interval");
+        }
+        if self.web_server.session_cookie_expiration.is_zero() {
+            return Err("web_server.session_cookie_expiration must be positive");
+        }
+        if let Some(range) = &self.webrtc.port_range
+            && (range.min == 0 || range.min > range.max)
+        {
+            return Err("webrtc.port_range requires 1 <= min <= max <= 65535");
+        }
+        if let Some(mapping) = &self.webrtc.nat_1to1
+            && (mapping.ips.is_empty()
+                || mapping
+                    .ips
+                    .iter()
+                    .any(|ip| ip.parse::<std::net::IpAddr>().is_err()))
+        {
+            return Err("webrtc.nat_1to1 requires explicit IP addresses");
+        }
+        if self.moonlight.default_http_port == 0 {
+            return Err("moonlight.default_http_port must be nonzero");
+        }
+        if let Some(headers) = &self.web_server.forwarded_header
+            && actix_web::http::header::HeaderName::from_bytes(headers.username_header.as_bytes())
+                .is_err()
+        {
+            return Err("web_server.forwarded_header.username_header is invalid");
+        }
+        Ok(())
+    }
     pub fn validate_audio_targets(&self) -> Result<(), &'static str> {
         if self.web_server.media_ticket_secret.is_some() && !self.local_audio_targets.is_empty() {
             return Err(
@@ -88,6 +128,7 @@ impl Config {
 // -- Log
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct LogConfig {
     pub level_filter: LevelFilter,
     pub file_path: Option<String>,
@@ -115,7 +156,7 @@ fn default_dev_venator() -> bool {
 
 // -- Data Storage
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type")]
+#[serde(tag = "type", deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub enum StorageConfig {
     Json {
@@ -140,6 +181,7 @@ fn default_session_expiration_check_interval() -> Duration {
 // -- WebRTC Config
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct WebRtcConfig {
     #[serde(default = "default_ice_servers")]
     pub ice_servers: Vec<RtcIceServer>,
@@ -166,6 +208,7 @@ impl Default for WebRtcConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct WebRtcNat1To1Mapping {
     pub ips: Vec<String>,
     pub ice_candidate_type: WebRtcNat1To1IceCandidateType,
@@ -180,6 +223,7 @@ pub enum WebRtcNat1To1IceCandidateType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PortRange {
     pub min: u16,
     pub max: u16,
@@ -222,6 +266,7 @@ fn default_include_loopback_candidates() -> bool {
 // -- Web Server Config
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct WebServerConfig {
     #[serde(default = "default_bind_address")]
     pub bind_address: SocketAddr,
@@ -243,6 +288,7 @@ pub struct WebServerConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ConfigSsl {
     pub private_key_pem: String,
     pub certificate_pem: String,
@@ -278,6 +324,70 @@ impl WebServerConfig {
 #[cfg(test)]
 mod managed_config_tests {
     use super::*;
+    #[test]
+    fn configuration_validation_rejects_runtime_resource_failures() {
+        assert!(Config::default().validate().is_ok());
+        let mut config = Config::default();
+        for (min, max, valid) in [
+            (0, 10, false),
+            (100, 99, false),
+            (100, 100, true),
+            (1, 65535, true),
+        ] {
+            config.webrtc.port_range = Some(PortRange { min, max });
+            assert_eq!(config.validate().is_ok(), valid);
+        }
+        config.webrtc.port_range = None;
+        config.webrtc.nat_1to1 = Some(WebRtcNat1To1Mapping {
+            ips: vec!["invalid-secret-value".into()],
+            ice_candidate_type: WebRtcNat1To1IceCandidateType::Host,
+        });
+        assert!(
+            !config
+                .validate()
+                .unwrap_err()
+                .contains("invalid-secret-value")
+        );
+        config.webrtc.nat_1to1.as_mut().unwrap().ips = vec!["127.0.0.1".into(), "::1".into()];
+        assert!(config.validate().is_ok());
+        config.web_server.session_cookie_expiration = Duration::ZERO;
+        assert!(config.validate().is_err());
+        config.web_server.session_cookie_expiration = Duration::from_secs(1);
+        let StorageConfig::Json {
+            session_expiration_check_interval,
+            ..
+        } = &mut config.data_storage;
+        *session_expiration_check_interval = Duration::ZERO;
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn native_configuration_rejects_unknown_fields_instead_of_ignoring_edits() {
+        let original = serde_json::to_value(Config::default()).unwrap();
+        for path in [
+            "",
+            "/webrtc",
+            "/web_server",
+            "/data_storage",
+            "/moonlight",
+            "/log",
+        ] {
+            let mut value = original.clone();
+            value
+                .pointer_mut(path)
+                .unwrap()
+                .as_object_mut()
+                .unwrap()
+                .insert("unknown_setting".into(), serde_json::json!(true));
+            assert!(
+                serde_json::from_value::<Config>(value).is_err(),
+                "accepted {path}"
+            );
+        }
+        let config: Config = serde_json::from_value(original).unwrap();
+        assert!(config.validate().is_ok());
+    }
+
     #[test]
     fn managed_configuration_requires_explicit_trust_and_control_endpoint() {
         let mut config = WebServerConfig::default();
@@ -334,6 +444,7 @@ fn default_session_cookie_expiration() -> Duration {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ForwardedHeaders {
     pub username_header: String,
     #[serde(default = "default_forwarded_headers_auto_create_user")]
@@ -363,6 +474,7 @@ fn default_forwarded_headers_ignore_case() -> bool {
 // -- Moonlight
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct MoonlightConfig {
     #[serde(default = "default_moonlight_http_port")]
     pub default_http_port: u16,

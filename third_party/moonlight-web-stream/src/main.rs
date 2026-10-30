@@ -57,9 +57,25 @@ async fn main() {
         Ok(mut value) => {
             value = preprocess_human_json(value);
 
-            serde_json::from_str(&value).expect("invalid file")
+            serde_json::from_str(&value).unwrap_or_else(|err: serde_json::Error| {
+                eprintln!(
+                    "invalid configuration at line {} column {}",
+                    err.line(),
+                    err.column()
+                );
+                std::process::exit(2);
+            })
         }
-        Err(err) if matches!(err.kind(), io::ErrorKind::NotFound) => Config::default(),
+        Err(err) if matches!(err.kind(), io::ErrorKind::NotFound) => {
+            if matches!(
+                cli.command.as_ref(),
+                Some(Command::Config(ConfigCommand::Check))
+            ) {
+                eprintln!("configuration file does not exist");
+                std::process::exit(2);
+            }
+            Config::default()
+        }
         Err(err) => {
             panic!("failed to read config: {err}");
         }
@@ -67,6 +83,14 @@ async fn main() {
     cli.options.apply(&mut config);
 
     match cli.command {
+        Some(Command::Config(ConfigCommand::Check)) => {
+            if let Err(message) = config.validate() {
+                eprintln!("invalid configuration: {message}");
+                std::process::exit(2);
+            }
+            println!("configuration valid; changes require a gateway restart");
+            return;
+        }
         Some(Command::AudioDevices) => {
             match stream_kit_audio_target::devices() {
                 Ok(devices) => println!(
@@ -117,6 +141,8 @@ async fn main() {
     // Start the server
     if let Err(err) = start(config).await {
         error!("{err:?}");
+        drop(guard);
+        std::process::exit(1);
     }
 
     drop(guard);

@@ -203,13 +203,7 @@ pub struct App {
 
 impl App {
     pub async fn new(config: Config) -> Result<Self, anyhow::Error> {
-        config
-            .web_server
-            .validate_managed()
-            .map_err(anyhow::Error::msg)?;
-        config
-            .validate_audio_targets()
-            .map_err(anyhow::Error::msg)?;
+        config.validate().map_err(anyhow::Error::msg)?;
         let media_sessions = media::MediaSessionRegistry::new();
         media_sessions.control.write().await.required =
             config.web_server.media_ticket_secret.is_some();
