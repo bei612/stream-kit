@@ -290,6 +290,7 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
                                 .add(("Expires", "0")),
                         )
                         .service(api_service())
+                        .service(api::control_state::apply)
                         .service(web_config_js_service())
                         .service(web_service()),
                 )

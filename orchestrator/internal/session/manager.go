@@ -75,14 +75,16 @@ type Manager struct {
 	sessions map[string]*RenderSession
 	hub      *ws.Hub
 	store    *store.Store
+	changed  chan struct{}
 }
 
 func NewManager(hub *ws.Hub) *Manager {
-	return &Manager{sessions: make(map[string]*RenderSession), hub: hub}
+	return &Manager{sessions: make(map[string]*RenderSession), hub: hub, changed: make(chan struct{}, 1)}
 }
 
 func NewManagerWithStore(hub *ws.Hub, st *store.Store) (*Manager, error) {
-	m := &Manager{sessions: make(map[string]*RenderSession), hub: hub, store: st}
+	m := NewManager(hub)
+	m.store = st
 	if st == nil {
 		return m, nil
 	}
@@ -164,8 +166,16 @@ func (m *Manager) commitLocked(next *RenderSession, event string) error {
 	}
 	m.sessions[next.ID] = next
 	m.emit(event, next)
+	select {
+	case m.changed <- struct{}{}:
+	default:
+	}
 	return nil
 }
+
+// Changes coalesces committed mutations for the single media reconciler. The
+// consumer always reads a full snapshot, so a burst cannot lose final state.
+func (m *Manager) Changes() <-chan struct{} { return m.changed }
 
 func (m *Manager) SetState(id, state string) error {
 	if state != StateStarting && state != StateRunning && state != StateDegraded && state != StateStopping && state != StateStopped {

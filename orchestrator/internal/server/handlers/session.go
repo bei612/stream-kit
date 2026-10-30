@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -27,6 +28,7 @@ func respondSessionError(c *gin.Context, err error) {
 }
 
 type SessionHandler struct {
+	SyncMedia    func(context.Context) error
 	Manager      *session.Manager
 	TicketSecret []byte
 }
@@ -108,6 +110,14 @@ func (h *SessionHandler) Heartbeat(c *gin.Context) {
 }
 
 func (h *SessionHandler) MediaTicket(c *gin.Context) {
+	if h.SyncMedia == nil {
+		errResponse(c, http.StatusServiceUnavailable, "MEDIA_CONTROL_UNAVAILABLE", "media control is not configured")
+		return
+	}
+	if err := h.SyncMedia(c.Request.Context()); err != nil {
+		errResponse(c, http.StatusServiceUnavailable, "MEDIA_CONTROL_UNAVAILABLE", "media state has not been acknowledged")
+		return
+	}
 	if len(h.TicketSecret) == 0 {
 		errResponse(c, http.StatusServiceUnavailable, "MEDIA_TICKET_DISABLED", "media ticket signing is not configured")
 		return
@@ -123,6 +133,10 @@ func (h *SessionHandler) MediaTicket(c *gin.Context) {
 		return
 	}
 	now := time.Now().UTC()
+	if !now.Before(connection.ExpiresAt) {
+		errResponse(c, http.StatusGone, "CONNECTION_EXPIRED", "connection lease has expired")
+		return
+	}
 	ticket := SignMediaTicket(MediaTicketClaims{
 		Purpose: "stream-media", SessionID: s.ID, ConnectionID: connection.ID,
 		HostID: s.HostID, AppID: s.AppID, Role: connection.Role,

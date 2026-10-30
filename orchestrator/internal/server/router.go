@@ -11,6 +11,7 @@ import (
 	"github.com/stream-kit/orchestrator/internal/app"
 	"github.com/stream-kit/orchestrator/internal/component"
 	"github.com/stream-kit/orchestrator/internal/config"
+	"github.com/stream-kit/orchestrator/internal/mediacontrol"
 	"github.com/stream-kit/orchestrator/internal/server/handlers"
 	"github.com/stream-kit/orchestrator/internal/session"
 	"github.com/stream-kit/orchestrator/internal/store"
@@ -19,14 +20,15 @@ import (
 )
 
 type Server struct {
-	Engine      *gin.Engine
-	Config      *config.Config
-	Store       *store.Store
-	Logger      *zap.Logger
-	CompManager *component.Manager
-	AppManager  *app.Manager
-	WSHub       *ws.Hub
-	SessionMgr  *session.Manager
+	MediaControl *mediacontrol.Publisher
+	Engine       *gin.Engine
+	Config       *config.Config
+	Store        *store.Store
+	Logger       *zap.Logger
+	CompManager  *component.Manager
+	AppManager   *app.Manager
+	WSHub        *ws.Hub
+	SessionMgr   *session.Manager
 }
 
 func New(cfg *config.Config, st *store.Store, compMgr *component.Manager, appMgr *app.Manager, wsHub *ws.Hub, sessionMgr *session.Manager, logger *zap.Logger) *Server {
@@ -35,14 +37,15 @@ func New(cfg *config.Config, st *store.Store, compMgr *component.Manager, appMgr
 	engine.Use(gin.Recovery())
 
 	s := &Server{
-		Engine:      engine,
-		Config:      cfg,
-		Store:       st,
-		CompManager: compMgr,
-		AppManager:  appMgr,
-		WSHub:       wsHub,
-		SessionMgr:  sessionMgr,
-		Logger:      logger,
+		MediaControl: mediacontrol.New(sessionMgr, cfg.MoonlightWeb.BaseURL, cfg.Server.MediaTicketSecret),
+		Engine:       engine,
+		Config:       cfg,
+		Store:        st,
+		CompManager:  compMgr,
+		AppManager:   appMgr,
+		WSHub:        wsHub,
+		SessionMgr:   sessionMgr,
+		Logger:       logger,
 	}
 
 	s.setupMiddleware()
@@ -121,6 +124,9 @@ func (s *Server) setupRoutes() {
 	}
 	if s.SessionMgr != nil {
 		sh := handlers.NewSessionHandler(s.SessionMgr, []byte(s.Config.Server.MediaTicketSecret))
+		if s.MediaControl != nil {
+			sh.SyncMedia = s.MediaControl.Sync
+		}
 		sessions := authed.Group("/stream-sessions")
 		sessions.GET("", sh.List)
 		sessions.POST("", sh.Ensure)

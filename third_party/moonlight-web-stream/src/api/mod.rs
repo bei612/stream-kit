@@ -33,6 +33,7 @@ pub(super) mod bindings_ext;
 
 pub mod app;
 pub mod auth;
+pub mod control_state;
 pub mod host;
 pub mod role;
 pub mod settings;

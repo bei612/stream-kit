@@ -10,7 +10,7 @@ use crate::api::{
         web_socket::delay_controller::{DelayController, DelayState},
     },
 };
-use actix_web::{Error, HttpRequest, HttpResponse, get, rt::spawn, web::Payload};
+use actix_web::{Error, HttpRequest, HttpResponse, get, rt::spawn, web::{Data, Payload}};
 use actix_ws::{Message, MessageStream, Session};
 use bytes::Bytes;
 use moonlight_common::{
@@ -42,7 +42,7 @@ use tracing::{Instrument, debug, debug_span, error, info, instrument, trace, war
 
 use crate::{
     api::stream::create_control_packet_config,
-    app::{AppError, host::HostId, user::AuthenticatedUser},
+    app::{App, AppError, host::HostId, user::AuthenticatedUser},
 };
 
 /// Queue delay below which the client has caught up and video is sent again.
@@ -66,12 +66,18 @@ enum WsData {
 }
 
 #[get("/host/stream/web_socket")]
-#[instrument(skip(user, req, body_stream), fields(user = %user.id()))]
+#[instrument(skip(user, req, body_stream, app), fields(user = %user.id()))]
 pub async fn web_socket_stream(
     mut user: AuthenticatedUser,
     req: HttpRequest,
     body_stream: Payload,
+    app: Data<App>,
 ) -> Result<HttpResponse, Error> {
+    // Managed sessions require the shared, leased WebRTC transport. The legacy
+    // transport launches its own upstream and has no control-state admission.
+    if app.config().web_server.media_ticket_secret.is_some() {
+        return Err(AppError::Forbidden.into());
+    }
     if !user
         .role()
         .await?

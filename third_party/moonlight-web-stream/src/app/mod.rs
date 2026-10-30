@@ -37,6 +37,7 @@ use crate::app::{
 pub mod auth;
 pub mod host;
 pub mod media;
+pub mod control_state;
 pub mod upstream;
 pub mod mixer;
 pub mod password;
@@ -196,12 +197,14 @@ pub struct App {
 
 impl App {
     pub async fn new(config: Config) -> Result<Self, anyhow::Error> {
+        let media_sessions = media::MediaSessionRegistry::new();
+        media_sessions.control.write().await.required = config.web_server.media_ticket_secret.is_some();
         let app = AppInner {
             storage: create_storage(config.data_storage.clone()).await?,
             config,
             app_image_cache: Default::default(),
             streams: Default::default(),
-            media_sessions: Default::default(),
+            media_sessions,
             upstreams: Default::default(),
         };
         let inner = Arc::new(app);

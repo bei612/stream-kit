@@ -59,6 +59,7 @@ pub async fn webrtc_loop(
 
 
     let mut peer_was_disconnected = true;
+    let mut lease_check = tokio::time::interval(Duration::from_millis(250));
     loop {
         if !stream.is_alive() {
             info!("stopping stream because the moonlight stream is dead");
@@ -87,6 +88,9 @@ pub async fn webrtc_loop(
         }
 
         select! {
+            _ = lease_check.tick() => {
+                if !media_registry.admitted(&media_key, &media_peer_id).await { return Ok(()); }
+            }
             Some(data_channel) = async { if on_data_channel.is_closed() { pending().await } else { on_data_channel.recv().await } } => {
                 let label = data_channel.label().await?;
                 debug!(data_channel = ?label, "got data channel");
