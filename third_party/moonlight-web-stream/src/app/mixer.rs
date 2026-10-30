@@ -192,43 +192,60 @@ mod tests {
         let samples: Vec<f32> = (0..count)
             .map(|i| ((i / 2) as f32 * 0.06).sin() * 0.3)
             .collect();
-        let mut encoder = Encoder::new(48_000, Channels::Stereo, Application::Audio).unwrap();
+        let mut encoder = Encoder::new(48_000, Channels::Stereo, Application::Audio)
+            .expect("Opus mixer test operation must succeed");
         let mut output = vec![0; 4000];
-        let len = encoder.encode_float(&samples, &mut output).unwrap();
+        let len = encoder
+            .encode_float(&samples, &mut output)
+            .expect("Opus mixer test operation must succeed");
         output.truncate(len);
         output
     }
     fn decoded(packet: &[u8]) -> Vec<f32> {
-        let mut decoder = Decoder::new(48_000, Channels::Stereo).unwrap();
+        let mut decoder =
+            Decoder::new(48_000, Channels::Stereo).expect("Opus mixer test operation must succeed");
         let mut pcm = vec![0.0; 11520];
-        let count = decoder.decode_float(packet, &mut pcm, false).unwrap() * 2;
+        let count = decoder
+            .decode_float(packet, &mut pcm, false)
+            .expect("Opus mixer test operation must succeed")
+            * 2;
         pcm.truncate(count);
         pcm
     }
     #[test]
     fn microphone_renders_without_any_program_packet() {
         let now = Instant::now();
-        let mut mixer = AudioMixer::new().unwrap();
-        mixer.microphone(&tone(FRAME_SAMPLES), now).unwrap();
-        let pcm = decoded(&mixer.render(Duration::ZERO, now).unwrap());
+        let mut mixer = AudioMixer::new().expect("Opus mixer test operation must succeed");
+        mixer
+            .microphone(&tone(FRAME_SAMPLES), now)
+            .expect("Opus mixer test operation must succeed");
+        let pcm = decoded(
+            &mixer
+                .render(Duration::ZERO, now)
+                .expect("Opus mixer test operation must succeed"),
+        );
         assert_eq!(pcm.len(), FRAME_SAMPLES);
         assert!(pcm.iter().any(|sample| sample.abs() > 0.01));
     }
     #[test]
     fn both_inputs_are_bounded_and_stale_audio_is_not_replayed() {
         let now = Instant::now();
-        let mut mixer = AudioMixer::new().unwrap();
+        let mut mixer = AudioMixer::new().expect("Opus mixer test operation must succeed");
         let voice = tone(FRAME_SAMPLES);
         for _ in 0..100 {
-            mixer.microphone(&voice, now).unwrap();
-            mixer.program(&voice, now).unwrap();
+            mixer
+                .microphone(&voice, now)
+                .expect("Opus mixer test operation must succeed");
+            mixer
+                .program(&voice, now)
+                .expect("Opus mixer test operation must succeed");
         }
         assert_eq!(mixer.microphone.pending.len(), MAX_PENDING);
         assert_eq!(mixer.program.pending.len(), MAX_PENDING);
         let pcm = decoded(
             &mixer
                 .render(Duration::from_secs(1), now + Duration::from_secs(1))
-                .unwrap(),
+                .expect("Opus mixer test operation must succeed"),
         );
         assert!(pcm.iter().all(|sample| sample.abs() < 0.0001));
         assert!(mixer.microphone.pending.is_empty());
@@ -237,16 +254,20 @@ mod tests {
     #[test]
     fn different_packet_durations_feed_a_fixed_output_clock() {
         let now = Instant::now();
-        let mut mixer = AudioMixer::new().unwrap();
+        let mut mixer = AudioMixer::new().expect("Opus mixer test operation must succeed");
         for _ in 0..4 {
-            mixer.program(&tone(480), now).unwrap();
+            mixer
+                .program(&tone(480), now)
+                .expect("Opus mixer test operation must succeed");
         }
-        mixer.microphone(&tone(3840), now).unwrap();
+        mixer
+            .microphone(&tone(3840), now)
+            .expect("Opus mixer test operation must succeed");
         for i in 0..2 {
             let pcm = decoded(
                 &mixer
                     .render(FRAME_DURATION * i, now + FRAME_DURATION * i)
-                    .unwrap(),
+                    .expect("Opus mixer test operation must succeed"),
             );
             assert_eq!(pcm.len(), FRAME_SAMPLES);
             assert!(pcm.iter().any(|sample| sample.abs() > 0.01));
@@ -257,67 +278,107 @@ mod tests {
     #[test]
     fn clock_skips_discard_backlog_without_a_catch_up_burst() {
         let now = Instant::now();
-        let mut mixer = AudioMixer::new().unwrap();
+        let mut mixer = AudioMixer::new().expect("Opus mixer test operation must succeed");
         for _ in 0..10 {
-            mixer.program(&tone(FRAME_SAMPLES), now).unwrap();
+            mixer
+                .program(&tone(FRAME_SAMPLES), now)
+                .expect("Opus mixer test operation must succeed");
         }
-        mixer.render(Duration::ZERO, now).unwrap();
+        mixer
+            .render(Duration::ZERO, now)
+            .expect("Opus mixer test operation must succeed");
         mixer
             .render(FRAME_DURATION * 4, now + FRAME_DURATION * 4)
-            .unwrap();
+            .expect("Opus mixer test operation must succeed");
         assert_eq!(mixer.program.pending.len(), FRAME_SAMPLES * 5);
     }
     #[test]
     fn revocation_clears_fifo_and_encoder_history() {
         let now = Instant::now();
-        let mut mixer = AudioMixer::new().unwrap();
-        mixer.microphone(&tone(3840), now).unwrap();
-        mixer.render(Duration::ZERO, now).unwrap();
-        mixer.clear_microphone().unwrap();
-        let pcm = decoded(&mixer.render(FRAME_DURATION, now + FRAME_DURATION).unwrap());
+        let mut mixer = AudioMixer::new().expect("Opus mixer test operation must succeed");
+        mixer
+            .microphone(&tone(3840), now)
+            .expect("Opus mixer test operation must succeed");
+        mixer
+            .render(Duration::ZERO, now)
+            .expect("Opus mixer test operation must succeed");
+        mixer
+            .clear_microphone()
+            .expect("Opus mixer test operation must succeed");
+        let pcm = decoded(
+            &mixer
+                .render(FRAME_DURATION, now + FRAME_DURATION)
+                .expect("Opus mixer test operation must succeed"),
+        );
         assert!(pcm.iter().all(|sample| sample.abs() < 0.0001));
     }
     #[test]
     fn disabled_broadcast_does_not_retain_microphone_for_later() {
         let now = Instant::now();
-        let mut mixer = AudioMixer::new().unwrap();
+        let mut mixer = AudioMixer::new().expect("Opus mixer test operation must succeed");
         mixer
             .configure(&super::super::control_state::AudioPolicy {
                 broadcast_controller_microphone: false,
                 ..Default::default()
             })
-            .unwrap();
-        mixer.microphone(&tone(FRAME_SAMPLES), now).unwrap();
-        let private = decoded(&mixer.render(Duration::ZERO, now).unwrap());
+            .expect("Opus mixer test operation must succeed");
+        mixer
+            .microphone(&tone(FRAME_SAMPLES), now)
+            .expect("Opus mixer test operation must succeed");
+        let private = decoded(
+            &mixer
+                .render(Duration::ZERO, now)
+                .expect("Opus mixer test operation must succeed"),
+        );
         assert!(private.iter().all(|sample| sample.abs() < 0.0001));
         assert!(mixer.target_pcm().iter().any(|sample| sample.abs() > 0.01));
-        mixer.configure(&Default::default()).unwrap();
+        mixer
+            .configure(&Default::default())
+            .expect("Opus mixer test operation must succeed");
         assert!(mixer.microphone.pending.is_empty());
-        let pcm = decoded(&mixer.render(FRAME_DURATION, now + FRAME_DURATION).unwrap());
+        let pcm = decoded(
+            &mixer
+                .render(FRAME_DURATION, now + FRAME_DURATION)
+                .expect("Opus mixer test operation must succeed"),
+        );
         assert!(pcm.iter().all(|sample| sample.abs() < 0.0001));
     }
     #[test]
     fn program_audio_never_loops_back_into_target_microphone() {
         let now = Instant::now();
-        let mut mixer = AudioMixer::new().unwrap();
-        mixer.program(&tone(FRAME_SAMPLES), now).unwrap();
-        let pcm = decoded(&mixer.render(Duration::ZERO, now).unwrap());
+        let mut mixer = AudioMixer::new().expect("Opus mixer test operation must succeed");
+        mixer
+            .program(&tone(FRAME_SAMPLES), now)
+            .expect("Opus mixer test operation must succeed");
+        let pcm = decoded(
+            &mixer
+                .render(Duration::ZERO, now)
+                .expect("Opus mixer test operation must succeed"),
+        );
         assert!(pcm.iter().any(|sample| sample.abs() > 0.01));
         assert!(mixer.target_pcm().iter().all(|sample| *sample == 0.0));
     }
     #[test]
     fn disabling_microphone_revokes_both_outputs() {
         let now = Instant::now();
-        let mut mixer = AudioMixer::new().unwrap();
-        mixer.microphone(&tone(FRAME_SAMPLES * 2), now).unwrap();
-        mixer.render(Duration::ZERO, now).unwrap();
+        let mut mixer = AudioMixer::new().expect("Opus mixer test operation must succeed");
+        mixer
+            .microphone(&tone(FRAME_SAMPLES * 2), now)
+            .expect("Opus mixer test operation must succeed");
+        mixer
+            .render(Duration::ZERO, now)
+            .expect("Opus mixer test operation must succeed");
         mixer
             .configure(&super::super::control_state::AudioPolicy {
                 microphone_enabled: false,
                 ..Default::default()
             })
-            .unwrap();
-        let pcm = decoded(&mixer.render(FRAME_DURATION, now + FRAME_DURATION).unwrap());
+            .expect("Opus mixer test operation must succeed");
+        let pcm = decoded(
+            &mixer
+                .render(FRAME_DURATION, now + FRAME_DURATION)
+                .expect("Opus mixer test operation must succeed"),
+        );
         assert!(pcm.iter().all(|sample| sample.abs() < 0.0001));
         assert!(mixer.target_pcm().iter().all(|sample| *sample == 0.0));
     }

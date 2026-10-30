@@ -10,7 +10,11 @@ use crate::api::{
         web_socket::delay_controller::{DelayController, DelayState},
     },
 };
-use actix_web::{Error, HttpRequest, HttpResponse, get, rt::spawn, web::{Data, Payload}};
+use actix_web::{
+    Error, HttpRequest, HttpResponse, get,
+    rt::spawn,
+    web::{Data, Payload},
+};
 use actix_ws::{Message, MessageStream, Session};
 use bytes::Bytes;
 use moonlight_common::{

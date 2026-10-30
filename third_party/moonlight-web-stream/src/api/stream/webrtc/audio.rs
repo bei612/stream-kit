@@ -149,7 +149,10 @@ mod tests {
         assert_eq!(receiver.len(), 3);
         for i in 0..3 {
             assert_eq!(
-                next_live_frame(&mut receiver).await.unwrap().timestamp,
+                next_live_frame(&mut receiver)
+                    .await
+                    .expect("expected a queued audio frame")
+                    .timestamp,
                 Duration::from_millis(i * 20)
             );
         }
@@ -170,7 +173,10 @@ mod tests {
         });
         drop(channel);
         assert_eq!(
-            next_live_frame(&mut receiver).await.unwrap().timestamp,
+            next_live_frame(&mut receiver)
+                .await
+                .expect("expected a queued audio frame")
+                .timestamp,
             Duration::from_millis(100)
         );
         assert!(next_live_frame(&mut receiver).await.is_none());

@@ -652,22 +652,20 @@ pub async fn webrtc_post(
     // media driver one authoritative attach/detach boundary and avoids
     // exposing half-open SDP offers as online clients.
     app.media_sessions()
-        .attach_as(media_key.clone(), media_peer_id.clone(), media_role)
+        .attach(media_key.clone(), media_peer_id.clone())
         .await?;
     if app.config().web_server.media_ticket_secret.is_none()
         && media_role == crate::app::media::PeerRole::Controller
-    {
-        if let Err(error) = app
+        && let Err(error) = app
             .media_sessions()
             .claim_controller(&media_key, &media_peer_id, false)
             .await
-        {
-            app.media_sessions()
-                .detach(&media_key, &media_peer_id)
-                .await;
-            let _ = peer.close().await;
-            return Err(error);
-        }
+    {
+        app.media_sessions()
+            .detach(&media_key, &media_peer_id)
+            .await;
+        let _ = peer.close().await;
+        return Err(error);
     }
 
     info!(peer_id = %media_peer_id, "attached peer to media session");

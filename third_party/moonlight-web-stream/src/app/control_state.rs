@@ -25,7 +25,7 @@ mod tests {
         serde_json::from_str(include_str!(
             "../../../../contracts/media-state/v1.fixture.json"
         ))
-        .unwrap()
+        .expect("valid authority fixture must be accepted")
     }
     fn key() -> MediaSessionKey {
         MediaSessionKey {
@@ -37,7 +37,9 @@ mod tests {
     #[test]
     fn lease_expiry_and_transfer_revoke_runtime_authority() {
         let mut state = ControlState::default();
-        state.apply(fixture(), NOW).unwrap();
+        state
+            .apply(fixture(), NOW)
+            .expect("valid authority fixture must be accepted");
         assert!(state.controls(&key(), "client-a", NOW));
         assert!(!state.controls(&key(), "client-b", NOW));
         let mut transfer = fixture();
@@ -45,7 +47,9 @@ mod tests {
         transfer.sessions[0].revision += 1;
         transfer.sessions[0].controller_connection_id = "client-b".into();
         transfer.sessions[0].connections[1].expires_at_ms = NOW + 100;
-        state.apply(transfer, NOW + 1).unwrap();
+        state
+            .apply(transfer, NOW + 1)
+            .expect("valid authority fixture must be accepted");
         assert!(!state.controls(&key(), "client-a", NOW + 1));
         assert!(state.controls(&key(), "client-b", NOW + 1));
         assert!(!state.controls(&key(), "client-b", NOW + 100));
@@ -55,7 +59,9 @@ mod tests {
     #[test]
     fn rejects_replay_rollback_and_invalid_snapshot_atomically() {
         let mut state = ControlState::default();
-        state.apply(fixture(), NOW).unwrap();
+        state
+            .apply(fixture(), NOW)
+            .expect("valid authority fixture must be accepted");
         assert!(state.apply(fixture(), NOW).is_err());
         let mut rollback = fixture();
         rollback.issued_at_ms += 1;
@@ -78,7 +84,9 @@ mod tests {
         let mut valid = fixture();
         valid.issued_at_ms += 1;
         valid.sessions.clear();
-        state.apply(valid, NOW + 1).unwrap();
+        state
+            .apply(valid, NOW + 1)
+            .expect("valid authority fixture must be accepted");
         assert!(!state.admits(&key(), "client-a", NOW + 1));
     }
 
@@ -173,10 +181,11 @@ impl ControlState {
                 return Err(AppError::BadRequest);
             }
             let key = (session.host_id, session.app_id);
-            if let Some(old) = self.sessions.get(&key) {
-                if old.session_id == session.session_id && old.revision > session.revision {
-                    return Err(AppError::BadRequest);
-                }
+            if let Some(old) = self.sessions.get(&key)
+                && old.session_id == session.session_id
+                && old.revision > session.revision
+            {
+                return Err(AppError::BadRequest);
             }
             if sessions.insert(key, session).is_some() {
                 return Err(AppError::BadRequest);

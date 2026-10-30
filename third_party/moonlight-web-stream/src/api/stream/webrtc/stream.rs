@@ -32,8 +32,8 @@ use crate::{
         video::{VideoChannel, VideoChannelEvent},
     },
     app::AppError,
-    app::upstream::UpstreamPeer,
     app::media::{MediaSessionKey, MediaSessionRegistry},
+    app::upstream::UpstreamPeer,
 };
 
 pub async fn webrtc_loop(
@@ -49,14 +49,11 @@ pub async fn webrtc_loop(
     media_registry: MediaSessionRegistry,
     media_key: MediaSessionKey,
     media_peer_id: String,
-
-
 ) -> Result<(), AppError> {
     info!("started main webrtc loop");
 
     let mut last_key_states_sequence_number = 0;
     let mut last_key_states = CompactKeyStates::default();
-
 
     let mut peer_was_disconnected = true;
     let mut lease_check = tokio::time::interval(Duration::from_millis(250));

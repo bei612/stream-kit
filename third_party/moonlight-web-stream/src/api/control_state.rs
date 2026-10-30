@@ -83,14 +83,16 @@ mod tests {
             .trim()
             .as_bytes();
         let signature = "b3efbc5198168d4923d53aaca0cfc4453d773a349712e0249a0e4b556623d98c";
-        let state = decode_signed_state("contract-test-secret", signature, body).unwrap();
+        let state = decode_signed_state("contract-test-secret", signature, body)
+            .expect("signed state test setup must succeed");
         assert_eq!(state.sessions[0].host_id, 2636897928);
         assert!(decode_signed_state("other", signature, body).is_err());
         assert!(decode_signed_state("", signature, body).is_err());
         let mut changed = body.to_vec();
         changed.push(b' ');
         assert!(decode_signed_state("contract-test-secret", signature, &changed).is_err());
-        let mut mac = Hmac::<Sha256>::new_from_slice(b"contract-test-secret").unwrap();
+        let mut mac = Hmac::<Sha256>::new_from_slice(b"contract-test-secret")
+            .expect("signed state test setup must succeed");
         mac.update(body);
         let no_context = hex::encode(mac.finalize().into_bytes());
         assert!(decode_signed_state("contract-test-secret", &no_context, body).is_err());

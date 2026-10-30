@@ -1,4 +1,8 @@
-use std::{collections::HashMap, sync::Arc, time::SystemTime};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+    time::SystemTime,
+};
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use hmac::{Hmac, Mac};
@@ -97,23 +101,11 @@ fn chrono_like_now() -> i64 {
         .as_secs() as i64
 }
 
-#[derive(Clone, Debug)]
-pub struct MediaPeer {
-    pub id: String,
-    pub role: PeerRole,
-    pub attached_at: SystemTime,
-}
-
-#[derive(Clone, Debug)]
-pub struct MediaSessionSnapshot {
-    pub key: MediaSessionKey,
-    pub peers: Vec<MediaPeer>,
-    pub controller_id: Option<String>,
-}
-
 #[derive(Debug)]
 struct MediaSessionState {
-    peers: HashMap<String, MediaPeer>,
+    // Membership and controller identity are independent. Managed authority is
+    // always read from the signed projection, never a cached per-peer role.
+    peers: HashSet<String>,
     controller_id: Option<String>,
 }
 
@@ -137,59 +129,32 @@ impl MediaSessionRegistry {
         }
     }
 
-    pub async fn attach(
-        &self,
-        key: MediaSessionKey,
-        peer_id: String,
-    ) -> Result<MediaSessionSnapshot, AppError> {
-        self.attach_as(key, peer_id, PeerRole::Viewer).await
-    }
-
-    pub async fn attach_as(
-        &self,
-        key: MediaSessionKey,
-        peer_id: String,
-        role: PeerRole,
-    ) -> Result<MediaSessionSnapshot, AppError> {
+    pub async fn attach(&self, key: MediaSessionKey, peer_id: String) -> Result<(), AppError> {
         let mut sessions = self.sessions.write().await;
-        let session = sessions
-            .entry(key.clone())
-            .or_insert_with(|| MediaSessionState {
-                peers: HashMap::new(),
-                controller_id: None,
-            });
-        if session.peers.contains_key(&peer_id) {
+        let session = sessions.entry(key).or_insert_with(|| MediaSessionState {
+            peers: HashSet::new(),
+            controller_id: None,
+        });
+        if !session.peers.insert(peer_id) {
             return Err(AppError::BadRequest);
         }
-        session.peers.insert(
-            peer_id.clone(),
-            MediaPeer {
-                id: peer_id.clone(),
-                role,
-                attached_at: SystemTime::now(),
-            },
-        );
-
-        Ok(snapshot(&key, session))
+        Ok(())
     }
 
-    pub async fn detach(
-        &self,
-        key: &MediaSessionKey,
-        peer_id: &str,
-    ) -> Option<MediaSessionSnapshot> {
+    pub async fn detach(&self, key: &MediaSessionKey, peer_id: &str) -> Option<()> {
         let mut sessions = self.sessions.write().await;
         let session = sessions.get_mut(key)?;
-        session.peers.remove(peer_id)?;
+        if !session.peers.remove(peer_id) {
+            return None;
+        }
 
         if session.controller_id.as_deref() == Some(peer_id) {
             session.controller_id = None;
         }
-        let result = snapshot(key, session);
         if session.peers.is_empty() {
             sessions.remove(key);
         }
-        Some(result)
+        Some(())
     }
 
     pub async fn claim_controller(
@@ -197,27 +162,20 @@ impl MediaSessionRegistry {
         key: &MediaSessionKey,
         peer_id: &str,
         force: bool,
-    ) -> Result<MediaSessionSnapshot, AppError> {
+    ) -> Result<(), AppError> {
         let mut sessions = self.sessions.write().await;
         let session = sessions.get_mut(key).ok_or(AppError::StreamClosed)?;
-        if !session.peers.contains_key(peer_id) {
+        if !session.peers.contains(peer_id) {
             return Err(AppError::StreamClosed);
         }
-        if let Some(current) = session.controller_id.as_deref() {
-            if current != peer_id && !force {
-                return Err(AppError::Forbidden);
-            }
-            if let Some(peer) = session.peers.get_mut(current) {
-                peer.role = PeerRole::Viewer;
-            }
+        if let Some(current) = session.controller_id.as_deref()
+            && current != peer_id
+            && !force
+        {
+            return Err(AppError::Forbidden);
         }
         session.controller_id = Some(peer_id.to_owned());
-        session
-            .peers
-            .get_mut(peer_id)
-            .expect("peer checked above")
-            .role = PeerRole::Controller;
-        Ok(snapshot(key, session))
+        Ok(())
     }
 
     pub async fn can_control(&self, key: &MediaSessionKey, peer_id: &str) -> bool {
@@ -281,14 +239,6 @@ impl MediaSessionRegistry {
         }
     }
 
-    pub async fn snapshot(&self, key: &MediaSessionKey) -> Option<MediaSessionSnapshot> {
-        self.sessions
-            .read()
-            .await
-            .get(key)
-            .map(|s| snapshot(key, s))
-    }
-
     pub async fn admitted(&self, key: &MediaSessionKey, peer_id: &str) -> bool {
         let control = self.control.read().await;
         !control.required || control.admits(key, peer_id, super::control_state::now_ms())
@@ -319,14 +269,6 @@ impl MediaSessionRegistry {
     }
 }
 
-fn snapshot(key: &MediaSessionKey, session: &MediaSessionState) -> MediaSessionSnapshot {
-    MediaSessionSnapshot {
-        key: key.clone(),
-        peers: session.peers.values().cloned().collect(),
-        controller_id: session.controller_id.clone(),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -338,10 +280,11 @@ mod tests {
                 "purpose": "stream-media", "session_id": "session", "connection_id": "peer",
             "host_id": 1, "app_id": 2, "role": role, "exp": exp, "iat": chrono_like_now()
             }))
-            .unwrap(),
+            .expect("media authority test setup must succeed"),
         );
         let input = format!("{header}.{payload}");
-        let mut mac = Hmac::<Sha256>::new_from_slice(b"test-secret").unwrap();
+        let mut mac = Hmac::<Sha256>::new_from_slice(b"test-secret")
+            .expect("media authority test setup must succeed");
         mac.update(input.as_bytes());
         format!(
             "{input}.{}",
@@ -371,12 +314,24 @@ mod tests {
     #[tokio::test]
     async fn only_one_controller_is_active() {
         let registry = MediaSessionRegistry::new();
-        registry.attach(key(), "a".into()).await.unwrap();
-        registry.attach(key(), "b".into()).await.unwrap();
-        registry.claim_controller(&key(), "a", false).await.unwrap();
+        registry
+            .attach(key(), "a".into())
+            .await
+            .expect("media authority test setup must succeed");
+        registry
+            .attach(key(), "b".into())
+            .await
+            .expect("media authority test setup must succeed");
+        registry
+            .claim_controller(&key(), "a", false)
+            .await
+            .expect("media authority test setup must succeed");
         assert!(registry.claim_controller(&key(), "b", false).await.is_err());
         assert!(!registry.can_control(&key(), "b").await);
-        registry.claim_controller(&key(), "b", true).await.unwrap();
+        registry
+            .claim_controller(&key(), "b", true)
+            .await
+            .expect("media authority test setup must succeed");
         assert!(registry.can_control(&key(), "b").await);
         assert!(!registry.can_control(&key(), "a").await);
     }
@@ -384,11 +339,23 @@ mod tests {
     #[tokio::test]
     async fn queued_input_is_rejected_after_controller_transfer_or_detach() {
         let registry = MediaSessionRegistry::new();
-        registry.attach(key(), "a".into()).await.unwrap();
-        registry.attach(key(), "b".into()).await.unwrap();
-        registry.claim_controller(&key(), "a", false).await.unwrap();
+        registry
+            .attach(key(), "a".into())
+            .await
+            .expect("media authority test setup must succeed");
+        registry
+            .attach(key(), "b".into())
+            .await
+            .expect("media authority test setup must succeed");
+        registry
+            .claim_controller(&key(), "a", false)
+            .await
+            .expect("media authority test setup must succeed");
         assert_eq!(registry.with_controller(&key(), "a", || 1).await, Some(1));
-        registry.claim_controller(&key(), "b", true).await.unwrap();
+        registry
+            .claim_controller(&key(), "b", true)
+            .await
+            .expect("media authority test setup must succeed");
         assert!(
             registry
                 .with_controller(&key(), "a", || panic!("revoked input sent"))
@@ -396,7 +363,10 @@ mod tests {
                 .is_none()
         );
         assert_eq!(registry.with_controller(&key(), "b", || 2).await, Some(2));
-        registry.detach(&key(), "b").await.unwrap();
+        registry
+            .detach(&key(), "b")
+            .await
+            .expect("media authority test setup must succeed");
         assert!(
             registry
                 .with_controller(&key(), "b", || panic!("detached microphone sent"))
@@ -413,7 +383,7 @@ mod tests {
         let mut state: StateEnvelope = serde_json::from_str(include_str!(
             "../../../../contracts/media-state/v1.fixture.json"
         ))
-        .unwrap();
+        .expect("media authority test setup must succeed");
         state.issued_at_ms = now;
         state.expires_at_ms = now + 10000;
         state.sessions[0].host_id = 1;
@@ -424,7 +394,9 @@ mod tests {
         {
             let mut control = registry.control.write().await;
             control.required = true;
-            control.apply(state, now).unwrap();
+            control
+                .apply(state, now)
+                .expect("media authority test setup must succeed");
         }
         assert_eq!(
             registry
@@ -455,7 +427,7 @@ mod tests {
                 },
                 now + 1,
             )
-            .unwrap();
+            .expect("media authority test setup must succeed");
         assert!(
             registry
                 .with_audio_output(&key(), |_, _| panic!("revoked session published audio"))
@@ -467,9 +439,18 @@ mod tests {
     #[tokio::test]
     async fn detaching_controller_releases_session_control() {
         let registry = MediaSessionRegistry::new();
-        registry.attach(key(), "a".into()).await.unwrap();
-        registry.claim_controller(&key(), "a", false).await.unwrap();
-        registry.detach(&key(), "a").await.unwrap();
-        assert!(registry.snapshot(&key()).await.is_none());
+        registry
+            .attach(key(), "a".into())
+            .await
+            .expect("media authority test setup must succeed");
+        registry
+            .claim_controller(&key(), "a", false)
+            .await
+            .expect("media authority test setup must succeed");
+        registry
+            .detach(&key(), "a")
+            .await
+            .expect("media authority test setup must succeed");
+        assert!(registry.sessions.read().await.is_empty());
     }
 }
