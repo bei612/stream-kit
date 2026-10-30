@@ -89,12 +89,14 @@ func TestRetryReservesOwnershipUntilRegistrationCompletes(t *testing.T) {
 		t.Fatal(err)
 	}
 	entered, release := make(chan struct{}), make(chan struct{})
-	m.onEvent = func(id string, status model.AppStatus) {
-		if status == model.AppStatusRegistering {
-			close(entered)
-			<-release
-		}
-	}
+	// Block actual registration I/O, not the asynchronous status event callback.
+	native := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(entered)
+		<-release
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer native.Close()
+	m.sunClient = sunshine.NewClient(config.SunshineAPIConfig{BaseURL: native.URL}, zap.NewNop())
 	if err := m.RetryRegister(a.ID); err != nil {
 		t.Fatal(err)
 	}
@@ -124,9 +126,10 @@ func TestRetryReservesOwnershipUntilRegistrationCompletes(t *testing.T) {
 		time.Sleep(time.Millisecond)
 	}
 	saved, err := st.GetApp(a.ID)
-	if err != nil || saved.Status != model.AppStatusReady {
+	if err != nil || saved.Status != model.AppStatusRegisterFailed {
 		t.Fatalf("registration did not finish: %+v %v", saved, err)
 	}
+	m.sunClient = nil
 	if err := m.DeleteApp(a.ID); err != nil {
 		t.Fatal(err)
 	}

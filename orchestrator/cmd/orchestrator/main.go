@@ -94,10 +94,6 @@ func main() {
 	}
 	defer st.Close()
 
-	// Startup recovery: mark stale uploading/extracting apps as error
-	recoverStaleApps(st, logger)
-	cleanTempDir(cfg.Storage.TempDir, logger)
-
 	// WebSocket Hub
 	wsHub := ws.NewHub(logger)
 	defer wsHub.Close()
@@ -147,6 +143,11 @@ func main() {
 		},
 		logger,
 	)
+
+	// Repair interrupted workflows before any request or background worker.
+	if err := appMgr.RecoverInterruptedOperations(); err != nil {
+		fatalWithPause("应用状态恢复失败: %v", err)
+	}
 
 	// HTTP server
 	srv := server.New(cfg, st, compMgr, appMgr, wsHub, sessionMgr, logger)
@@ -202,54 +203,6 @@ func main() {
 	}
 
 	logger.Info("Orchestrator 已停止")
-}
-
-// recoverStaleApps marks apps stuck in transient states as error on startup.
-func recoverStaleApps(st *store.Store, logger *zap.Logger) {
-	apps, err := st.ListApps()
-	if err != nil {
-		logger.Warn("启动恢复：查询应用列表失败", zap.Error(err))
-		return
-	}
-	staleStates := map[model.AppStatus]bool{
-		model.AppStatusUploading:   true,
-		model.AppStatusExtracting:  true,
-		model.AppStatusDetecting:   true,
-		model.AppStatusRegistering: true,
-	}
-	for _, a := range apps {
-		if staleStates[a.Status] {
-			logger.Warn("启动恢复：标记异常应用",
-				zap.String("app_id", a.ID),
-				zap.String("name", a.Name),
-				zap.String("old_status", string(a.Status)),
-			)
-			st.UpdateAppStatus(a.ID, model.AppStatusError, "上次运行中断，请重新操作")
-
-			// Clean up partial extraction directories
-			if a.AppDir != "" && (a.Status == model.AppStatusExtracting || a.Status == model.AppStatusUploading) {
-				if err := os.RemoveAll(a.AppDir); err == nil {
-					logger.Info("启动恢复：清理未完成的应用目录", zap.String("app_dir", a.AppDir))
-				}
-			}
-		}
-	}
-}
-
-func cleanTempDir(tempDir string, logger *zap.Logger) {
-	entries, err := os.ReadDir(tempDir)
-	if err != nil {
-		return
-	}
-	for _, e := range entries {
-		path := filepath.Join(tempDir, e.Name())
-		if err := os.RemoveAll(path); err != nil {
-			logger.Warn("清理临时文件失败", zap.String("path", path), zap.Error(err))
-		}
-	}
-	if len(entries) > 0 {
-		logger.Info("启动恢复：清理临时文件", zap.Int("count", len(entries)))
-	}
 }
 
 func setupLogger(cfg *config.Config) *zap.Logger {
