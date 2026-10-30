@@ -3,6 +3,8 @@ export class MicrophoneCapture {
     private track: MediaStreamTrack | null = null
     private pending: Promise<MediaStreamTrack | null> | null = null
     private disposed = false
+    private allowed = true
+    private generation = 0
     private request: () => Promise<MediaStream>
 
     constructor(request = () => navigator.mediaDevices.getUserMedia({
@@ -22,7 +24,7 @@ export class MicrophoneCapture {
     }
 
     acquire(): Promise<MediaStreamTrack | null> {
-        if (this.disposed) return Promise.resolve(null)
+        if (this.disposed || !this.allowed) return Promise.resolve(null)
         if (this.track?.readyState === "live") return Promise.resolve(this.track)
         if (this.pending) return this.pending
         this.pending = this.open().finally(() => { this.pending = null })
@@ -30,8 +32,9 @@ export class MicrophoneCapture {
     }
 
     private async open(): Promise<MediaStreamTrack | null> {
+        const generation = this.generation
         const stream = await this.request()
-        if (this.disposed) {
+        if (this.disposed || !this.allowed || this.generation !== generation) {
             stream.getTracks().forEach(track => track.stop())
             return null
         }
@@ -44,6 +47,14 @@ export class MicrophoneCapture {
 
     dispose(): void {
         this.disposed = true
+        this.setAllowed(false)
+    }
+
+    setAllowed(allowed: boolean): void {
+        if (this.allowed === allowed) return
+        this.allowed = allowed
+        if (allowed) return // New authority never starts capture without a gesture.
+        this.generation++
         this.track?.stop()
         this.track = null
     }

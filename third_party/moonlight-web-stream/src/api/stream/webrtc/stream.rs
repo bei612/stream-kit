@@ -24,7 +24,7 @@ use crate::{
         WebRtcHandler,
         audio::AudioChannel,
         control::{ControlChannel, ControlChannelEvent},
-        microphone::{MicChannel, MicChannelEvent},
+        microphone::MicChannel,
         video::{VideoChannel, VideoChannelEvent},
     },
     app::AppError,
@@ -93,7 +93,7 @@ pub async fn webrtc_loop(
                 debug!("got remote track");
 
                 if let Some(mic_channel) = &mut mic_channel {
-                    mic_channel.set_track(track);
+                    mic_channel.set_track(track, stream.microphone_sender()).await;
                 }
             }
             result = stream.drive() => {
@@ -182,25 +182,6 @@ pub async fn webrtc_loop(
                         info!("control channel closed");
                         return Err(AppError::StreamClosed);
                     },
-                }
-            }
-            result = async { if let Some(mic_channel) = &mut mic_channel { mic_channel.drive().await } else { pending().await } } => {
-                let event = result?;
-
-                match event {
-                    MicChannelEvent::OnFrame {
-                        timestamp,
-                        data,
-                    } => {
-                        if media_registry.can_control(&media_key, &media_peer_id).await {
-                            stream.send_microphone_opus_data(timestamp, &data).await;
-                        } else {
-                            debug!(peer_id = %media_peer_id, "dropping viewer microphone frame");
-                        }
-                    }
-                    MicChannelEvent::Closed => {
-                        warn!("the microphone channel got closed");
-                    }
                 }
             }
         }

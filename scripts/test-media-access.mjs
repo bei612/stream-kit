@@ -27,7 +27,7 @@ function browser(replies, config = { managed_streaming: true, control_plane_url:
   vm.runInNewContext(compiled, sandbox)
   return { api: exports, window, calls }
 }
-const joined = { status: 200, body: { status: 'ok', data: { session_id: 'session', host_id: 1, app_id: 2, connection_token: 'own-connection', connection: { connection_id: 'client', role: 'viewer' } } } }
+const joined = { status: 200, body: { status: 'ok', data: { session_id: 'session', host_id: 1, app_id: 2, connection_token: 'own-connection', connection: { connection_id: 'client', role: 'viewer' }, audio: { microphone_enabled: true } } } }
 const ticket = { status: 200, body: { status: 'ok', data: { ticket: 'media-admission', expires_at: 'later', role: 'viewer' } } }
 
 test('admission uses configured origin and distinct credentials, scrubs URL secrets', async () => {
@@ -57,13 +57,16 @@ test('heartbeat rotates connection credential and reflects authoritative role', 
   const renewed = structuredClone(joined)
   renewed.body.data.connection_token = 'renewed-connection'
   renewed.body.data.connection.role = 'controller'
+  renewed.body.data.audio.microphone_enabled = false
   const { api, calls } = browser([joined, ticket, renewed, ticket])
   const access = await api.acquireMediaAccess(1, 2)
   await api.mediaHeartbeat(access, true, true)
   assert.equal(access.bearer, 'renewed-connection')
   assert.equal(access.role, 'controller')
+  assert.equal(access.microphoneEnabled, false)
   await api.refreshMediaTicket(access)
   assert.equal(calls[3].options.headers.Authorization, 'Bearer renewed-connection')
+  assert.equal(access.role, 'controller', 'ticket refresh must not overwrite connection authority')
   assert.equal(calls.filter(call => call.url.endsWith('/join')).length, 1)
 })
 

@@ -9,6 +9,7 @@ import { MicrophoneCapture } from "./microphone_capture";
 export interface MicrophoneSource extends Pipe {
     cleanup(): void
     isLive(): boolean
+    setAllowed(allowed: boolean): void
 }
 
 export class MicrophonePipe implements MicrophoneSource {
@@ -54,6 +55,7 @@ export class MicrophonePipe implements MicrophoneSource {
     }
 
     isLive(): boolean { return this.capture.isLive() }
+    setAllowed(allowed: boolean): void { this.capture.setAllowed(allowed) }
 
     cleanup(): void {
         this.capture.dispose()

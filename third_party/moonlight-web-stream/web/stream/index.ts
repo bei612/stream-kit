@@ -376,7 +376,9 @@ export class Stream implements Component {
             pending = true
             try {
                 await apiMediaHeartbeat(this.mediaAccess, this.settings.microphone, this.microphoneListener?.isLive() ?? false)
+                this.microphoneListener?.setAllowed(this.microphoneAllowed())
             } catch (error) {
+                this.microphoneListener?.setAllowed(false)
                 this.debugLog(`Media heartbeat failed: ${error}`)
                 if (error instanceof MediaAccessError && (error.status === 401 || error.status === 410)) await this.stop()
             } finally { pending = false }
@@ -401,6 +403,10 @@ export class Stream implements Component {
     private cleanupMicrophone() {
         this.microphoneListener?.cleanup()
         this.microphoneListener = null
+    }
+    private microphoneAllowed(): boolean {
+        return this.settings.microphone && (!managedStreaming() ||
+            (this.mediaAccess?.role === "controller" && this.mediaAccess.microphoneEnabled))
     }
     private async tryWebSocketTransport(): Promise<TransportShutdown | null> {
         // A signed media ticket is an explicit authorization for the WebRTC
@@ -646,6 +652,7 @@ export class Stream implements Component {
         const transport = this.transport
         const source = await transport.connectMicrophonePipeline(pipeline) as MicrophoneSource | null
         if (this.stopped || this.transport !== transport) { source?.cleanup(); return }
+        source?.setAllowed(this.microphoneAllowed())
         this.microphoneListener?.cleanup()
         this.microphoneListener = source
     }

@@ -1,50 +1,55 @@
-use std::{future::pending, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
-use bytes::Bytes;
 use moonlight_common::webrtc::sdp::Session;
-use tokio::{
-    spawn,
-    sync::mpsc::{UnboundedReceiver, unbounded_channel},
-};
+use rtc::rtp_transceiver::rtp_sender::RtpCodecKind;
+use tokio::{spawn, task::JoinHandle};
 use tracing::{Instrument, debug, debug_span};
 use webrtc::media_stream::track_remote::{TrackRemote, TrackRemoteEvent};
 
-use crate::app::AppError;
+use crate::app::upstream::MicrophoneSender;
 
-pub enum MicChannelEvent {
-    OnFrame { timestamp: Duration, data: Bytes },
-    Closed,
+// No intermediate microphone queue: the session command boundary owns
+// capacity, arrival time and authorization generation for every packet.
+#[derive(Default)]
+pub struct MicChannel {
+    task: Option<JoinHandle<()>>,
 }
 
-pub struct MicChannel {
-    receiver: Option<UnboundedReceiver<MicChannelEvent>>,
+impl Drop for MicChannel {
+    fn drop(&mut self) {
+        if let Some(task) = self.task.take() {
+            task.abort();
+        }
+    }
 }
 
 impl MicChannel {
-    pub async fn new(offer_sdp: &Session) -> Option<Self> {
-        let mut has_mic = false;
-
-        'outside: for media in &offer_sdp.medias {
-            for attribute in &media.attributes {
-                let attribute = &attribute.attribute;
-                if attribute == "sendonly" || attribute == "sendrecv" {
-                    has_mic = true;
-                    break 'outside;
-                }
-            }
-        }
-
-        if !has_mic {
-            return None;
-        }
-
-        Some(Self { receiver: None })
+    pub fn new(offer_sdp: &Session) -> Option<Self> {
+        offer_sdp
+            .medias
+            .iter()
+            .any(|media| {
+                media.media == "audio"
+                    && media
+                        .attributes
+                        .iter()
+                        .any(|a| a.attribute == "sendonly" || a.attribute == "sendrecv")
+            })
+            .then(Self::default)
     }
 
-    pub fn set_track(&mut self, track: Arc<dyn TrackRemote>) {
-        let (sender, receiver) = unbounded_channel();
+    fn replace_task(&mut self, task: JoinHandle<()>) {
+        if let Some(old) = self.task.replace(task) {
+            old.abort();
+        }
+    }
 
-        spawn(
+    pub async fn set_track(&mut self, track: Arc<dyn TrackRemote>, sink: MicrophoneSender) {
+        if track.kind().await != RtpCodecKind::Audio {
+            track.stop().await;
+            return;
+        }
+        self.replace_task(spawn(
             async move {
                 while let Some(event) = track.poll().await {
                     match event {
@@ -52,51 +57,61 @@ impl MicChannel {
                             debug!(info = ?info, "current microphone channel");
                         }
                         TrackRemoteEvent::OnRtpPacket(packet) => {
-                            let timestamp = Duration::from_millis(
-                                // opus clock rate is 48
-                                (packet.header.timestamp / 48) as u64,
-                            );
-
-                            // Opus frames don't have any packetization
-                            if sender
-                                .send(MicChannelEvent::OnFrame {
-                                    timestamp,
-                                    data: packet.payload,
-                                })
-                                .is_err()
-                            {
-                                debug!(
-                                    "mic receiver was closed, closing remote track polling task"
-                                );
-                                break;
-                            }
+                            // Negotiated audio uses Opus with a 48 kHz RTP clock.
+                            let timestamp =
+                                Duration::from_millis((packet.header.timestamp / 48) as u64);
+                            // Admission and bounded try_send occur together; old
+                            // grants are checked again by the shared driver.
+                            sink.send_opus(timestamp, &packet.payload).await;
                         }
-                        TrackRemoteEvent::OnEnded => {
-                            break;
-                        }
+                        TrackRemoteEvent::OnEnded | TrackRemoteEvent::OnError => break,
                         _ => {}
                     }
                 }
             }
             .instrument(debug_span!("microphone track remote")),
-        );
+        ));
+    }
+}
 
-        self.receiver = Some(receiver);
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_sending_audio_negotiates_a_microphone() {
+        for (kind, direction, expected) in [
+            ("video", "sendrecv", false),
+            ("application", "sendrecv", false),
+            ("audio", "recvonly", false),
+            ("audio", "inactive", false),
+            ("audio", "sendonly", true),
+            ("audio", "sendrecv", true),
+        ] {
+            let raw = format!(
+                "v=0\r\no=- 1 1 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\nm={kind} 9 UDP/TLS/RTP/SAVPF 111\r\na={direction}\r\n"
+            );
+            let sdp = Session::parse(raw.as_bytes()).expect("SDP fixture");
+            assert_eq!(MicChannel::new(&sdp).is_some(), expected);
+        }
     }
 
-    pub async fn drive(&mut self) -> Result<MicChannelEvent, AppError> {
-        if let Some(receiver) = self.receiver.as_mut() {
-            let maybe_event = receiver.recv().await;
-
-            match maybe_event {
-                Some(event) => Ok(event),
-                None => {
-                    self.receiver = None;
-                    Ok(MicChannelEvent::Closed)
-                }
+    #[tokio::test]
+    async fn replacing_or_dropping_microphone_cancels_idle_pollers() {
+        let mut mic = MicChannel::default();
+        let first = spawn(std::future::pending());
+        let first_abort = first.abort_handle();
+        mic.replace_task(first);
+        let second = spawn(std::future::pending());
+        let second_abort = second.abort_handle();
+        mic.replace_task(second);
+        drop(mic);
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while !first_abort.is_finished() || !second_abort.is_finished() {
+                tokio::task::yield_now().await;
             }
-        } else {
-            pending().await
-        }
+        })
+        .await
+        .expect("track pollers must not survive their owner");
     }
 }

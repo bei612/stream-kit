@@ -58,3 +58,37 @@ test('permission failure allows a later explicit gesture to retry', async () => 
   assert.equal(await capture.acquire(), audio)
   capture.dispose()
 })
+
+test('viewer gestures do not capture and revocation stops the device without automatic restart', async () => {
+  let requests = 0
+  const capture = new MicrophoneCapture(async () => { requests++; return stream([track()]) })
+  capture.setAllowed(false)
+  assert.equal(await capture.acquire(), null)
+  assert.equal(requests, 0)
+  capture.setAllowed(true)
+  assert.equal(requests, 0)
+  const first = await capture.acquire()
+  capture.setAllowed(false)
+  assert.equal(first.stops, 1)
+  assert.equal(capture.isLive(), false)
+  capture.setAllowed(true)
+  assert.equal(requests, 1, 'grant must wait for a new gesture')
+  const second = await capture.acquire()
+  assert.notEqual(second, first)
+  capture.dispose()
+  assert.equal(second.stops, 1)
+})
+
+test('a pending permission request cannot survive revoke and regrant', async () => {
+  let resolve
+  const capture = new MicrophoneCapture(() => new Promise(done => { resolve = done }))
+  const pending = capture.acquire()
+  capture.setAllowed(false)
+  capture.setAllowed(true)
+  const audio = track()
+  resolve(stream([audio]))
+  assert.equal(await pending, null)
+  assert.equal(audio.stops, 1)
+  assert.equal(capture.isLive(), false)
+  capture.dispose()
+})

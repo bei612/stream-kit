@@ -23,6 +23,8 @@ const runtimeConfig = argument('--runtime-config');
 const numericOption = (name, fallback) => process.argv.includes(name) ? Number(process.argv[process.argv.indexOf(name) + 1]) : fallback;
 const clientCount = numericOption('--clients', 2);
 const holdSeconds = numericOption('--hold-seconds', 5);
+const microphoneTest = process.argv.includes('--microphone-tone');
+assert.ok(!microphoneTest || clientCount === 2, 'Microphone isolation acceptance uses two clients');
 assert.ok(Number.isInteger(clientCount) && clientCount >= 2 && clientCount <= 20);
 assert.ok(Number.isInteger(holdSeconds) && holdSeconds >= 0 && holdSeconds <= 86400);
 const scratch = path.join(root, '.local/managed-acceptance');
@@ -30,7 +32,9 @@ const output = path.join(root, 'artifacts/managed-acceptance', new Date().toISOS
 fs.mkdirSync(scratch, { recursive: true });
 fs.mkdirSync(output, { recursive: true });
 const result = { passed: false, status: 'running', clients: clientCount, hold_seconds: holdSeconds,
-  started_at: new Date().toISOString(), scope: 'Real browser Desktop streams through isolated control and media services; no host input or microphone capture.' };
+  started_at: new Date().toISOString(), scope: microphoneTest
+    ? 'Real browser capture of a generated 997 Hz WAV via Chromium test microphone, Opus uplink/mix/downlink and control revocation; no physical microphone or target recording.'
+    : 'Real browser Desktop streams through isolated control and media services; no host input or microphone capture.' };
 const save = () => fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(result, null, 2));
 save();
 const children = [];
@@ -183,17 +187,35 @@ async function main() {
   const api = (resource, method = 'GET', body) => json(control + '/api/v1' + resource, { method,
     headers: { Authorization: 'Bearer ' + login.data.token, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) }).then(r => r.data);
   const invite = await api('/stream-invitations', 'POST', { host_id: host.host_id, app_id: desktop.app_id });
+  if (microphoneTest) await api(`/stream-sessions/${invite.session_id}/audio`, 'PATCH', {
+    program_gain_db: -60, microphone_gain_db: 0, microphone_enabled: true,
+    broadcast_controller_microphone: true, controller_monitor: false,
+  });
   const { chromium } = createRequire(path.join(root, 'third_party/moonlight-web-stream/package.json'))('playwright');
-  browser = await chromium.launch({ headless: true, channel: process.env.BROWSER_CHANNEL || 'chrome', args: ['--autoplay-policy=no-user-gesture-required'] });
+  const browserArgs = ['--autoplay-policy=no-user-gesture-required'];
+  if (microphoneTest) {
+    const rate = 48000, samples = rate * 10;
+    const wav = Buffer.alloc(44 + samples * 2);
+    wav.write('RIFF'); wav.writeUInt32LE(wav.length - 8, 4); wav.write('WAVEfmt ', 8);
+    wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22);
+    wav.writeUInt32LE(rate, 24); wav.writeUInt32LE(rate * 2, 28); wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34);
+    wav.write('data', 36); wav.writeUInt32LE(samples * 2, 40);
+    for (let i = 0; i < samples; i++) wav.writeInt16LE(Math.round(0.2 * 32767 * Math.sin(2 * Math.PI * 997 * i / rate)), 44 + i * 2);
+    const toneFile = path.join(scratch, 'microphone-997hz.wav');
+    fs.writeFileSync(toneFile, wav);
+    browserArgs.push('--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${toneFile}`);
+  }
+  browser = await chromium.launch({ headless: true, channel: process.env.BROWSER_CHANNEL || 'chrome', args: browserArgs });
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
-  await context.addInitScript(() => {
+  if (microphoneTest) await context.grantPermissions(['microphone'], { origin: gateway });
+  await context.addInitScript(({ microphoneTest }) => {
     localStorage.setItem('mlSettings', JSON.stringify({ videoSize: '720p', fps: 30, bitrate: 8000, videoCodec: 'h264',
       dataTransport: 'webrtc', forceVideoElementRenderer: true, canvasRenderer: false, playAudioLocal: false,
-      microphone: false, enterFullscreenOnStreamStart: false, language: 'en' }));
+      microphone: microphoneTest, enterFullscreenOnStreamStart: false, language: 'en' }));
     window.__acceptancePeers = [];
     const Original = window.RTCPeerConnection;
     window.RTCPeerConnection = class extends Original { constructor(...args) { super(...args); window.__acceptancePeers.push(this); } };
-  });
+  }, { microphoneTest });
   const pages = [];
   const pageErrors = [];
   const videoFrames = page => page.evaluate(() => document.querySelector('video')?.getVideoPlaybackQuality().totalVideoFrames || 0);
@@ -226,6 +248,85 @@ async function main() {
   assert.equal(Object.values(transferred.connections).filter(c => c.role === 'controller').length, 1);
   await api(`/stream-sessions/${invite.session_id}/controller`, 'DELETE');
   result.control_transfer = { unique_controller: true, epoch_before: claimed.control_epoch, epoch_after: transferred.control_epoch };
+  if (microphoneTest) {
+    for (const page of pages) await page.evaluate(async () => {
+      const audioTrack = window.__acceptancePeers.flatMap(pc => pc.getReceivers()).find(r => r.track.kind === 'audio').track;
+      const context = new AudioContext();
+      await context.resume();
+      const source = context.createMediaStreamSource(new MediaStream([audioTrack]));
+      const analyser = context.createAnalyser(); analyser.fftSize = 4096; analyser.smoothingTimeConstant = 0;
+      const mute = context.createGain(); mute.gain.value = 0;
+      source.connect(analyser); analyser.connect(mute); mute.connect(context.destination);
+      window.__toneProbe = { context, source, analyser, mute };
+    });
+    const measure = page => page.evaluate(async () => {
+      const { analyser, context } = window.__toneProbe;
+      const bins = new Float32Array(analyser.frequencyBinCount);
+      const index = Math.round(997 * analyser.fftSize / context.sampleRate);
+      const values = [];
+      for (let i = 0; i < 16; i++) {
+        analyser.getFloatFrequencyData(bins);
+        values.push(Math.max(-140, ...bins.slice(index - 2, index + 3)));
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      values.sort((a, b) => a - b);
+      return values[Math.floor(values.length / 2)];
+    });
+    const startMicrophone = async page => {
+      await page.waitForFunction(() => !!window.app.getStream().getMicrophoneListener());
+      await page.waitForFunction(() => window.app.getStream().mediaAccess.role === 'controller');
+      await page.evaluate(() => window.app.getStream().getMicrophoneListener().onUserInteraction());
+      await page.waitForFunction(() => window.app.getStream().getMicrophoneListener().isLive());
+    };
+    const connectionId = page => page.evaluate(() => window.app.getStream().mediaAccess.connectionId);
+    const [speaker, listener] = await Promise.all(pages.map(connectionId));
+    const levels = {};
+    await pages[0].waitForFunction(() => !!window.app.getStream().getMicrophoneListener());
+    await pages[0].evaluate(() => window.app.getStream().getMicrophoneListener().onUserInteraction());
+    assert.equal(await pages[0].evaluate(() => window.app.getStream().getMicrophoneListener().isLive()), false,
+      'A viewer gesture must not start the product microphone');
+    // Deliberately adversarial peer: bypass only the client-side UI guard to
+    // prove the server rejects an unauthorized, genuine browser audio track.
+    await pages[0].evaluate(async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const track = stream.getAudioTracks()[0];
+      const sender = window.__acceptancePeers.flatMap(pc => pc.getTransceivers()).find(t => t.direction === 'sendonly').sender;
+      window.__hostileMicrophone = { stream, sender };
+      await sender.replaceTrack(track);
+    });
+    await delay(2000);
+    levels.viewer_denied_db = await measure(pages[1]);
+    await pages[0].evaluate(async () => {
+      window.__hostileMicrophone.stream.getTracks().forEach(track => track.stop());
+      await window.__hostileMicrophone.sender.replaceTrack(null);
+    });
+    const active = await api(`/stream-sessions/${invite.session_id}/controller/${speaker}`, 'POST');
+    await startMicrophone(pages[0]);
+    await delay(2000);
+    levels.controller_broadcast_db = await measure(pages[1]);
+    assert.ok(levels.controller_broadcast_db > -55 && levels.controller_broadcast_db > levels.viewer_denied_db + 20,
+      `Authorized microphone tone missing: ${JSON.stringify(levels)}`);
+    await api(`/stream-sessions/${invite.session_id}/controller/${listener}`, 'PUT', {
+      expected_controller_connection_id: speaker, expected_control_epoch: active.control_epoch,
+    });
+    await delay(2000);
+    levels.previous_controller_denied_db = await measure(pages[1]);
+    assert.ok(levels.previous_controller_denied_db < levels.controller_broadcast_db - 20,
+      `Previous controller microphone survived transfer: ${JSON.stringify(levels)}`);
+    await pages[0].waitForFunction(() => !window.app.getStream().getMicrophoneListener().isLive(), null, { timeout: 10000 });
+    await startMicrophone(pages[1]);
+    await delay(2000);
+    levels.new_controller_broadcast_db = await measure(pages[0]);
+    assert.ok(levels.new_controller_broadcast_db > -55, 'New controller microphone must broadcast');
+    await api(`/stream-sessions/${invite.session_id}/controller`, 'DELETE');
+    await delay(2000);
+    levels.released_db = await measure(pages[0]);
+    assert.ok(levels.released_db < levels.new_controller_broadcast_db - 20, 'Released microphone must be inaudible');
+    await pages[1].waitForFunction(() => !window.app.getStream().getMicrophoneListener().isLive(), null, { timeout: 10000 });
+    result.microphone_tone = levels;
+    result.microphone_capture_released_on_revocation = true;
+    for (const page of pages) await page.evaluate(() => window.__toneProbe.context.close());
+  }
   const firstFrames = await Promise.all(pages.map(videoFrames));
   await delay(holdSeconds * 1000);
   result.frames_before_disconnect = await Promise.all(pages.map(videoFrames));

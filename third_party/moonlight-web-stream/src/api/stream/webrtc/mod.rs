@@ -422,7 +422,7 @@ pub async fn webrtc_post(
         });
 
     // TODO: query microphone support
-    let mic_channel = MicChannel::new(&offer_sdp).await;
+    let mic_channel = MicChannel::new(&offer_sdp);
 
     // TODO: query audio support
     let audio_config = Some(AudioConfig::STEREO);

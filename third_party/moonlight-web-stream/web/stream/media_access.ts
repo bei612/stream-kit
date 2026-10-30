@@ -8,6 +8,7 @@ export type MediaAccess = {
     ticket: string
     expiresAt: string
     role: "viewer" | "controller"
+    microphoneEnabled: boolean
 }
 
 type ConnectionResponse = {
@@ -16,6 +17,7 @@ type ConnectionResponse = {
     app_id: number
     connection_token: string
     connection: { connection_id: string; role: "viewer" | "controller" }
+    audio: { microphone_enabled: boolean }
 }
 
 export class MediaAccessError extends Error {
@@ -74,6 +76,7 @@ export async function acquireMediaAccess(hostId: number, appId: number): Promise
     const access: MediaAccess = {
         baseUrl, bearer: joined.connection_token, sessionId: joined.session_id,
         connectionId: joined.connection.connection_id, role: joined.connection.role,
+        microphoneEnabled: joined.audio?.microphone_enabled === true,
         ticket: "", expiresAt: "",
     }
     try {
@@ -90,13 +93,15 @@ export async function refreshMediaTicket(access: MediaAccess): Promise<void> {
     const ticket = await request<{ ticket: string; expires_at: string; role: "viewer" | "controller" }>(access.baseUrl, access.bearer, `${path(access)}/ticket`, "POST")
     access.ticket = ticket.ticket
     access.expiresAt = ticket.expires_at
-    access.role = ticket.role
+    // Tickets admit media; only the connection snapshot controls capture.
+    // A concurrent ticket response must not overwrite a newer heartbeat role.
 }
 
 export async function mediaHeartbeat(access: MediaAccess, microphone: boolean, live: boolean): Promise<void> {
     const current = await request<ConnectionResponse>(access.baseUrl, access.bearer, `${path(access)}/heartbeat`, "POST", { microphone, microphone_live: live })
     access.bearer = current.connection_token
     access.role = current.connection.role
+    access.microphoneEnabled = current.audio?.microphone_enabled === true
 }
 
 export async function releaseMediaAccess(access: MediaAccess): Promise<void> {

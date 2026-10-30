@@ -82,6 +82,40 @@ pub struct UpstreamPeer {
     events: broadcast::Receiver<Arc<MoonlightStreamEvent>>,
 }
 
+// An ingress task may enqueue authorized microphone data, but must not keep
+// the shared upstream or native audio device alive after its viewer leaves.
+pub struct MicrophoneSender {
+    peer_id: String,
+    shared: Weak<Shared>,
+}
+
+impl MicrophoneSender {
+    pub async fn send_opus(&self, timestamp: Duration, bytes: &[u8]) -> bool {
+        let arrived = Instant::now();
+        let Some(shared) = self.shared.upgrade() else {
+            return false;
+        };
+        shared
+            .authority
+            .with_microphone(&shared.key, &self.peer_id, |_, grant| {
+                shared
+                    .commands
+                    .try_reserve()
+                    .map(|permit| {
+                        permit.send(Command::Microphone(
+                            grant,
+                            arrived,
+                            timestamp,
+                            bytes.to_vec(),
+                        ))
+                    })
+                    .is_ok()
+            })
+            .await
+            .unwrap_or(false)
+    }
+}
+
 impl UpstreamPool {
     pub async fn observe(
         &self,
@@ -419,23 +453,11 @@ impl UpstreamPeer {
             .await
             .unwrap_or(Err(AppError::Forbidden))
     }
-    pub async fn send_microphone_opus_data(&mut self, timestamp: Duration, bytes: &[u8]) -> bool {
-        let arrived = Instant::now();
-        self.shared
-            .authority
-            .with_microphone(&self.shared.key, &self.peer_id, |_, grant| {
-                self.shared
-                    .commands
-                    .try_send(Command::Microphone(
-                        grant,
-                        arrived,
-                        timestamp,
-                        bytes.to_vec(),
-                    ))
-                    .is_ok()
-            })
-            .await
-            .unwrap_or(false)
+    pub fn microphone_sender(&self) -> MicrophoneSender {
+        MicrophoneSender {
+            peer_id: self.peer_id.clone(),
+            shared: Arc::downgrade(&self.shared),
+        }
     }
     pub async fn drive(&mut self) -> Result<Arc<MoonlightStreamEvent>, AppError> {
         loop {
@@ -733,7 +755,57 @@ mod tests {
             .await
             .expect("upstream test setup or assertion failed");
         assert!(matches!(receiver.recv().await, Some(Command::Recovery)));
+        let microphone = second.microphone_sender();
+        let key = second.shared.key.clone();
+        authority
+            .attach(key.clone(), "second".into())
+            .await
+            .expect("attach speaker");
+        authority
+            .attach(key.clone(), "other".into())
+            .await
+            .expect("attach viewer");
+        assert!(!microphone.send_opus(Duration::ZERO, b"viewer").await);
+        assert!(
+            receiver.try_recv().is_err(),
+            "viewer must not enter the command queue"
+        );
+        authority
+            .claim_controller(&key, "second", false)
+            .await
+            .expect("grant speaker");
+        assert!(microphone.send_opus(Duration::ZERO, b"controller").await);
+        let Some(Command::Microphone(before, _, _, _)) = receiver.recv().await else {
+            panic!("authorized microphone command missing");
+        };
+        authority
+            .claim_controller(&key, "other", true)
+            .await
+            .expect("transfer away");
+        assert!(!microphone.send_opus(Duration::ZERO, b"revoked").await);
+        authority
+            .claim_controller(&key, "second", true)
+            .await
+            .expect("transfer back");
+        assert!(
+            microphone
+                .send_opus(Duration::ZERO, b"new generation")
+                .await
+        );
+        let Some(Command::Microphone(after, _, _, _)) = receiver.recv().await else {
+            panic!("new microphone command missing");
+        };
+        assert_ne!(
+            before, after,
+            "queued packets retain their original control generation"
+        );
+        for _ in 0..256 {
+            assert!(microphone.send_opus(Duration::ZERO, b"bounded").await);
+        }
+        assert!(!microphone.send_opus(Duration::ZERO, b"overflow").await);
+        while receiver.try_recv().is_ok() {}
         drop(second);
+        assert!(!microphone.send_opus(Duration::ZERO, b"closed").await);
         assert!(
             receiver.recv().await.is_none(),
             "last peer must release upstream driver"
