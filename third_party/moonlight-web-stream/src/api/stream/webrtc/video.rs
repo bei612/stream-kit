@@ -6,7 +6,7 @@ use moonlight_common::{
     http::pair::PairingCryptoBackend,
     stream::{
         proto::video::frame::OwnedVideoFrame,
-        video::{SunshineHdrMetadata, VideoFormat, VideoFormats, VideoSetup},
+        video::{FrameType, SunshineHdrMetadata, VideoFormat, VideoFormats, VideoSetup},
     },
     webrtc::sdp::Session,
 };
@@ -33,7 +33,10 @@ use rtc::{
 };
 use tokio::{
     select, spawn,
-    sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel},
+    sync::{
+        mpsc::{Receiver, channel},
+        watch,
+    },
 };
 use tracing::{Instrument, debug, debug_span, info, warn};
 use webrtc::{
@@ -47,22 +50,20 @@ use crate::{
 };
 
 mod h265;
+mod queue;
+use queue::FrameQueue;
 
 pub enum VideoChannelEvent {
     SignalIdr,
-}
-
-enum Message {
-    Frame(OwnedVideoFrame),
-    HdrMetadata(Option<SunshineHdrMetadata>),
 }
 
 enum State {
     SelectVideoFormat,
     Panic,
     Sending {
-        frame_sender: UnboundedSender<Message>,
-        event_receiver: UnboundedReceiver<TrackLocalEvent>,
+        frame_sender: FrameQueue<OwnedVideoFrame>,
+        hdr_sender: watch::Sender<Option<SunshineHdrMetadata>>,
+        event_receiver: Receiver<TrackLocalEvent>,
     },
 }
 
@@ -149,11 +150,13 @@ impl VideoChannel {
 
         debug!(codec = ?format, webrtc_codec = ?codec, "webrtc video channel codec selected");
 
-        let (frame_sender, mut frame_receiver) = unbounded_channel();
-        let (event_sender, event_receiver) = unbounded_channel();
+        let (frame_sender, mut frame_receiver) = FrameQueue::<OwnedVideoFrame>::new();
+        let (hdr_sender, hdr_receiver) = watch::channel(None);
+        let (event_sender, event_receiver) = channel(16);
 
         self.state = State::Sending {
             frame_sender,
+            hdr_sender,
             event_receiver,
         };
 
@@ -162,7 +165,7 @@ impl VideoChannel {
 
             async move {
                 while let Some(event) = track.poll().await {
-                    if let Err(err) = event_sender.send(event) {
+                    if let Err(err) = event_sender.send(event).await {
                         debug!(error = %err, "stopping event poller");
                         break;
                     }
@@ -175,16 +178,8 @@ impl VideoChannel {
             async move {
                 let mut sequence_number = 0u16;
 
-                let mut hdr_metadata = None;
-
-                while let Some(message) = frame_receiver.recv().await {
-                    let frame = match message {
-                        Message::HdrMetadata(metadata) => {
-                            hdr_metadata = metadata;
-                            continue;
-                        }
-                        Message::Frame(frame) => frame,
-                    };
+                while let Some(frame) = frame_receiver.recv().await {
+                    let hdr_metadata = *hdr_receiver.borrow();
                     let frame = frame.as_ref();
 
                     let timestamp =
@@ -209,7 +204,7 @@ impl VideoChannel {
                                 } else if buffer.data.starts_with(&[0, 0, 0, 1]) {
                                     &buffer.data[4..]
                                 } else {
-                                    warn!(data_start = ?buffer.data[0..10], "got h264 or h265 annex b data without a 3 or 4 byte start code");
+                                    warn!(data_start = ?buffer.data.get(..10).unwrap_or(buffer.data), "got h264 or h265 annex b data without a 3 or 4 byte start code");
                                     buffer.data
                                 };
 
@@ -311,7 +306,9 @@ impl VideoChannel {
                 panic!("VideoChannel is in an invalid state")
             }
             State::Sending { frame_sender, .. } => {
-                let _ = frame_sender.send(Message::Frame(frame));
+                let is_idr = frame_sender.waiting_for_idr()
+                    && frame.as_ref().parsed_frame_type == FrameType::Idr;
+                frame_sender.push(frame, is_idr);
             }
         }
     }
@@ -321,17 +318,29 @@ impl VideoChannel {
             State::SelectVideoFormat | State::Panic => {
                 panic!("VideoChannel is in an invalid state")
             }
-            State::Sending { frame_sender, .. } => {
-                let _ = frame_sender.send(Message::HdrMetadata(metadata));
+            State::Sending { hdr_sender, .. } => {
+                hdr_sender.send_replace(metadata);
             }
         }
     }
 
     pub async fn drive(&mut self) -> Result<VideoChannelEvent, AppError> {
         loop {
-            let State::Sending { event_receiver, .. } = &mut self.state else {
+            let State::Sending {
+                event_receiver,
+                frame_sender,
+                ..
+            } = &mut self.state
+            else {
                 panic!("VideoChannel is in an invalid state");
             };
+
+            if frame_sender.is_closed() {
+                return Err(AppError::StreamClosed);
+            }
+            if frame_sender.take_idr_request() {
+                return Ok(VideoChannelEvent::SignalIdr);
+            }
 
             select! {
                 // This function seems cancel safe
