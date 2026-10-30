@@ -22,6 +22,7 @@ abstract class BaseCanvasFrameDrawPipe implements Pipe {
     protected base: CanvasRenderer
 
     private animationFrameRequest: number | null = null
+    protected disposed = false
 
     private drawOnSubmit: boolean
 
@@ -38,7 +39,8 @@ abstract class BaseCanvasFrameDrawPipe implements Pipe {
     }
 
     async setup(setup: VideoRendererSetup): Promise<void> {
-        if (this.animationFrameRequest == null) {
+        if (this.disposed) return
+        if (!this.drawOnSubmit && this.animationFrameRequest == null) {
             this.animationFrameRequest = requestAnimationFrame(this.onAnimationFrame.bind(this))
         }
 
@@ -48,13 +50,19 @@ abstract class BaseCanvasFrameDrawPipe implements Pipe {
     }
 
     cleanup() {
+        if (this.disposed) return
+        this.disposed = true
+        if (this.animationFrameRequest != null) {
+            cancelAnimationFrame(this.animationFrameRequest)
+            this.animationFrameRequest = null
+        }
         if ("cleanup" in this.base && typeof this.base.cleanup == "function") {
             return this.base.cleanup(...arguments)
         }
     }
 
     protected onFrameSubmitted() {
-        if (this.drawOnSubmit) {
+        if (!this.disposed && this.drawOnSubmit) {
             this.drawCurrentFrameIfReady()
         }
     }
@@ -63,10 +71,14 @@ abstract class BaseCanvasFrameDrawPipe implements Pipe {
     protected abstract drawCurrentFrameIfReady(): void
 
     private onAnimationFrame() {
+        this.animationFrameRequest = null
+        if (this.disposed) return
         if (!this.drawOnSubmit) {
             this.drawCurrentFrameIfReady()
         }
-        this.animationFrameRequest = requestAnimationFrame(this.onAnimationFrame.bind(this))
+        if (!this.disposed) {
+            this.animationFrameRequest = requestAnimationFrame(this.onAnimationFrame.bind(this))
+        }
     }
 
     getBase(): Pipe | null {
@@ -96,10 +108,17 @@ export class CanvasFrameDrawPipe extends BaseCanvasFrameDrawPipe implements Fram
     }
 
     submitFrame(frame: VideoFrame): void {
+        if (this.disposed) { frame.close(); return }
         this.currentFrame?.close()
 
         this.currentFrame = frame
         this.onFrameSubmitted()
+    }
+
+    cleanup() {
+        this.currentFrame?.close()
+        this.currentFrame = null
+        super.cleanup()
     }
 
     /** Draw currentFrame to canvas if context and frame are ready. Only updates size when dimensions change. */
@@ -143,9 +162,15 @@ export class CanvasRgbaFrameDrawPipe extends BaseCanvasFrameDrawPipe implements 
     }
 
     submitRawFrame(frame: RgbaVideoFrame): void {
+        if (this.disposed) return
         this.currentFrame = new ImageData(frame.buffer, frame.width, frame.height)
 
         this.onFrameSubmitted()
+    }
+
+    cleanup() {
+        this.currentFrame = null
+        super.cleanup()
     }
 
     /** Draw currentFrame to canvas if context and frame are ready. Only updates size when dimensions change. */
@@ -196,7 +221,7 @@ export class CanvasYuv420FrameDrawPipe extends BaseCanvasFrameDrawPipe implement
     private currentFrame: Uint8Array | null = null
 
     submitRawFrame(frame: Yuv420VideoFrame): void {
-        if (this.errored) {
+        if (this.disposed || this.errored) {
             return
         }
 
@@ -485,6 +510,8 @@ void main() {
     }
 
     cleanup() {
+        if (this.disposed) return
+        this.currentFrame = null
         const { context: gl } = this.base.useCanvasContext("webgl")
         if (gl) {
             gl.deleteTexture(this.textureY)
