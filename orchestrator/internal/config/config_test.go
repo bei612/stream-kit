@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -21,6 +22,47 @@ func TestManagedServiceURLValidation(t *testing.T) {
 	errors := strings.Join(validate(&cfg), "\n")
 	if !strings.Contains(errors, "media_ticket_secret") || !strings.Contains(errors, "jwt_secret") {
 		t.Fatal("managed mode accepted weak keys")
+	}
+}
+
+func TestSanitizedOmitsOpaqueCredentialsWithoutMutatingConfiguration(t *testing.T) {
+	cfg := Config{
+		Server:      ServerConfig{Password: "abcd-private", JWTSecret: "efgh-private", MediaTicketSecret: "ijkl-private"},
+		SunshineAPI: SunshineAPIConfig{BaseURL: "https://u:service-private@example.test", ServerInfoURL: "https://example.test/info-private"},
+		Components: map[string]ComponentConfig{"gateway": {
+			ExePath: "gateway.exe", Args: "--credential=argument-private",
+			Env:         map[string]string{"CUSTOM_VALUE": "environment-private", "EMPTY": ""},
+			HealthCheck: HealthCheckConfig{URL: "https://user:health-private@example.test/path-private?query-private#fragment-private"},
+		}},
+		Notifications: NotificationsConfig{WebhookURL: "https://example.test/webhook-private"},
+		Templates:     map[string]string{"custom": "--key=template-private"},
+	}
+	before, _ := json.Marshal(cfg)
+	safe := cfg.Sanitized()
+	encoded, err := json.Marshal(safe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, secret := range []string{"abcd", "efgh", "ijkl", "service-private", "info-private", "argument-private", "environment-private", "health-private", "path-private", "query-private", "fragment-private", "webhook-private", "template-private"} {
+		if strings.Contains(string(encoded), secret) {
+			t.Fatalf("exposed credential %s", secret)
+		}
+	}
+	component := safe["components"].(map[string]interface{})["gateway"].(map[string]interface{})
+	if component["exe_path"] != "gateway.exe" || component["health_check"].(map[string]interface{})["url"] != "https://example.test" {
+		t.Fatal("lost non-secret component identity")
+	}
+	if component["env"].(map[string]interface{})["EMPTY"] != "" {
+		t.Fatal("empty value incorrectly reported configured")
+	}
+	after, _ := json.Marshal(cfg)
+	if !reflect.DeepEqual(before, after) {
+		t.Fatal("sanitization mutated live config")
+	}
+	for _, input := range []string{"%invalid", "file:///secret", "relative/secret", "https://[invalid"} {
+		if sanitizedURL(input) != "****" {
+			t.Fatal("invalid URL exposed")
+		}
 	}
 }
 

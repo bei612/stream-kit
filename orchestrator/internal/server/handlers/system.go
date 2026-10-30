@@ -19,10 +19,10 @@ var (
 )
 
 type SystemHandler struct {
-	Config     *config.Config
-	Store      *store.Store
-	CompMgr    *component.Manager
-	Logger     *zap.Logger
+	Config  *config.Config
+	Store   *store.Store
+	CompMgr *component.Manager
+	Logger  *zap.Logger
 }
 
 func NewSystemHandler(cfg *config.Config, st *store.Store, compMgr *component.Manager, logger *zap.Logger) *SystemHandler {
@@ -42,8 +42,8 @@ func (h *SystemHandler) Health(c *gin.Context) {
 		compMap := make(map[string]gin.H)
 		for _, cs := range comps {
 			compMap[cs.Name] = gin.H{
-				"status":     cs.Status,
-				"pid":        cs.PID,
+				"status":      cs.Status,
+				"pid":         cs.PID,
 				"crash_count": cs.CrashCount,
 			}
 		}
@@ -94,6 +94,7 @@ func (h *SystemHandler) Metrics(c *gin.Context) {
 }
 
 func (h *SystemHandler) GetConfig(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
 	okResponse(c, h.Config.Sanitized())
 }
 

@@ -258,11 +258,7 @@ func (c *Config) Sanitized() map[string]interface{} {
 	// Mask sensitive fields
 	mask := func(obj map[string]interface{}, key string) {
 		if v, ok := obj[key].(string); ok && v != "" {
-			if len(v) > 4 {
-				obj[key] = v[:4] + "****"
-			} else {
-				obj[key] = "****"
-			}
+			obj[key] = "****"
 		}
 	}
 	if srv, ok := m["server"].(map[string]interface{}); ok {
@@ -276,5 +272,56 @@ func (c *Config) Sanitized() map[string]interface{} {
 	if moon, ok := m["moonlight_web"].(map[string]interface{}); ok {
 		mask(moon, "password")
 	}
+	for _, section := range []string{"sunshine_api", "moonlight_web"} {
+		if service, ok := m[section].(map[string]interface{}); ok {
+			for _, key := range []string{"base_url", "public_url", "server_info_url"} {
+				if address, ok := service[key].(string); ok {
+					service[key] = sanitizedURL(address)
+				}
+			}
+		}
+	}
+	// Free-form environment values and command lines can carry credentials in
+	// arbitrary names/formats. Never infer safety from a variable name or expose
+	// a credential prefix. This projection is display-only, not a save payload.
+	if components, ok := m["components"].(map[string]interface{}); ok {
+		for _, raw := range components {
+			if component, ok := raw.(map[string]interface{}); ok {
+				mask(component, "args")
+				if env, ok := component["env"].(map[string]interface{}); ok {
+					for key := range env {
+						mask(env, key)
+					}
+				}
+				if health, ok := component["health_check"].(map[string]interface{}); ok {
+					if address, ok := health["url"].(string); ok {
+						health["url"] = sanitizedURL(address)
+					}
+				}
+			}
+		}
+	}
+	if notifications, ok := m["notifications"].(map[string]interface{}); ok {
+		// Webhook credentials may be embedded in the URL path as well as query.
+		mask(notifications, "webhook_url")
+	}
+	if templates, ok := m["templates"].(map[string]interface{}); ok {
+		for key := range templates {
+			mask(templates, key)
+		}
+	}
 	return m
+}
+
+func sanitizedURL(address string) string {
+	if address == "" {
+		return ""
+	}
+	u, err := url.Parse(address)
+	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
+		return "****"
+	}
+	// Even path segments can be bearer credentials. Retain only the origin so
+	// administrators can identify the destination without exposing its secrets.
+	return (&url.URL{Scheme: u.Scheme, Host: u.Host}).String()
 }
