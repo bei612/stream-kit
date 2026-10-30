@@ -67,6 +67,9 @@ async function getIfConfigSupported(config: VideoDecoderConfig): Promise<VideoDe
 }
 
 export class VideoDecoderPipe implements DataVideoRenderer {
+    // Bound compressed startup storage independently of decoder initialization time.
+    static readonly startupFrameLimit = 3
+    static readonly startupByteLimit = 8 * 1024 * 1024
     static readonly pipeName = "VideoDecoderPipe"
 
     static readonly baseType = "videoframe"
@@ -198,11 +201,15 @@ export class VideoDecoderPipe implements DataVideoRenderer {
 
         this.reset()
 
-        this.decoderSetupFinished = true
-
         if ("setup" in this.base && typeof this.base.setup == "function") {
-            return await this.base.setup(...arguments)
+            await this.base.setup(...arguments)
         }
+        if (this.disposed) return
+        this.decoderSetupFinished = true
+        const bufferedUnits = this.bufferedUnits.splice(0)
+        this.bufferedBytes = 0
+        this.startupRecoveryPending = bufferedUnits.length === 0
+        for (const unit of bufferedUnits) this.submitDecodeUnit(unit)
     }
 
     private decoderSetupFinished = false
@@ -210,6 +217,31 @@ export class VideoDecoderPipe implements DataVideoRenderer {
     private needsKeyFrame = true
 
     private bufferedUnits: Array<VideoDecodeUnit> = []
+    private bufferedBytes = 0
+    private startupRecoveryPending = false
+
+    private bufferStartupUnit(unit: VideoDecodeUnit) {
+        // A newer keyframe supersedes the entire previous dependency chain.
+        if (unit.type === "key") {
+            this.bufferedUnits.length = 0
+            this.bufferedBytes = 0
+        } else if (this.bufferedUnits.length === 0) {
+            this.startupRecoveryPending = true
+            return
+        }
+        // Count the retained backing allocation, including bytes outside a subarray.
+        const retainedBytes = unit.data.buffer.byteLength
+        if (this.bufferedUnits.length >= VideoDecoderPipe.startupFrameLimit ||
+            retainedBytes > VideoDecoderPipe.startupByteLimit - this.bufferedBytes) {
+            this.bufferedUnits.length = 0
+            this.bufferedBytes = 0
+            this.startupRecoveryPending = true
+            return
+        }
+        this.bufferedUnits.push(unit)
+        this.bufferedBytes += retainedBytes
+        this.startupRecoveryPending = false
+    }
     submitDecodeUnit(unit: VideoDecodeUnit): void {
         if (this.disposed) return
         if (this.errored) {
@@ -217,19 +249,10 @@ export class VideoDecoderPipe implements DataVideoRenderer {
             return
         }
         if (!this.decoderSetupFinished) {
-            this.bufferedUnits.push(unit)
+            this.bufferStartupUnit(unit)
             return
         }
-
-        if (this.bufferedUnits.length > 0) {
-            const bufferedUnits = this.bufferedUnits.splice(0)
-
-            for (const bufferedUnit of bufferedUnits) {
-                this.submitDecodeUnit(bufferedUnit)
-            }
-        }
-
-
+        if (unit.type === "key") this.startupRecoveryPending = false
         if (this.translator) {
             const value = this.translator.submitDecodeUnit(unit)
             if (value.error) {
@@ -296,7 +319,9 @@ export class VideoDecoderPipe implements DataVideoRenderer {
     }
 
     pollRequestIdr(): boolean {
-        let requestIdr = false
+        if (this.disposed || !this.decoderSetupFinished) return false
+        let requestIdr = this.startupRecoveryPending
+        this.startupRecoveryPending = false
 
         const estimatedQueueDelayMs = this.decoder.decodeQueueSize * 1000 / this.fps
         if (estimatedQueueDelayMs > 200 && this.decoder.decodeQueueSize > 2) {
@@ -327,6 +352,8 @@ export class VideoDecoderPipe implements DataVideoRenderer {
         if (this.disposed) return
         this.disposed = true
         this.bufferedUnits.length = 0
+        this.bufferedBytes = 0
+        this.startupRecoveryPending = false
         this.translator = null
         try {
             if (this.decoder.state !== "closed") this.decoder.close()
