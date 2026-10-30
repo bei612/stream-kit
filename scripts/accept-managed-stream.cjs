@@ -319,12 +319,29 @@ async function main() {
       dataTransport: 'webrtc', forceVideoElementRenderer: true, canvasRenderer: false, playAudioLocal: false,
       microphone: microphoneTest, enterFullscreenOnStreamStart: false, language: 'en' }));
     window.__acceptancePeers = [];
+    // Playback-quality counters reset when a renderer/track is replaced.
+    // Count frames actually presented across renderer lifetimes instead.
+    window.__presentedVideoFrames = 0;
+    const watchedVideos = new WeakSet();
+    const watchVideos = () => {
+      for(const video of document.querySelectorAll('video')) {
+        if(watchedVideos.has(video))continue;
+        watchedVideos.add(video);
+        const presented = () => {
+          if(video.isConnected)window.__presentedVideoFrames++;
+          video.requestVideoFrameCallback(presented);
+        };
+        video.requestVideoFrameCallback(presented);
+      }
+    };
+    new MutationObserver(watchVideos).observe(document,{childList:true,subtree:true});
+    watchVideos();
     const Original = window.RTCPeerConnection;
     window.RTCPeerConnection = class extends Original { constructor(...args) { super(...args); window.__acceptancePeers.push(this); } };
   }, { microphoneTest });
   const pages = [];
   const pageErrors = [];
-  const videoFrames = page => page.evaluate(() => document.querySelector('video')?.getVideoPlaybackQuality().totalVideoFrames || 0);
+  const videoFrames = page => page.evaluate(() => window.__presentedVideoFrames);
   for (let i = 0; i < clientCount; i++) {
     const page = await context.newPage(); pages.push(page);
     page.on('pageerror', error => pageErrors.push(error.message));
@@ -425,6 +442,7 @@ async function main() {
     // Terminate only the isolated child owned by this acceptance run. Restart
     // from the same config/data on the same port, without reloading browsers.
     await stopProcess(gatewayProcess);
+    const gatewayStoppedAt = Date.now();
     gatewayProcess = launch(gatewayBinary, ['--config-path', gatewayConfigFile, 'run'], 'gateway-restarted');
     await ready(gateway + '/config.js');
     cookie = await gatewayLogin();
@@ -433,16 +451,21 @@ async function main() {
       if(peers.length <= count) return false;
       const peer = peers.at(-1);
       if(peer.connectionState !== 'connected') return false;
-      return [...(await peer.getStats()).values()].some(s => s.type === 'inbound-rtp' && s.kind === 'video' && s.framesDecoded > 15);
+      const video=document.querySelector('video');
+      const track=peer.getReceivers().find(receiver=>receiver.track.kind==='video')?.track;
+      if(!video?.srcObject?.getVideoTracks().includes(track) || video.getVideoPlaybackQuality().totalVideoFrames<=15) return false;
+      const frames=[...(await peer.getStats()).values()].find(s => s.type === 'inbound-rtp' && s.kind === 'video')?.framesDecoded || 0;
+      if(window.__restartProbe?.peer!==peer)window.__restartProbe={peer,frames};
+      return frames > window.__restartProbe.frames+15;
     }, peerCounts[index], { timeout: 90000 })));
     let restartedStatus;
     for(let i=0;i<100;i++) {
       restartedStatus = await api('/media-control');
-      if(restartedStatus.observations_valid && restartedStatus.observations[invite.session_id]?.subscribers === clientCount) break;
+      if(restartedStatus.observations_valid && restartedStatus.acknowledged_at_ms >= gatewayStoppedAt && restartedStatus.observations[invite.session_id]?.subscribers === clientCount) break;
       await delay(200);
     }
     result.gateway_restart_observation = restartedStatus;
-    assert.ok(restartedStatus.observations_valid && restartedStatus.observations[invite.session_id]?.subscribers === clientCount, 'Restarted gateway must confirm the recovered subscribers');
+    assert.ok(restartedStatus.observations_valid && restartedStatus.acknowledged_at_ms >= gatewayStoppedAt && restartedStatus.observations[invite.session_id]?.subscribers === clientCount, 'Restarted gateway must freshly confirm the recovered subscribers');
     const recovered = await api(`/stream-sessions/${invite.session_id}`);
     assert.deepEqual(Object.keys(recovered.connections).sort(), [...ids].sort(), 'Gateway recovery must retain logical connections');
     assert.equal(recovered.controller_connection_id, selected.controller_connection_id);
@@ -476,8 +499,18 @@ async function main() {
     assert.equal(restored.control_epoch, selected.control_epoch);
     const status = await api('/media-control');
     result.control_restart_observation = status;
+    result.control_restart_frames = await Promise.all(pages.map(async(page,index)=>({
+      client:index+1,before:beforeControl[index],after:await videoFrames(page),
+      transport:await page.evaluate(async()=>{
+        const peer=window.__acceptancePeers.at(-1);
+        const stats=[...(await peer.getStats()).values()];
+        return {state:peer.connectionState,ice:peer.iceConnectionState,
+          inbound:stats.filter(s=>s.type==='inbound-rtp').map(s=>({kind:s.kind,packetsReceived:s.packetsReceived,bytesReceived:s.bytesReceived,framesReceived:s.framesReceived,framesDecoded:s.framesDecoded,keyFramesDecoded:s.keyFramesDecoded,pliCount:s.pliCount,firCount:s.firCount}))};
+      }).catch(()=>({unavailable:true}))
+    })));
+    save();
     assert.ok(status.observations_valid && status.observations[invite.session_id]?.subscribers === clientCount);
-    for(let i=0;i<pages.length;i++) assert.ok(await videoFrames(pages[i]) > beforeControl[i]+15, 'Video must continue across control restart');
+    for(const frames of result.control_restart_frames) assert.ok(frames.after > frames.before+15, `Video must continue across control restart (client ${frames.client}: ${frames.before} -> ${frames.after})`);
     result.control_restart = { restored_connections:true, retained_control_epoch:true, video_continued:true };
     await api(`/stream-sessions/${invite.session_id}/controller`, 'DELETE');
     console.log('Control restart retained session and unique controller');

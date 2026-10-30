@@ -21,10 +21,10 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::sync::{Mutex, broadcast, mpsc};
+mod recovery;
 mod target;
 
 enum Command {
-    Recovery,
     Packet(ControlGrant, ControlPacket),
     Microphone(ControlGrant, Instant, Duration, Vec<u8>),
 }
@@ -34,6 +34,7 @@ struct Shared {
     key: MediaSessionKey,
     _slot: Arc<SessionSlot>,
     commands: mpsc::Sender<Command>,
+    recovery: recovery::Requests,
     events: broadcast::Sender<Arc<MoonlightStreamEvent>>,
     audio: OpusMultistreamConfig,
     video: VideoSetup,
@@ -278,6 +279,7 @@ impl UpstreamPool {
         let mut microphone_peer: Option<ControlGrant> = None;
         let mut input = super::input::InputRuntime::default();
         let (commands, mut receiver) = mpsc::channel(256);
+        let (recovery, mut recoveries) = recovery::channel();
         let (events, _) = broadcast::channel(256);
         let mut features = stream.host_features();
         // The gateway's session bus accepts microphone independently of the
@@ -288,6 +290,7 @@ impl UpstreamPool {
             key: key.clone(),
             _slot: slot.clone(),
             commands,
+            recovery,
             events: events.clone(),
             // The session bus emits 20 ms stereo packets independently of the host.
             audio: OpusMultistreamConfig::STEREO,
@@ -350,10 +353,10 @@ impl UpstreamPool {
                             },
                         }
                     },
+                    request = recoveries.recv() => {
+                        if request.is_none() || resources.stream.send_raw(ControlPacket::RequestIdr).is_err() { break; }
+                    },
                     command = receiver.recv() => match command {
-                        Some(Command::Recovery) => {
-                            if resources.stream.send_raw(ControlPacket::RequestIdr).is_err() { break; }
-                        }
                         Some(Command::Packet(grant, packet)) => {
                             let result = authority.with_controller(&key, &grant.peer_id, |current| {
                                 if current != grant { return Ok(()); }
@@ -456,11 +459,11 @@ impl UpstreamPeer {
     }
     pub async fn send_raw(&mut self, packet: ControlPacket) -> Result<(), AppError> {
         if matches!(packet, ControlPacket::RequestIdr) {
-            return self
-                .shared
-                .commands
-                .try_send(Command::Recovery)
-                .map_err(|_| AppError::StreamClosed);
+            return if self.shared.recovery.request() {
+                Ok(())
+            } else {
+                Err(AppError::StreamClosed)
+            };
         }
         self.shared
             .authority
@@ -670,6 +673,7 @@ mod tests {
         };
         let authority = MediaSessionRegistry::new();
         let (commands, mut receiver) = mpsc::channel(256);
+        let (recovery, mut recoveries) = recovery::channel();
         let (events, _) = broadcast::channel(256);
         let slot = Arc::new(SessionSlot::default());
         let shared = Arc::new(Shared {
@@ -677,6 +681,7 @@ mod tests {
             key: key.clone(),
             _slot: slot.clone(),
             commands,
+            recovery,
             events,
             audio: OpusMultistreamConfig::STEREO,
             video: VideoSetup {
@@ -733,7 +738,7 @@ mod tests {
             .send_raw(ControlPacket::RequestIdr)
             .await
             .expect("upstream test setup or assertion failed");
-        assert!(matches!(receiver.recv().await, Some(Command::Recovery)));
+        assert_eq!(recoveries.recv().await, Some(()));
         let microphone = second.microphone_sender();
         let key = second.shared.key.clone();
         authority
