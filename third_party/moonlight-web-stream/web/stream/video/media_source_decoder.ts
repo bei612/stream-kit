@@ -75,6 +75,7 @@ export class MediaSourceDecoder implements DataVideoRenderer {
     }
 
     async setup(setup: VideoRendererSetup): Promise<void> {
+        if (this.disposed) return
         this.logger?.debug("The stream may experience increased latency, as modern browser APIs are not currently supported.", { type: "informError" })
 
         this.base.setUrl(this.url)
@@ -83,6 +84,7 @@ export class MediaSourceDecoder implements DataVideoRenderer {
         this.frameDuration = 1_000_000 / setup.fps
 
         await this.onReadyPromise
+        if (this.disposed) return
 
         if ("setup" in this.base && typeof this.base.setup == "function") {
             return await this.base.setup(...arguments)
@@ -132,6 +134,7 @@ export class MediaSourceDecoder implements DataVideoRenderer {
     private droppedFrames = 0
 
     submitDecodeUnit(unit: VideoDecodeUnit): void {
+        if (this.disposed) return
         if (this.errored) {
             return
         }
@@ -325,7 +328,11 @@ export class MediaSourceDecoder implements DataVideoRenderer {
         return requestIdr
     }
 
+    private disposed = false
+
     cleanup() {
+        if (this.disposed) return
+        this.disposed = true
         if ("cleanup" in this.base && typeof this.base.cleanup == "function") {
             this.base.cleanup(...arguments)
         }

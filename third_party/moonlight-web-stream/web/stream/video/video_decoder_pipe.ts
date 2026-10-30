@@ -92,6 +92,7 @@ export class VideoDecoderPipe implements DataVideoRenderer {
     private fps = 0
 
     private errored = false
+    private disposed = false
     private config: VideoDecoderConfig | null = null
     private translator: CodecStreamTranslator | null = null
     private decoder: VideoDecoder
@@ -118,6 +119,7 @@ export class VideoDecoderPipe implements DataVideoRenderer {
     }
 
     private onOutput(frame: VideoFrame) {
+        if (this.disposed) { frame.close(); return }
         this.base.submitFrame(frame)
     }
 
@@ -152,6 +154,7 @@ export class VideoDecoderPipe implements DataVideoRenderer {
         }
     }
     async setup(setup: VideoRendererSetup): Promise<void> {
+        if (this.disposed) return
         this.width = setup.width
         this.height = setup.height
         this.fps = setup.fps
@@ -159,6 +162,7 @@ export class VideoDecoderPipe implements DataVideoRenderer {
         const codec = videoDecoderCodecInBand(setup.codec, setup.width, setup.height, setup.fps)
             ?? VIDEO_DECODER_CODECS_IN_BAND[setup.codec]
         await this.trySetConfig(codec)
+        if (this.disposed) return
 
         if (!this.config) {
             if (setup.codec == "h264" || setup.codec == "h264High8444") {
@@ -182,6 +186,7 @@ export class VideoDecoderPipe implements DataVideoRenderer {
             }
         }
 
+        if (this.disposed) return
         if (!this.config) {
             this.errored = true
             this.logger?.debug(`Failed to setup VideoDecoder for codec ${setup.codec} because of missing config`)
@@ -206,6 +211,7 @@ export class VideoDecoderPipe implements DataVideoRenderer {
 
     private bufferedUnits: Array<VideoDecodeUnit> = []
     submitDecodeUnit(unit: VideoDecodeUnit): void {
+        if (this.disposed) return
         if (this.errored) {
             console.debug("Cannot submit video decode unit because the stream errored")
             return
@@ -318,10 +324,16 @@ export class VideoDecoderPipe implements DataVideoRenderer {
     }
 
     cleanup() {
-        this.decoder.close()
-
-        if ("cleanup" in this.base && typeof this.base.cleanup == "function") {
-            return this.base.cleanup(arguments)
+        if (this.disposed) return
+        this.disposed = true
+        this.bufferedUnits.length = 0
+        this.translator = null
+        try {
+            if (this.decoder.state !== "closed") this.decoder.close()
+        } finally {
+            if ("cleanup" in this.base && typeof this.base.cleanup == "function") {
+                this.base.cleanup(...arguments)
+            }
         }
     }
 

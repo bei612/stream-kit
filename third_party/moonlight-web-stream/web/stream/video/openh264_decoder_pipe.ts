@@ -41,6 +41,7 @@ export class OpenH264DecoderPipe implements DataVideoRenderer {
     private decoder: OpenH264Decoder | null = null
 
     private errored = false
+    private disposed = false
 
     constructor(base: Yuv420FrameVideoRenderer, logger?: Logger) {
         this.logger = logger ?? null
@@ -54,6 +55,7 @@ export class OpenH264DecoderPipe implements DataVideoRenderer {
         }
 
         this.onReady = createOpenH264Module().then(module => {
+            if (this.disposed) return
             this.decoder = new OpenH264Decoder(module, {
                 onFrame: this.onFrame.bind(this)
             })
@@ -64,9 +66,11 @@ export class OpenH264DecoderPipe implements DataVideoRenderer {
     }
 
     async setup(): Promise<void> {
+        if (this.disposed) return
         if (!this.isReady) {
             await this.onReady
         }
+        if (this.disposed) return
 
         if ("setup" in this.base && typeof this.base.setup == "function") {
             return await this.base.setup(...arguments)
@@ -77,7 +81,7 @@ export class OpenH264DecoderPipe implements DataVideoRenderer {
     private lastDuration = 0
 
     submitDecodeUnit(unit: VideoDecodeUnit): void {
-        if (this.errored) {
+        if (this.disposed || this.errored) {
             return
         }
 
@@ -114,7 +118,10 @@ export class OpenH264DecoderPipe implements DataVideoRenderer {
     }
 
     cleanup() {
+        if (this.disposed) return
+        this.disposed = true
         this.decoder?.destroy()
+        this.decoder = null
 
         if ("cleanup" in this.base && typeof this.base.cleanup == "function") {
             return this.base.cleanup(...arguments)

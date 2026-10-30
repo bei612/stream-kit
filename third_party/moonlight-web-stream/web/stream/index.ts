@@ -111,6 +111,7 @@ export class Stream implements Component {
 
     private transportOverride: TransportType | null = null
     private stopped = false
+    private pipelineGeneration = 0
 
     private videoRenderer: VideoRenderer | null = null
     private audioPlayer: AudioPlayer | null = null
@@ -193,7 +194,7 @@ export class Stream implements Component {
                 this.transport = null
                 shutdownReason = "failednoconnect"
             } finally {
-                this.cleanupMicrophone()
+                this.cleanupPipelines()
             }
 
             if (this.stopped || shutdownReason == "disconnect") {
@@ -209,6 +210,7 @@ export class Stream implements Component {
     private transport: Transport | null = null
 
     private setTransport(transport: Transport) {
+        this.cleanupPipelines()
         if (this.transport) {
             this.debugLog("Closing old transport")
             this.transport.close()
@@ -362,7 +364,7 @@ export class Stream implements Component {
         }
 
         // -- Connection successful
-        await this.onConnect(connectData)
+        await Promise.race([this.onConnect(connectData), onClose])
         this.startMediaHeartbeat()
 
         const shutdown = await onClose
@@ -422,8 +424,32 @@ export class Stream implements Component {
     }
 
     private cleanupMicrophone() {
-        this.microphoneListener?.cleanup()
+        const microphone = this.microphoneListener
         this.microphoneListener = null
+        try { microphone?.cleanup() }
+        catch (error) { this.debugLog(`Failed to release microphone: ${error}`) }
+    }
+
+    private cleanupPipelines() {
+        // Invalidate pending selection/builds before releasing their published outputs.
+        this.pipelineGeneration++
+        const outputs = [this.videoRenderer, this.audioPlayer]
+        this.videoRenderer = null
+        this.audioPlayer = null
+        this.stats.setVideoPipeline("", null)
+        this.stats.setAudioPipeline("", null)
+        this.cleanupMicrophone()
+        for (const output of outputs) {
+            if (!output) continue
+            try { output.unmount(this.divElement) }
+            catch (error) { this.debugLog(`Failed to unmount media output: ${error}`) }
+            try { output.cleanup() }
+            catch (error) { this.debugLog(`Failed to release media output: ${error}`) }
+        }
+    }
+
+    private isCurrentPipeline(transport: Transport, generation: number): boolean {
+        return !this.stopped && this.transport === transport && this.pipelineGeneration === generation
     }
     private microphoneAllowed(): boolean {
         return this.settings.microphone && (!managedStreaming() ||
@@ -446,7 +472,7 @@ export class Stream implements Component {
         this.debugLog("Trying Web Socket transport")
 
         const options = await this.createTransportOptions()
-        if (!options) {
+        if (!options || this.stopped) {
             return null
         }
 
@@ -465,6 +491,11 @@ export class Stream implements Component {
         // Start stream
         await transport.startStream(options)
 
+        if (this.stopped) {
+            await transport.close()
+            return "disconnect"
+        }
+
         this.setTransport(transport)
 
         const connectData = await Promise.race([
@@ -480,12 +511,15 @@ export class Stream implements Component {
         }
 
         // -- Connection successful
-        await this.onConnect(connectData)
+        await Promise.race([this.onConnect(connectData), onClose])
 
         return await onClose
     }
 
     private async onConnect(connectData: TransportConnectData) {
+        if (this.stopped || !this.transport) return
+        const transport = this.transport
+        const generation = this.pipelineGeneration
         this.logger.debug("connected successfully, creating video and audio pipelines")
 
         // Dispatch app event
@@ -507,6 +541,7 @@ export class Stream implements Component {
 
         // Create pipelines
         await this.createPipelines(connectData)
+        if (!this.isCurrentPipeline(transport, generation)) return
 
         event = new CustomEvent("stream-info", {
             detail: {
@@ -520,8 +555,12 @@ export class Stream implements Component {
     }
 
     private async createPipelines(connectData: TransportConnectData): Promise<void> {
+        const transport = this.transport
+        const generation = this.pipelineGeneration
+        if (!transport || this.stopped) return
         // Print supported pipes
         const pipesInfo = await gatherPipeInfo()
+        if (!this.isCurrentPipeline(transport, generation)) return
 
         this.logger.debug(`Supported Pipes: {`)
         let isFirst = true
@@ -540,6 +579,7 @@ export class Stream implements Component {
             this.createAudioPlayer(connectData.audioType, connectData.audioSetup),
             this.configureMicrophone(connectData.microphoneType),
         ])
+        if (!this.isCurrentPipeline(transport, generation)) return
 
         const videoPipelineName = `${connectData.videoType} (transport) -> ${this.videoRenderer?.implementationName} (renderer)`
         this.debugLog(`Using video pipeline: ${videoPipelineName}`)
@@ -596,7 +636,9 @@ export class Stream implements Component {
             this.videoRenderer.cleanup()
             this.videoRenderer = null
         }
-        if (!this.transport) {
+        const transport = this.transport
+        const generation = this.pipelineGeneration
+        if (!transport || this.stopped) {
             this.debugLog("Failed to setup video without transport")
             return false
         }
@@ -612,17 +654,20 @@ export class Stream implements Component {
         }
 
         const pipeline = await selectVideoPipeline(videoType, videoSettings, this.logger)
-        if (!pipeline) {
+        if (!pipeline || !this.isCurrentPipeline(transport, generation)) {
             return false
         }
         this.logger.debug(`Trying to build video pipeline ${pipelineToString(pipeline)}`)
 
-        this.videoRenderer = await this.transport.connectVideoPipeline(pipeline) as VideoRenderer
-
-        this.videoRenderer.mount(this.divElement)
-        await this.videoRenderer.setup(videoSetup)
-
-        return true
+        const renderer = await transport.connectVideoPipeline(pipeline) as VideoRenderer
+        if (!this.isCurrentPipeline(transport, generation)) {
+            renderer.cleanup()
+            return false
+        }
+        this.videoRenderer = renderer
+        renderer.mount(this.divElement)
+        await renderer.setup(videoSetup)
+        return this.isCurrentPipeline(transport, generation) && this.videoRenderer === renderer
     }
     private async createAudioPlayer(audioType: TransportAudioType, audioSetup: AudioPlayerSetup): Promise<boolean> {
         if (this.audioPlayer) {
@@ -632,23 +677,28 @@ export class Stream implements Component {
             this.audioPlayer.cleanup()
             this.audioPlayer = null
         }
-        if (!this.transport) {
+        const transport = this.transport
+        const generation = this.pipelineGeneration
+        if (!transport || this.stopped) {
             this.debugLog("Failed to setup audio without transport")
             return false
         }
 
         const pipeline = await selectAudioPipeline(audioType, {}, this.logger)
-        if (!pipeline) {
+        if (!pipeline || !this.isCurrentPipeline(transport, generation)) {
             return false
         }
         this.logger.debug(`Trying to build audio pipeline ${pipelineToString(pipeline)}`)
 
-        this.audioPlayer = await this.transport.connectAudioPipeline(pipeline) as AudioPlayer
-
-        this.audioPlayer.mount(this.divElement)
-        await this.audioPlayer.setup(audioSetup)
-
-        return true
+        const player = await transport.connectAudioPipeline(pipeline) as AudioPlayer
+        if (!this.isCurrentPipeline(transport, generation)) {
+            player.cleanup()
+            return false
+        }
+        this.audioPlayer = player
+        player.mount(this.divElement)
+        await player.setup(audioSetup)
+        return this.isCurrentPipeline(transport, generation) && this.audioPlayer === player
     }
     private async configureMicrophone(type: string | null) {
         if (!type) {
@@ -671,8 +721,9 @@ export class Stream implements Component {
         }
 
         const transport = this.transport
+        const generation = this.pipelineGeneration
         const source = await transport.connectMicrophonePipeline(pipeline) as MicrophoneSource | null
-        if (this.stopped || this.transport !== transport) { source?.cleanup(); return }
+        if (!this.isCurrentPipeline(transport, generation)) { source?.cleanup(); return }
         source?.setAllowed(this.microphoneAllowed())
         this.microphoneListener?.cleanup()
         this.microphoneListener = source
@@ -697,8 +748,7 @@ export class Stream implements Component {
 
     async stop(): Promise<boolean> {
         this.stopped = true
-        this.microphoneListener?.cleanup()
-        this.microphoneListener = null
+        this.cleanupPipelines()
         // Stop transport
         try {
             await this.transport?.close()
