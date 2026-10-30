@@ -26,6 +26,8 @@ jobs:
         with:
           go-version: '1.25.x'
           cache-dependency-path: orchestrator/go.sum
+      - run: go mod vendor
+      - run: git diff --exit-code -- vendor
       - run: go test ./...
       - if: runner.os == 'Linux'
         run: go test -race ./internal/app ./internal/session ./internal/ws ./internal/server/...

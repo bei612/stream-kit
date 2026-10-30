@@ -6,7 +6,7 @@ github.com/andybalholm/brotli/matchfinder
 # github.com/bodgit/plumbing v1.3.0
 ## explicit; go 1.13
 github.com/bodgit/plumbing
-# github.com/bodgit/sevenzip v1.6.5
+# github.com/bodgit/sevenzip v1.6.5 => ../third_party/sevenzip
 ## explicit; go 1.25.0
 github.com/bodgit/sevenzip
 github.com/bodgit/sevenzip/internal/aes7z
@@ -445,3 +445,4 @@ modernc.org/memory
 # modernc.org/sqlite v1.23.1
 ## explicit; go 1.18
 modernc.org/sqlite/lib
+# github.com/bodgit/sevenzip => ../third_party/sevenzip
