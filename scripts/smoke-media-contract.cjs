@@ -11,7 +11,7 @@ const { setTimeout: delay } = require('node:timers/promises');
 const root = path.resolve(__dirname, '..');
 const binary = path.resolve(process.argv[2] || '');
 assert.ok(process.argv[2] && fs.statSync(binary).isFile(), 'Pass the newly built gateway executable');
-const output = path.join(root, 'artifacts/media-contract');
+const output = path.join(root, 'artifacts/media-contract', `${process.platform}-${process.arch}`);
 fs.mkdirSync(output, { recursive: true });
 fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify({ passed: false, status: 'running', at: new Date().toISOString() }));
 const fixture = fs.mkdtempSync(path.join(output, 'run-'));
@@ -77,7 +77,7 @@ async function main() {
     const revoked = await post(state);
     assert.equal(revoked.status, 200);
     assert.deepEqual((await revoked.json()).sessions, []);
-    const result = { passed: true, at: new Date().toISOString(), gateway_sha256: crypto.createHash('sha256').update(fs.readFileSync(binary)).digest('hex'),
+    const result = { passed: true, platform: process.platform, architecture: process.arch, at: new Date().toISOString(), gateway_sha256: crypto.createHash('sha256').update(fs.readFileSync(binary)).digest('hex'),
       checks: ['signed HTTP acknowledgement', 'request/revision binding', 'unsigned rejection', 'replay rejection', 'configured idle target', 'revocation'],
       scope: 'Isolated real gateway HTTP contract; no active media or target recording.' };
     fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(result, null, 2));

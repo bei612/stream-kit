@@ -6,7 +6,11 @@ use super::{
 use moonlight_common::stream::{
     HostFeatures,
     audio::{AudioFrame, OpusMultistreamConfig},
-    proto::{audio::AudioStreamEvent, control::packet::ControlPacket, video::VideoStreamEvent},
+    proto::{
+        audio::AudioStreamEvent,
+        control::{ControlStreamEvent, packet::ControlPacket},
+        video::VideoStreamEvent,
+    },
     tokio::{MoonlightStream, MoonlightStreamEvent},
     video::VideoSetup,
 };
@@ -30,14 +34,37 @@ struct Shared {
     audio: OpusMultistreamConfig,
     video: VideoSetup,
     features: HostFeatures,
-    target: Option<Arc<stream_kit_audio_target::AudioTarget>>,
+    target: Option<stream_kit_audio_target::TargetMonitor>,
     remote_microphone: bool,
 }
 
 #[derive(Default)]
 struct SessionSlot {
-    launch: Mutex<()>,
+    launch: Arc<Mutex<()>>,
     current: std::sync::Mutex<Weak<Shared>>,
+    // Keep the join handle in the slot while awaiting it: cancellation of a
+    // reconnect must not detach cleanup and allow a second driver to start.
+    driver: Mutex<Option<tokio::task::JoinHandle<()>>>,
+}
+
+struct LaunchLease {
+    _permit: tokio::sync::OwnedMutexGuard<()>,
+    _slot: Arc<SessionSlot>,
+}
+
+// Field order is intentional: a cancelled blocking open destroys the resource
+// before releasing launch ownership and the pool index entry.
+struct PreparedResource<T> {
+    resource: T,
+    lease: LaunchLease,
+}
+
+// Browser handles hold telemetry only. Native resources belong exclusively to
+// the driver; even panic/cancellation drops them before the index lifetime.
+struct DriverResources {
+    target: Option<stream_kit_audio_target::AudioTarget>,
+    stream: MoonlightStream,
+    _slot: Arc<SessionSlot>,
 }
 
 #[derive(Default)]
@@ -80,7 +107,9 @@ impl UpstreamPool {
                     .as_ref()
                     .and_then(|s| s.target.as_ref().map(|t| t.status()));
                 let state = match &device {
-                    Some(status) if !status.device_open => TargetState::DeviceFailed,
+                    Some(status) if !status.device_open && status.error.is_some() => {
+                        TargetState::DeviceFailed
+                    }
                     Some(_) if active => TargetState::DeviceOpen,
                     _ if configured => TargetState::Idle,
                     _ if active && shared.as_ref().is_some_and(|s| s.remote_microphone) => {
@@ -130,7 +159,10 @@ impl UpstreamPool {
                 }
             }
         };
-        let _launch = slot.launch.lock().await;
+        let mut lease = LaunchLease {
+            _permit: slot.launch.clone().lock_owned().await,
+            _slot: slot.clone(),
+        };
         if let Some(shared) = slot
             .current
             .lock()
@@ -144,25 +176,35 @@ impl UpstreamPool {
                 shared,
             });
         }
+        let mut previous_driver = slot.driver.lock().await;
+        if let Some(driver) = previous_driver.as_mut()
+            && let Err(error) = driver.await
+        {
+            tracing::warn!(%error, "previous shared upstream driver failed");
+        }
+        *previous_driver = None;
         let target = if let Some(route) = self
             .local_targets
             .iter()
             .find(|route| route.host_id == key.host_id.0 && route.app_id == key.app_id.0)
         {
             let endpoint = route.endpoint.clone();
-            let opened = tokio::task::spawn_blocking(move || {
-                stream_kit_audio_target::AudioTarget::open(&endpoint)
+            let prepared = tokio::task::spawn_blocking(move || PreparedResource {
+                resource: stream_kit_audio_target::AudioTarget::open(&endpoint),
+                lease,
             })
             .await
             .map_err(|_| AppError::AudioTargetUnavailable)?;
-            Some(Arc::new(opened.map_err(|error| {
+            lease = prepared.lease;
+            let opened = prepared.resource;
+            Some(opened.map_err(|error| {
                 tracing::error!(%error, host_id = key.host_id.0, app_id = key.app_id.0, "configured audio target is unavailable");
                 AppError::AudioTargetUnavailable
-            })?))
+            })?)
         } else {
             None
         };
-        let mut stream = start().await?;
+        let stream = start().await?;
         let remote_microphone = stream.host_features().microphone;
         let setup = stream.audio_setup();
         if setup.sample_rate != 48_000
@@ -192,7 +234,7 @@ impl UpstreamPool {
             audio: OpusMultistreamConfig::STEREO,
             video: stream.video_setup(),
             features,
-            target: target.clone(),
+            target: target.as_ref().map(|target| target.monitor()),
             remote_microphone,
         });
         let peer = UpstreamPeer {
@@ -201,24 +243,35 @@ impl UpstreamPool {
             shared: shared.clone(),
         };
         *slot.current.lock().expect("session slot mutex poisoned") = Arc::downgrade(&shared);
-        tokio::spawn(async move {
+        let resources = DriverResources {
+            target,
+            stream,
+            _slot: slot.clone(),
+        };
+        *previous_driver = Some(tokio::spawn(async move {
+            // Keep the index entry alive through actual resource destruction,
+            // including after the last browser has dropped its Shared handle.
+            let mut resources = resources;
             let mut audio_clock = super::mixer::AudioClock::new();
             let mut target_fault_reported = false;
             loop {
+                if events.receiver_count() == 0 {
+                    break;
+                }
                 tokio::select! {
                     timestamp = audio_clock.tick() => {
                         let result = authority.with_audio_output(&key, |policy, controller| {
                             mixer.configure(policy)?;
                             if microphone_peer.as_deref() != controller {
                                 mixer.clear_microphone()?;
-                                if let Some(target) = &target { target.clear(); }
+                                if let Some(target) = &resources.target { target.clear(); }
                                 microphone_peer = controller.map(str::to_owned);
                             }
-                            if !policy.microphone_enabled && let Some(target) = &target {
+                            if !policy.microphone_enabled && let Some(target) = &resources.target {
                                 target.clear();
                             }
                             let buffer = mixer.render(timestamp, std::time::Instant::now())?.into();
-                            if let Some(target) = &target {
+                            if let Some(target) = &resources.target {
                                 target.submit(mixer.target_pcm());
                                 if !target_fault_reported && !target.status().device_open {
                                     tracing::error!(target = ?target.status(), "microphone target failed during session");
@@ -233,7 +286,7 @@ impl UpstreamPool {
                             Some(Err(error)) => { tracing::warn!(%error, "session audio rendering failed"); break; },
                             None => {
                                 let _ = mixer.clear_microphone(); microphone_peer = None;
-                                if let Some(target) = &target { target.clear(); }
+                                if let Some(target) = &resources.target { target.clear(); }
                             },
                         }
                     },
@@ -241,9 +294,9 @@ impl UpstreamPool {
                         Some(Command::Packet(peer_id, packet)) => {
                             // Viewers may request decoder recovery but cannot send input.
                             let result = if matches!(packet, ControlPacket::RequestIdr) {
-                                Some(stream.send_raw(packet))
+                                Some(resources.stream.send_raw(packet))
                             } else {
-                                authority.with_controller(&key, &peer_id, || stream.send_raw(packet)).await
+                                authority.with_controller(&key, &peer_id, || resources.stream.send_raw(packet)).await
                             };
                             if matches!(result, Some(Err(_))) { break; }
                         }
@@ -258,35 +311,54 @@ impl UpstreamPool {
                                         tracing::warn!(%error, "cannot clear previous microphone");
                                         return;
                                     }
-                                    if let Some(target) = &target { target.clear(); }
+                                    if let Some(target) = &resources.target { target.clear(); }
                                     microphone_peer = Some(peer_id.clone());
                                 }
                                 if let Err(error) = mixer.microphone(&bytes, std::time::Instant::now()) {
                                     tracing::warn!(%error, "invalid microphone Opus packet");
                                     return;
                                 }
-                                if target.is_none() && remote_microphone {
-                                    stream.send_microphone_opus_data(timestamp, &bytes);
+                                if resources.target.is_none() && remote_microphone {
+                                    resources.stream.send_microphone_opus_data(timestamp, &bytes);
                                 }
                             }).await;
                         }
-                        None => { let _ = stream.disconnect(); break; }
+                        None => break,
                     },
-                    result = stream.drive() => match result {
+                    result = resources.stream.drive() => match result {
                         Ok(MoonlightStreamEvent::Audio(AudioStreamEvent::OnFrame(frame))) => {
                             if let Err(error) = mixer.program(&frame.buffer, std::time::Instant::now()) {
                                 tracing::warn!(%error, "dropping invalid program audio packet");
                             }
                         }
                         Ok(MoonlightStreamEvent::Video(VideoStreamEvent::SignalIdr)) => {
-                            let _ = stream.send_raw(ControlPacket::RequestIdr);
+                            let _ = resources.stream.send_raw(ControlPacket::RequestIdr);
+                        }
+                        Ok(event @ MoonlightStreamEvent::Control(ControlStreamEvent::Disconnect)) => {
+                            let _ = events.send(Arc::new(event));
+                            break;
                         }
                         Ok(event) => { let _ = events.send(Arc::new(event)); }
                         Err(error) => { tracing::warn!(%error, "shared upstream ended"); break; }
                     }
                 }
             }
-        });
+            receiver.close();
+            if let Some(target) = &resources.target {
+                target.clear();
+            }
+            // Stop native output before waiting for the remote disconnect ack.
+            drop(resources.target.take());
+            match tokio::time::timeout(Duration::from_secs(1), resources.stream.shutdown()).await {
+                Ok(Ok(())) => {}
+                Ok(Err(error)) => {
+                    tracing::debug!(%error, "upstream disconnect ended with transport error")
+                }
+                Err(_) => tracing::warn!("upstream disconnect timed out; closing local transport"),
+            }
+            drop(resources);
+        }));
+        drop(lease);
         Ok(peer)
     }
 }
@@ -342,6 +414,136 @@ mod tests {
     use super::*;
     use crate::app::host::{AppId, HostId};
     use moonlight_common::stream::video::VideoFormat;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    struct LiveResource(Arc<AtomicBool>);
+    impl Drop for LiveResource {
+        fn drop(&mut self) {
+            self.0.store(false, Ordering::Release);
+        }
+    }
+
+    #[tokio::test]
+    async fn cancelled_reconnect_preserves_cleanup_join_and_exclusive_launch() {
+        let pool = Arc::new(UpstreamPool::default());
+        let key = MediaSessionKey {
+            host_id: HostId(1),
+            app_id: AppId(2),
+        };
+        let slot = Arc::new(SessionSlot::default());
+        pool.sessions
+            .lock()
+            .await
+            .insert(key.clone(), Arc::downgrade(&slot));
+        let alive = Arc::new(AtomicBool::new(true));
+        let (release, cleanup) = tokio::sync::oneshot::channel();
+        let old_slot = slot.clone();
+        let resource = LiveResource(alive.clone());
+        *slot.driver.lock().await = Some(tokio::spawn(async move {
+            let _slot_lifetime = old_slot;
+            let _resource = resource;
+            cleanup.await.expect("release old transport cleanup");
+        }));
+        let task_pool = pool.clone();
+        let task_key = key.clone();
+        let cancelled = tokio::spawn(async move {
+            task_pool
+                .connect(
+                    task_key,
+                    MediaSessionRegistry::new(),
+                    "cancelled".into(),
+                    || async { panic!("new launch preceded old cleanup") },
+                )
+                .await
+        });
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while slot.driver.try_lock().is_ok() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("reconnect must start waiting on driver");
+        cancelled.abort();
+        assert!(matches!(cancelled.await, Err(error) if error.is_cancelled()));
+        assert!(
+            slot.driver.lock().await.is_some(),
+            "cancelled waiter lost the cleanup handle"
+        );
+
+        let started = Arc::new(AtomicBool::new(false));
+        let new_started = started.clone();
+        let mut next = std::pin::pin!(pool.connect(
+            key,
+            MediaSessionRegistry::new(),
+            "retry".into(),
+            || async {
+                assert!(
+                    !alive.load(Ordering::Acquire),
+                    "two native transports overlapped"
+                );
+                new_started.store(true, Ordering::Release);
+                Err(AppError::StreamClosed)
+            }
+        ));
+        assert!(
+            tokio::time::timeout(Duration::from_millis(20), &mut next)
+                .await
+                .is_err()
+        );
+        assert!(!started.load(Ordering::Acquire));
+        release.send(()).expect("finish old cleanup");
+        assert!(next.await.is_err());
+        assert!(started.load(Ordering::Acquire));
+    }
+
+    #[tokio::test]
+    async fn cancelled_blocking_open_retains_slot_and_permit_until_resource_drop() {
+        let slot = Arc::new(SessionSlot::default());
+        let weak = Arc::downgrade(&slot);
+        let lease = LaunchLease {
+            _permit: slot.launch.clone().lock_owned().await,
+            _slot: slot.clone(),
+        };
+        let alive = Arc::new(AtomicBool::new(true));
+        let resource = LiveResource(alive.clone());
+        let (entered, entered_rx) = tokio::sync::oneshot::channel();
+        let (release, opening) = std::sync::mpsc::channel();
+        let waiter = tokio::spawn(async move {
+            tokio::task::spawn_blocking(move || {
+                entered.send(()).expect("signal blocking open started");
+                opening
+                    .recv_timeout(Duration::from_secs(2))
+                    .expect("release blocking open");
+                PreparedResource { resource, lease }
+            })
+            .await
+            .expect("blocking open task")
+        });
+        entered_rx.await.expect("blocking open entered");
+        waiter.abort();
+        // Awaiting the cancelled wrapper drops its detached result receiver.
+        assert!(waiter.await.is_err());
+        drop(slot);
+        assert!(
+            weak.upgrade()
+                .expect("in-flight open must retain index")
+                .launch
+                .try_lock()
+                .is_err()
+        );
+        release.send(()).expect("finish blocking open");
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while weak.upgrade().is_some() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("cancelled open must eventually release index");
+        assert!(
+            !alive.load(Ordering::Acquire),
+            "index released before native resource"
+        );
+    }
 
     fn observed_session() -> super::super::control_state::SessionAuthority {
         let mut state: super::super::control_state::StateEnvelope = serde_json::from_str(

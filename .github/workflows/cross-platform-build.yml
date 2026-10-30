@@ -111,6 +111,13 @@ jobs:
       - run: node ../../scripts/smoke-media-contract.cjs target/release/web-server${{ runner.os == 'Windows' && '.exe' || '' }}
       - uses: actions/upload-artifact@v4
         with:
+          name: media-contract-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            artifacts/media-contract/**/result.json
+            artifacts/media-contract/**/gateway.log
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
           name: moonlight-web-${{ runner.os }}-${{ runner.arch }}
           path: |
             third_party/moonlight-web-stream/target/release/web-server${{ runner.os == 'Windows' && '.exe' || '' }}

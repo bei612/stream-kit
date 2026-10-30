@@ -15,7 +15,7 @@ function MediaRuntime({ observation }: { observation?: MediaObservation }) {
   const target = observation.microphone_target
   const labels: Record<MediaObservation['microphone_target']['state'], string> = {
     unconfigured: '未配置可用的目标录音输入',
-    idle: '已配置目标录音输入，尚未启动',
+    idle: '已配置目标录音输入，当前未运行',
     device_open: '目标输入设备已打开',
     device_failed: '目标输入设备故障',
     upstream_transport: '上游支持麦克风传输',

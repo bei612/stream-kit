@@ -266,6 +266,24 @@ impl MoonlightStream {
         self.control_stream.stream_mut().disconnect(0)
     }
 
+    /// Drive the queued disconnect onto the socket and await the control peer's
+    /// acknowledgement. Callers should bound this operation with a timeout.
+    /// Merely calling `disconnect` and dropping the stream does not flush UDP.
+    pub async fn shutdown(&mut self) -> Result<(), Error> {
+        if self.control_stream.stream_mut().can_discard() {
+            return Ok(());
+        }
+        self.disconnect()?;
+        loop {
+            if matches!(
+                self.control_stream.drive().await?,
+                ControlStreamEvent::Disconnect
+            ) {
+                return Ok(());
+            }
+        }
+    }
+
     pub fn send_microphone_opus_data(&mut self, timestamp: Duration, frame: &[u8]) -> bool {
         if let Some(foundation_mic) = self.foundation_mic_stream.as_mut() {
             if let Err(err) = foundation_mic

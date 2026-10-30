@@ -122,15 +122,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = result.lock().map_err(|_| "capture measurement poisoned")?;
     let amplitude = 2.0 * result.sine.hypot(result.cosine) / result.frames.max(1) as f64;
     let status = target.status();
+    let monitor = target.monitor();
+    drop(target);
+    let closed_after_drop = !monitor.status().device_open;
     let passed = submitted >= 140
         && result.frames > 48_000
         && amplitude > 0.01
         && status.device_open
+        && closed_after_drop
         && !failed.load(Ordering::Acquire);
     println!(
         "{}",
         serde_json::json!({"passed": passed, "captured_frames": result.frames,
-        "tone_amplitude": amplitude, "submitted_packets": submitted, "target": status})
+        "tone_amplitude": amplitude, "submitted_packets": submitted, "target": status,
+        "closed_after_drop": closed_after_drop})
     );
     if !passed {
         return Err("endpoint pair did not reproduce the test signal".into());

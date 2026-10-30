@@ -224,6 +224,13 @@ impl MediaSessionRegistry {
             if !control.controls(key, peer_id, now) {
                 return None;
             }
+            // A logical lease cannot authorize queued input from a detached
+            // transport. Hold both read locks through delivery so detach and
+            // control transfer share the same boundary.
+            let sessions = self.sessions.read().await;
+            if !sessions.get(key).is_some_and(|s| s.peers.contains(peer_id)) {
+                return None;
+            }
             let policy = &control.session(key, now)?.audio;
             return if !microphone || policy.microphone_enabled {
                 Some(action(policy))
@@ -255,9 +262,13 @@ impl MediaSessionRegistry {
             let now = super::control_state::now_ms();
             let session = control.session(key, now)?;
             let controller = session.controller_connection_id.as_str();
+            let sessions = self.sessions.read().await;
+            let attached = sessions
+                .get(key)
+                .is_some_and(|s| s.peers.contains(controller));
             return Some(action(
                 &session.audio,
-                control.controls(key, controller, now).then_some(controller),
+                (attached && control.controls(key, controller, now)).then_some(controller),
             ));
         }
         let sessions = self.sessions.read().await;
@@ -400,16 +411,59 @@ mod tests {
         }
         assert_eq!(
             registry
+                .with_audio_output(&key(), |_, controller| controller.map(str::to_owned))
+                .await,
+            Some(None)
+        );
+        registry
+            .attach(key(), "client-a".into())
+            .await
+            .expect("attach controller transport");
+        assert_eq!(
+            registry
                 .with_audio_output(&key(), |policy, controller| {
                     assert!(
                         registry.control.try_write().is_err(),
                         "publication must retain authority lock"
                     );
                     assert!(policy.microphone_enabled);
+                    assert!(
+                        registry.sessions.try_write().is_err(),
+                        "publication must retain membership lock"
+                    );
                     controller.map(str::to_owned)
                 })
                 .await,
             Some(Some("client-a".to_owned()))
+        );
+
+        assert_eq!(
+            registry.with_controller(&key(), "client-a", || 1).await,
+            Some(1)
+        );
+        registry
+            .detach(&key(), "client-a")
+            .await
+            .expect("detach controller transport");
+        assert!(
+            registry
+                .with_controller(&key(), "client-a", || panic!("detached input delivered"))
+                .await
+                .is_none()
+        );
+        assert!(
+            registry
+                .with_microphone(&key(), "client-a", |_| panic!(
+                    "detached microphone delivered"
+                ))
+                .await
+                .is_none()
+        );
+        assert_eq!(
+            registry
+                .with_audio_output(&key(), |_, controller| controller.map(str::to_owned))
+                .await,
+            Some(None)
         );
 
         // Removing a session in the next signed projection prevents output;

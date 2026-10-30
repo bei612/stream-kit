@@ -74,6 +74,7 @@ pub struct TargetStatus {
 #[derive(Default)]
 struct Shared {
     queue: Mutex<pcm::PcmQueue>,
+    open: AtomicBool,
     failed: AtomicBool,
     consumed: AtomicU64,
     dropped: AtomicU64,
@@ -85,6 +86,18 @@ struct Shared {
 pub struct AudioTarget {
     _stream: cpal::Stream,
     shared: Arc<Shared>,
+}
+
+/// Read-only telemetry never owns the native stream or extends its lifetime.
+#[derive(Clone)]
+pub struct TargetMonitor {
+    shared: Arc<Shared>,
+}
+
+impl TargetMonitor {
+    pub fn status(&self) -> TargetStatus {
+        self.shared.status()
+    }
 }
 
 impl AudioTarget {
@@ -131,6 +144,7 @@ impl AudioTarget {
             _ => return Err(Error::UnsupportedFormat),
         };
         stream.play()?;
+        shared.open.store(true, Ordering::Release);
         Ok(Self {
             _stream: stream,
             shared,
@@ -159,23 +173,30 @@ impl AudioTarget {
         }
     }
     pub fn status(&self) -> TargetStatus {
+        self.shared.status()
+    }
+    pub fn monitor(&self) -> TargetMonitor {
+        TargetMonitor {
+            shared: self.shared.clone(),
+        }
+    }
+}
+
+impl Shared {
+    fn status(&self) -> TargetStatus {
         TargetStatus {
-            device_open: !self.shared.failed.load(Ordering::Acquire),
-            device_sample_frames: self.shared.consumed.load(Ordering::Relaxed),
-            dropped_frames: self.shared.dropped.load(Ordering::Relaxed),
-            xruns: self.shared.xruns.load(Ordering::Relaxed),
-            realtime_denied: self.shared.realtime_denied.load(Ordering::Relaxed),
-            error: self
-                .shared
-                .error
-                .lock()
-                .ok()
-                .and_then(|error| error.clone()),
+            device_open: self.open.load(Ordering::Acquire) && !self.failed.load(Ordering::Acquire),
+            device_sample_frames: self.consumed.load(Ordering::Relaxed),
+            dropped_frames: self.dropped.load(Ordering::Relaxed),
+            xruns: self.xruns.load(Ordering::Relaxed),
+            realtime_denied: self.realtime_denied.load(Ordering::Relaxed),
+            error: self.error.lock().ok().and_then(|error| error.clone()),
         }
     }
 }
 impl Drop for AudioTarget {
     fn drop(&mut self) {
+        self.shared.open.store(false, Ordering::Release);
         self.clear();
     }
 }
