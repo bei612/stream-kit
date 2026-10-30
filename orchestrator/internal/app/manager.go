@@ -38,10 +38,18 @@ type Manager struct {
 	runtimeMu  sync.Mutex  // serializes runtime observations with stop/delete acknowledgements
 	sessions   *session.Manager
 	syncMedia  func(context.Context) error
+	workMu     sync.Mutex
+	closing    bool
+	workCtx    context.Context
+	cancelWork context.CancelFunc
+	workers    sync.WaitGroup
+	workDone   chan struct{}
 }
 
 func NewManager(st *store.Store, cfg *config.Config, sunClient *sunshine.Client, moonClient *moonlight.Client, onEvent EventCallback, logger *zap.Logger) *Manager {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Manager{
+		workCtx: ctx, cancelWork: cancel, workDone: make(chan struct{}),
 		store:      st,
 		config:     cfg,
 		logger:     logger,
@@ -62,13 +70,20 @@ func (m *Manager) logIfErr(op string, err error) {
 // TryLockUpload attempts to acquire the global upload/extract lock.
 // Only one upload+extract pipeline can run at a time.
 func (m *Manager) TryLockUpload() (func(), error) {
+	m.workMu.Lock()
+	defer m.workMu.Unlock()
+	if m.closing {
+		return nil, errors.New("服务正在停止，不能开始上传")
+	}
 	if !m.uploadMu.TryLock() {
 		return nil, fmt.Errorf("当前有其他应用正在上传或解压中，请稍后再试")
 	}
 	m.uploading.Store(true)
+	m.workers.Add(1) // Include admitted HTTP uploads, not only their later extraction.
 	return func() {
 		m.uploading.Store(false)
 		m.uploadMu.Unlock()
+		m.workers.Done()
 	}, nil
 }
 
@@ -159,7 +174,18 @@ func (m *Manager) CreateApp(name, argsTemplate, args, exePath string, fileSize i
 // ProcessUploadComplete handles the post-upload pipeline: extract → detect → register.
 // Runs in a goroutine. unlockUpload releases the global upload lock when pipeline finishes.
 func (m *Manager) ProcessUploadComplete(appID string, archive *UploadArchive, unlockUpload func()) {
+	m.workMu.Lock()
+	if m.closing {
+		m.workMu.Unlock()
+		defer unlockUpload()
+		m.logIfErr("cleanup rejected upload", archive.Cleanup())
+		m.logIfErr("cancel upload status", m.updateStatus(appID, model.AppStatusError, "服务停止，上传处理已取消"))
+		return
+	}
+	m.workers.Add(1)
+	m.workMu.Unlock()
 	go func() {
+		defer m.workers.Done()
 		defer func() { m.logIfErr("cleanup upload archive", archive.Cleanup()) }()
 		defer func() {
 			if r := recover(); r != nil {
@@ -204,7 +230,7 @@ func (m *Manager) runPipeline(appID, archivePath string, unlockUpload func()) {
 		MaxFileCount:   m.config.Storage.MaxFileCount,
 	}
 
-	totalBytes, err := Extract(archivePath, app.AppDir, extractCfg)
+	totalBytes, err := ExtractContext(m.workCtx, archivePath, app.AppDir, extractCfg)
 	if err != nil {
 		os.RemoveAll(app.AppDir)
 		m.updateStatus(appID, model.AppStatusError, "解压失败: "+err.Error())
@@ -264,6 +290,10 @@ func (m *Manager) runPipeline(appID, archivePath string, unlockUpload func()) {
 	}
 
 	// Step 3: Register with Sunshine
+	if err := m.workCtx.Err(); err != nil {
+		m.logIfErr("cancel registration status", m.updateStatus(appID, model.AppStatusError, "服务停止，注册已取消"))
+		return
+	}
 	m.registerWithSunshine(appID)
 }
 
@@ -286,7 +316,7 @@ func (m *Manager) registerWithSunshine(appID string) error {
 		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(m.workCtx, 15*time.Second)
 	defer cancel()
 
 	// Variable substitution in args

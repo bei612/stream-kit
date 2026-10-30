@@ -5,6 +5,7 @@ import (
 	"archive/zip"
 	"compress/bzip2"
 	"compress/gzip"
+	"context"
 	"errors"
 	"fmt"
 	"hash"
@@ -36,6 +37,13 @@ func SupportedArchiveExtensions() []string { return append([]string(nil), archiv
 
 // Extract confines every format to an empty upload-owned directory.
 func Extract(archivePath, destDir string, cfg ExtractConfig) (int64, error) {
+	return ExtractContext(context.Background(), archivePath, destDir, cfg)
+}
+
+func ExtractContext(ctx context.Context, archivePath, destDir string, cfg ExtractConfig) (int64, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
 	if cfg.MaxExtractSize <= 0 || cfg.MaxFileCount <= 0 {
 		return 0, errors.New("解压大小和文件数量限制必须大于零")
 	}
@@ -64,7 +72,7 @@ func Extract(archivePath, destDir string, cfg ExtractConfig) (int64, error) {
 	if err != io.EOF {
 		return 0, errors.New("解压目标必须为空目录")
 	}
-	sink := &extractSink{root: root, destination: destDir, cfg: cfg, names: make(map[string]string)}
+	sink := &extractSink{root: root, destination: destDir, cfg: cfg, names: make(map[string]string), ctx: ctx}
 	file, err := os.Open(archivePath)
 	if err != nil {
 		return 0, err
@@ -74,9 +82,10 @@ func Extract(archivePath, destDir string, cfg ExtractConfig) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	source := &contextArchiveSource{ctx: ctx, file: file}
 	switch ext {
 	case ".zip":
-		reader, e := zip.NewReader(file, stat.Size())
+		reader, e := zip.NewReader(source, stat.Size())
 		if e != nil {
 			return 0, e
 		}
@@ -87,7 +96,7 @@ func Extract(archivePath, destDir string, cfg ExtractConfig) (int64, error) {
 		}
 	case ".7z":
 		// ReaderAt reads only this upload, never adjacent multipart files.
-		reader, e := sevenzip.NewReader(file, stat.Size())
+		reader, e := sevenzip.NewReader(source, stat.Size())
 		if e != nil {
 			return 0, e
 		}
@@ -104,11 +113,14 @@ func Extract(archivePath, destDir string, cfg ExtractConfig) (int64, error) {
 			}
 		}
 	case ".rar":
-		reader, e := rardecode.NewReader(file, rardecode.MaxDictionarySize(128<<20))
+		reader, e := rardecode.NewReader(source, rardecode.MaxDictionarySize(128<<20))
 		if e != nil {
 			return 0, e
 		}
 		for {
+			if err := ctx.Err(); err != nil {
+				return sink.bytes, err
+			}
 			header, e := reader.Next()
 			if e == io.EOF {
 				break
@@ -127,24 +139,24 @@ func Extract(archivePath, destDir string, cfg ExtractConfig) (int64, error) {
 			}
 		}
 	default:
-		var reader io.Reader = file
+		var reader io.Reader = source
 		switch ext {
 		case ".tar.gz", ".tgz":
-			gz, e := gzip.NewReader(file)
+			gz, e := gzip.NewReader(source)
 			if e != nil {
 				return 0, e
 			}
 			defer gz.Close()
 			reader = gz
 		case ".tar.bz2", ".tbz2":
-			reader = bzip2.NewReader(file)
+			reader = bzip2.NewReader(source)
 		case ".tar.xz", ".txz":
-			reader, err = (xz.ReaderConfig{DictCap: 128 << 20}).NewReader(file)
+			reader, err = (xz.ReaderConfig{DictCap: 128 << 20}).NewReader(source)
 			if err != nil {
 				return 0, err
 			}
 		case ".tar.zst", ".tzst":
-			z, e := zstd.NewReader(file, zstd.WithDecoderConcurrency(1), zstd.WithDecoderMaxMemory(128<<20))
+			z, e := zstd.NewReader(source, zstd.WithDecoderConcurrency(1), zstd.WithDecoderMaxMemory(128<<20))
 			if e != nil {
 				return 0, e
 			}
@@ -153,7 +165,7 @@ func Extract(archivePath, destDir string, cfg ExtractConfig) (int64, error) {
 		}
 		// TAR Next consumes PAX/GNU metadata internally. Bound the complete
 		// decompressed stream, not only file payloads that reach the sink.
-		reader = &archiveBudgetReader{reader: reader, remaining: tarDecodeBudget(cfg)}
+		reader = &contextArchiveReader{ctx: ctx, reader: &archiveBudgetReader{reader: reader, remaining: tarDecodeBudget(cfg)}}
 		tr := tar.NewReader(reader)
 		for {
 			header, e := tr.Next()
@@ -195,7 +207,37 @@ func Extract(archivePath, destDir string, cfg ExtractConfig) (int64, error) {
 			}
 		}
 	}
-	return sink.bytes, nil
+	return sink.bytes, ctx.Err()
+}
+
+type contextArchiveReader struct {
+	ctx    context.Context
+	reader io.Reader
+}
+
+func (r *contextArchiveReader) Read(p []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return r.reader.Read(p)
+}
+
+type contextArchiveSource struct {
+	ctx  context.Context
+	file *os.File
+}
+
+func (r *contextArchiveSource) Read(p []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return r.file.Read(p)
+}
+func (r *contextArchiveSource) ReadAt(p []byte, offset int64) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return r.file.ReadAt(p, offset)
 }
 
 type archiveChecksumReader struct {

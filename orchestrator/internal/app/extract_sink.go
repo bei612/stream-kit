@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -19,6 +20,7 @@ type extractSink struct {
 	count, files int
 	bytes        int64
 	entries      int
+	ctx          context.Context
 }
 
 func (s *extractSink) directory(name string) error {
@@ -46,6 +48,11 @@ func (s *extractSink) directory(name string) error {
 	return nil
 }
 func (s *extractSink) entry(raw string, mode os.FileMode, size uint64, open func() (io.ReadCloser, error)) error {
+	if s.ctx != nil {
+		if err := s.ctx.Err(); err != nil {
+			return err
+		}
+	}
 	// Count decoded entries even when a root or repeated directory creates no inode.
 	if s.entries >= s.cfg.MaxFileCount {
 		return errors.New("压缩包条目数量超限")
@@ -97,8 +104,15 @@ func (s *extractSink) entry(raw string, mode os.FileMode, size uint64, open func
 	// than allowing a malformed small entry to consume the entire archive quota.
 	// The declared size has already been checked against the remaining quota.
 	budget := &extractWriter{out: output, remaining: int64(size)}
-	written, copyErr := io.Copy(budget, input)
+	var source io.Reader = input
+	if s.ctx != nil {
+		source = &contextArchiveReader{ctx: s.ctx, reader: input}
+	}
+	written, copyErr := io.Copy(budget, source)
 	err = errors.Join(copyErr, input.Close(), output.Close())
+	if s.ctx != nil {
+		err = errors.Join(err, s.ctx.Err())
+	}
 	s.bytes += written
 	if err == nil && uint64(written) != size {
 		err = errors.New("压缩条目实际长度与声明不符")

@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 )
 
@@ -145,6 +146,13 @@ func main() {
 	)
 
 	// Repair interrupted workflows before any request or background worker.
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(shutdownTimeout)*time.Second)
+		defer cancel()
+		if err := appMgr.Shutdown(ctx); err != nil {
+			logger.Warn("等待上传处理退出超时", zap.Error(err))
+		}
+	}()
 	if err := appMgr.RecoverInterruptedOperations(); err != nil {
 		fatalWithPause("应用状态恢复失败: %v", err)
 	}
@@ -159,15 +167,21 @@ func main() {
 
 	// Graceful shutdown
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sigCh)
+	httpShutdownDone := make(chan struct{})
 
 	go func() {
+		defer close(httpShutdownDone)
 		<-sigCh
 		logger.Info("收到关闭信号，正在停止...")
 
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer shutdownCancel()
-		httpServer.Shutdown(shutdownCtx)
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			logger.Warn("HTTP 请求排空超时，关闭剩余连接", zap.Error(err))
+			_ = httpServer.Close()
+		}
 	}()
 
 	// Recover orphan child processes from previous unclean shutdown
@@ -200,6 +214,11 @@ func main() {
 
 	if err != nil && err != http.ErrServerClosed {
 		fatalWithPause("HTTP 服务异常退出: %v", err)
+	}
+	if err == http.ErrServerClosed {
+		// Shutdown returns only after admitted HTTP handlers have drained (or
+		// timed out); do not close their database while Shutdown is still running.
+		<-httpShutdownDone
 	}
 
 	logger.Info("Orchestrator 已停止")
