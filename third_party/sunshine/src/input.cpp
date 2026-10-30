@@ -2331,13 +2331,6 @@ namespace input {
       });
     }
 
-    // Workaround to ensure new frames will be captured when a client connects
-    task_pool.pushDelayed([]() {
-      platf::move_mouse(platf_input, 1, 1);
-      platf::move_mouse(platf_input, -1, -1);
-    },
-                          100ms);
-
     return input;
   }
 

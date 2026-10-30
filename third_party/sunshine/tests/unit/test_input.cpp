@@ -115,6 +115,17 @@ namespace {
   };
 }  // namespace
 
+TEST_F(InputGamepadSessionTest, ConnectingAndResumingDoesNotScheduleSyntheticInput) {
+  ASSERT_FALSE(task_pool.running());
+  ASSERT_FALSE(task_pool.next());
+  auto first = input::alloc(std::make_shared<safe::mail_raw_t>(), "passive-viewer");
+  ASSERT_NE(first, nullptr);
+  EXPECT_FALSE(task_pool.next());
+  auto resumed = input::alloc(std::make_shared<safe::mail_raw_t>(), "passive-viewer");
+  EXPECT_EQ(first, resumed);
+  EXPECT_FALSE(task_pool.next());
+}
+
 TEST(InputPacketValidationTest, RejectsEveryBufferShorterThanTheHeader) {
   for (std::size_t actual_size = 0; actual_size < sizeof(NV_INPUT_HEADER); ++actual_size) {
     const auto packet = make_input_packet(UTF8_TEXT_EVENT_MAGIC, sizeof(std::uint32_t), actual_size);
