@@ -48,6 +48,8 @@ async function main() {
     for(const width of [1440,390]) {
       const detail = {...apps[0],status:'ready',source:'local',exe_path:'C:\\Render\\Example.exe',args:'--initial',capture_mode:'application'};
       let failSettings = true;
+      const configuration = {revision:'config-1',restart_required:false,apply_policy:'service_restart',values:{server:{bind_address:'127.0.0.1:9000',password:'****'},storage:{max_file_count:1000},components:{gateway:{auto_start:true,env:{PRIVATE:'****'}}}},redacted_paths:['/server/password','/components/gateway/env/PRIVATE'],environment_overrides:[]};
+      let conflictConfiguration=true;
       const context = await browser.newContext({ viewport:{width,height:900}, locale:'zh-CN', reducedMotion:'reduce' });
       await context.routeWebSocket('**/api/v1/ws**', ws => { ws.onMessage(()=>{}); });
       await context.route('**/api/**', async route => {
@@ -79,6 +81,17 @@ async function main() {
         };
         else if(pathname === '/api/v1/logs') data = [];
         else if(pathname === '/api/v1/config') data = {server:{listen:'127.0.0.1:9000'}};
+        else if(pathname === '/api/v1/configuration') {
+          if(route.request().method()==='PATCH') {
+            const update=route.request().postDataJSON();
+            assert.equal(update.revision,configuration.revision);
+            assert.deepEqual(Object.keys(update.changes),['/storage/max_file_count']);
+            if(conflictConfiguration) { conflictConfiguration=false;return route.fulfill({status:409,json:{status:'error',message:'配置已被修改，请重新读取后再保存'}}); }
+            configuration.values.storage.max_file_count=update.changes['/storage/max_file_count'];
+            configuration.revision='config-2';configuration.restart_required=true;
+          }
+          data=configuration;
+        }
         else if(pathname === '/api/v1/audio-devices') data = {schema_version:1,observed_at_ms:Date.now(),devices:[
           {id:'wasapi:render-fixture',name:'虚拟音频 · 网关输出',input:false,output:true},
           {id:'wasapi:capture-fixture',name:'虚拟音频 · 应用输入',input:true,output:false},
@@ -125,6 +138,17 @@ async function main() {
           await page.getByLabel('目标程序读取端 · 输入设备',{exact:true}).selectOption('wasapi:capture-fixture');
         }
         if(name==='settings') {
+          await page.locator('summary').filter({hasText:'应用与存储'}).click();
+          await page.getByLabel('解压文件数上限',{exact:true}).fill('1500');
+          await page.getByRole('button',{name:'保存配置（1 项）',exact:true}).click();
+          await page.getByRole('alert').filter({hasText:'配置已被修改'}).waitFor();
+          assert.equal(await page.getByLabel('解压文件数上限',{exact:true}).inputValue(),'1500');
+          await page.getByRole('button',{name:'放弃修改并重新读取',exact:true}).click();
+          await page.waitForFunction(()=>document.querySelector('input[id="setting/storage/max_file_count"]')?.value==='1000');
+          await page.getByLabel('解压文件数上限',{exact:true}).fill('2000');
+          await page.getByRole('button',{name:'保存配置（1 项）',exact:true}).click();
+          await page.getByText('配置已保存。服务重启后生效，当前串流继续使用原配置。',{exact:true}).waitFor();
+          await page.getByText('存在待生效配置。请在维护时段通过服务管理器重启服务。',{exact:true}).waitFor();
           await page.getByRole('button',{name:'读取设备',exact:true}).click();
           await page.getByText('2 个设备 · 1 个应用绑定',{exact:true}).waitFor();
           await page.getByText('设备当前不可见',{exact:true}).waitFor();

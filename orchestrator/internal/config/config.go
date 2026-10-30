@@ -1,26 +1,31 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/viper"
 )
 
 type Config struct {
-	Server        ServerConfig               `json:"server" mapstructure:"server"`
-	Components    map[string]ComponentConfig `json:"components" mapstructure:"components"`
-	SunshineAPI   SunshineAPIConfig          `json:"sunshine_api" mapstructure:"sunshine_api"`
-	MoonlightWeb  MoonlightWebConfig         `json:"moonlight_web" mapstructure:"moonlight_web"`
-	Storage       StorageConfig              `json:"storage" mapstructure:"storage"`
-	Process       ProcessConfig              `json:"process" mapstructure:"process"`
-	Notifications NotificationsConfig        `json:"notifications" mapstructure:"notifications"`
-	Log           LogConfig                  `json:"log" mapstructure:"log"`
-	Templates     map[string]string          `json:"templates" mapstructure:"templates"`
+	sourcePath     string
+	sourceRevision string
+	Server         ServerConfig               `json:"server" mapstructure:"server"`
+	Components     map[string]ComponentConfig `json:"components" mapstructure:"components"`
+	SunshineAPI    SunshineAPIConfig          `json:"sunshine_api" mapstructure:"sunshine_api"`
+	MoonlightWeb   MoonlightWebConfig         `json:"moonlight_web" mapstructure:"moonlight_web"`
+	Storage        StorageConfig              `json:"storage" mapstructure:"storage"`
+	Process        ProcessConfig              `json:"process" mapstructure:"process"`
+	Notifications  NotificationsConfig        `json:"notifications" mapstructure:"notifications"`
+	Log            LogConfig                  `json:"log" mapstructure:"log"`
+	Templates      map[string]string          `json:"templates" mapstructure:"templates"`
 }
 
 type ServerConfig struct {
@@ -146,7 +151,11 @@ func Load(configPath string) (*Config, error) {
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 
-	if err := v.ReadInConfig(); err != nil {
+	source, err := os.ReadFile(absPath)
+	if err != nil {
+		return nil, fmt.Errorf("read config: %w", err)
+	}
+	if err := v.ReadConfig(bytes.NewReader(source)); err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
 
@@ -156,6 +165,7 @@ func Load(configPath string) (*Config, error) {
 	}
 
 	resolvePaths(&cfg)
+	cfg.sourcePath, cfg.sourceRevision = absPath, revision(source)
 
 	if errs := validate(&cfg); len(errs) > 0 {
 		return nil, fmt.Errorf("config validation errors:\n  %s", strings.Join(errs, "\n  "))
@@ -191,6 +201,10 @@ func validate(cfg *Config) []string {
 	}
 
 	check(cfg.Server.BindAddress == "", "server.bind_address 不能为空")
+	_, port, bindErr := net.SplitHostPort(cfg.Server.BindAddress)
+	portNumber, portErr := strconv.Atoi(port)
+	check(bindErr != nil || portErr != nil || portNumber < 1 || portNumber > 65535, "server.bind_address 必须包含有效主机与端口")
+	check((cfg.Server.TLSCert == "") != (cfg.Server.TLSKey == ""), "TLS 证书与私钥路径必须同时设置或清空")
 	check(cfg.Server.Username == "", "server.username 不能为空")
 	check(cfg.Server.Password == "", "server.password 不能为空")
 	check(cfg.Storage.AppsDir == "", "storage.apps_dir 不能为空")
@@ -200,6 +214,17 @@ func validate(cfg *Config) []string {
 	check(cfg.Storage.MaxExtractSize <= 0, "storage.max_extract_size_bytes 必须 > 0")
 	check(cfg.Storage.MaxFileCount <= 0, "storage.max_file_count 必须 > 0")
 	check(cfg.Process.MonitorInterval <= 0, "process.monitor_interval_seconds 必须 > 0")
+	check(cfg.Process.GracefulShutdownTimeout < 0, "process.graceful_shutdown_timeout_seconds 不能为负数")
+	for name, component := range cfg.Components {
+		prefix := "components." + name
+		check(component.RestartDelay < 0 || component.MaxRestartAttempts < 0, prefix+" 重启等待与次数不能为负数")
+		health := component.HealthCheck
+		if health.URL != "" {
+			check(!validServiceURL(health.URL), prefix+" 健康检查地址必须为无凭据的 HTTP(S) 地址")
+			check(health.IntervalSeconds <= 0 || health.TimeoutSeconds <= 0 || health.UnhealthyThreshold <= 0 || health.HealthyThreshold <= 0, prefix+" 健康检查间隔、超时和判定次数必须 > 0")
+		}
+	}
+	check(cfg.Log.File.MaxSizeMB < 0 || cfg.Log.File.MaxBackups < 0 || cfg.Log.File.MaxAgeDays < 0 || cfg.Log.OperationLog.MaxAgeDays < 0 || cfg.Log.OperationLog.MaxCount < 0, "日志保留限制不能为负数")
 	if cfg.Server.MediaTicketSecret != "" {
 		check(len(cfg.Server.MediaTicketSecret) < 32, "server.media_ticket_secret 必须至少 32 字节")
 		check(len(cfg.Server.JWTSecret) < 32, "托管串流必须配置至少 32 字节的 server.jwt_secret")

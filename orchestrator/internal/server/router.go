@@ -86,6 +86,8 @@ func (s *Server) setupRoutes() {
 	authed.Use(JWTAuthMiddleware(jwtSecret))
 
 	authed.GET("/config", h.GetConfig)
+	authed.GET("/configuration", h.Configuration)
+	authed.PATCH("/configuration", h.Configuration)
 	authed.GET("/templates", h.GetTemplates)
 	authed.GET("/logs", h.GetLogs)
 	authed.GET("/metrics", h.Metrics)

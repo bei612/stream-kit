@@ -1,7 +1,10 @@
 package handlers
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -19,14 +22,15 @@ var (
 )
 
 type SystemHandler struct {
-	Config  *config.Config
-	Store   *store.Store
-	CompMgr *component.Manager
-	Logger  *zap.Logger
+	Settings *config.Settings
+	Config   *config.Config
+	Store    *store.Store
+	CompMgr  *component.Manager
+	Logger   *zap.Logger
 }
 
 func NewSystemHandler(cfg *config.Config, st *store.Store, compMgr *component.Manager, logger *zap.Logger) *SystemHandler {
-	return &SystemHandler{Config: cfg, Store: st, CompMgr: compMgr, Logger: logger}
+	return &SystemHandler{Config: cfg, Settings: config.NewSettings(cfg), Store: st, CompMgr: compMgr, Logger: logger}
 }
 
 func (h *SystemHandler) Health(c *gin.Context) {
@@ -96,6 +100,42 @@ func (h *SystemHandler) Metrics(c *gin.Context) {
 func (h *SystemHandler) GetConfig(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
 	okResponse(c, h.Config.Sanitized())
+}
+
+func (h *SystemHandler) Configuration(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
+	var view *config.SettingsView
+	var err error
+	if c.Request.Method == http.MethodGet {
+		view, err = h.Settings.View()
+	} else {
+		var request struct {
+			Revision string                     `json:"revision"`
+			Changes  map[string]json.RawMessage `json:"changes"`
+		}
+		d := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, 1<<20))
+		d.DisallowUnknownFields()
+		if d.Decode(&request) != nil || d.Decode(new(any)) != io.EOF {
+			errResponse(c, 400, "CONFIG_INVALID", "配置请求格式无效")
+			return
+		}
+		view, err = h.Settings.Save(request.Revision, request.Changes)
+	}
+	if err != nil {
+		switch {
+		case errors.Is(err, config.ErrSettingsConflict):
+			errResponse(c, 409, "CONFIG_REVISION_CONFLICT", "配置已被修改，请重新读取后再保存")
+		case errors.Is(err, config.ErrSettingsUnavailable):
+			errResponse(c, 503, "CONFIG_SOURCE_UNAVAILABLE", "当前配置来源不可编辑")
+		default:
+			errResponse(c, 400, "CONFIG_INVALID", err.Error())
+		}
+		return
+	}
+	if c.Request.Method == http.MethodPatch && h.Store != nil {
+		h.Store.CreateLog("config", "system", "save", "success", "配置已保存，等待服务重启生效", nil)
+	}
+	okResponse(c, view)
 }
 
 func (h *SystemHandler) GetTemplates(c *gin.Context) {
