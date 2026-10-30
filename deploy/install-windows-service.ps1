@@ -4,9 +4,21 @@ param(
 )
 $ErrorActionPreference = "Stop"
 $binary = Join-Path $InstallRoot "orchestrator.exe"
-if (!(Test-Path $binary)) { throw "Missing $binary" }
-New-Item -ItemType Directory -Force (Split-Path $ConfigPath) | Out-Null
-if (!(Get-Service -Name StreamKitOrchestrator -ErrorAction SilentlyContinue)) {
-  New-Service -Name StreamKitOrchestrator -BinaryPathName "`"$binary`" --config `"$ConfigPath`"" -DisplayName "Stream-Kit Orchestrator" -StartupType Automatic
+if (!(Test-Path -LiteralPath $binary -PathType Leaf)) { throw "Missing $binary" }
+if (!(Test-Path -LiteralPath $ConfigPath -PathType Leaf)) { throw "Prepare the configuration before installing the service: $ConfigPath" }
+if (!(Test-Path -LiteralPath (Join-Path $InstallRoot 'dist/index.html') -PathType Leaf)) { throw 'The installed management page is missing' }
+$binary = (Resolve-Path -LiteralPath $binary).Path
+$ConfigPath = (Resolve-Path -LiteralPath $ConfigPath).Path
+$command = "`"$binary`" --config `"$ConfigPath`""
+$existing = Get-CimInstance Win32_Service -Filter "Name='StreamKitOrchestrator'"
+if ($existing -and $existing.PathName -ne $command) {
+  throw 'An existing StreamKitOrchestrator service uses different paths; migrate it explicitly before installing this bundle'
 }
+if (!$existing) {
+  New-Service -Name StreamKitOrchestrator -BinaryPathName $command -DisplayName "Stream-Kit Orchestrator" -StartupType Automatic
+}
+& "$env:SystemRoot/System32/sc.exe" failure StreamKitOrchestrator reset= 86400 actions= restart/5000/restart/15000/restart/60000
+if ($LASTEXITCODE -ne 0) { throw "Failed to configure service recovery: $LASTEXITCODE" }
+& "$env:SystemRoot/System32/sc.exe" failureflag StreamKitOrchestrator 1
+if ($LASTEXITCODE -ne 0) { throw "Failed to enable recovery for service errors: $LASTEXITCODE" }
 Start-Service StreamKitOrchestrator

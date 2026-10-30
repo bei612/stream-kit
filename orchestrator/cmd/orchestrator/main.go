@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"github.com/stream-kit/orchestrator/internal/app"
@@ -46,6 +47,18 @@ func main() {
 		}
 	}
 
+	if err := runPlatform(run); err != nil {
+		fatalError("%v", err)
+	}
+}
+
+func runConsole(run func(context.Context, func()) error) error {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+	return run(ctx, func() {})
+}
+
+func run(ctx context.Context, ready func()) error {
 	handlers.Version = version
 	handlers.Commit = commit
 	handlers.BuildTime = buildTime
@@ -59,7 +72,7 @@ func main() {
 
 	cfg, err := config.Load(configPath)
 	if err != nil {
-		fatalWithPause("配置加载失败: %v", err)
+		return fmt.Errorf("配置加载失败: %v", err)
 	}
 
 	logger := setupLogger(cfg)
@@ -74,24 +87,23 @@ func main() {
 		logger.Warn("正在使用默认用户名密码（admin/admin），请尽快在 config.json 中修改！")
 	}
 
-	// Single instance check: try to listen on the port early
-	// If another instance is running, the port will be occupied
-	// (actual server starts later, this is just a pre-check)
-	testListener, err := net.Listen("tcp", cfg.Server.BindAddress)
+	// Own the listening socket for the full lifecycle; do not close and rebind.
+	listener, err := net.Listen("tcp", cfg.Server.BindAddress)
 	if err != nil {
-		fatalWithPause("端口 %s 已被占用，可能另一个实例正在运行: %v", cfg.Server.BindAddress, err)
+		return fmt.Errorf("监听 %s 失败: %w", cfg.Server.BindAddress, err)
 	}
-	testListener.Close()
-
+	defer listener.Close()
 	// Ensure directories
 	for _, dir := range []string{cfg.Storage.AppsDir, cfg.Storage.TempDir, filepath.Dir(cfg.Storage.DBPath)} {
-		os.MkdirAll(dir, 0755)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("创建数据目录失败: %w", err)
+		}
 	}
 
 	// Database
 	st, err := store.New(cfg.Storage.DBPath)
 	if err != nil {
-		fatalWithPause("数据库初始化失败: %v", err)
+		return fmt.Errorf("数据库初始化失败: %v", err)
 	}
 	defer st.Close()
 
@@ -100,7 +112,7 @@ func main() {
 	defer wsHub.Close()
 	sessionMgr, err := session.NewManagerWithStore(wsHub, st)
 	if err != nil {
-		fatalWithPause("加载渲染会话失败: %v", err)
+		return fmt.Errorf("加载渲染会话失败: %v", err)
 	}
 
 	// Component Manager — with event callback wired to WebSocket
@@ -154,7 +166,7 @@ func main() {
 		}
 	}()
 	if err := appMgr.RecoverInterruptedOperations(); err != nil {
-		fatalWithPause("应用状态恢复失败: %v", err)
+		return fmt.Errorf("应用状态恢复失败: %v", err)
 	}
 
 	// HTTP server
@@ -165,17 +177,23 @@ func main() {
 		Handler: srv.Engine,
 	}
 
-	// Graceful shutdown
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-	defer signal.Stop(sigCh)
+	if cfg.Server.TLSCert != "" && cfg.Server.TLSKey != "" {
+		certificate, err := tls.LoadX509KeyPair(cfg.Server.TLSCert, cfg.Server.TLSKey)
+		if err != nil {
+			return fmt.Errorf("加载 TLS 证书失败: %w", err)
+		}
+		httpServer.TLSConfig = &tls.Config{Certificates: []tls.Certificate{certificate}, MinVersion: tls.VersionTLS12}
+	}
+	serveDone := make(chan struct{})
 	httpShutdownDone := make(chan struct{})
-
 	go func() {
 		defer close(httpShutdownDone)
-		<-sigCh
-		logger.Info("收到关闭信号，正在停止...")
-
+		select {
+		case <-ctx.Done():
+		case <-serveDone:
+			return
+		}
+		logger.Info("收到关闭请求，正在停止...")
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer shutdownCancel()
 		if err := httpServer.Shutdown(shutdownCtx); err != nil {
@@ -183,12 +201,11 @@ func main() {
 			_ = httpServer.Close()
 		}
 	}()
-
 	// Recover orphan child processes from previous unclean shutdown
 	compMgr.RecoverOrphanProcesses()
 
 	// Monitor streaming state (detects when apps start/stop via Sunshine)
-	streamCtx, streamCancel := context.WithCancel(context.Background())
+	streamCtx, streamCancel := context.WithCancel(ctx)
 	defer streamCancel()
 	if srv.MediaControl != nil {
 		util.SafeGo(logger, "media-state-reconciler", func() { srv.MediaControl.Run(streamCtx, logger) })
@@ -200,20 +217,31 @@ func main() {
 
 	// Auto-start components in background
 	util.SafeGo(logger, "auto-start", func() {
-		time.Sleep(500 * time.Millisecond)
+		select {
+		case <-streamCtx.Done():
+			return
+		case <-time.After(500 * time.Millisecond):
+		}
 		compMgr.StartAll()
 	})
 
+	if ctx.Err() != nil {
+		close(serveDone)
+		<-httpShutdownDone
+		return nil
+	}
+	ready()
 	// Start HTTP server
 	logger.Info("HTTP 服务启动", zap.String("address", cfg.Server.BindAddress))
 	if cfg.Server.TLSCert != "" && cfg.Server.TLSKey != "" {
-		err = httpServer.ListenAndServeTLS(cfg.Server.TLSCert, cfg.Server.TLSKey)
+		err = httpServer.ServeTLS(listener, "", "")
 	} else {
-		err = httpServer.ListenAndServe()
+		err = httpServer.Serve(listener)
 	}
 
+	close(serveDone)
 	if err != nil && err != http.ErrServerClosed {
-		fatalWithPause("HTTP 服务异常退出: %v", err)
+		return fmt.Errorf("HTTP 服务异常退出: %v", err)
 	}
 	if err == http.ErrServerClosed {
 		// Shutdown returns only after admitted HTTP handlers have drained (or
@@ -222,6 +250,7 @@ func main() {
 	}
 
 	logger.Info("Orchestrator 已停止")
+	return nil
 }
 
 func setupLogger(cfg *config.Config) *zap.Logger {
@@ -266,23 +295,26 @@ func setupLogger(cfg *config.Config) *zap.Logger {
 	return zap.New(zapcore.NewTee(cores...), zap.AddCaller())
 }
 
-// fatalWithPause writes error to stderr, a crash log file, and waits for user input on Windows.
-func fatalWithPause(format string, args ...interface{}) {
+// fatalError reports startup failure without blocking unattended service recovery.
+func fatalError(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 	fmt.Fprintln(os.Stderr, msg)
 
-	// Always write to a crash log next to the exe so even double-click users can find it
-	logPath := "orchestrator-error.log"
+	// Service working directories are not application-owned (often System32).
+	// Prefer the configured data location, otherwise the installed binary folder.
+	logDir := config.BaseDir
+	if logDir == "" {
+		if executable, err := os.Executable(); err == nil {
+			logDir = filepath.Dir(executable)
+		}
+	}
+	logPath := filepath.Join(logDir, "orchestrator-error.log")
 	entry := fmt.Sprintf("[%s] %s\n", time.Now().Format("2006-01-02 15:04:05"), msg)
 	f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err == nil {
 		f.WriteString(entry)
 		f.Close()
 	}
-
-	// Pause so Windows double-click users can read the error
-	fmt.Println("\n按 Enter 键退出...")
-	fmt.Scanln()
 	os.Exit(1)
 }
 

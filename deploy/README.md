@@ -24,4 +24,30 @@ The Linux unit runs the pinned Orchestrator binary with a dedicated service acco
 
 On Windows, run `install-windows-service.ps1` from an elevated PowerShell after placing `orchestrator.exe` in the install root. The service is configured for automatic restart by the Windows Service Control Manager.
 
+The executable detects SCM launch through the vendored `x/sys/windows/svc`
+implementation. It reports startup pending until configuration, persistence,
+TLS and the HTTP listener are initialized; stop and shutdown requests cancel the
+same runtime used by console signal handling. Stop remains pending until HTTP
+draining and owned resource cleanup complete. Startup errors return a nonzero
+service result without waiting for keyboard input. Pending operations report
+checkpoints to SCM. The listener is owned continuously from startup through
+shutdown, rather than being probed, closed and reopened.
+
+The Windows installer requires an existing configuration and management page,
+rejects an existing same-named service with different launch paths, and configures
+failure recovery delays of 5, 15 and 60 seconds. It does not silently migrate an
+existing installation. Recovery includes nonzero service-specific exits.
+
+Validation on 2026-10-31 includes simulated SCM start/stop/shutdown/interrogate
+and failure transitions, plus actual HTTP and certificate-verified HTTPS runtime
+startup, health requests, cancellation, listener closure and SQLite release.
+Go tests and Windows lifecycle race tests passed, and Windows/Linux amd64 builds
+passed. The first local race-test link attempt failed because the UCRT toolchain
+directory was absent from PATH; using the existing UCRT toolchain environment
+resolved it. No service was installed, restarted or removed for these checks.
+Actual SCM/systemd installation remains unverified. On Windows, running the
+control plane as a service does not prove that render processes in session 0 can
+capture an interactive user's desktop; interactive rendering deployment still
+requires separate verification and appropriate process-session ownership.
+
 TLS termination should be provided by the deployment ingress; the Orchestrator bind address must remain private when TLS is terminated outside the process.
