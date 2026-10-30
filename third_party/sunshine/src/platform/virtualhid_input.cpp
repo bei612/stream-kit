@@ -973,6 +973,27 @@ namespace platf::virtualhid {
     log_failure("submit libvirtualhid pen state"sv, context.pen->place_tool(state));
   }
 
+  void reset_pointer_state(client_context_t &context) {
+    cancel_all_touches(context);
+    if (!context.touch) {
+      context.active_touches.clear();
+    }
+    if (context.pen) {
+      for (const auto button : context.pressed_pen_buttons) {
+        log_failure("release libvirtualhid pen button"sv, context.pen->button(button, false));
+      }
+      auto state = context.pen->last_submitted_tool();
+      if (state.viewport.width > 0 && state.viewport.height > 0 &&
+          state.transition != lvh::PointerTransition::cancel && state.transition != lvh::PointerTransition::leave) {
+        state.transition = lvh::PointerTransition::cancel;
+        state.pressure = -1.0F;
+        state.distance = 0.0F;
+        log_failure("cancel libvirtualhid pen tool"sv, context.pen->place_tool(state));
+      }
+    }
+    context.pressed_pen_buttons.clear();
+  }
+
   bool configured_gamepad_supports_touchpad() {
     if (config::input.gamepad == "auto"sv) {
       return true;

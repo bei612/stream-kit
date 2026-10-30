@@ -87,6 +87,12 @@ namespace input {
 
 #ifdef SUNSHINE_TESTS
   namespace testing {
+    /** @brief Access retained client devices for fake-backend lifecycle tests. @param input Stream context. @return Client platform context. */
+    platf::client_input_t *client_context(const std::shared_ptr<input_t> &input);
+
+    /** @brief Run the disconnect cleanup synchronously in a test. @param input Stream context. */
+    void reset_input_state(const std::shared_ptr<input_t> &input);
+
     /**
      * @brief Replace the global platform input backend for a unit test.
      *

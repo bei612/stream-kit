@@ -166,6 +166,44 @@ TEST_F(InputGamepadSessionTest, ApplicationMappingFailsClosedAndResumeRequiresFr
   EXPECT_FALSE(input::testing::map_client_pointer(resumed, {100, 100}, {800, 600}));
 }
 
+TEST_F(InputGamepadSessionTest, RebindInvalidMappingAndDisconnectCancelRetainedPointers) {
+  auto mailbox = std::make_shared<safe::mail_raw_t>();
+  auto stream = input::alloc(mailbox, "pointer-cleanup");
+  auto &devices = platf::virtualhid::get_client_context(input::testing::client_context(stream));
+  const platf::touch_port_t viewport {0, 0, 800, 600, 800, 600};
+  const auto press = [&]() {
+    platf::virtualhid::touch_update(devices, viewport, {LI_TOUCH_EVENT_DOWN, 0, 7, 0.5F, 0.5F, 1.0F, 0.0F, 0.0F});
+    platf::virtualhid::pen_update(devices, viewport, {LI_TOUCH_EVENT_DOWN, LI_TOOL_TYPE_PEN, LI_PEN_BUTTON_PRIMARY, 0, 0, 0.5F, 0.5F, 1.0F, 0.0F, 0.0F});
+    ASSERT_FALSE(devices.active_touches.empty());
+    ASSERT_FALSE(devices.pressed_pen_buttons.empty());
+  };
+  const auto expect_cancelled = [&]() {
+    EXPECT_TRUE(devices.active_touches.empty());
+    EXPECT_TRUE(devices.pressed_pen_buttons.empty());
+    EXPECT_EQ(devices.pen->last_submitted_tool().transition, lvh::PointerTransition::cancel);
+  };
+  press();
+  auto resumed = input::alloc(mailbox, "pointer-cleanup");
+  ASSERT_EQ(resumed, stream);
+  expect_cancelled();
+
+  press();
+  EXPECT_FALSE(input::testing::map_client_pointer(stream, {100, 100}, {800, 600}));
+  expect_cancelled();
+
+  auto target = std::make_shared<unavailable_input_target_t>();
+  resumed = input::alloc(mailbox, "pointer-cleanup", target);
+  const input::touch_port_t mapped_viewport {{0, 0, 800, 600, 0, 0}, 1920, 1080, 0, 0, 1, 1, 0, 0};
+  mailbox->event<input::touch_port_t>(mail::touch_port)->raise(mapped_viewport);
+  press();
+  EXPECT_FALSE(input::testing::map_client_pointer(stream, {100, 100}, {800, 600}));
+  expect_cancelled();
+
+  press();
+  input::testing::reset_input_state(stream);
+  expect_cancelled();
+}
+
 TEST(InputPacketValidationTest, RejectsEveryBufferShorterThanTheHeader) {
   for (std::size_t actual_size = 0; actual_size < sizeof(NV_INPUT_HEADER); ++actual_size) {
     const auto packet = make_input_packet(UTF8_TEXT_EVENT_MAGIC, sizeof(std::uint32_t), actual_size);

@@ -868,6 +868,51 @@ TEST_F(VirtualHidDeviceTest, TranslatesPenButtonsToolsAndTransitions) {
   platf::virtualhid::pen_update(*client(), viewport, pen);
 }
 
+TEST_F(VirtualHidDeviceTest, ResetCancelsPointersWithoutReplacingDevicesOrViewport) {
+  const platf::touch_port_t viewport {10, 20, 800, 600, 400, 300};
+  platf::touch_input_t touch {LI_TOUCH_EVENT_DOWN, 0, 7, 0.25F, 0.5F, 0.8F, 0.0F, 0.0F};
+  platf::virtualhid::touch_update(*client(), viewport, touch);
+  touch.pointerId = 8;
+  platf::virtualhid::touch_update(*client(), viewport, touch);
+  platf::pen_input_t pen {LI_TOUCH_EVENT_DOWN, LI_TOOL_TYPE_PEN, LI_PEN_BUTTON_PRIMARY,
+                        0, 0, 0.25F, 0.5F, 0.8F, 0.0F, 0.0F};
+  platf::virtualhid::pen_update(*client(), viewport, pen);
+  const auto touchscreen = client()->touch.get();
+  const auto tablet = client()->pen.get();
+  const auto touch_submissions = touchscreen->submit_count();
+  const auto pen_submissions = tablet->submit_count();
+
+  platf::virtualhid::reset_pointer_state(*client());
+  EXPECT_TRUE(client()->active_touches.empty());
+  EXPECT_TRUE(client()->pressed_pen_buttons.empty());
+  EXPECT_EQ(client()->touch.get(), touchscreen);
+  EXPECT_EQ(client()->pen.get(), tablet);
+  EXPECT_EQ(touchscreen->submit_count(), touch_submissions + 2);
+  EXPECT_EQ(tablet->submit_count(), pen_submissions + 2);
+  const auto state = tablet->last_submitted_tool();
+  EXPECT_EQ(state.transition, lvh::PointerTransition::cancel);
+  EXPECT_EQ(state.viewport.offset_x, 10);
+  EXPECT_EQ(state.viewport.offset_y, 20);
+  EXPECT_EQ(state.viewport.width, 800);
+  EXPECT_EQ(state.viewport.height, 600);
+  EXPECT_FLOAT_EQ(state.x, 0.25F);
+  EXPECT_FLOAT_EQ(state.y, 0.5F);
+
+  platf::virtualhid::reset_pointer_state(*client());
+  EXPECT_EQ(touchscreen->submit_count(), touch_submissions + 2);
+  EXPECT_EQ(tablet->submit_count(), pen_submissions + 2);
+}
+
+TEST_F(VirtualHidDeviceTest, ResetClearsBookkeepingWhenPointerDevicesAreUnavailable) {
+  client()->touch.reset();
+  client()->pen.reset();
+  client()->active_touches.insert(7);
+  client()->pressed_pen_buttons.insert(lvh::PenButton::primary);
+  platf::virtualhid::reset_pointer_state(*client());
+  EXPECT_TRUE(client()->active_touches.empty());
+  EXPECT_TRUE(client()->pressed_pen_buttons.empty());
+}
+
 TEST_F(VirtualHidDeviceTest, PlatformWrappersForwardToVirtualHidContext) {
   auto platform_input = platf::input();
   ASSERT_TRUE(platform_input);

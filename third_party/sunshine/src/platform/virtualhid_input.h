@@ -310,6 +310,12 @@ namespace platf::virtualhid {
   void pen_update(client_context_t &context, const touch_port_t &touch_port, const pen_input_t &pen);
 
   /**
+   * @brief Cancel retained touch contacts, pen tool and buttons without new coordinates.
+   * @param context Per-client pointer state, retained across reconnects.
+   */
+  void reset_pointer_state(client_context_t &context);
+
+  /**
    * @brief Return whether the configured gamepad profile can expose touchpad input.
    *
    * @return True when controller touchpad input should be advertised.

@@ -409,6 +409,7 @@ namespace input {
    * @param target Capture identity for the resumed application.
    */
   void rebind_input(const std::shared_ptr<input_t> &input, const safe::mail_t &mail, capture::target_ptr target) {
+    platf::virtualhid::reset_pointer_state(platf::virtualhid::get_client_context(input->client_context.get()));
     input->target = std::move(target);
     input->touch_port = {};
     input->touch_port_event = mail->event<input::touch_port_t>(mail::touch_port);
@@ -745,6 +746,7 @@ namespace input {
       touch_port = *touch_port_event->pop();
     }
     if (!touch_port) {
+      platf::virtualhid::reset_pointer_state(platf::virtualhid::get_client_context(input->client_context.get()));
       BOOST_LOG(verbose) << "Ignoring early absolute input without a touch port"sv;
       return std::nullopt;
     }
@@ -752,6 +754,7 @@ namespace input {
     if (input->target) {
       const auto origin = capture::input_origin(input->target);
       if (!origin) {
+        platf::virtualhid::reset_pointer_state(platf::virtualhid::get_client_context(input->client_context.get()));
         return std::nullopt;
       }
       touch_port.offset_x = origin->first;
@@ -1390,6 +1393,7 @@ namespace input {
   template<typename Packet>
   std::optional<absolute_pointer_data_t> prepare_absolute_pointer_data(std::shared_ptr<input_t> &input, Packet packet) {
     if (!config::input.mouse) {
+      platf::virtualhid::reset_pointer_state(platf::virtualhid::get_client_context(input->client_context.get()));
       return std::nullopt;
     }
 
@@ -2218,6 +2222,7 @@ namespace input {
    * @param input Retained stream input state to reset.
    */
   void reset_input_state(const std::shared_ptr<input_t> &input) {
+    platf::virtualhid::reset_pointer_state(platf::virtualhid::get_client_context(input->client_context.get()));
     reset_mouse_buttons();
     reset_keyboard_keys();
     reset_gamepads(input);
@@ -2355,6 +2360,14 @@ namespace input {
 
 #ifdef SUNSHINE_TESTS
   namespace testing {
+    platf::client_input_t *client_context(const std::shared_ptr<input_t> &input) {
+      return input->client_context.get();
+    }
+
+    void reset_input_state(const std::shared_ptr<input_t> &input) {
+      ::input::reset_input_state(input);
+    }
+
     std::optional<std::pair<float, float>> map_client_pointer(std::shared_ptr<input_t> &input, std::pair<float, float> value, std::pair<float, float> size) {
       return client_to_touchport(input, value, size);
     }
