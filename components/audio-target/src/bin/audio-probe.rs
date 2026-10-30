@@ -27,6 +27,8 @@ struct Command {
     op: String,
     #[serde(default)]
     device_id: String,
+    #[serde(default)]
+    frequency_hz: Option<f64>,
 }
 
 #[derive(Default)]
@@ -230,6 +232,19 @@ impl Probe {
                     .map_err(|e| e.to_string());
             }
             "status" => return Ok(self.status()),
+            "analyze" => {
+                if self.active.is_some() {
+                    return Err("Stop the current test before analyzing recorded audio".into());
+                }
+                let frequency = command
+                    .frequency_hz
+                    .ok_or("Specify an analysis frequency")?;
+                let recording = self.recording.lock().map_err(|_| "Recording unavailable")?;
+                let analysis =
+                    stream_kit_audio_target::analysis::analyze_tone(&recording.samples, frequency)
+                        .map_err(str::to_owned)?;
+                return Ok(json!(analysis));
+            }
             "stop" => {
                 self.active = None;
                 return Ok(self.status());
@@ -413,12 +428,32 @@ mod tests {
                         schema_version: version,
                         id: 1,
                         op: op.into(),
-                        device_id: id.into()
+                        device_id: id.into(),
+                        frequency_hz: None,
                     })
                     .is_err()
             );
             assert!(probe.active.is_none());
         }
+    }
+    #[test]
+    fn recording_analysis_uses_pcm_without_opening_an_audio_device() {
+        let mut probe = Probe::default();
+        let command = Command {
+            schema_version: 1,
+            id: 1,
+            op: "analyze".into(),
+            device_id: String::new(),
+            frequency_hz: Some(997.0),
+        };
+        assert!(probe.execute(&command).is_err());
+        let samples: Vec<f32> = (0..RATE).map(|i| Playback::Tone.sample(i)).collect();
+        probe.recording.lock().unwrap().consume(&samples, 1);
+        let result = probe.execute(&command).unwrap();
+        assert_eq!(result["analyzed_frames"], RATE);
+        assert!(result["peak_amplitude"].as_f64().unwrap() > 0.079);
+        assert!(probe.active.is_none());
+        assert_eq!(probe.recording.lock().unwrap().samples.len(), RATE);
     }
     #[test]
     fn output_has_fixed_duration_bounded_level_and_silent_tail() {

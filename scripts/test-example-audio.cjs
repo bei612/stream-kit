@@ -13,11 +13,11 @@ async function run() {
   const exit = new Promise((resolve, reject) => { child.once('error', reject); child.once('exit', (code, signal) => resolve({code,signal})); });
   const lines = readline.createInterface({ input: child.stdout });
   lines.on('line', line => { const message=JSON.parse(line); pending.get(message.id)?.(message); pending.delete(message.id); });
-  const command = (op, device_id, schema_version=1) => new Promise((resolve,reject) => {
+  const command = (op, device_id, schema_version=1, frequency_hz) => new Promise((resolve,reject) => {
     const commandID=++id;
     const timeout=setTimeout(()=>reject(new Error(`audio command timeout: ${op}`)),5000);
     pending.set(commandID, message=>{ clearTimeout(timeout); resolve(message); });
-    child.stdin.write(JSON.stringify({schema_version,id:commandID,op,device_id})+'\n');
+    child.stdin.write(JSON.stringify({schema_version,id:commandID,op,device_id,frequency_hz})+'\n');
   });
   try {
     const catalog=await command('devices');
@@ -29,6 +29,9 @@ async function run() {
     }
     assert.match((await command('status',undefined,2)).error,/protocol version/);
     assert.match((await command('unknown')).error,/Unknown probe command/);
+    assert.match((await command('analyze')).error,/Specify an analysis frequency/);
+    assert.match((await command('analyze',undefined,1,1499)).error,/recorded audio/);
+    assert.match((await command('analyze',undefined,1,24000)).error,/frequency/);
     const state=(await command('status')).data;
     assert.equal(state.state,'idle'); assert.equal(state.captured_frames,0); assert.equal(state.played_frames,0);
     assert.equal((await command('stop')).data.state,'idle');

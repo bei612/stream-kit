@@ -1,5 +1,6 @@
 //! Native rendering-node microphone output. A route names both sides of a
 //! provisioned virtual device; opening it never changes system default devices.
+pub mod analysis;
 mod pcm;
 
 use cpal::{
