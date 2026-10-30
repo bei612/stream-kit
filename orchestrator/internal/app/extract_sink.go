@@ -87,7 +87,10 @@ func (s *extractSink) entry(raw string, mode os.FileMode, size uint64, open func
 		input.Close()
 		return err
 	}
-	budget := &extractWriter{out: output, remaining: s.cfg.MaxExtractSize - s.bytes}
+	// Reject overproducing decoders at this entry's declared boundary, rather
+	// than allowing a malformed small entry to consume the entire archive quota.
+	// The declared size has already been checked against the remaining quota.
+	budget := &extractWriter{out: output, remaining: int64(size)}
 	written, copyErr := io.Copy(budget, input)
 	err = errors.Join(copyErr, input.Close(), output.Close())
 	s.bytes += written
