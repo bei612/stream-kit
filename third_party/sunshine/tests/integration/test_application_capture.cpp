@@ -187,7 +187,14 @@ namespace {
                 reinterpret_cast<LPARAM>(&resize));
     ASSERT_NE(resize.window, nullptr);
     const auto old_width = display->width;
-    ASSERT_TRUE(SetWindowPos(resize.window, nullptr, 0, 0, 920, 700, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE));
+    RECT old_bounds {};
+    ASSERT_TRUE(GetWindowRect(resize.window, &old_bounds));
+    // Query and resize in the same DPI coordinate space; the example's initial
+    // window may already be larger than a fixed test size.
+    ASSERT_TRUE(SetWindowPos(resize.window, nullptr, 0, 0,
+                            old_bounds.right - old_bounds.left + 160,
+                            old_bounds.bottom - old_bounds.top + 120,
+                            SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE));
     const auto resized_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
     EXPECT_EQ(display->capture([&](auto &&, bool) {
       return std::chrono::steady_clock::now() < resized_deadline;
@@ -272,16 +279,26 @@ namespace {
     ASSERT_TRUE(PostMessageW(example, WM_COMMAND, MAKEWPARAM(213, BN_CLICKED), reinterpret_cast<LPARAM>(GetDlgItem(example, 213))));
 
     std::vector<float> samples;
-    const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(4);
+    const auto started = std::chrono::steady_clock::now();
+    const auto until = started + std::chrono::seconds(4);
+    int timeouts = 0;
+    double first_packet_ms = -1;
+    double last_packet_ms = -1;
     while (std::chrono::steady_clock::now() < until) {
       std::vector<float> packet(480);
       const auto status = microphone->sample(packet);
       ASSERT_NE(status, platf::capture_e::error);
       ASSERT_NE(status, platf::capture_e::reinit);
       if (status == platf::capture_e::ok) {
+        last_packet_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count();
+        if (first_packet_ms < 0) {
+          first_packet_ms = last_packet_ms;
+        }
         for (std::size_t i = 0; i < packet.size(); i += 2) {
           samples.push_back((packet[i] + packet[i + 1]) * 0.5f);
         }
+      } else if (status == platf::capture_e::timeout) {
+        ++timeouts;
       }
       ASSERT_LT(samples.size(), 48000U * 8U) << "Capture emitted faster than the audio clock";
     }
@@ -289,6 +306,10 @@ namespace {
     std::vector<float> retired_packet(480);
     EXPECT_EQ(microphone->sample(retired_packet), platf::capture_e::error);
     microphone.reset();
+    RecordProperty("captured_frames", std::to_string(samples.size()));
+    RecordProperty("first_packet_ms", std::to_string(first_packet_ms));
+    RecordProperty("last_packet_ms", std::to_string(last_packet_ms));
+    RecordProperty("capture_timeouts", timeouts);
     // Four seconds must remain four seconds of PCM, including silent intervals.
     ASSERT_GT(samples.size(), 48000U * 38U / 10U);
     ASSERT_LT(samples.size(), 48000U * 42U / 10U);
@@ -305,7 +326,6 @@ namespace {
     const auto amplitude = 2.0 * std::hypot(real, imaginary) / samples.size();
     RecordProperty("rms", std::to_string(rms));
     RecordProperty("tone_997hz_amplitude", std::to_string(amplitude));
-    RecordProperty("captured_frames", std::to_string(samples.size()));
     EXPECT_GT(rms, 0.005);
     EXPECT_GT(amplitude, 0.005);
   }

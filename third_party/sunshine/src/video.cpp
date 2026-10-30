@@ -2440,14 +2440,26 @@ namespace video {
     auto idr_events = mail->event<bool>(mail::idr);
     auto invalidate_ref_frames_events = mail->event<std::pair<int64_t, int64_t>>(mail::invalidate_ref_frames);
 
+    // One-time startup markers distinguish capture, GPU conversion and encoder
+    // stalls without collecting per-frame telemetry.
+    bool trace_first_image = static_cast<bool>(config.capture_target);
+    bool trace_first_encode = trace_first_image;
+
     {
       // Load a dummy image into the AVFrame to ensure we have something to encode
       // even if we timeout waiting on the first frame. This is a relatively large
       // allocation which can be freed immediately after convert(), so we do this
       // in a separate scope.
+      if (trace_first_image) {
+        BOOST_LOG(info) << "Application video startup: preparing initial GPU image";
+      }
       auto dummy_img = disp->alloc_img();
       if (!dummy_img || disp->dummy_img(dummy_img.get()) || session->convert(*dummy_img)) {
+        BOOST_LOG(error) << "Video startup failed to prepare initial image";
         return;
+      }
+      if (trace_first_image) {
+        BOOST_LOG(info) << "Application video startup: initial GPU image ready";
       }
     }
 
@@ -2475,9 +2487,16 @@ namespace video {
       if (!requested_idr_frame || images->peek()) {
         if (auto img = images->pop(max_frametime)) {
           frame_timestamp = img->frame_timestamp;
+          if (trace_first_image) {
+            BOOST_LOG(info) << "Application video startup: first captured image received, converting";
+          }
           if (session->convert(*img)) {
             BOOST_LOG(error) << "Could not convert image"sv;
             return;
+          }
+          if (trace_first_image) {
+            BOOST_LOG(info) << "Application video startup: first captured image converted";
+            trace_first_image = false;
           }
         } else if (!images->running()) {
           break;
@@ -2498,9 +2517,16 @@ namespace video {
         break;
       }
 
+      if (trace_first_encode) {
+        BOOST_LOG(info) << "Application video startup: submitting first encoder frame";
+      }
       if (encode(frame_nr++, *session, packets, channel_data, frame_timestamp)) {
         BOOST_LOG(error) << "Could not encode video packet"sv;
         return;
+      }
+      if (trace_first_encode) {
+        BOOST_LOG(info) << "Application video startup: first encode call completed";
+        trace_first_encode = false;
       }
 
       session->request_normal_frame();

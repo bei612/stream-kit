@@ -115,6 +115,13 @@ main().catch(error=>{result.error=error.message;process.exitCode=1;}).finally(as
     child.kill(); await exited;
   }
   result.finished_at=new Date().toISOString();
+  // Sparse native startup markers identify which media stage completed even
+  // when browser acceptance times out. Absence is not interpreted as success.
+  const encoderLog = path.join(output,'sunshine.log');
+  if (fs.existsSync(encoderLog)) {
+    result.encoder_startup = fs.readFileSync(encoderLog,'utf8').split(/\r?\n/)
+      .filter(line=>line.includes('Application video startup:') || line.includes('Video startup failed to prepare initial image'));
+  }
   fs.writeFileSync(path.join(output,'result.json'),JSON.stringify(result,null,2));
   console.log(JSON.stringify({...result,output}));
 });
