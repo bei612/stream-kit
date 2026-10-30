@@ -176,6 +176,15 @@ namespace {
 
     const auto origin_before = capture::input_origin(target_);
     ASSERT_TRUE(origin_before);
+    const capture::input_viewport_t captured_viewport {display->capture_renderer, display->width, display->height};
+    EXPECT_EQ(captured_viewport.renderer, renderer);
+    EXPECT_EQ(capture::input_origin(target_, &captured_viewport), origin_before);
+    auto invalid_viewport = captured_viewport;
+    invalid_viewport.renderer.reset();
+    EXPECT_FALSE(capture::input_origin(target_, &invalid_viewport));
+    invalid_viewport = captured_viewport;
+    invalid_viewport.width = 0;
+    EXPECT_FALSE(capture::input_origin(target_, &invalid_viewport));
     EXPECT_EQ(origin_before->first, display->offset_x);
     EXPECT_EQ(origin_before->second, display->offset_y);
     const auto window = reinterpret_cast<HWND>(renderer->window_handle());
@@ -185,6 +194,7 @@ namespace {
                             SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE));
     const auto moved_origin = capture::input_origin(target_);
     ASSERT_TRUE(moved_origin);
+    EXPECT_EQ(capture::input_origin(target_, &captured_viewport), moved_origin);
     EXPECT_NE(moved_origin->first, origin_before->first);
     EXPECT_NE(moved_origin->second, origin_before->second);
     EXPECT_EQ(target_->renderer(), renderer);
@@ -219,6 +229,7 @@ namespace {
                             old_bounds.right - old_bounds.left + 160,
                             old_bounds.bottom - old_bounds.top + 120,
                             SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE));
+    EXPECT_FALSE(capture::input_origin(target_, &captured_viewport));
     const auto resized_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
     EXPECT_EQ(display->capture([&](auto &&, bool) {
       return std::chrono::steady_clock::now() < resized_deadline;
@@ -233,6 +244,9 @@ namespace {
     display = platf::display(platf::mem_type_e::system, "", config);
     ASSERT_NE(display, nullptr);
     EXPECT_GT(display->width, old_width);
+    const capture::input_viewport_t resized_viewport {display->capture_renderer, display->width, display->height};
+    EXPECT_TRUE(capture::input_origin(target_, &resized_viewport));
+    EXPECT_FALSE(capture::input_origin(target_, &captured_viewport));
     target_->retire();
     EXPECT_EQ(target_->renderer(), nullptr);
     EXPECT_FALSE(capture::input_origin(target_));

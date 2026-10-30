@@ -680,6 +680,7 @@ namespace platf {
    */
   class display_t {
   public:
+    capture::renderer_ptr capture_renderer;  ///< Application renderer used by this capture instance; empty for desktops.
     /**
      * @brief Callback for when a new image is ready.
      * When display has a new image ready or a timeout occurs, this callback will be called with the image.

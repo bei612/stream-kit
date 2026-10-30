@@ -14,6 +14,7 @@
 #include <vector>
 
 // local includes
+#include "capture_input.h"
 #include "platform/common.h"
 #include "thread_safe.h"
 
@@ -196,6 +197,7 @@ namespace input {
 
     int env_logical_width;  ///< Width of the full capture environment after display scaling.
     int env_logical_height;  ///< Height of the full capture environment after display scaling.
+    capture::input_viewport_t capture_viewport;  ///< Renderer and source dimensions used to build this mapping.
 
     /**
      * @brief Check whether the touch-port bounds are initialized.

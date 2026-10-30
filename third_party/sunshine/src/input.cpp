@@ -752,7 +752,7 @@ namespace input {
     }
 
     if (input->target) {
-      const auto origin = capture::input_origin(input->target);
+      const auto origin = capture::input_origin(input->target, &touch_port.capture_viewport);
       if (!origin) {
         platf::virtualhid::reset_pointer_state(platf::virtualhid::get_client_context(input->client_context.get()));
         return std::nullopt;

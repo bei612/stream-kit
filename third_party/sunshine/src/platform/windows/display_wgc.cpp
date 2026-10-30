@@ -168,6 +168,7 @@ namespace platf::dxgi {
         }
         display->width = display->width_before_rotation = content_size.Width;
         display->height = display->height_before_rotation = content_size.Height;
+        display->capture_renderer = application_renderer;
         display->display_rotation = DXGI_MODE_ROTATION_IDENTITY;
         RECT bounds {};
         if (FAILED(DwmGetWindowAttribute(application_window, DWMWA_EXTENDED_FRAME_BOUNDS, &bounds, sizeof(bounds)))) {

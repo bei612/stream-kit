@@ -12,12 +12,15 @@
   #include <windows.h>
 
 namespace capture {
-  std::optional<std::pair<int, int>> input_origin(const target_ptr &target) {
+  std::optional<std::pair<int, int>> input_origin(const target_ptr &target, const input_viewport_t *viewport) {
     if (!target || !target->alive()) {
       return std::nullopt;
     }
     const auto renderer = target->renderer();
     if (!renderer || !renderer->alive() || !target->contains(renderer->process_id())) {
+      return std::nullopt;
+    }
+    if (viewport && (viewport->renderer != renderer || viewport->width <= 0 || viewport->height <= 0)) {
       return std::nullopt;
     }
     const auto window = reinterpret_cast<HWND>(renderer->window_handle());
@@ -33,6 +36,9 @@ namespace capture {
       return std::nullopt;
     }
     if (!target->alive() || !renderer->alive() || bounds.right <= bounds.left || bounds.bottom <= bounds.top) {
+      return std::nullopt;
+    }
+    if (viewport && (viewport->width != bounds.right - bounds.left || viewport->height != bounds.bottom - bounds.top)) {
       return std::nullopt;
     }
     return std::pair {bounds.left - GetSystemMetrics(SM_XVIRTUALSCREEN), bounds.top - GetSystemMetrics(SM_YVIRTUALSCREEN)};
@@ -262,7 +268,7 @@ namespace capture {
 }  // namespace capture
 #else
 namespace capture {
-  std::optional<std::pair<int, int>> input_origin(const target_ptr &) {
+  std::optional<std::pair<int, int>> input_origin(const target_ptr &, const input_viewport_t *) {
     return std::nullopt;
   }
 
