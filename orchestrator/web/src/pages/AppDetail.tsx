@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/input'
 import { Alert } from '@/components/ui/alert'
 import { formatBytes, formatTime, argsToLines, linesToArgs } from '@/lib/utils'
-import { ArrowLeft, ExternalLink, Trash2, Save, RotateCcw, Play, Square, Copy, Check } from 'lucide-react'
+import { ArrowLeft, Trash2, Save, RotateCcw, Play, Square, Copy, Check } from 'lucide-react'
 import CaptureModeField, { type CaptureMode } from '@/components/CaptureModeField'
 
 export default function AppDetail() {
@@ -20,6 +20,8 @@ export default function AppDetail() {
   const [argsDirty, setArgsDirty] = useState(false)
   const argsDirtyRef = useRef(false)
   const [saving, setSaving] = useState(false)
+  const [saveNotice, setSaveNotice] = useState<{kind:'error'|'success';message:string}|null>(null)
+  const [retrying, setRetrying] = useState(false)
   const [candidates, setCandidates] = useState<any[]>([])
 
   const [loadError, setLoadError] = useState('')
@@ -60,17 +62,23 @@ export default function AppDetail() {
   }, [id])
 
   const handleSave = async () => {
-    if (!id) return
+    if (!id || saving) return
     setSaving(true)
+    setSaveNotice(null)
     try {
       await api.updateApp(id, { args: linesToArgs(args), capture_mode:captureMode })
       argsDirtyRef.current = false
       setArgsDirty(false)
       await refresh()
-    } catch (e: any) {
-      alert(e.message)
+      setSaveNotice({kind:'success',message:'配置已保存，下次启动应用时生效。'})
+    } catch (e: unknown) {
+      setSaveNotice({kind:'error',message:e instanceof Error?e.message:'配置保存失败，请重试。'})
+      // A failed native apply can still leave durable desired settings. Refresh
+      // status immediately, preserving the draft until successful submission.
+      await refresh()
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   const handleDelete = async () => {
@@ -96,12 +104,16 @@ export default function AppDetail() {
   }
 
   const handleRetryRegister = async () => {
-    if (!id) return
+    if (!id || retrying) return
+    setRetrying(true)
+    setSaveNotice(null)
     try {
       await api.retryRegister(id)
-      refresh()
-    } catch (e: any) {
-      alert(e.message)
+      await refresh()
+    } catch (e: unknown) {
+      setSaveNotice({kind:'error',message:e instanceof Error?e.message:'无法重试注册。'})
+    } finally {
+      setRetrying(false)
     }
   }
 
@@ -144,6 +156,9 @@ export default function AppDetail() {
   )
   if (!app) return <div className="text-muted-foreground">加载中...</div>
 
+  const settingsEditable = ['ready','stopped','crashed','register_failed'].includes(app.status)
+  const settingsDisabled = saving || retrying || !settingsEditable
+
   return (
     <div className="max-w-3xl space-y-6">
       <Button variant="ghost" size="sm" onClick={() => navigate('/apps')}>
@@ -151,9 +166,10 @@ export default function AppDetail() {
       </Button>
 
       <div className="flex items-center gap-3">
-        <h2 className="text-2xl font-bold text-card-foreground">{app.name}</h2>
-        <StatusBadge status={app.status} />
+        <h2 className="min-w-0 break-words text-2xl font-bold text-card-foreground">{app.name}</h2>
+        <div className="shrink-0"><StatusBadge status={app.status} /></div>
       </div>
+      {loadError && <Alert variant="warning" role="status">状态刷新失败：{loadError}。当前显示上次读取的状态。</Alert>}
 
       {/* Stream controls */}
       <Card>
@@ -169,6 +185,9 @@ export default function AppDetail() {
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {!['ready','stopped','crashed','running'].includes(app.status) && <p className="text-sm text-muted-foreground">
+            {app.status==='register_failed'?'完成编码器注册后即可启动串流。':'应用尚未准备完成，请等待处理完成或按下方提示选择入口。'}
+          </p>}
           <div className="flex flex-wrap items-center gap-3">
             {(app.status === 'ready' || app.status === 'stopped' || app.status === 'crashed') && (
               <Button onClick={handleLaunch} disabled={launching}>
@@ -231,9 +250,10 @@ export default function AppDetail() {
       {/* Register failed retry */}
       {app.status === 'register_failed' && (
         <Alert variant="error">
-          <p className="text-sm mb-2">编码器注册失败: {app.error_message}</p>
-          <Button size="sm" onClick={handleRetryRegister} className="bg-blue-600 text-white hover:bg-blue-700">
-            <RotateCcw className="w-3 h-3" /> 重试注册
+          <p className="font-medium mb-1">配置尚未在编码器中应用成功</p>
+          <p className="text-sm mb-2">{app.error_message}。检查编码器状态后，可重试已保存的配置。</p>
+          <Button size="sm" onClick={handleRetryRegister} disabled={retrying||saving}>
+            <RotateCcw className="w-3 h-3" /> {retrying?'正在提交…':'重试注册'}
           </Button>
         </Alert>
       )}
@@ -259,7 +279,7 @@ export default function AppDetail() {
             </div>
             <div>
               <span className="text-muted-foreground">状态：</span>
-              <span className="text-card-foreground">{app.status}</span>
+              <StatusBadge status={app.status} />
             </div>
           </div>
 
@@ -269,26 +289,33 @@ export default function AppDetail() {
       {/* Args editing */}
       <Card>
         <CardHeader>
-          <CardTitle>采集与启动配置</CardTitle>
+          <CardTitle className="flex flex-wrap items-center justify-between gap-2">采集与启动配置
+            <span className="text-xs font-normal text-muted-foreground">下次启动应用生效</span>
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <CaptureModeField value={captureMode} disabled={saving||app.status==='running'} onChange={mode=>{setCaptureMode(mode);setArgsDirty(true);argsDirtyRef.current=true}} />
-          <p className="text-xs text-muted-foreground">每行一个参数，含空格的路径请用引号包裹</p>
+          {!settingsEditable && <Alert variant="info" role="status">{app.status==='running'?'请先停止串流，再修改采集范围和启动参数。':'应用正在处理，请等待处理完成后修改配置。'}</Alert>}
+          <CaptureModeField value={captureMode} disabled={settingsDisabled} onChange={mode=>{setCaptureMode(mode);setArgsDirty(true);argsDirtyRef.current=true;setSaveNotice(null)}} />
+          <label htmlFor="application-args" className="block text-sm font-medium">启动参数</label>
+          <p id="application-args-help" className="text-xs text-muted-foreground">每行一个参数，含空格的路径请用引号包裹</p>
           <Textarea
-            disabled={saving||app.status==='running'}
+            id="application-args"
+            aria-describedby="application-args-help"
+            disabled={settingsDisabled}
             value={args}
-            onChange={e => { setArgs(e.target.value); setArgsDirty(true); argsDirtyRef.current = true }}
+            onChange={e => { setArgs(e.target.value); setArgsDirty(true); argsDirtyRef.current = true; setSaveNotice(null) }}
             rows={5}
             placeholder={"无启动参数"}
             className="font-mono"
           />
-          <Button
+          {saveNotice && <Alert variant={saveNotice.kind} role={saveNotice.kind==='error'?'alert':'status'}>{saveNotice.message}</Alert>}
+          <div className="flex flex-wrap items-center gap-3"><Button
             onClick={handleSave}
-            disabled={saving || app.status==='running' || (linesToArgs(args) === (app.args || '') && captureMode===(app.capture_mode||'desktop'))}
+            disabled={settingsDisabled || (linesToArgs(args) === (app.args || '') && captureMode===(app.capture_mode||'desktop'))}
             size="sm"
           >
             <Save className="w-3 h-3" /> {saving ? '保存中...' : '保存'}
-          </Button>
+          </Button>{argsDirty && <span className="text-xs text-muted-foreground">正在编辑 · 尚未确认应用</span>}</div>
         </CardContent>
       </Card>
 

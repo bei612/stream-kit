@@ -46,6 +46,8 @@ async function main() {
   const origin = `http://127.0.0.1:${server.address().port}`;
   try {
     for(const width of [1440,390]) {
+      const detail = {...apps[0],status:'ready',source:'local',exe_path:'C:\\Render\\Example.exe',args:'--initial',capture_mode:'application'};
+      let failSettings = true;
       const context = await browser.newContext({ viewport:{width,height:900}, locale:'zh-CN', reducedMotion:'reduce' });
       await context.routeWebSocket('**/api/v1/ws**', ws => { ws.onMessage(()=>{}); });
       await context.route('**/api/**', async route => {
@@ -57,6 +59,17 @@ async function main() {
         else if(pathname === '/api/v1/components') data = components;
         else if(pathname === '/api/v1/apps') data = apps;
         else if(pathname === '/api/v1/apps/capture-capabilities') data = {schema_version:1,capture_modes:['desktop','application'],capture_mode_apply:'application_restart'};
+        else if(pathname === '/api/v1/apps/demo') {
+          if(route.request().method() === 'PUT') {
+            Object.assign(detail,route.request().postDataJSON());
+            if(failSettings) {
+              detail.status='register_failed'; detail.error_message='编码器暂时不可用';
+              return route.fulfill({status:400,json:{status:'error',message:'参数已保存，但尚未确认编码器应用成功，请查看应用状态并重试注册'}});
+            }
+          }
+          data=detail;
+        }
+        else if(pathname === '/api/v1/apps/demo/register') { detail.status='ready'; detail.error_message=''; failSettings=false; data=detail; }
         else if(pathname === '/api/v1/health') data = { version:'review', commit:'fixture' };
         else if(pathname === '/api/v1/stream-sessions') data = [session];
         else if(pathname === '/api/v1/media-control') data = {
@@ -122,6 +135,27 @@ async function main() {
           await page.getByText('下次启动应用生效',{exact:true}).waitFor();
         }
         await capture(name);
+      }
+      await page.goto(origin+'/apps/demo');
+      await page.getByLabel('启动参数',{exact:true}).fill('--draft-with-native-failure');
+      await page.getByRole('button',{name:'保存',exact:true}).click();
+      await page.getByRole('alert').filter({hasText:'参数已保存'}).waitFor();
+      await page.getByText('配置尚未在编码器中应用成功',{exact:true}).waitFor();
+      assert.equal(await page.getByLabel('启动参数',{exact:true}).inputValue(),'--draft-with-native-failure');
+      await capture('app-settings-pending');
+      await page.getByRole('button',{name:'重试注册',exact:true}).click();
+      await page.getByText('配置尚未在编码器中应用成功',{exact:true}).waitFor({state:'hidden'});
+      await page.getByLabel('启动参数',{exact:true}).fill('--applied');
+      await page.getByRole('button',{name:'保存',exact:true}).click();
+      await page.getByText('配置已保存，下次启动应用时生效。',{exact:true}).waitFor();
+      await capture('app-settings-saved');
+      for(const status of ['running','registering']) {
+        detail.status=status;
+        await page.reload();
+        await page.getByLabel('启动参数',{exact:true}).waitFor();
+        assert.ok(await page.getByLabel('启动参数',{exact:true}).isDisabled());
+        assert.ok(await page.getByLabel('画面与声音范围',{exact:true}).isDisabled());
+        assert.ok(await page.getByRole('button',{name:'保存',exact:true}).isDisabled());
       }
       await page.goto(origin+'/gateway/index.html');
       await page.locator('#ml-api-name').waitFor();
