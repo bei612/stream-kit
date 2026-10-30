@@ -82,9 +82,9 @@ func (s *Server) setupRoutes() {
 	authed.GET("/logs", h.GetLogs)
 	authed.GET("/metrics", h.Metrics)
 
-	// WebSocket (JWT via query param, validated by same middleware)
+	// Same management identity; browser bearer travels in the upgrade header.
 	if s.WSHub != nil {
-		wsh := handlers.NewWSHandler(s.WSHub, jwtSecret, s.Logger)
+		wsh := handlers.NewWSHandler(s.WSHub, s.Logger)
 		authed.GET("/ws", wsh.Handle)
 	}
 

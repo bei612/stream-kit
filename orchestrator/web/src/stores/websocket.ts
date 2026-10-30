@@ -12,36 +12,47 @@ interface WSState {
 export const useWSStore = create<WSState>((set, get) => {
   let retryCount = 0
   let retryTimer: ReturnType<typeof setTimeout> | null = null
-  let intentionalClose = false
+  let wanted = false
+  let activeToken = ''
+
+  function clearRetry() {
+    if (retryTimer != null) clearTimeout(retryTimer)
+    retryTimer = null
+  }
 
   function connect() {
     const token = getToken()
-    if (!token) return
+    if (!token || !isLoggedIn()) { disconnect(); return }
+    wanted = true
 
-    // Close existing connection if any
     const existing = get().ws
-    if (existing && existing.readyState <= WebSocket.OPEN) {
-      intentionalClose = true
-      existing.close()
-    }
+    if (existing && existing.readyState <= WebSocket.OPEN && activeToken === token) return
+    clearRetry()
+    // Relinquish ownership before closing: a delayed close event from this
+    // socket must never clear a replacement connection or schedule a retry.
+    set({ ws: null, connected: false })
+    existing?.close()
+    activeToken = token
 
     const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-    const url = `${proto}://${location.host}/api/v1/ws?token=${token}`
+    const url = `${proto}://${location.host}/api/v1/ws`
 
-    const ws = new WebSocket(url)
+    let ws: WebSocket
+    try { ws = new WebSocket(url, ['stream-kit.events.v1', `stream-kit.auth.${token}`]) }
+    catch { scheduleReconnect(); return }
 
     ws.onopen = () => {
+      if (get().ws !== ws || !wanted) return
+      if (!isLoggedIn() || getToken() !== token) { connect(); return }
       set({ connected: true, reconnecting: false, ws })
       retryCount = 0
-      intentionalClose = false
+      window.dispatchEvent(new CustomEvent('ws-connected'))
     }
 
     ws.onclose = () => {
+      if (get().ws !== ws) return
       set({ connected: false, ws: null })
-      if (!intentionalClose) {
-        scheduleReconnect()
-      }
-      intentionalClose = false
+      scheduleReconnect()
     }
 
     ws.onerror = () => {
@@ -49,6 +60,7 @@ export const useWSStore = create<WSState>((set, get) => {
     }
 
     ws.onmessage = (event) => {
+      if (get().ws !== ws || !wanted || getToken() !== token) return
       try {
         const msg = JSON.parse(event.data)
         window.dispatchEvent(new CustomEvent('ws-event', { detail: msg }))
@@ -59,10 +71,10 @@ export const useWSStore = create<WSState>((set, get) => {
   }
 
   function scheduleReconnect() {
-    if (retryTimer) return
+    if (!wanted || retryTimer != null) return
     // Don't reconnect if token is expired — avoids infinite 401 loop
     if (!isLoggedIn()) {
-      set({ reconnecting: false })
+      disconnect()
       return
     }
     const delay = Math.min(1000 * Math.pow(2, retryCount), 30000)
@@ -70,21 +82,18 @@ export const useWSStore = create<WSState>((set, get) => {
     set({ reconnecting: true })
     retryTimer = setTimeout(() => {
       retryTimer = null
-      if (isLoggedIn()) connect()
+      if (wanted) connect()
     }, delay)
   }
 
   function disconnect() {
-    if (retryTimer) {
-      clearTimeout(retryTimer)
-      retryTimer = null
-    }
-    intentionalClose = true
+    wanted = false
+    clearRetry()
+    retryCount = 0
+    activeToken = ''
     const { ws } = get()
-    if (ws) {
-      ws.close()
-    }
     set({ ws: null, connected: false, reconnecting: false })
+    ws?.close()
   }
 
   return { connected: false, reconnecting: false, ws: null, connect, disconnect }

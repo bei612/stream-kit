@@ -100,6 +100,7 @@ func main() {
 
 	// WebSocket Hub
 	wsHub := ws.NewHub(logger)
+	defer wsHub.Close()
 	sessionMgr, err := session.NewManagerWithStore(wsHub, st)
 	if err != nil {
 		fatalWithPause("加载渲染会话失败: %v", err)

@@ -67,7 +67,13 @@ export function useQuery<T>(opts: UseQueryOptions<T>): UseQueryResult<T> {
       }
     }
     window.addEventListener('ws-event', handler)
-    return () => window.removeEventListener('ws-event', handler)
+    // Recover updates missed during a disconnected event stream using the
+    // same authoritative query as normal refresh, without another poll loop.
+    window.addEventListener('ws-connected', refresh)
+    return () => {
+      window.removeEventListener('ws-event', handler)
+      window.removeEventListener('ws-connected', refresh)
+    }
   }, [wsInvalidateEvents, refresh])
 
   return { data, loading, error, refreshing, refresh }

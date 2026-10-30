@@ -81,6 +81,7 @@ function WSConnector() {
   const connect = useWSStore(s => s.connect)
   useEffect(() => {
     if (isLoggedIn()) connect()
+    return () => useWSStore.getState().disconnect()
   }, [connect])
   return null
 }
@@ -88,6 +89,7 @@ function WSConnector() {
 function AuthRedirector() {
   useEffect(() => {
     const handler = () => {
+      useWSStore.getState().disconnect()
       if (window.location.pathname !== '/login') {
         window.location.href = '/login'
       }

@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	cfgpkg "github.com/stream-kit/orchestrator/internal/config"
 	"github.com/stream-kit/orchestrator/internal/server/handlers"
+	"github.com/stream-kit/orchestrator/internal/ws"
 	"go.uber.org/zap"
 )
 
@@ -32,7 +33,8 @@ func RequestIDMiddleware() gin.HandlerFunc {
 }
 
 // JWTAuthMiddleware accepts management credentials from the Authorization
-// header. Query credentials are confined to the existing WebSocket endpoint.
+// header or the browser's versioned WebSocket upgrade header. Never accept URL
+// credentials: URLs can be retained by proxies and access logs.
 func JWTAuthMiddleware(jwtSecret []byte) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := ""
@@ -43,9 +45,9 @@ func JWTAuthMiddleware(jwtSecret []byte) gin.HandlerFunc {
 			token = strings.TrimPrefix(auth, "Bearer ")
 		}
 
-		// Fallback: query param (for WebSocket)
+		// Browser WebSocket requests cannot set an Authorization header.
 		if token == "" && c.Request.URL.Path == "/api/v1/ws" {
-			token = c.Query("token")
+			token = ws.UpgradeCredential(c.Request)
 		}
 
 		if token == "" {
@@ -70,6 +72,7 @@ func JWTAuthMiddleware(jwtSecret []byte) gin.HandlerFunc {
 		}
 
 		c.Set("username", claims.Sub)
+		c.Set(handlers.ManagementExpiresAt, claims.Exp)
 		c.Next()
 	}
 }

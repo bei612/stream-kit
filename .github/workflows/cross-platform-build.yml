@@ -27,6 +27,8 @@ jobs:
           go-version: '1.25.x'
           cache-dependency-path: orchestrator/go.sum
       - run: go test ./...
+      - if: runner.os == 'Linux'
+        run: go test -race ./internal/ws ./internal/server/...
       - run: go build -trimpath -ldflags "-s -w" -o dist/orchestrator${{ runner.os == 'Windows' && '.exe' || '' }} ./cmd/orchestrator
       - uses: actions/upload-artifact@v4
         with:
@@ -49,7 +51,7 @@ jobs:
           cache-dependency-path: orchestrator/web/package-lock.json
       - run: npm ci
       - run: npm run build
-      - run: node --experimental-strip-types --test ../../scripts/test-microphone-capture.mjs ../../scripts/test-media-access.mjs ../../scripts/test-media-observation.mjs ../../scripts/test-viewer-bootstrap.mjs ../../scripts/test-webrtc-lifecycle.mjs
+      - run: node --experimental-strip-types --test ../../scripts/test-microphone-capture.mjs ../../scripts/test-media-access.mjs ../../scripts/test-media-observation.mjs ../../scripts/test-viewer-bootstrap.mjs ../../scripts/test-webrtc-lifecycle.mjs ../../scripts/test-management-websocket.mjs
 
   moonlight-web:
     name: Moonlight Web (${{ matrix.os }})
