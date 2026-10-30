@@ -87,13 +87,18 @@ async function main() {
   const fd2=fs.openSync(path.join(output,'acceptance.log'),'w');
   const probe=spawn(process.execPath,[path.join(__dirname,'accept-managed-stream.cjs'),'--gateway',gateway,'--orchestrator',control,
     '--runtime-config',runtime,'--scratch',path.join(scratch,'media'),'--output-dir',path.join(output,'browser'),'--example',example,'--example-output',outputDevice,
-    ...['--microphone-tone','--stop-active','--delete-active','--restart-services','--expire-client-lease','--edit-gateway-configuration','--apply-managed-gateway'].filter(flag => process.argv.includes(flag)),
+    ...['--microphone-tone','--target-switch','--stop-active','--delete-active','--restart-services','--expire-client-lease','--edit-gateway-configuration','--apply-managed-gateway'].filter(flag => process.argv.includes(flag)),
     ...['--audio-probe','--target-render-device','--target-capture-device','--clients','--hold-seconds'].flatMap(flag=>process.argv.includes(flag)?[flag,option(flag)]:[])],
     {cwd:root,windowsHide:true,stdio:['ignore',fd2,fd2]}); fs.closeSync(fd2);
   const [code]=await once(probe,'exit');
   assert.equal(code,0,'Program browser acceptance failed; inspect acceptance.log');
   result.browser_result=path.relative(root,path.join(output,'browser/result.json')).replaceAll('\\','/');
-  assert.equal(JSON.parse(fs.readFileSync(path.join(output,'browser/result.json'),'utf8')).passed,true);
+  const browserResult = JSON.parse(fs.readFileSync(path.join(output,'browser/result.json'),'utf8'));
+  assert.equal(browserResult.passed,true);
+  if (process.argv.includes('--target-switch')) {
+    assert.deepEqual(browserResult.target_mode_switch?.observations.map(item=>item.mode),['disabled','upstream'], 'Requested audio target mode switching was not verified');
+    assert.equal(browserResult.target_mode_switch.video_continued,true);
+  }
   result.passed=true;
 }
 main().catch(error=>{result.error=error.message;process.exitCode=1;}).finally(async()=>{
