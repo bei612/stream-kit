@@ -676,13 +676,16 @@ func splitNull(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	}
 
 	if atEOF {
-		return len(data), data, nil
+		return 0, nil, io.ErrUnexpectedEOF
 	}
 
 	return
 }
 
 func readNames(r util.Reader, count, length uint64) ([]string, error) {
+	if length == 0 || length > math.MaxInt64 || (length-1)%2 != 0 {
+		return nil, errPropertyLength
+	}
 	if err := checkUint64(count, true); err != nil {
 		return nil, err
 	}
@@ -796,93 +799,107 @@ func readFilesInfo(r util.Reader) (*filesInfo, error) {
 		if err != nil {
 			return nil, err
 		}
+		if length > math.MaxInt64 {
+			return nil, errPropertyLength
+		}
+		// A property parser cannot consume the next property's bytes. Bound
+		// buffering as well as decoding, then require exact payload consumption.
+		payload := &io.LimitedReader{R: r, N: int64(length)}
+		{
+			r := bufio.NewReader(payload)
 
-		switch property {
-		case idEmptyStream:
-			empty, err := readBool(r, files)
-			if err != nil {
-				return nil, err
-			}
-
-			for i := range f.file {
-				f.file[i].isEmptyStream = empty[i]
-
-				if empty[i] {
-					emptyStreams++
+			switch property {
+			case idEmptyStream:
+				empty, err := readBool(r, files)
+				if err != nil {
+					return nil, err
 				}
-			}
-		case idEmptyFile:
-			empty, err := readBool(r, emptyStreams)
-			if err != nil {
-				return nil, err
-			}
 
-			j := 0
+				for i := range f.file {
+					f.file[i].isEmptyStream = empty[i]
 
-			for i := range f.file {
-				if f.file[i].isEmptyStream {
-					f.file[i].isEmptyFile = empty[j]
-					j++
+					if empty[i] {
+						emptyStreams++
+					}
 				}
-			}
-		case idCTime:
-			times, err := readTimes(r, files)
-			if err != nil {
-				return nil, err
-			}
+			case idEmptyFile:
+				empty, err := readBool(r, emptyStreams)
+				if err != nil {
+					return nil, err
+				}
 
-			for i, t := range times {
-				f.file[i].Created = t
-			}
-		case idATime:
-			times, err := readTimes(r, files)
-			if err != nil {
-				return nil, err
-			}
+				j := 0
 
-			for i, t := range times {
-				f.file[i].Accessed = t
-			}
-		case idMTime:
-			times, err := readTimes(r, files)
-			if err != nil {
-				return nil, err
-			}
+				for i := range f.file {
+					if f.file[i].isEmptyStream {
+						f.file[i].isEmptyFile = empty[j]
+						j++
+					}
+				}
+			case idCTime:
+				times, err := readTimes(r, files)
+				if err != nil {
+					return nil, err
+				}
 
-			for i, t := range times {
-				f.file[i].Modified = t
-			}
-		case idName:
-			names, err := readNames(r, files, length)
-			if err != nil {
-				return nil, err
-			}
+				for i, t := range times {
+					f.file[i].Created = t
+				}
+			case idATime:
+				times, err := readTimes(r, files)
+				if err != nil {
+					return nil, err
+				}
 
-			for i, n := range names {
-				f.file[i].Name = n
-			}
-		case idWinAttributes:
-			attributes, err := readAttributes(r, files)
-			if err != nil {
-				return nil, err
-			}
+				for i, t := range times {
+					f.file[i].Accessed = t
+				}
+			case idMTime:
+				times, err := readTimes(r, files)
+				if err != nil {
+					return nil, err
+				}
 
-			for i, a := range attributes {
-				f.file[i].Attributes = a
+				for i, t := range times {
+					f.file[i].Modified = t
+				}
+			case idName:
+				names, err := readNames(r, files, length)
+				if err != nil {
+					return nil, err
+				}
+
+				for i, n := range names {
+					f.file[i].Name = n
+				}
+			case idWinAttributes:
+				attributes, err := readAttributes(r, files)
+				if err != nil {
+					return nil, err
+				}
+
+				for i, a := range attributes {
+					f.file[i].Attributes = a
+				}
+			case idStartPos:
+				return nil, errors.New("sevenzip: TODO idStartPos") //nolint:err113
+			case idDummy:
+				if _, err := io.CopyN(io.Discard, r, int64(length)); err != nil { //nolint:gosec
+					return nil, fmt.Errorf("readFilesInfo: CopyN error: %w", err)
+				}
+			default:
+				return nil, errUnexpectedID
 			}
-		case idStartPos:
-			return nil, errors.New("sevenzip: TODO idStartPos") //nolint:err113
-		case idDummy:
-			if _, err := io.CopyN(io.Discard, r, int64(length)); err != nil { //nolint:gosec
-				return nil, fmt.Errorf("readFilesInfo: CopyN error: %w", err)
+			if _, err := r.ReadByte(); err != io.EOF || payload.N != 0 {
+				return nil, errPropertyLength
 			}
-		default:
-			return nil, errUnexpectedID
 		}
 	}
 
 	return f, nil
 }
+
+var errPropertyLength = errors.New("sevenzip: invalid file property length")
 
 //nolint:cyclop,funlen
 func readHeader(r util.Reader) (*header, error) {
