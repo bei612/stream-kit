@@ -54,6 +54,8 @@ async function main() {
       const gatewayConfiguration={revision:'native-1',restart_required:false,apply_policy:'gateway_restart',values:{moonlight:{pair_device_name:'Stream Kit',default_http_port:47989},web_server:{media_ticket_secret:null,control_plane_url:'https://control.example'},webrtc:{port_range:null,ice_servers:[{urls:null,username:'turn-user',credential:null}],include_loopback_candidates:true}},redacted_paths:['/web_server/media_ticket_secret','/webrtc/ice_servers/0/urls','/webrtc/ice_servers/0/credential'],overridden_paths:['/web_server/control_plane_url']};
       let conflictGateway=true;
       gatewayConfiguration.running_revision=gatewayConfiguration.revision;
+      gatewayConfiguration.runtime={process_id:1001,instance_id:'a'.repeat(32)};
+      let failGatewayApply=true;
       gatewayConfiguration.values.web_server.certificate=null;
       gatewayConfiguration.redacted_paths.push('/web_server/certificate');
       const context = await browser.newContext({ viewport:{width,height:900}, locale:'zh-CN', reducedMotion:'reduce' });
@@ -65,6 +67,15 @@ async function main() {
         if(route.request().method() !== 'GET') mutations.push({path:pathname,method:route.request().method()});
         if(pathname === '/api/v1/login') data = { token };
         else if(pathname === '/api/v1/components') data = components;
+        else if(pathname === '/api/v1/components/web_server') data = components[1];
+        else if(pathname === '/api/v1/gateway-configuration/apply') {
+          assert.deepEqual(route.request().postDataJSON(),{revision:gatewayConfiguration.revision,instance_id:gatewayConfiguration.runtime.instance_id});
+          if(failGatewayApply){failGatewayApply=false;return route.fulfill({status:409,json:{status:'error',message:'网关组件正在执行其他操作，请稍后重新读取状态'}})}
+          gatewayConfiguration.runtime.instance_id='b'.repeat(32);
+          gatewayConfiguration.running_revision=gatewayConfiguration.revision;
+          gatewayConfiguration.restart_required=false;
+          data=gatewayConfiguration;
+        }
         else if(pathname === '/api/v1/components/web_server/restart') {
           if(failComponentRestart) {
             failComponentRestart=false;
@@ -224,6 +235,12 @@ async function main() {
           await page.getByRole('alert').filter({hasText:'JSON 格式无效'}).waitFor();
           await page.getByRole('button',{name:'撤销此项修改',exact:true}).click();
           assert.ok(await page.getByRole('button',{name:'保存网关配置',exact:true}).isDisabled());
+          await page.getByRole('button',{name:'重启并应用已保存配置',exact:true}).click();
+          await page.getByRole('alert').filter({hasText:'网关组件正在执行其他操作'}).waitFor();
+          assert.equal(await page.getByText('当前进程已加载此配置文件版本。',{exact:true}).count(),0);
+          await page.getByRole('button',{name:'重启并应用已保存配置',exact:true}).click();
+          await page.getByText('网关已完成配置应用核验，当前进程已加载目标配置文件版本。',{exact:true}).waitFor();
+          await page.getByText('当前进程已加载此配置文件版本。',{exact:true}).waitFor();
           await capture('gateway-settings');
           await page.locator('summary').filter({hasText:'应用与存储'}).click();
           await page.getByLabel('解压文件数上限',{exact:true}).fill('1500');

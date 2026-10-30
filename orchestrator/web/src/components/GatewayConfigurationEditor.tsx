@@ -31,17 +31,30 @@ export function GatewayConfigurationEditor() {
   const [view,setView]=useState<GatewayConfigurationView|null>(null)
   const [drafts,setDrafts]=useState<Record<string,Draft>>({})
   const [replacements,setReplacements]=useState<Record<string,boolean>>({})
+  const [canApply,setCanApply]=useState(false)
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('')
   async function load() {
     setBusy(true);setError('');setNotice('')
     try {
-      const response=await api.getGatewayConfiguration()
+      const [response,component]=await Promise.all([api.getGatewayConfiguration(),api.getComponent('web_server').catch(()=>null)])
       if(!response.data?.values || response.data.apply_policy!=='gateway_restart') throw new Error('网关未返回有效配置，请检查连接与版本。')
       setView(response.data);setDrafts({});setReplacements({})
+      setCanApply(!!response.data.runtime&&component?.data?.pid===response.data.runtime.process_id)
     } catch(e) {setError(e instanceof Error?e.message:'无法读取网关配置')}
     finally {setBusy(false)}
   }
   useEffect(()=>{void load()},[])
+  async function apply() {
+    if(!view?.runtime||busy||Object.keys(drafts).length)return
+    setBusy(true);setError('');setNotice('')
+    try {
+      const response=await api.applyGatewayConfiguration(view.revision,view.runtime.instance_id)
+      if(!response.data||response.data.restart_required||response.data.running_revision!==view.revision)throw new Error('尚未确认目标配置已生效，请重新读取网关状态。')
+      setView(response.data)
+      setNotice('网关已完成配置应用核验，当前进程已加载目标配置文件版本。')
+    }catch(e){setError(e instanceof Error?e.message:'网关配置应用失败，请检查组件状态')}
+    finally{setBusy(false)}
+  }
   const edit=(path:string,text:string,kind:Kind)=>{
     setDrafts(current=>({...Object.fromEntries(Object.entries(current).filter(([p])=>!p.startsWith(path+'/'))),[path]:{text,kind}}));setNotice('');setError('')
   }
@@ -154,6 +167,11 @@ export function GatewayConfigurationEditor() {
         {view.running_revision===view.revision&&!view.restart_required&&<p role="status" className="text-emerald-400">当前进程已加载此配置文件版本。</p>}
       </div>}
       {view?.restart_required&&<Alert variant="warning" role="status">网关存在待生效配置，请在维护时段协调重启。</Alert>}
+      {view?.restart_required&&canApply&&<div className="rounded-lg border border-border p-3 space-y-2">
+        <p className="text-sm text-muted-foreground">应用将重启受管网关并短暂中断观看，完成后核验运行实例和配置版本。监听地址、证书或信任密钥变更需先协调连接配置；失败不会自动回滚。</p>
+        <Button variant="outline" onClick={apply} disabled={busy||!!Object.keys(drafts).length}>重启并应用已保存配置</Button>
+        {!!Object.keys(drafts).length&&<p className="text-xs text-muted-foreground">请先保存或撤销当前编辑。</p>}
+      </div>}
       {!!view?.overridden_paths.length&&<Alert variant="warning">部分字段由启动参数或环境变量覆盖，修改文件后仍可能使用部署值。</Alert>}
       {error&&<Alert variant="error" role="alert">{error}</Alert>}
       {notice&&<Alert variant="success" role="status">{notice}</Alert>}

@@ -64,6 +64,7 @@ func TestManagedClientAdmissionAndAuthorityBoundaries(t *testing.T) {
 	admin := login["token"].(string)
 	request("POST", "/api/v1/stream-invitations", "", map[string]int{"host_id": 1, "app_id": 2}, 401)
 	request("GET", "/api/v1/config?token="+admin, "", nil, 401)
+	request("POST", "/api/v1/gateway-configuration/apply", "", nil, 401)
 	invitation := request("POST", "/api/v1/stream-invitations", admin, map[string]int{"host_id": 1, "app_id": 2}, 200)["invitation"].(string)
 	managed := manager.List()[0]
 	if err := manager.UpdateAudioTarget(managed.ID, managed.Audio.Target.Epoch, session.AudioTarget{Mode: "local", RenderDeviceID: "private-render", CaptureDeviceID: "private-capture"}); err != nil {
@@ -86,6 +87,7 @@ func TestManagedClientAdmissionAndAuthorityBoundaries(t *testing.T) {
 	}
 	prefix := "/api/v1/client-sessions/" + sid + "/connections/"
 	request("GET", "/api/v1/config", token, nil, 401)
+	request("POST", "/api/v1/gateway-configuration/apply", token, nil, 401)
 	request("POST", "/api/v1/stream-sessions/"+sid+"/controller/"+aid, token, nil, 401)
 	request("PATCH", "/api/v1/stream-sessions/"+sid+"/audio-target", token, nil, 401)
 	request("GET", prefix+bid, token, nil, 401)

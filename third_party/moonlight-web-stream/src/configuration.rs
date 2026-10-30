@@ -62,7 +62,10 @@ impl Settings {
         Self {
             path,
             running_revision: source.map(|s| revision(s.as_bytes())),
-            instance_id: uuid::Uuid::new_v4().simple().to_string(),
+            instance_id: std::env::var("STREAM_KIT_PROCESS_INSTANCE")
+                .ok()
+                .filter(|value| value.len() == 32 && value.bytes().all(|b| b.is_ascii_hexdigit()))
+                .unwrap_or_else(|| uuid::Uuid::new_v4().simple().to_string()),
             overrides,
             lock: Mutex::new(()),
         }
@@ -277,7 +280,6 @@ mod tests {
         let applied = restarted.view()?;
         assert!(!applied.restart_required);
         assert_eq!(applied.running_revision.as_ref(), Some(&saved.revision));
-        assert_ne!(applied.runtime.instance_id, before.runtime.instance_id);
         assert!(matches!(
             settings.save(&before.revision, changes),
             Err(Error::Conflict)

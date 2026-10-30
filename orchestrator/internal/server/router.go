@@ -97,6 +97,11 @@ func (s *Server) setupRoutes() {
 	}
 	authed.GET("/gateway-configuration", handlers.GatewayConfiguration(gatewayConfiguration))
 	authed.PATCH("/gateway-configuration", handlers.GatewayConfiguration(gatewayConfiguration))
+	var gatewayRestarter handlers.GatewayRestarter
+	if s.CompManager != nil {
+		gatewayRestarter = s.CompManager
+	}
+	authed.POST("/gateway-configuration/apply", handlers.GatewayConfigurationApply(gatewayConfiguration, gatewayRestarter, s.Config.MoonlightWeb.BaseURL))
 	authed.GET("/audio-devices", func(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")
 		if s.MediaControl == nil {

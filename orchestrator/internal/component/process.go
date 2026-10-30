@@ -3,6 +3,8 @@ package component
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -19,12 +21,13 @@ import (
 
 // ManagedProcess represents a running child process.
 type ManagedProcess struct {
-	Cmd      *exec.Cmd
-	PID      int
-	Stopping atomic.Bool
-	LogBuf   *RingBuffer
-	ExitCode int           // set by the single Wait() caller
-	Done     chan struct{} // closed when process exits (Wait returns)
+	Cmd        *exec.Cmd
+	PID        int
+	InstanceID string
+	Stopping   atomic.Bool
+	LogBuf     *RingBuffer
+	ExitCode   int           // set by the single Wait() caller
+	Done       chan struct{} // closed when process exits (Wait returns)
 }
 
 // StartProcess launches a process with stdout/stderr capture.
@@ -36,9 +39,13 @@ func StartProcess(exePath, args, workingDir string, env map[string]string, logBu
 	cmd := exec.Command(exePath, cmdArgs...)
 	cmd.Dir = workingDir
 
-	if len(env) > 0 {
-		cmd.Env = append(os.Environ(), mapToEnvSlice(env)...)
+	instance := make([]byte, 16)
+	if _, err := rand.Read(instance); err != nil {
+		return nil, err
 	}
+	instanceID := hex.EncodeToString(instance)
+	cmd.Env = append(os.Environ(), mapToEnvSlice(env)...)
+	cmd.Env = append(cmd.Env, "STREAM_KIT_PROCESS_INSTANCE="+instanceID)
 
 	setPlatformAttrs(cmd)
 
@@ -56,10 +63,11 @@ func StartProcess(exePath, args, workingDir string, env map[string]string, logBu
 	}
 
 	mp := &ManagedProcess{
-		Cmd:    cmd,
-		PID:    cmd.Process.Pid,
-		LogBuf: logBuf,
-		Done:   make(chan struct{}),
+		Cmd:        cmd,
+		PID:        cmd.Process.Pid,
+		InstanceID: instanceID,
+		LogBuf:     logBuf,
+		Done:       make(chan struct{}),
 	}
 
 	go captureOutput(stdout, logBuf, "")

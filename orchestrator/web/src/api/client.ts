@@ -194,6 +194,7 @@ export const api = {
   getConfiguration: () => request<ConfigurationView>('/configuration'),
   getGatewayConfiguration: () => request<GatewayConfigurationView>('/gateway-configuration'),
   saveGatewayConfiguration: (revision:string, changes:Record<string,ConfigValue>) => request<GatewayConfigurationView>('/gateway-configuration', {method:'PATCH',body:JSON.stringify({revision,changes})}),
+  applyGatewayConfiguration: (revision:string, instance_id:string) => request<GatewayConfigurationView>('/gateway-configuration/apply', {method:'POST',body:JSON.stringify({revision,instance_id})},100000),
   saveConfiguration: (revision:string, changes:Record<string,ConfigValue>) => request<ConfigurationView>('/configuration', {method:'PATCH',body:JSON.stringify({revision,changes})}),
   getTemplates: () => request<Record<string, string>>('/templates'),
   getLogs: (params: { page?: number; size?: number; target_type?: string }) => {
