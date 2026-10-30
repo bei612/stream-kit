@@ -40,7 +40,7 @@ func Extract(archivePath, destDir string, cfg ExtractConfig) (int64, error) {
 	return ExtractContext(context.Background(), archivePath, destDir, cfg)
 }
 
-func ExtractContext(ctx context.Context, archivePath, destDir string, cfg ExtractConfig) (int64, error) {
+func ExtractContext(ctx context.Context, archivePath, destDir string, cfg ExtractConfig) (written int64, resultErr error) {
 	if err := ctx.Err(); err != nil {
 		return 0, err
 	}
@@ -100,6 +100,7 @@ func ExtractContext(ctx context.Context, archivePath, destDir string, cfg Extrac
 		if e != nil {
 			return 0, e
 		}
+		defer func() { resultErr = errors.Join(resultErr, reader.Close()) }()
 		for _, entry := range reader.File {
 			open := func() (io.ReadCloser, error) {
 				r, err := entry.Open()

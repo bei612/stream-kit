@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/bodgit/plumbing"
@@ -50,13 +51,16 @@ func (e ReadError) Unwrap() error {
 
 // A Reader serves content from a 7-Zip archive.
 type Reader struct {
-	r     io.ReaderAt
-	start int64
-	end   int64
-	si    *streamsInfo
-	p     string
-	File  []*File
-	pool  []pool.Pooler
+	r         io.ReaderAt
+	start     int64
+	end       int64
+	si        *streamsInfo
+	p         string
+	File      []*File
+	pool      []pool.Pooler
+	closed    atomic.Bool
+	closeOnce sync.Once
+	closeErr  error
 
 	fileListOnce sync.Once
 	fileList     []fileListEntry
@@ -126,16 +130,20 @@ func (fr *fileReader) Close() error {
 
 	offset, err := fr.rc.Seek(0, io.SeekCurrent)
 	if err != nil {
-		return fmt.Errorf("sevenzip: error seeking current position: %w", err)
+		closeErr := fr.rc.Close()
+		fr.rc = nil
+		return fmt.Errorf("sevenzip: error seeking current position: %w", errors.Join(err, closeErr))
 	}
+	rc := fr.rc
+	fr.rc = nil
 
-	if offset == fr.rc.Size() { // EOF reached
-		if err := fr.rc.Close(); err != nil {
+	if offset == rc.Size() { // EOF reached
+		if err := rc.Close(); err != nil {
 			return fmt.Errorf("sevenzip: error closing: %w", err)
 		}
 	} else {
 		f := fr.f
-		if _, err := f.zip.pool[f.folder].Put(offset, fr.rc); err != nil {
+		if _, err := f.zip.pool[f.folder].Put(offset, rc); err != nil {
 			return fmt.Errorf("sevenzip: error adding to pool: %w", err)
 		}
 	}
@@ -148,6 +156,9 @@ func (fr *fileReader) Close() error {
 // Open returns an [io.ReadCloser] that provides access to the [File]'s
 // contents. Multiple files may be read concurrently.
 func (f *File) Open() (io.ReadCloser, error) {
+	if f.zip.closed.Load() {
+		return nil, iofs.ErrClosed
+	}
 	if f.isEmptyStream || f.isEmptyFile {
 		// Return empty reader for directory or empty file
 		return io.NopCloser(bytes.NewReader(nil)), nil
@@ -171,7 +182,7 @@ func (f *File) Open() (io.ReadCloser, error) {
 
 	if _, err := rc.Seek(f.offset, io.SeekStart); err != nil {
 		e := &ReadError{
-			Err: err,
+			Err: errors.Join(err, rc.Close()),
 		}
 
 		if fr, ok := rc.(*folderReadCloser); ok {
@@ -611,9 +622,27 @@ func (rc *ReadCloser) Volumes() []string {
 	return volumes
 }
 
-// Close closes the 7-zip file or volumes, rendering them unusable for I/O.
+// Close releases cached decoders without closing the caller-owned ReaderAt.
+// Open file readers must still be closed by their callers; when returned they
+// are closed immediately and cannot repopulate the closed pools.
+func (z *Reader) Close() error {
+	z.closeOnce.Do(func() {
+		z.closed.Store(true)
+		var errs []error
+		for _, p := range z.pool {
+			if p != nil {
+				errs = append(errs, p.Close())
+			}
+		}
+		z.closeErr = errors.Join(errs...)
+	})
+	return z.closeErr
+}
+
+// Close closes cached decoders and the 7-zip file or volumes.
 func (rc *ReadCloser) Close() error {
 	errs := make([]error, 0, len(rc.f))
+	errs = append(errs, rc.Reader.Close())
 
 	for _, f := range rc.f {
 		errs = append(errs, f.Close())

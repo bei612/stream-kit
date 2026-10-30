@@ -3,6 +3,7 @@ package pool
 
 import (
 	"container/list"
+	"errors"
 	"runtime"
 	"sort"
 	"sync"
@@ -14,6 +15,7 @@ import (
 type Pooler interface {
 	Get(offset int64) (util.SizeReadSeekCloser, bool)
 	Put(offset int64, rc util.SizeReadSeekCloser) (bool, error)
+	Close() error
 }
 
 // Constructor is the function prototype used to instantiate a pool.
@@ -34,11 +36,14 @@ func (noopPool) Put(_ int64, rc util.SizeReadSeekCloser) (bool, error) {
 	return false, rc.Close() //nolint:wrapcheck
 }
 
+func (noopPool) Close() error { return nil }
+
 type pool struct {
 	mutex     sync.Mutex
 	size      int
 	evictList *list.List
 	items     map[int64]*list.Element
+	closed    bool
 }
 
 type entry struct {
@@ -59,6 +64,9 @@ func NewPool() (Pooler, error) {
 func (p *pool) Get(offset int64) (util.SizeReadSeekCloser, bool) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
+	if p.closed {
+		return nil, false
+	}
 
 	if ent, ok := p.items[offset]; ok {
 		_ = p.removeElement(ent, false)
@@ -87,8 +95,8 @@ func (p *pool) Put(offset int64, rc util.SizeReadSeekCloser) (bool, error) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	if _, ok := p.items[offset]; ok {
-		return false, nil
+	if _, ok := p.items[offset]; ok || p.closed {
+		return false, rc.Close()
 	}
 
 	ent := &entry{offset, rc}
@@ -103,6 +111,22 @@ func (p *pool) Put(offset int64, rc util.SizeReadSeekCloser) (bool, error) {
 	}
 
 	return evict, err
+}
+
+// Close releases cached decoders. Checked-out readers remain caller-owned;
+// returning one after Close releases it instead of repopulating the pool.
+func (p *pool) Close() error {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	if p.closed {
+		return nil
+	}
+	p.closed = true
+	var errs []error
+	for p.evictList.Len() > 0 {
+		errs = append(errs, p.removeOldest())
+	}
+	return errors.Join(errs...)
 }
 
 func (p *pool) keys() []int64 {
