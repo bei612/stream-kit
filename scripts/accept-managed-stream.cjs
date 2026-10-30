@@ -11,6 +11,7 @@ const { spawn, execFileSync } = require('node:child_process');
 const { once } = require('node:events');
 const { setTimeout: delay } = require('node:timers/promises');
 const { createRequire } = require('node:module');
+const { startAudioProbe } = require('./lib/audio-probe.cjs');
 const root = path.resolve(__dirname, '..');
 const argument = name => {
   const index = process.argv.indexOf(name);
@@ -27,11 +28,23 @@ const numericOption = (name, fallback) => process.argv.includes(name) ? Number(p
 const clientCount = numericOption('--clients', 2);
 const holdSeconds = numericOption('--hold-seconds', 5);
 const microphoneTest = process.argv.includes('--microphone-tone');
+const endpointOption = name => {
+  if (!process.argv.includes(name)) return null;
+  const value = process.argv[process.argv.indexOf(name)+1];
+  assert.ok(value && !value.startsWith('--'), `Required endpoint ID: ${name}`);
+  return value;
+};
+const targetRender = endpointOption('--target-render-device');
+const targetCapture = endpointOption('--target-capture-device');
+const targetProbe = process.argv.includes('--audio-probe') ? argument('--audio-probe') : null;
+const targetRecording = !!(targetRender || targetCapture || targetProbe);
+assert.ok(!targetRecording || (targetRender && targetCapture && targetProbe && microphoneTest), 'Target recording requires both explicit endpoint IDs, --audio-probe and --microphone-tone');
 const deleteActive = process.argv.includes('--delete-active');
 const stopActive = process.argv.includes('--stop-active') || deleteActive;
 assert.ok(!stopActive || applicationExample, 'Active native stop acceptance requires the owned example');
 const microphoneFrequency = applicationExample ? 1499 : 997;
 const targetSwitch = process.argv.includes('--target-switch');
+assert.ok(!(targetRecording && targetSwitch), 'Run local recording and disabled/upstream switching as separate acceptance cases');
 assert.ok(!targetSwitch || microphoneTest, 'Target mode switching acceptance requires the microphone tone case');
 const restartServices = process.argv.includes('--restart-services');
 assert.ok(!restartServices || !microphoneTest, 'Run recovery and microphone isolation as separate acceptance cases');
@@ -49,10 +62,12 @@ const result = { passed: false, status: 'running', clients: clientCount, hold_se
     : 'Real browser Desktop streams through isolated control and media services; no host input or microphone capture.' };
 const save = () => fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(result, null, 2));
 if (applicationExample) result.scope = 'Source-built application capture through native Sunshine, shared gateway and real browsers, including program tone and scoped stop. No physical microphone, target recording or Linux capture claim.';
+if (targetRecording) result.scope = 'Real browser test microphone uplink, shared broadcast and explicit target input recording with authorization/revocation checks requested; completion is recorded separately. No UE5, physical microphone or Linux capture claim.';
 save();
 const children = [];
 let browser;
 let cleanupRenderer;
+let audioProbe;
 const sha = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 async function port() {
   const server = net.createServer();
@@ -250,6 +265,17 @@ async function main() {
     throw new Error('Sunshine did not return to its initial idle state');
   };
   const invite = await api('/stream-invitations', 'POST', { host_id: host.host_id, app_id: desktop.app_id });
+  if (targetRecording) {
+    audioProbe=startAudioProbe(targetProbe);
+    const catalog=await audioProbe.command('devices');
+    assert.ok(!catalog.error && catalog.data.devices.some(d=>d.id===targetCapture&&d.input), 'Explicit target capture endpoint is unavailable');
+    assert.ok(catalog.data.devices.some(d=>d.id===targetRender&&d.output), 'Explicit target render endpoint is unavailable');
+    const session=await api(`/stream-sessions/${invite.session_id}`);
+    await api(`/stream-sessions/${invite.session_id}/audio-target`,'PATCH',{
+      expected_epoch:session.audio.target.epoch,target:{mode:'local',render_device_id:targetRender,capture_device_id:targetCapture}
+    });
+    result.target_recording={render_device_id:targetRender,capture_device_id:targetCapture,probe_sha256:sha(targetProbe),measurements:{},passed:false};
+  }
   if (microphoneTest) await api(`/stream-sessions/${invite.session_id}/audio`, 'PATCH', {
     program_gain_db: applicationExample ? 0 : -60, microphone_gain_db: 0, microphone_enabled: true,
     broadcast_controller_microphone: true, controller_monitor: false,
@@ -372,6 +398,21 @@ async function main() {
   }
   if (microphoneTest) {
     const measure = page => measureReceivedTone(page, microphoneFrequency);
+    const recordTarget = async phase => {
+      if(!audioProbe)return null;
+      const started=await audioProbe.command('capture',{device_id:targetCapture});
+      assert.ok(!started.error,`Target recording could not start: ${started.error}`);
+      await delay(2200);
+      const stopped=await audioProbe.command('stop');
+      assert.ok(!stopped.error && !stopped.data.error && stopped.data.captured_frames>=48000,'Target recording failed or did not capture one second of PCM');
+      assert.ok(stopped.data.dropped_frames<stopped.data.captured_frames/100,'Target recording dropped more than 1% of frames');
+      const microphone=await audioProbe.command('analyze',{frequency_hz:microphoneFrequency});
+      const program=applicationExample?await audioProbe.command('analyze',{frequency_hz:997}):null;
+      assert.ok(!microphone.error && !program?.error,'Target PCM analysis failed');
+      const measurement={capture:stopped.data,microphone:microphone.data,program:program?.data};
+      result.target_recording.measurements[phase]=measurement;save();
+      return measurement;
+    };
     const startMicrophone = async page => {
       await page.waitForFunction(() => !!window.app.getStream().getMicrophoneListener());
       await page.waitForFunction(() => window.app.getStream().mediaAccess.role === 'controller');
@@ -396,6 +437,8 @@ async function main() {
     });
     await delay(2000);
     levels.viewer_denied_db = await measure(pages[1]);
+    const deniedTarget=await recordTarget('viewer_denied');
+    if(deniedTarget)assert.ok(deniedTarget.microphone.peak_amplitude<0.003,'Unauthorized microphone reached target input');
     await pages[0].evaluate(async () => {
       window.__hostileMicrophone.stream.getTracks().forEach(track => track.stop());
       await window.__hostileMicrophone.sender.replaceTrack(null);
@@ -404,6 +447,11 @@ async function main() {
     await startMicrophone(pages[0]);
     await delay(2000);
     levels.controller_broadcast_db = await measure(pages[1]);
+    const receivedTarget=await recordTarget('controller');
+    if(receivedTarget) {
+      assert.ok(receivedTarget.microphone.mean_amplitude>0.01,'Client microphone missing from target recording');
+      if(receivedTarget.program)assert.ok(receivedTarget.program.peak_amplitude<0.003,'Program output leaked into microphone target');
+    }
     assert.ok(levels.controller_broadcast_db > -55 && levels.controller_broadcast_db > levels.viewer_denied_db + 20,
       `Authorized microphone tone missing: ${JSON.stringify(levels)}`);
     if (applicationExample) {
@@ -441,16 +489,26 @@ async function main() {
     });
     await delay(2000);
     levels.previous_controller_denied_db = await measure(pages[1]);
+    const transferredTarget=await recordTarget('previous_controller_denied');
+    if(transferredTarget)assert.ok(transferredTarget.microphone.peak_amplitude<0.003,'Previous controller microphone survived transfer to target');
     assert.ok(levels.previous_controller_denied_db < levels.controller_broadcast_db - 20,
       `Previous controller microphone survived transfer: ${JSON.stringify(levels)}`);
     await pages[0].waitForFunction(() => !window.app.getStream().getMicrophoneListener().isLive(), null, { timeout: 10000 });
     await startMicrophone(pages[1]);
     await delay(2000);
     levels.new_controller_broadcast_db = await measure(pages[0]);
+    const newControllerTarget=await recordTarget('new_controller');
+    if(newControllerTarget)assert.ok(newControllerTarget.microphone.mean_amplitude>0.01,'New controller microphone missing from target recording');
     assert.ok(levels.new_controller_broadcast_db > -55, 'New controller microphone must broadcast');
     await api(`/stream-sessions/${invite.session_id}/controller`, 'DELETE');
     await delay(2000);
     levels.released_db = await measure(pages[0]);
+    const releasedTarget=await recordTarget('released');
+    if(releasedTarget) {
+      assert.ok(releasedTarget.microphone.peak_amplitude<0.003,'Revoked microphone remained in target recording');
+      result.target_recording.passed=true;
+      result.scope+=' Target input PCM verified with explicit endpoints and controller revocation; no UE5 or physical microphone claim.';
+    }
     assert.ok(levels.released_db < levels.new_controller_broadcast_db - 20, 'Released microphone must be inaudible');
     await pages[1].waitForFunction(() => !window.app.getStream().getMicrophoneListener().isLive(), null, { timeout: 10000 });
     result.microphone_tone = levels;
@@ -540,6 +598,10 @@ async function main() {
   result.browser = browser.version();
 }
 main().catch(error => { result.error = error.message; process.exitCode = 1; }).finally(async () => {
+  if(audioProbe) {
+    try {await audioProbe.close()}
+    catch(error){result.target_probe_cleanup_error=error.message;result.passed=false;process.exitCode=1}
+  }
   if (browser) {
     try { await browser.close(); }
     catch (error) { result.browser_cleanup_error = error.message; result.passed = false; process.exitCode = 1; }

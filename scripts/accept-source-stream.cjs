@@ -87,7 +87,8 @@ async function main() {
   const fd2=fs.openSync(path.join(output,'acceptance.log'),'w');
   const probe=spawn(process.execPath,[path.join(__dirname,'accept-managed-stream.cjs'),'--gateway',gateway,'--orchestrator',control,
     '--runtime-config',runtime,'--scratch',path.join(scratch,'media'),'--output-dir',path.join(output,'browser'),'--example',example,'--example-output',outputDevice,
-    ...['--microphone-tone','--stop-active','--delete-active'].filter(flag => process.argv.includes(flag))],
+    ...['--microphone-tone','--stop-active','--delete-active'].filter(flag => process.argv.includes(flag)),
+    ...['--audio-probe','--target-render-device','--target-capture-device'].flatMap(flag=>process.argv.includes(flag)?[flag,option(flag)]:[])],
     {cwd:root,windowsHide:true,stdio:['ignore',fd2,fd2]}); fs.closeSync(fd2);
   const [code]=await once(probe,'exit');
   assert.equal(code,0,'Program browser acceptance failed; inspect acceptance.log');
