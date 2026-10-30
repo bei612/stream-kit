@@ -29,7 +29,7 @@ const numericOption = (name, fallback) => process.argv.includes(name) ? Number(p
 const clientCount = numericOption('--clients', 2);
 const holdSeconds = numericOption('--hold-seconds', 5);
 const expireClientLease = process.argv.includes('--expire-client-lease');
-const programToneCount = Math.min(28800, Math.max(20, Math.ceil((clientCount*60+holdSeconds+30)/3)));
+const programToneCount = Math.max(20, Math.ceil((clientCount*60+holdSeconds+30)/3));
 const microphoneTest = process.argv.includes('--microphone-tone');
 const endpointOption = name => {
   if (!process.argv.includes(name)) return null;
@@ -58,6 +58,7 @@ assert.ok(!restartServices || !microphoneTest, 'Run recovery and microphone isol
 assert.ok(!microphoneTest || clientCount === 2, 'Microphone isolation acceptance uses two clients');
 assert.ok(Number.isInteger(clientCount) && clientCount >= 2 && clientCount <= 20);
 assert.ok(Number.isInteger(holdSeconds) && holdSeconds >= 0 && holdSeconds <= 86400);
+assert.ok(programToneCount<=30000,'Example tone budget must cover startup and the full hold interval');
 const scratch = process.argv.includes('--scratch') ? argument('--scratch') : path.join(root, '.local/managed-acceptance');
 const output = process.argv.includes('--output-dir') ? argument('--output-dir') : path.join(root, 'artifacts/managed-acceptance', new Date().toISOString().replace(/[:.]/g, '-'));
 fs.mkdirSync(scratch, { recursive: true });
@@ -873,9 +874,11 @@ async function main() {
   const holdStart = performance.now();
   const samplePath = path.join(output, 'continuous-media.jsonl');
   result.continuous_media = {samples:0,elapsed_ms:0,interval_ms:10000,clients:clientCount,passed:false,
-    scope:'Periodic current-peer video decode and audio packet progress with signed shared-session observation; not continuous audio quality measurement.'};
+    tone_samples:0,tone_interval_ms:applicationExample?60000:null,
+    scope:'Periodic current-peer video decode and audio packet progress with signed shared-session observation, plus program-tone audibility for application examples; not continuous audio quality measurement.'};
   fs.writeFileSync(samplePath, JSON.stringify({elapsed_ms:0,clients:previousMedia})+'\n');
   let previousSampleAt = holdStart;
+  let previousToneAt = -Infinity;
   while(performance.now()-holdStart < holdSeconds*1000) {
     // Keep the last observation window long enough to contain real RTP/frame
     // progress; scheduling overhead may extend the requested minimum by < 1s.
@@ -886,10 +889,16 @@ async function main() {
     const sampledAt = performance.now();
     const record = {elapsed_ms:Math.round(sampledAt-holdStart),interval_ms:Math.round(sampledAt-previousSampleAt),
       clients:samples,subscribers:shared?.subscribers,upstream_active:shared?.upstream_active,observations_valid:status.observations_valid};
+    if(applicationExample&&(sampledAt-previousToneAt>=60000||sampledAt-holdStart>=holdSeconds*1000)) {
+      record.program_audio_db=await Promise.all(pages.map(page=>measureReceivedTone(page,997)));
+      previousToneAt=performance.now();
+      result.continuous_media.tone_samples++;
+    }
     fs.appendFileSync(samplePath,JSON.stringify(record)+'\n');
     result.continuous_media.samples++;
     result.continuous_media.elapsed_ms=record.elapsed_ms;
     save();
+    if(record.program_audio_db)assert.ok(record.program_audio_db.every(level=>Number.isFinite(level)&&level>-65),'Program tone missing during sustained playback despite audio packet progress');
     assert.ok(status.observations_valid && shared?.subscribers===clientCount && shared.upstream_active,'Shared session changed during sustained playback');
     for(let i=0;i<samples.length;i++) {
       assert.equal(samples[i].state,'connected',`Viewer ${i+1} disconnected during sustained playback`);
