@@ -10,6 +10,7 @@ import (
 	"hash"
 	"hash/crc32"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -150,6 +151,9 @@ func Extract(archivePath, destDir string, cfg ExtractConfig) (int64, error) {
 			defer z.Close()
 			reader = z
 		}
+		// TAR Next consumes PAX/GNU metadata internally. Bound the complete
+		// decompressed stream, not only file payloads that reach the sink.
+		reader = &archiveBudgetReader{reader: reader, remaining: tarDecodeBudget(cfg)}
 		tr := tar.NewReader(reader)
 		for {
 			header, e := tr.Next()
@@ -198,6 +202,49 @@ type archiveChecksumReader struct {
 	io.ReadCloser
 	hash     hash.Hash32
 	expected uint32
+}
+
+var errArchiveDecodeBudget = errors.New("压缩包解码数据总量超限")
+
+// Allow file payloads, one header/padding block pair per entry, and a shared
+// metadata/footer allowance. Saturation prevents configured limits overflowing.
+func tarDecodeBudget(cfg ExtractConfig) int64 {
+	const metadataAllowance int64 = 16 << 20
+	budget := cfg.MaxExtractSize
+	if budget > math.MaxInt64-metadataAllowance {
+		return math.MaxInt64
+	}
+	budget += metadataAllowance
+	if int64(cfg.MaxFileCount) > (math.MaxInt64-budget)/1024 {
+		return math.MaxInt64
+	}
+	return budget + int64(cfg.MaxFileCount)*1024
+}
+
+type archiveBudgetReader struct {
+	reader    io.Reader
+	remaining int64
+}
+
+func (r *archiveBudgetReader) Read(p []byte) (int, error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
+	if r.remaining == 0 {
+		// Distinguish exact-boundary EOF from additional decoded data.
+		var probe [1]byte
+		n, err := r.reader.Read(probe[:])
+		if n != 0 {
+			return 0, errArchiveDecodeBudget
+		}
+		return 0, err
+	}
+	if int64(len(p)) > r.remaining {
+		p = p[:int(r.remaining)]
+	}
+	n, err := r.reader.Read(p)
+	r.remaining -= int64(n)
+	return n, err
 }
 
 func (r *archiveChecksumReader) Read(p []byte) (int, error) {

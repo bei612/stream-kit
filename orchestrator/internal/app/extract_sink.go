@@ -18,6 +18,7 @@ type extractSink struct {
 	names        map[string]string
 	count, files int
 	bytes        int64
+	entries      int
 }
 
 func (s *extractSink) directory(name string) error {
@@ -45,6 +46,11 @@ func (s *extractSink) directory(name string) error {
 	return nil
 }
 func (s *extractSink) entry(raw string, mode os.FileMode, size uint64, open func() (io.ReadCloser, error)) error {
+	// Count decoded entries even when a root or repeated directory creates no inode.
+	if s.entries >= s.cfg.MaxFileCount {
+		return errors.New("压缩包条目数量超限")
+	}
+	s.entries++
 	name := strings.TrimSuffix(strings.ReplaceAll(raw, `\`, "/"), "/")
 	for strings.HasPrefix(name, "./") {
 		name = strings.TrimPrefix(name, "./")
