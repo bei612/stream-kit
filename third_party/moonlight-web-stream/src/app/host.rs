@@ -164,7 +164,13 @@ impl Host {
         let host = MoonlightHost::<RequestClient>::new(
             host_data.address.clone(),
             host_data.http_port,
-            Some(user_unique_id),
+            Some(
+                host_data
+                    .pair_info
+                    .as_ref()
+                    .and_then(|p| p.client_unique_id.clone())
+                    .unwrap_or(user_unique_id),
+            ),
         )?;
 
         if let Some(pair_info) = host_data.pair_info {
@@ -360,6 +366,14 @@ impl Host {
 
         let user_id = user.id();
         let app = self.app.access()?;
+        // Re-pairing after a server reset must retain the identity used by the
+        // request client, even when another administrator performs the pair.
+        let client_unique_id = self
+            .storage_host(&app)
+            .await?
+            .pair_info
+            .and_then(|pair| pair.client_unique_id)
+            .unwrap_or(user.host_unique_id().await?);
 
         let info = self
             .host_info(&app, user)
@@ -399,6 +413,7 @@ impl Host {
 
                 Ok::<_, AppError>(StorageHostModify {
                     pair_info: Some(Some(StorageHostPairInfo {
+                        client_unique_id: Some(client_unique_id),
                         client_certificate: client_identifier.to_pem(),
                         client_private_key: client_secret.to_pem(),
                         server_certificate: server_identifier.to_pem(),

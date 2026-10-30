@@ -26,7 +26,7 @@ export async function createViewingInvitation(portPath: string): Promise<string>
     throw new Error('串流入口缺少有效的主机或应用编号')
   }
   const response = await api.inviteStreamViewers(hostId, appId)
-  if (!response.data) throw new Error('无法创建观看邀请')
+  if (!response.data) throw new Error('无法创建观看链接')
   const result = response.data
   const url = result.gateway_public_url
     ? new URL('stream.html', result.gateway_public_url.replace(/\/$/, '') + '/')

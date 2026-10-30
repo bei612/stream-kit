@@ -323,6 +323,7 @@ fn host_from_json(host_id: HostId, host: &V2Host) -> StorageHost {
         address: host.address.clone(),
         http_port: host.http_port,
         pair_info: host.pair_info.clone().map(|pair_info| StorageHostPairInfo {
+            client_unique_id: pair_info.client_unique_id,
             client_certificate: pair_info.client_certificate,
             client_private_key: pair_info.client_private_key,
             server_certificate: pair_info.server_certificate,
@@ -729,6 +730,7 @@ impl Storage for JsonStorage {
             address: host.address,
             http_port: host.http_port,
             pair_info: host.pair_info.map(|pair_info| V2HostPairInfo {
+                client_unique_id: pair_info.client_unique_id,
                 client_private_key: pair_info.client_private_key,
                 client_certificate: pair_info.client_certificate,
                 server_certificate: pair_info.server_certificate,
@@ -759,6 +761,7 @@ impl Storage for JsonStorage {
             address: host.address,
             http_port: host.http_port,
             pair_info: host.pair_info.map(|pair_info| StorageHostPairInfo {
+                client_unique_id: pair_info.client_unique_id,
                 client_private_key: pair_info.client_private_key,
                 client_certificate: pair_info.client_certificate,
                 server_certificate: pair_info.server_certificate,
@@ -790,6 +793,7 @@ impl Storage for JsonStorage {
         }
         if let Some(new_pair_info) = modify.pair_info {
             host.pair_info = new_pair_info.map(|new_pair_info| V2HostPairInfo {
+                client_unique_id: new_pair_info.client_unique_id,
                 client_private_key: new_pair_info.client_private_key,
                 client_certificate: new_pair_info.client_certificate,
                 server_certificate: new_pair_info.server_certificate,

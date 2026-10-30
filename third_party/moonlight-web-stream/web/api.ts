@@ -19,7 +19,7 @@ function onError(error: any) {
     if (error instanceof FetchError) {
         const response = error.getResponse()
         // 401 = Unauthorized
-        if (response?.status == 401) {
+        if (response?.status == 401 && !managedStreaming()) {
             window.location.reload()
         }
     }
@@ -84,11 +84,36 @@ export type Api = {
     // User cache
     user: DetailedUser | null,
     role: DetailedRole | null,
+    // Undefined denotes native authentication; null denotes a closed managed connection.
+    mediaAccess?: MediaAccess | null,
 }
 
 export { MediaAccess, managedStreaming, MediaAccessError, refreshMediaTicket as apiRefreshMediaTicket } from "./stream/media_access"
 export { mediaHeartbeat as apiMediaHeartbeat, releaseMediaAccess as apiReleaseMediaAccess } from "./stream/media_access"
-import { acquireMediaAccess } from "./stream/media_access"
+import { acquireMediaAccess, managedStreaming, MediaAccess, refreshMediaTicket, releaseMediaAccess } from "./stream/media_access"
+
+import { StreamProfile } from "./api_bindings"
+export type { StreamProfile } from "./api_bindings"
+
+export async function getViewerBootstrap(hostId: number, appId: number): Promise<{ api: Api; profile: StreamProfile }> {
+    if (!managedStreaming()) {
+        const api = await getApi()
+        return { api, profile: (await apiGetRole(api, { id: null })).role }
+    }
+    if (![hostId, appId].every(id => Number.isInteger(id) && id > 0 && id <= 0xffffffff)) {
+        throw new Error("Invalid rendering application")
+    }
+    const access = await acquireMediaAccess(hostId, appId)
+    if (!access) throw new Error("Managed media admission is required")
+    const api: Api = { host_url: buildUrl("/api"), bearer: null, user: null, role: null, mediaAccess: access }
+    try {
+        const profile = await fetchApi(api, "/host/stream/profile", GET) as StreamProfile
+        return { api, profile }
+    } catch (error) {
+        await releaseMediaAccess(access).catch(() => {})
+        throw error
+    }
+}
 
 export async function apiEnsureMediaAccess(_api: Api, hostId: number, appId: number) {
     return acquireMediaAccess(hostId, appId)
@@ -110,6 +135,7 @@ export function isDetailedHost(host: UndetailedHost | DetailedHost): host is Det
 }
 
 function buildRequest(api: Api, endpoint: string, method: string, init?: ApiFetchInit): [string, RequestInit] {
+    if (api.mediaAccess === null) throw new Error("Managed media connection is closed")
     const queryObj = init?.query || {};
     const queryParts = [];
     for (const key in queryObj) {
@@ -131,7 +157,20 @@ function buildRequest(api: Api, endpoint: string, method: string, init?: ApiFetc
 
     const headers: any = {};
 
-    if (api.bearer) {
+    if (api.mediaAccess) {
+        // A media ticket is a connection capability, never an API login.
+        // Validate returned WHEP locations before attaching it to requests.
+        const base = new URL(api.host_url, window.location.href)
+        const target = new URL(url, window.location.href)
+        const prefix = `${base.pathname.replace(/\/$/, "")}/host/stream/`
+        const resource = target.pathname.slice(prefix.length)
+        if (target.origin !== base.origin || !target.pathname.startsWith(prefix)
+            || !/^(profile|webrtc(?:\/[0-9]+)?)$/.test(resource)
+            || target.username || target.password || target.hash || target.search) {
+            throw new Error("Media credentials cannot access this resource")
+        }
+        headers["X-Stream-Media-Ticket"] = api.mediaAccess.ticket
+    } else if (api.bearer) {
         headers["Authorization"] = `Bearer ${api.bearer}`;
     }
 
@@ -153,7 +192,8 @@ function buildRequest(api: Api, endpoint: string, method: string, init?: ApiFetc
         method: method,
         headers,
         body,
-        credentials: "include"
+        credentials: api.mediaAccess ? "omit" : "include",
+        redirect: api.mediaAccess ? "error" : "follow",
     }
 
     if (init?.keepalive) {
@@ -161,6 +201,16 @@ function buildRequest(api: Api, endpoint: string, method: string, init?: ApiFetc
     }
 
     return [url, request]
+}
+
+async function prepareRequest(api: Api, endpoint: string, method: string, init?: ApiFetchInit): Promise<[string, RequestInit]> {
+    // Validate capability scope before any refresh or request side effect.
+    const request = buildRequest(api, endpoint, method, init)
+    if (api.mediaAccess && Date.parse(api.mediaAccess.expiresAt) <= Date.now() + 5000) {
+        await refreshMediaTicket(api.mediaAccess)
+        return buildRequest(api, endpoint, method, init)
+    }
+    return request
 }
 
 export class FetchError extends Error {
@@ -237,7 +287,7 @@ export async function fetchApi(api: Api, endpoint: string, method: string, init:
 export async function fetchApi<Initial, Other>(api: Api, endpoint: string, method: string, init: { response: "jsonStreaming" } & ApiFetchInit, timeout?: number): Promise<StreamedJsonResponse<Initial, Other>>
 
 export async function fetchApi(api: Api, endpoint: string, method: string = GET, init?: { response?: "json" | "ignore" | "jsonStreaming" } & ApiFetchInit, timeout: number = API_TIMEOUT) {
-    const [url, request] = buildRequest(api, endpoint, method, init)
+    const [url, request] = await prepareRequest(api, endpoint, method, init)
 
     if (!init?.noTimeout) {
         request.signal = AbortSignal.timeout(timeout)
@@ -505,7 +555,7 @@ export type WebRTCConfiguration = {
 export async function apiWebRTCConfiguration(api: Api): Promise<WebRTCConfiguration> {
     const ENDPOINT = "/host/stream/webrtc"
 
-    const [url, request] = buildRequest(api, ENDPOINT, OPTIONS)
+    const [url, request] = await prepareRequest(api, ENDPOINT, OPTIONS)
 
     let response
     try {
@@ -513,6 +563,8 @@ export async function apiWebRTCConfiguration(api: Api): Promise<WebRTCConfigurat
     } catch (e: any) {
         throw await FetchError.create("unknown", ENDPOINT, OPTIONS, e)
     }
+
+    if (!response.ok) throw await FetchError.create("failed", ENDPOINT, OPTIONS, response)
 
     const iceServers: Array<RTCIceServer> = []
 
@@ -540,13 +592,10 @@ export type WebRTCAnswer = {
     location: string | null,
 }
 
-export async function apiWebRTCOffer(api: Api, offerSdp: string, mediaTicket?: string | null): Promise<WebRTCAnswer> {
+export async function apiWebRTCOffer(api: Api, offerSdp: string): Promise<WebRTCAnswer> {
     const ENDPOINT = "/host/stream/webrtc"
 
-    const [url, request] = buildRequest(api, ENDPOINT, POST, { sdp: offerSdp })
-    if (mediaTicket) {
-        ;(request.headers as Record<string, string>)['X-Stream-Media-Ticket'] = mediaTicket
-    }
+    const [url, request] = await prepareRequest(api, ENDPOINT, POST, { sdp: offerSdp })
 
     let response
     try {

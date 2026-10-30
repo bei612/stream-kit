@@ -5,6 +5,7 @@ use tracing::{debug, warn};
 
 use crate::app::{
     App, AppError,
+    admission::{MediaAdmission, MediaConnection},
     user::{AuthenticatedUser, RoleType, User},
 };
 
@@ -21,10 +22,36 @@ pub struct Stream {
     inner: Arc<StreamInner>,
 }
 
+enum StreamOwner {
+    Local(User),
+    Managed(MediaConnection),
+}
+
 impl Stream {
     pub async fn new(
         app: &App,
         owner: &AuthenticatedUser,
+        event_sender: Sender<ExternalStreamEvent>,
+    ) -> Result<Self, AppError> {
+        Self::create(app, StreamOwner::Local(owner.deref().clone()), event_sender).await
+    }
+
+    pub async fn new_managed(
+        app: &App,
+        admission: &MediaAdmission,
+        event_sender: Sender<ExternalStreamEvent>,
+    ) -> Result<Self, AppError> {
+        Self::create(
+            app,
+            StreamOwner::Managed(admission.connection().clone()),
+            event_sender,
+        )
+        .await
+    }
+
+    async fn create(
+        app: &App,
+        owner: StreamOwner,
         event_sender: Sender<ExternalStreamEvent>,
     ) -> Result<Self, AppError> {
         app.insert_stream(|id| {
@@ -63,7 +90,7 @@ impl Stream {
             Self {
                 inner: Arc::new(StreamInner {
                     id,
-                    owner: owner.deref().clone(),
+                    owner,
                     event_sender,
                 }),
             }
@@ -75,14 +102,11 @@ impl Stream {
         self.inner.id
     }
 
-    pub async fn owner(&self) -> Result<User, AppError> {
-        Ok(self.inner.owner.clone())
-    }
-
     async fn has_permissions(&self, user: &mut AuthenticatedUser) -> Result<(), AppError> {
-        if matches!(user.role().await?.ty().await?, RoleType::Admin)
-            || user.id() == self.owner().await?.id()
-        {
+        let StreamOwner::Local(owner) = &self.inner.owner else {
+            return Err(AppError::Forbidden);
+        };
+        if matches!(user.role().await?.ty().await?, RoleType::Admin) || user.id() == owner.id() {
             Ok(())
         } else {
             Err(AppError::Forbidden)
@@ -95,7 +119,23 @@ impl Stream {
         event: ExternalStreamEvent,
     ) -> Result<(), AppError> {
         self.has_permissions(user).await?;
+        self.deliver(event).await
+    }
 
+    pub async fn send_media_event(
+        &self,
+        admission: &MediaAdmission,
+        event: ExternalStreamEvent,
+    ) -> Result<(), AppError> {
+        match &self.inner.owner {
+            StreamOwner::Managed(owner) if owner == admission.connection() => {
+                self.deliver(event).await
+            }
+            _ => Err(AppError::Forbidden),
+        }
+    }
+
+    async fn deliver(&self, event: ExternalStreamEvent) -> Result<(), AppError> {
         self.inner
             .event_sender
             .send(event)
@@ -113,6 +153,6 @@ impl Stream {
 
 pub(crate) struct StreamInner {
     pub(crate) id: StreamId,
-    pub(crate) owner: User,
+    owner: StreamOwner,
     pub(crate) event_sender: Sender<ExternalStreamEvent>,
 }

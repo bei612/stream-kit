@@ -25,12 +25,6 @@ pub struct MediaSessionKey {
     pub app_id: AppId,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum PeerRole {
-    Viewer,
-    Controller,
-}
-
 #[derive(Clone, Debug, Deserialize)]
 pub struct MediaTicketClaims {
     pub purpose: String,

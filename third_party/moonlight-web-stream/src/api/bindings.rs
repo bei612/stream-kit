@@ -325,6 +325,14 @@ pub struct StreamPermissions {
     pub allow_transport_websockets: bool,
 }
 
+/// Browser stream configuration contains no gateway user identity or role.
+#[derive(Serialize, Deserialize, Debug, TS)]
+#[ts(export, export_to = EXPORT_PATH)]
+pub struct StreamProfile {
+    pub permissions: StreamPermissions,
+    pub default_settings: TsAny,
+}
+
 #[derive(Serialize, Deserialize, Debug, TS)]
 #[ts(export, export_to = EXPORT_PATH)]
 pub struct PostRoleRequest {

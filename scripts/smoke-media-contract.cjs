@@ -20,6 +20,15 @@ const secret = crypto.randomBytes(32).toString('hex');
 const env = { ...process.env, WEBRTC_ICE_SERVER_COUNT: '0' };
 for (const name of ['SSL_CERTIFICATE', 'SSL_PRIVATE_KEY', 'FORWARDED_HEADER']) delete env[name];
 const sign = (domain, body) => crypto.createHmac('sha256', secret).update(domain).update(body).digest('hex');
+const mediaTicket = (overrides = {}) => {
+  const now = Math.floor(Date.now() / 1000);
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'MEDIA' })).toString('base64url');
+  const claims = Buffer.from(JSON.stringify({ purpose: 'stream-media', session_id: 'session-test',
+    connection_id: 'client-a', host_id: 2636897928, app_id: 609885969, role: 'viewer',
+    iat: now, exp: now + 60, ...overrides })).toString('base64url');
+  const input = `${header}.${claims}`;
+  return `${input}.${crypto.createHmac('sha256', secret).update(input).digest('base64url')}`;
+};
 
 async function main() {
   const reservation = net.createServer();
@@ -72,6 +81,29 @@ async function main() {
     assert.equal(ack.sessions[0].upstream_active, false);
     assert.equal(ack.sessions[0].subscribers, 0);
     assert.deepEqual(ack.sessions[0].microphone_target, { state: 'idle', device: null });
+    const api = `http://127.0.0.1:${port}/gateway/api`;
+    const viewerRequest = (resource, token, method = 'GET') => fetch(`${api}${resource}`, {
+      method, headers: token ? { 'X-Stream-Media-Ticket': token } : {}, signal: AbortSignal.timeout(2000),
+    });
+    const viewerToken = mediaTicket();
+    const profileResponse = await viewerRequest('/host/stream/profile', viewerToken);
+    assert.equal(profileResponse.status, 200, 'Viewing admission must not require a gateway account');
+    assert.equal(profileResponse.headers.get('cache-control'), 'no-store');
+    const profile = await profileResponse.json();
+    assert.equal(profile.permissions.allow_add_hosts, false);
+    assert.equal(profile.permissions.allow_transport_websockets, false);
+    assert.equal(profile.permissions.allow_transport_webrtc, true);
+    assert.ok(!('user' in profile) && !('ty' in profile), 'Profile is not a gateway identity');
+    assert.equal((await viewerRequest('/host/stream/webrtc', viewerToken, 'OPTIONS')).status, 200);
+    assert.equal((await viewerRequest('/authenticate', viewerToken)).status, 401, 'Media capability cannot authenticate a gateway account');
+    assert.equal((await viewerRequest('/host/stream/profile')).status, 401);
+    assert.equal((await viewerRequest('/authenticate')).status, 401);
+    for (const claims of [
+      { session_id: 'other-session' }, { connection_id: 'unknown' }, { app_id: 42 },
+      { exp: Math.floor(Date.now() / 1000) },
+    ]) {
+      assert.equal((await viewerRequest('/host/stream/profile', mediaTicket(claims))).status, 401, 'Invalid scoped admission');
+    }
     assert.equal((await post(state)).status, 400, 'Replay must fail');
     for (const mutate of [
       s => { s.schema_version = 1; },
@@ -92,8 +124,10 @@ async function main() {
     const revoked = await post(state);
     assert.equal(revoked.status, 200);
     assert.deepEqual((await revoked.json()).sessions, []);
+    assert.equal((await viewerRequest('/host/stream/profile', viewerToken)).status, 401, 'Revocation invalidates an unexpired ticket');
     const result = { passed: true, platform: process.platform, architecture: process.arch, at: new Date().toISOString(), gateway_sha256: crypto.createHash('sha256').update(fs.readFileSync(binary)).digest('hex'),
-      checks: ['signed HTTP acknowledgement', 'request/revision binding', 'unsigned rejection', 'replay rejection', 'configured idle target', 'v1 rejection', 'invalid/rollback epoch rejection', 'coalesced ownership transfer', 'revocation'],
+      checks: ['signed HTTP acknowledgement', 'request/revision binding', 'unsigned rejection', 'replay rejection', 'configured idle target', 'v1 rejection', 'invalid/rollback epoch rejection', 'coalesced ownership transfer', 'revocation',
+        'account-free viewer profile and WHEP configuration', 'media capability cannot authenticate gateway account', 'anonymous denial', 'session/connection/application/expiry admission scope', 'revocation invalidates unexpired admission'],
       scope: 'Isolated real gateway HTTP contract; no active media or target recording.' };
     fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(result, null, 2));
     console.log(JSON.stringify(result));

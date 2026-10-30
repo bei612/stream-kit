@@ -52,6 +52,7 @@ pub struct V1HostPairInfo {
 
 fn migrate_certificates_v1_to_v2(v1: V1HostPairInfo) -> Option<V2HostPairInfo> {
     Some(V2HostPairInfo {
+        client_unique_id: None,
         client_private_key: v1.client_private_key.parse().ok()?,
         client_certificate: v1.client_certificate.parse().ok()?,
         server_certificate: v1.server_certificate.parse().ok()?,
@@ -138,6 +139,8 @@ pub struct V2Host {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct V2HostPairInfo {
+    #[serde(default)]
+    pub client_unique_id: Option<String>,
     pub client_private_key: Pem,
     pub client_certificate: Pem,
     pub server_certificate: Pem,
@@ -266,9 +269,102 @@ impl Default for V3RolePermissions {
 }
 
 pub fn migrate_to_latest(json: Json) -> Result<V3, anyhow::Error> {
-    match json {
-        Json::V1(v1) => Ok(migrate_v2_to_v3(migrate_v1_to_v2(v1))),
-        Json::V2(v2) => Ok(migrate_v2_to_v3(v2)),
-        Json::V3(v3) => Ok(v3),
+    let mut data = match json {
+        Json::V1(v1) => migrate_v2_to_v3(migrate_v1_to_v2(v1)),
+        Json::V2(v2) => migrate_v2_to_v3(v2),
+        Json::V3(v3) => v3,
+    };
+    for host in data.hosts.values_mut() {
+        if let Some(pair) = &mut host.pair_info
+            && pair.client_unique_id.is_none()
+            && let Some(owner) = host.owner.and_then(|id| data.users.get(&id))
+        {
+            pair.client_unique_id = Some(owner.client_unique_id.clone());
+        }
+    }
+    // Ownerless legacy records have no provable pairing identity. They need
+    // explicit re-pairing before managed use; never borrow a default account.
+    Ok(data)
+}
+
+#[cfg(test)]
+mod identity_tests {
+    use super::*;
+
+    #[test]
+    fn paired_identity_is_migrated_only_from_known_owner_and_then_remains_stable() {
+        let pair = V2HostPairInfo {
+            client_unique_id: None,
+            client_private_key: Pem::new("PRIVATE KEY", vec![1]),
+            client_certificate: Pem::new("CERTIFICATE", vec![2]),
+            server_certificate: Pem::new("CERTIFICATE", vec![3]),
+        };
+        let host = V2Host {
+            owner: Some(7),
+            address: "127.0.0.1".into(),
+            http_port: 47989,
+            pair_info: Some(pair),
+            cache: V2HostCache {
+                name: "render".into(),
+                mac: None,
+            },
+        };
+        let mut data = V3 {
+            users: HashMap::from([(
+                7,
+                V3User {
+                    role_id: 1,
+                    name: "owner".into(),
+                    password: None,
+                    client_unique_id: "paired-client".into(),
+                },
+            )]),
+            hosts: HashMap::from([
+                (1, host.clone()),
+                (
+                    2,
+                    V2Host {
+                        owner: None,
+                        ..host
+                    },
+                ),
+            ]),
+            roles: HashMap::new(),
+            default_role_id: None,
+            default_user_id: Some(7),
+        };
+        data = migrate_to_latest(Json::V3(data)).expect("migration");
+        assert_eq!(
+            data.hosts[&1]
+                .pair_info
+                .as_ref()
+                .expect("pair")
+                .client_unique_id
+                .as_deref(),
+            Some("paired-client")
+        );
+        assert!(
+            data.hosts[&2]
+                .pair_info
+                .as_ref()
+                .expect("pair")
+                .client_unique_id
+                .is_none(),
+            "default account cannot supply an unknown pairing identity"
+        );
+        data.users.get_mut(&7).expect("owner").client_unique_id = "changed-account-id".into();
+        let restored: Json =
+            serde_json::from_str(&serde_json::to_string(&Json::V3(data)).expect("serialize"))
+                .expect("restore");
+        let after = migrate_to_latest(restored).expect("idempotent migration");
+        assert_eq!(
+            after.hosts[&1]
+                .pair_info
+                .as_ref()
+                .expect("pair")
+                .client_unique_id
+                .as_deref(),
+            Some("paired-client")
+        );
     }
 }

@@ -81,6 +81,6 @@ test('missing invitation or insecure control configuration never forwards creden
   }
   const { api, window, calls } = browser([])
   window.location.hash = ''
-  await assert.rejects(api.acquireMediaAccess(1, 2), /new viewing invitation/)
+  await assert.rejects(api.acquireMediaAccess(1, 2), /new viewing link/)
   assert.equal(calls.length, 0)
 })

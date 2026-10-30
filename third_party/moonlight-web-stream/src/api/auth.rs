@@ -83,8 +83,16 @@ impl FromRequest for AuthenticatedUser {
         let auth_future = UserAuth::from_request(req, payload);
 
         let app = app.clone();
+        let has_media_ticket = req.headers().contains_key("x-stream-media-ticket");
         Box::pin(async move {
             let auth = auth_future.await?;
+            if app.config().web_server.media_ticket_secret.is_some()
+                && (has_media_ticket || matches!(auth, UserAuth::None))
+            {
+                // Managed invitations never select a gateway default user,
+                // even if an old installation still has one configured.
+                return Err(AppError::Unauthorized);
+            }
 
             let user = app.user_by_auth(auth).await?;
 

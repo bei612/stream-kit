@@ -102,6 +102,55 @@ async function main() {
       }
       await page.close();
     }
+    // Exercise the production viewer with capability-based admission. Only the
+    // HTTP peers are fixtures; WASM, RTCPeerConnection and page startup are real.
+    const viewer = await browser.newPage();
+    viewer.on('pageerror', error => errors.push(`managed viewer: ${error.message}`));
+    const viewerCalls = [];
+    const joined = { session_id: 'browser-session', host_id: 1, app_id: 2,
+      connection_token: 'browser-connection', connection: { connection_id: 'browser-client', role: 'viewer' } };
+    const profile = { permissions: { allow_transport_webrtc: true, allow_transport_websockets: false,
+      allow_add_hosts: false }, default_settings: { dataTransport: 'webrtc', microphone: false,
+      enterFullscreenOnStreamStart: false } };
+    await viewer.route('**/gateway/config.js', route => route.fulfill({ contentType: 'text/javascript',
+      body: `window.__CONFIG_JS__ = ${JSON.stringify({ path_prefix: '/gateway', managed_streaming: true, control_plane_url: origin })};` }));
+    await viewer.route('**/api/**', async route => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      const headers = request.headers();
+      viewerCalls.push({ pathname, method: request.method(), headers, body: request.postData() });
+      const reply = data => route.fulfill({ json: { status: 'ok', data } });
+      if (pathname === '/api/v1/client-sessions/join') {
+        assert.equal(headers.authorization, 'Bearer browser-invitation');
+        return reply(joined);
+      }
+      if (pathname.startsWith('/api/v1/client-sessions/browser-session/connections/browser-client')) {
+        assert.equal(headers.authorization, 'Bearer browser-connection');
+        if (pathname.endsWith('/ticket')) return reply({ ticket: 'browser-media-ticket',
+          expires_at: new Date(Date.now() + 60000).toISOString(), role: 'viewer' });
+        return reply(joined);
+      }
+      assert.equal(headers['x-stream-media-ticket'], 'browser-media-ticket');
+      assert.equal(headers.authorization, undefined);
+      assert.equal(headers.cookie, undefined);
+      if (pathname === '/gateway/api/host/stream/profile') return route.fulfill({ json: profile });
+      if (pathname === '/gateway/api/host/stream/webrtc' && request.method() === 'OPTIONS') return route.fulfill({ status: 200 });
+      if (pathname === '/gateway/api/host/stream/webrtc' && request.method() === 'POST') {
+        assert.match(request.postData(), /m=video/);
+        // Stop before an upstream connection: this fixture has no Sunshine.
+        return route.fulfill({ status: 503, body: 'Upstream intentionally absent in browser fixture' });
+      }
+      throw new Error(`Unexpected managed request: ${request.method()} ${pathname}`);
+    });
+    const offer = viewer.waitForRequest(request => request.method() === 'POST' && request.url().endsWith('/gateway/api/host/stream/webrtc'));
+    await viewer.goto(`${origin}/gateway/stream.html?hostId=1&appId=2#join=browser-invitation`);
+    await offer;
+    await viewer.evaluate(() => window.app.getStream().stop());
+    assert.equal(new URL(viewer.url()).hash, '', 'Admission fragment must be removed');
+    assert.equal(await viewer.locator('#ml-api-name').count(), 0, 'No gateway account login');
+    assert.ok(viewerCalls.some(call => call.method === 'DELETE'), 'Stopping releases the client connection');
+    assert.ok(viewerCalls.every(call => !/\/authenticate$|\/login$|\/role$/.test(call.pathname)), 'No native account bootstrap');
+    await viewer.close();
     const page = await browser.newPage();
     page.on('pageerror', error => errors.push(`bindings: ${error.message}`));
     await page.goto(`${origin}/bindings/`);
@@ -110,7 +159,7 @@ async function main() {
     assert.deepEqual(missing.filter(url => url !== '/favicon.ico'), [], 'Missing built resources');
     const result = { passed: true, browser: browser.version(), at: new Date().toISOString(),
       assets: Object.fromEntries(fs.readdirSync(path.join(gateway, 'dist')).filter(name => /\.(js|wasm|html)$/.test(name)).map(name => [name, createHash('sha256').update(fs.readFileSync(path.join(gateway, 'dist', name))).digest('hex')])),
-      scope: 'Three production pages at a path prefix; offline navigation and cache isolation; release WASM initialization and Rust keyboard/ICE ABI. Authentication is a fixture, no real upstream.' };
+      scope: 'Three production pages at a path prefix; offline navigation and cache isolation; release WASM initialization and Rust keyboard/ICE ABI; managed viewing link reaches a real browser SDP offer without gateway login and releases the connection. HTTP authentication/media responses are fixtures, no real upstream.' };
     fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(result, null, 2));
     console.log(JSON.stringify(result));
   } finally {

@@ -143,6 +143,8 @@ pub struct StorageHostCache {
 }
 #[derive(Clone)]
 pub struct StorageHostPairInfo {
+    // Pairing identity belongs to the render node, not the current viewer.
+    pub client_unique_id: Option<String>,
     pub client_private_key: Pem,
     pub client_certificate: Pem,
     pub server_certificate: Pem,

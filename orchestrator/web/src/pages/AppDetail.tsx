@@ -187,12 +187,12 @@ export default function AppDetail() {
                         setCopied(true)
                         setTimeout(() => setCopied(false), 2000)
                       } catch (error: unknown) {
-                        alert(error instanceof Error ? error.message : '无法创建观看邀请')
+                        alert(error instanceof Error ? error.message : '无法创建观看链接')
                       }
                     }}
                   >
                     {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                    {copied ? '已复制' : '复制观看邀请（2 分钟有效）'}
+                    {copied ? '已复制' : '复制观看链接（2 分钟有效）'}
                   </Button>
                 )}
               </>
@@ -200,7 +200,7 @@ export default function AppDetail() {
           </div>
           {app.status === 'running' && app.stream_url && (
             <div className="mt-3 text-xs text-muted-foreground font-mono bg-muted rounded px-3 py-2 break-all select-all">
-              使用启动按钮或观看邀请进入串流；邀请在两分钟内可加入，已加入的连接通过心跳续期。
+              使用启动按钮或观看链接进入串流，无需注册观看账号；链接在两分钟内可加入，已加入的连接通过心跳续期。
             </div>
           )}
         </CardContent>

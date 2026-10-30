@@ -34,6 +34,7 @@ use crate::app::{
     user::{Admin, AuthenticatedUser, RoleType, User, UserId},
 };
 
+pub mod admission;
 pub mod auth;
 pub mod control_state;
 pub mod host;

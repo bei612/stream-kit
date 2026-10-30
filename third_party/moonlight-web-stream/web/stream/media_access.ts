@@ -69,7 +69,7 @@ export async function acquireMediaAccess(hostId: number, appId: number): Promise
     url.searchParams.delete("mediaControlUrl")
     url.searchParams.delete("mediaTicket")
     window.history.replaceState(null, "", url)
-    if (!invitation) throw new Error("Open a new viewing invitation from the management page")
+    if (!invitation) throw new Error("Open a new viewing link from the management page")
     const joined = await request<ConnectionResponse>(baseUrl, invitation, "/client-sessions/join", "POST")
     const access: MediaAccess = {
         baseUrl, bearer: joined.connection_token, sessionId: joined.session_id,
@@ -77,7 +77,7 @@ export async function acquireMediaAccess(hostId: number, appId: number): Promise
         ticket: "", expiresAt: "",
     }
     try {
-        if (joined.host_id !== hostId || joined.app_id !== appId) throw new Error("Invitation does not match this rendering application")
+        if (joined.host_id !== hostId || joined.app_id !== appId) throw new Error("Viewing link does not match this rendering application")
         await refreshMediaTicket(access)
         return access
     } catch (error) {

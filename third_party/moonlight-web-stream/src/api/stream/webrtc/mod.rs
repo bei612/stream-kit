@@ -7,9 +7,7 @@ use crate::api::stream::webrtc::stream::webrtc_loop;
 use crate::api::stream::webrtc::video::{VideoChannel, video_rtcp_feedback};
 use crate::config::PortRange;
 use actix_web::HttpRequest;
-use actix_web::body::{BoxBody, MessageBody};
-use actix_web::dev::{ServiceRequest, ServiceResponse};
-use actix_web::middleware::Next;
+use actix_web::body::BoxBody;
 use actix_web::web::{Data, Path};
 use actix_web::{
     HttpResponse, HttpResponseBuilder, delete, get, http::StatusCode, http::header, options, patch,
@@ -58,13 +56,14 @@ use webrtc::peer_connection::{
     register_default_interceptors,
 };
 
+use crate::api::media_auth::StreamAccess;
 use crate::api::stream::webrtc::convert::into_webrtc_ice_candidate;
 use crate::api::stream::webrtc::ice_servers::generate_ice_servers;
 use crate::api::stream::{PACKET_SIZE, apply_role_restrictions};
 use crate::app::App;
+use crate::app::AppError;
 use crate::app::host::HostId;
 use crate::app::stream::{ExternalStreamEvent, Stream, StreamId};
-use crate::app::{AppError, user::AuthenticatedUser};
 
 const FLEX_FEC_PAYLOAD_TYPE: u8 = 49;
 
@@ -78,29 +77,10 @@ mod microphone;
 mod stream;
 mod video;
 
-pub async fn webrtc_middleware(
-    mut req: ServiceRequest,
-    next: Next<impl MessageBody>,
-) -> Result<ServiceResponse<impl MessageBody>, actix_web::Error> {
-    let mut user = req.extract::<AuthenticatedUser>().await?;
-
-    if !user
-        .role()
-        .await?
-        .permissions()
-        .await?
-        .allow_transport_webrtc
-    {
-        return Err(AppError::Forbidden.into());
-    }
-
-    next.call(req).await
-}
-
 #[options("")]
 pub async fn webrtc_options(
     app: Data<App>,
-    _user: AuthenticatedUser,
+    _access: StreamAccess,
 ) -> Result<HttpResponse, AppError> {
     let mut response = HttpResponseBuilder::new(StatusCode::OK);
     response.append_header(("Accept-Post", "application/sdp"));
@@ -134,7 +114,7 @@ pub async fn webrtc_options(
 }
 
 #[get("")]
-pub async fn webrtc_get(_user: AuthenticatedUser) -> Result<HttpResponse, AppError> {
+pub async fn webrtc_get(_access: StreamAccess) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::MethodNotAllowed().finish())
 }
 
@@ -264,23 +244,13 @@ impl PeerConnectionEventHandler for WebRtcHandler {
 }
 
 #[post("")]
-#[instrument(skip(app, user, req, session_description), fields(user = %user.id()))]
+#[instrument(skip(app, access, _req, session_description))]
 pub async fn webrtc_post(
     app: Data<App>,
-    mut user: AuthenticatedUser,
-    req: HttpRequest,
+    mut access: StreamAccess,
+    _req: HttpRequest,
     session_description: String,
 ) -> Result<HttpResponse, AppError> {
-    if !user
-        .role()
-        .await?
-        .permissions()
-        .await?
-        .allow_transport_webrtc
-    {
-        return Err(AppError::Forbidden);
-    }
-
     debug!("received webrtc offer");
 
     let offer_sdp = Session::parse(session_description.as_bytes())?;
@@ -292,64 +262,26 @@ pub async fn webrtc_post(
     };
     let host_id = HostId(host_id);
 
-    // Get host
-    let mut host = user.host(host_id).await?;
-    let host = host.use_host(&mut user).await?;
-
+    let app_id = AppId(session.app_id);
+    let media_key = crate::app::media::MediaSessionKey {
+        host_id,
+        app_id: crate::app::host::AppId(app_id.0),
+    };
+    let host = access.open_host(&app, &media_key).await?;
     if !host.is_paired().await? {
         return Err(AppError::HostNotPaired);
     }
-
-    // Get app
-    let app_id = AppId(session.app_id);
     if app
         .config()
         .validate_audio_host(host_id.0, app_id.0, host.address())
         .is_err()
     {
-        // Local endpoint IDs are meaningful only on this rendering node. Never
-        // redirect a remote host's microphone into the gateway machine.
         return Err(AppError::BadRequest);
     }
-
-    let media_key = crate::app::media::MediaSessionKey {
-        host_id,
-        app_id: crate::app::host::AppId(app_id.0),
+    let media_peer_id = match &access {
+        StreamAccess::Managed(admission) => admission.connection().connection_id.clone(),
+        StreamAccess::Local(_) => Uuid::new_v4().to_string(),
     };
-    let (media_peer_id, media_role) =
-        if let Some(secret) = app.config().web_server.media_ticket_secret.as_deref() {
-            let token = req
-                .headers()
-                .get("x-stream-media-ticket")
-                .and_then(|value| value.to_str().ok())
-                .ok_or(AppError::Unauthorized)?;
-            let claims = crate::app::media::verify_media_ticket(token, secret)?;
-            if claims.host_id != i64::from(host_id.0) || claims.app_id != i64::from(app_id.0) {
-                return Err(AppError::Unauthorized);
-            }
-            {
-                let authority = app.media_sessions().control.read().await;
-                let now = crate::app::control_state::now_ms();
-                if !authority.admits(&media_key, &claims.connection_id, now)
-                    || !authority
-                        .session(&media_key, now)
-                        .is_some_and(|s| s.session_id == claims.session_id)
-                {
-                    return Err(AppError::Unauthorized);
-                }
-            }
-            let role = if claims.role == "controller" {
-                crate::app::media::PeerRole::Controller
-            } else {
-                crate::app::media::PeerRole::Viewer
-            };
-            (claims.connection_id, role)
-        } else {
-            (
-                Uuid::new_v4().to_string(),
-                crate::app::media::PeerRole::Viewer,
-            )
-        };
 
     // Create offer based on the sdp
     let offer = RTCSessionDescription::offer(session_description)?;
@@ -538,7 +470,7 @@ pub async fn webrtc_post(
     };
 
     // -- Get and Apply Permissions
-    let permissions = user.role().await?.permissions().await?;
+    let permissions = access.profile(&app).await?.permissions;
     apply_role_restrictions(&permissions, &mut settings);
 
     // Adjust settings
@@ -567,6 +499,9 @@ pub async fn webrtc_post(
             app.media_sessions().clone(),
             media_peer_id.clone(),
             || async {
+                if let StreamAccess::Managed(admission) = &access {
+                    admission.require_live(&app).await?;
+                }
                 let config = host
                     .start_stream(
                         app_id,
@@ -648,18 +583,25 @@ pub async fn webrtc_post(
         return Err(err.into());
     }
 
+    if let StreamAccess::Managed(admission) = &access
+        && let Err(error) = admission.require_live(&app).await
+    {
+        let _ = peer.close().await;
+        return Err(error);
+    }
+
     // Register only after negotiation has succeeded. This gives the shared
     // media driver one authoritative attach/detach boundary and avoids
     // exposing half-open SDP offers as online clients.
     app.media_sessions()
         .attach(media_key.clone(), media_peer_id.clone())
         .await?;
-    if app.config().web_server.media_ticket_secret.is_none()
-        && media_role == crate::app::media::PeerRole::Controller
+    if matches!(access, StreamAccess::Local(_))
         && let Err(error) = app
             .media_sessions()
             .claim_controller(&media_key, &media_peer_id, false)
             .await
+        && !matches!(&error, AppError::Forbidden)
     {
         app.media_sessions()
             .detach(&media_key, &media_peer_id)
@@ -751,7 +693,13 @@ pub async fn webrtc_post(
 
     // Add stream to the list of streams
     let (event_sender, mut event_receiver) = mpsc::channel(20);
-    let stream = match Stream::new(&app, &user, event_sender).await {
+    let created = match &access {
+        StreamAccess::Local(user) => Stream::new(&app, user, event_sender).await,
+        StreamAccess::Managed(admission) => {
+            Stream::new_managed(&app, admission, event_sender).await
+        }
+    };
+    let stream = match created {
         Ok(value) => value,
         Err(err) => {
             app.media_sessions()
@@ -842,7 +790,7 @@ pub async fn webrtc_post(
 #[patch("/{stream_id}")]
 pub async fn webrtc_patch(
     app: Data<App>,
-    mut user: AuthenticatedUser,
+    mut access: StreamAccess,
     stream_id: Path<u32>,
     request: HttpRequest,
     body: String,
@@ -866,9 +814,9 @@ pub async fn webrtc_patch(
             {
                 Ok(HttpResponse::UnprocessableEntity().finish())
             } else {
-                stream
+                access
                     .send_event(
-                        &mut user,
+                        &stream,
                         ExternalStreamEvent::WebRTCAddIceCandidate { ice_sdp_frag: body },
                     )
                     .await?;
@@ -881,18 +829,18 @@ pub async fn webrtc_patch(
 }
 
 #[delete("/{stream_id}")]
-#[instrument(skip(app, user), fields(user = %user.id()))]
+#[instrument(skip(app, access))]
 pub async fn webrtc_delete(
     app: Data<App>,
-    mut user: AuthenticatedUser,
+    mut access: StreamAccess,
     stream_id: Path<u32>,
 ) -> Result<HttpResponse, AppError> {
     let stream_id = StreamId(stream_id.into_inner());
 
     let stream = app.stream_by_id(stream_id).await?;
 
-    stream
-        .send_event(&mut user, ExternalStreamEvent::Stop)
+    access
+        .send_event(&stream, ExternalStreamEvent::Stop)
         .await?;
 
     Ok(HttpResponse::Ok()

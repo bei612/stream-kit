@@ -1,5 +1,5 @@
-import { Api, apiGetRole, getApi } from "./api"
-import { DetailedRole, StreamKeys } from "./api_bindings"
+import { Api, getViewerBootstrap, StreamProfile } from "./api"
+import { StreamKeys } from "./api_bindings"
 import { Component } from "./component/index"
 import { SelectComponent } from "./component/input"
 import { FormModal } from "./component/modal/form"
@@ -27,17 +27,8 @@ let I = getTranslations(getCurrentLanguage())
 async function startApp() {
     const uniffiInit = uniffiInitAsync()
 
-    const api = await getApi()
-
     const queryParams = new URLSearchParams(location.search)
     let lang = parseLanguageFromQuery(queryParams)
-    const bootstrapRole = await apiGetRole(api, { id: null })
-    if (!lang) {
-        adoptRoleDefaultLanguage(bootstrapRole.role.default_settings)
-        lang = getCurrentLanguage()
-    }
-    I = getTranslations(lang)
-
     const rootElement = document.getElementById("root");
     if (rootElement == null) {
         showNotification(I.stream.rootNotFound, "error")
@@ -53,8 +44,8 @@ async function startApp() {
         window.close()
         return
     }
-    const hostId = Number.parseInt(hostIdStr)
-    const appId = Number.parseInt(appIdStr)
+    const hostId = Number(hostIdStr)
+    const appId = Number(appIdStr)
 
     // event propagation on overlays
     const sidebarRoot = getSidebarRoot()
@@ -69,6 +60,12 @@ async function startApp() {
 
     // Wait for uniffi to finish it's initialization
     await uniffiInit
+    const { api, profile } = await getViewerBootstrap(hostId, appId)
+    if (!lang) {
+        adoptRoleDefaultLanguage(profile.default_settings)
+        lang = getCurrentLanguage()
+    }
+    I = getTranslations(lang)
     // Set Uniffy Logger
     class CustomUniffiLogger implements UniffiLogger {
         log(level: LogLevel, message: string): void {
@@ -94,7 +91,7 @@ async function startApp() {
     uniffiSetLogger(new CustomUniffiLogger(), LogLevel.Debug)
 
     // Start and Mount App
-    const app = new ViewerApp(api, hostId, appId, bootstrapRole.role, parseSettingsFromQuery(queryParams))
+    const app = new ViewerApp(api, hostId, appId, profile, parseSettingsFromQuery(queryParams))
     app.mount(rootElement);
 
     (window as any)["app"] = app
@@ -154,7 +151,7 @@ function parseLanguageFromQuery(queryParams: URLSearchParams): Language | undefi
     return language ? normalizeLanguage(language) : undefined
 }
 
-startApp()
+startApp().catch(error => showMessage(error instanceof Error ? error.message : String(error)))
 
 class ViewerApp implements Component {
     private api: Api
@@ -185,7 +182,7 @@ class ViewerApp implements Component {
 
     private hasShownFullscreenEscapeWarning = false
 
-    constructor(api: Api, hostId: number, appId: number, bootstrapRole: DetailedRole, options?: Partial<Settings>) {
+    constructor(api: Api, hostId: number, appId: number, bootstrapRole: StreamProfile, options?: Partial<Settings>) {
         this.api = api
 
         const defaultSettings = getLocalStreamSettings(bootstrapRole.default_settings)

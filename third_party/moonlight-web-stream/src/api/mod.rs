@@ -18,9 +18,7 @@ use crate::api::{
     settings::{get_default_settings, get_permissions},
     stream::{
         web_socket::web_socket_stream,
-        webrtc::{
-            webrtc_delete, webrtc_get, webrtc_middleware, webrtc_options, webrtc_patch, webrtc_post,
-        },
+        webrtc::{webrtc_delete, webrtc_get, webrtc_options, webrtc_patch, webrtc_post},
     },
     user::{
         add_user, delete_default_user, delete_user, get_default_user, get_user, list_users,
@@ -35,6 +33,7 @@ pub mod app;
 pub mod auth;
 pub mod control_state;
 pub mod host;
+pub mod media_auth;
 pub mod role;
 pub mod settings;
 pub mod stream;
@@ -45,6 +44,7 @@ pub mod response_streaming;
 pub fn api_service() -> impl HttpServiceFactory {
     web::scope("/api")
         .wrap(from_fn(auth_middleware))
+        .service(media_auth::stream_profile)
         .service(services![
             // -- Auth
             auth::login,
@@ -101,7 +101,6 @@ pub fn api_service() -> impl HttpServiceFactory {
         .service(
             // -- WebRTC Stream
             web::scope("/host/stream/webrtc")
-                .wrap(from_fn(webrtc_middleware))
                 .service(webrtc_options)
                 .service(webrtc_get)
                 .service(webrtc_post)

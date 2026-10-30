@@ -135,6 +135,8 @@ export class Stream implements Component {
 
         this.permissions = permissions
         this.settings = settings
+        this.mediaAccess = api.mediaAccess ?? null
+        this.startMediaHeartbeat()
 
         this.streamerSize = getStreamerSize(settings, viewerScreenSize)
 
@@ -258,6 +260,7 @@ export class Stream implements Component {
             if (mediaAccess) await apiRefreshMediaTicket(mediaAccess)
             else mediaAccess = await apiEnsureMediaAccess(this.api, this.hostId, this.appId)
             this.mediaAccess = mediaAccess
+            if (mediaAccess) this.api.mediaAccess = mediaAccess
             this.startMediaHeartbeat()
             if (this.stopped) {
                 this.cleanupMicrophone()
@@ -295,7 +298,6 @@ export class Stream implements Component {
             },
             this.logger
         )
-        const mediaTicket = mediaAccess?.ticket ?? null
         transport.controlStream.onreceive = this.boundReceivePacket
 
         const onConnect = new Promise<TransportConnectData>(resolve => {
@@ -318,7 +320,7 @@ export class Stream implements Component {
 
             // Send Request
             this.debugLog("Sending Offer and waiting for Answer")
-            const answer = await apiWebRTCOffer(this.api, offer, mediaTicket)
+            const answer = await apiWebRTCOffer(this.api, offer)
             this.debugLog("Got Response")
 
             // Apply answer
@@ -392,6 +394,7 @@ export class Stream implements Component {
         if (!this.mediaAccess) return
         const access = this.mediaAccess
         this.mediaAccess = null
+        this.api.mediaAccess = null
         try { await apiReleaseMediaAccess(access) } catch (error) { this.debugLog(`Media disconnect failed: ${error}`) }
     }
 
