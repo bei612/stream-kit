@@ -1,7 +1,7 @@
 import { API_BASE, getToken, clearToken } from '@/lib/utils'
 import type { RenderSession, SessionAudio, SessionPolicy, MediaControlStatus, AudioTarget } from './sessions'
 import type { AudioInventory } from './audio-devices'
-import type { ConfigurationView, ConfigValue } from './configuration'
+import type { ConfigurationView, GatewayConfigurationView, ConfigValue } from './configuration'
 
 interface ApiResponse<T = unknown> {
   status: 'ok' | 'error'
@@ -192,6 +192,8 @@ export const api = {
   // System
   getConfig: () => request<any>('/config'),
   getConfiguration: () => request<ConfigurationView>('/configuration'),
+  getGatewayConfiguration: () => request<GatewayConfigurationView>('/gateway-configuration'),
+  saveGatewayConfiguration: (revision:string, changes:Record<string,ConfigValue>) => request<GatewayConfigurationView>('/gateway-configuration', {method:'PATCH',body:JSON.stringify({revision,changes})}),
   saveConfiguration: (revision:string, changes:Record<string,ConfigValue>) => request<ConfigurationView>('/configuration', {method:'PATCH',body:JSON.stringify({revision,changes})}),
   getTemplates: () => request<Record<string, string>>('/templates'),
   getLogs: (params: { page?: number; size?: number; target_type?: string }) => {

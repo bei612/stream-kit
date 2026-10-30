@@ -9,6 +9,7 @@ import { LogOut } from 'lucide-react'
 import { AudioDevices } from '@/components/AudioDevices'
 import { Alert } from '@/components/ui/alert'
 import { ConfigurationEditor } from '@/components/ConfigurationEditor'
+import { GatewayConfigurationEditor } from '@/components/GatewayConfigurationEditor'
 
 export default function Settings() {
   const [config, setConfig] = useState<any>(null)
@@ -46,6 +47,7 @@ export default function Settings() {
       </Card>
 
       <ConfigurationEditor />
+      <GatewayConfigurationEditor />
       <AudioDevices />
 
       {/* Current config display */}

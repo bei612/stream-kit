@@ -185,7 +185,12 @@ async function main() {
       max_extract_size_bytes: 10485760, max_file_count: 1000 },
     process: { monitor_interval_seconds: 2, graceful_shutdown_timeout_seconds: 2 },
     log: { level: 'info', file: { enabled: false }, access_log: { enabled: false } } };
-  const controlConfigFile = path.join(scratch, 'control-config.json');
+  const controlConfigFile = path.join(scratch, 'control', 'config.json');
+  fs.mkdirSync(path.dirname(controlConfigFile),{recursive:true});
+  if(process.argv.includes('--edit-gateway-configuration')) {
+    fs.cpSync(path.join(root,'orchestrator/web/dist'),path.join(scratch,'control/dist'),{recursive:true});
+    result.management_assets_sha256=Object.fromEntries(fs.readdirSync(path.join(scratch,'control/dist/assets')).map(name=>[name,sha(path.join(scratch,'control/dist/assets',name))]));
+  }
   if (applicationExample) controlConfig.sunshine_api = sun;
   fs.writeFileSync(controlConfigFile, JSON.stringify(controlConfig));
   let gatewayProcess = launch(gatewayBinary, ['--config-path', gatewayConfigFile, 'run'], 'gateway');
@@ -366,15 +371,30 @@ async function main() {
     assert.equal(before.apply_policy,'gateway_restart');
     assert.equal(before.restart_required,false);
     assert.equal(before.values.web_server.media_ticket_secret,null);
-    const saved = await api('/gateway-configuration','PATCH',{revision:before.revision,changes:{'/moonlight/pair_device_name':'Stream Kit managed acceptance'}});
+    const adminPage=await context.newPage();
+    adminPage.on('pageerror',error=>pageErrors.push(error.message));
+    await adminPage.goto(control+'/login');
+    await adminPage.getByLabel('用户名',{exact:true}).fill(credentials.username);
+    await adminPage.getByLabel('密码',{exact:true}).fill(credentials.password);
+    await adminPage.getByRole('button',{name:'登录控制台',exact:true}).click();
+    await adminPage.getByRole('heading',{name:'工作台',exact:true}).waitFor();
+    await adminPage.locator('nav a[href="/settings"]').click();
+    await adminPage.locator('summary').filter({hasText:'渲染主机连接'}).click();
+    await adminPage.getByLabel('配对设备名称',{exact:true}).fill('Stream Kit managed acceptance');
+    await adminPage.getByRole('button',{name:'保存网关配置',exact:true}).click();
+    await adminPage.getByText('网关配置已保存，重启网关后生效。当前串流继续使用原配置。',{exact:true}).waitFor();
+    const saved = await api('/gateway-configuration');
     assert.equal(saved.restart_required,true);
+    assert.equal(saved.values.moonlight.pair_device_name,'Stream Kit managed acceptance');
     assert.notEqual(saved.revision,before.revision);
     assert.equal((await api('/gateway-configuration')).revision,saved.revision);
     const stale = await fetch(control+'/api/v1/gateway-configuration',{method:'PATCH',headers:{Authorization:'Bearer '+login.data.token,'Content-Type':'application/json'},
       body:JSON.stringify({revision:before.revision,changes:{'/moonlight/pair_device_name':'stale'}})});
     assert.equal(stale.status,409);
-    result.gateway_configuration = {passed:true,apply_policy:saved.apply_policy,restart_required:true,conflict_rejected:true,
-      scope:'Management API to signed native file operation during active media; no gateway restart or browser form interaction.'};
+    await adminPage.screenshot({path:path.join(output,'gateway-settings.png'),fullPage:true});
+    await adminPage.close();
+    result.gateway_configuration = {passed:true,apply_policy:saved.apply_policy,restart_required:true,conflict_rejected:true,browser_form:true,
+      scope:'Production administrator form through signed native file operation during active media; no gateway restart.'};
   }
   if (restartServices) {
     const selected = await api(`/stream-sessions/${invite.session_id}/controller/${ids[0]}`, 'POST');

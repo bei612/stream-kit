@@ -50,6 +50,8 @@ async function main() {
       let failSettings = true;
       const configuration = {revision:'config-1',restart_required:false,apply_policy:'service_restart',values:{server:{bind_address:'127.0.0.1:9000',password:'****'},storage:{max_file_count:1000},components:{gateway:{auto_start:true,env:{PRIVATE:'****'}}}},redacted_paths:['/server/password','/components/gateway/env/PRIVATE'],environment_overrides:[]};
       let conflictConfiguration=true;
+      const gatewayConfiguration={revision:'native-1',restart_required:false,apply_policy:'gateway_restart',values:{moonlight:{pair_device_name:'Stream Kit',default_http_port:47989},web_server:{media_ticket_secret:null,control_plane_url:'https://control.example'},webrtc:{port_range:null,ice_servers:[{urls:null,username:'turn-user',credential:null}],include_loopback_candidates:true}},redacted_paths:['/web_server/media_ticket_secret','/webrtc/ice_servers/0/urls','/webrtc/ice_servers/0/credential'],overridden_paths:['/web_server/control_plane_url']};
+      let conflictGateway=true;
       const context = await browser.newContext({ viewport:{width,height:900}, locale:'zh-CN', reducedMotion:'reduce' });
       await context.routeWebSocket('**/api/v1/ws**', ws => { ws.onMessage(()=>{}); });
       await context.route('**/api/**', async route => {
@@ -91,6 +93,17 @@ async function main() {
             configuration.revision='config-2';configuration.restart_required=true;
           }
           data=configuration;
+        }
+        else if(pathname === '/api/v1/gateway-configuration') {
+          if(route.request().method()==='PATCH') {
+            const update=route.request().postDataJSON();
+            assert.equal(update.revision,gatewayConfiguration.revision);
+            assert.deepEqual(Object.keys(update.changes),['/moonlight/pair_device_name']);
+            if(conflictGateway) {conflictGateway=false;return route.fulfill({status:409,json:{status:'error',message:'网关配置已被修改，请重新读取后保存'}})}
+            gatewayConfiguration.values.moonlight.pair_device_name=update.changes['/moonlight/pair_device_name'];
+            gatewayConfiguration.revision='native-2';gatewayConfiguration.restart_required=true;
+          }
+          data=gatewayConfiguration;
         }
         else if(pathname === '/api/v1/audio-devices') data = {schema_version:1,observed_at_ms:Date.now(),devices:[
           {id:'wasapi:render-fixture',name:'虚拟音频 · 网关输出',input:false,output:true},
@@ -138,6 +151,32 @@ async function main() {
           await page.getByLabel('目标程序读取端 · 输入设备',{exact:true}).selectOption('wasapi:capture-fixture');
         }
         if(name==='settings') {
+          await page.locator('summary').filter({hasText:'渲染主机连接'}).click();
+          await page.getByLabel('配对设备名称',{exact:true}).fill('Gateway draft');
+          await page.getByRole('button',{name:'保存网关配置',exact:true}).click();
+          await page.getByRole('alert').filter({hasText:'网关配置已被修改'}).waitFor();
+          assert.equal(await page.getByLabel('配对设备名称',{exact:true}).inputValue(),'Gateway draft');
+          await page.getByRole('button',{name:'放弃网关修改并重新读取',exact:true}).click();
+          await page.waitForFunction(()=>document.querySelector('input[id="gateway-setting/moonlight/pair_device_name"]')?.value==='Stream Kit');
+          await page.getByLabel('配对设备名称',{exact:true}).fill('Gateway saved');
+          await page.getByRole('button',{name:'保存网关配置',exact:true}).click();
+          await page.getByText('网关配置已保存，重启网关后生效。当前串流继续使用原配置。',{exact:true}).waitFor();
+          await page.getByText('网关存在待生效配置，请在维护时段协调重启。',{exact:true}).waitFor();
+          await page.locator('summary').filter({hasText:'访问与信任'}).click();
+          assert.equal(await page.getByLabel('媒体信任密钥',{exact:true}).inputValue(),'');
+          await page.getByRole('button',{name:'清空可选配置',exact:true}).click();
+          await page.getByText('保存后清空此可选配置，重启生效。',{exact:true}).waitFor();
+          await page.getByRole('button',{name:'撤销此项修改',exact:true}).click();
+          await page.locator('summary').filter({hasText:'网络与 WebRTC'}).click();
+          assert.equal(await page.getByLabel('访问凭据',{exact:true}).inputValue(),'');
+          assert.equal(await page.getByLabel('访问凭据',{exact:true}).getAttribute('type'),'password');
+          await page.getByRole('button',{name:'替换列表',exact:true}).click();
+          await page.getByLabel('STUN / TURN 服务',{exact:true}).fill('{');
+          await page.getByRole('button',{name:'保存网关配置',exact:true}).click();
+          await page.getByRole('alert').filter({hasText:'JSON 格式无效'}).waitFor();
+          await page.getByRole('button',{name:'撤销此项修改',exact:true}).click();
+          assert.ok(await page.getByRole('button',{name:'保存网关配置',exact:true}).isDisabled());
+          await capture('gateway-settings');
           await page.locator('summary').filter({hasText:'应用与存储'}).click();
           await page.getByLabel('解压文件数上限',{exact:true}).fill('1500');
           await page.getByRole('button',{name:'保存配置（1 项）',exact:true}).click();

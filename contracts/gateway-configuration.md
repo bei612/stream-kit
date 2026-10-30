@@ -107,7 +107,17 @@ the permit retained by its blocking file task even if HTTP is cancelled.
 Unsigned or mismatched native responses become a generic unavailable error;
 untrusted diagnostic text is never forwarded to the administrator.
 
-The API integration is implemented. Browser form integration and coordinated
-component restart remain outstanding. `--edit-gateway-configuration` on the
-source-stream acceptance runner exercises the administrator API while video and
-audio are active, including pending restart and stale-version rejection.
+The settings page includes the native gateway editor with grouped controls,
+redacted-value preservation, deployment override and pending-restart indicators.
+Simple fields and existing list entries are edited individually; optional
+structured fields use an advanced JSON input with examples. Complete collection
+replacement is explicit and starts empty, so the user must supply every desired
+entry and credential instead of accidentally resubmitting redacted placeholders.
+Drafts survive failed saves; per-field undo and reload discard them explicitly.
+Coordinated component restart remains outstanding.
+
+`--edit-gateway-configuration` on the source-stream acceptance runner logs into
+the production administrator page and edits through its form while video and
+audio are active, then checks the API result, pending restart and stale-version
+rejection. The management and gateway assets use separate directories and their
+hashes are captured with the result.
