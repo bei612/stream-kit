@@ -13,7 +13,7 @@
   #include <gtest/gtest.h>
 
 namespace platf::audio::tests {
-  std::array<std::uint64_t, 12> capture_observations(const mic_t &mic);
+  std::array<std::uint64_t, 16> capture_observations(const mic_t &mic);
 }
 
 namespace {
@@ -313,7 +313,7 @@ namespace {
     std::vector<float> retired_packet(480);
     EXPECT_EQ(microphone->sample(retired_packet), platf::capture_e::error);
     const auto observed = platf::audio::tests::capture_observations(*microphone);
-    const std::array<const char *, 12> names {"native_packets", "native_frames", "native_silent_frames", "native_first_position", "native_end_position", "native_first_qpc", "native_last_qpc", "native_timestamp_errors", "native_max_delta_100ns", "native_gaps_over_15ms", "native_gap_excess_100ns", "native_max_gap_start_100ns"};
+    const std::array<const char *, 16> names {"native_packets", "native_frames", "native_silent_frames", "native_first_position", "native_end_position", "native_first_qpc", "native_last_qpc", "native_timestamp_errors", "native_max_delta_100ns", "native_gaps_over_15ms", "native_gap_excess_100ns", "native_max_gap_start_100ns", "native_max_peek_us", "native_max_wait_us", "native_max_get_us", "native_max_release_us"};
     for (std::size_t i = 0; i < names.size(); ++i) {
       RecordProperty(names[i], std::to_string(observed[i]));
     }

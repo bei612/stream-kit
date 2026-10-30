@@ -832,7 +832,13 @@ namespace platf::audio {
       }
 
       std::uint32_t packet_size {};
+#ifdef SUNSHINE_TESTS
+      auto call_started = std::chrono::steady_clock::now();
+#endif
       status = audio_capture->GetNextPacketSize(&packet_size);
+#ifdef SUNSHINE_TESTS
+      observe_call(12, call_started);
+#endif
       if (status == AUDCLNT_E_DEVICE_INVALIDATED) {
         return capture_e::reinit;
       }
@@ -843,7 +849,13 @@ namespace platf::audio {
       // waiting on the auto-reset event. Draining every packet at once used to
       // discard the tail whenever the fixed staging buffer filled up.
       if (!packet_size) {
+#ifdef SUNSHINE_TESTS
+        call_started = std::chrono::steady_clock::now();
+#endif
         status = WaitForSingleObjectEx(audio_event.get(), default_latency_ms, FALSE);
+#ifdef SUNSHINE_TESTS
+        observe_call(13, call_started);
+#endif
         switch (status) {
           case WAIT_OBJECT_0:
             break;
@@ -853,7 +865,13 @@ namespace platf::audio {
             BOOST_LOG(error) << "Couldn't wait for audio event: [0x"sv << util::hex(status).to_string_view() << ']';
             return capture_e::error;
         }
+#ifdef SUNSHINE_TESTS
+        call_started = std::chrono::steady_clock::now();
+#endif
         status = audio_capture->GetNextPacketSize(&packet_size);
+#ifdef SUNSHINE_TESTS
+        observe_call(12, call_started);
+#endif
       }
       if (SUCCEEDED(status) && packet_size > 0) {
         if (packet_size > static_cast<std::size_t>(std::end(sample_buf) - sample_buf_pos) / channels) {
@@ -864,6 +882,7 @@ namespace platf::audio {
 #ifdef SUNSHINE_TESTS
         UINT64 device_position = 0;
         UINT64 clock_position = 0;
+        call_started = std::chrono::steady_clock::now();
 #endif
         status = audio_capture->GetBuffer(
           (BYTE **) &sample_aligned.samples,
@@ -878,6 +897,9 @@ namespace platf::audio {
 #endif
         );
 
+#ifdef SUNSHINE_TESTS
+        observe_call(14, call_started);
+#endif
         switch (status) {
           case S_OK:
             break;
@@ -930,7 +952,13 @@ namespace platf::audio {
 
         sample_buf_pos += n;
 
+#ifdef SUNSHINE_TESTS
+        call_started = std::chrono::steady_clock::now();
+#endif
         status = audio_capture->ReleaseBuffer(block_aligned.audio_sample_size);
+#ifdef SUNSHINE_TESTS
+        observe_call(15, call_started);
+#endif
       }
 
       if (status == AUDCLNT_E_DEVICE_INVALIDATED) {
@@ -947,7 +975,12 @@ namespace platf::audio {
   public:
     co_init_t com_;  ///< Declared before COM resources so the apartment is released last.
 #ifdef SUNSHINE_TESTS
-    std::array<std::uint64_t, 12> capture_diagnostics {};  ///< Test-only packet, frame, silence and native timestamp observations.
+    std::array<std::uint64_t, 16> capture_diagnostics {};  ///< Test-only packet, frame, silence and native timestamp observations.
+    /** @brief Record the longest native call in test builds. @param index Counter slot. @param start Call start. */
+    void observe_call(std::size_t index, std::chrono::steady_clock::time_point start) {
+      const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start).count();
+      capture_diagnostics[index] = std::max(capture_diagnostics[index], static_cast<std::uint64_t>(elapsed));
+    }
 #endif
     handle_t audio_event;  ///< Event signaled by WASAPI when captured audio is available.
 
@@ -1543,7 +1576,7 @@ namespace platf::audio {
 #ifdef SUNSHINE_TESTS
   namespace tests {
     /** @brief Read native packet timing without changing capture. @param mic WASAPI capture under test. @return Packet/frame/silence counts and first/last device/QPC timestamps. */
-    std::array<std::uint64_t, 12> capture_observations(const mic_t &mic) {
+    std::array<std::uint64_t, 16> capture_observations(const mic_t &mic) {
       return dynamic_cast<const mic_wasapi_t &>(mic).capture_diagnostics;
     }
 
