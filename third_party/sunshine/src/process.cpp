@@ -25,6 +25,7 @@
 #include "config.h"
 #include "crypto.h"
 #include "display_device.h"
+#include "file_handler.h"
 #include "input.h"
 #include "logging.h"
 #include "platform/common.h"
@@ -736,14 +737,47 @@ namespace proc {
 #endif
   }
 
+  bool valid_managed_id(std::string_view id) {
+    if (id.size() != 36) {
+      return false;
+    }
+    bool nonzero = false;
+    for (std::size_t i = 0; i < id.size(); ++i) {
+      if (i == 8 || i == 13 || i == 18 || i == 23) {
+        if (id[i] != '-') {
+          return false;
+        }
+      } else {
+        if (!((id[i] >= '0' && id[i] <= '9') || (id[i] >= 'a' && id[i] <= 'f'))) {
+          return false;
+        }
+        nonzero |= id[i] != '0';
+      }
+    }
+    return nonzero;
+  }
+
+  std::string calculate_managed_app_id(std::string_view id) {
+    if (!valid_managed_id(id)) {
+      throw std::invalid_argument("Invalid Stream-Kit application UUID");
+    }
+    const auto value = calculate_crc32("stream-kit/application/" + std::string(id)) & 0x7fffffffU;
+    return std::to_string(value == 0 ? 1 : value);
+  }
+
   /**
    * @brief Parse serialized text into the corresponding runtime representation.
    */
   std::optional<catalog_t> parse(const std::string &file_name) {
+    return parse_content(file_handler::read_file(file_name.c_str()));
+  }
+
+  std::optional<catalog_t> parse_content(std::string_view content) {
     pt::ptree tree;
 
     try {
-      pt::read_json(file_name, tree);
+      std::istringstream input {std::string(content)};
+      pt::read_json(input, tree);
 
       auto &apps_node = tree.get_child("apps"s);
       auto &env_vars = tree.get_child("env"s);
@@ -754,11 +788,18 @@ namespace proc {
         this_env[name] = parse_env_val(this_env, val.get_value<std::string>());
       }
 
+      std::set<std::string> legacy_ids;
       std::set<std::string> ids;
+      std::set<std::string> managed_ids;
       std::vector<proc::ctx_t> apps;
       int i = 0;
       for (auto &[_, app_node] : apps_node) {
         proc::ctx_t ctx;
+        ctx.managed_id = app_node.get<std::string>("stream-kit-id", "");
+        if (app_node.get_child_optional("stream-kit-id") &&
+            (!valid_managed_id(ctx.managed_id) || !managed_ids.insert(ctx.managed_id).second)) {
+          throw std::invalid_argument("Invalid or duplicate Stream-Kit application UUID");
+        }
 
         auto prep_nodes_opt = app_node.get_child_optional("prep-cmd"s);
         auto detached_nodes_opt = app_node.get_child_optional("detached"s);
@@ -847,15 +888,17 @@ namespace proc {
         ctx.wait_all = wait_all.value_or(true);
         ctx.exit_timeout = std::chrono::seconds {exit_timeout.value_or(5)};
 
-        auto possible_ids = calculate_app_id(name, ctx.image_path, i++);
-        if (ids.count(std::get<0>(possible_ids)) == 0) {
-          // Avoid using index to generate id if possible
-          ctx.id = std::get<0>(possible_ids);
+        if (!ctx.managed_id.empty()) {
+          ctx.id = calculate_managed_app_id(ctx.managed_id);
         } else {
-          // Fallback to include index on collision
-          ctx.id = std::get<1>(possible_ids);
+          auto possible_ids = calculate_app_id(name, ctx.image_path, i);
+          ctx.id = legacy_ids.count(std::get<0>(possible_ids)) == 0 ? std::get<0>(possible_ids) : std::get<1>(possible_ids);
+          legacy_ids.insert(ctx.id);
         }
-        ids.insert(ctx.id);
+        ++i;
+        if (!ids.insert(ctx.id).second) {
+          throw std::invalid_argument("Application GameStream ID collision");
+        }
 
         ctx.name = std::move(name);
         ctx.prep_cmds = std::move(prep_cmds);

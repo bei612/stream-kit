@@ -43,6 +43,13 @@ namespace confighttp {
    */
   void getCaptureCapabilities(const resp_https_t &response, const req_https_t &request);
 
+  /** @brief Read, upsert or delete an owned application by canonical UUID. @param response Authenticated management response. @param request GET, PUT or DELETE request. */
+  void managedApp(const resp_https_t &response, const req_https_t &request);
+  /** @brief Save an unmanaged legacy application through the registry transaction. */
+  void saveApp(const resp_https_t &response, const req_https_t &request);
+  /** @brief Delete an unmanaged legacy application through the registry transaction. */
+  void deleteApp(const resp_https_t &response, const req_https_t &request);
+
   void print_req(const req_https_t &request);
   void send_response(const resp_https_t &response, const nlohmann::json &output_tree);
   void send_unauthorized(const resp_https_t &response, const req_https_t &request);

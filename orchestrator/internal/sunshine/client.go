@@ -21,6 +21,7 @@ import (
 )
 
 type SunshineApp struct {
+	ManagedID   string            `json:"stream-kit-id,omitempty"`
 	CaptureMode model.CaptureMode `json:"capture-mode,omitempty"`
 	Name        string            `json:"name"`
 	Cmd         string            `json:"cmd,omitempty"`
@@ -202,7 +203,7 @@ func (c *Client) CloseApp(ctx context.Context) error {
 
 // ServerInfo holds the streaming state from Sunshine /serverinfo.
 type ServerInfo struct {
-	CurrentGame int    // 0 = idle, >0 = app index currently running
+	CurrentGame int    // 0 = idle, >0 = native GameStream application ID currently running
 	State       string // e.g. "SUNSHINE_SERVER_FREE", "SUNSHINE_SERVER_BUSY"
 }
 

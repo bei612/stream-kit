@@ -153,16 +153,15 @@ func TestLocalRegistrationProjectsProgramAndOwnedPathsToSunshine(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		switch {
 		case r.URL.Path == "/api/stream-kit/capabilities":
-			_, _ = w.Write([]byte(`{"schema_version":1,"capture_modes":["desktop","application"],"capture_mode_apply":"application_restart"}`))
+			_, _ = w.Write([]byte(`{"schema_version":1,"capture_modes":["desktop","application"],"capture_mode_apply":"application_restart","managed_apps_version":1}`))
 		case r.URL.Path == "/api/csrf-token":
 			_, _ = w.Write([]byte(`{"csrf_token":"test"}`))
-		case r.Method == "GET" && r.URL.Path == "/api/apps":
-			_, _ = w.Write([]byte(`{"apps":[]}`))
-		case r.Method == "POST" && r.URL.Path == "/api/apps":
+		case r.Method == "PUT" && strings.HasPrefix(r.URL.Path, "/api/stream-kit/apps/"):
 			if err := json.NewDecoder(r.Body).Decode(&registration); err != nil {
 				t.Error(err)
 			}
-			_, _ = w.Write([]byte(`{}`))
+			id := strings.TrimPrefix(r.URL.Path, "/api/stream-kit/apps/")
+			_ = json.NewEncoder(w).Encode(sunshine.ManagedApp{SchemaVersion: 1, AppID: id, GameStreamID: 771, App: registration})
 		default:
 			t.Errorf("unexpected native lifecycle request: %s %s", r.Method, r.URL.Path)
 			w.WriteHeader(400)
@@ -179,6 +178,9 @@ func TestLocalRegistrationProjectsProgramAndOwnedPathsToSunshine(t *testing.T) {
 	if record.Status != model.AppStatusReady {
 		t.Fatalf("registration: %+v", record)
 	}
+	if record.SunshineAppID != 771 || registration.ManagedID != record.ID {
+		t.Fatalf("immutable encoder identity was not persisted: %+v", record)
+	}
 	if record.CaptureMode != model.CaptureApplication || registration.CaptureMode != model.CaptureApplication || registration.AutoDetach || !registration.WaitAll {
 		t.Fatalf("capture scope not projected into tracked launch: %+v %+v", record, registration)
 	}
@@ -190,5 +192,13 @@ func TestLocalRegistrationProjectsProgramAndOwnedPathsToSunshine(t *testing.T) {
 	}
 	if _, err = os.Stat(filepath.Join(filepath.Dir(req.ExePath), "icon.png")); !os.IsNotExist(err) {
 		t.Fatal("wrote icon into externally owned program directory")
+	}
+	name := "Renamed local program"
+	if err := manager.UpdateApp(record.ID, &name, nil, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	renamed, err := manager.store.GetApp(record.ID)
+	if err != nil || renamed.SunshineAppID != 771 || registration.Name != name || registration.ManagedID != record.ID {
+		t.Fatalf("rename replaced application identity: %+v %v", renamed, err)
 	}
 }

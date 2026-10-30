@@ -78,6 +78,7 @@ namespace proc {
     std::string output;  ///< Captured output from the launched process.
     std::string image_path;  ///< Image path.
     std::string id;  ///< Stable identifier for the configured application.
+    std::string managed_id;  ///< Immutable Stream-Kit application UUID, empty for unmanaged entries.
     bool elevated {false};  ///< Whether the process should be launched elevated.
     bool auto_detach {false};  ///< Whether the process should detach automatically.
     bool wait_all {false};  ///< Whether Sunshine waits for all child processes.
@@ -199,6 +200,12 @@ namespace proc {
    */
   std::tuple<std::string, std::string> calculate_app_id(const std::string &app_name, std::string app_image_path, int index);
 
+  /** @brief Validate an owned application's canonical lowercase UUID. @param id Application UUID. @return True for a non-nil canonical UUID. */
+  bool valid_managed_id(std::string_view id);
+
+  /** @brief Derive a positive GameStream ID independent of display name or icon. @param id Canonical application UUID. @return Stable decimal GameStream identifier. */
+  std::string calculate_managed_app_id(std::string_view id);
+
   bool check_valid_png(const std::filesystem::path &path);
   /**
    * @brief Validate app image path.
@@ -220,6 +227,9 @@ namespace proc {
    * @return Parsed value or parse status.
    */
   std::optional<catalog_t> parse(const std::string &file_name);
+
+  /** @brief Validate an unpublished catalog without touching its destination file. @param content Serialized application catalog. @return Parsed configuration, or null on invalid input. */
+  std::optional<catalog_t> parse_content(std::string_view content);
 
   /**
    * @brief Initialize proc functions

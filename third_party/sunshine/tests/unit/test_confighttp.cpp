@@ -26,12 +26,14 @@
 #include <Simple-Web-Server/server_https.hpp>
 
 // local includes
+#include <src/app_registry.h>
 #include <src/config.h>
 #include <src/confighttp.h>
 #include <src/crypto.h>
 #include <src/httpcommon.h>
 #include <src/network.h>
 #include <src/nvhttp.h>
+#include <src/process.h>
 #include <src/utility.h>
 
 using namespace std::literals;
@@ -327,6 +329,11 @@ protected:
 
     server->resource["^/virtual-input-status-test$"]["GET"] = confighttp::getVirtualInputStatus;
     server->resource["^/capture-capabilities-test$"]["GET"] = confighttp::getCaptureCapabilities;
+    for (const auto method : {"GET", "PUT", "DELETE"}) {
+      server->resource["^/managed-apps-test/([0-9a-f-]+)$"][method] = confighttp::managedApp;
+    }
+    server->resource["^/legacy-apps-test$"]["POST"] = confighttp::saveApp;
+    server->resource["^/legacy-apps-test/([0-9]+)$"]["DELETE"] = confighttp::deleteApp;
     server->resource["^/virtual-input-license-test$"]["GET"] = confighttp::getVirtualInputLicense;
     server->resource["^/virtual-input-license-test$"]["POST"] = confighttp::updateVirtualInputLicense;
     server->resource["^/pairing-test$"]["DELETE"] = confighttp::cancelPairing;
@@ -553,6 +560,86 @@ INSTANTIATE_TEST_SUITE_P(
   invalid_license_request_name
 );
 
+/** @brief Exercise owned app routes over authenticated HTTPS and an isolated catalog. */
+class ManagedAppsHttpTest: public ConfigHttpTest {
+protected:
+  /** @brief Create only the fixture's catalog after the isolated HTTP server starts. */
+  void SetUp() override {
+    ConfigHttpTest::SetUp();
+    saved_catalog = config::stream.file_apps;
+    config::stream.file_apps = (test_web_dir / "managed-apps.json").string();
+    std::ofstream(config::stream.file_apps) << R"({"env":{},"apps":[{"name":"Same","cmd":"unrelated"}]})";
+    auto parsed = proc::parse(config::stream.file_apps);
+    ASSERT_TRUE(parsed);
+    proc::proc.replace_catalog(std::move(*parsed));
+  }
+
+  /** @brief Stop the fixture server before restoring global test configuration. */
+  void TearDown() override {
+    ConfigHttpTest::TearDown();
+    config::stream.file_apps = saved_catalog;
+    proc::proc.replace_catalog({});
+  }
+
+  /** @brief Build authenticated JSON headers. @return Headers for the isolated native API. */
+  SimpleWeb::CaseInsensitiveMultimap headers() {
+    return {{"Authorization", create_auth_header("testuser", "testpass")}, {"Content-Type", "application/json"}};
+  }
+
+  std::string saved_catalog;  ///< Restored after each test.
+  const std::string route = "/managed-apps-test/11111111-1111-4111-8111-111111111111";  ///< Owned UUID route.
+};
+
+TEST_F(ManagedAppsHttpTest, EnforcesAuthenticationAndCrossOriginProtection) {
+  for (const auto method : {"GET", "PUT", "DELETE"}) {
+    EXPECT_EQ(client->request(method, route, R"({"name":"Same"})")->status_code, "401 Unauthorized");
+  }
+  auto blocked = headers();
+  blocked.emplace("Origin", "https://example.invalid");
+  for (const auto method : {"PUT", "DELETE"}) {
+    EXPECT_EQ(client->request(method, route, R"({"name":"Same"})", blocked)->status_code, "400 Bad Request");
+  }
+  EXPECT_EQ(app_registry::read(config::stream.file_apps)["apps"].size(), 1U);
+}
+
+TEST_F(ManagedAppsHttpTest, UpsertsByIdentityAndKeepsStableGameIdAfterRename) {
+  const auto first = client->request("PUT", route, R"({"name":"Same","cmd":"owned"})", headers());
+  ASSERT_EQ(first->status_code, "200 OK") << first->content.string();
+  const auto before = nlohmann::json::parse(first->content.string());
+  EXPECT_EQ(before["schema_version"], 1);
+  const auto changed = client->request("PUT", route, R"({"name":"Renamed","cmd":"updated"})", headers());
+  ASSERT_EQ(changed->status_code, "200 OK");
+  EXPECT_EQ(nlohmann::json::parse(changed->content.string())["gamestream_id"], before["gamestream_id"]);
+  const auto read = client->request("GET", route, "", headers());
+  ASSERT_EQ(read->status_code, "200 OK");
+  EXPECT_EQ(nlohmann::json::parse(read->content.string())["app"]["name"], "Renamed");
+  const auto tree = app_registry::read(config::stream.file_apps);
+  ASSERT_EQ(tree["apps"].size(), 2U);
+  EXPECT_EQ(tree["apps"][0]["cmd"], "unrelated");
+}
+
+TEST_F(ManagedAppsHttpTest, LegacyIndexApiCannotRewriteOrDeleteOwnedApp) {
+  ASSERT_EQ(client->request("PUT", route, R"({"name":"Same"})", headers())->status_code, "200 OK");
+  EXPECT_EQ(client->request("POST", "/legacy-apps-test", R"({"index":1,"name":"Hijack"})", headers())->status_code, "400 Bad Request");
+  EXPECT_EQ(client->request("DELETE", "/legacy-apps-test/1", "", headers())->status_code, "400 Bad Request");
+  EXPECT_EQ(client->request("DELETE", "/legacy-apps-test/999", "", headers())->status_code, "400 Bad Request");
+  EXPECT_EQ(client->request("DELETE", route, "", headers())->status_code, "200 OK");
+  EXPECT_EQ(client->request("DELETE", route, "", headers())->status_code, "200 OK");
+  EXPECT_EQ(client->request("GET", route, "", headers())->status_code, "404 Not Found");
+  const auto tree = app_registry::read(config::stream.file_apps);
+  ASSERT_EQ(tree["apps"].size(), 1U);
+  EXPECT_EQ(tree["apps"][0]["cmd"], "unrelated");
+}
+
+TEST_F(ManagedAppsHttpTest, RejectsMalformedOrOversizedUpdatesWithoutMutation) {
+  for (const auto body : {R"({"name":"Bad","capture-mode":"window"})", R"({"name":"Bad","stream-kit-id":"22222222-2222-4222-8222-222222222222"})", R"({"cmd":"missing-name"})"}) {
+    EXPECT_EQ(client->request("PUT", route, body, headers())->status_code, "400 Bad Request");
+  }
+  const auto huge = nlohmann::json {{"name", std::string(256 * 1024, 'x')}}.dump();
+  EXPECT_EQ(client->request("PUT", route, huge, headers())->status_code, "400 Bad Request");
+  EXPECT_EQ(app_registry::read(config::stream.file_apps)["apps"].size(), 1U);
+}
+
 TEST_F(ConfigHttpTest, CaptureCapabilitiesRequireAuthentication) {
   const auto response = client->request("GET", "/capture-capabilities-test");
   EXPECT_EQ(response->status_code, "401 Unauthorized");
@@ -566,6 +653,7 @@ TEST_F(ConfigHttpTest, CaptureCapabilitiesExposeVersionedApplyPolicy) {
   const auto body = nlohmann::json::parse(response->content.string());
   EXPECT_EQ(body.at("schema_version"), 1);
   EXPECT_EQ(body.at("capture_mode_apply"), "application_restart");
+  EXPECT_EQ(body.at("managed_apps_version"), 1);
   const auto modes = body.at("capture_modes").get<std::vector<std::string>>();
   EXPECT_NE(std::find(modes.begin(), modes.end(), "desktop"), modes.end());
 #ifndef _WIN32

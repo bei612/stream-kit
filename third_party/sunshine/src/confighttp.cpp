@@ -37,6 +37,7 @@
 #endif
 
 // local includes
+#include "app_registry.h"
 #include "config.h"
 #include "confighttp.h"
 #include "crypto.h"
@@ -857,8 +858,7 @@ namespace confighttp {
    * @brief Validates the application index and sends an error response if invalid.
    */
   bool check_app_index(const resp_https_t &response, const req_https_t &request, int index) {
-    std::string file = file_handler::read_file(config::stream.file_apps.c_str());
-    nlohmann::json file_tree = nlohmann::json::parse(file);
+    auto file_tree = app_registry::read(config::stream.file_apps);
     if (const auto &apps = file_tree["apps"]; index < 0 || index >= static_cast<int>(apps.size())) {
       std::string error;
       if (const int max_index = static_cast<int>(apps.size()) - 1; max_index < 0) {
@@ -1050,7 +1050,77 @@ namespace confighttp {
     if (application_capture_available()) {
       modes.push_back("application");
     }
-    send_response(response, nlohmann::json {{"schema_version", 1}, {"capture_modes", modes}, {"capture_mode_apply", "application_restart"}});
+    send_response(response, nlohmann::json {{"schema_version", 1}, {"capture_modes", modes}, {"capture_mode_apply", "application_restart"}, {"managed_apps_version", 1}});
+  }
+
+  /** @brief Validate capture launch invariants for both management entry points. @param app Native application configuration. */
+  void validateAppCapture(const nlohmann::json &app) {
+    const auto mode = app.value("capture-mode", "desktop"s);
+    if (mode != "desktop" && mode != "application") {
+      throw std::invalid_argument("capture-mode must be desktop or application");
+    }
+    if (mode == "application") {
+      if (!application_capture_available()) {
+        throw std::invalid_argument("Application capture is not available on this server backend");
+      }
+      if (app.value("cmd", ""s).empty() || app.value("auto-detach", true) ||
+          !app.value("wait-all", true) || (app.contains("detached") && !app["detached"].empty())) {
+        throw std::invalid_argument("Application capture requires a tracked command, wait-all, and no detached commands");
+      }
+    }
+  }
+
+  /** @brief Distinguish invalid catalog requests from storage failures. @param response HTTP response. @param request HTTP request. @param error Operation failure. */
+  void sendCatalogError(const resp_https_t &response, const req_https_t &request, const std::exception &error) {
+    if (dynamic_cast<const std::invalid_argument *>(&error) || dynamic_cast<const nlohmann::json::exception *>(&error)) {
+      bad_request(response, request, error.what());
+    } else {
+      response->write(SimpleWeb::StatusCode::server_error_internal_server_error, nlohmann::json {{"status", false}, {"error", "Application catalog persistence failed"}}.dump(), {{"Content-Type", "application/json"}});
+    }
+  }
+
+  void managedApp(const resp_https_t &response, const req_https_t &request) {
+    if (!authenticate(response, request)) {
+      return;
+    }
+    if (request->method != "GET" && !validate_csrf_token(response, request, get_client_id(request))) {
+      return;
+    }
+    try {
+      const std::string id = request->path_match[1];
+      if (!proc::valid_managed_id(id)) {
+        throw std::invalid_argument("Invalid application UUID");
+      }
+      nlohmann::json output {{"schema_version", 1}, {"app_id", id}, {"gamestream_id", std::stoi(proc::calculate_managed_app_id(id))}};
+      if (request->method == "PUT") {
+        if (!check_content_type(response, request, "application/json")) {
+          return;
+        }
+        if (request->content.size() > 256 * 1024) {
+          throw std::invalid_argument("Application configuration exceeds the size limit");
+        }
+        auto app = nlohmann::json::parse(request->content.string());
+        validateAppCapture(app);
+        output["app"] = app_registry::upsert(config::stream.file_apps, proc::proc, id, std::move(app));
+      } else if (request->method == "DELETE") {
+        output["removed"] = app_registry::erase(config::stream.file_apps, proc::proc, id);
+      } else {
+        auto tree = app_registry::read(config::stream.file_apps);
+        const auto &apps = tree["apps"];
+        const auto entry = std::find_if(apps.begin(), apps.end(), [&](const auto &app) {
+          return app.value("stream-kit-id", ""s) == id;
+        });
+        if (entry == apps.end()) {
+          not_found(response, request, "Application UUID not registered");
+          return;
+        }
+        output["app"] = *entry;
+      }
+      send_response(response, output);
+    } catch (const std::exception &error) {
+      BOOST_LOG(warning) << "Managed application registry: " << error.what();
+      sendCatalogError(response, request, error);
+    }
   }
 
   /**
@@ -1068,8 +1138,7 @@ namespace confighttp {
     print_req(request);
 
     try {
-      std::string content = file_handler::read_file(config::stream.file_apps.c_str());
-      nlohmann::json file_tree = nlohmann::json::parse(content);
+      auto file_tree = app_registry::read(config::stream.file_apps);
 
       // Legacy versions of Sunshine used strings for boolean and integers, let's convert them
       // List of keys to convert to boolean
@@ -1166,22 +1235,10 @@ namespace confighttp {
       // TODO: Input Validation
       nlohmann::json output_tree;
       nlohmann::json input_tree = nlohmann::json::parse(ss);
-      const auto capture_mode = input_tree.value("capture-mode", "desktop"s);
-      if (capture_mode != "desktop" && capture_mode != "application") {
-        throw std::invalid_argument("capture-mode must be desktop or application");
+      validateAppCapture(input_tree);
+      if (input_tree.contains("stream-kit-id")) {
+        throw std::invalid_argument("Managed applications must be updated through their UUID endpoint");
       }
-      if (capture_mode == "application") {
-        if (!application_capture_available()) {
-          throw std::invalid_argument("Application capture is not available on this server backend");
-        }
-        if (input_tree.value("cmd", ""s).empty() || input_tree.value("auto-detach", true) ||
-            !input_tree.value("wait-all", true) || (input_tree.contains("detached") && !input_tree["detached"].empty())) {
-          throw std::invalid_argument("Application capture requires a tracked command, wait-all, and no detached commands");
-        }
-      }
-      std::string file = file_handler::read_file(config::stream.file_apps.c_str());
-      BOOST_LOG(info) << file;
-      nlohmann::json file_tree = nlohmann::json::parse(file);
 
       if (input_tree["prep-cmd"].empty()) {
         input_tree.erase("prep-cmd");
@@ -1191,38 +1248,33 @@ namespace confighttp {
         input_tree.erase("detached");
       }
 
-      auto &apps_node = file_tree["apps"];
       int index = input_tree["index"].get<int>();  // this will intentionally cause an exception if the provided value is the wrong type
 
       input_tree.erase("index");
 
-      if (index == -1) {
-        apps_node.push_back(input_tree);
-      } else {
-        nlohmann::json newApps = nlohmann::json::array();
-        for (size_t i = 0; i < apps_node.size(); ++i) {
-          if (i == index) {
-            newApps.push_back(input_tree);
-          } else {
-            newApps.push_back(apps_node[i]);
+      app_registry::update(config::stream.file_apps, proc::proc, [&](auto &tree) {
+        auto &apps = tree["apps"];
+        if (index == -1) {
+          apps.push_back(input_tree);
+        } else {
+          if (index < 0 || static_cast<std::size_t>(index) >= apps.size()) {
+            throw std::invalid_argument("Application index out of range");
           }
+          if (apps[index].contains("stream-kit-id")) {
+            throw std::invalid_argument("Managed applications must be updated through their UUID endpoint");
+          }
+          apps[index] = input_tree;
         }
-        file_tree["apps"] = newApps;
-      }
-
-      // Sort the apps array by name
-      std::sort(apps_node.begin(), apps_node.end(), [](const nlohmann::json &a, const nlohmann::json &b) {
-        return a["name"].get<std::string>() < b["name"].get<std::string>();
+        std::sort(apps.begin(), apps.end(), [](const auto &a, const auto &b) {
+          return a.at("name").template get<std::string>() < b.at("name").template get<std::string>();
+        });
       });
-
-      file_handler::write_file(config::stream.file_apps.c_str(), file_tree.dump(4));
-      proc::refresh(config::stream.file_apps);
 
       output_tree["status"] = true;
       send_response(response, output_tree);
     } catch (std::exception &e) {
       BOOST_LOG(warning) << "SaveApp: "sv << e.what();
-      bad_request(response, request, e.what());
+      sendCatalogError(response, request, e);
     }
   }
 
@@ -1273,33 +1325,24 @@ namespace confighttp {
 
     try {
       nlohmann::json output_tree;
-      nlohmann::json new_apps = nlohmann::json::array();
       const int index = std::stoi(request->path_match[1]);
-
-      if (!check_app_index(response, request, index)) {
-        return;
-      }
-
-      std::string file = file_handler::read_file(config::stream.file_apps.c_str());
-      nlohmann::json file_tree = nlohmann::json::parse(file);
-      auto &apps = file_tree["apps"];
-
-      for (size_t i = 0; i < apps.size(); ++i) {
-        if (i != index) {
-          new_apps.push_back(apps[i]);
+      app_registry::update(config::stream.file_apps, proc::proc, [&](auto &tree) {
+        auto &apps = tree["apps"];
+        if (index < 0 || static_cast<std::size_t>(index) >= apps.size()) {
+          throw std::invalid_argument("Application index out of range");
         }
-      }
-      file_tree["apps"] = new_apps;
-
-      file_handler::write_file(config::stream.file_apps.c_str(), file_tree.dump(4));
-      proc::refresh(config::stream.file_apps);
+        if (apps[index].contains("stream-kit-id")) {
+          throw std::invalid_argument("Managed applications must be deleted through their UUID endpoint");
+        }
+        apps.erase(apps.begin() + index);
+      });
 
       output_tree["status"] = true;
       output_tree["result"] = std::format("application {} deleted", index);
       send_response(response, output_tree);
     } catch (std::exception &e) {
       BOOST_LOG(warning) << "DeleteApp: "sv << e.what();
-      bad_request(response, request, e.what());
+      sendCatalogError(response, request, e);
     }
   }
 
@@ -2408,6 +2451,9 @@ namespace confighttp {
     server.resource["^/api/browse$"]["GET"] = browseDirectory;
     server.resource["^/api/apps$"]["GET"] = getApps;
     server.resource["^/api/stream-kit/capabilities$"]["GET"] = getCaptureCapabilities;
+    for (const auto method : {"GET", "PUT", "DELETE"}) {
+      server.resource["^/api/stream-kit/apps/([0-9a-f-]+)$"][method] = managedApp;
+    }
     server.resource["^/api/apps$"]["POST"] = saveApp;
     server.resource["^/api/apps/([0-9]+)$"]["DELETE"] = deleteApp;
     server.resource["^/api/apps/close$"]["POST"] = closeApp;

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -135,10 +136,13 @@ func (c *Client) GetHosts(ctx context.Context) ([]Host, error) {
 	defer resp.Body.Close()
 
 	// Moonlight-Web returns streaming JSON (multiple lines). Read first line only.
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("读取串流主机列表失败: HTTP %d", resp.StatusCode)
+	}
 	var result struct {
 		Hosts []Host `json:"hosts"`
 	}
-	decoder := json.NewDecoder(resp.Body)
+	decoder := json.NewDecoder(io.LimitReader(resp.Body, 1<<20))
 	if err := decoder.Decode(&result); err != nil {
 		return nil, fmt.Errorf("解析主机列表失败: %w", err)
 	}
@@ -160,7 +164,10 @@ func (c *Client) GetApps(ctx context.Context, hostID uint32) ([]App, error) {
 	var result struct {
 		Apps []App `json:"apps"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("读取串流应用列表失败: HTTP %d", resp.StatusCode)
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&result); err != nil {
 		return nil, fmt.Errorf("解析应用列表失败: %w", err)
 	}
 	return result.Apps, nil
@@ -193,6 +200,7 @@ func (c *Client) BuildStreamInfo(hostID, appID uint32) StreamURLInfo {
 }
 
 // FindStreamInfo finds the stream info for an app by name.
+// Legacy callers only. Managed applications use FindStreamInfoByID.
 func (c *Client) FindStreamInfo(ctx context.Context, appName string) (*StreamURLInfo, error) {
 	hosts, err := c.GetHosts(ctx)
 	if err != nil {
@@ -213,4 +221,36 @@ func (c *Client) FindStreamInfo(ctx context.Context, appName string) (*StreamURL
 	}
 
 	return nil, fmt.Errorf("串流网关中未找到应用: %s", appName)
+}
+
+// FindStreamInfoByID resolves the immutable native ID and refuses ambiguous hosts.
+func (c *Client) FindStreamInfoByID(ctx context.Context, appID uint32) (*StreamURLInfo, error) {
+	if appID == 0 || appID > 2147483647 {
+		return nil, fmt.Errorf("无效的编码器应用 ID")
+	}
+	hosts, err := c.GetHosts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var found *StreamURLInfo
+	for _, host := range hosts {
+		apps, err := c.GetApps(ctx, host.HostID)
+		if err != nil {
+			return nil, fmt.Errorf("无法确认串流主机应用目录: %w", err)
+		}
+		for _, app := range apps {
+			if app.AppID != appID {
+				continue
+			}
+			if found != nil {
+				return nil, fmt.Errorf("多个串流主机报告相同应用 ID，无法确定目标")
+			}
+			info := c.BuildStreamInfo(host.HostID, app.AppID)
+			found = &info
+		}
+	}
+	if found == nil {
+		return nil, fmt.Errorf("串流网关未发现应用 ID %d", appID)
+	}
+	return found, nil
 }

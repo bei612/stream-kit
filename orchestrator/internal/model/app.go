@@ -55,6 +55,7 @@ type App struct {
 	AppDir             string      `json:"app_dir" gorm:"size:1024"`
 	WorkingDir         string      `json:"working_dir" gorm:"size:1024"`
 	SunshineAppName    string      `json:"sunshine_app_name" gorm:"size:255"`
+	SunshineAppID      int         `json:"sunshine_app_id" gorm:"not null;default:0"`
 	FileSizeBytes      int64       `json:"file_size_bytes"`
 	ExtractedSizeBytes int64       `json:"extracted_size_bytes"`
 	StreamURL          string      `json:"stream_url" gorm:"size:1024"`

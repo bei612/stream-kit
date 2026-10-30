@@ -22,16 +22,15 @@ import (
 type EventCallback func(appID string, status model.AppStatus)
 
 type Manager struct {
-	store          *store.Store
-	config         *config.Config
-	logger         *zap.Logger
-	locks          sync.Map
-	sunClient      *sunshine.Client
-	moonClient     *moonlight.Client
-	onEvent        EventCallback
-	uploadMu       sync.Mutex   // global: only one upload/extract at a time
-	uploading      atomic.Bool  // true when upload or extract is in progress
-	lastLaunchedID atomic.Value // stores the appID (string) of the most recently launched app
+	store      *store.Store
+	config     *config.Config
+	logger     *zap.Logger
+	locks      sync.Map
+	sunClient  *sunshine.Client
+	moonClient *moonlight.Client
+	onEvent    EventCallback
+	uploadMu   sync.Mutex  // global: only one upload/extract at a time
+	uploading  atomic.Bool // true when upload or extract is in progress
 }
 
 func NewManager(st *store.Store, cfg *config.Config, sunClient *sunshine.Client, moonClient *moonlight.Client, onEvent EventCallback, logger *zap.Logger) *Manager {
@@ -310,30 +309,18 @@ func (m *Manager) registerWithSunshine(appID string) {
 		Elevated:    false,
 	}
 
-	// Find existing registration BEFORE creating new one
-	existingIdx := -1
-	if idx, err := m.sunClient.FindAppIndex(ctx, app.SunshineAppName); err == nil && idx >= 0 {
-		existingIdx = idx
-	}
-
-	// Create new registration first (if create fails, old registration still exists)
-	if err := m.sunClient.CreateApp(ctx, sunApp); err != nil {
+	registration, err := m.sunClient.UpsertManagedApp(ctx, app.ID, sunApp)
+	if err != nil {
 		m.updateStatus(appID, model.AppStatusRegisterFailed, "编码器注册失败: "+err.Error())
 		m.store.CreateLog("app", appID, "register", "failure", err.Error(), nil)
 		m.logger.Warn("编码器注册失败", zap.String("app_id", appID), zap.Error(err))
 		return
 	}
 
-	// Delete old registration AFTER new one succeeds (prevent duplicates)
-	if existingIdx >= 0 {
-		m.sunClient.DeleteApp(ctx, existingIdx)
-		m.logger.Info("已删除编码器中的旧同名注册", zap.String("name", app.SunshineAppName))
-	}
-
 	// Try to get stream info from Moonlight-Web
 	streamURL := ""
 	if m.moonClient != nil {
-		info, err := m.moonClient.FindStreamInfo(ctx, app.SunshineAppName)
+		info, err := m.moonClient.FindStreamInfoByID(ctx, uint32(registration.GameStreamID))
 		if err == nil {
 			streamURL = info.Port + info.Path
 		} else {
@@ -341,9 +328,13 @@ func (m *Manager) registerWithSunshine(appID string) {
 		}
 	}
 
-	m.store.UpdateAppFields(appID, map[string]interface{}{
-		"stream_url": streamURL,
-	})
+	if err := m.store.UpdateAppFields(appID, map[string]interface{}{
+		"stream_url":      streamURL,
+		"sunshine_app_id": registration.GameStreamID,
+	}); err != nil {
+		m.updateStatus(appID, model.AppStatusRegisterFailed, "保存编码器应用身份失败: "+err.Error())
+		return
+	}
 	m.updateStatus(appID, model.AppStatusReady, "")
 	m.store.CreateLog("app", appID, "register", "success", "已注册到 Sunshine", nil)
 	m.logger.Info("应用已注册到 Sunshine", zap.String("app_id", appID), zap.String("name", app.Name))
@@ -370,8 +361,6 @@ func (m *Manager) RetryRegister(appID string) error {
 	return nil
 }
 
-// (UnregisterFromSunshine logic is now inlined in DeleteApp for correct ordering)
-
 // LaunchApp validates preconditions and returns the stream URL for the frontend to open.
 // The actual streaming is initiated by Moonlight-Web when the user opens the URL.
 func (m *Manager) LaunchApp(appID string) (string, error) {
@@ -395,15 +384,9 @@ func (m *Manager) LaunchApp(appID string) (string, error) {
 		}
 	}
 
-	// Idempotent: if already running, return existing stream_url
-	if app.Status == model.AppStatusRunning {
-		if app.StreamURL != "" {
-			return app.StreamURL, nil
-		}
-	}
-
-	// Only ready/stopped/crashed can launch
-	if app.Status != model.AppStatusReady && app.Status != model.AppStatusStopped && app.Status != model.AppStatusCrashed {
+	// Cached running state and URLs are not ownership evidence. A repeated open
+	// still verifies the actual encoder identity before returning a stream URL.
+	if app.Status != model.AppStatusReady && app.Status != model.AppStatusStopped && app.Status != model.AppStatusCrashed && app.Status != model.AppStatusRunning {
 		return "", fmt.Errorf("应用当前状态 %s，无法启动串流", app.Status)
 	}
 
@@ -415,7 +398,7 @@ func (m *Manager) LaunchApp(appID string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("编码器离线，无法启动串流: %w", err)
 		}
-		if info.CurrentGame > 0 {
+		if info.CurrentGame > 0 && info.CurrentGame != app.SunshineAppID {
 			return "", fmt.Errorf("已有应用正在串流中，请先停止当前串流")
 		}
 	}
@@ -424,9 +407,29 @@ func (m *Manager) LaunchApp(appID string) (string, error) {
 	if m.moonClient == nil {
 		return "", fmt.Errorf("串流网关未配置")
 	}
+	if app.SunshineAppID <= 0 {
+		m.registerWithSunshine(appID)
+		app, err = m.store.GetApp(appID)
+		if err != nil {
+			return "", err
+		}
+		if app.Status != model.AppStatusReady || app.SunshineAppID <= 0 {
+			return "", fmt.Errorf("应用身份注册未完成: %s", app.ErrorMessage)
+		}
+	}
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel2()
-	streamInfo, err := m.moonClient.FindStreamInfo(ctx2, app.SunshineAppName)
+	if m.sunClient == nil {
+		return "", fmt.Errorf("编码器未配置，无法确认应用归属")
+	}
+	registered, err := m.sunClient.GetManagedApp(ctx2, app.ID)
+	if err != nil {
+		return "", fmt.Errorf("无法确认编码器应用归属: %w", err)
+	}
+	if registered.GameStreamID != app.SunshineAppID {
+		return "", fmt.Errorf("编码器应用身份与本地记录不一致，请重新注册")
+	}
+	streamInfo, err := m.moonClient.FindStreamInfoByID(ctx2, uint32(app.SunshineAppID))
 	if err != nil {
 		return "", fmt.Errorf("串流网关离线或应用未注册: %w", err)
 	}
@@ -434,9 +437,6 @@ func (m *Manager) LaunchApp(appID string) (string, error) {
 	// Return the path+port info as JSON string for frontend to construct full URL
 	streamURL := streamInfo.Port + streamInfo.Path
 	m.logIfErr("save stream info", m.store.UpdateAppFields(appID, map[string]interface{}{"stream_url": streamURL}))
-
-	// Record which app was launched so MonitorStreaming knows which to mark running
-	m.lastLaunchedID.Store(appID)
 
 	m.store.CreateLog("app", appID, "launch", "success", "已打开串流页面", nil)
 	m.logger.Info("应用串流页面已打开", zap.String("app_id", appID), zap.String("name", app.Name))
@@ -499,8 +499,6 @@ func (m *Manager) MonitorStreaming(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
-	wasStreaming := false
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -514,35 +512,27 @@ func (m *Manager) MonitorStreaming(ctx context.Context) {
 				continue // Sunshine unreachable, skip this cycle
 			}
 
-			isStreaming := info.CurrentGame > 0
+			m.reconcileStreaming(info.CurrentGame)
+		}
+	}
+}
 
-			if isStreaming && !wasStreaming {
-				// Streaming just started — mark the last launched app as running
-				if id, ok := m.lastLaunchedID.Load().(string); ok && id != "" {
-					app, err := m.store.GetApp(id)
-					if err == nil && (app.Status == model.AppStatusReady || app.Status == model.AppStatusStopped || app.Status == model.AppStatusCrashed) {
-						m.updateStatus(id, model.AppStatusRunning, "")
-						m.store.CreateLog("app", id, "stream_start", "success", "检测到串流已启动", nil)
-						m.logger.Info("检测到串流启动", zap.String("app_id", id), zap.String("name", app.Name))
-					}
-				}
-			}
-
-			if !isStreaming && wasStreaming {
-				// Streaming just stopped — find the running app and mark it
-				apps, err := m.store.ListApps()
-				if err == nil {
-					for _, a := range apps {
-						if a.Status == model.AppStatusRunning {
-							m.updateStatus(a.ID, model.AppStatusStopped, "")
-							m.store.CreateLog("app", a.ID, "stream_end", "success", "串流已结束", nil)
-							m.logger.Info("检测到串流结束", zap.String("app_id", a.ID), zap.String("name", a.Name))
-						}
-					}
-				}
-			}
-
-			wasStreaming = isStreaming
+// reconcileStreaming uses persisted encoder identity, including after a control
+// process restart or an app-to-app transition without an intervening idle poll.
+func (m *Manager) reconcileStreaming(currentGame int) {
+	apps, err := m.store.ListApps()
+	if err != nil {
+		m.logger.Warn("读取应用状态失败", zap.Error(err))
+		return
+	}
+	for _, app := range apps {
+		matches := currentGame > 0 && app.SunshineAppID == currentGame
+		if matches && (app.Status == model.AppStatusReady || app.Status == model.AppStatusStopped || app.Status == model.AppStatusCrashed) {
+			m.updateStatus(app.ID, model.AppStatusRunning, "")
+			m.store.CreateLog("app", app.ID, "stream_start", "success", "编码器确认此应用正在运行", nil)
+		} else if !matches && app.Status == model.AppStatusRunning {
+			m.updateStatus(app.ID, model.AppStatusStopped, "")
+			m.store.CreateLog("app", app.ID, "stream_end", "success", "编码器确认此应用已停止", nil)
 		}
 	}
 }
@@ -612,15 +602,14 @@ func (m *Manager) GetCandidates(appID string) ([]ExeCandidate, error) {
 
 // DeleteApp removes the registration and its platform-owned files only.
 // Local executable and working-directory references are never cleanup targets.
-// Order: DB first (authoritative), then best-effort Sunshine unregister + file cleanup.
-// Rationale: orphaned files are recoverable; orphaned DB records pointing to missing files are not.
+// Native unregister must acknowledge the UUID before records or owned files can
+// be removed. A failed native operation leaves the local registration recoverable.
 func (m *Manager) DeleteApp(appID string) error {
 	app, err := m.store.GetApp(appID)
 	if err != nil {
 		return err
 	}
 
-	appName := app.SunshineAppName
 	appDir, err := m.ownedDirectory(app)
 	if err != nil {
 		return err
@@ -650,24 +639,23 @@ func (m *Manager) DeleteApp(appID string) error {
 		cancel()
 	}
 
-	// Step 1: Delete DB record (authoritative state)
+	// Remove only the immutable native registration before deleting owned files.
+	if m.sunClient != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		err := m.sunClient.DeleteManagedApp(ctx, app.ID)
+		cancel()
+		if err != nil {
+			return fmt.Errorf("移除编码器应用注册失败，已保留应用和文件: %w", err)
+		}
+	}
+	// Remove the local record only after native registration removal succeeds.
 	if err := m.store.DeleteApp(appID); err != nil {
 		return err
 	}
 
 	m.store.CreateLog("app", appID, "delete", "success", fmt.Sprintf("应用 %s 已删除", app.Name), nil)
 
-	// Step 2: Best-effort Sunshine unregister (uses saved name, not DB)
-	if m.sunClient != nil && appName != "" {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		idx, err := m.sunClient.FindAppIndex(ctx, appName)
-		if err == nil && idx >= 0 {
-			m.sunClient.DeleteApp(ctx, idx)
-		}
-	}
-
-	// Step 3: Best-effort file cleanup (with retry for Windows Defender)
+	// Best-effort cleanup of owned files after both registration removals succeed.
 	if appDir != "" {
 		for i := 0; i < 3; i++ {
 			if err := os.RemoveAll(appDir); err == nil {
@@ -701,7 +689,6 @@ func (m *Manager) UpdateApp(appID string, name, args, argsTemplate *string, capt
 	}
 
 	fields := map[string]interface{}{}
-	oldName := app.SunshineAppName
 	needsReRegister := false
 	if captureMode != nil {
 		if *captureMode == "" {
@@ -754,25 +741,8 @@ func (m *Manager) UpdateApp(appID string, name, args, argsTemplate *string, capt
 		model.AppStatusCrashed: true,
 	}
 	if needsReRegister && registeredStates[app.Status] && m.sunClient != nil {
-		m.reRegisterSunshine(appID, oldName)
+		m.registerWithSunshine(appID)
 	}
 
 	return nil
-}
-
-// reRegisterSunshine deletes the old Sunshine registration and creates a new one.
-func (m *Manager) reRegisterSunshine(appID, oldName string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	// Delete old registration
-	if oldName != "" {
-		idx, err := m.sunClient.FindAppIndex(ctx, oldName)
-		if err == nil && idx >= 0 {
-			m.sunClient.DeleteApp(ctx, idx)
-		}
-	}
-
-	// Re-register with updated data
-	m.registerWithSunshine(appID)
 }

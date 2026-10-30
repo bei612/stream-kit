@@ -5,12 +5,31 @@
 #pragma once
 
 // standard includes
+#include <filesystem>
 #include <string>
+#include <system_error>
 
 /**
  * @brief Responsible for file handling functions.
  */
 namespace file_handler {
+  /** @brief Convert a UTF-8 API path to the platform-native filesystem representation. @param path UTF-8 path bytes. @return Native filesystem path. */
+  std::filesystem::path from_utf8(std::string_view path);
+
+  /** @brief Distinguish a failed preparation from a committed replacement whose directory flush failed. */
+  struct replace_result_t {
+    bool committed {false};  ///< Destination now contains the complete replacement.
+    std::error_code error;  ///< Preparation, replacement or durability error; empty on success.
+  };
+
+  /**
+   * @brief Flush a same-directory temporary file and atomically replace a configuration file.
+   * @param path Destination path; its directory must already exist.
+   * @param contents Complete replacement bytes.
+   * @return Commit state and any I/O error. Never truncates the destination in place.
+   */
+  replace_result_t atomic_replace(const std::filesystem::path &path, std::string_view contents);
+
   /**
    * @brief Get the parent directory of a file or directory.
    * @param path The path of the file or directory.

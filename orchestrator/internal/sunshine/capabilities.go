@@ -13,9 +13,10 @@ import (
 // Capabilities reports the encoder's actual capture contract, not the OS of the
 // management process. Version zero represents a legacy desktop-only encoder.
 type Capabilities struct {
-	SchemaVersion    int                 `json:"schema_version"`
-	CaptureModes     []model.CaptureMode `json:"capture_modes"`
-	CaptureModeApply string              `json:"capture_mode_apply"`
+	ManagedAppsVersion int                 `json:"managed_apps_version"`
+	SchemaVersion      int                 `json:"schema_version"`
+	CaptureModes       []model.CaptureMode `json:"capture_modes"`
+	CaptureModeApply   string              `json:"capture_mode_apply"`
 }
 
 func (c *Client) Capabilities(ctx context.Context) (Capabilities, error) {
