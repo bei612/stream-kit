@@ -1,7 +1,6 @@
 package config
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -10,8 +9,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"github.com/spf13/viper"
 )
 
 type Config struct {
@@ -144,34 +141,26 @@ func Load(configPath string) (*Config, error) {
 		return nil, fmt.Errorf("首次运行，已生成默认配置：%s\n请检查配置后重新启动", absPath)
 	}
 
-	v := viper.New()
-	v.SetConfigFile(absPath)
-	v.SetConfigType("json")
-	v.SetEnvPrefix("ORCH")
-	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	v.AutomaticEnv()
-
 	source, err := os.ReadFile(absPath)
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
-	if err := v.ReadConfig(bytes.NewReader(source)); err != nil {
-		return nil, fmt.Errorf("read config: %w", err)
-	}
-
-	var cfg Config
-	if err := v.Unmarshal(&cfg); err != nil {
+	cfg, err := decodeSettings(source)
+	if err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
+	if err := applyEnvironment(cfg); err != nil {
+		return nil, err
+	}
 
-	resolvePaths(&cfg)
+	resolvePaths(cfg)
 	cfg.sourcePath, cfg.sourceRevision = absPath, revision(source)
 
-	if errs := validate(&cfg); len(errs) > 0 {
+	if errs := validate(cfg); len(errs) > 0 {
 		return nil, fmt.Errorf("config validation errors:\n  %s", strings.Join(errs, "\n  "))
 	}
 
-	return &cfg, nil
+	return cfg, nil
 }
 
 func resolvePaths(cfg *Config) {

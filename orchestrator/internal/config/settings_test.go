@@ -22,6 +22,24 @@ func settingsFixture(t *testing.T) (*Settings, *Config) {
 	return NewSettings(cfg), cfg
 }
 
+func TestSettingsReloadPreservesEnvironmentAndTemplateNames(t *testing.T) {
+	s, _ := settingsFixture(t)
+	before := BaseDir
+	defer func() { BaseDir = before }()
+	view, _ := s.View()
+	_, err := s.Save(view.Revision, map[string]json.RawMessage{"/templates": json.RawMessage(`{"UE5Windowed":"-windowed"}`), "/components/gateway/env/STREAM_KIT_DEVICE": json.RawMessage(`"device-1"`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := Load(s.path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.Components["gateway"].Env["STREAM_KIT_DEVICE"] != "device-1" || loaded.Components["gateway"].Env["SPECIAL"] != "env-secret" || loaded.Templates["UE5Windowed"] != "-windowed" {
+		t.Fatal("reload changed case-sensitive environment or template keys")
+	}
+}
+
 func TestSettingsSavePreservesSecretsAndRunningConfig(t *testing.T) {
 	s, running := settingsFixture(t)
 	before, err := s.View()
