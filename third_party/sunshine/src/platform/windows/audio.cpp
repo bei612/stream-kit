@@ -18,6 +18,7 @@
 
 // local includes
 #include "process_loopback.h"
+#include "src/audio_timeline.h"
 #include "src/config.h"
 #include "src/logging.h"
 #include "src/platform/common.h"
@@ -625,6 +626,7 @@ namespace platf::audio {
      */
     int init(std::uint32_t sample_rate, std::uint32_t frame_size, std::uint32_t channels_out, bool continuous, device_t capture_device, capture::target_ptr target = {}) {
       application_target = std::move(target);
+      capture_timeline = ::audio::capture_timeline_t(sample_rate);
       if (application_target) {
         const auto deadline = std::chrono::steady_clock::now() + 5s;
         while (application_target->alive() && !(application_renderer = application_target->renderer()) && std::chrono::steady_clock::now() < deadline) {
@@ -804,6 +806,25 @@ namespace platf::audio {
       if (application_target && !application_target->alive()) {
         return capture_e::error;
       }
+      if (pending_silence || pending_packet_offset < pending_packet.size()) {
+        auto available = static_cast<std::size_t>(std::end(sample_buf) - sample_buf_pos);
+        const auto silence = std::min(available, pending_silence);
+        std::fill_n(sample_buf_pos, silence, 0.0f);
+        sample_buf_pos += silence;
+        pending_silence -= silence;
+        available -= silence;
+        if (!pending_silence) {
+          const auto count = std::min(available, pending_packet.size() - pending_packet_offset);
+          std::copy_n(pending_packet.begin() + pending_packet_offset, count, sample_buf_pos);
+          sample_buf_pos += count;
+          pending_packet_offset += count;
+          if (pending_packet_offset == pending_packet.size()) {
+            pending_packet.clear();
+            pending_packet_offset = 0;
+          }
+        }
+        return capture_e::ok;
+      }
       HRESULT status;
 
       // Total number of samples
@@ -879,22 +900,17 @@ namespace platf::audio {
           return capture_e::error;
         }
         DWORD buffer_flags;
-#ifdef SUNSHINE_TESTS
         UINT64 device_position = 0;
         UINT64 clock_position = 0;
+#ifdef SUNSHINE_TESTS
         call_started = std::chrono::steady_clock::now();
 #endif
         status = audio_capture->GetBuffer(
           (BYTE **) &sample_aligned.samples,
           &block_aligned.audio_sample_size,
           &buffer_flags,
-#ifdef SUNSHINE_TESTS
           &device_position,
           &clock_position
-#else
-          nullptr,
-          nullptr
-#endif
         );
 
 #ifdef SUNSHINE_TESTS
@@ -944,13 +960,34 @@ namespace platf::audio {
           BOOST_LOG(warning) << "Audio capture buffer overflow";
         }
 
-        if (buffer_flags & AUDCLNT_BUFFERFLAGS_SILENT) {
+        std::uint64_t gap = 0;
+        if (application_target && continuous_audio) {
+          const auto missing = capture_timeline.accept(clock_position, block_aligned.audio_sample_size, !(buffer_flags & AUDCLNT_BUFFERFLAGS_TIMESTAMP_ERROR));
+          if (!missing) {
+            audio_capture->ReleaseBuffer(block_aligned.audio_sample_size);
+            return capture_e::reinit;
+          }
+          gap = *missing;
+        }
+        if (gap) {
+          // Keep only the negotiated packet; represent missing PCM as a count.
+          pending_packet.resize(n);
+          if (buffer_flags & AUDCLNT_BUFFERFLAGS_SILENT) {
+            std::fill(pending_packet.begin(), pending_packet.end(), 0.0f);
+          } else {
+            std::copy_n(sample_aligned.samples, n, pending_packet.begin());
+          }
+          pending_packet_offset = 0;
+          pending_silence = gap * channels;
+        } else if (buffer_flags & AUDCLNT_BUFFERFLAGS_SILENT) {
           std::fill_n(sample_buf_pos, n, 0);
         } else {
           std::copy_n(sample_aligned.samples, n, sample_buf_pos);
         }
 
-        sample_buf_pos += n;
+        if (!gap) {
+          sample_buf_pos += n;
+        }
 
 #ifdef SUNSHINE_TESTS
         call_started = std::chrono::steady_clock::now();
@@ -997,6 +1034,10 @@ namespace platf::audio {
     util::buffer_t<float> sample_buf;  ///< Floating-point sample buffer filled from WASAPI packets.
     float *sample_buf_pos;  ///< Current write position in `sample_buf`.
     int channels;  ///< Number of channels in the capture format.
+    ::audio::capture_timeline_t capture_timeline {0};  ///< Native packet clock for process capture.
+    std::vector<float> pending_packet;  ///< One retained packet after a timestamp gap.
+    std::size_t pending_packet_offset {};  ///< Retained packet samples already emitted.
+    std::size_t pending_silence {};  ///< Missing interleaved samples preceding the retained packet.
     bool continuous_audio;  ///< Whether audio packets continue during silence.
     bool follows_default_device {false};  ///< Whether capture follows the default render device rather than an explicit sink.
     capture::target_ptr application_target;  ///< Retained identity for process-loopback capture.
