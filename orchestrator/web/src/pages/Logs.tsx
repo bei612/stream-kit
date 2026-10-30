@@ -30,7 +30,7 @@ export default function Logs() {
     <QueryWrapper loading={loading} error={error} onRetry={refresh}>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-card-foreground">操作日志</h2>
+          <div className="page-heading"><div><p className="page-eyebrow">操作记录</p><h2>操作日志</h2><p className="page-description">检索服务与应用操作，定位运行问题。</p></div></div>
           <Select
             value={filter}
             onChange={e => { setFilter(e.target.value); setPage(1) }}

@@ -1,0 +1,19 @@
+/* Shared by the management application and the native gateway Web client.
+   System fonts and static surfaces keep the media path free of visual effects. */
+:root {
+  color-scheme: dark;
+  --sk-background: 222 32% 7%;
+  --sk-surface: 222 25% 11%;
+  --sk-raised: 220 22% 15%;
+  --sk-border: 220 18% 23%;
+  --sk-text: 214 32% 94%;
+  --sk-muted: 216 14% 66%;
+  --sk-primary: 216 94% 66%;
+  --sk-on-primary: 224 46% 10%;
+  --sk-success: 156 57% 59%;
+  --sk-warning: 38 85% 66%;
+  --sk-danger: 0 78% 72%;
+  --sk-font: "Segoe UI", "Microsoft YaHei UI", "PingFang SC", system-ui, sans-serif;
+  --sk-radius: 12px;
+  --sk-shadow: 0 12px 32px rgb(0 0 0 / 24%);
+}

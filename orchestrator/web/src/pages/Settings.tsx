@@ -23,7 +23,7 @@ export default function Settings() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <h2 className="text-2xl font-bold text-card-foreground">系统设置</h2>
+      <div className="page-heading"><div><p className="page-eyebrow">工作空间配置</p><h2>系统设置</h2><p className="page-description">查看服务配置，管理当前管理员登录。</p></div></div>
 
       {/* Logout */}
       <Card>

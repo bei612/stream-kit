@@ -48,7 +48,7 @@ export default function Components() {
   return (
     <QueryWrapper loading={loading} error={error} onRetry={refresh}>
       <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-card-foreground">组件管理</h2>
+        <div className="page-heading"><div><p className="page-eyebrow">运行服务</p><h2>组件管理</h2><p className="page-description">管理编码器与媒体网关，查看运行状态和日志。</p></div></div>
 
         {components.map((c: any) => {
           const uptime = c.started_at && !c.started_at.startsWith('0001')
@@ -57,7 +57,7 @@ export default function Components() {
 
           return (
             <Card key={c.name}>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-3">
                 <div>
                   <span className="text-lg font-medium capitalize text-card-foreground">
                     {componentDisplayName(c.name)}
@@ -65,7 +65,7 @@ export default function Components() {
                   <span className="ml-3"><StatusBadge status={c.status} /></span>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => action(c.name, () => api.startComponent(c.name))} disabled={actionLoading === c.name || c.status === 'running'} className="bg-green-600 text-white hover:bg-green-700">
+                  <Button size="sm" onClick={() => action(c.name, () => api.startComponent(c.name))} disabled={actionLoading === c.name || c.status === 'running'}>
                     <Play className="w-3 h-3" /> 启动
                   </Button>
                   <Button size="sm" variant="destructive" onClick={() => action(c.name, () => api.stopComponent(c.name))} disabled={actionLoading === c.name || c.status === 'stopped'}>

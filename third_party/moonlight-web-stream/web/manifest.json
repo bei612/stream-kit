@@ -1,10 +1,10 @@
 {
-  "name": "Moonlight Web",
-  "short_name": "Moonlight",
+  "name": "Stream Kit",
+  "short_name": "Stream Kit",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#303030",
-  "theme_color": "#000000",
+  "background_color": "#0c0f18",
+  "theme_color": "#151922",
   "icons": [
     { "src": "moonlight.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ]

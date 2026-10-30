@@ -145,6 +145,7 @@ async function main() {
     const offer = viewer.waitForRequest(request => request.method() === 'POST' && request.url().endsWith('/gateway/api/host/stream/webrtc'));
     await viewer.goto(`${origin}/gateway/stream.html?hostId=1&appId=2#join=browser-invitation`);
     await offer;
+    await viewer.screenshot({ path: path.join(output, 'managed-connecting.png') });
     await viewer.evaluate(() => window.app.getStream().stop());
     assert.equal(new URL(viewer.url()).hash, '', 'Admission fragment must be removed');
     assert.equal(await viewer.locator('#ml-api-name').count(), 0, 'No gateway account login');

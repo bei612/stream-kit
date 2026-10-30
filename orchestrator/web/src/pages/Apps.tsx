@@ -53,8 +53,8 @@ export default function Apps() {
   return (
     <QueryWrapper loading={loading} error={error} onRetry={refresh}>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-card-foreground">应用管理</h2>
+        <div className="page-heading">
+          <div><p className="page-eyebrow">渲染内容</p><h2>应用管理</h2><p className="page-description">管理已上传应用，启动或结束串流。</p></div>
           <Link to="/upload">
             <Button>
               <Upload className="w-4 h-4" /> 上传应用

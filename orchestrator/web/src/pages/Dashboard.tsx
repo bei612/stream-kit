@@ -42,7 +42,7 @@ export default function Dashboard() {
   return (
     <QueryWrapper loading={comps.loading && apps.loading} error={comps.error || apps.error} onRetry={() => { comps.refresh(); apps.refresh() }}>
       <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-card-foreground">仪表盘</h2>
+        <div className="page-heading"><div><p className="page-eyebrow">工作空间总览</p><h2>工作台</h2><p className="page-description">查看服务与应用状态，开始或管理一场串流。</p></div><Link to="/stream-sessions"><Button variant="outline">管理渲染会话 <ExternalLink size={15} /></Button></Link></div>
 
         {/* Component status cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -58,7 +58,6 @@ export default function Dashboard() {
                   size="sm"
                   onClick={() => api.startComponent(c.name).then(comps.refresh)}
                   disabled={c.status === 'running'}
-                  className="bg-green-600 text-white hover:bg-green-700"
                 >
                   <Play className="w-3 h-3" /> 启动
                 </Button>
@@ -86,7 +85,7 @@ export default function Dashboard() {
             { label: '就绪', value: appStats.ready, color: 'text-blue-500' },
             { label: '异常', value: appStats.error, color: 'text-red-300' },
           ].map(({ label, value, color }) => (
-            <Card key={label} className="text-center">
+            <Card key={label}>
               <div className={`text-3xl font-bold ${color}`}>{value}</div>
               <div className="text-xs text-muted-foreground mt-1">{label}</div>
             </Card>

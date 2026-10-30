@@ -1,10 +1,10 @@
 import { type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router'
-import { cn } from '@/lib/utils'
-import { LayoutDashboard, Box, AppWindow, Upload, ScrollText, Settings, Zap, Radio } from 'lucide-react'
+import { LayoutDashboard, Box, AppWindow, Upload, ScrollText, Settings, Radio, ChevronRight } from 'lucide-react'
+import { useWSStore } from '@/stores/websocket'
 
 const navItems = [
-  { path: '/', label: '仪表盘', icon: LayoutDashboard },
+  { path: '/', label: '工作台', icon: LayoutDashboard },
   { path: '/components', label: '组件管理', icon: Box },
   { path: '/apps', label: '应用管理', icon: AppWindow },
   { path: '/upload', label: '上传应用', icon: Upload },
@@ -15,31 +15,28 @@ const navItems = [
 
 export default function Layout({ children }: { children: ReactNode }) {
   const location = useLocation()
+  const connected = useWSStore(state => state.connected)
+  const activeItem = navItems.find(item => item.path !== '/' && location.pathname.startsWith(item.path)) ?? navItems[0]
 
   return (
-    <div className="flex h-screen">
-      <nav className="w-56 flex-shrink-0 bg-card border-r border-border flex flex-col" aria-label="主导航">
-        <div className="px-4 py-5 border-b border-border">
-          <Link to="/" className="flex items-center gap-2 text-foreground font-bold text-lg">
-            <Zap className="w-5 h-5 text-primary" />
-            云端渲染平台
+    <div className="app-shell">
+      <nav className="app-navigation" aria-label="主导航">
+        <div>
+          <Link to="/" className="app-brand">
+            <span className="brand-mark"><Radio size={22} aria-hidden="true" /></span>
+            <span><span className="brand-name">STREAM KIT</span><span className="brand-caption block">云渲染 · 统一控制台</span></span>
           </Link>
-          <div className="text-[10px] text-muted-foreground mt-0.5 tracking-wider uppercase">Orchestrator</div>
         </div>
-
-        <div className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
+        <p className="nav-caption">工作空间</p>
+        <div className="nav-links">
           {navItems.map(({ path, label, icon: Icon }) => {
             const active = path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
             return (
               <Link
                 key={path}
                 to={path}
-                className={cn(
-                  'flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors',
-                  active
-                    ? 'bg-primary/15 text-primary font-medium'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                )}
+                className="nav-link"
+                aria-current={active ? 'page' : undefined}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
                 {label}
@@ -48,14 +45,16 @@ export default function Layout({ children }: { children: ReactNode }) {
           })}
         </div>
 
-        <div className="px-4 py-3 border-t border-border text-[10px] text-muted-foreground">
-          Cloud Rendering Platform
-        </div>
+        <div className="nav-footer">一个控制台，连接所有画面。</div>
       </nav>
 
-      <main className="flex-1 overflow-auto p-6">
-        {children}
-      </main>
+      <div className="workspace">
+        <header className="workspace-bar">
+          <div className="workspace-path"><span>控制台</span><ChevronRight size={13} aria-hidden="true" /><span className="text-card-foreground">{activeItem.label}</span></div>
+          <div className="workspace-identity"><span className="connection-indicator" data-connected={connected}>{connected ? '实时连接' : '连接恢复中'}</span><span className="admin-avatar" title="管理员">管</span></div>
+        </header>
+        <main id="main-content" className="workspace-main">{children}</main>
+      </div>
     </div>
   )
 }

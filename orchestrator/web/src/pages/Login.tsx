@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router'
 import { api } from '@/api/client'
 import { setToken } from '@/lib/utils'
 import { useWSStore } from '@/stores/websocket'
-import { Card } from '@/components/ui/card'
+import { Radio, ArrowRight } from 'lucide-react'
 import { Input, Label } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
@@ -33,11 +33,19 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <Card className="w-full max-w-sm p-8 shadow-lg rounded-xl">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-card-foreground">云端渲染平台</h1>
-          <p className="text-sm text-muted-foreground mt-1">Cloud Rendering Platform</p>
+    <div className="login-shell">
+      <section className="login-intro">
+        <div className="flex items-center gap-3"><span className="brand-mark"><Radio size={22} /></span><span className="brand-name">STREAM KIT</span></div>
+        <h1>云端渲染，<br />统一掌控。</h1>
+        <p>从应用启动到客户端连接，在一个工作空间管理串流、控制权与音频。</p>
+        <div className="login-facts"><span>应用与节点</span><span>共享串流</span><span>控制权与音频</span></div>
+      </section>
+      <section className="login-form-area" aria-label="管理员登录">
+      <div className="login-form">
+        <div className="mb-8">
+          <p className="page-eyebrow">管理控制台</p>
+          <h2>欢迎回来</h2>
+          <p className="text-sm text-muted-foreground mt-2">使用管理员账号登录工作空间。</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -75,10 +83,12 @@ export default function Login() {
             disabled={loading || !username || !password}
             className="w-full"
           >
-            {loading ? '登录中...' : '登录'}
+            {loading ? '登录中...' : '登录控制台'}<ArrowRight size={16} aria-hidden="true" />
           </Button>
         </form>
-      </Card>
+        <p className="text-xs text-muted-foreground mt-6">观看客户端请使用管理员提供的观看链接。</p>
+      </div>
+      </section>
     </div>
   )
 }

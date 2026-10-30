@@ -20,13 +20,13 @@ function MediaRuntime({ observation }: { observation?: MediaObservation }) {
     device_failed: '目标输入设备故障',
     upstream_transport: '上游支持麦克风传输',
   }
-  return <div role="status" className="rounded-md border border-border p-3 mb-4 space-y-2 text-sm">
+  return <div role="status" className="runtime-strip">
     <p>{observation.upstream_active ? '共享上游运行中' : '共享上游未运行'} · 媒体订阅数 {observation.subscribers}</p>
     <p className={target.state === 'device_failed' || target.state === 'unconfigured' ? 'text-amber-400' : ''}>{labels[target.state]}</p>
-    {target.device && <p className="text-xs text-muted-foreground">设备处理采样数（含静音）{target.device.device_sample_frames} · 队列丢帧 {target.device.dropped_frames} · 缓冲异常 {target.device.xruns}</p>}
+    {target.device && <details><summary>音频设备详情</summary><p className="mt-2">设备处理采样数（含静音）{target.device.device_sample_frames} · 队列丢帧 {target.device.dropped_frames} · 缓冲异常 {target.device.xruns}</p></details>}
     {target.device?.realtime_denied && <p className="text-xs text-amber-400">设备未获得实时调度权限，需关注音频稳定性。</p>}
     {target.device?.error && <p className="text-xs text-red-400">{target.device.error}</p>}
-    <p className="text-xs text-muted-foreground">设备和传输状态不代表目标程序已录到声音。目标录音与观众收听需分别验证。</p>
+    <p className="text-xs text-muted-foreground">向目标程序送入语音时，请在程序中选择对应的录音输入设备。</p>
   </div>
 }
 
@@ -85,9 +85,14 @@ export default function StreamSessions() {
 
   return <QueryWrapper loading={loading} error={error} onRetry={refresh}>
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><h2 className="text-2xl font-bold text-card-foreground">渲染会话</h2><p className="text-sm text-muted-foreground mt-1">统一管理客户端连接、控制权和音频</p></div>
+      <div className="page-heading">
+        <div><p className="page-eyebrow">连接与协作</p><h2>渲染会话</h2><p className="page-description">查看连接状态，分配唯一控制权，实时调整音频。</p></div>
         <Button variant="outline" onClick={() => { void refresh(); void media.refresh() }} disabled={busy}><RefreshCw className="w-4 h-4" /> 刷新</Button>
+      </div>
+      <div className="session-summary" aria-label="会话概览">
+        <div><strong>{sessions.length}</strong><span>渲染会话</span></div>
+        <div><strong>{sessions.reduce((total, session) => total + Object.keys(session.connections).length, 0)}</strong><span>客户端连接</span></div>
+        <div><strong>{sessions.filter(session => session.controller_connection_id).length}</strong><span>已分配控制权</span></div>
       </div>
       {commandError && <p role="alert" className="text-sm text-red-400">{commandError}</p>}
       {(media.error || (media.data && !media.data.reachable)) && <p role="status" className="text-sm text-amber-400">媒体网关同步异常，正在重试。请查看各会话的生效状态。</p>}
@@ -99,8 +104,8 @@ export default function StreamSessions() {
         return <Card key={session.session_id}>
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3 mb-4">
             <div>
-              <div className="flex items-center gap-2"><h3 className="font-semibold text-card-foreground">Host {session.host_id} / App {session.app_id}</h3><StatusBadge status={session.state} /></div>
-              <div className="text-xs text-muted-foreground mt-1 font-mono">{session.session_id}</div>
+              <div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-card-foreground" title={session.session_id}>会话 {session.session_id.slice(0, 8)}</h3><StatusBadge status={session.state} /></div>
+              <div className="text-xs text-muted-foreground mt-1">主机 {session.host_id} · 应用 {session.app_id}</div>
               <p role="status" className={`text-xs mt-2 ${applied ? 'text-green-400' : 'text-amber-400'}`}>{applied ? '媒体网关已应用' : leaseValid ? '已保存，等待媒体网关应用' : '媒体网关未就绪'} · 已保存版本 {session.revision} / 已应用版本 {appliedRevision}</p>
             </div>
             <div className="flex items-center gap-3 text-sm text-muted-foreground"><span className="inline-flex items-center gap-1"><Users className="w-4 h-4" />{connections.length}</span><span>上限 {session.policy.max_viewers || '不限'}</span><span>{session.controller_connection_id ? '控制中' : '暂无控制者'}</span></div>
@@ -110,8 +115,8 @@ export default function StreamSessions() {
             {connections.map((connection) => {
               const isController = connection.connection_id === session.controller_connection_id
               const expired = Date.parse(connection.expires_at) <= now
-              return <div key={connection.connection_id} className="rounded-md border border-border p-3 space-y-3">
-                <div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="font-medium text-card-foreground truncate">{connection.user_id || '匿名客户端'}</div><div className="text-[11px] text-muted-foreground font-mono truncate">{connection.connection_id}</div></div>{isController && <Crown className="w-4 h-4 text-amber-400 shrink-0" />}</div>
+              return <div key={connection.connection_id} className="client-card space-y-3" data-controller={isController}>
+                <div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="font-medium text-card-foreground">客户端 {connection.connection_id.slice(0, 6).toUpperCase()}</div><div className="text-[11px] text-muted-foreground font-mono truncate" title={connection.connection_id}>{connection.connection_id}</div></div>{isController && <Crown className="w-4 h-4 text-primary shrink-0" />}</div>
                 <div className="flex flex-wrap gap-2 text-xs text-muted-foreground"><span>{isController ? '控制者' : '观众'}</span><span>{expired ? '连接已过期' : '已连接'}</span><span className="inline-flex items-center gap-1">{connection.microphone_live ? <Mic className="w-3 h-3 text-green-400" /> : <MicOff className="w-3 h-3" />}{connection.microphone_live ? '客户端报告麦克风活动' : '麦克风未活动'}</span></div>
                 <div className="flex flex-wrap gap-2">
                   {isController

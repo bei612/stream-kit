@@ -84,7 +84,7 @@ export default function UploadPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <h2 className="text-2xl font-bold text-card-foreground">上传应用</h2>
+      <div className="page-heading"><div><p className="page-eyebrow">应用部署</p><h2>上传应用</h2><p className="page-description">上传应用包，完成部署与串流注册。</p></div></div>
 
       {blocked && !uploading && (
         <Alert variant="warning">当前有其他应用正在上传或解压中，请等待完成后再上传。</Alert>
