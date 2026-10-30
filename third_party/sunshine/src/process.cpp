@@ -47,6 +47,11 @@ namespace proc {
 
   proc_t proc;  ///< Global process registry used to track and terminate child processes.
 
+  std::unique_lock<std::mutex> lock_lifecycle() {
+    static std::mutex mutex;
+    return std::unique_lock<std::mutex>(mutex);
+  }
+
   /**
    * @brief RAII helper that runs shutdown cleanup when destroyed.
    */
@@ -64,7 +69,7 @@ namespace proc {
     return std::make_unique<deinit_t>();
   }
 
-  void terminate_process_group(boost::process::v1::child &proc, boost::process::v1::group &group, std::chrono::seconds exit_timeout) {
+  std::error_code terminate_process_group(boost::process::v1::child &proc, boost::process::v1::group &group, std::chrono::seconds exit_timeout) {
     if (group.valid() && platf::process_group_running((std::uintptr_t) group.native_handle())) {
       if (exit_timeout.count() > 0) {
         // Request processes in the group to exit gracefully
@@ -93,6 +98,34 @@ namespace proc {
       // This ensures the process group state is consistent with the OS in boost.
       std::error_code ec;
       group.terminate(ec);
+      if (ec && platf::process_group_running((std::uintptr_t) group.native_handle())) {
+        return ec;
+      }
+    }
+
+    std::error_code ec;
+    if (!group.valid() && proc.valid() && proc.running(ec)) {
+      proc.terminate(ec);
+      if (ec) {
+        return ec;
+      }
+    }
+    const auto deadline = std::chrono::steady_clock::now() + 5s;
+    while (true) {
+      const bool group_running = group.valid() && platf::process_group_running((std::uintptr_t) group.native_handle());
+      const bool process_running = proc.valid() && proc.running(ec);
+      if (ec) {
+        return ec;
+      }
+      if (!group_running && !process_running) {
+        break;
+      }
+      if (std::chrono::steady_clock::now() >= deadline) {
+        return std::make_error_code(std::errc::timed_out);
+      }
+      std::this_thread::sleep_for(20ms);
+    }
+    if (group.valid()) {
       group.detach();
     }
 
@@ -100,6 +133,7 @@ namespace proc {
       // avoid zombie process
       proc.detach();
     }
+    return {};
   }
 
   /**
@@ -177,11 +211,23 @@ namespace proc {
       return 400;
     }
 
+    if (running_locked() > 0) {
+      return 409;
+    }
+    std::array<unsigned char, 16> nonce {};
+    if (RAND_bytes(nonce.data(), static_cast<int>(nonce.size())) != 1) {
+      return 503;
+    }
+    const auto instance_id = boost::algorithm::to_lower_copy(util::hex(nonce, true).to_string());
+
     // Validate and copy the next launch before touching the current process.
     auto next_app = *iter;
     auto next_env = _catalog.env;
-    terminate_locked();
+    if (!terminate_locked()) {
+      return 503;
+    }
     _app_id = app_id;
+    _instance_id = instance_id;
     _app = std::move(next_app);
     _env = std::move(next_env);
     _executed_prep_count = 0;
@@ -312,6 +358,7 @@ namespace proc {
     }
 
     _app_launch_time = std::chrono::steady_clock::now();
+    launch_session->instance_id = _instance_id;
 
     fg.disable();
 
@@ -320,6 +367,26 @@ namespace proc {
 
   int proc_t::running() {
     std::lock_guard lock {_mutex};
+    return running_locked();
+  }
+
+  runtime_t proc_t::runtime() {
+    std::lock_guard lock {_mutex};
+    if (running_locked() <= 0) {
+      return {};
+    }
+    return {_app.managed_id, _instance_id, _app_id};
+  }
+
+  bool proc_t::terminate_if(const std::string &app_id, const std::string &instance_id) {
+    std::lock_guard lock {_mutex};
+    if (app_id.empty() || instance_id.empty() || running_locked() <= 0 || _app.managed_id != app_id || _instance_id != instance_id) {
+      return false;
+    }
+    return terminate_locked();
+  }
+
+  int proc_t::running_locked() {
 #ifndef _WIN32
     // On POSIX OSes, we must periodically wait for our children to avoid
     // them becoming zombies. This must be synchronized carefully with
@@ -352,26 +419,31 @@ namespace proc {
     // Perform cleanup actions now if needed
     if (_process) {
       BOOST_LOG(info) << "App exited with code ["sv << _process.native_exit_code() << ']';
-      terminate_locked();
+      if (!terminate_locked()) {
+        return _app_id;
+      }
     }
 
     return 0;
   }
 
-  void proc_t::terminate() {
+  bool proc_t::terminate() {
     std::lock_guard lock {_mutex};
-    terminate_locked();
+    return terminate_locked();
   }
 
-  void proc_t::terminate_locked() {
+  bool proc_t::terminate_locked() {
     if (_app_id <= 0) {
-      return;
+      return true;
     }
     _capture_target.replace({});
     input::terminate_gamepads();
     std::error_code ec;
+    if (const auto termination_error = terminate_process_group(_process, _process_group, _app.exit_timeout)) {
+      BOOST_LOG(error) << "Application termination was not confirmed: " << termination_error.message();
+      return false;
+    }
     placebo = false;
-    terminate_process_group(_process, _process_group, _app.exit_timeout);
     _process = boost::process::v1::child();
     _process_group = boost::process::v1::group();
 
@@ -415,6 +487,8 @@ namespace proc {
     }
 
     _app_id = -1;
+    _instance_id.clear();
+    return true;
   }
 
   void proc_t::replace_catalog(catalog_t catalog) {

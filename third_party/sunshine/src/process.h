@@ -98,6 +98,16 @@ namespace proc {
    */
   boost::process::v1::environment current_environment();
 
+  /** @brief Serialize HTTP launch/resume/stop and RTSP admission without holding the process state lock during media joins. @return Transition guard; acquire before registry or process locks. */
+  std::unique_lock<std::mutex> lock_lifecycle();
+
+  /** @brief Identity of one active execution, independent of mutable application configuration. */
+  struct runtime_t {
+    std::string app_id;  ///< Managed UUID, empty for an unmanaged application.
+    std::string instance_id;  ///< Random execution identity; changes on every successful launch.
+    int gamestream_id {0};  ///< Native application ID, zero when idle.
+  };
+
   /**
    * @brief Tracks launched child processes and terminates them during shutdown.
    */
@@ -126,6 +136,12 @@ namespace proc {
      */
     int running();
 
+    /** @brief Read a coherent live identity, reaping an exited process if necessary. @return Active execution or an empty idle snapshot. */
+    runtime_t runtime();
+
+    /** @brief Stop only the named execution, never another application or a later launch. @param app_id Managed UUID. @param instance_id Expected execution identity. @return True only when the matching active execution was terminated. */
+    bool terminate_if(const std::string &app_id, const std::string &instance_id);
+
     ~proc_t();
 
     /**
@@ -149,8 +165,9 @@ namespace proc {
     std::string get_last_run_app_name();
     /**
      * @brief Terminate the launched application process.
+     * @return True only after process termination is confirmed.
      */
-    void terminate();
+    bool terminate();
 
     /**
      * @brief Read the capture identity of the current launch for transport resume.
@@ -168,12 +185,15 @@ namespace proc {
     bool uses_application_capture(int app_id) const;
 
   private:
-    /** @brief Terminate the active launch while holding the lifecycle mutex. */
-    void terminate_locked();
+    /** @brief Refresh process status with the state mutex held. @return Active native application ID or zero. */
+    int running_locked();
+    /** @brief Terminate the active launch while holding the state mutex. @return True after termination; failure retains process ownership for retry. */
+    bool terminate_locked();
 
     mutable std::mutex _mutex;  ///< Serializes configuration publication and process lifecycle operations.
     catalog_t _catalog;  ///< Configuration for future launches; never owns a running process.
     int _app_id {0};
+    std::string _instance_id;  ///< Non-reusable identity of the current execution.
 
     boost::process::v1::environment _env;  ///< Environment retained through the active launch's undo commands.
     ctx_t _app {};  ///< Immutable configuration snapshot of the most recent launch.
@@ -242,8 +262,9 @@ namespace proc {
    * @param proc The child process itself.
    * @param group The group of all children in the process tree.
    * @param exit_timeout The timeout to wait for the process group to gracefully exit.
+   * @return An error if termination failed or remained unconfirmed; handles remain owned for retry.
    */
-  void terminate_process_group(boost::process::v1::child &proc, boost::process::v1::group &group, std::chrono::seconds exit_timeout);
+  std::error_code terminate_process_group(boost::process::v1::child &proc, boost::process::v1::group &group, std::chrono::seconds exit_timeout);
 
   extern proc_t proc;
 }  // namespace proc

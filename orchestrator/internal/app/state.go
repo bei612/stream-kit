@@ -13,10 +13,10 @@ var validTransitions = map[model.AppStatus][]model.AppStatus{
 	model.AppStatusDetecting:      {model.AppStatusRegistering, model.AppStatusError, model.AppStatusReady},
 	model.AppStatusRegistering:    {model.AppStatusReady, model.AppStatusRegisterFailed},
 	model.AppStatusRegisterFailed: {model.AppStatusRegistering, model.AppStatusError},
-	model.AppStatusReady:          {model.AppStatusRunning, model.AppStatusRegistering, model.AppStatusUploading, model.AppStatusError},
+	model.AppStatusReady:          {model.AppStatusRunning, model.AppStatusStopped, model.AppStatusRegistering, model.AppStatusUploading, model.AppStatusError},
 	model.AppStatusRunning:        {model.AppStatusStopped, model.AppStatusCrashed},
 	model.AppStatusStopped:        {model.AppStatusRunning, model.AppStatusRegistering, model.AppStatusReady, model.AppStatusUploading, model.AppStatusError},
-	model.AppStatusCrashed:        {model.AppStatusRunning, model.AppStatusRegistering, model.AppStatusReady, model.AppStatusUploading, model.AppStatusError},
+	model.AppStatusCrashed:        {model.AppStatusRunning, model.AppStatusStopped, model.AppStatusRegistering, model.AppStatusReady, model.AppStatusUploading, model.AppStatusError},
 	model.AppStatusError:          {model.AppStatusUploading, model.AppStatusError},
 }
 

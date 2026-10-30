@@ -27,6 +27,7 @@ extern "C" {
 #include "input.h"
 #include "logging.h"
 #include "network.h"
+#include "process.h"
 #include "rtsp.h"
 #include "stream.h"
 #include "sync.h"
@@ -593,21 +594,25 @@ namespace rtsp_stream {
      * @param launch_session Streaming session information.
      */
     void session_raise(std::shared_ptr<launch_session_t> launch_session) {
+      std::lock_guard lock {_pending_mutex};
       // If a launch event is still pending, don't overwrite it.
       if (launch_event.view(0s)) {
         return;
       }
 
       // Raise the new launch session to prepare for the RTSP handshake
+      const auto id = launch_session->id;
       launch_event.raise(std::move(launch_session));
 
       // Arm the timer to expire this launch session if the client times out
       raised_timer.expires_after(config::stream.ping_timeout);
-      raised_timer.async_wait([this](const boost::system::error_code &ec) {
+      raised_timer.async_wait([this, id](const boost::system::error_code &ec) {
+        std::lock_guard lock {_pending_mutex};
         if (!ec) {
-          auto discarded = launch_event.pop(0s);
-          if (discarded) {
-            BOOST_LOG(debug) << "Event timeout: "sv << discarded->unique_id;
+          const auto pending = launch_event.view(0s);
+          if (pending && pending->id == id) {
+            launch_event.pop(0s);
+            BOOST_LOG(debug) << "Event timeout: "sv << pending->unique_id;
           }
         }
       });
@@ -618,6 +623,7 @@ namespace rtsp_stream {
      * @param launch_session_id The ID of the session to clear.
      */
     void session_clear(uint32_t launch_session_id) {
+      std::lock_guard lock {_pending_mutex};
       // We currently only support a single pending RTSP session,
       // so the ID should always match the one for that session.
       auto launch_session = launch_event.view(0s);
@@ -629,6 +635,13 @@ namespace rtsp_stream {
           launch_event.pop();
         }
       }
+    }
+
+    /** @brief Revoke the pending handshake before draining a retired execution's media workers. */
+    void clear_pending() {
+      std::lock_guard lock {_pending_mutex};
+      raised_timer.cancel();
+      launch_event.pop(0s);
     }
 
     /**
@@ -726,6 +739,7 @@ namespace rtsp_stream {
     }
 
   private:
+    std::mutex _pending_mutex;  ///< Serializes timer operations and pending handshake replacement.
     std::unordered_map<std::string_view, cmd_func_t> _map_cmd_cb;
 
     sync_util::sync_t<std::set<std::shared_ptr<stream::session_t>>> _session_slots;
@@ -758,6 +772,7 @@ namespace rtsp_stream {
   }
 
   void terminate_sessions() {
+    server.clear_pending();
     server.clear(true);
     input::terminate_gamepads();
   }
@@ -1072,6 +1087,7 @@ namespace rtsp_stream {
    * @param req Parsed RTSP request being handled.
    */
   void cmd_announce(rtsp_server_t *server, tcp::socket &sock, launch_session_t &session, msg_t &&req) {
+    auto transition = proc::lock_lifecycle();
     OPTION_ITEM option {};
 
     // I know these string literals will not be modified
@@ -1079,6 +1095,12 @@ namespace rtsp_stream {
 
     auto seqn_str = std::to_string(req->sequenceNumber);
     option.content = const_cast<char *>(seqn_str.c_str());
+
+    const auto active = proc::proc.runtime();
+    if (session.instance_id.empty() || session.instance_id != active.instance_id) {
+      respond(sock, session, &option, 409, "Execution no longer active", req->sequenceNumber, {});
+      return;
+    }
 
     std::string_view payload {req->payload, (size_t) req->payloadLength};
 

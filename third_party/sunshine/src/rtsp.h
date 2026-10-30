@@ -46,6 +46,7 @@ namespace rtsp_stream {
     uint32_t rtsp_iv_counter;  ///< Counter value mixed into encrypted RTSP IVs.
     std::string client_cert;  ///< PEM certificate for the paired Moonlight client.
     capture::target_ptr capture_target;  ///< Launch identity shared by video and audio, retained through resume.
+    std::string instance_id;  ///< Execution identity checked before admitting an RTSP media session.
   };
 
   /**

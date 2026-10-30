@@ -31,6 +31,7 @@ type Manager struct {
 	onEvent    EventCallback
 	uploadMu   sync.Mutex  // global: only one upload/extract at a time
 	uploading  atomic.Bool // true when upload or extract is in progress
+	runtimeMu  sync.Mutex  // serializes runtime observations with stop/delete acknowledgements
 }
 
 func NewManager(st *store.Store, cfg *config.Config, sunClient *sunshine.Client, moonClient *moonlight.Client, onEvent EventCallback, logger *zap.Logger) *Manager {
@@ -394,11 +395,11 @@ func (m *Manager) LaunchApp(appID string) (string, error) {
 	if m.sunClient != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		info, err := m.sunClient.GetServerInfo(ctx)
+		info, err := m.sunClient.Runtime(ctx)
 		if err != nil {
 			return "", fmt.Errorf("编码器离线，无法启动串流: %w", err)
 		}
-		if info.CurrentGame > 0 && info.CurrentGame != app.SunshineAppID {
+		if info.GameStreamID > 0 && (info.AppID != app.ID || info.GameStreamID != app.SunshineAppID) {
 			return "", fmt.Errorf("已有应用正在串流中，请先停止当前串流")
 		}
 	}
@@ -446,51 +447,52 @@ func (m *Manager) LaunchApp(appID string) (string, error) {
 
 // StopApp terminates streaming via the encoder API and waits for confirmation.
 func (m *Manager) StopApp(appID string) error {
+	m.runtimeMu.Lock()
+	defer m.runtimeMu.Unlock()
 	app, err := m.store.GetApp(appID)
 	if err != nil {
 		return err
 	}
 
-	// Idempotent: if not running, nothing to do
-	if app.Status != model.AppStatusRunning {
-		return nil
+	if err := m.stopExecution(app); err != nil {
+		return err
 	}
-
-	// Close via Sunshine
-	if m.sunClient != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		if err := m.sunClient.CloseApp(ctx); err != nil {
-			m.logger.Warn("编码器关闭应用失败", zap.Error(err))
-		}
-
-		// Poll until currentgame == 0 (max 10s)
-		deadline := time.After(10 * time.Second)
-		ticker := time.NewTicker(1 * time.Second)
-		defer ticker.Stop()
-	pollLoop:
-		for {
-			select {
-			case <-deadline:
-				m.logger.Warn("等待串流停止超时", zap.String("app_id", appID))
-				break pollLoop
-			case <-ticker.C:
-				info, err := m.sunClient.GetServerInfo(ctx)
-				if err != nil || info.CurrentGame == 0 {
-					break pollLoop
-				}
-			}
+	if app.Status == model.AppStatusRunning || app.Status == model.AppStatusReady || app.Status == model.AppStatusCrashed {
+		if err := m.updateStatus(appID, model.AppStatusStopped, ""); err != nil {
+			return err
 		}
 	}
-
-	m.updateStatus(appID, model.AppStatusStopped, "")
 	m.store.CreateLog("app", appID, "stop", "success", "串流已停止", nil)
 	m.logger.Info("应用串流停止", zap.String("app_id", appID), zap.String("name", app.Name))
 	return nil
 }
 
+// stopExecution confirms ownership regardless of cached status. A different
+// owner's execution is left untouched, and uncertain responses remain errors.
+func (m *Manager) stopExecution(app *model.App) error {
+	if m.sunClient == nil {
+		if app.SunshineAppID > 0 || app.Status == model.AppStatusRunning {
+			return fmt.Errorf("编码器未配置，无法确认应用已停止")
+		}
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	active, err := m.sunClient.Runtime(ctx)
+	if err != nil {
+		return fmt.Errorf("无法确认编码器运行状态: %w", err)
+	}
+	if active.GameStreamID == 0 || active.AppID != app.ID {
+		return nil
+	}
+	if err := m.sunClient.StopManagedApp(ctx, app.ID, active.InstanceID); err != nil {
+		return fmt.Errorf("指定应用实例停止未获确认: %w", err)
+	}
+	return nil
+}
+
 // MonitorStreaming runs a background loop that detects streaming state changes
-// by polling Sunshine's serverinfo. It auto-transitions apps between running/stopped/crashed.
+// by polling the encoder's owned runtime identity, including after control restart.
 func (m *Manager) MonitorStreaming(ctx context.Context) {
 	if m.sunClient == nil {
 		return
@@ -504,34 +506,37 @@ func (m *Manager) MonitorStreaming(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			m.runtimeMu.Lock()
 			checkCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
-			info, err := m.sunClient.GetServerInfo(checkCtx)
+			info, err := m.sunClient.Runtime(checkCtx)
 			cancel()
-
-			if err != nil {
-				continue // Sunshine unreachable, skip this cycle
+			if err == nil {
+				m.reconcileStreaming(info)
 			}
-
-			m.reconcileStreaming(info.CurrentGame)
+			m.runtimeMu.Unlock()
 		}
 	}
 }
 
 // reconcileStreaming uses persisted encoder identity, including after a control
 // process restart or an app-to-app transition without an intervening idle poll.
-func (m *Manager) reconcileStreaming(currentGame int) {
+func (m *Manager) reconcileStreaming(active sunshine.Runtime) {
 	apps, err := m.store.ListApps()
 	if err != nil {
 		m.logger.Warn("读取应用状态失败", zap.Error(err))
 		return
 	}
 	for _, app := range apps {
-		matches := currentGame > 0 && app.SunshineAppID == currentGame
+		matches := active.GameStreamID > 0 && app.SunshineAppID == active.GameStreamID && app.ID == active.AppID
 		if matches && (app.Status == model.AppStatusReady || app.Status == model.AppStatusStopped || app.Status == model.AppStatusCrashed) {
-			m.updateStatus(app.ID, model.AppStatusRunning, "")
+			if err := m.updateStatus(app.ID, model.AppStatusRunning, ""); err != nil {
+				continue
+			}
 			m.store.CreateLog("app", app.ID, "stream_start", "success", "编码器确认此应用正在运行", nil)
 		} else if !matches && app.Status == model.AppStatusRunning {
-			m.updateStatus(app.ID, model.AppStatusStopped, "")
+			if err := m.updateStatus(app.ID, model.AppStatusStopped, ""); err != nil {
+				continue
+			}
 			m.store.CreateLog("app", app.ID, "stream_end", "success", "编码器确认此应用已停止", nil)
 		}
 	}
@@ -605,6 +610,8 @@ func (m *Manager) GetCandidates(appID string) ([]ExeCandidate, error) {
 // Native unregister must acknowledge the UUID before records or owned files can
 // be removed. A failed native operation leaves the local registration recoverable.
 func (m *Manager) DeleteApp(appID string) error {
+	m.runtimeMu.Lock()
+	defer m.runtimeMu.Unlock()
 	app, err := m.store.GetApp(appID)
 	if err != nil {
 		return err
@@ -615,28 +622,8 @@ func (m *Manager) DeleteApp(appID string) error {
 		return err
 	}
 
-	// Pre-condition: stop streaming if running (inline, not via StopApp to avoid lock re-entry)
-	if app.Status == model.AppStatusRunning && m.sunClient != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		m.sunClient.CloseApp(ctx)
-		// Wait for streaming to stop
-		deadline := time.After(10 * time.Second)
-		ticker := time.NewTicker(1 * time.Second)
-	stopWait:
-		for {
-			select {
-			case <-deadline:
-				m.logger.Warn("删除前等待串流停止超时", zap.String("app_id", appID))
-				break stopWait
-			case <-ticker.C:
-				info, err := m.sunClient.GetServerInfo(ctx)
-				if err != nil || info.CurrentGame == 0 {
-					break stopWait
-				}
-			}
-		}
-		ticker.Stop()
-		cancel()
+	if err := m.stopExecution(app); err != nil {
+		return fmt.Errorf("删除前无法确认应用已停止，已保留应用和文件: %w", err)
 	}
 
 	// Remove only the immutable native registration before deleting owned files.

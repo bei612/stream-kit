@@ -65,6 +65,11 @@ namespace {
       std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
     ASSERT_NE(renderer, nullptr);
+    HANDLE renderer_process = OpenProcess(SYNCHRONIZE, FALSE, renderer->process_id());
+    ASSERT_NE(renderer_process, nullptr);
+    auto close_renderer = util::fail_guard([&]() {
+      CloseHandle(renderer_process);
+    });
     app["name"] = "Next launch";
     app["capture-mode"] = "desktop";
     app_registry::upsert(path.string(), manager, id, app);
@@ -82,11 +87,46 @@ namespace {
     EXPECT_EQ(manager.running(), game_id);
     EXPECT_EQ(manager.capture_target(), target);
     EXPECT_TRUE(target->alive());
-    manager.terminate();
+    const auto execution = manager.runtime();
+    EXPECT_EQ(execution.app_id, id);
+    EXPECT_EQ(execution.instance_id, session->instance_id);
+    EXPECT_FALSE(manager.terminate_if(id, std::string(32, '0')));
+    EXPECT_TRUE(target->alive());
+    EXPECT_TRUE(manager.terminate_if(id, execution.instance_id));
+    EXPECT_EQ(WaitForSingleObject(renderer_process, 0), WAIT_OBJECT_0);
     EXPECT_EQ(manager.running(), 0);
     EXPECT_EQ(manager.capture_target(), nullptr);
     EXPECT_FALSE(target->alive());
     EXPECT_FALSE(renderer->alive());
+
+    // An OS-denied termination must retain both handles, not report success or
+    // detach the live example. Restrict only a duplicate of this test's own job.
+    HANDLE cleanup_job = CreateJobObjectW(nullptr, nullptr);
+    ASSERT_NE(cleanup_job, nullptr);
+    auto close_job = util::fail_guard([&]() {
+      TerminateJobObject(cleanup_job, 1);
+      CloseHandle(cleanup_job);
+    });
+    HANDLE limited_job = nullptr;
+    ASSERT_TRUE(DuplicateHandle(GetCurrentProcess(), cleanup_job, GetCurrentProcess(), &limited_job, JOB_OBJECT_ASSIGN_PROCESS | JOB_OBJECT_SET_ATTRIBUTES | JOB_OBJECT_QUERY | SYNCHRONIZE, FALSE, 0));
+    boost::process::v1::group limited_group(limited_job);
+    boost::filesystem::path directory(utf_utils::to_utf8(std::filesystem::path(executable).parent_path().wstring()));
+    std::error_code launch_error;
+    auto child = platf::run_command(false, true, "\"" + utf_utils::to_utf8(executable) + "\"", directory, proc::current_environment(), nullptr, launch_error, &limited_group);
+    auto stop_probe = util::fail_guard([&]() {
+      TerminateJobObject(cleanup_job, 1);
+      proc::terminate_process_group(child, limited_group, std::chrono::seconds(0));
+    });
+    ASSERT_FALSE(launch_error) << launch_error.message();
+    const auto child_handle = child.native_handle();
+    const auto joinable_before = child.joinable();
+    const auto denied = proc::terminate_process_group(child, limited_group, std::chrono::seconds(0));
+    EXPECT_EQ(denied.value(), ERROR_ACCESS_DENIED);
+    EXPECT_TRUE(child.running());
+    EXPECT_TRUE(child.valid());
+    EXPECT_EQ(child.native_handle(), child_handle);
+    EXPECT_EQ(child.joinable(), joinable_before);
+    EXPECT_TRUE(limited_group.joinable());
   }
 
 }  // namespace

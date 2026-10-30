@@ -5,6 +5,7 @@
 #include "src/process.h"
 
 #include <atomic>
+#include <barrier>
 #include <fstream>
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
@@ -180,5 +181,59 @@ namespace {
     EXPECT_EQ(snapshot.front().name, "first");
     snapshot.clear();
     EXPECT_EQ(manager_.get_apps().front().name, "next");
+  }
+
+  TEST_F(CaptureConfigTest, ScopedStopRejectsDifferentOwnersAndPreviousExecutions) {
+    const std::string owner = "11111111-1111-4111-8111-111111111111";
+    auto catalog = parse({{"name", "owned"}, {"stream-kit-id", owner}, {"exclude-global-prep-cmd", true}});
+    ASSERT_TRUE(catalog);
+    const auto id = std::stoi(catalog->apps.front().id);
+    manager_.replace_catalog(*catalog);
+    auto session = std::make_shared<rtsp_stream::launch_session_t>();
+    ASSERT_EQ(manager_.execute(id, session), 0);
+    const auto first = manager_.runtime();
+    EXPECT_EQ(first.app_id, owner);
+    EXPECT_EQ(first.instance_id.size(), 32U);
+    EXPECT_EQ(session->instance_id, first.instance_id);
+    EXPECT_FALSE(manager_.terminate_if("22222222-2222-4222-8222-222222222222", first.instance_id));
+    EXPECT_FALSE(manager_.terminate_if(owner, ""));
+    EXPECT_EQ(manager_.execute(id, session), 409);
+    EXPECT_EQ(manager_.runtime().instance_id, first.instance_id);
+    EXPECT_TRUE(manager_.terminate_if(owner, first.instance_id));
+    EXPECT_EQ(manager_.runtime().gamestream_id, 0);
+    EXPECT_TRUE(manager_.runtime().instance_id.empty());
+    ASSERT_EQ(manager_.execute(id, session), 0);
+    const auto second = manager_.runtime();
+    EXPECT_NE(second.instance_id, first.instance_id);
+    EXPECT_FALSE(manager_.terminate_if(owner, first.instance_id));
+    EXPECT_EQ(manager_.runtime().instance_id, second.instance_id);
+    manager_.replace_catalog({});
+    EXPECT_TRUE(manager_.terminate_if(owner, second.instance_id));
+  }
+
+  TEST_F(CaptureConfigTest, ConcurrentLaunchesHaveExactlyOneWinner) {
+    auto catalog = parse({{"name", "first"}, {"exclude-global-prep-cmd", true}});
+    ASSERT_TRUE(catalog);
+    const auto first_id = std::stoi(catalog->apps.front().id);
+    auto second = catalog->apps.front();
+    second.id = std::to_string(first_id == 1 ? 2 : 1);
+    const auto second_id = std::stoi(second.id);
+    catalog->apps.push_back(second);
+    manager_.replace_catalog(*catalog);
+    std::barrier ready(3);
+    int outcomes[2] {-1, -1};
+    std::jthread first([&]() {
+      ready.arrive_and_wait();
+      outcomes[0] = manager_.execute(first_id, std::make_shared<rtsp_stream::launch_session_t>());
+    });
+    std::jthread other([&]() {
+      ready.arrive_and_wait();
+      outcomes[1] = manager_.execute(second_id, std::make_shared<rtsp_stream::launch_session_t>());
+    });
+    ready.arrive_and_wait();
+    first.join();
+    other.join();
+    EXPECT_TRUE((outcomes[0] == 0 && outcomes[1] == 409) || (outcomes[1] == 0 && outcomes[0] == 409));
+    EXPECT_EQ(manager_.running(), outcomes[0] == 0 ? first_id : second_id);
   }
 }  // namespace

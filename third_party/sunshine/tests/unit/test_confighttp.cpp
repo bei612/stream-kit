@@ -334,6 +334,8 @@ protected:
     }
     server->resource["^/legacy-apps-test$"]["POST"] = confighttp::saveApp;
     server->resource["^/legacy-apps-test/([0-9]+)$"]["DELETE"] = confighttp::deleteApp;
+    server->resource["^/runtime-test$"]["GET"] = confighttp::managedRuntime;
+    server->resource["^/managed-apps-test/([0-9a-f-]+)/stop$"]["POST"] = confighttp::managedRuntime;
     server->resource["^/virtual-input-license-test$"]["GET"] = confighttp::getVirtualInputLicense;
     server->resource["^/virtual-input-license-test$"]["POST"] = confighttp::updateVirtualInputLicense;
     server->resource["^/pairing-test$"]["DELETE"] = confighttp::cancelPairing;
@@ -577,6 +579,7 @@ protected:
   /** @brief Stop the fixture server before restoring global test configuration. */
   void TearDown() override {
     ConfigHttpTest::TearDown();
+    proc::proc.terminate();
     config::stream.file_apps = saved_catalog;
     proc::proc.replace_catalog({});
   }
@@ -640,6 +643,41 @@ TEST_F(ManagedAppsHttpTest, RejectsMalformedOrOversizedUpdatesWithoutMutation) {
   EXPECT_EQ(app_registry::read(config::stream.file_apps)["apps"].size(), 1U);
 }
 
+TEST_F(ManagedAppsHttpTest, ScopedRuntimeRequiresAuthenticationAndRejectsMalformedStops) {
+  EXPECT_EQ(client->request("GET", "/runtime-test")->status_code, "401 Unauthorized");
+  EXPECT_EQ(client->request("POST", route + "/stop", "{}")->status_code, "401 Unauthorized");
+  for (const auto body : {"{}", R"({"instance_id":7})", R"({"instance_id":"old"})"}) {
+    EXPECT_EQ(client->request("POST", route + "/stop", body, headers())->status_code, "400 Bad Request");
+  }
+  auto cross = headers();
+  cross.emplace("Origin", "https://example.invalid");
+  EXPECT_EQ(client->request("POST", route + "/stop", "{}", cross)->status_code, "400 Bad Request");
+  const auto idle = client->request("GET", "/runtime-test", "", headers());
+  ASSERT_EQ(idle->status_code, "200 OK");
+  EXPECT_EQ(nlohmann::json::parse(idle->content.string())["gamestream_id"], 0);
+}
+
+TEST_F(ManagedAppsHttpTest, StopAcknowledgementIsBoundToExecutionAndDeleteRejectsRestart) {
+  const auto created = client->request("PUT", route, R"({"name":"Owned","exclude-global-prep-cmd":true})", headers());
+  ASSERT_EQ(created->status_code, "200 OK");
+  const auto id = nlohmann::json::parse(created->content.string())["gamestream_id"].get<int>();
+  ASSERT_EQ(proc::proc.execute(id, std::make_shared<rtsp_stream::launch_session_t>()), 0);
+  const auto first = nlohmann::json::parse(client->request("GET", "/runtime-test", "", headers())->content.string());
+  const auto payload = nlohmann::json {{"instance_id", first["instance_id"]}}.dump();
+  EXPECT_EQ(client->request("DELETE", route, "", headers())->status_code, "409 Conflict");
+  EXPECT_EQ(client->request("POST", "/managed-apps-test/22222222-2222-4222-8222-222222222222/stop", payload, headers())->status_code, "409 Conflict");
+  EXPECT_EQ(proc::proc.running(), id);
+  const auto stopped = client->request("POST", route + "/stop", payload, headers());
+  ASSERT_EQ(stopped->status_code, "200 OK");
+  EXPECT_EQ(nlohmann::json::parse(stopped->content.string())["stopped"], true);
+  EXPECT_EQ(proc::proc.running(), 0);
+  EXPECT_EQ(client->request("POST", route + "/stop", payload, headers())->status_code, "200 OK");
+  ASSERT_EQ(proc::proc.execute(id, std::make_shared<rtsp_stream::launch_session_t>()), 0);
+  EXPECT_EQ(client->request("POST", route + "/stop", payload, headers())->status_code, "409 Conflict");
+  EXPECT_EQ(client->request("DELETE", route, "", headers())->status_code, "409 Conflict");
+  EXPECT_EQ(proc::proc.running(), id);
+}
+
 TEST_F(ConfigHttpTest, CaptureCapabilitiesRequireAuthentication) {
   const auto response = client->request("GET", "/capture-capabilities-test");
   EXPECT_EQ(response->status_code, "401 Unauthorized");
@@ -654,6 +692,7 @@ TEST_F(ConfigHttpTest, CaptureCapabilitiesExposeVersionedApplyPolicy) {
   EXPECT_EQ(body.at("schema_version"), 1);
   EXPECT_EQ(body.at("capture_mode_apply"), "application_restart");
   EXPECT_EQ(body.at("managed_apps_version"), 1);
+  EXPECT_EQ(body.at("managed_runtime_version"), 1);
   const auto modes = body.at("capture_modes").get<std::vector<std::string>>();
   EXPECT_NE(std::find(modes.begin(), modes.end(), "desktop"), modes.end());
 #ifndef _WIN32

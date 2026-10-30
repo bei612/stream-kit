@@ -18,11 +18,12 @@ async function main(){
   const url=new URL(req.url,'http://localhost');res.setHeader('Content-Type','application/json');
   if(url.pathname==='/api/stream-kit/capabilities'){
    if(legacyEncoder){res.writeHead(404);return res.end('{}');}
-   return res.end(JSON.stringify({schema_version:1,capture_modes:['desktop','application'],capture_mode_apply:'application_restart',managed_apps_version:1}));
+   return res.end(JSON.stringify({schema_version:1,capture_modes:['desktop','application'],capture_mode_apply:'application_restart',managed_apps_version:1,managed_runtime_version:1}));
   }
   if(url.pathname==='/api/csrf-token')return res.end(JSON.stringify({csrf_token:'isolated-test'}));
   if(url.pathname==='/api/configLocale')return res.end('{}');
   if(url.pathname==='/serverinfo')return res.end('<root status_code="200"><currentgame>0</currentgame><state>SUNSHINE_SERVER_FREE</state></root>');
+  if(url.pathname==='/api/stream-kit/runtime')return res.end(JSON.stringify({schema_version:1,app_id:'',instance_id:'',gamestream_id:0}));
   if(/^\/api\/stream-kit\/apps\/[0-9a-f-]{36}$/.test(url.pathname)){
    const id=url.pathname.split('/').pop();if(!nativeIds.has(id))nativeIds.set(id,101+nativeIds.size);
    const result={schema_version:1,app_id:id,gamestream_id:nativeIds.get(id)};

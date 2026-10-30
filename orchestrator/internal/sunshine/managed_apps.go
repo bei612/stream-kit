@@ -51,48 +51,57 @@ func (c *Client) managedRequest(ctx context.Context, method, id string, app *Sun
 			return result, err
 		}
 	}
+	if err := c.requestManagedJSON(ctx, method, "/api/stream-kit/apps/"+id, payload, 262144, &result); err != nil {
+		return ManagedApp{}, err
+	}
+	if result.SchemaVersion != 1 || result.AppID != id || result.GameStreamID < 1 || result.GameStreamID > 2147483647 {
+		return ManagedApp{}, fmt.Errorf("应用注册事务身份或协议版本不匹配")
+	}
+	if method != http.MethodDelete && result.App.ManagedID != id {
+		return ManagedApp{}, fmt.Errorf("编码器返回的应用归属不匹配")
+	}
+	return result, nil
+}
+
+// requestManagedJSON centralizes authenticated, bounded requests and CSRF renewal
+// for the versioned registration and execution protocols. Bodies are never logged.
+func (c *Client) requestManagedJSON(ctx context.Context, method, path string, payload []byte, limit int64, result any) error {
 	for attempt := 0; attempt < 2; attempt++ {
-		req, err := http.NewRequestWithContext(ctx, method, c.cfg.BaseURL+"/api/stream-kit/apps/"+id, bytes.NewReader(payload))
+		req, err := http.NewRequestWithContext(ctx, method, c.cfg.BaseURL+path, bytes.NewReader(payload))
 		if err != nil {
-			return result, err
+			return err
 		}
 		c.setBasicAuth(req)
 		if method != http.MethodGet {
 			token, err := c.GetCSRFToken(ctx)
 			if err != nil {
-				return result, err
+				return err
 			}
 			req.Header.Set("X-CSRF-Token", token)
 			req.Header.Set("Content-Type", "application/json")
 		}
 		resp, err := c.client.Do(req)
 		if err != nil {
-			return result, fmt.Errorf("应用注册事务请求失败: %w", err)
+			return fmt.Errorf("编码器管理请求失败: %w", err)
 		}
-		body, readErr := io.ReadAll(io.LimitReader(resp.Body, 262145))
+		body, readErr := io.ReadAll(io.LimitReader(resp.Body, limit+1))
 		resp.Body.Close()
 		if resp.StatusCode == http.StatusForbidden && attempt == 0 {
 			c.invalidateCSRF()
 			continue
 		}
-		if readErr != nil || len(body) > 262144 {
-			return result, fmt.Errorf("应用注册事务响应不可读或超过限制")
+		if readErr != nil || int64(len(body)) > limit {
+			return fmt.Errorf("编码器管理响应不可读或超过限制")
 		}
 		if resp.StatusCode != http.StatusOK {
-			return result, fmt.Errorf("应用注册事务失败（HTTP %d）", resp.StatusCode)
+			return fmt.Errorf("编码器管理请求失败（HTTP %d）", resp.StatusCode)
 		}
-		if err := json.Unmarshal(body, &result); err != nil {
-			return ManagedApp{}, fmt.Errorf("应用注册事务响应无效: %w", err)
+		if err := json.Unmarshal(body, result); err != nil {
+			return fmt.Errorf("编码器管理响应无效: %w", err)
 		}
-		if result.SchemaVersion != 1 || result.AppID != id || result.GameStreamID < 1 || result.GameStreamID > 2147483647 {
-			return ManagedApp{}, fmt.Errorf("应用注册事务身份或协议版本不匹配")
-		}
-		if method != http.MethodDelete && result.App.ManagedID != id {
-			return ManagedApp{}, fmt.Errorf("编码器返回的应用归属不匹配")
-		}
-		return result, nil
+		return nil
 	}
-	return result, fmt.Errorf("应用注册事务认证失败")
+	return fmt.Errorf("编码器管理请求认证失败")
 }
 
 func (c *Client) UpsertManagedApp(ctx context.Context, id string, app SunshineApp) (ManagedApp, error) {

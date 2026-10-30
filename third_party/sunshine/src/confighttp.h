@@ -45,6 +45,8 @@ namespace confighttp {
 
   /** @brief Read, upsert or delete an owned application by canonical UUID. @param response Authenticated management response. @param request GET, PUT or DELETE request. */
   void managedApp(const resp_https_t &response, const req_https_t &request);
+  /** @brief Read execution identity or stop a specific owned execution. @param response Authenticated management response. @param request Runtime GET or scoped stop POST request. */
+  void managedRuntime(const resp_https_t &response, const req_https_t &request);
   /** @brief Save an unmanaged legacy application through the registry transaction. */
   void saveApp(const resp_https_t &response, const req_https_t &request);
   /** @brief Delete an unmanaged legacy application through the registry transaction. */

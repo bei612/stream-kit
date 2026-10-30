@@ -1050,7 +1050,7 @@ namespace confighttp {
     if (application_capture_available()) {
       modes.push_back("application");
     }
-    send_response(response, nlohmann::json {{"schema_version", 1}, {"capture_modes", modes}, {"capture_mode_apply", "application_restart"}, {"managed_apps_version", 1}});
+    send_response(response, nlohmann::json {{"schema_version", 1}, {"capture_modes", modes}, {"capture_mode_apply", "application_restart"}, {"managed_apps_version", 1}, {"managed_runtime_version", 1}});
   }
 
   /** @brief Validate capture launch invariants for both management entry points. @param app Native application configuration. */
@@ -1103,6 +1103,11 @@ namespace confighttp {
         validateAppCapture(app);
         output["app"] = app_registry::upsert(config::stream.file_apps, proc::proc, id, std::move(app));
       } else if (request->method == "DELETE") {
+        auto transition = proc::lock_lifecycle();
+        if (proc::proc.runtime().app_id == id) {
+          response->write(SimpleWeb::StatusCode::client_error_conflict, "Application execution must be stopped before unregistering");
+          return;
+        }
         output["removed"] = app_registry::erase(config::stream.file_apps, proc::proc, id);
       } else {
         auto tree = app_registry::read(config::stream.file_apps);
@@ -1119,6 +1124,51 @@ namespace confighttp {
       send_response(response, output);
     } catch (const std::exception &error) {
       BOOST_LOG(warning) << "Managed application registry: " << error.what();
+      sendCatalogError(response, request, error);
+    }
+  }
+
+  void managedRuntime(const resp_https_t &response, const req_https_t &request) {
+    if (!authenticate(response, request)) {
+      return;
+    }
+    if (request->method != "GET" && !validate_csrf_token(response, request, get_client_id(request))) {
+      return;
+    }
+    try {
+      auto transition = proc::lock_lifecycle();
+      const auto active = proc::proc.runtime();
+      if (request->method == "GET") {
+        send_response(response, nlohmann::json {{"schema_version", 1}, {"app_id", active.app_id}, {"instance_id", active.instance_id}, {"gamestream_id", active.gamestream_id}});
+        return;
+      }
+      if (!check_content_type(response, request, "application/json")) {
+        return;
+      }
+      const std::string id = request->path_match[1];
+      if (!proc::valid_managed_id(id) || request->content.size() > 1024) {
+        throw std::invalid_argument("Invalid execution stop request");
+      }
+      const auto body = nlohmann::json::parse(request->content.string());
+      const auto instance = body.at("instance_id").get<std::string>();
+      if (instance.size() != 32 || !std::all_of(instance.begin(), instance.end(), [](char c) {
+            return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
+          })) {
+        throw std::invalid_argument("Invalid execution identity");
+      }
+      if (active.gamestream_id > 0 && (active.app_id != id || active.instance_id != instance)) {
+        response->write(SimpleWeb::StatusCode::client_error_conflict, "Application execution changed; no process was stopped");
+        return;
+      }
+      // Never join media workers while holding proc_t's state mutex.
+      // Admission and all HTTP lifecycle transitions are excluded by this guard.
+      rtsp_stream::terminate_sessions();
+      if (active.gamestream_id > 0 && !proc::proc.terminate_if(id, instance) && proc::proc.runtime().gamestream_id > 0) {
+        response->write(SimpleWeb::StatusCode::server_error_internal_server_error, "Application process termination was not confirmed");
+        return;
+      }
+      send_response(response, nlohmann::json {{"schema_version", 1}, {"app_id", id}, {"instance_id", instance}, {"stopped", true}});
+    } catch (const std::exception &error) {
       sendCatalogError(response, request, error);
     }
   }
@@ -1297,7 +1347,12 @@ namespace confighttp {
 
     print_req(request);
 
-    proc::proc.terminate();
+    auto transition = proc::lock_lifecycle();
+    rtsp_stream::terminate_sessions();
+    if (!proc::proc.terminate()) {
+      response->write(SimpleWeb::StatusCode::server_error_internal_server_error, "Application process termination was not confirmed");
+      return;
+    }
 
     nlohmann::json output_tree;
     output_tree["status"] = true;
@@ -1403,6 +1458,7 @@ namespace confighttp {
       nlohmann::json output_tree;
       std::string uuid = input_tree.value("uuid", "");
       bool enabled = input_tree.value("enabled", true);
+      auto transition = proc::lock_lifecycle();
       output_tree["status"] = nvhttp::set_client_enabled(uuid, enabled);
 
       if (!enabled && output_tree["status"]) {
@@ -1459,10 +1515,12 @@ namespace confighttp {
       nlohmann::json output_tree;
       const nlohmann::json input_tree = nlohmann::json::parse(ss);
       const std::string uuid = input_tree.value("uuid", "");
+      auto transition = proc::lock_lifecycle();
       const bool removed = nvhttp::unpair_client(uuid);
       output_tree["status"] = removed;
 
       if (removed && nvhttp::get_all_clients().empty()) {
+        rtsp_stream::terminate_sessions();
         proc::proc.terminate();
       }
 
@@ -1492,7 +1550,9 @@ namespace confighttp {
 
     print_req(request);
 
+    auto transition = proc::lock_lifecycle();
     nvhttp::erase_all_clients();
+    rtsp_stream::terminate_sessions();
     proc::proc.terminate();
 
     nlohmann::json output_tree;
@@ -2451,6 +2511,8 @@ namespace confighttp {
     server.resource["^/api/browse$"]["GET"] = browseDirectory;
     server.resource["^/api/apps$"]["GET"] = getApps;
     server.resource["^/api/stream-kit/capabilities$"]["GET"] = getCaptureCapabilities;
+    server.resource["^/api/stream-kit/runtime$"]["GET"] = managedRuntime;
+    server.resource["^/api/stream-kit/apps/([0-9a-f-]+)/stop$"]["POST"] = managedRuntime;
     for (const auto method : {"GET", "PUT", "DELETE"}) {
       server.resource["^/api/stream-kit/apps/([0-9a-f-]+)$"][method] = managedApp;
     }

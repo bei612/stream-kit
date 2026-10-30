@@ -2,7 +2,6 @@ package app
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -39,15 +38,15 @@ func TestRuntimeReconciliationUsesPersistedIdentityAfterRestart(t *testing.T) {
 			t.Fatalf("runtime mismatch: %+v %+v %v %v", a, b, e1, e2)
 		}
 	}
-	manager.reconcileStreaming(101)
+	manager.reconcileStreaming(sunshine.Runtime{GameStreamID: 101, AppID: first.ID})
 	check(model.AppStatusRunning, model.AppStatusReady)
 	// A direct app-to-app transition must be observed without an idle poll.
-	manager.reconcileStreaming(202)
+	manager.reconcileStreaming(sunshine.Runtime{GameStreamID: 202, AppID: second.ID})
 	check(model.AppStatusStopped, model.AppStatusRunning)
 	// An unrelated program must never be attributed to the last opened app.
-	manager.reconcileStreaming(303)
+	manager.reconcileStreaming(sunshine.Runtime{GameStreamID: 202, AppID: first.ID})
 	check(model.AppStatusStopped, model.AppStatusStopped)
-	manager.reconcileStreaming(0)
+	manager.reconcileStreaming(sunshine.Runtime{})
 	check(model.AppStatusStopped, model.AppStatusStopped)
 }
 
@@ -70,7 +69,7 @@ func TestLaunchConfirmsOwnedNativeRegistrationBeforeResolvingStream(t *testing.T
 			gatewayReads := 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch r.URL.Path {
-				case "/serverinfo":
+				case "/api/stream-kit/runtime":
 					current := 0
 					if scenario == "matching_running" {
 						current = 771
@@ -78,9 +77,14 @@ func TestLaunchConfirmsOwnedNativeRegistrationBeforeResolvingStream(t *testing.T
 					if scenario == "stale_running" {
 						current = 999
 					}
-					_, _ = fmt.Fprintf(w, `<root status_code="200"><currentgame>%d</currentgame><state>SUNSHINE_SERVER_FREE</state></root>`, current)
+					active := sunshine.Runtime{SchemaVersion: 1, GameStreamID: current}
+					if current > 0 {
+						active.AppID = app.ID
+						active.InstanceID = "11111111111111111111111111111111"
+					}
+					_ = json.NewEncoder(w).Encode(active)
 				case "/api/stream-kit/capabilities":
-					_, _ = w.Write([]byte(`{"schema_version":1,"capture_modes":["desktop"],"capture_mode_apply":"application_restart","managed_apps_version":1}`))
+					_, _ = w.Write([]byte(`{"schema_version":1,"capture_modes":["desktop"],"capture_mode_apply":"application_restart","managed_apps_version":1,"managed_runtime_version":1}`))
 				case "/api/stream-kit/apps/" + app.ID:
 					if scenario == "missing_owner" {
 						w.WriteHeader(404)

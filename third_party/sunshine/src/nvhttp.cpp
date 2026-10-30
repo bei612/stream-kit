@@ -1330,6 +1330,7 @@ namespace nvhttp {
    */
   void launch(bool &host_audio, resp_https_t response, req_https_t request) {
     print_req<SunshineHTTPS>(request);
+    auto transition = proc::lock_lifecycle();
 
     pt::ptree tree;
     bool revert_display_configuration {false};
@@ -1364,6 +1365,12 @@ namespace nvhttp {
     }
 
     auto appid = util::from_view(get_arg(args, "appid"));
+    if (appid <= 0 || appid > std::numeric_limits<int>::max()) {
+      tree.put("root.gamesession", 0);
+      tree.put("root.<xmlattr>.status_code", 400);
+      tree.put("root.<xmlattr>.status_message", "Invalid application ID");
+      return;
+    }
 
     auto current_appid = proc::proc.running();
     if (current_appid > 0) {
@@ -1374,6 +1381,9 @@ namespace nvhttp {
       return;
     }
 
+    // The previous process can exit before its media workers observe that exit.
+    // Drain them before starting any replacement execution, while admission is locked.
+    rtsp_stream::terminate_sessions();
     host_audio = util::from_view(get_arg(args, "localAudioPlayMode"));
     auto launch_session = make_launch_session(host_audio, args);
 
@@ -1450,6 +1460,7 @@ namespace nvhttp {
    */
   void resume(bool &host_audio, resp_https_t response, req_https_t request) {
     print_req<SunshineHTTPS>(request);
+    auto transition = proc::lock_lifecycle();
 
     pt::ptree tree;
     auto g = util::fail_guard([&]() {
@@ -1464,7 +1475,8 @@ namespace nvhttp {
       response->close_connection_after_response = true;
     });
 
-    auto current_appid = proc::proc.running();
+    const auto active = proc::proc.runtime();
+    auto current_appid = active.gamestream_id;
     if (current_appid == 0) {
       tree.put("root.resume", 0);
       tree.put("root.<xmlattr>.status_code", 503);
@@ -1493,6 +1505,7 @@ namespace nvhttp {
       host_audio = util::from_view(get_arg(args, "localAudioPlayMode"));
     }
     const auto launch_session = make_launch_session(host_audio, args);
+    launch_session->instance_id = active.instance_id;
     launch_session->capture_target = proc::proc.capture_target();
     if (proc::proc.running() != current_appid ||
         (proc::proc.uses_application_capture(current_appid) &&
@@ -1558,6 +1571,7 @@ namespace nvhttp {
    */
   void cancel(resp_https_t response, req_https_t request) {
     print_req<SunshineHTTPS>(request);
+    auto transition = proc::lock_lifecycle();
 
     pt::ptree tree;
     auto g = util::fail_guard([&]() {
@@ -1574,7 +1588,11 @@ namespace nvhttp {
     rtsp_stream::terminate_sessions();
 
     if (proc::proc.running() > 0) {
-      proc::proc.terminate();
+      if (!proc::proc.terminate()) {
+        tree.put("root.cancel", 0);
+        tree.put("root.<xmlattr>.status_code", 500);
+        return;
+      }
     }
 
     // The config needs to be reverted regardless of whether "proc::proc.terminate()" was called or not.
