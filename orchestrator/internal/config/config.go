@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -173,6 +174,8 @@ func resolvePaths(cfg *Config) {
 	cfg.Storage.AppsDir = resolve(cfg.Storage.AppsDir)
 	cfg.Storage.TempDir = resolve(cfg.Storage.TempDir)
 	cfg.Storage.DBPath = resolve(cfg.Storage.DBPath)
+	cfg.Server.TLSCert = resolve(cfg.Server.TLSCert)
+	cfg.Server.TLSKey = resolve(cfg.Server.TLSKey)
 	cfg.Log.File.Path = resolve(cfg.Log.File.Path)
 	for name, comp := range cfg.Components {
 		comp.ExePath = resolve(comp.ExePath)
@@ -234,33 +237,49 @@ func validServiceURL(raw string) bool {
 func generateDefaultConfig(path string) error {
 	examplePath := filepath.Join(filepath.Dir(path), "config.example.json")
 	data, err := os.ReadFile(examplePath)
-	if err != nil {
-		cfg := map[string]interface{}{
-			"server": map[string]interface{}{
-				"bind_address": "0.0.0.0:9000",
-				"username":     "admin",
-				"password":     "admin",
-				"log_level":    "info",
-			},
-			"components": map[string]interface{}{},
-			"storage": map[string]interface{}{
-				"apps_dir":              "./apps",
-				"temp_dir":              "./temp",
-				"db_path":               "./data/orchestrator.db",
-				"max_upload_size_bytes": 53687091200,
-			},
-			"process": map[string]interface{}{
-				"monitor_interval_seconds": 5,
-			},
-			"templates": map[string]interface{}{
-				"fullscreen_1080p": "-game -fullscreen -ResX=1920 -ResY=1080 -ForceRes",
-			},
-		}
-		data, _ = json.MarshalIndent(cfg, "", "  ")
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("read example configuration: %w", err)
 	}
-
-	os.MkdirAll(filepath.Dir(path), 0755)
-	return os.WriteFile(path, data, 0600)
+	if os.IsNotExist(err) {
+		// Use the same typed schema as loading and editing. A first-run file
+		// must not depend on a separately maintained subset of JSON fields.
+		cfg := Config{
+			Server:     ServerConfig{BindAddress: "127.0.0.1:9000", Username: "admin", Password: rand.Text(), JWTSecret: rand.Text() + rand.Text()},
+			Components: map[string]ComponentConfig{},
+			Storage:    StorageConfig{AppsDir: "./apps", TempDir: "./temp", DBPath: "./data/orchestrator.db", MaxUploadSize: 50 << 30, MaxExtractSize: 50 << 30, MaxFileCount: 100000},
+			Process:    ProcessConfig{MonitorInterval: 5, GracefulShutdownTimeout: 5},
+			Log:        LogConfig{Level: "info", File: LogFileConfig{Enabled: true, Path: "./logs/orchestrator.log", MaxSizeMB: 100, MaxBackups: 5, MaxAgeDays: 30, Compress: true}, OperationLog: OpLogConfig{MaxAgeDays: 30, MaxCount: 100000}},
+			Templates:  map[string]string{"fullscreen_1080p": "-game -fullscreen -ResX=1920 -ResY=1080 -ForceRes"},
+		}
+		data, err = json.MarshalIndent(cfg, "", "  ")
+		if err != nil {
+			return err
+		}
+	}
+	cfg, err := decodeSettings(data)
+	if err != nil {
+		return fmt.Errorf("invalid example configuration: %w", err)
+	}
+	if issues := validate(cfg); len(issues) != 0 {
+		return fmt.Errorf("invalid example configuration: %s", strings.Join(issues, "; "))
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	// Never truncate configuration created concurrently by another starter.
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		return err
+	}
+	_, writeErr := f.Write(data)
+	if writeErr == nil {
+		writeErr = f.Sync()
+	}
+	closeErr := f.Close()
+	if writeErr != nil {
+		return writeErr
+	}
+	return closeErr
 }
 
 // Sanitized returns a copy of the config with sensitive fields masked.
