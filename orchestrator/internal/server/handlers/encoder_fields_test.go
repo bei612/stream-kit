@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -22,6 +23,8 @@ func TestEncoderFieldValidationBeforeNativeWrite(t *testing.T) {
 		{"max_bitrate", `2147483648`, false}, {"max_bitrate", `true`, false},
 		{"sunshine_name", `"Node"`, true}, {"sunshine_name", `false`, false},
 		{"sunshine_name", `"line\nbreak"`, false},
+		{"min_log_level", `"debug"`, true}, {"min_log_level", `"2"`, true},
+		{"min_log_level", `"2debug"`, false}, {"min_log_level", `"7"`, false},
 		{"stream_audio", ` null `, true}, {"stream_audio", `""`, true},
 		{"extension", `{"custom":true}`, true},
 	} {
@@ -55,7 +58,7 @@ func TestEncoderCatalogUsesSameReviewedFieldsAsRedaction(t *testing.T) {
 		t.Fatal("catalog missing or duplicate entries")
 	}
 	for _, field := range response.Data.Fields {
-		if field != encoderFieldByKey[field.Key] || field.Label == "" {
+		if !reflect.DeepEqual(field, encoderFieldByKey[field.Key]) || field.Label == "" {
 			t.Fatalf("invalid catalog field: %+v", field)
 		}
 	}

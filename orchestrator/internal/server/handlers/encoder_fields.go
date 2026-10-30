@@ -9,11 +9,12 @@ import (
 // These reviewed fields mirror src/config.cpp in the vendored encoder.
 // The catalog describes editable overrides, not platform-dependent defaults.
 type encoderField struct {
-	Key     string `json:"key"`
-	Label   string `json:"label"`
-	Type    string `json:"type"`
-	Minimum int64  `json:"minimum,omitempty"`
-	Maximum int64  `json:"maximum,omitempty"`
+	Key     string   `json:"key"`
+	Label   string   `json:"label"`
+	Type    string   `json:"type"`
+	Minimum int64    `json:"minimum,omitempty"`
+	Maximum int64    `json:"maximum,omitempty"`
+	Choices []string `json:"choices,omitempty"`
 }
 
 var encoderFields = []encoderField{
@@ -33,7 +34,7 @@ var encoderFields = []encoderField{
 	{Key: "high_resolution_scrolling", Label: "高精度滚动", Type: "boolean"},
 	{Key: "always_send_scancodes", Label: "始终发送键盘扫描码", Type: "boolean"},
 	{Key: "system_tray", Label: "系统托盘", Type: "boolean"},
-	{Key: "min_log_level", Label: "日志级别", Type: "string"},
+	{Key: "min_log_level", Label: "日志级别", Type: "string", Choices: []string{"verbose", "debug", "info", "warning", "error", "fatal", "none", "0", "1", "2", "3", "4", "5", "6"}},
 }
 
 var encoderFieldByKey = func() map[string]encoderField {
@@ -63,7 +64,18 @@ func validEncoderField(key string, raw json.RawMessage) bool {
 	}
 	switch field.Type {
 	case "string":
-		return isText && !strings.ContainsAny(text, "\r\n\x00")
+		if !isText || strings.ContainsAny(text, "\r\n\x00") {
+			return false
+		}
+		if len(field.Choices) == 0 {
+			return true
+		}
+		for _, choice := range field.Choices {
+			if text == choice {
+				return true
+			}
+		}
+		return false
 	case "boolean":
 		if _, ok := value.(bool); ok {
 			return true

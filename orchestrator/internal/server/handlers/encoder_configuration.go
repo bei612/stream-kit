@@ -49,7 +49,7 @@ func EncoderConfiguration(client EncoderConfigurationClient) gin.HandlerFunc {
 			}
 			for key, value := range edit.Changes {
 				if !validEncoderField(key, value) {
-					fail(sunshine.ErrConfigurationInvalid)
+					errResponse(c, 400, "CONFIGURATION_INVALID", "参数 "+key+" 的类型或范围无效")
 					return
 				}
 			}

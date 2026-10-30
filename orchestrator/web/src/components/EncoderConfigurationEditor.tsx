@@ -45,6 +45,15 @@ export function EncoderConfigurationEditor() {
       for(const [key,draft] of Object.entries(drafts)) {
         changes[key]=draft.mode==='reset'?null:draft.mode==='json'?JSON.parse(draft.text):draft.text
         if(typeof changes[key]==='string'&&/[\r\n\0]/.test(changes[key] as string))throw new Error('文本参数不能包含换行或空字符。')
+        const field=view.fields?.find(field=>field.key===key),value=changes[key]
+        if(field&&value!==null&&value!=='') {
+          if(field.type==='string'&&typeof value!=='string')throw new Error(`${field.label}必须使用文本值。`)
+          if(field.choices?.length&&!field.choices.includes(String(value)))throw new Error(`${field.label}请选择支持的值。`)
+          if(field.type==='integer') {
+            const text=String(value),number=Number(text)
+            if((typeof value!=='string'&&typeof value!=='number')||!/^\+?\d+$/.test(text)||!Number.isSafeInteger(number)||number<(field.minimum??0)||(field.maximum!==undefined&&number>field.maximum))throw new Error(`${field.label}必须为 ${field.minimum??0} 至 ${field.maximum??'允许上限'} 范围内的整数。`)
+          }
+        }
       }
     }catch(e){setError(e instanceof SyntaxError?'结构化参数必须使用有效 JSON。':e instanceof Error?e.message:'配置格式无效');return}
     setBusy(true)
@@ -91,6 +100,8 @@ export function EncoderConfigurationEditor() {
             <Select aria-label={`${key} 编辑方式`} value={mode} onChange={e=>edit(key,{mode:e.target.value as Draft['mode'],text})}><option value="text">文本值</option><option value="json">结构化 JSON 值</option><option value="reset">恢复默认（删除覆盖）</option></Select>
             {mode==='reset'?<p className="text-sm text-amber-400">保存后删除此项配置覆盖。</p>:field?.type==='boolean'?<Select id={id} value={text} onChange={e=>edit(key,{mode:'json',text:e.target.value})}>
               {!['true','false'].includes(text)&&<option value={text}>{text||'未设置'}</option>}<option value="true">开启</option><option value="false">关闭</option>
+            </Select>:field?.choices?.length?<Select id={id} value={text} onChange={e=>edit(key,{mode:'text',text:e.target.value})}>
+              {!field.choices.includes(text)&&<option value={text}>{text||'未设置'}</option>}{field.choices.map(value=><option key={value} value={value}>{value}</option>)}
             </Select>:<Input id={id} type={hidden?'password':field?.type==='integer'?'number':'text'} min={field?.type==='integer'?(field.minimum??0):undefined} max={field?.maximum} step={field?.type==='integer'?1:undefined} autoComplete="off" value={text} placeholder={hidden?'值已隐藏，未编辑则保留':''} onChange={e=>edit(key,{mode,text:e.target.value})}/>}
             {draft&&<Button size="sm" variant="ghost" onClick={()=>setDrafts(current=>Object.fromEntries(Object.entries(current).filter(([name])=>name!==key)))}>撤销此项修改</Button>}
           </div>
