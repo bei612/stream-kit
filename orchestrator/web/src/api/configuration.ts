@@ -1,4 +1,13 @@
 export type ConfigValue = string | number | boolean | null | ConfigValue[] | { [key:string]: ConfigValue }
+export interface EncoderConfigurationAcknowledgement {
+  revision:string
+  apply_policy:'encoder_restart'
+  runtime_verified:false
+}
+export interface EncoderConfigurationView extends EncoderConfigurationAcknowledgement {
+  values:Record<string,ConfigValue>
+  redacted_keys:string[]
+}
 export interface ConfigurationView {
   revision:string
   restart_required:boolean

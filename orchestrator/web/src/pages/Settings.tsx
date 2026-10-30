@@ -10,6 +10,7 @@ import { AudioDevices } from '@/components/AudioDevices'
 import { Alert } from '@/components/ui/alert'
 import { ConfigurationEditor } from '@/components/ConfigurationEditor'
 import { GatewayConfigurationEditor } from '@/components/GatewayConfigurationEditor'
+import { EncoderConfigurationEditor } from '@/components/EncoderConfigurationEditor'
 
 export default function Settings() {
   const [config, setConfig] = useState<any>(null)
@@ -48,6 +49,7 @@ export default function Settings() {
 
       <ConfigurationEditor />
       <GatewayConfigurationEditor />
+      <EncoderConfigurationEditor />
       <AudioDevices />
 
       {/* Current config display */}
