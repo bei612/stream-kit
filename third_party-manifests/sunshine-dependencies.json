@@ -1,0 +1,969 @@
+{
+  "schema": 1,
+  "upstream_commit": "63d35f702ee9e362e43263742981836ec0710384",
+  "dependencies": [
+    {
+      "path": "third_party/sunshine/packaging/linux/flatpak/deps/flatpak-builder-tools",
+      "repository": "https://github.com/flatpak/flatpak-builder-tools.git",
+      "commit": "de2225a6dee4818c1339b3cdbf29f90c471fcb7e",
+      "archive_url": "https://codeload.github.com/flatpak/flatpak-builder-tools/tar.gz/de2225a6dee4818c1339b3cdbf29f90c471fcb7e",
+      "archive_sha256": "1b4bf6abf5720d045268e9132113c25fd7908879748448228166215efc5f7db2",
+      "symlinks": [
+        "pip/flatpak-pip-generator"
+      ],
+      "executables": [
+        "cargo/flatpak-cargo-generator.py",
+        "cpan/flatpak-cpan-generator.pl",
+        "dotnet/flatpak-dotnet-generator.py",
+        "dub/flatpak-dub-generator.py",
+        "flatpak-json2yaml/flatpak-json2yaml.py",
+        "go-get/flatpak-go-get-generator.py",
+        "go-get/flatpak-go-vendor-generator.py",
+        "gradle/flatpak-gradle-generator.py",
+        "node/fiddle-yarn-berry/gen.sh",
+        "node/tools/b64-integrity.sh",
+        "node/tools/b64-to-hex.sh",
+        "node/tools/hex-to-b64.sh",
+        "node/tools/lockfile-utils.sh",
+        "npm/flatpak-npm-generator.py",
+        "opam/flatpak-opam-generator.py",
+        "pip/flatpak-pip-generator.py",
+        "poetry/flatpak-poetry-generator.py",
+        "spm/flatpak-spm-generator.swift",
+        "yarn/flatpak-yarn-generator.py"
+      ]
+    },
+    {
+      "path": "third_party/sunshine/third-party/build-deps",
+      "repository": "https://github.com/LizardByte/build-deps.git",
+      "commit": "a1fe2841cbc0d8c4501a1006d2d1cb88f219cc8c",
+      "archive_url": "https://codeload.github.com/LizardByte/build-deps/tar.gz/a1fe2841cbc0d8c4501a1006d2d1cb88f219cc8c",
+      "archive_sha256": "7193665168eb8becf94ba1386d6aa72692512db34f88415b93be8af0270a6ca5",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/build-deps/third-party/FFmpeg/AMF",
+      "repository": "https://github.com/GPUOpen-LibrariesAndSDKs/AMF.git",
+      "commit": "eadd00804d5f7e5cd8c85d540073198312870776",
+      "source_selection": [
+        "amf/public/include/**",
+        "LICENSE*",
+        "README*"
+      ],
+      "files": [
+        {
+          "path": "LICENSE.txt",
+          "git_blob": "7e6e2140915b281143e056ff88c941f7d31d64c2"
+        },
+        {
+          "path": "README.md",
+          "git_blob": "4900a36295634f97b9f59846eb30fe329cc5b667"
+        },
+        {
+          "path": "amf/public/include/components/AMFXInput.h",
+          "git_blob": "6ef38eb8b56f7281d6eee894af81c0c5ecd92fec"
+        },
+        {
+          "path": "amf/public/include/components/Ambisonic2SRenderer.h",
+          "git_blob": "63ac79770626cf7945cc4ccea3779c5930090869"
+        },
+        {
+          "path": "amf/public/include/components/AudioCapture.h",
+          "git_blob": "af5b4287689dd8265a5bc4d6191a052c2d21687d"
+        },
+        {
+          "path": "amf/public/include/components/Capture.h",
+          "git_blob": "78fb12fcf8ba4c81ed12b4f3e3f69669c9bab0a3"
+        },
+        {
+          "path": "amf/public/include/components/ChromaKey.h",
+          "git_blob": "82b3516f38b2723ddf2a1faed8952edf18248a1c"
+        },
+        {
+          "path": "amf/public/include/components/ColorSpace.h",
+          "git_blob": "f61c7db3466bde3d9b9984abe37757506d17dcfb"
+        },
+        {
+          "path": "amf/public/include/components/Component.h",
+          "git_blob": "5293b8f4e7ddfd55c33ee91a9bc23b39ab5fadc1"
+        },
+        {
+          "path": "amf/public/include/components/ComponentCaps.h",
+          "git_blob": "48197670dac9d464dbedaf1e6418fcba51117f9b"
+        },
+        {
+          "path": "amf/public/include/components/CursorCapture.h",
+          "git_blob": "e21c169098b7ea2cf50acf0105711b7579fcb430"
+        },
+        {
+          "path": "amf/public/include/components/DisplayCapture.h",
+          "git_blob": "8ca33251973b98b88ad48bc85574a7f02d5457c9"
+        },
+        {
+          "path": "amf/public/include/components/FFMPEGAudioConverter.h",
+          "git_blob": "5ce79cab608fbc88f8bf80806765658d7215ecdb"
+        },
+        {
+          "path": "amf/public/include/components/FFMPEGAudioDecoder.h",
+          "git_blob": "e0c324c6b9c9d9b868ec52f1ff6eedb1d2301dea"
+        },
+        {
+          "path": "amf/public/include/components/FFMPEGAudioEncoder.h",
+          "git_blob": "872080b1931958cb365f386bfd247988b87d6892"
+        },
+        {
+          "path": "amf/public/include/components/FFMPEGComponents.h",
+          "git_blob": "a3fbaff2b01d4d6c5bbf7ad4f885dc70f555022f"
+        },
+        {
+          "path": "amf/public/include/components/FFMPEGEncoderAV1.h",
+          "git_blob": "0e5e3f06d69699ba92311229eac8e72a8da526fa"
+        },
+        {
+          "path": "amf/public/include/components/FFMPEGEncoderH264.h",
+          "git_blob": "ef5e74629a61b069a784b366df928b618ad8ad07"
+        },
+        {
+          "path": "amf/public/include/components/FFMPEGEncoderHEVC.h",
+          "git_blob": "a5fec4f23c519a38073e0644e3412c6c52de5397"
+        },
+        {
+          "path": "amf/public/include/components/FFMPEGFileDemuxer.h",
+          "git_blob": "60fd2934a91bbaf14c1676869c2367c77032c0d0"
+        },
+        {
+          "path": "amf/public/include/components/FFMPEGFileMuxer.h",
+          "git_blob": "a44676095e68bf7c0321fdece869ba80058af5aa"
+        },
+        {
+          "path": "amf/public/include/components/FFMPEGVideoDecoder.h",
+          "git_blob": "c844145d814c422ab31d8eb1738574f8e3cdc130"
+        },
+        {
+          "path": "amf/public/include/components/FRC.h",
+          "git_blob": "921c330c250f36505998581a03680ad2e72f6237"
+        },
+        {
+          "path": "amf/public/include/components/HQScaler.h",
+          "git_blob": "ad72c16b7bab7ac41d4ab384c2dfc9fadecf05e6"
+        },
+        {
+          "path": "amf/public/include/components/MediaSource.h",
+          "git_blob": "1afdb6745ef69b2e36a7efc6c60145e6047a78df"
+        },
+        {
+          "path": "amf/public/include/components/PreAnalysis.h",
+          "git_blob": "cf4de6522406c013ca2e02ea18547a6f560913d9"
+        },
+        {
+          "path": "amf/public/include/components/PreProcessing.h",
+          "git_blob": "ab59d826b7155e44f27b8e2aab81df29e527805b"
+        },
+        {
+          "path": "amf/public/include/components/SupportedCodecs.h",
+          "git_blob": "efdd9705371bc349d73e13ecd4839ff0768a2787"
+        },
+        {
+          "path": "amf/public/include/components/VQEnhancer.h",
+          "git_blob": "6d3468ab80a5b7707516bd2f1cf8f426215dfff4"
+        },
+        {
+          "path": "amf/public/include/components/VideoCapture.h",
+          "git_blob": "db0f6c0b23fc0fe75111c02a2cc8ad8f643b1505"
+        },
+        {
+          "path": "amf/public/include/components/VideoConverter.h",
+          "git_blob": "c76da25bb1664361205af5c05405fb9677bdc34c"
+        },
+        {
+          "path": "amf/public/include/components/VideoDecoderUVD.h",
+          "git_blob": "b9cebfd568236e5eddcc49d68280511c1f2c5ac4"
+        },
+        {
+          "path": "amf/public/include/components/VideoEncoderAV1.h",
+          "git_blob": "b00ea41bbe0d4981a582dce3671009a09dadcddb"
+        },
+        {
+          "path": "amf/public/include/components/VideoEncoderHEVC.h",
+          "git_blob": "d5f05c4915534071b164d809afe73c0be46c06e5"
+        },
+        {
+          "path": "amf/public/include/components/VideoEncoderVCE.h",
+          "git_blob": "c47b6a8e8ebbc4b8255311539a2f5e3168ec809f"
+        },
+        {
+          "path": "amf/public/include/components/VideoStitch.h",
+          "git_blob": "0ae2af5275e7615f8bf7a84f04603ca04ff960e5"
+        },
+        {
+          "path": "amf/public/include/components/ZCamLiveStream.h",
+          "git_blob": "7f4a6bbee8a2ed4ecf91313513d4ba032b4ca5f7"
+        },
+        {
+          "path": "amf/public/include/core/AudioBuffer.h",
+          "git_blob": "34f8adcf12889595894bc699351ea5956d946dea"
+        },
+        {
+          "path": "amf/public/include/core/Buffer.h",
+          "git_blob": "c9d55d12f21bbfb93c8395ad4b9afe17db687457"
+        },
+        {
+          "path": "amf/public/include/core/Compute.h",
+          "git_blob": "a45964d67e5d80d4f498070063a7206c69bca392"
+        },
+        {
+          "path": "amf/public/include/core/ComputeFactory.h",
+          "git_blob": "e335ee31c0dec4c729fa80744a803b8b20edf1e9"
+        },
+        {
+          "path": "amf/public/include/core/Context.h",
+          "git_blob": "3555f0803cc202eb27fe09b142dbaf449db933a8"
+        },
+        {
+          "path": "amf/public/include/core/CurrentTime.h",
+          "git_blob": "c8a559ad9d8b84453ecf935f370b5de33bd812c0"
+        },
+        {
+          "path": "amf/public/include/core/D3D12AMF.h",
+          "git_blob": "7ad2d74f121d0386ef26e96638c596b71caebf52"
+        },
+        {
+          "path": "amf/public/include/core/Data.h",
+          "git_blob": "7067606b51aee5ed783537e0a5ffe9e1fe01bfbb"
+        },
+        {
+          "path": "amf/public/include/core/Debug.h",
+          "git_blob": "40610b01ce3a276e90f39771939036e344c64d19"
+        },
+        {
+          "path": "amf/public/include/core/Dump.h",
+          "git_blob": "b8c27446a2a5f8f9decc499c960d2a29662255bf"
+        },
+        {
+          "path": "amf/public/include/core/Factory.h",
+          "git_blob": "a9f32f5762f38dfe9b169d3b5e00bfada7d08fb1"
+        },
+        {
+          "path": "amf/public/include/core/Interface.h",
+          "git_blob": "96117f0e80bfa8a81dfc229e588320d961890db3"
+        },
+        {
+          "path": "amf/public/include/core/Plane.h",
+          "git_blob": "6d3e9f946e9c40dc5fc8e67357a0d657d144705b"
+        },
+        {
+          "path": "amf/public/include/core/Platform.h",
+          "git_blob": "06b9fdf56569cdb1d7ee52d9d0121ecf83dbfb72"
+        },
+        {
+          "path": "amf/public/include/core/PropertyStorage.h",
+          "git_blob": "9fb87bec0273de9965796ca6e0aa4df1176dcf80"
+        },
+        {
+          "path": "amf/public/include/core/PropertyStorageEx.h",
+          "git_blob": "94ccd1ea9b4d92ed2b555ceb22f53aa4d33a6c1b"
+        },
+        {
+          "path": "amf/public/include/core/Result.h",
+          "git_blob": "350b72f65b7a54d1275c50f959b141e0346c4dc3"
+        },
+        {
+          "path": "amf/public/include/core/Surface.h",
+          "git_blob": "24aa4b4072f573a65748c295a5e52dd041f8dbb1"
+        },
+        {
+          "path": "amf/public/include/core/Trace.h",
+          "git_blob": "69b80739487b03739742537773644e42180df6ff"
+        },
+        {
+          "path": "amf/public/include/core/Variant.h",
+          "git_blob": "16b30d0ce3e34c375c47dde2086b3c3fbd6320b1"
+        },
+        {
+          "path": "amf/public/include/core/Version.h",
+          "git_blob": "29a440f3bde0e7d94d84ca8f5a97273438ae7d14"
+        },
+        {
+          "path": "amf/public/include/core/VulkanAMF.h",
+          "git_blob": "1de8bb62722164f3002ebe48fd32b8a4815603f8"
+        }
+      ],
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/build-deps/third-party/FFmpeg/FFmpeg",
+      "repository": "https://github.com/FFmpeg/FFmpeg.git",
+      "commit": "bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa",
+      "archive_url": "https://codeload.github.com/FFmpeg/FFmpeg/tar.gz/bf1b838f2ab88b4f8fd83443325c782ea0e0f7fa",
+      "archive_sha256": "fb1931fd4eb29297ee1c1017a24f800c4d8fbea35b4f2aaeb28308a48a9149b4",
+      "symlinks": [],
+      "executables": [
+        ".forgejo/inject-pr-samples.py",
+        "compat/solaris/make_sunver.pl",
+        "compat/windows/makedef",
+        "compat/windows/mslink",
+        "compat/windows/mswindres",
+        "configure",
+        "doc/doxy-wrapper.sh",
+        "doc/texi2pod.pl",
+        "doc/texidep.pl",
+        "ffbuild/libversion.sh",
+        "ffbuild/pkgconfig_generate.sh",
+        "ffbuild/version.sh",
+        "tests/copycooker.sh",
+        "tests/fate-run.sh",
+        "tests/fate.sh",
+        "tests/fate/source-check.sh",
+        "tools/bisect-create",
+        "tools/check_arm_indent.sh",
+        "tools/check_commit_msg.sh",
+        "tools/clean-diff",
+        "tools/compare-cvelists.sh",
+        "tools/dvd2concat",
+        "tools/gen-rc",
+        "tools/general_assembly.pl",
+        "tools/indent_arm_assembly.pl",
+        "tools/loudnorm.rb",
+        "tools/make_chlayout_test",
+        "tools/merge-all-source-plugins",
+        "tools/missing_codec_desc",
+        "tools/murge",
+        "tools/normalize.py",
+        "tools/patcheck",
+        "tools/plotframes",
+        "tools/source2c",
+        "tools/target_dec_fate.sh",
+        "tools/unwrap-diff",
+        "tools/update-checkasm.sh",
+        "tools/zmqshell.py"
+      ]
+    },
+    {
+      "path": "third_party/sunshine/third-party/build-deps/third-party/FFmpeg/SVT-AV1",
+      "repository": "https://github.com/LizardByte-infrastructure/SVT-AV1.git",
+      "commit": "9292ec8e32bce26f781f277ec8739b53426c4300",
+      "archive_url": "https://codeload.github.com/LizardByte-infrastructure/SVT-AV1/tar.gz/9292ec8e32bce26f781f277ec8739b53426c4300",
+      "archive_sha256": "bf7e53dd132ff423d611af86f58bdc6dc18a2b3456f572097a5386ec8f83cc95",
+      "symlinks": [],
+      "executables": [
+        ".gitlab/offline_ci.py",
+        "Build/linux/build.sh",
+        "Build/obj1fastdownloader.cmake",
+        "Build/pgohelper.cmake",
+        "test/benchmarking/run_comparison.sh",
+        "test/benchmarking/scripts/dav1d/get_and_build.sh",
+        "test/benchmarking/scripts/libaom/get_and_build.sh",
+        "test/benchmarking/scripts/libavif/get_and_build.sh",
+        "test/benchmarking/scripts/libjpeg-turbo/get_and_build.sh",
+        "test/benchmarking/scripts/libjxl/get_and_build.sh",
+        "test/benchmarking/scripts/svtav1/get_and_build.sh",
+        "test/benchmarking/scripts/vmaf/get_and_build.sh",
+        "test/benchmarking/setup.sh",
+        "test/stylecheck.sh",
+        "third_party/googletest/test/googletest-break-on-failure-unittest.py",
+        "third_party/googletest/test/googletest-catch-exceptions-test.py",
+        "third_party/googletest/test/googletest-color-test.py",
+        "third_party/googletest/test/googletest-env-var-test.py",
+        "third_party/googletest/test/googletest-failfast-unittest.py",
+        "third_party/googletest/test/googletest-filter-unittest.py",
+        "third_party/googletest/test/googletest-list-tests-unittest.py",
+        "third_party/googletest/test/googletest-output-test.py",
+        "third_party/googletest/test/googletest-setuptestsuite-test.py",
+        "third_party/googletest/test/googletest-shuffle-test.py",
+        "third_party/googletest/test/googletest-throw-on-failure-test.py",
+        "third_party/googletest/test/googletest-uninitialized-test.py",
+        "third_party/googletest/test/gtest_help_test.py",
+        "third_party/googletest/test/gtest_skip_check_output_test.py",
+        "third_party/googletest/test/gtest_skip_environment_check_output_test.py",
+        "third_party/googletest/test/gtest_test_utils.py",
+        "third_party/googletest/test/gtest_testbridge_test.py",
+        "third_party/googletest/test/gtest_xml_outfiles_test.py",
+        "third_party/googletest/test/gtest_xml_output_unittest.py",
+        "third_party/googletest/test/gtest_xml_test_utils.py"
+      ]
+    },
+    {
+      "path": "third_party/sunshine/third-party/build-deps/third-party/FFmpeg/Vulkan-Headers",
+      "repository": "https://github.com/KhronosGroup/Vulkan-Headers.git",
+      "commit": "ee2ec5fd83dafce291024683b50dc89219333076",
+      "archive_url": "https://codeload.github.com/KhronosGroup/Vulkan-Headers/tar.gz/ee2ec5fd83dafce291024683b50dc89219333076",
+      "archive_sha256": "df7a152381a7fdaf98e36de7716b8d6d6ead776764bc76d1a1aef9049d1bca89",
+      "symlinks": [],
+      "executables": [
+        "registry/parse_dependency.py",
+        "registry/stripAPI.py",
+        "registry/vkconventions.py"
+      ]
+    },
+    {
+      "path": "third_party/sunshine/third-party/build-deps/third-party/FFmpeg/Vulkan-Loader",
+      "repository": "https://github.com/KhronosGroup/Vulkan-Loader.git",
+      "commit": "b8b96a2862bff1eed468e602d43f706beae89cf1",
+      "archive_url": "https://codeload.github.com/KhronosGroup/Vulkan-Loader/tar.gz/b8b96a2862bff1eed468e602d43f706beae89cf1",
+      "archive_sha256": "351e6cd2f917ca7317546f856bb33260c9ccebd4d86a96e02a874d7e738e1a6d",
+      "symlinks": [],
+      "executables": [
+        "docs/images/svgs/function_device_chain.svg",
+        "docs/images/svgs/function_instance_chain.svg",
+        "docs/images/svgs/high_level_loader.svg",
+        "docs/images/svgs/loader_device_chain_app.svg",
+        "docs/images/svgs/loader_device_chain_loader.svg",
+        "docs/images/svgs/loader_instance_chain.svg",
+        "docs/images/svgs/loader_layer_order.svg",
+        "scripts/generate_source.py",
+        "scripts/gn/gn.py",
+        "scripts/gn/update_deps.sh",
+        "scripts/update_deps.py",
+        "tests/framework/data/binaries/dummy_library_elf_32.dll",
+        "tests/framework/data/binaries/dummy_library_elf_64.dll",
+        "tests/framework/data/binaries/libdummy_library_elf_32.so",
+        "tests/framework/data/binaries/libdummy_library_elf_64.so"
+      ]
+    },
+    {
+      "path": "third_party/sunshine/third-party/build-deps/third-party/FFmpeg/x264",
+      "repository": "https://github.com/LizardByte-infrastructure/x264.git",
+      "commit": "b35605ace3ddf7c1a5d67a2eb553f034aef41d55",
+      "archive_url": "https://codeload.github.com/LizardByte-infrastructure/x264/tar.gz/b35605ace3ddf7c1a5d67a2eb553f034aef41d55",
+      "archive_sha256": "cd71a7515b0e9a012e1ac9b1f8415bebcaf6fc97d4db32286642ac4c0fbe24f9",
+      "symlinks": [],
+      "executables": [
+        "config.guess",
+        "config.sub",
+        "configure",
+        "tools/cltostr.sh",
+        "tools/countquant_x264.pl",
+        "tools/gas-preprocessor.pl",
+        "tools/msvsdepend.sh",
+        "tools/test_x264.py",
+        "version.sh"
+      ]
+    },
+    {
+      "path": "third_party/sunshine/third-party/build-deps/third-party/FFmpeg/x265_git",
+      "repository": "https://github.com/LizardByte-infrastructure/x265_git.git",
+      "commit": "1d117bed4747758b51bd2c124d738527e30392cb",
+      "archive_url": "https://codeload.github.com/LizardByte-infrastructure/x265_git/tar.gz/1d117bed4747758b51bd2c124d738527e30392cb",
+      "archive_sha256": "2fc3a96c2423db101f29b714d3551f1126a35c94dc5f5160633c70d482d1af6d",
+      "symlinks": [],
+      "executables": [
+        "build/aarch64-linux/make-Makefiles.bash",
+        "build/linux/make-Makefiles.bash",
+        "build/linux/multilib.sh",
+        "build/msys/multilib.sh",
+        "build/xcode/make-project.sh",
+        "doc/reST/cli.rst",
+        "source/CMakeLists.txt",
+        "source/common/param.cpp",
+        "source/x265cli.cpp"
+      ]
+    },
+    {
+      "path": "third_party/sunshine/third-party/build-deps/third-party/libva",
+      "repository": "https://github.com/intel/libva.git",
+      "commit": "710eb465c6277ee2cac3e6948767b01eebe7e77a",
+      "archive_url": "https://codeload.github.com/intel/libva/tar.gz/710eb465c6277ee2cac3e6948767b01eebe7e77a",
+      "archive_sha256": "f207ab793203a21fb153ad5ffb0e3e268f98826c850009353b094a4ab5da8150",
+      "symlinks": [],
+      "executables": [
+        ".github/workflows/install-clang.sh",
+        ".github/workflows/style.sh",
+        "autogen.sh",
+        "style_unify"
+      ]
+    },
+    {
+      "path": "third_party/sunshine/third-party/build-deps/third-party/nv_codec_headers_11",
+      "repository": "https://github.com/FFmpeg/nv-codec-headers.git",
+      "commit": "625b3199e94db49e3bb0dc797fc4cffbf7115d81",
+      "archive_url": "https://codeload.github.com/FFmpeg/nv-codec-headers/tar.gz/625b3199e94db49e3bb0dc797fc4cffbf7115d81",
+      "archive_sha256": "7f45d3e0afd1fc57edc76c414246354258fe2a5a0c6c6c97e499ed3bc267443b",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/build-deps/third-party/nv_codec_headers_12",
+      "repository": "https://github.com/FFmpeg/nv-codec-headers.git",
+      "commit": "956b49b0d3a19465e8eb997b7e39c548ad9dd4b2",
+      "archive_url": "https://codeload.github.com/FFmpeg/nv-codec-headers/tar.gz/956b49b0d3a19465e8eb997b7e39c548ad9dd4b2",
+      "archive_sha256": "6461271a1032ee9f0c1b5e83c8dd14aec643aa0a5b555b123b031fbc3c75a1ae",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/build-deps/third-party/nv_codec_headers_13",
+      "repository": "https://github.com/FFmpeg/nv-codec-headers.git",
+      "commit": "88fee5c37318c991a8762d423530f91681e32e3a",
+      "archive_url": "https://codeload.github.com/FFmpeg/nv-codec-headers/tar.gz/88fee5c37318c991a8762d423530f91681e32e3a",
+      "archive_sha256": "a5f838f82e6208505102c2ce257673288846b18092f1f66368340b1338cd93f4",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/build-deps/third-party/nv_codec_headers_13_1",
+      "repository": "https://github.com/FFmpeg/nv-codec-headers.git",
+      "commit": "0a6fba9a2820628b8103464f4c8753ee05838baa",
+      "archive_url": "https://codeload.github.com/FFmpeg/nv-codec-headers/tar.gz/0a6fba9a2820628b8103464f4c8753ee05838baa",
+      "archive_sha256": "1d2070546de622fd6074a99d4b283e727988b7c3624ef85f97b88962264314d2",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/doxyconfig",
+      "repository": "https://github.com/LizardByte/doxyconfig.git",
+      "commit": "419127bad87f49b2d45fa957ea7302abbb49c01f",
+      "archive_url": "https://codeload.github.com/LizardByte/doxyconfig/tar.gz/419127bad87f49b2d45fa957ea7302abbb49c01f",
+      "archive_sha256": "7672c97584bb6f6f45a24073fafce9602f1530b31ce25efc597e3b3eb7086f1c",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/doxyconfig/doxygen-awesome-css",
+      "repository": "https://github.com/jothepro/doxygen-awesome-css.git",
+      "commit": "46483f1e5a70ffb9ecd3b82d0a1cd1b24edf13da",
+      "archive_url": "https://codeload.github.com/jothepro/doxygen-awesome-css/tar.gz/46483f1e5a70ffb9ecd3b82d0a1cd1b24edf13da",
+      "archive_sha256": "65abe1d85bc2adf9d1a1b6ef90ae5e63f72425024196f89ec27b7bdc52d94267",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/glad",
+      "repository": "https://github.com/Dav1dde/glad.git",
+      "commit": "73db193f853e2ee079bf3ca8a64aa2eaf6459043",
+      "archive_url": "https://codeload.github.com/Dav1dde/glad/tar.gz/73db193f853e2ee079bf3ca8a64aa2eaf6459043",
+      "archive_sha256": "33dbeae44d8315ece57e14eba4b1b4a02ac5406d1c4f49cd20048c91522a6b9a",
+      "symlinks": [],
+      "executables": [
+        "example/rust/gl-glfw-mx/init.sh",
+        "example/rust/gl-glfw/init.sh",
+        "utility/bump_version.sh",
+        "utility/compiletest.sh",
+        "utility/download.sh",
+        "utility/examples.sh",
+        "utility/generateall.sh",
+        "utility/test.sh",
+        "utility/updatesub.sh"
+      ]
+    },
+    {
+      "path": "third_party/sunshine/third-party/libdisplaydevice",
+      "repository": "https://github.com/LizardByte/libdisplaydevice.git",
+      "commit": "6e9722f89103320c948dc1199066c9e17a69e88a",
+      "archive_url": "https://codeload.github.com/LizardByte/libdisplaydevice/tar.gz/6e9722f89103320c948dc1199066c9e17a69e88a",
+      "archive_sha256": "7c9255ef40e9ac3c316f54e3c027fdc660c30e6d994167007788cb57eb337d87",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/libdisplaydevice/third-party/doxyconfig",
+      "repository": "https://github.com/LizardByte/doxyconfig.git",
+      "commit": "e552f7c9f00cd0cf24764a37d0905935b3d2c188",
+      "archive_url": "https://codeload.github.com/LizardByte/doxyconfig/tar.gz/e552f7c9f00cd0cf24764a37d0905935b3d2c188",
+      "archive_sha256": "cb247b63c8f5c6656eb054ecb5e8a9d2131eec0b458e2fd9f35b30b66cc01dea",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/libdisplaydevice/third-party/doxyconfig/doxygen-awesome-css",
+      "repository": "https://github.com/jothepro/doxygen-awesome-css.git",
+      "commit": "d52eafe3e9303399fda15661f3d7bb8fe3d7eabc",
+      "archive_url": "https://codeload.github.com/jothepro/doxygen-awesome-css/tar.gz/d52eafe3e9303399fda15661f3d7bb8fe3d7eabc",
+      "archive_sha256": "6d58bfc1546cab9ce606494a3df857271b9cc712db9b9b77a9abf0567d61c17d",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/libdisplaydevice/third-party/lizardbyte-common",
+      "repository": "https://github.com/LizardByte/lizardbyte-common.git",
+      "commit": "06cd442b808f02f1674f3192a84d25b9a503c482",
+      "archive_url": "https://codeload.github.com/LizardByte/lizardbyte-common/tar.gz/06cd442b808f02f1674f3192a84d25b9a503c482",
+      "archive_sha256": "e7b493e8f8641bc9bf628d600f52524401f7f04e2efd2e515ed5c183f6c59198",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/libdisplaydevice/third-party/lizardbyte-common/third-party/doxyconfig",
+      "repository": "https://github.com/LizardByte/doxyconfig.git",
+      "commit": "e552f7c9f00cd0cf24764a37d0905935b3d2c188",
+      "archive_url": "https://codeload.github.com/LizardByte/doxyconfig/tar.gz/e552f7c9f00cd0cf24764a37d0905935b3d2c188",
+      "archive_sha256": "cb247b63c8f5c6656eb054ecb5e8a9d2131eec0b458e2fd9f35b30b66cc01dea",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/libdisplaydevice/third-party/lizardbyte-common/third-party/doxyconfig/doxygen-awesome-css",
+      "repository": "https://github.com/jothepro/doxygen-awesome-css.git",
+      "commit": "d52eafe3e9303399fda15661f3d7bb8fe3d7eabc",
+      "archive_url": "https://codeload.github.com/jothepro/doxygen-awesome-css/tar.gz/d52eafe3e9303399fda15661f3d7bb8fe3d7eabc",
+      "archive_sha256": "6d58bfc1546cab9ce606494a3df857271b9cc712db9b9b77a9abf0567d61c17d",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/libdisplaydevice/third-party/lizardbyte-common/third-party/googletest",
+      "repository": "https://github.com/google/googletest.git",
+      "commit": "52eb8108c5bdec04579160ae17225d66034bd723",
+      "archive_url": "https://codeload.github.com/google/googletest/tar.gz/52eb8108c5bdec04579160ae17225d66034bd723",
+      "archive_sha256": "745c55415660044610f7fcd3af7a6420d5de16a7dbb9ebfe2e131275676232be",
+      "symlinks": [],
+      "executables": [
+        "googlemock/test/gmock_leak_test.py",
+        "googlemock/test/gmock_output_test.py",
+        "googlemock/test/gmock_test_utils.py",
+        "googletest/test/googletest-break-on-failure-unittest.py",
+        "googletest/test/googletest-catch-exceptions-test.py",
+        "googletest/test/googletest-color-test.py",
+        "googletest/test/googletest-env-var-test.py",
+        "googletest/test/googletest-fail-if-no-test-linked-test.py",
+        "googletest/test/googletest-failfast-unittest.py",
+        "googletest/test/googletest-filter-unittest.py",
+        "googletest/test/googletest-list-tests-unittest.py",
+        "googletest/test/googletest-output-test.py",
+        "googletest/test/googletest-setuptestsuite-test.py",
+        "googletest/test/googletest-shuffle-test.py",
+        "googletest/test/googletest-throw-on-failure-test.py",
+        "googletest/test/googletest-uninitialized-test.py",
+        "googletest/test/gtest_help_test.py",
+        "googletest/test/gtest_skip_check_output_test.py",
+        "googletest/test/gtest_skip_environment_check_output_test.py",
+        "googletest/test/gtest_test_utils.py",
+        "googletest/test/gtest_testbridge_test.py",
+        "googletest/test/gtest_xml_outfiles_test.py",
+        "googletest/test/gtest_xml_output_unittest.py",
+        "googletest/test/gtest_xml_test_utils.py"
+      ]
+    },
+    {
+      "path": "third_party/sunshine/third-party/libvirtualhid",
+      "repository": "https://github.com/LizardByte/libvirtualhid.git",
+      "commit": "53e1a949fc0784af716b782ddfa6c647cafd1f05",
+      "archive_url": "https://codeload.github.com/LizardByte/libvirtualhid/tar.gz/53e1a949fc0784af716b782ddfa6c647cafd1f05",
+      "archive_sha256": "a06ebe8aafa1fbcec9753d6df56598f1461cab63a5ac3fadb51426a3783a0390",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/libvirtualhid/third-party/doxyconfig",
+      "repository": "https://github.com/LizardByte/doxyconfig.git",
+      "commit": "419127bad87f49b2d45fa957ea7302abbb49c01f",
+      "archive_url": "https://codeload.github.com/LizardByte/doxyconfig/tar.gz/419127bad87f49b2d45fa957ea7302abbb49c01f",
+      "archive_sha256": "7672c97584bb6f6f45a24073fafce9602f1530b31ce25efc597e3b3eb7086f1c",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/libvirtualhid/third-party/doxyconfig/doxygen-awesome-css",
+      "repository": "https://github.com/jothepro/doxygen-awesome-css.git",
+      "commit": "46483f1e5a70ffb9ecd3b82d0a1cd1b24edf13da",
+      "archive_url": "https://codeload.github.com/jothepro/doxygen-awesome-css/tar.gz/46483f1e5a70ffb9ecd3b82d0a1cd1b24edf13da",
+      "archive_sha256": "65abe1d85bc2adf9d1a1b6ef90ae5e63f72425024196f89ec27b7bdc52d94267",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/libvirtualhid/third-party/lizardbyte-common",
+      "repository": "https://github.com/LizardByte/lizardbyte-common.git",
+      "commit": "f9d91e1d29b7473f58e43acde4579da4e56c4abe",
+      "archive_url": "https://codeload.github.com/LizardByte/lizardbyte-common/tar.gz/f9d91e1d29b7473f58e43acde4579da4e56c4abe",
+      "archive_sha256": "b85d29c3df62d2297863ab506dffc631ecc60620f12435a3112f20cb9770028c",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/libvirtualhid/third-party/lizardbyte-common/third-party/doxyconfig",
+      "repository": "https://github.com/LizardByte/doxyconfig.git",
+      "commit": "b87f7e4e1dcd8a31c9a550cd7702b7420d89efac",
+      "archive_url": "https://codeload.github.com/LizardByte/doxyconfig/tar.gz/b87f7e4e1dcd8a31c9a550cd7702b7420d89efac",
+      "archive_sha256": "7b766c6e734ed53e4ff3316853236297ffa02a200c6883f05e8352b61b111194",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/libvirtualhid/third-party/lizardbyte-common/third-party/doxyconfig/doxygen-awesome-css",
+      "repository": "https://github.com/ReenigneArcher/doxygen-awesome-css.git",
+      "commit": "24c4f966e375ed92e9805e075177d34a9849a43e",
+      "archive_url": "https://codeload.github.com/ReenigneArcher/doxygen-awesome-css/tar.gz/24c4f966e375ed92e9805e075177d34a9849a43e",
+      "archive_sha256": "fc232793a853d4350aba91d66530190b40fe8d3fb218f244cd8576d34b8e3405",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/libvirtualhid/third-party/lizardbyte-common/third-party/googletest",
+      "repository": "https://github.com/google/googletest.git",
+      "commit": "f8d7d77c06936315286eb55f8de22cd23c188571",
+      "archive_url": "https://codeload.github.com/google/googletest/tar.gz/f8d7d77c06936315286eb55f8de22cd23c188571",
+      "archive_sha256": "7ff5db23de232a39cbb5c9f5143c355885e30ac596161a6b9fc50c4538bfbf01",
+      "symlinks": [],
+      "executables": [
+        "googlemock/test/gmock_leak_test.py",
+        "googlemock/test/gmock_output_test.py",
+        "googlemock/test/gmock_test_utils.py",
+        "googletest/test/googletest-break-on-failure-unittest.py",
+        "googletest/test/googletest-catch-exceptions-test.py",
+        "googletest/test/googletest-color-test.py",
+        "googletest/test/googletest-env-var-test.py",
+        "googletest/test/googletest-failfast-unittest.py",
+        "googletest/test/googletest-filter-unittest.py",
+        "googletest/test/googletest-list-tests-unittest.py",
+        "googletest/test/googletest-output-test.py",
+        "googletest/test/googletest-setuptestsuite-test.py",
+        "googletest/test/googletest-shuffle-test.py",
+        "googletest/test/googletest-throw-on-failure-test.py",
+        "googletest/test/googletest-uninitialized-test.py",
+        "googletest/test/gtest_help_test.py",
+        "googletest/test/gtest_skip_check_output_test.py",
+        "googletest/test/gtest_skip_environment_check_output_test.py",
+        "googletest/test/gtest_test_utils.py",
+        "googletest/test/gtest_testbridge_test.py",
+        "googletest/test/gtest_xml_outfiles_test.py",
+        "googletest/test/gtest_xml_output_unittest.py",
+        "googletest/test/gtest_xml_test_utils.py"
+      ]
+    },
+    {
+      "path": "third_party/sunshine/third-party/lizardbyte-common",
+      "repository": "https://github.com/LizardByte/lizardbyte-common.git",
+      "commit": "f9d91e1d29b7473f58e43acde4579da4e56c4abe",
+      "archive_url": "https://codeload.github.com/LizardByte/lizardbyte-common/tar.gz/f9d91e1d29b7473f58e43acde4579da4e56c4abe",
+      "archive_sha256": "b85d29c3df62d2297863ab506dffc631ecc60620f12435a3112f20cb9770028c",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/lizardbyte-common/third-party/doxyconfig",
+      "repository": "https://github.com/LizardByte/doxyconfig.git",
+      "commit": "b87f7e4e1dcd8a31c9a550cd7702b7420d89efac",
+      "archive_url": "https://codeload.github.com/LizardByte/doxyconfig/tar.gz/b87f7e4e1dcd8a31c9a550cd7702b7420d89efac",
+      "archive_sha256": "7b766c6e734ed53e4ff3316853236297ffa02a200c6883f05e8352b61b111194",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/lizardbyte-common/third-party/doxyconfig/doxygen-awesome-css",
+      "repository": "https://github.com/ReenigneArcher/doxygen-awesome-css.git",
+      "commit": "24c4f966e375ed92e9805e075177d34a9849a43e",
+      "archive_url": "https://codeload.github.com/ReenigneArcher/doxygen-awesome-css/tar.gz/24c4f966e375ed92e9805e075177d34a9849a43e",
+      "archive_sha256": "fc232793a853d4350aba91d66530190b40fe8d3fb218f244cd8576d34b8e3405",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/lizardbyte-common/third-party/googletest",
+      "repository": "https://github.com/google/googletest.git",
+      "commit": "f8d7d77c06936315286eb55f8de22cd23c188571",
+      "archive_url": "https://codeload.github.com/google/googletest/tar.gz/f8d7d77c06936315286eb55f8de22cd23c188571",
+      "archive_sha256": "7ff5db23de232a39cbb5c9f5143c355885e30ac596161a6b9fc50c4538bfbf01",
+      "symlinks": [],
+      "executables": [
+        "googlemock/test/gmock_leak_test.py",
+        "googlemock/test/gmock_output_test.py",
+        "googlemock/test/gmock_test_utils.py",
+        "googletest/test/googletest-break-on-failure-unittest.py",
+        "googletest/test/googletest-catch-exceptions-test.py",
+        "googletest/test/googletest-color-test.py",
+        "googletest/test/googletest-env-var-test.py",
+        "googletest/test/googletest-failfast-unittest.py",
+        "googletest/test/googletest-filter-unittest.py",
+        "googletest/test/googletest-list-tests-unittest.py",
+        "googletest/test/googletest-output-test.py",
+        "googletest/test/googletest-setuptestsuite-test.py",
+        "googletest/test/googletest-shuffle-test.py",
+        "googletest/test/googletest-throw-on-failure-test.py",
+        "googletest/test/googletest-uninitialized-test.py",
+        "googletest/test/gtest_help_test.py",
+        "googletest/test/gtest_skip_check_output_test.py",
+        "googletest/test/gtest_skip_environment_check_output_test.py",
+        "googletest/test/gtest_test_utils.py",
+        "googletest/test/gtest_testbridge_test.py",
+        "googletest/test/gtest_xml_outfiles_test.py",
+        "googletest/test/gtest_xml_output_unittest.py",
+        "googletest/test/gtest_xml_test_utils.py"
+      ]
+    },
+    {
+      "path": "third_party/sunshine/third-party/moonlight-common-c",
+      "repository": "https://github.com/moonlight-stream/moonlight-common-c.git",
+      "commit": "62e066388f1a1b133e0bee947b9a374311a3354b",
+      "archive_url": "https://codeload.github.com/moonlight-stream/moonlight-common-c/tar.gz/62e066388f1a1b133e0bee947b9a374311a3354b",
+      "archive_sha256": "2486d3dfac30ae6bc68d362dac916fdb91294a12f82be649ebc00fba932cb8ed",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/moonlight-common-c/enet",
+      "repository": "https://github.com/cgutman/enet.git",
+      "commit": "aca87840b57f045a1f7f9299e4b1b9b8e2a5e2f1",
+      "archive_url": "https://codeload.github.com/cgutman/enet/tar.gz/aca87840b57f045a1f7f9299e4b1b9b8e2a5e2f1",
+      "archive_sha256": "6bb1a151e6d21e1756baeff5a95eaf85a5b6731aeda6d0bc255651192ba4a32d",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/moonlight-common-c/nanors",
+      "repository": "https://github.com/sleepybishop/nanors.git",
+      "commit": "b1e3c22ca0cdc0bb83e3cd6ed1a2fc77869ed99a",
+      "archive_url": "https://codeload.github.com/sleepybishop/nanors/tar.gz/b1e3c22ca0cdc0bb83e3cd6ed1a2fc77869ed99a",
+      "archive_sha256": "41edc0309b255b0eeb5e8eb1ad79f7c7e9e6c31db1bd79a16d73271c62867003",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/nvapi",
+      "repository": "https://github.com/NVIDIA/nvapi.git",
+      "commit": "cd6918f60b3c9a0476fdfe7e89bb32330602049d",
+      "archive_url": "https://codeload.github.com/NVIDIA/nvapi/tar.gz/cd6918f60b3c9a0476fdfe7e89bb32330602049d",
+      "archive_sha256": "867337168e3b7604df45766d038c379b65fdf21eb5503435a65586bbf126a176",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/plasma-wayland-protocols",
+      "repository": "https://github.com/KDE/plasma-wayland-protocols.git",
+      "commit": "382dfabda886d3f2f5c067b22e5a22376685ba78",
+      "archive_url": "https://codeload.github.com/KDE/plasma-wayland-protocols/tar.gz/382dfabda886d3f2f5c067b22e5a22376685ba78",
+      "archive_sha256": "d95c7d025346fef28eba67bedb0347e49a7230410ec29fd19b0090b075681c19",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/Simple-Web-Server",
+      "repository": "https://github.com/LizardByte-infrastructure/Simple-Web-Server.git",
+      "commit": "546895a93a29062bb178367b46c7afb72da9881e",
+      "archive_url": "https://codeload.github.com/LizardByte-infrastructure/Simple-Web-Server/tar.gz/546895a93a29062bb178367b46c7afb72da9881e",
+      "archive_sha256": "de46eeceb87f6d8ff30a494ed9d3b915844a179b32067f8347ee854a07fd3c8c",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/TPCircularBuffer",
+      "repository": "https://github.com/michaeltyson/TPCircularBuffer.git",
+      "commit": "cc520397504bb72bc6df79ff03eb72988a6dc50d",
+      "archive_url": "https://codeload.github.com/michaeltyson/TPCircularBuffer/tar.gz/cc520397504bb72bc6df79ff03eb72988a6dc50d",
+      "archive_sha256": "fa5538697e2dde0262cdab273baf9e1bc6568226e9cb2c24c89ce8edd0b64fe3",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/tray",
+      "repository": "https://github.com/LizardByte/tray.git",
+      "commit": "c329d9fd0d39dfb47f0f2fb5467e1db2e8a1d623",
+      "archive_url": "https://codeload.github.com/LizardByte/tray/tar.gz/c329d9fd0d39dfb47f0f2fb5467e1db2e8a1d623",
+      "archive_sha256": "74779ce6ed963dc6d7baa4992929f79ed5ec1dace093f4646a33dd5c9390cf12",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/tray/third-party/doxyconfig",
+      "repository": "https://github.com/LizardByte/doxyconfig.git",
+      "commit": "b87f7e4e1dcd8a31c9a550cd7702b7420d89efac",
+      "archive_url": "https://codeload.github.com/LizardByte/doxyconfig/tar.gz/b87f7e4e1dcd8a31c9a550cd7702b7420d89efac",
+      "archive_sha256": "7b766c6e734ed53e4ff3316853236297ffa02a200c6883f05e8352b61b111194",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/tray/third-party/doxyconfig/doxygen-awesome-css",
+      "repository": "https://github.com/ReenigneArcher/doxygen-awesome-css.git",
+      "commit": "24c4f966e375ed92e9805e075177d34a9849a43e",
+      "archive_url": "https://codeload.github.com/ReenigneArcher/doxygen-awesome-css/tar.gz/24c4f966e375ed92e9805e075177d34a9849a43e",
+      "archive_sha256": "fc232793a853d4350aba91d66530190b40fe8d3fb218f244cd8576d34b8e3405",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/tray/third-party/lizardbyte-common",
+      "repository": "https://github.com/LizardByte/lizardbyte-common.git",
+      "commit": "f9d91e1d29b7473f58e43acde4579da4e56c4abe",
+      "archive_url": "https://codeload.github.com/LizardByte/lizardbyte-common/tar.gz/f9d91e1d29b7473f58e43acde4579da4e56c4abe",
+      "archive_sha256": "b85d29c3df62d2297863ab506dffc631ecc60620f12435a3112f20cb9770028c",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/tray/third-party/lizardbyte-common/third-party/doxyconfig",
+      "repository": "https://github.com/LizardByte/doxyconfig.git",
+      "commit": "b87f7e4e1dcd8a31c9a550cd7702b7420d89efac",
+      "archive_url": "https://codeload.github.com/LizardByte/doxyconfig/tar.gz/b87f7e4e1dcd8a31c9a550cd7702b7420d89efac",
+      "archive_sha256": "7b766c6e734ed53e4ff3316853236297ffa02a200c6883f05e8352b61b111194",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/tray/third-party/lizardbyte-common/third-party/doxyconfig/doxygen-awesome-css",
+      "repository": "https://github.com/ReenigneArcher/doxygen-awesome-css.git",
+      "commit": "24c4f966e375ed92e9805e075177d34a9849a43e",
+      "archive_url": "https://codeload.github.com/ReenigneArcher/doxygen-awesome-css/tar.gz/24c4f966e375ed92e9805e075177d34a9849a43e",
+      "archive_sha256": "fc232793a853d4350aba91d66530190b40fe8d3fb218f244cd8576d34b8e3405",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/tray/third-party/lizardbyte-common/third-party/googletest",
+      "repository": "https://github.com/google/googletest.git",
+      "commit": "f8d7d77c06936315286eb55f8de22cd23c188571",
+      "archive_url": "https://codeload.github.com/google/googletest/tar.gz/f8d7d77c06936315286eb55f8de22cd23c188571",
+      "archive_sha256": "7ff5db23de232a39cbb5c9f5143c355885e30ac596161a6b9fc50c4538bfbf01",
+      "symlinks": [],
+      "executables": [
+        "googlemock/test/gmock_leak_test.py",
+        "googlemock/test/gmock_output_test.py",
+        "googlemock/test/gmock_test_utils.py",
+        "googletest/test/googletest-break-on-failure-unittest.py",
+        "googletest/test/googletest-catch-exceptions-test.py",
+        "googletest/test/googletest-color-test.py",
+        "googletest/test/googletest-env-var-test.py",
+        "googletest/test/googletest-failfast-unittest.py",
+        "googletest/test/googletest-filter-unittest.py",
+        "googletest/test/googletest-list-tests-unittest.py",
+        "googletest/test/googletest-output-test.py",
+        "googletest/test/googletest-setuptestsuite-test.py",
+        "googletest/test/googletest-shuffle-test.py",
+        "googletest/test/googletest-throw-on-failure-test.py",
+        "googletest/test/googletest-uninitialized-test.py",
+        "googletest/test/gtest_help_test.py",
+        "googletest/test/gtest_skip_check_output_test.py",
+        "googletest/test/gtest_skip_environment_check_output_test.py",
+        "googletest/test/gtest_test_utils.py",
+        "googletest/test/gtest_testbridge_test.py",
+        "googletest/test/gtest_xml_outfiles_test.py",
+        "googletest/test/gtest_xml_output_unittest.py",
+        "googletest/test/gtest_xml_test_utils.py"
+      ]
+    },
+    {
+      "path": "third_party/sunshine/third-party/ViGEmClient",
+      "repository": "https://github.com/LizardByte/Virtual-Gamepad-Emulation-Client.git",
+      "commit": "8d71f6740ffff4671cdadbca255ce528e3cd3fef",
+      "archive_url": "https://codeload.github.com/LizardByte/Virtual-Gamepad-Emulation-Client/tar.gz/8d71f6740ffff4671cdadbca255ce528e3cd3fef",
+      "archive_sha256": "27907cba8c017de220b66e036ed04a39f5eacb9182846700047420aef2f5cd0e",
+      "symlinks": [],
+      "executables": []
+    },
+    {
+      "path": "third_party/sunshine/third-party/wayland-protocols",
+      "repository": "https://github.com/LizardByte-infrastructure/wayland-protocols.git",
+      "commit": "ee78491a237eaff9389a0ccf8680521d074407d3",
+      "archive_url": "https://codeload.github.com/LizardByte-infrastructure/wayland-protocols/tar.gz/ee78491a237eaff9389a0ccf8680521d074407d3",
+      "archive_sha256": "cc78a5bc9ec73ed286fa43d31ee2bd4dafed498e67833c2bef9650eff3de2363",
+      "symlinks": [],
+      "executables": [
+        ".gitlab-ci/debian-install.sh",
+        "tests/replace.py",
+        "tests/scan.sh"
+      ]
+    },
+    {
+      "path": "third_party/sunshine/third-party/wlr-protocols",
+      "repository": "https://github.com/LizardByte-infrastructure/wlr-protocols.git",
+      "commit": "bf4fc79abc359eea5a0edec0ac6d4a2b2955f82a",
+      "archive_url": "https://codeload.github.com/LizardByte-infrastructure/wlr-protocols/tar.gz/bf4fc79abc359eea5a0edec0ac6d4a2b2955f82a",
+      "archive_sha256": "9e0fd2be5ba7c84b81acdd086f84c2da2c2b5e4946a17bda3e9850c62e14057f",
+      "symlinks": [],
+      "executables": [
+        "check.sh"
+      ]
+    }
+  ]
+}

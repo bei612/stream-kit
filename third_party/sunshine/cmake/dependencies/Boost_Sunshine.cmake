@@ -65,6 +65,7 @@ if(NOT Boost_FOUND)
                 Boost
                 URL ${BOOST_URL}
                 URL_HASH ${BOOST_HASH}
+                TIMEOUT 600 INACTIVITY_TIMEOUT 60
         )
     elseif(APPLE AND CMAKE_VERSION VERSION_GREATER_EQUAL "3.25.0")
         # add SYSTEM to FetchContent_Declare, this fails on debian bookworm
@@ -72,6 +73,7 @@ if(NOT Boost_FOUND)
                 Boost
                 URL ${BOOST_URL}
                 URL_HASH ${BOOST_HASH}
+                TIMEOUT 600 INACTIVITY_TIMEOUT 60
                 SYSTEM  # requires CMake 3.25+
                 OVERRIDE_FIND_PACKAGE  # requires CMake 3.24+, but we have a macro to handle it for other versions
         )
@@ -80,6 +82,7 @@ if(NOT Boost_FOUND)
                 Boost
                 URL ${BOOST_URL}
                 URL_HASH ${BOOST_HASH}
+                TIMEOUT 600 INACTIVITY_TIMEOUT 60
                 OVERRIDE_FIND_PACKAGE  # requires CMake 3.24+, but we have a macro to handle it for other versions
         )
     endif()

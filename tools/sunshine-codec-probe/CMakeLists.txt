@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.24)
+project(stream_kit_codec_probe LANGUAGES C CXX)
+find_package(PkgConfig REQUIRED)
+set(PKG_CONFIG_ARGN --static)
+pkg_check_modules(CODECS REQUIRED IMPORTED_TARGET libavcodec)
+add_executable(codec-probe ../sunshine-codec-probe.c)
+set_target_properties(codec-probe PROPERTIES LINKER_LANGUAGE CXX)
+target_link_libraries(codec-probe PRIVATE PkgConfig::CODECS)
