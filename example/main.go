@@ -268,8 +268,8 @@ func main() {
 			initialToneOutput = strings.TrimPrefix(arg, "--tone-output=")
 		} else if strings.HasPrefix(arg, "--tone-count=") {
 			count, err := strconv.Atoi(strings.TrimPrefix(arg, "--tone-count="))
-			if err != nil || count < 1 || count > 20 {
-				fmt.Fprintln(os.Stderr, "tone-count must be between 1 and 20")
+			if err != nil || count < 1 || count > 28800 {
+				fmt.Fprintln(os.Stderr, "tone-count must be between 1 and 28800")
 				os.Exit(2)
 			}
 			initialToneCount = count

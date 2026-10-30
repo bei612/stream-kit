@@ -27,6 +27,7 @@ assert.ok(!applicationExample || exampleOutput, 'Application acceptance requires
 const numericOption = (name, fallback) => process.argv.includes(name) ? Number(process.argv[process.argv.indexOf(name) + 1]) : fallback;
 const clientCount = numericOption('--clients', 2);
 const holdSeconds = numericOption('--hold-seconds', 5);
+const programToneCount = Math.min(28800, Math.max(20, Math.ceil((clientCount*60+holdSeconds+30)/3)));
 const microphoneTest = process.argv.includes('--microphone-tone');
 const endpointOption = name => {
   if (!process.argv.includes(name)) return null;
@@ -61,7 +62,10 @@ const result = { passed: false, status: 'running', clients: clientCount, hold_se
     : restartServices ? 'Real browser recovery across forced termination/restart of the isolated gateway and control processes; same ports/data, no page reload or host input. Not a network partition or long outage test.'
     : 'Real browser Desktop streams through isolated control and media services; no host input or microphone capture.' };
 const save = () => fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(result, null, 2));
-if (applicationExample) result.scope = 'Source-built application capture through native Sunshine, shared gateway and real browsers, including program tone and scoped stop. No physical microphone, target recording or Linux capture claim.';
+if (applicationExample) {
+  result.scope = 'Source-built application capture through native Sunshine, shared gateway and real browsers, including program tone and scoped stop. No physical microphone, target recording or Linux capture claim.';
+  result.program_tone_count = programToneCount;
+}
 if (targetRecording) result.scope = 'Real browser test microphone uplink, shared broadcast and explicit target input recording with authorization/revocation checks requested; completion is recorded separately. No UE5, physical microphone or Linux capture claim.';
 save();
 const children = [];
@@ -231,14 +235,21 @@ async function main() {
     }
     assert.ok(completed, 'Pairing did not complete');
   }
-  const login = await json(control + '/api/v1/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credentials) });
-  const api = (resource, method = 'GET', body) => json(control + '/api/v1' + resource, { method,
-    headers: { Authorization: 'Bearer ' + login.data.token, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) }).then(r => r.data);
+  const signIn = () => json(control + '/api/v1/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credentials) });
+  let login = await signIn();
+  const api = async (resource, method = 'GET', body) => {
+    const expires = Date.parse(login.data.expires_at);
+    assert.ok(Number.isFinite(expires),'Administrator login must declare its expiry');
+    // Renew the test operator before expiry without replaying any mutation.
+    if(expires-Date.now()<60000)login=await signIn();
+    return json(control + '/api/v1' + resource, { method,
+      headers: { Authorization: 'Bearer ' + login.data.token, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) }).then(r => r.data);
+  };
   let ownedApp;
   if (applicationExample) {
     assert.ok(!exampleOutput.includes('"') && !/[\r\n]/.test(exampleOutput), 'Invalid output device name');
     ownedApp = await api('/apps/local', 'POST', { name: 'Source capture acceptance', exe_path: applicationExample,
-      capture_mode: 'application', args: `"--tone-output=${exampleOutput}" --tone-count=20` });
+      capture_mode: 'application', args: `"--tone-output=${exampleOutput}" --tone-count=${programToneCount}` });
     assert.equal(ownedApp.status, 'ready');
     assert.ok(ownedApp.sunshine_app_id > 0);
     result.application = { id: ownedApp.id, native_id: ownedApp.sunshine_app_id, capture_mode: ownedApp.capture_mode, example_sha256: sha(applicationExample) };
@@ -326,6 +337,7 @@ async function main() {
     });
     fs.writeFileSync(path.join(output, 'application-frame.png'), Buffer.from(picture, 'base64'));
     assert.ok(result.program_audio_db.every(level => level > -65), 'Every viewer must receive the example process-tree 997 Hz tone');
+    if(!microphoneTest)await Promise.all(pages.map(page=>page.evaluate(()=>window.__toneProbe.context.close())));
   }
   let observed;
   for (let i = 0; i < 30; i++) {
@@ -516,9 +528,48 @@ async function main() {
     for (const page of pages) await page.evaluate(() => window.__toneProbe.context.close());
   }
   const firstFrames = await Promise.all(pages.map(videoFrames));
-  await delay(holdSeconds * 1000);
+  const mediaSnapshot = () => Promise.all(pages.map(page => page.evaluate(async () => {
+    const peer = window.__acceptancePeers.at(-1);
+    const stats = [...(await peer.getStats()).values()];
+    const video = stats.find(s => s.type === 'inbound-rtp' && s.kind === 'video');
+    const audio = stats.find(s => s.type === 'inbound-rtp' && s.kind === 'audio');
+    return { state:peer.connectionState, frames:video?.framesDecoded || 0, audio_packets:audio?.packetsReceived || 0,
+      video_packets_lost:video?.packetsLost || 0, audio_packets_lost:audio?.packetsLost || 0,
+      video_jitter:video?.jitter || 0, audio_jitter:audio?.jitter || 0 };
+  })));
+  let previousMedia = await mediaSnapshot();
+  const holdStart = performance.now();
+  const samplePath = path.join(output, 'continuous-media.jsonl');
+  result.continuous_media = {samples:0,elapsed_ms:0,interval_ms:10000,clients:clientCount,passed:false,
+    scope:'Periodic current-peer video decode and audio packet progress with signed shared-session observation; not continuous audio quality measurement.'};
+  fs.writeFileSync(samplePath, JSON.stringify({elapsed_ms:0,clients:previousMedia})+'\n');
+  let previousSampleAt = holdStart;
+  while(performance.now()-holdStart < holdSeconds*1000) {
+    // Keep the last observation window long enough to contain real RTP/frame
+    // progress; scheduling overhead may extend the requested minimum by < 1s.
+    await delay(Math.max(1000,Math.min(10000, holdSeconds*1000-(performance.now()-holdStart))));
+    const samples = await mediaSnapshot();
+    const status = await api('/media-control');
+    const shared = status.observations?.[invite.session_id];
+    const sampledAt = performance.now();
+    const record = {elapsed_ms:Math.round(sampledAt-holdStart),interval_ms:Math.round(sampledAt-previousSampleAt),
+      clients:samples,subscribers:shared?.subscribers,upstream_active:shared?.upstream_active,observations_valid:status.observations_valid};
+    fs.appendFileSync(samplePath,JSON.stringify(record)+'\n');
+    result.continuous_media.samples++;
+    result.continuous_media.elapsed_ms=record.elapsed_ms;
+    save();
+    assert.ok(status.observations_valid && shared?.subscribers===clientCount && shared.upstream_active,'Shared session changed during sustained playback');
+    for(let i=0;i<samples.length;i++) {
+      assert.equal(samples[i].state,'connected',`Viewer ${i+1} disconnected during sustained playback`);
+      assert.ok(samples[i].frames>previousMedia[i].frames,`Viewer ${i+1} stopped decoding during sustained playback`);
+      assert.ok(samples[i].audio_packets>previousMedia[i].audio_packets,`Viewer ${i+1} audio transport stalled during sustained playback`);
+    }
+    previousMedia=samples;previousSampleAt=sampledAt;
+    if(result.continuous_media.samples%3===0)console.log(`Sustained playback: ${clientCount} viewers, ${Math.round(record.elapsed_ms/1000)} seconds`);
+  }
+  result.continuous_media.passed=holdSeconds>0;
   result.frames_before_disconnect = await Promise.all(pages.map(videoFrames));
-  for (let i = 0; i < clientCount; i++) assert.ok(result.frames_before_disconnect[i] > firstFrames[i], `Viewer ${i + 1} stalled`);
+  if(holdSeconds>0)for (let i = 0; i < clientCount; i++) assert.ok(result.frames_before_disconnect[i] > firstFrames[i], `Viewer ${i + 1} stalled`);
   result.inbound_media = await Promise.all(pages.map(page => page.evaluate(async () => {
     const streams = [];
     for (const pc of window.__acceptancePeers) {
@@ -539,6 +590,10 @@ async function main() {
   result.remaining_viewer_frames = await videoFrames(pages[1]);
   assert.ok(result.remaining_viewer_frames > result.frames_before_disconnect[1] + 10, 'Remaining viewer must continue decoding after first viewer leaves');
   if (stopActive) {
+    // The initial invitation can naturally expire during a long hold. Obtain
+    // a fresh credential for this same generation so rejection proves revoke.
+    const stopInvitation = await api('/stream-invitations','POST',{host_id:host.host_id,app_id:desktop.app_id});
+    assert.equal(stopInvitation.session_id,invite.session_id,'Stop verification must use the active generation');
     if (deleteActive) {
       await api(`/apps/${ownedApp.id}?confirm=true`, 'DELETE');
       assert.equal(sha(applicationExample), result.application.example_sha256, 'Deleting a local registration must preserve the external program');
@@ -557,7 +612,7 @@ async function main() {
     const stopped = await api(`/stream-sessions/${invite.session_id}`);
     assert.equal(stopped.state, 'stopped');
     assert.deepEqual(stopped.connections, {});
-    const oldJoin = await fetch(control + '/api/v1/client-sessions/join', { method:'POST', headers:{ Authorization:'Bearer '+invite.invitation } });
+    const oldJoin = await fetch(control + '/api/v1/client-sessions/join', { method:'POST', headers:{ Authorization:'Bearer '+stopInvitation.invitation } });
     assert.equal(oldJoin.status, 400, 'A stopped viewing invitation cannot readmit clients');
     assert.equal((await oldJoin.json()).code, 'SESSION_COMMAND_INVALID');
     for (const page of pages.slice(1)) await page.waitForFunction(() => window.__acceptancePeers.every(pc => pc.connectionState === 'closed'), null, {timeout:15000});
