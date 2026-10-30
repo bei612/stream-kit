@@ -51,6 +51,8 @@ assert.ok(!(targetRecording && targetSwitch), 'Run local recording and disabled/
 assert.ok(!targetSwitch || microphoneTest, 'Target mode switching acceptance requires the microphone tone case');
 const restartServices = process.argv.includes('--restart-services');
 const applyManagedGateway = process.argv.includes('--apply-managed-gateway');
+const applyManagedEncoder = process.argv.includes('--apply-managed-encoder');
+assert.ok(!applyManagedEncoder||(process.argv.includes('--edit-encoder-configuration')&&applicationExample&&!applyManagedGateway&&!restartServices&&!microphoneTest&&!expireClientLease),'Managed encoder apply requires an isolated program/configuration acceptance case');
 assert.ok(!applyManagedGateway || (process.argv.includes('--edit-gateway-configuration')&&!restartServices&&!microphoneTest&&!expireClientLease), 'Managed apply requires configuration editing and a separate recovery case');
 assert.ok(!restartServices || !microphoneTest, 'Run recovery and microphone isolation as separate acceptance cases');
 assert.ok(!microphoneTest || clientCount === 2, 'Microphone isolation acceptance uses two clients');
@@ -76,6 +78,7 @@ const children = [];
 let browser;
 let cleanupRenderer;
 let cleanupManagedGateway;
+let cleanupManagedEncoder;
 let audioProbe;
 const sha = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 async function port() {
@@ -99,8 +102,8 @@ async function stopProcess(record) {
   if (record.child.exitCode === null) record.child.kill();
   await record.exited;
 }
-async function ready(url) {
-  for (let i = 0; i < 100; i++) {
+async function ready(url, attempts=100) {
+  for (let i = 0; i < attempts; i++) {
     assert.ok(children.every(({ child, expectedExit }) => expectedExit || child.exitCode === null), 'Test process exited during startup');
     try { if ((await fetch(url, { signal: AbortSignal.timeout(500) })).ok) return; } catch {}
     await delay(100);
@@ -145,9 +148,12 @@ async function main() {
   assert.equal(new URL(sun.base_url).hostname, '127.0.0.1', 'Acceptance is restricted to local Sunshine');
   const infoURL = sun.server_info_url || 'http://127.0.0.1:47989/serverinfo';
   assert.equal(new URL(infoURL).hostname, '127.0.0.1');
-  const info = await (await fetch(infoURL, { signal: AbortSignal.timeout(3000) })).text();
-  assert.match(info, /<state>SUNSHINE_SERVER_FREE<\/state>/, 'Do not interrupt an active Sunshine stream');
-  assert.match(info, /<currentgame>0<\/currentgame>/, 'Do not switch an existing rendering application');
+  async function checkIdleEncoder(){
+    const info = await (await fetch(infoURL, { signal: AbortSignal.timeout(3000) })).text();
+    assert.match(info, /<state>SUNSHINE_SERVER_FREE<\/state>/, 'Do not interrupt an active Sunshine stream');
+    assert.match(info, /<currentgame>0<\/currentgame>/, 'Do not switch an existing rendering application');
+  }
+  if(!applyManagedEncoder)await checkIdleEncoder();
   const sunshine = (resource, body, csrf) => new Promise((resolve, reject) => {
     const encoded = body === undefined ? null : JSON.stringify(body);
     const request = https.request(new URL(resource, sun.base_url), {
@@ -201,10 +207,25 @@ async function main() {
     result.management_assets_sha256=Object.fromEntries(fs.readdirSync(path.join(scratch,'control/dist/assets')).map(name=>[name,sha(path.join(scratch,'control/dist/assets',name))]));
   }
   if (applicationExample) controlConfig.sunshine_api = sun;
+  if(applyManagedEncoder){
+    const owned=runtime.managed_encoder;
+    assert.ok(owned,'Managed encoder requires source wrapper ownership');
+    assert.equal(path.resolve(owned.working_dir),path.dirname(scratch));
+    assert.equal(path.resolve(owned.config_file),path.join(path.dirname(scratch),'sunshine.conf'));
+    assert.ok(path.basename(owned.working_dir).startsWith('source-stream-'));
+    controlConfig.components.sunshine={exe_path:owned.exe_path,args:`"${owned.config_file}" "sunshine_name=StreamKit startup override"`,working_dir:owned.working_dir,auto_start:true};
+  }
   if(applyManagedGateway)controlConfig.components.web_server={exe_path:gatewayBinary,args:`--config-path "${gatewayConfigFile}" run`,preflight_args:`--config-path "${gatewayConfigFile}" config check`,working_dir:scratch,auto_start:true,env:{WEBRTC_ICE_SERVER_COUNT:'0'}};
   fs.writeFileSync(controlConfigFile, JSON.stringify(controlConfig));
   let gatewayProcess = applyManagedGateway?null:launch(gatewayBinary, ['--config-path', gatewayConfigFile, 'run'], 'gateway');
   const controlProcess = launch(orchestratorBinary, ['--config', controlConfigFile], 'orchestrator');
+  if(applyManagedEncoder)cleanupManagedEncoder=async()=>{
+    const login=await json(control+'/api/v1/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(credentials)});
+    const headers={Authorization:'Bearer '+login.data.token};
+    await json(control+'/api/v1/components/sunshine/stop',{method:'POST',headers});
+    assert.equal((await json(control+'/api/v1/components/sunshine',{headers})).data.pid,0);
+    result.managed_encoder_stopped=true;
+  };
   if(applyManagedGateway)cleanupManagedGateway=async()=>{
     const login=await json(control+'/api/v1/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(credentials)});
     const headers={Authorization:'Bearer '+login.data.token};
@@ -215,6 +236,7 @@ async function main() {
   };
   await ready(gateway + '/config.js');
   await ready(control + '/api/v1/health');
+  if(applyManagedEncoder){await ready(infoURL,300);await checkIdleEncoder();}
   async function gatewayLogin() {
     const response = await fetch(gateway + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: credentials.username, password: credentials.password }) });
@@ -417,6 +439,7 @@ async function main() {
   result.control_transfer = { unique_controller: true, epoch_before: claimed.control_epoch, epoch_after: transferred.control_epoch };
   let configurationPage;
   if(process.argv.includes('--edit-encoder-configuration')) {
+    const nativeBefore=applyManagedEncoder?await sunshine('/api/config'):null;
     assert.ok(applicationExample,'Encoder editing requires the isolated source encoder');
     const before=await api('/encoder-configuration');
     assert.equal(before.apply_policy,'encoder_restart');
@@ -450,6 +473,28 @@ async function main() {
     const frames=await Promise.all(pages.map(page=>page.evaluate(()=>document.querySelector('video').getVideoPlaybackQuality().totalVideoFrames)));
     await Promise.all(pages.map((page,index)=>waitForPageCondition(page,previous=>document.querySelector('video').getVideoPlaybackQuality().totalVideoFrames>previous,frames[index],{timeout:15000})));
     await adminPage.screenshot({path:path.join(output,'encoder-settings.png'),fullPage:true});
+    if(applyManagedEncoder){
+      const started=Date.now();
+      const selected=await api(`/stream-sessions/${invite.session_id}/controller/${ids[0]}`,'POST');
+      const beforeFrames=await Promise.all(pages.map(page=>page.evaluate(()=>document.querySelector('video').getVideoPlaybackQuality().totalVideoFrames)));
+      await adminPage.getByRole('button',{name:'重新读取编码器配置',exact:true}).click();
+      await adminPage.getByRole('button',{name:'重启编码器并加载配置',exact:true}).click();
+      await adminPage.getByRole('status').filter({hasText:'编码器已重启，新实例已读取目标配置文件'}).waitFor({timeout:90000});
+      const applied=await api('/encoder-configuration');
+      assert.equal(applied.loaded_revision,saved.revision);assert.equal(applied.restart_required,false);assert.notEqual(applied.instance_id,before.instance_id);
+      const nativeAfter=await sunshine('/api/config');
+      for(const [key,value]of Object.entries(nativeBefore))if(key!=='sunshine_name')assert.deepEqual(nativeAfter[key],value,`Untouched field changed: ${key}`);
+      result.encoder_apply={passed:false,loaded_revision_verified:true};save();
+      await Promise.all(pages.map((page,index)=>waitForPageCondition(page,previous=>{const video=document.querySelector('video');return !!video&&video.readyState>=2&&video.getVideoPlaybackQuality().totalVideoFrames>previous+10},beforeFrames[index],{timeout:60000})));
+      const audio=await Promise.all(pages.map(page=>measureReceivedTone(page)));
+      assert.ok(audio.every(level=>level>-65),'Every viewer must receive program audio after encoder replacement');
+      await Promise.all(pages.map(page=>page.evaluate(()=>window.__toneProbe.context.close())));
+      const resumed=await api(`/stream-sessions/${invite.session_id}`);
+      assert.equal(resumed.controller_connection_id,selected.controller_connection_id);
+      assert.equal(resumed.control_epoch,selected.control_epoch);
+      assert.deepEqual(Object.keys(resumed.connections).sort(),ids.slice().sort());
+      result.encoder_apply={passed:true,loaded_revision_verified:true,clients_recovered:clientCount,recovery_ms:Date.now()-started,program_audio_db:audio,connection_identity_preserved:true,control_epoch_preserved:true};
+    }
     await adminPage.close();
     result.encoder_configuration={passed:true,browser_form:true,conflict_rejected:true,video_continued:true,apply_policy:saved.apply_policy,runtime_verified:false,loaded_revision_preserved:true,command_line_override_reported:true,restart_required:saved.restart_required};
   }
@@ -911,7 +956,7 @@ async function main() {
   const upstreamCount = name => (fs.readFileSync(path.join(output, name), 'utf8').match(/: connected control stream\r?\n/g) || []).length;
   if(applyManagedGateway)fs.writeFileSync(path.join(output,'gateway-restarted.log'),(await api('/components/web_server/logs?lines=2000')).join('\n')+'\n');
   result.upstream_connections = upstreamCount('gateway.log');
-  assert.equal(result.upstream_connections, 1, 'All viewers must share exactly one Moonlight transport connection');
+  assert.equal(result.upstream_connections, applyManagedEncoder?2:1, 'Each encoder generation must share exactly one Moonlight transport connection');
   if (restartServices||applyManagedGateway) {
     result.restarted_upstream_connections = upstreamCount('gateway-restarted.log');
     assert.equal(result.restarted_upstream_connections, 1, 'Restarted gateway must still share one upstream');
@@ -936,6 +981,10 @@ main().catch(error => { result.error = error.message; process.exitCode = 1; }).f
     catch (error) { result.cleanup_error = error.message; result.passed = false; process.exitCode = 1; }
   }
   let mayStopOwner=true;
+  if(cleanupManagedEncoder){
+    try{await cleanupManagedEncoder()}
+    catch(error){mayStopOwner=false;result.managed_encoder_cleanup_error=error.message;result.passed=false;process.exitCode=1}
+  }
   if(cleanupManagedGateway){
     try{await cleanupManagedGateway()}
     catch(error){mayStopOwner=false;result.managed_cleanup_error=error.message;result.passed=false;process.exitCode=1}

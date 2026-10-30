@@ -10,6 +10,8 @@ function option(name) { const i = process.argv.indexOf(name); assert.ok(i >= 0 &
 const encoder = path.resolve(option('--sunshine')), gateway = path.resolve(option('--gateway'));
 const control = path.resolve(option('--orchestrator')), example = path.resolve(option('--example'));
 const outputDevice = option('--example-output');
+const managedEncoder=process.argv.includes('--apply-managed-encoder');
+assert.ok(!managedEncoder||process.argv.includes('--edit-encoder-configuration'),'Managed encoder apply requires configuration editing');
 const scratch = fs.mkdtempSync(path.join(root, '.local/source-stream-'));
 const output = path.join(root, 'artifacts/source-stream', new Date().toISOString().replace(/[:.]/g, '-'));
 fs.mkdirSync(output, { recursive:true });
@@ -84,12 +86,13 @@ async function main() {
   assert.equal(result.capabilities.managed_runtime_version,1);
   const encoderConfigurationBefore=process.argv.includes('--edit-encoder-configuration')?await native('/api/config'):null;
   const runtime=path.join(scratch,'runtime.json');
-  fs.writeFileSync(runtime,JSON.stringify({sunshine_api:{base_url:`https://127.0.0.1:${base+1}`,server_info_url:info,...credentials,verify_ssl:false}}));
+  fs.writeFileSync(runtime,JSON.stringify({sunshine_api:{base_url:`https://127.0.0.1:${base+1}`,server_info_url:info,...credentials,verify_ssl:false},...(managedEncoder?{managed_encoder:{exe_path:encoder,config_file:configFile,working_dir:scratch}}:{})}));
+  if(managedEncoder){child.kill();await exited;child=null;}
   console.log('Source-built Sunshine ready; starting program browser acceptance');
   const fd2=fs.openSync(path.join(output,'acceptance.log'),'w');
   const probe=spawn(process.execPath,[path.join(__dirname,'accept-managed-stream.cjs'),'--gateway',gateway,'--orchestrator',control,
     '--runtime-config',runtime,'--scratch',path.join(scratch,'media'),'--output-dir',path.join(output,'browser'),'--example',example,'--example-output',outputDevice,
-    ...['--microphone-tone','--target-switch','--stop-active','--delete-active','--restart-services','--expire-client-lease','--edit-gateway-configuration','--edit-encoder-configuration','--apply-managed-gateway'].filter(flag => process.argv.includes(flag)),
+    ...['--microphone-tone','--target-switch','--stop-active','--delete-active','--restart-services','--expire-client-lease','--edit-gateway-configuration','--edit-encoder-configuration','--apply-managed-gateway','--apply-managed-encoder'].filter(flag => process.argv.includes(flag)),
     ...['--audio-probe','--target-render-device','--target-capture-device','--clients','--hold-seconds'].flatMap(flag=>process.argv.includes(flag)?[flag,option(flag)]:[])],
     {cwd:root,windowsHide:true,stdio:['ignore',fd2,fd2]}); fs.closeSync(fd2);
   const [code]=await once(probe,'exit');
@@ -97,7 +100,8 @@ async function main() {
   result.browser_result=path.relative(root,path.join(output,'browser/result.json')).replaceAll('\\','/');
   const browserResult = JSON.parse(fs.readFileSync(path.join(output,'browser/result.json'),'utf8'));
   assert.equal(browserResult.passed,true);
-  if(encoderConfigurationBefore) {
+  if(managedEncoder){assert.equal(browserResult.encoder_apply?.passed,true);result.encoder_apply=browserResult.encoder_apply;}
+  if(encoderConfigurationBefore&&!managedEncoder) {
     assert.equal(browserResult.encoder_configuration?.passed,true);
     const after=await native('/api/config');
     assert.equal(after.sunshine_name,'Stream Kit encoder acceptance');
@@ -127,8 +131,9 @@ main().catch(error=>{result.error=error.message;process.exitCode=1;}).finally(as
   result.finished_at=new Date().toISOString();
   // Sparse native startup markers identify which media stage completed even
   // when browser acceptance times out. Absence is not interpreted as success.
-  const encoderLog = path.join(output,'sunshine.log');
+  const encoderLog = managedEncoder?path.join(scratch,'sunshine.log'):path.join(output,'sunshine.log');
   if (fs.existsSync(encoderLog)) {
+    if(managedEncoder)fs.copyFileSync(encoderLog,path.join(output,'managed-encoder.log'));
     result.encoder_startup = fs.readFileSync(encoderLog,'utf8').split(/\r?\n/)
       .filter(line=>line.includes('Application video startup:') || line.includes('Video startup failed to prepare initial image'));
   }

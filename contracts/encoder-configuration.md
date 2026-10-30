@@ -48,6 +48,10 @@ PATCH 请求为 `{"revision":"<原生强 ETag>","changes":{"sunshine_name":"Rend
 
 2026-10-31 验证：`TestEncoderApplyHTTPBoundaries` 覆盖远端、DNS、未受管、过期实例、停止前变化和替换进程加载错误版本；`TestEncoderApplyWithOwnedNativeProcess` 使用隔离配置及真实组件管理器完成源码编码器进程替换、版本加载和重复请求拒绝，耗时 27.92 秒，通过后清理受管进程。执行环境变量 `STREAM_KIT_SUNSHINE_EXE` 指向源码构建二进制，SHA256 为 `10c7866db7f0595546af00c1eb982572aaa25460b4c5c7998592699c4fc45d96`。原生 21 项回归记录为 `artifacts/application-capture/encoder-managed-state.json`；管理页受控 API 交互回归也通过。该真实重启测试没有运行渲染会话，活跃串流恢复仍需单独验收。
 
+活跃串流验收现已单独执行：`scripts/accept-source-stream.cjs` 增加 `--edit-encoder-configuration --apply-managed-encoder` 模式，由源码包装器创建独立配置并完成预检后停止预检进程，再由控制面的组件管理器启动、重启和停止编码器。配置路径限定在本次独立测试目录，不接管现场进程。测试使用真实管理页保存并应用配置，要求每名客户端恢复视频和程序音频、连接标识和控制权版本不变；全程两个编码器代际各只允许一个共享上游连接。
+
+2026-10-31 最新通过证据为 `artifacts/source-stream/2026-10-30T23-07-53-324Z/browser/result.json`：2 名同机 Chrome 观看者在 27,555ms 内完成恢复检查，恢复后程序音频约为 -36.25/-36.23dB，目标文件版本、连接标识和控制权版本校验通过。随后执行应用停止、连接清理和受管编码器停止。编码器仍为上述 SHA256，控制面为 `116e176c2613cf0209f174d1dbdddb50124ca11a3f676a129cef99d7d4dbecee`。此结果不覆盖重启期间麦克风上行、20 客户端编码器重启、跨网络、Linux 或移动真机。
+
 启动证据验证：原生配置和注册回归 21/21 通过，记录为 `artifacts/application-capture/encoder-startup-state.json`。Go 全量回归、Windows 构建、Linux 交叉编译以及管理页生产构建和 Chrome 交互验证通过。新增真实串流验收位于 `artifacts/source-stream/2026-10-30T22-55-29-028Z/`：启动时显式覆盖节点名称，管理接口正确报告覆盖项；保存后启动版本和实例保持不变、待重启为 true、旧版本写入被拒绝，两名观看者继续解码。该验收没有执行编码器重启。此次编码器 SHA256 为 `dcbdc8b2b09ed3a0ff429970c9bb5993f6a42da71fbbe0b4006c7dc2cf755153`，控制面为 `7b77772b3bd88518a4e64257207e90975f689f2f51c7078ce584b2a3a86edbc9`。
 
 系统设置中的“渲染编码器配置”支持显式字段编辑、添加原生参数、结构化 JSON 和恢复默认。仅编辑过的字段加入 PATCH；脱敏占位不会自动提交。保存未确认时保留草稿并锁定继续提交，重新读取按钮明确提示放弃修改。保存确认后也需重新读取，以获得原生规范化后的显式字段集合。
