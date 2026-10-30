@@ -18,6 +18,6 @@ Linux 安装对应的上游构建依赖后使用同一脚本：
 bash scripts/build-sunshine.sh
 ```
 
-脚本将依赖和 Sunshine 输出放入 `.local/cmake-build-sunshine-deps` 与 `.local/cmake-build-sunshine`，默认两个编译任务，可用 `BUILD_JOBS` 调整。它不部署服务、不安装驱动、不执行可能操作设备的集成测试。完整原生测试与运行验收应使用对应构建产物另行执行；Linux 命令存在不代表本轮已完成 Linux 真机验收。
+脚本将依赖和 Sunshine 输出放入 `.local/cmake-build-sunshine-deps` 与 `.local/cmake-build-sunshine`，默认两个编译任务，可用 `BUILD_JOBS` 调整。统一产品构建设置 `SUNSHINE_BUILD_WINDOWS_INSTALLERS=OFF`，保留组件安装文件、运行工具、Web、托盘和测试，使用 ZIP 组件包供统一产品组装；需要独立 Sunshine NSIS/MSI 安装器时显式设为 `ON` 并准备上游要求的 WiX/.NET 工具链。它不部署服务、不安装驱动、不执行可能操作设备的集成测试。完整原生测试与运行验收应使用对应构建产物另行执行；Linux 命令存在不代表本轮已完成 Linux 真机验收。
 
 `node tools/check-sunshine-vendor.cjs` 检查依赖纳管、关键构建输入、Git 文件模式与 submodule 禁令。`cmake -P tools/test-source-patching.cmake` 验证补丁的实际应用、幂等性、不匹配及部分应用拒绝。构建脚本另行链接并运行 `tools/sunshine-codec-probe.c`，检查编码器注册，不打开 GPU/音频设备，不以该检查代替实际编码验收。工具链版本、构建日志、产物摘要保存在实际构建验收记录中；完成依赖纳管不等于完成 Sunshine 编译、程序级采集或生产验收。

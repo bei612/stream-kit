@@ -91,8 +91,9 @@ if(NOT Boost_FOUND)
     set(FETCH_CONTENT_BOOST_USED TRUE)
 
     set(Boost_FOUND TRUE)  # cmake-lint: disable=C0103
-    set(Boost_INCLUDE_DIRS  # cmake-lint: disable=C0103
-            "$<BUILD_INTERFACE:${Boost_SOURCE_DIR}/libs/headers/include>")
+    # Modular Boost exposes include paths through its imported targets. There
+    # is no aggregate libs/headers/include tree in the source distribution.
+    set(Boost_INCLUDE_DIRS "")  # cmake-lint: disable=C0103
 
     if(WIN32)
         # Windows build is failing to create .h file in this directory

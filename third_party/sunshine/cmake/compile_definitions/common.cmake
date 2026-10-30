@@ -106,6 +106,9 @@ if(WIN32)
     # add_nvenc_sdk_implementation: args = `target_name`, `sdk_version`, `sdk_include_dir`
     function(add_nvenc_sdk_implementation target_name sdk_version sdk_include_dir)
         add_library(${target_name} OBJECT ${NVENC_IMPLEMENTATION_SOURCES})
+        # Shared Sunshine headers are also consumed by these independent object
+        # libraries. Inherit their Boost requirements for source/package builds.
+        target_link_libraries(${target_name} PRIVATE ${Boost_LIBRARIES})
         target_include_directories(${target_name} BEFORE PRIVATE "${sdk_include_dir}")
         target_compile_definitions(${target_name} PRIVATE
                 NVENC_FACTORY_SUFFIX=${sdk_version}
@@ -141,6 +144,8 @@ set(SUNSHINE_TARGET_FILES
         "${CMAKE_SOURCE_DIR}/src/upnp.cpp"
         "${CMAKE_SOURCE_DIR}/src/upnp.h"
         "${CMAKE_SOURCE_DIR}/src/cbs.cpp"
+        "${CMAKE_SOURCE_DIR}/src/capture_target.cpp"
+        "${CMAKE_SOURCE_DIR}/src/capture_target.h"
         "${CMAKE_SOURCE_DIR}/src/utility.h"
         "${CMAKE_SOURCE_DIR}/src/uuid.h"
         "${CMAKE_SOURCE_DIR}/src/config.h"

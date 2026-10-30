@@ -39,6 +39,7 @@ export BUILD_VERSION
 BUILD_VERSION=$(node -p "require('./third_party-manifests/upstream-lock.json').components.sunshine.version.replace(/^v/, '')")
 cmake -S third_party/sunshine -B "$build" -G Ninja \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTS=ON -DBUILD_DOCS=ON -DBUILD_WERROR=ON \
+  -DSUNSHINE_BUILD_WINDOWS_INSTALLERS=OFF \
   -DFFMPEG_PREPARED_BINARIES="$(native_path "$deps/install/ffmpeg")" \
   -DSUNSHINE_ASSETS_DIR=assets -DSUNSHINE_PUBLISHER_NAME=Stream-Kit \
   -DSUNSHINE_PUBLISHER_WEBSITE=https://github.com/bei612/stream-kit \

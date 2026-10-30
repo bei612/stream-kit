@@ -55,7 +55,17 @@ file(COPY "${SUNSHINE_SOURCE_ASSETS_DIR}/windows/assets/"
 cmake_path(CONVERT "${SUNSHINE_SOURCE_ASSETS_DIR}/windows/assets/shaders"
         TO_NATIVE_PATH_LIST shaders_in_build_src_native)
 cmake_path(CONVERT "${CMAKE_BINARY_DIR}/assets/shaders" TO_NATIVE_PATH_LIST shaders_in_build_dest_native)
-execute_process(COMMAND cmd.exe /c mklink /J "${shaders_in_build_dest_native}" "${shaders_in_build_src_native}")
+if(NOT EXISTS "${CMAKE_BINARY_DIR}/assets/shaders")
+    execute_process(COMMAND cmd.exe /c mklink /J "${shaders_in_build_dest_native}" "${shaders_in_build_src_native}"
+            COMMAND_ERROR_IS_FATAL ANY)
+endif()
+file(REAL_PATH "${CMAKE_BINARY_DIR}/assets/shaders" _sunshine_shader_target)
+file(REAL_PATH "${SUNSHINE_SOURCE_ASSETS_DIR}/windows/assets/shaders" _sunshine_shader_source)
+if(NOT _sunshine_shader_target STREQUAL _sunshine_shader_source)
+    message(FATAL_ERROR "The build shaders directory does not reference the configured source assets")
+endif()
+unset(_sunshine_shader_target)
+unset(_sunshine_shader_source)
 
 set(CPACK_PACKAGE_ICON "${CMAKE_SOURCE_DIR}\\\\sunshine.ico")
 
@@ -99,5 +109,11 @@ set(CPACK_COMPONENT_FIREWALL_DESCRIPTION "Scripts to enable or disable firewall 
 set(CPACK_COMPONENT_FIREWALL_GROUP "Scripts")
 
 # include specific packaging
-include(${CMAKE_MODULE_PATH}/packaging/windows_nsis.cmake)
-include(${CMAKE_MODULE_PATH}/packaging/windows_wix.cmake)
+if(SUNSHINE_BUILD_WINDOWS_INSTALLERS)
+    include(${CMAKE_MODULE_PATH}/packaging/windows_nsis.cmake)
+    include(${CMAKE_MODULE_PATH}/packaging/windows_wix.cmake)
+else()
+    # Stream-Kit assembles the installed component into its unified product.
+    # Runtime files, service tools, assets and tests remain part of this build.
+    set(CPACK_GENERATOR ZIP)
+endif()
