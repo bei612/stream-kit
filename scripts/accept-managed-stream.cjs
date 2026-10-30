@@ -329,7 +329,21 @@ async function main() {
     const page = await context.newPage(); pages.push(page);
     page.on('pageerror', error => pageErrors.push(error.message));
     await page.goto(`${gateway}/stream.html?hostId=${host.host_id}&appId=${desktop.app_id}#join=${invite.invitation}`);
-    await page.waitForFunction(() => { const video = document.querySelector('video'); return video && video.videoWidth > 0 && video.getVideoPlaybackQuality().totalVideoFrames > 15; }, null, { timeout: 60000 });
+    try {
+      await page.waitForFunction(() => { const video = document.querySelector('video'); return video && video.videoWidth > 0 && video.getVideoPlaybackQuality().totalVideoFrames > 15; }, null, { timeout: 60000 });
+    } catch(error) {
+      result.startup_failure = {client:i+1,diagnostics:await page.evaluate(async()=>{
+        const video=document.querySelector('video');
+        const peers=await Promise.all(window.__acceptancePeers.map(async peer=>{
+          const stats=[...(await peer.getStats()).values()];
+          return {state:peer.connectionState,ice:peer.iceConnectionState,
+            inbound:stats.filter(s=>s.type==='inbound-rtp').map(s=>({kind:s.kind,codecId:s.codecId,packetsReceived:s.packetsReceived,bytesReceived:s.bytesReceived,framesReceived:s.framesReceived,framesDecoded:s.framesDecoded,keyFramesDecoded:s.keyFramesDecoded,pliCount:s.pliCount,firCount:s.firCount})),
+            codecs:stats.filter(s=>s.type==='codec').map(s=>({id:s.id,mimeType:s.mimeType,sdpFmtpLine:s.sdpFmtpLine}))};
+        }));
+        return {video:video?{readyState:video.readyState,width:video.videoWidth,frames:video.getVideoPlaybackQuality().totalVideoFrames,error:video.error?.code}:null,peers};
+      }).catch(()=>({unavailable:true}))};
+      throw error;
+    }
     assert.equal(await page.locator('#ml-api-name').count(), 0);
     console.log(`Viewer ${i + 1}/${clientCount} is decoding`);
   }
