@@ -109,8 +109,12 @@ untrusted diagnostic text is never forwarded to the administrator.
 
 The settings page includes the native gateway editor with grouped controls,
 redacted-value preservation, deployment override and pending-restart indicators.
-Simple fields and existing list entries are edited individually; optional
-structured fields use an advanced JSON input with examples. Complete collection
+Simple fields and existing list entries are edited individually. Port ranges,
+NAT mappings, TLS paths and forwarded-header settings have dedicated optional
+object controls. Existing objects submit only edited children; enabling a new
+object submits its complete value, and disabling submits null. Undo restores
+the loaded object and clears its child drafts. TLS paths remain individually
+editable even though their original values are redacted. Complete collection
 replacement is explicit and starts empty, so the user must supply every desired
 entry and credential instead of accidentally resubmitting redacted placeholders.
 Drafts survive failed saves; per-field undo and reload discard them explicitly.

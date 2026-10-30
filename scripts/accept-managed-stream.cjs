@@ -383,9 +383,17 @@ async function main() {
     await adminPage.getByLabel('配对设备名称',{exact:true}).fill('Stream Kit managed acceptance');
     await adminPage.getByRole('button',{name:'保存网关配置',exact:true}).click();
     await adminPage.getByText('网关配置已保存，重启网关后生效。当前串流继续使用原配置。',{exact:true}).waitFor();
-    const saved = await api('/gateway-configuration');
+    let saved = await api('/gateway-configuration');
     assert.equal(saved.restart_required,true);
     assert.equal(saved.values.moonlight.pair_device_name,'Stream Kit managed acceptance');
+    await adminPage.locator('summary').filter({hasText:'网络与 WebRTC'}).click();
+    await adminPage.getByLabel('媒体 UDP 端口范围',{exact:true}).selectOption('enabled');
+    await adminPage.getByLabel('起始端口',{exact:true}).fill('60000');
+    await adminPage.getByLabel('结束端口',{exact:true}).fill('60100');
+    await adminPage.getByRole('button',{name:'保存网关配置',exact:true}).click();
+    await adminPage.getByText('网关配置已保存，重启网关后生效。当前串流继续使用原配置。',{exact:true}).waitFor();
+    saved = await api('/gateway-configuration');
+    assert.deepEqual(saved.values.webrtc.port_range,{min:60000,max:60100});
     assert.notEqual(saved.revision,before.revision);
     assert.equal((await api('/gateway-configuration')).revision,saved.revision);
     const stale = await fetch(control+'/api/v1/gateway-configuration',{method:'PATCH',headers:{Authorization:'Bearer '+login.data.token,'Content-Type':'application/json'},

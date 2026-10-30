@@ -19,6 +19,13 @@ type Kind='string'|'number'|'boolean'|'lines'|'json'
 type Draft={text:string;kind:Kind}
 const nullableStrings=new Set(['ice_server_script','media_ticket_secret','file_path'])
 const examples:Record<string,string>={port_range:'{"min": 50000, "max": 50100}',nat_1to1:'{"ips": ["203.0.113.10"], "ice_candidate_type": "host"}',certificate:'{"certificate_pem": "certs/server.pem", "private_key_pem": "certs/server-key.pem"}',forwarded_header:'{"username_header": "X-Forwarded-User", "auto_create_missing_user": false, "ignore_case": false}'}
+type ObjectField={key:string;kind:Exclude<Kind,'json'>;initial:ConfigValue;options?:string[]}
+const objects:Record<string,ObjectField[]>={
+  '/webrtc/port_range':[{key:'min',kind:'number',initial:50000},{key:'max',kind:'number',initial:50100}],
+  '/webrtc/nat_1to1':[{key:'ips',kind:'lines',initial:[]},{key:'ice_candidate_type',kind:'string',initial:'host',options:['host','srflx']}],
+  '/web_server/certificate':[{key:'certificate_pem',kind:'string',initial:''},{key:'private_key_pem',kind:'string',initial:''}],
+  '/web_server/forwarded_header':[{key:'username_header',kind:'string',initial:'X-Forwarded-User'},{key:'auto_create_missing_user',kind:'boolean',initial:false},{key:'ignore_case',kind:'boolean',initial:false}],
+}
 
 export function GatewayConfigurationEditor() {
   const [view,setView]=useState<GatewayConfigurationView|null>(null)
@@ -38,6 +45,42 @@ export function GatewayConfigurationEditor() {
   const edit=(path:string,text:string,kind:Kind)=>{
     setDrafts(current=>({...Object.fromEntries(Object.entries(current).filter(([p])=>!p.startsWith(path+'/'))),[path]:{text,kind}}));setNotice('');setError('')
   }
+  const undo=(path:string)=>{setDrafts(current=>Object.fromEntries(Object.entries(current).filter(([p])=>p!==path&&!p.startsWith(path+'/'))));setReplacements(current=>({...current,[path]:false}));setError('')}
+  function optionalObject(value:ConfigValue,path:string,key:string,fields:ObjectField[]) {
+    const parentDraft=drafts[path]
+    const current:ConfigValue=parentDraft?JSON.parse(parentDraft.text):value
+    const hidden=view?.redacted_paths.includes(path)
+    const enabled=current!==null||(!parentDraft&&hidden)
+    const currentObject=current!==null&&typeof current==='object'&&!Array.isArray(current)?current:{}
+    const changed=Object.keys(drafts).some(p=>p===path||p.startsWith(path+'/'))
+    const overridden=view?.overridden_paths.some(p=>p===path||p.startsWith(path+'/'))
+    const id='gateway-setting'+path
+    const update=(descriptor:ObjectField,text:string)=>{
+      if(parentDraft) {
+        const next:ConfigValue=descriptor.kind==='boolean'?text==='true':descriptor.kind==='lines'?text.split('\n').map(s=>s.trim()).filter(Boolean):descriptor.kind==='number'?(text.trim()===''?null:Number(text)):text
+        edit(path,JSON.stringify({...currentObject,[descriptor.key]:next}),'json')
+      } else edit(path+'/'+descriptor.key,text,descriptor.kind)
+    }
+    return <div key={path} className="rounded-lg border border-border p-3 space-y-3">
+      <Label htmlFor={id}>{labels[key]||key}{overridden&&<span className="ml-2 text-xs text-amber-400">部署覆盖</span>}</Label>
+      <Select id={id} value={enabled?'enabled':'disabled'} onChange={e=>edit(path,e.target.value==='disabled'?'null':JSON.stringify(Object.fromEntries(fields.map(f=>[f.key,f.initial]))),'json')}>
+        <option value="disabled">未设置（使用网关默认策略）</option><option value="enabled">设置此项</option>
+      </Select>
+      {enabled&&fields.map(descriptor=>{
+        const child=path+'/'+descriptor.key,childId='gateway-setting'+child
+        const original=currentObject[descriptor.key]
+        const text=drafts[child]?.text??(Array.isArray(original)?original.join('\n'):original===undefined||original===null?'':String(original))
+        return <div key={child} className="space-y-1"><Label htmlFor={childId}>{labels[descriptor.key]||descriptor.key}</Label>
+          {descriptor.options?<Select id={childId} value={text} onChange={e=>update(descriptor,e.target.value)}>{descriptor.options.map(option=><option key={option} value={option}>{option}</option>)}</Select>:
+            descriptor.kind==='boolean'?<Select id={childId} value={text} onChange={e=>update(descriptor,e.target.value)}><option value="true">启用</option><option value="false">禁用</option></Select>:
+            descriptor.kind==='lines'?<Textarea id={childId} rows={3} value={text} onChange={e=>update(descriptor,e.target.value)}/>:
+            <Input id={childId} type={descriptor.kind==='number'?'number':hidden?'password':'text'} value={text} autoComplete="off" placeholder={hidden?'已配置；未编辑则保留原值':''} onChange={e=>update(descriptor,e.target.value)}/>}</div>
+      })}
+      {hidden&&enabled&&<p className="text-xs text-muted-foreground">证书路径已隐藏，未编辑的路径保持原值。</p>}
+      <p className="text-xs text-muted-foreground">保存后需重启网关；不会立即改变当前连接。</p>
+      {changed&&<Button size="sm" variant="ghost" onClick={()=>undo(path)}>撤销此项修改</Button>}
+    </div>
+  }
   async function save() {
     if(!view||busy)return
     setBusy(true);setError('');setNotice('')
@@ -53,6 +96,10 @@ export function GatewayConfigurationEditor() {
         else if(kind==='lines') changes[path]=text.split('\n').map(v=>v.trim()).filter(Boolean)
         else if(kind==='json') {
           try {changes[path]=JSON.parse(text)} catch {throw new Error(`${labels[path.split('/').at(-1)!]||'结构化参数'} 的 JSON 格式无效。`)}
+          const object=changes[path]
+          if(object&&typeof object==='object'&&!Array.isArray(object))for(const field of objects[path]||[]) {
+            if(field.kind==='number'&&(typeof object[field.key]!=='number'||!Number.isSafeInteger(object[field.key])))throw new Error(`${labels[field.key]} 必须填写有效整数。`)
+          }
         } else changes[path]=text
       }
       const response=await api.saveGatewayConfiguration(view.revision,changes)
@@ -62,6 +109,7 @@ export function GatewayConfigurationEditor() {
     finally{setBusy(false)}
   }
   function field(value:ConfigValue,path:string,key:string):React.ReactNode {
+    if(objects[path])return optionalObject(value,path,key,objects[path])
     const hidden=view?.redacted_paths.includes(path)
     const replaced=replacements[path]
     const object=value!==null && typeof value==='object' && !Array.isArray(value)

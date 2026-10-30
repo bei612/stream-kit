@@ -51,6 +51,12 @@ impl Config {
         if self.web_server.session_cookie_expiration.is_zero() {
             return Err("web_server.session_cookie_expiration must be positive");
         }
+        if let Some(certificate) = &self.web_server.certificate
+            && (certificate.certificate_pem.trim().is_empty()
+                || certificate.private_key_pem.trim().is_empty())
+        {
+            return Err("web_server.certificate requires both certificate and private key paths");
+        }
         if let Some(range) = &self.webrtc.port_range
             && (range.min == 0 || range.min > range.max)
         {
@@ -393,6 +399,23 @@ mod managed_config_tests {
         let config: Config =
             serde_json::from_value(original).expect("default configuration round trip");
         assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn configured_tls_requires_both_paths() {
+        let mut config = Config::default();
+        for (certificate, private_key, valid) in [
+            ("", "", false),
+            ("cert.pem", " ", false),
+            ("", "key.pem", false),
+            ("cert.pem", "key.pem", true),
+        ] {
+            config.web_server.certificate = Some(ConfigSsl {
+                certificate_pem: certificate.into(),
+                private_key_pem: private_key.into(),
+            });
+            assert_eq!(config.validate().is_ok(), valid);
+        }
     }
 
     #[test]

@@ -52,6 +52,8 @@ async function main() {
       let conflictConfiguration=true;
       const gatewayConfiguration={revision:'native-1',restart_required:false,apply_policy:'gateway_restart',values:{moonlight:{pair_device_name:'Stream Kit',default_http_port:47989},web_server:{media_ticket_secret:null,control_plane_url:'https://control.example'},webrtc:{port_range:null,ice_servers:[{urls:null,username:'turn-user',credential:null}],include_loopback_candidates:true}},redacted_paths:['/web_server/media_ticket_secret','/webrtc/ice_servers/0/urls','/webrtc/ice_servers/0/credential'],overridden_paths:['/web_server/control_plane_url']};
       let conflictGateway=true;
+      gatewayConfiguration.values.web_server.certificate=null;
+      gatewayConfiguration.redacted_paths.push('/web_server/certificate');
       const context = await browser.newContext({ viewport:{width,height:900}, locale:'zh-CN', reducedMotion:'reduce' });
       await context.routeWebSocket('**/api/v1/ws**', ws => { ws.onMessage(()=>{}); });
       await context.route('**/api/**', async route => {
@@ -98,10 +100,20 @@ async function main() {
           if(route.request().method()==='PATCH') {
             const update=route.request().postDataJSON();
             assert.equal(update.revision,gatewayConfiguration.revision);
-            assert.deepEqual(Object.keys(update.changes),['/moonlight/pair_device_name']);
-            if(conflictGateway) {conflictGateway=false;return route.fulfill({status:409,json:{status:'error',message:'网关配置已被修改，请重新读取后保存'}})}
-            gatewayConfiguration.values.moonlight.pair_device_name=update.changes['/moonlight/pair_device_name'];
-            gatewayConfiguration.revision='native-2';gatewayConfiguration.restart_required=true;
+            if('/moonlight/pair_device_name' in update.changes) {
+              assert.deepEqual(Object.keys(update.changes),['/moonlight/pair_device_name']);
+              if(conflictGateway) {conflictGateway=false;return route.fulfill({status:409,json:{status:'error',message:'网关配置已被修改，请重新读取后保存'}})}
+              gatewayConfiguration.values.moonlight.pair_device_name=update.changes['/moonlight/pair_device_name'];
+              gatewayConfiguration.revision='native-2';
+            } else if('/web_server/certificate/private_key_pem' in update.changes) {
+              assert.deepEqual(update.changes,{'/web_server/certificate/private_key_pem':'certs/replaced-key.pem'});
+              gatewayConfiguration.revision='native-3';
+            } else {
+              assert.deepEqual(update.changes,{'/webrtc/port_range':{min:50010,max:50020}});
+              gatewayConfiguration.values.webrtc.port_range=update.changes['/webrtc/port_range'];
+              gatewayConfiguration.revision='native-4';
+            }
+            gatewayConfiguration.restart_required=true;
           }
           data=gatewayConfiguration;
         }
@@ -167,7 +179,23 @@ async function main() {
           await page.getByRole('button',{name:'清空可选配置',exact:true}).click();
           await page.getByText('保存后清空此可选配置，重启生效。',{exact:true}).waitFor();
           await page.getByRole('button',{name:'撤销此项修改',exact:true}).click();
+          assert.equal(await page.getByLabel('证书路径',{exact:true}).inputValue(),'');
+          await page.getByLabel('私钥路径',{exact:true}).fill('certs/replaced-key.pem');
+          await page.getByRole('button',{name:'保存网关配置',exact:true}).click();
+          await page.getByText('网关配置已保存，重启网关后生效。当前串流继续使用原配置。',{exact:true}).waitFor();
+          assert.equal(await page.getByLabel('私钥路径',{exact:true}).inputValue(),'');
           await page.locator('summary').filter({hasText:'网络与 WebRTC'}).click();
+          await page.getByLabel('媒体 UDP 端口范围',{exact:true}).selectOption('enabled');
+          await page.getByLabel('起始端口',{exact:true}).fill('');
+          await page.getByRole('button',{name:'保存网关配置',exact:true}).click();
+          await page.getByRole('alert').filter({hasText:'起始端口 必须填写有效整数'}).waitFor();
+          await page.getByLabel('起始端口',{exact:true}).fill('50010');
+          await page.getByLabel('结束端口',{exact:true}).fill('50020');
+          await page.getByRole('button',{name:'保存网关配置',exact:true}).click();
+          await page.getByText('网关配置已保存，重启网关后生效。当前串流继续使用原配置。',{exact:true}).waitFor();
+          await page.getByLabel('媒体 UDP 端口范围',{exact:true}).selectOption('disabled');
+          await page.getByRole('button',{name:'撤销此项修改',exact:true}).click();
+          assert.equal(await page.getByLabel('起始端口',{exact:true}).inputValue(),'50010');
           assert.equal(await page.getByLabel('访问凭据',{exact:true}).inputValue(),'');
           assert.equal(await page.getByLabel('访问凭据',{exact:true}).getAttribute('type'),'password');
           await page.getByRole('button',{name:'替换列表',exact:true}).click();
