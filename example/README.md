@@ -23,6 +23,8 @@ Windows 原生窗口保留棋盘格、分辨率与全屏测试，并增加实时
 - `node scripts/accept-source-stream.cjs --sunshine <源码构建的 sunshine.exe> --gateway <源码构建的 web-server.exe> --orchestrator <orchestrator.exe> --example <checkerboard.exe> --example-output <明确的输出设备>`：在独立回环端口启动编码器，经管理接口注册程序采集，由两个真实浏览器验证共享画面、程序测试音和按实例停止；加 `--microphone-tone` 同时验证 1499 Hz 浏览器测试麦克风与 997 Hz 程序音的混音和撤权。完整结果、帧图像和日志写入 `artifacts/source-stream/`。
 - `cargo test --locked --all-targets` 与 `cargo clippy --locked --all-targets -- -D warnings`（组件目录）：录音缓冲上限、PCM 电平、测试音及输出幅度与既有目标队列检查。
 
+源码链路验收还支持 `--stop-active` 或 `--delete-active`：保留一个浏览器正在播放时执行管理停止或删除，检查观看会话终止、旧凭据拒绝、传输关闭，并持续观察 12 秒确认浏览器没有重新启动程序。删除用例只删除测试创建的注册与平台文件，同时核对外部 example 可执行文件的哈希保持不变。
+
 2026-10-30 Windows 11 窗口与协议冒烟通过，三个窗口用例均正常退出且没有遗留音频子进程，设备数量以实时枚举为准。初始冒烟不打开麦克风或扬声器。后续完整源码链路使用明确选择的输出设备播放测试音，两个浏览器收到独立窗口、程序音及授权客户端测试麦克风混音；越权、转移和释放检查通过，证据位于 `artifacts/source-stream/2026-10-30T15-12-01-729Z/`。浏览器麦克风采用 Chromium 测试音源，没有打开现场物理麦克风；Web→虚拟输入→example/UE5 实录仍待验收。
 
 ## 内部管道协议 v1

@@ -132,8 +132,8 @@ func TestConcurrentAudioTargetClaimsAndEdits(t *testing.T) {
 	if err := m.UpdateAudioTarget(b.ID, b.Audio.Target.Epoch, localTarget("render", "capture")); err != nil {
 		t.Fatal(err)
 	}
-	if err := m.SetState(a.ID, StateRunning); !errors.Is(err, ErrAudioTargetInUse) {
-		t.Fatal("reactivation stole reserved endpoints")
+	if err := m.SetState(a.ID, StateRunning); !errors.Is(err, ErrInvalidState) {
+		t.Fatal("terminal generation was reactivated")
 	}
 	stopped, _ := m.Get(a.ID)
 	if stopped.State != StateStopped {

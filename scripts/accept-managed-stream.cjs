@@ -27,6 +27,9 @@ const numericOption = (name, fallback) => process.argv.includes(name) ? Number(p
 const clientCount = numericOption('--clients', 2);
 const holdSeconds = numericOption('--hold-seconds', 5);
 const microphoneTest = process.argv.includes('--microphone-tone');
+const deleteActive = process.argv.includes('--delete-active');
+const stopActive = process.argv.includes('--stop-active') || deleteActive;
+assert.ok(!stopActive || applicationExample, 'Active native stop acceptance requires the owned example');
 const microphoneFrequency = applicationExample ? 1499 : 997;
 const targetSwitch = process.argv.includes('--target-switch');
 assert.ok(!targetSwitch || microphoneTest, 'Target mode switching acceptance requires the microphone tone case');
@@ -477,18 +480,41 @@ async function main() {
   await delay(2500);
   result.remaining_viewer_frames = await videoFrames(pages[1]);
   assert.ok(result.remaining_viewer_frames > result.frames_before_disconnect[1] + 10, 'Remaining viewer must continue decoding after first viewer leaves');
-  for (const page of pages.slice(1)) await page.evaluate(() => window.app.getStream().stop());
+  if (stopActive) {
+    if (deleteActive) {
+      await api(`/apps/${ownedApp.id}?confirm=true`, 'DELETE');
+      assert.equal(sha(applicationExample), result.application.example_sha256, 'Deleting a local registration must preserve the external program');
+      result.deleted_active_registration = true;
+    }
+    await cleanupRenderer(); cleanupRenderer = null;
+    const stopped = await api(`/stream-sessions/${invite.session_id}`);
+    assert.equal(stopped.state, 'stopped');
+    assert.deepEqual(stopped.connections, {});
+    const oldJoin = await fetch(control + '/api/v1/client-sessions/join', { method:'POST', headers:{ Authorization:'Bearer '+invite.invitation } });
+    assert.equal(oldJoin.status, 400, 'A stopped viewing invitation cannot readmit clients');
+    assert.equal((await oldJoin.json()).code, 'SESSION_COMMAND_INVALID');
+    for (const page of pages.slice(1)) await page.waitForFunction(() => window.__acceptancePeers.every(pc => pc.connectionState === 'closed'), null, {timeout:15000});
+    for (let i=0;i<24;i++) {
+      assert.equal((await sunshine('/api/stream-kit/runtime')).gamestream_id, 0, 'Browser reconnect restarted an administratively stopped program');
+      await delay(500);
+    }
+    result.active_stop = { session_terminal:true, old_invitation_rejected:true, browser_transport_closed:true, idle_observation_seconds:12 };
+  } else for (const page of pages.slice(1)) await page.evaluate(() => window.app.getStream().stop());
   for (let i = 0; i < 50; i++) {
     const status = await api('/media-control');
     observed = status.observations?.[invite.session_id];
+    if (stopActive && status.observations_valid && !observed) break;
     if (status.observations_valid && observed?.subscribers === 0 && !observed.upstream_active) break;
     await delay(200);
   }
-  assert.equal(observed?.subscribers, 0);
-  assert.equal(observed.upstream_active, false);
+  if (stopActive) assert.equal(observed, undefined, 'Stopped generation must be absent from signed gateway authority');
+  else {
+    assert.equal(observed?.subscribers, 0);
+    assert.equal(observed.upstream_active, false);
+  }
   // The last media subscription ends its transport; Sunshine deliberately
   // retains the selected app for resume. Explicitly end only this run's app.
-  await cleanupRenderer();
+  if (cleanupRenderer) await cleanupRenderer();
   cleanupRenderer = null;
   assert.deepEqual(pageErrors, []);
   const upstreamCount = name => (fs.readFileSync(path.join(output, name), 'utf8').match(/: connected control stream\r?\n/g) || []).length;

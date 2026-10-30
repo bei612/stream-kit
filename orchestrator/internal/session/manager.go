@@ -135,6 +135,9 @@ func (m *Manager) Ensure(hostID, appID int64) (*RenderSession, error) {
 	defer m.mu.Unlock()
 	for _, s := range m.sessions {
 		if s.HostID == hostID && s.AppID == appID && s.State != StateStopped {
+			if s.State == StateStopping {
+				return nil, ErrInvalidState
+			}
 			return clone(s), nil
 		}
 	}
@@ -170,8 +173,7 @@ func (m *Manager) commitLocked(next *RenderSession, event string) error {
 	if next.Revision == math.MaxUint64 {
 		return ErrInvalidState
 	}
-	// Reservation safety also applies to state transitions, especially reviving
-	// a stopped session after its old endpoints have been reassigned.
+	// Reservation safety applies to every committed configuration and state.
 	if err := m.checkAudioTargetReservation(next); err != nil {
 		return err
 	}
@@ -200,10 +202,7 @@ func (m *Manager) commitLocked(next *RenderSession, event string) error {
 func (m *Manager) Changes() <-chan struct{} { return m.changed }
 
 func (m *Manager) SetState(id, state string) error {
-	if state != StateStarting && state != StateRunning && state != StateDegraded && state != StateStopping && state != StateStopped {
-		return ErrInvalidState
-	}
-	return m.mutate(id, "stream_session_state_changed", func(s *RenderSession) error { s.State = state; return nil })
+	return m.mutate(id, "stream_session_state_changed", func(s *RenderSession) error { return transitionState(s, state) })
 }
 
 func (m *Manager) AddConnection(id, userID string) (*Connection, error) {
@@ -229,6 +228,9 @@ func (m *Manager) AddConnection(id, userID string) (*Connection, error) {
 
 func (m *Manager) Claim(id, connectionID string) error {
 	return m.mutate(id, "stream_controller_changed", func(s *RenderSession) error {
+		if s.State == StateStopping || s.State == StateStopped {
+			return ErrInvalidState
+		}
 		c, ok := s.Connections[connectionID]
 		if !ok || !time.Now().Before(c.ExpiresAt) {
 			return ErrNotFound

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"io/fs"
 	"net/http"
 	"os"
@@ -48,6 +49,13 @@ func New(cfg *config.Config, st *store.Store, compMgr *component.Manager, appMgr
 		Logger:       logger,
 	}
 
+	if appMgr != nil {
+		var syncMedia func(context.Context) error
+		if s.MediaControl != nil {
+			syncMedia = s.MediaControl.Sync
+		}
+		appMgr.ConfigureSessionLifecycle(sessionMgr, syncMedia)
+	}
 	s.setupMiddleware()
 	s.setupRoutes()
 	s.setupSPA()

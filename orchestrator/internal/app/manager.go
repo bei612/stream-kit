@@ -14,6 +14,7 @@ import (
 	"github.com/stream-kit/orchestrator/internal/config"
 	"github.com/stream-kit/orchestrator/internal/model"
 	"github.com/stream-kit/orchestrator/internal/moonlight"
+	"github.com/stream-kit/orchestrator/internal/session"
 	"github.com/stream-kit/orchestrator/internal/store"
 	"github.com/stream-kit/orchestrator/internal/sunshine"
 	"go.uber.org/zap"
@@ -32,6 +33,8 @@ type Manager struct {
 	uploadMu   sync.Mutex  // global: only one upload/extract at a time
 	uploading  atomic.Bool // true when upload or extract is in progress
 	runtimeMu  sync.Mutex  // serializes runtime observations with stop/delete acknowledgements
+	sessions   *session.Manager
+	syncMedia  func(context.Context) error
 }
 
 func NewManager(st *store.Store, cfg *config.Config, sunClient *sunshine.Client, moonClient *moonlight.Client, onEvent EventCallback, logger *zap.Logger) *Manager {
@@ -454,7 +457,7 @@ func (m *Manager) StopApp(appID string) error {
 		return err
 	}
 
-	if err := m.stopExecution(app); err != nil {
+	if err := m.stopManagedExecution(app); err != nil {
 		return err
 	}
 	if app.Status == model.AppStatusRunning || app.Status == model.AppStatusReady || app.Status == model.AppStatusCrashed {
@@ -622,7 +625,7 @@ func (m *Manager) DeleteApp(appID string) error {
 		return err
 	}
 
-	if err := m.stopExecution(app); err != nil {
+	if err := m.stopManagedExecution(app); err != nil {
 		return fmt.Errorf("删除前无法确认应用已停止，已保留应用和文件: %w", err)
 	}
 
