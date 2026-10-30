@@ -20,10 +20,14 @@ const argument = name => {
 const gatewayBinary = argument('--gateway');
 const orchestratorBinary = argument('--orchestrator');
 const runtimeConfig = argument('--runtime-config');
+const applicationExample = process.argv.includes('--example') ? argument('--example') : null;
+const exampleOutput = process.argv.includes('--example-output') ? process.argv[process.argv.indexOf('--example-output') + 1] : null;
+assert.ok(!applicationExample || exampleOutput, 'Application acceptance requires an explicit example output device');
 const numericOption = (name, fallback) => process.argv.includes(name) ? Number(process.argv[process.argv.indexOf(name) + 1]) : fallback;
 const clientCount = numericOption('--clients', 2);
 const holdSeconds = numericOption('--hold-seconds', 5);
 const microphoneTest = process.argv.includes('--microphone-tone');
+const microphoneFrequency = applicationExample ? 1499 : 997;
 const targetSwitch = process.argv.includes('--target-switch');
 assert.ok(!targetSwitch || microphoneTest, 'Target mode switching acceptance requires the microphone tone case');
 const restartServices = process.argv.includes('--restart-services');
@@ -31,8 +35,8 @@ assert.ok(!restartServices || !microphoneTest, 'Run recovery and microphone isol
 assert.ok(!microphoneTest || clientCount === 2, 'Microphone isolation acceptance uses two clients');
 assert.ok(Number.isInteger(clientCount) && clientCount >= 2 && clientCount <= 20);
 assert.ok(Number.isInteger(holdSeconds) && holdSeconds >= 0 && holdSeconds <= 86400);
-const scratch = path.join(root, '.local/managed-acceptance');
-const output = path.join(root, 'artifacts/managed-acceptance', new Date().toISOString().replace(/[:.]/g, '-'));
+const scratch = process.argv.includes('--scratch') ? argument('--scratch') : path.join(root, '.local/managed-acceptance');
+const output = process.argv.includes('--output-dir') ? argument('--output-dir') : path.join(root, 'artifacts/managed-acceptance', new Date().toISOString().replace(/[:.]/g, '-'));
 fs.mkdirSync(scratch, { recursive: true });
 fs.mkdirSync(output, { recursive: true });
 const result = { passed: false, status: 'running', clients: clientCount, hold_seconds: holdSeconds,
@@ -41,6 +45,7 @@ const result = { passed: false, status: 'running', clients: clientCount, hold_se
     : restartServices ? 'Real browser recovery across forced termination/restart of the isolated gateway and control processes; same ports/data, no page reload or host input. Not a network partition or long outage test.'
     : 'Real browser Desktop streams through isolated control and media services; no host input or microphone capture.' };
 const save = () => fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(result, null, 2));
+if (applicationExample) result.scope = 'Source-built application capture through native Sunshine, shared gateway and real browsers, including program tone and scoped stop. No physical microphone, target recording or Linux capture claim.';
 save();
 const children = [];
 let browser;
@@ -79,6 +84,28 @@ async function json(url, options = {}) {
   const response = await fetch(url, { ...options, signal: AbortSignal.timeout(20000) });
   assert.ok(response.ok, `${options.method || 'GET'} ${new URL(url).pathname}: ${response.status}`);
   return response.status === 204 ? null : response.json();
+}
+async function measureReceivedTone(page, frequency = 997) {
+  return page.evaluate(async frequency => {
+    if (!window.__toneProbe) {
+      const audioTrack = window.__acceptancePeers.flatMap(pc => pc.getReceivers()).find(r => r.track.kind === 'audio').track;
+      const context = new AudioContext(); await context.resume();
+      const source = context.createMediaStreamSource(new MediaStream([audioTrack]));
+      const analyser = context.createAnalyser(); analyser.fftSize = 4096; analyser.smoothingTimeConstant = 0;
+      const mute = context.createGain(); mute.gain.value = 0;
+      source.connect(analyser); analyser.connect(mute); mute.connect(context.destination);
+      window.__toneProbe = { context, source, analyser, mute };
+    }
+    const { analyser, context } = window.__toneProbe;
+    const bins = new Float32Array(analyser.frequencyBinCount);
+    const index = Math.round(frequency * analyser.fftSize / context.sampleRate), values = [];
+    for (let i = 0; i < 16; i++) {
+      analyser.getFloatFrequencyData(bins);
+      values.push(Math.max(-140, ...bins.slice(index - 2, index + 3)));
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    values.sort((a,b) => a-b); return values[Math.floor(values.length / 2)];
+  }, frequency);
 }
 async function main() {
   const runtime = JSON.parse(fs.readFileSync(runtimeConfig, 'utf8'));
@@ -131,10 +158,12 @@ async function main() {
   const controlConfig = { server: { bind_address: `127.0.0.1:${controlPort}`, ...credentials,
     jwt_secret: crypto.randomBytes(32).toString('hex'), media_ticket_secret: secret, cors_origins: [gateway] },
     components: {}, moonlight_web: { base_url: gateway, public_url: gateway, ...credentials },
-    storage: { apps_dir: './apps', temp_dir: './temp', db_path: './control.db', max_upload_size_bytes: 10485760 },
+    storage: { apps_dir: './apps', temp_dir: './temp', db_path: './control.db', max_upload_size_bytes: 10485760,
+      max_extract_size_bytes: 10485760, max_file_count: 1000 },
     process: { monitor_interval_seconds: 2, graceful_shutdown_timeout_seconds: 2 },
     log: { level: 'info', file: { enabled: false }, access_log: { enabled: false } } };
   const controlConfigFile = path.join(scratch, 'control-config.json');
+  if (applicationExample) controlConfig.sunshine_api = sun;
   fs.writeFileSync(controlConfigFile, JSON.stringify(controlConfig));
   let gatewayProcess = launch(gatewayBinary, ['--config-path', gatewayConfigFile, 'run'], 'gateway');
   const controlProcess = launch(orchestratorBinary, ['--config', controlConfigFile], 'orchestrator');
@@ -184,15 +213,32 @@ async function main() {
     }
     assert.ok(completed, 'Pairing did not complete');
   }
-  const desktop = (await native(`/apps?host_id=${host.host_id}`)).apps.find(app => app.title === 'Desktop');
-  assert.ok(desktop, 'A Desktop application is required; this test does not edit the Sunshine app catalog');
+  const login = await json(control + '/api/v1/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credentials) });
+  const api = (resource, method = 'GET', body) => json(control + '/api/v1' + resource, { method,
+    headers: { Authorization: 'Bearer ' + login.data.token, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) }).then(r => r.data);
+  let ownedApp;
+  if (applicationExample) {
+    assert.ok(!exampleOutput.includes('"') && !/[\r\n]/.test(exampleOutput), 'Invalid output device name');
+    ownedApp = await api('/apps/local', 'POST', { name: 'Source capture acceptance', exe_path: applicationExample,
+      capture_mode: 'application', args: `"--tone-output=${exampleOutput}" --tone-count=20` });
+    assert.equal(ownedApp.status, 'ready');
+    assert.ok(ownedApp.sunshine_app_id > 0);
+    result.application = { id: ownedApp.id, native_id: ownedApp.sunshine_app_id, capture_mode: ownedApp.capture_mode, example_sha256: sha(applicationExample) };
+  }
+  const desktop = (await native(`/apps?host_id=${host.host_id}`)).apps.find(app => ownedApp ? app.app_id === ownedApp.sunshine_app_id : app.title === 'Desktop');
+  assert.ok(desktop, 'The selected native application must be visible in the gateway');
   cleanupRenderer = async () => {
     const finalInfo = await (await fetch(infoURL, { signal: AbortSignal.timeout(3000) })).text();
     if (/<currentgame>0<\/currentgame>/.test(finalInfo)) { result.sunshine_restored_idle = true; return; }
-    // The run began idle, selected only Desktop, and closes its browsers first.
+    // The run began idle and selected only this application's native identity.
     // Refuse to cancel if another rendering application has since been selected.
     assert.match(finalInfo, new RegExp(`<currentgame>${desktop.app_id}</currentgame>`));
-    await native('/host/cancel', 'POST', { host_id: host.host_id });
+    if (ownedApp) {
+      const active = await sunshine('/api/stream-kit/runtime');
+      assert.equal(active.app_id, ownedApp.id);
+      await api(`/apps/${ownedApp.id}/stop`, 'POST');
+      result.scoped_stop = { app_id: active.app_id, instance_id: active.instance_id, acknowledged: true };
+    } else await native('/host/cancel', 'POST', { host_id: host.host_id });
     for (let i = 0; i < 30; i++) {
       const restored = await (await fetch(infoURL, { signal: AbortSignal.timeout(3000) })).text();
       if (/<currentgame>0<\/currentgame>/.test(restored)) { result.sunshine_restored_idle = true; return; }
@@ -200,12 +246,9 @@ async function main() {
     }
     throw new Error('Sunshine did not return to its initial idle state');
   };
-  const login = await json(control + '/api/v1/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credentials) });
-  const api = (resource, method = 'GET', body) => json(control + '/api/v1' + resource, { method,
-    headers: { Authorization: 'Bearer ' + login.data.token, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) }).then(r => r.data);
   const invite = await api('/stream-invitations', 'POST', { host_id: host.host_id, app_id: desktop.app_id });
   if (microphoneTest) await api(`/stream-sessions/${invite.session_id}/audio`, 'PATCH', {
-    program_gain_db: -60, microphone_gain_db: 0, microphone_enabled: true,
+    program_gain_db: applicationExample ? 0 : -60, microphone_gain_db: 0, microphone_enabled: true,
     broadcast_controller_microphone: true, controller_monitor: false,
   });
   const { chromium } = createRequire(path.join(root, 'third_party/moonlight-web-stream/package.json'))('playwright');
@@ -217,8 +260,8 @@ async function main() {
     wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22);
     wav.writeUInt32LE(rate, 24); wav.writeUInt32LE(rate * 2, 28); wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34);
     wav.write('data', 36); wav.writeUInt32LE(samples * 2, 40);
-    for (let i = 0; i < samples; i++) wav.writeInt16LE(Math.round(0.2 * 32767 * Math.sin(2 * Math.PI * 997 * i / rate)), 44 + i * 2);
-    const toneFile = path.join(scratch, 'microphone-997hz.wav');
+    for (let i = 0; i < samples; i++) wav.writeInt16LE(Math.round(0.2 * 32767 * Math.sin(2 * Math.PI * microphoneFrequency * i / rate)), 44 + i * 2);
+    const toneFile = path.join(scratch, `microphone-${microphoneFrequency}hz.wav`);
     fs.writeFileSync(toneFile, wav);
     browserArgs.push('--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${toneFile}`);
   }
@@ -243,6 +286,17 @@ async function main() {
     await page.waitForFunction(() => { const video = document.querySelector('video'); return video && video.videoWidth > 0 && video.getVideoPlaybackQuality().totalVideoFrames > 15; }, null, { timeout: 60000 });
     assert.equal(await page.locator('#ml-api-name').count(), 0);
     console.log(`Viewer ${i + 1}/${clientCount} is decoding`);
+  }
+  if (applicationExample) {
+    result.program_audio_db = await Promise.all(pages.map(page => measureReceivedTone(page)));
+    const picture = await pages[0].evaluate(() => {
+      const video = document.querySelector('video'), canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      return canvas.toDataURL('image/png').split(',')[1];
+    });
+    fs.writeFileSync(path.join(output, 'application-frame.png'), Buffer.from(picture, 'base64'));
+    assert.ok(result.program_audio_db.every(level => level > -65), 'Every viewer must receive the example process-tree 997 Hz tone');
   }
   let observed;
   for (let i = 0; i < 30; i++) {
@@ -314,29 +368,7 @@ async function main() {
     console.log('Control restart retained session and unique controller');
   }
   if (microphoneTest) {
-    for (const page of pages) await page.evaluate(async () => {
-      const audioTrack = window.__acceptancePeers.flatMap(pc => pc.getReceivers()).find(r => r.track.kind === 'audio').track;
-      const context = new AudioContext();
-      await context.resume();
-      const source = context.createMediaStreamSource(new MediaStream([audioTrack]));
-      const analyser = context.createAnalyser(); analyser.fftSize = 4096; analyser.smoothingTimeConstant = 0;
-      const mute = context.createGain(); mute.gain.value = 0;
-      source.connect(analyser); analyser.connect(mute); mute.connect(context.destination);
-      window.__toneProbe = { context, source, analyser, mute };
-    });
-    const measure = page => page.evaluate(async () => {
-      const { analyser, context } = window.__toneProbe;
-      const bins = new Float32Array(analyser.frequencyBinCount);
-      const index = Math.round(997 * analyser.fftSize / context.sampleRate);
-      const values = [];
-      for (let i = 0; i < 16; i++) {
-        analyser.getFloatFrequencyData(bins);
-        values.push(Math.max(-140, ...bins.slice(index - 2, index + 3)));
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
-      values.sort((a, b) => a - b);
-      return values[Math.floor(values.length / 2)];
-    });
+    const measure = page => measureReceivedTone(page, microphoneFrequency);
     const startMicrophone = async page => {
       await page.waitForFunction(() => !!window.app.getStream().getMicrophoneListener());
       await page.waitForFunction(() => window.app.getStream().mediaAccess.role === 'controller');
@@ -345,7 +377,7 @@ async function main() {
     };
     const connectionId = page => page.evaluate(() => window.app.getStream().mediaAccess.connectionId);
     const [speaker, listener] = await Promise.all(pages.map(connectionId));
-    const levels = {};
+    const levels = { frequency_hz: microphoneFrequency };
     await pages[0].waitForFunction(() => !!window.app.getStream().getMicrophoneListener());
     await pages[0].evaluate(() => window.app.getStream().getMicrophoneListener().onUserInteraction());
     assert.equal(await pages[0].evaluate(() => window.app.getStream().getMicrophoneListener().isLive()), false,
@@ -371,6 +403,10 @@ async function main() {
     levels.controller_broadcast_db = await measure(pages[1]);
     assert.ok(levels.controller_broadcast_db > -55 && levels.controller_broadcast_db > levels.viewer_denied_db + 20,
       `Authorized microphone tone missing: ${JSON.stringify(levels)}`);
+    if (applicationExample) {
+      levels.simultaneous_program_db = await Promise.all(pages.map(page => measureReceivedTone(page, 997)));
+      assert.ok(levels.simultaneous_program_db.every(level => level > -65), 'Program audio must reach both viewers while microphone broadcasting');
+    }
     if (targetSwitch) {
       const before = await Promise.all(pages.map(videoFrames));
       const observations = [];
@@ -451,7 +487,7 @@ async function main() {
   assert.equal(observed?.subscribers, 0);
   assert.equal(observed.upstream_active, false);
   // The last media subscription ends its transport; Sunshine deliberately
-  // retains the selected app for resume. Explicitly end only this run's Desktop.
+  // retains the selected app for resume. Explicitly end only this run's app.
   await cleanupRenderer();
   cleanupRenderer = null;
   assert.deepEqual(pageErrors, []);

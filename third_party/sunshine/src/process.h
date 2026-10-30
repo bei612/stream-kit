@@ -22,6 +22,7 @@
 
 // local includes
 #include "config.h"
+#include "file_handler.h"
 #include "platform/common.h"
 #include "rtsp.h"
 #include "utility.h"
@@ -30,7 +31,7 @@
  * @def DEFAULT_APP_IMAGE_PATH
  * @brief Macro for DEFAULT APP IMAGE PATH.
  */
-#define DEFAULT_APP_IMAGE_PATH SUNSHINE_ASSETS_DIR "/box.png"
+#define DEFAULT_APP_IMAGE_PATH file_handler::resource_string(SUNSHINE_ASSETS_DIR "/box.png")
 
 namespace proc {
   /**

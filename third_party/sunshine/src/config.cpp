@@ -1782,7 +1782,7 @@ namespace config {
 #ifndef __ANDROID__
     // TODO: Android can possibly support this
     if (!fs::exists(stream.file_apps.c_str())) {
-      fs::copy_file(SUNSHINE_ASSETS_DIR "/apps.json", stream.file_apps);
+      fs::copy_file(file_handler::resource_path(SUNSHINE_ASSETS_DIR "/apps.json"), stream.file_apps);
       fs::permissions(
         stream.file_apps,
         fs::perms::owner_read | fs::perms::owner_write,

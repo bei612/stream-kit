@@ -5,6 +5,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 	"syscall"
 	"unsafe"
 )
@@ -101,6 +102,8 @@ func rgb(r, g, b byte) uintptr {
 var screenW, screenH int
 var gridCols, gridRows = 8, 8
 var fullscreen = false
+var initialToneOutput string
+var initialToneCount = 1
 
 func wndProc(hwnd syscall.Handle, msg uint32, wParam uintptr, lParam unsafe.Pointer) uintptr {
 	switch msg {
@@ -261,6 +264,15 @@ func main() {
 	for _, arg := range os.Args[1:] {
 		if arg == "-fullscreen" || arg == "--fullscreen" {
 			fullscreen = true
+		} else if strings.HasPrefix(arg, "--tone-output=") {
+			initialToneOutput = strings.TrimPrefix(arg, "--tone-output=")
+		} else if strings.HasPrefix(arg, "--tone-count=") {
+			count, err := strconv.Atoi(strings.TrimPrefix(arg, "--tone-count="))
+			if err != nil || count < 1 || count > 20 {
+				fmt.Fprintln(os.Stderr, "tone-count must be between 1 and 20")
+				os.Exit(2)
+			}
+			initialToneCount = count
 		} else {
 			numArgs = append(numArgs, arg)
 		}

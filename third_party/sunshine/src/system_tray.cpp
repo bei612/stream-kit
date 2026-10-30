@@ -74,14 +74,12 @@
   #include "config.h"
   #include "confighttp.h"
   #include "display_device.h"
+  #include "file_handler.h"
   #include "logging.h"
   #include "platform/common.h"
   #include "process.h"
   #include "src/entry_handler.h"
   #include "system_tray.h"
-  #ifdef _WIN32
-    #include "platform/windows/utf_utils.h"
-  #endif
 
 using namespace std::literals;
 
@@ -565,7 +563,7 @@ namespace system_tray {
       return nullptr;
     }
 
-    if (std::filesystem::path {relativePath}.is_absolute()) {
+    if (file_handler::from_utf8(relativePath).is_absolute()) {
       return relativePath;
     }
 
@@ -579,15 +577,7 @@ namespace system_tray {
   #endif
 
   #ifdef _WIN32
-    std::array<wchar_t, 32768> executable {};
-    const auto executable_length = GetModuleFileNameW(nullptr, executable.data(), executable.size());
-    if (executable_length == 0 || executable_length >= executable.size()) {
-      return relativePath;
-    }
-
-    const auto full_path =
-      (std::filesystem::path {executable.data()}.parent_path() / utf_utils::from_utf8(relativePath)).lexically_normal();
-    auto full = utf_utils::to_utf8(full_path.wstring());
+    auto full = file_handler::resource_string(relativePath);
 
     BOOST_LOG(debug) << "System Tray: using " << full << " for icon path";
 

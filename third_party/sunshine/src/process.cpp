@@ -683,18 +683,22 @@ namespace proc {
     }
 
     // check if image is in assets directory
-    if (auto full_image_path = std::filesystem::path(SUNSHINE_ASSETS_DIR) / app_image_path; std::filesystem::exists(full_image_path)) {
+    if (auto full_image_path = file_handler::resource_path(SUNSHINE_ASSETS_DIR) / file_handler::from_utf8(app_image_path); std::filesystem::exists(full_image_path)) {
       // Validate PNG signature
       if (!check_valid_png(full_image_path)) {
         BOOST_LOG(warning) << "Invalid PNG file at path ["sv << full_image_path << ']';
         return DEFAULT_APP_IMAGE_PATH;
       }
-      return full_image_path.string();
+      if (file_handler::from_utf8(app_image_path).is_absolute()) {
+        return app_image_path;
+      }
+      const auto encoded = full_image_path.generic_u8string();
+      return {encoded.begin(), encoded.end()};
     }
 
     if (app_image_path == "./assets/steam.png") {
       // handle old default steam image definition
-      return SUNSHINE_ASSETS_DIR "/steam.png";
+      return file_handler::resource_string(SUNSHINE_ASSETS_DIR "/steam.png");
     }
 
     // check if specified image exists

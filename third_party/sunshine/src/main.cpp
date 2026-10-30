@@ -438,14 +438,13 @@ int main(int argc, char *argv[]) {
 
   proc::refresh(config::stream.file_apps);
 
-  // If any of the following fail, we log an error and continue event though sunshine will not function correctly.
-  // This allows access to the UI to fix configuration problems or view the logs.
-
   auto platf_deinit_guard = platf::init();
   if (!platf_deinit_guard) {
-    BOOST_LOG(error) << "Platform failed to initialize"sv;
+    BOOST_LOG(fatal) << "Platform failed to initialize; media startup aborted"sv;
+    return 1;
   }
 
+  // Recoverable subsystem failures keep the UI available for configuration and logs.
   auto proc_deinit_guard = proc::init();
   if (!proc_deinit_guard) {
     BOOST_LOG(error) << "Proc failed to initialize"sv;

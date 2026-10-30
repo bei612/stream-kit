@@ -16,6 +16,11 @@ import (
 
 const audioMessage = 0x8001
 
+// Explicit command-line playback is bounded and shares the normal device path.
+var automaticToneDevice string
+var automaticToneRemaining int
+var automaticToneSeen bool
+
 type audioDevice struct {
 	ID     string `json:"id"`
 	Name   string `json:"name"`
@@ -293,6 +298,44 @@ func refreshAudio() {
 		}
 		fillDevices(inputCombo, inputDevices, oldInput)
 		fillDevices(outputCombo, outputDevices, oldOutput)
+		if initialToneOutput != "" {
+			requested := initialToneOutput
+			initialToneOutput = ""
+			index := -1
+			for i, device := range outputDevices {
+				if device.ID == requested || device.Name == requested {
+					if index >= 0 {
+						index = -2
+						break
+					}
+					index = i
+				}
+			}
+			if index >= 0 {
+				pSendMessage.Call(outputCombo, 0x014E, uintptr(index), 0)
+				automaticToneDevice = outputDevices[index].ID
+				automaticToneRemaining = initialToneCount - 1
+				probe.send("tone", outputDevices[index].ID)
+			} else {
+				probe.setError("Requested tone output is missing or ambiguous; select an explicit device")
+			}
+		}
+	}
+	if automaticToneDevice != "" {
+		if errText != "" || state.Error != nil {
+			automaticToneDevice = ""
+			automaticToneRemaining = 0
+		} else if state.State == "tone" {
+			automaticToneSeen = true
+		} else if state.State == "completed" && automaticToneSeen {
+			automaticToneSeen = false
+			if automaticToneRemaining > 0 {
+				automaticToneRemaining--
+				probe.send("tone", automaticToneDevice)
+			} else {
+				automaticToneDevice = ""
+			}
+		}
 	}
 	text := fmt.Sprintf("State: %s   |   Captured: %.2f s   |   Peak: %.3f   RMS: %.3f\r\nInput frames dropped: %d   |   Playback frames: %d\r\nSelect devices, then start a test. Input is held in memory only.", state.State, float64(state.Captured)/48000, state.Peak, state.RMS, state.Dropped, state.Played)
 	if errText != "" {
@@ -334,6 +377,9 @@ func drawAudioButton(item *drawItem) {
 	}
 }
 func audioCommand(id uintptr) {
+	automaticToneDevice = ""
+	automaticToneRemaining = 0
+	automaticToneSeen = false
 	if probe == nil {
 		return
 	}

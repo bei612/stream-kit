@@ -29,6 +29,26 @@ namespace file_handler {
     return std::filesystem::path(std::u8string(path.begin(), path.end()));
   }
 
+  std::filesystem::path resource_path(std::string_view path) {
+    auto resolved = from_utf8(path);
+#ifdef _WIN32
+    if (resolved.is_relative()) {
+      std::vector<wchar_t> executable(32768);
+      const auto length = GetModuleFileNameW(nullptr, executable.data(), static_cast<DWORD>(executable.size()));
+      if (length == 0 || length >= executable.size()) {
+        throw std::runtime_error("Cannot locate executable resource directory");
+      }
+      resolved = std::filesystem::path(std::wstring(executable.data(), length)).parent_path() / resolved;
+    }
+#endif
+    return resolved.lexically_normal();
+  }
+
+  std::string resource_string(std::string_view path) {
+    const auto encoded = resource_path(path).generic_u8string();
+    return {encoded.begin(), encoded.end()};
+  }
+
   replace_result_t atomic_replace(const std::filesystem::path &path, std::string_view contents) {
     auto temporary = path;
     temporary += ".tmp-" + uuid_util::uuid_t::generate().string();

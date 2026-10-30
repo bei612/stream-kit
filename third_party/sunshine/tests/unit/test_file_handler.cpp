@@ -11,6 +11,35 @@
 
 // local includes
 #include <src/file_handler.h>
+#ifdef _WIN32
+  #include <Windows.h>
+#endif
+
+TEST(ResourcePathTest, AbsoluteInstallPathsAndUtf8ArePreserved) {
+  const auto root = std::filesystem::absolute(std::filesystem::path(SUNSHINE_TEST_BIN_DIR));
+  const auto expected = root / file_handler::from_utf8("assets/\xe6\xb5\x8b\xe8\xaf\x95.png");
+  const auto encoded = expected.generic_u8string();
+  const std::string path(encoded.begin(), encoded.end());
+  EXPECT_EQ(file_handler::resource_path(path), expected.lexically_normal());
+  EXPECT_EQ(file_handler::resource_string(path), path);
+}
+
+#ifdef _WIN32
+TEST(ResourcePathTest, PackagedResourcesDoNotFollowCurrentWorkingDirectory) {
+  const auto original = std::filesystem::current_path();
+  auto restore = util::fail_guard([&]() {
+    std::filesystem::current_path(original);
+  });
+  const auto before = file_handler::resource_path("assets/shaders/test.hlsl");
+  std::filesystem::current_path(std::filesystem::temp_directory_path());
+  EXPECT_EQ(file_handler::resource_path("assets/shaders/test.hlsl"), before);
+  EXPECT_TRUE(before.is_absolute());
+  std::vector<wchar_t> executable(32768);
+  const auto length = GetModuleFileNameW(nullptr, executable.data(), static_cast<DWORD>(executable.size()));
+  ASSERT_GT(length, 0U);
+  EXPECT_EQ(before, std::filesystem::path(std::wstring(executable.data(), length)).parent_path() / "assets/shaders/test.hlsl");
+}
+#endif
 
 struct FileHandlerParentDirectoryTest: BaseTest, testing::WithParamInterface<std::tuple<std::string, std::string>> {};
 

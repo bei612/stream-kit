@@ -15,6 +15,18 @@
 namespace file_handler {
   /** @brief Convert a UTF-8 API path to the platform-native filesystem representation. @param path UTF-8 path bytes. @return Native filesystem path. */
   std::filesystem::path from_utf8(std::string_view path);
+  /**
+   * @brief Resolve a packaged resource independently of the Windows launch working directory.
+   * @param path Compiled resource path; absolute install/test paths are preserved.
+   * @return Native path anchored at the executable for relative Windows resources.
+   */
+  std::filesystem::path resource_path(std::string_view path);
+  /**
+   * @brief Resolve a resource for APIs that consume UTF-8 strings.
+   * @param path Compiled resource path.
+   * @return Resolved path encoded as UTF-8.
+   */
+  std::string resource_string(std::string_view path);
 
   /** @brief Distinguish a failed preparation from a committed replacement whose directory flush failed. */
   struct replace_result_t {
