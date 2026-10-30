@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { api } from '@/api/client'
+import { createViewingInvitation, openViewingStream } from '@/lib/stream-access'
 import StatusBadge from '@/components/StatusBadge'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -105,22 +106,14 @@ export default function AppDetail() {
   const [stopping, setStopping] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  // Build full stream URL from "port/path" using current hostname
-  const buildStreamURL = (portPath: string) => {
-    if (!portPath) return ''
-    const hostname = window.location.hostname
-    return `http://${hostname}:${portPath}`
-  }
-
   const handleLaunch = async () => {
     if (!id) return
     setLaunching(true)
     try {
-      const res = await api.launchApp(id)
-      const portPath = (res.data as any)?.stream_url
-      if (portPath) {
-        window.open(buildStreamURL(portPath), '_blank')
-      }
+      await openViewingStream(async () => {
+        const res = await api.launchApp(id)
+        return res.data?.stream_url
+      })
       refresh()
     } catch (e: any) {
       alert(e.message)
@@ -188,14 +181,18 @@ export default function AppDetail() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => {
-                      navigator.clipboard.writeText(buildStreamURL(app.stream_url))
-                      setCopied(true)
-                      setTimeout(() => setCopied(false), 2000)
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(await createViewingInvitation(app.stream_url))
+                        setCopied(true)
+                        setTimeout(() => setCopied(false), 2000)
+                      } catch (error: unknown) {
+                        alert(error instanceof Error ? error.message : '无法创建观看邀请')
+                      }
                     }}
                   >
                     {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                    {copied ? '已复制' : '复制分享链接'}
+                    {copied ? '已复制' : '复制观看邀请（2 分钟有效）'}
                   </Button>
                 )}
               </>
@@ -203,7 +200,7 @@ export default function AppDetail() {
           </div>
           {app.status === 'running' && app.stream_url && (
             <div className="mt-3 text-xs text-muted-foreground font-mono bg-muted rounded px-3 py-2 break-all select-all">
-              {buildStreamURL(app.stream_url)}
+              使用启动按钮或观看邀请进入串流；邀请在两分钟内可加入，已加入的连接通过心跳续期。
             </div>
           )}
         </CardContent>

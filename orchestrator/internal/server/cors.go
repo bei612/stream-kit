@@ -15,7 +15,9 @@ func CORSMiddleware(allowed []string) gin.HandlerFunc {
 	set := make(map[string]struct{}, len(allowed))
 	for _, origin := range allowed {
 		origin = strings.TrimSpace(origin)
-		if origin != "" { set[origin] = struct{}{} }
+		if origin != "" {
+			set[origin] = struct{}{}
+		}
 	}
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
@@ -24,12 +26,18 @@ func CORSMiddleware(allowed []string) gin.HandlerFunc {
 				c.Header("Access-Control-Allow-Origin", origin)
 				c.Header("Vary", "Origin")
 				c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
-				c.Header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
+				c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 			}
 		}
 		if c.Request.Method == http.MethodOptions {
-			if origin == "" { c.AbortWithStatus(http.StatusNoContent); return }
-			if _, ok := set[origin]; !ok { c.AbortWithStatus(http.StatusForbidden); return }
+			if origin == "" {
+				c.AbortWithStatus(http.StatusNoContent)
+				return
+			}
+			if _, ok := set[origin]; !ok {
+				c.AbortWithStatus(http.StatusForbidden)
+				return
+			}
 			c.AbortWithStatus(http.StatusNoContent)
 			return
 		}

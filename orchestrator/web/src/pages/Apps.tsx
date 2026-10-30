@@ -7,6 +7,7 @@ import StatusBadge from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Table, TableHead, TableBody, TableRow, Th, Td } from '@/components/ui/table'
 import { formatBytes, formatTime } from '@/lib/utils'
+import { openViewingStream } from '@/lib/stream-access'
 import { Play, Trash2, Square, Upload } from 'lucide-react'
 
 export default function Apps() {
@@ -30,12 +31,10 @@ export default function Apps() {
 
   const handleLaunch = async (id: string) => {
     try {
-      const res = await api.launchApp(id)
-      const portPath = (res.data as any)?.stream_url
-      if (portPath) {
-        const url = `http://${window.location.hostname}:${portPath}`
-        window.open(url, '_blank')
-      }
+      await openViewingStream(async () => {
+        const res = await api.launchApp(id)
+        return res.data?.stream_url
+      })
       refresh()
     } catch (e: any) {
       alert(e.message)

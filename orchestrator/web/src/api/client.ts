@@ -107,6 +107,10 @@ export const api = {
   stopAllComponents: () => request<any>('/components/stop-all', { method: 'POST' }),
 
   // Shared stream sessions
+  inviteStreamViewers: (hostId: number, appId: number) =>
+    request<{ invitation: string; expires_at: string; gateway_public_url: string }>('/stream-invitations', {
+      method: 'POST', body: JSON.stringify({ host_id: hostId, app_id: appId }),
+    }),
   listStreamSessions: () => request<RenderSession[]>('/stream-sessions'),
   getStreamSession: (id: string) => request<RenderSession>(`/stream-sessions/${id}`),
   getMediaControl: () => request<MediaControlStatus>('/media-control'),

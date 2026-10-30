@@ -86,50 +86,12 @@ export type Api = {
     role: DetailedRole | null,
 }
 
-export type MediaAccess = {
-    baseUrl: string
-    bearer: string
-    sessionId: string
-    connectionId: string
-    ticket: string
-    expiresAt: string
-}
+export { MediaAccess, managedStreaming, MediaAccessError, refreshMediaTicket as apiRefreshMediaTicket } from "./stream/media_access"
+export { mediaHeartbeat as apiMediaHeartbeat, releaseMediaAccess as apiReleaseMediaAccess } from "./stream/media_access"
+import { acquireMediaAccess } from "./stream/media_access"
 
-function mediaControlConfig(): { baseUrl: string, bearer: string } | null {
-    const query = new URLSearchParams(window.location.search)
-    const baseUrl = query.get("mediaControlUrl")
-    const bearer = query.get("mediaControlToken")
-    if (!baseUrl || !bearer) return null
-    return { baseUrl: baseUrl.replace(/\/$/, ""), bearer }
-}
-
-async function mediaControlRequest(baseUrl: string, bearer: string, path: string, method: string, body?: unknown): Promise<any> {
-    const response = await fetch(`${baseUrl}/api/v1${path}`, {
-        method,
-        headers: { Authorization: `Bearer ${bearer}`, "Content-Type": "application/json" },
-        body: body === undefined ? undefined : JSON.stringify(body),
-        credentials: "omit",
-    })
-    const json = await response.json().catch(() => null)
-    if (!response.ok || json?.status === "error") throw new Error(json?.message || `media control request failed (${response.status})`)
-    return json?.data
-}
-
-export async function apiEnsureMediaAccess(api: Api, hostId: number, appId: number): Promise<MediaAccess | null> {
-    const config = mediaControlConfig()
-    if (!config) return null
-    const session = await mediaControlRequest(config.baseUrl, config.bearer, "/stream-sessions", "POST", { host_id: hostId, app_id: appId })
-    const connection = await mediaControlRequest(config.baseUrl, config.bearer, `/stream-sessions/${session.session_id}/connections`, "POST", { user_id: api.user?.name || "web-client" })
-    const ticket = await mediaControlRequest(config.baseUrl, config.bearer, `/stream-sessions/${session.session_id}/connections/${connection.connection_id}/ticket`, "POST")
-    return { baseUrl: config.baseUrl, bearer: config.bearer, sessionId: session.session_id, connectionId: connection.connection_id, ticket: ticket.ticket, expiresAt: ticket.expires_at }
-}
-
-export async function apiMediaHeartbeat(access: MediaAccess, microphone: boolean, microphoneLive: boolean): Promise<void> {
-    await mediaControlRequest(access.baseUrl, access.bearer, `/stream-sessions/${access.sessionId}/connections/${access.connectionId}/heartbeat`, "POST", { microphone, microphone_live: microphoneLive })
-}
-
-export async function apiReleaseMediaAccess(access: MediaAccess): Promise<void> {
-    await mediaControlRequest(access.baseUrl, access.bearer, `/stream-sessions/${access.sessionId}/connections/${access.connectionId}`, "DELETE")
+export async function apiEnsureMediaAccess(_api: Api, hostId: number, appId: number) {
+    return acquireMediaAccess(hostId, appId)
 }
 
 export type ApiFetchInit = {

@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,14 +24,14 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	BindAddress string `json:"bind_address" mapstructure:"bind_address"`
-	Username    string `json:"username" mapstructure:"username"`
-	Password    string `json:"password" mapstructure:"password"`
-	JWTSecret   string `json:"jwt_secret" mapstructure:"jwt_secret"`
-	MediaTicketSecret string `json:"media_ticket_secret" mapstructure:"media_ticket_secret"`
-	CORSOrigins []string `json:"cors_origins" mapstructure:"cors_origins"`
-	TLSCert     string `json:"tls_cert" mapstructure:"tls_cert"`
-	TLSKey      string `json:"tls_key" mapstructure:"tls_key"`
+	BindAddress       string   `json:"bind_address" mapstructure:"bind_address"`
+	Username          string   `json:"username" mapstructure:"username"`
+	Password          string   `json:"password" mapstructure:"password"`
+	JWTSecret         string   `json:"jwt_secret" mapstructure:"jwt_secret"`
+	MediaTicketSecret string   `json:"media_ticket_secret" mapstructure:"media_ticket_secret"`
+	CORSOrigins       []string `json:"cors_origins" mapstructure:"cors_origins"`
+	TLSCert           string   `json:"tls_cert" mapstructure:"tls_cert"`
+	TLSKey            string   `json:"tls_key" mapstructure:"tls_key"`
 }
 
 type ComponentConfig struct {
@@ -65,9 +66,10 @@ type SunshineAPIConfig struct {
 }
 
 type MoonlightWebConfig struct {
-	BaseURL  string `json:"base_url" mapstructure:"base_url"`
-	Username string `json:"username" mapstructure:"username"`
-	Password string `json:"password" mapstructure:"password"`
+	PublicURL string `json:"public_url" mapstructure:"public_url"`
+	BaseURL   string `json:"base_url" mapstructure:"base_url"`
+	Username  string `json:"username" mapstructure:"username"`
+	Password  string `json:"password" mapstructure:"password"`
 }
 
 type StorageConfig struct {
@@ -196,8 +198,21 @@ func validate(cfg *Config) []string {
 	check(cfg.Storage.DBPath == "", "storage.db_path 不能为空")
 	check(cfg.Storage.MaxUploadSize <= 0, "storage.max_upload_size_bytes 必须 > 0")
 	check(cfg.Process.MonitorInterval <= 0, "process.monitor_interval_seconds 必须 > 0")
+	if cfg.Server.MediaTicketSecret != "" {
+		check(len(cfg.Server.MediaTicketSecret) < 32, "server.media_ticket_secret 必须至少 32 字节")
+		check(len(cfg.Server.JWTSecret) < 32, "托管串流必须配置至少 32 字节的 server.jwt_secret")
+		check(!validServiceURL(cfg.MoonlightWeb.BaseURL), "moonlight_web.base_url 必须是无凭据的 HTTP(S) 地址")
+	}
+	if cfg.MoonlightWeb.PublicURL != "" {
+		check(!validServiceURL(cfg.MoonlightWeb.PublicURL), "moonlight_web.public_url 必须是无凭据的 HTTP(S) 地址")
+	}
 
 	return errs
+}
+
+func validServiceURL(raw string) bool {
+	u, err := url.Parse(raw)
+	return err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Hostname() != "" && u.User == nil && u.RawQuery == "" && u.Fragment == ""
 }
 
 func generateDefaultConfig(path string) error {

@@ -130,6 +130,15 @@ func (s *Server) setupRoutes() {
 				c.JSON(http.StatusOK, gin.H{"status": "ok", "data": s.MediaControl.Status()})
 			})
 		}
+		clientHandler := handlers.NewClientSessionHandler(sh, jwtSecret)
+		clientHandler.GatewayPublicURL = s.Config.MoonlightWeb.PublicURL
+		authed.POST("/stream-invitations", clientHandler.Invite)
+		api.POST("/client-sessions/join", clientHandler.Join)
+		clients := api.Group("/client-sessions/:session_id/connections/:connection_id", clientHandler.Authorize())
+		clients.GET("", clientHandler.Current)
+		clients.POST("/heartbeat", clientHandler.Heartbeat)
+		clients.POST("/ticket", sh.MediaTicket)
+		clients.DELETE("", sh.Disconnect)
 		sessions := authed.Group("/stream-sessions")
 		sessions.GET("", sh.List)
 		sessions.POST("", sh.Ensure)

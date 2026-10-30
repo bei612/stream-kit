@@ -1,4 +1,4 @@
-import { Api, apiEnsureMediaAccess, apiMediaHeartbeat, apiReleaseMediaAccess, apiWebRTCConfiguration, apiWebRTCOffer, MediaAccess } from "../api"
+import { Api, apiEnsureMediaAccess, apiMediaHeartbeat, apiRefreshMediaTicket, apiReleaseMediaAccess, apiWebRTCConfiguration, apiWebRTCOffer, MediaAccess, MediaAccessError, managedStreaming } from "../api"
 import { Component } from "../component/index"
 import { Settings, TransportType } from "../component/settings_menu"
 import { ControlPacket, ControlPacket_Tags, TerminationReason_Tags, VideoFormats } from "../uniffi/moonlight_common_bindings"
@@ -185,11 +185,19 @@ export class Stream implements Component {
                 } else if (desiredTransport == "websocket") {
                     shutdownReason = await this.tryWebSocketTransport()
                 }
+            } catch (error) {
+                this.debugLog(`Stream transport failed: ${error}`)
+                await this.transport?.close()
+                this.transport = null
+                shutdownReason = "failednoconnect"
             } finally {
-                await this.releaseMediaAccess()
+                this.cleanupMicrophone()
             }
 
-            if (this.stopped || shutdownReason == "disconnect") return
+            if (this.stopped || shutdownReason == "disconnect") {
+                await this.releaseMediaAccess()
+                return
+            }
             this.debugLog("Stream disconnected; reconnecting", { type: "ifErrorDescription" })
             await wait(retryDelay)
             retryDelay = Math.min(retryDelay * 2, 30000)
@@ -246,15 +254,21 @@ export class Stream implements Component {
 
         let mediaAccess: MediaAccess | null = null
         try {
-            mediaAccess = await apiEnsureMediaAccess(this.api, this.hostId, this.appId)
+            mediaAccess = this.mediaAccess
+            if (mediaAccess) await apiRefreshMediaTicket(mediaAccess)
+            else mediaAccess = await apiEnsureMediaAccess(this.api, this.hostId, this.appId)
             this.mediaAccess = mediaAccess
+            this.startMediaHeartbeat()
             if (this.stopped) {
-                await this.releaseMediaAccess()
+                this.cleanupMicrophone()
                 return "disconnect"
             }
         } catch (error) {
             this.debugLog(`Media control admission failed: ${error}`)
-            return "failednoconnect"
+            if (this.mediaAccess && !(error instanceof MediaAccessError && (error.status === 401 || error.status === 410))) {
+                return "failednoconnect"
+            }
+            return "disconnect"
         }
 
         // Get configuration
@@ -263,12 +277,12 @@ export class Stream implements Component {
             config = await apiWebRTCConfiguration(this.api)
         } catch (error) {
             this.debugLog(`WebRTC configuration failed: ${error}`)
-            await this.releaseMediaAccess()
+            this.cleanupMicrophone()
             return "failednoconnect"
         }
 
         if (this.stopped) {
-            await this.releaseMediaAccess()
+            this.cleanupMicrophone()
             return "disconnect"
         }
         this.debugLog("Received WebRTC Config, Creating Transport")
@@ -281,7 +295,7 @@ export class Stream implements Component {
             },
             this.logger
         )
-        const mediaTicket = mediaAccess?.ticket ?? new URLSearchParams(window.location.search).get("mediaTicket")
+        const mediaTicket = mediaAccess?.ticket ?? null
         transport.controlStream.onreceive = this.boundReceivePacket
 
         const onConnect = new Promise<TransportConnectData>(resolve => {
@@ -294,7 +308,7 @@ export class Stream implements Component {
         const options = await this.createTransportOptions()
         if (!options) {
             await transport.close()
-            await this.releaseMediaAccess()
+            this.cleanupMicrophone()
             return "failednoconnect"
         }
 
@@ -313,13 +327,13 @@ export class Stream implements Component {
             this.debugLog(`failed to connect using webrtc because ${error}`)
 
             await transport.close()
-            await this.releaseMediaAccess()
+            this.cleanupMicrophone()
             return "failednoconnect"
         }
 
         if (this.stopped) {
             await transport.close()
-            await this.releaseMediaAccess()
+            this.cleanupMicrophone()
             return "disconnect"
         }
         // Set Transport
@@ -338,7 +352,7 @@ export class Stream implements Component {
         if (typeof connectData == "string") {
             this.debugLog(`webrtc connection failed: ${connectData}`)
             await transport.close()
-            await this.releaseMediaAccess()
+            this.cleanupMicrophone()
             // connection failed
             return connectData
         }
@@ -348,24 +362,29 @@ export class Stream implements Component {
         this.startMediaHeartbeat()
 
         const shutdown = await onClose
-        await this.releaseMediaAccess()
+        this.cleanupMicrophone()
         return shutdown
     }
 
     private startMediaHeartbeat() {
         if (!this.mediaAccess || this.mediaHeartbeatTimer != null) return
-        const send = () => {
-            if (!this.mediaAccess) return
-            apiMediaHeartbeat(this.mediaAccess, this.settings.microphone, this.microphoneListener?.isLive() ?? false)
-                .catch(error => this.debugLog(`Media heartbeat failed: ${error}`))
+        let pending = false
+        const send = async () => {
+            if (!this.mediaAccess || pending) return
+            pending = true
+            try {
+                await apiMediaHeartbeat(this.mediaAccess, this.settings.microphone, this.microphoneListener?.isLive() ?? false)
+            } catch (error) {
+                this.debugLog(`Media heartbeat failed: ${error}`)
+                if (error instanceof MediaAccessError && (error.status === 401 || error.status === 410)) await this.stop()
+            } finally { pending = false }
         }
         send()
         this.mediaHeartbeatTimer = window.setInterval(send, 5000)
     }
 
     private async releaseMediaAccess() {
-        this.microphoneListener?.cleanup()
-        this.microphoneListener = null
+        this.cleanupMicrophone()
         if (this.mediaHeartbeatTimer != null) {
             window.clearInterval(this.mediaHeartbeatTimer)
             this.mediaHeartbeatTimer = null
@@ -375,12 +394,17 @@ export class Stream implements Component {
         this.mediaAccess = null
         try { await apiReleaseMediaAccess(access) } catch (error) { this.debugLog(`Media disconnect failed: ${error}`) }
     }
+
+    private cleanupMicrophone() {
+        this.microphoneListener?.cleanup()
+        this.microphoneListener = null
+    }
     private async tryWebSocketTransport(): Promise<TransportShutdown | null> {
         // A signed media ticket is an explicit authorization for the WebRTC
         // gateway. Do not silently downgrade to the legacy WebSocket path,
         // which cannot carry the ticket header and would bypass admission.
         const mediaQuery = new URLSearchParams(window.location.search)
-        if (mediaQuery.has("mediaTicket") || mediaQuery.has("mediaControlUrl")) {
+        if (managedStreaming() || mediaQuery.has("mediaTicket") || mediaQuery.has("mediaControlUrl")) {
             this.debugLog("Not trying WebSocket transport because a media ticket requires WebRTC admission")
             return "failednoconnect"
         }

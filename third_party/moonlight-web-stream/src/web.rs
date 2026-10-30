@@ -22,6 +22,8 @@ pub fn web_config_js_service() -> impl HttpServiceFactory {
 async fn config_js(app: Data<App>) -> HttpResponse {
     let config_json = match serde_json::to_string(&ConfigJs {
         path_prefix: app.config().web_server.url_path_prefix.clone(),
+        managed_streaming: app.config().web_server.media_ticket_secret.is_some(),
+        control_plane_url: app.config().web_server.control_plane_url.clone(),
     }) {
         Ok(value) => value,
         Err(err) => {

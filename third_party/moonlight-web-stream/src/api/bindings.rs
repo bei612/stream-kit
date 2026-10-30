@@ -17,6 +17,8 @@ const EXPORT_PATH: &str = "../web/api_bindings.ts";
 #[ts(export, export_to = EXPORT_PATH)]
 pub struct ConfigJs {
     pub path_prefix: String,
+    pub managed_streaming: bool,
+    pub control_plane_url: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, TS, Clone)]

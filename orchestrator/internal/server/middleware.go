@@ -31,7 +31,8 @@ func RequestIDMiddleware() gin.HandlerFunc {
 	}
 }
 
-// JWTAuthMiddleware validates JWT tokens from Authorization header or query param.
+// JWTAuthMiddleware accepts management credentials from the Authorization
+// header. Query credentials are confined to the existing WebSocket endpoint.
 func JWTAuthMiddleware(jwtSecret []byte) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := ""
@@ -43,7 +44,7 @@ func JWTAuthMiddleware(jwtSecret []byte) gin.HandlerFunc {
 		}
 
 		// Fallback: query param (for WebSocket)
-		if token == "" {
+		if token == "" && c.Request.URL.Path == "/api/v1/ws" {
 			token = c.Query("token")
 		}
 

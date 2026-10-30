@@ -79,6 +79,10 @@ pub fn verify_media_ticket(token: &str, secret: &str) -> Result<MediaTicketClaim
         || claims.session_id.is_empty()
         || claims.connection_id.is_empty()
         || claims.exp <= chrono_like_now()
+        || claims.iat <= 0
+        || claims.iat > chrono_like_now() + 5
+        || claims.exp <= claims.iat
+        || claims.exp.saturating_sub(claims.iat) > 120
         || !matches!(claims.role.as_str(), "controller" | "viewer")
     {
         return Err(AppError::Unauthorized);
@@ -322,7 +326,7 @@ mod tests {
         let payload = URL_SAFE_NO_PAD.encode(
             serde_json::to_vec(&serde_json::json!({
                 "purpose": "stream-media", "session_id": "session", "connection_id": "peer",
-                "host_id": 1, "app_id": 2, "role": role, "exp": exp, "iat": 1
+            "host_id": 1, "app_id": 2, "role": role, "exp": exp, "iat": chrono_like_now()
             }))
             .unwrap(),
         );

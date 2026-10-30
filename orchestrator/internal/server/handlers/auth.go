@@ -1,26 +1,16 @@
 package handlers
 
 import (
-	"crypto/hmac"
 	"crypto/sha256"
-	"encoding/base64"
-	"encoding/json"
-	"errors"
-	"fmt"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/stream-kit/orchestrator/internal/identity"
 )
 
 const jwtExpiration = 24 * time.Hour
-
-type jwtHeader struct {
-	Alg string `json:"alg"`
-	Typ string `json:"typ"`
-}
 
 type Claims struct {
 	Sub string `json:"sub"`
@@ -51,73 +41,29 @@ func ResolveJWTSecret(configuredSecret, password string) []byte {
 }
 
 func signJWT(claims Claims, secret []byte) string {
-	hdr, _ := json.Marshal(jwtHeader{Alg: "HS256", Typ: "JWT"})
-	payload, _ := json.Marshal(claims)
-
-	seg1 := base64.RawURLEncoding.EncodeToString(hdr)
-	seg2 := base64.RawURLEncoding.EncodeToString(payload)
-	sigInput := seg1 + "." + seg2
-
-	mac := hmac.New(sha256.New, secret)
-	mac.Write([]byte(sigInput))
-	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
-
-	return sigInput + "." + sig
+	return identity.Sign(identity.Management, claims, secret)
 }
 
-func VerifyJWT(tokenStr string, secret []byte) (*Claims, error) {
-	parts := strings.SplitN(tokenStr, ".", 3)
-	if len(parts) != 3 {
-		return nil, errors.New("invalid token format")
-	}
-
-	mac := hmac.New(sha256.New, secret)
-	mac.Write([]byte(parts[0] + "." + parts[1]))
-	expectedSig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
-	if !hmac.Equal([]byte(parts[2]), []byte(expectedSig)) {
-		return nil, errors.New("invalid signature")
-	}
-
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil {
-		return nil, fmt.Errorf("decode payload: %w", err)
-	}
+func VerifyJWT(token string, secret []byte) (*Claims, error) {
 	var claims Claims
-	if err := json.Unmarshal(payload, &claims); err != nil {
-		return nil, fmt.Errorf("unmarshal claims: %w", err)
+	if identity.Decode(token, identity.Management, secret, &claims) != nil ||
+		claims.Sub == "" || !identity.ValidTime(claims.Iat, claims.Exp, int64(jwtExpiration/time.Second), time.Now()) {
+		return nil, identity.ErrCredential
 	}
-
-	if time.Now().Unix() > claims.Exp {
-		return nil, errors.New("token expired")
-	}
-
 	return &claims, nil
 }
 
 func SignMediaTicket(claims MediaTicketClaims, secret []byte) string {
-	header, _ := json.Marshal(jwtHeader{Alg: "HS256", Typ: "MEDIA"})
-	payload, _ := json.Marshal(claims)
-	seg1 := base64.RawURLEncoding.EncodeToString(header)
-	seg2 := base64.RawURLEncoding.EncodeToString(payload)
-	input := seg1 + "." + seg2
-	mac := hmac.New(sha256.New, secret)
-	_, _ = mac.Write([]byte(input))
-	return input + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return identity.Sign(identity.Media, claims, secret)
 }
 
 func VerifyMediaTicket(token string, secret []byte) (*MediaTicketClaims, error) {
-	parts := strings.SplitN(token, ".", 3)
-	if len(parts) != 3 { return nil, errors.New("invalid media ticket format") }
-	mac := hmac.New(sha256.New, secret)
-	_, _ = mac.Write([]byte(parts[0] + "." + parts[1]))
-	expected := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
-	if !hmac.Equal([]byte(parts[2]), []byte(expected)) { return nil, errors.New("invalid media ticket signature") }
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil { return nil, err }
 	var claims MediaTicketClaims
-	if err := json.Unmarshal(payload, &claims); err != nil { return nil, err }
-	if claims.Purpose != "stream-media" || claims.SessionID == "" || claims.ConnectionID == "" || time.Now().Unix() > claims.Exp {
-		return nil, errors.New("invalid or expired media ticket")
+	if identity.Decode(token, identity.Media, secret, &claims) != nil ||
+		claims.Purpose != "stream-media" || claims.SessionID == "" || claims.ConnectionID == "" ||
+		(claims.Role != "viewer" && claims.Role != "controller") ||
+		!identity.ValidTime(claims.Iat, claims.Exp, 120, time.Now()) {
+		return nil, identity.ErrCredential
 	}
 	return &claims, nil
 }

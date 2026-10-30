@@ -177,12 +177,71 @@ pub struct WebServerConfig {
     pub forwarded_header: Option<ForwardedHeaders>,
     #[serde(default)]
     pub media_ticket_secret: Option<String>,
+    /// Public control-plane base URL used by managed browser connections.
+    #[serde(default)]
+    pub control_plane_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigSsl {
     pub private_key_pem: String,
     pub certificate_pem: String,
+}
+
+impl WebServerConfig {
+    pub fn validate_managed(&self) -> Result<(), &'static str> {
+        if let Some(secret) = &self.media_ticket_secret {
+            if secret.len() < 32 {
+                return Err("media_ticket_secret must contain at least 32 bytes");
+            }
+            let address = self
+                .control_plane_url
+                .as_deref()
+                .ok_or("managed streaming requires control_plane_url")?;
+            let uri: actix_web::http::Uri =
+                address.parse().map_err(|_| "invalid control_plane_url")?;
+            if !matches!(uri.scheme_str(), Some("http" | "https"))
+                || uri.host().is_none()
+                || uri.authority().is_some_and(|a| a.as_str().contains('@'))
+                || uri.query().is_some()
+                || address.contains('#')
+            {
+                return Err(
+                    "control_plane_url must be an absolute HTTP(S) URL without credentials, query or fragment",
+                );
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod managed_config_tests {
+    use super::*;
+    #[test]
+    fn managed_configuration_requires_explicit_trust_and_control_endpoint() {
+        let mut config = WebServerConfig::default();
+        assert!(config.validate_managed().is_ok());
+        config.media_ticket_secret = Some("s".repeat(32));
+        assert!(config.validate_managed().is_err());
+        for address in ["https://control.example", "http://127.0.0.1:9000/platform"] {
+            config.control_plane_url = Some(address.into());
+            assert!(config.validate_managed().is_ok());
+        }
+        for address in [
+            "file:///tmp/server",
+            "https://user:secret@control.example",
+            "https://control.example?secret",
+            "https://control.example#secret",
+            "/relative",
+        ] {
+            config.control_plane_url = Some(address.into());
+            assert!(config.validate_managed().is_err());
+        }
+        config.control_plane_url = Some("https://control.example".into());
+        config.media_ticket_secret = Some("short".into());
+        assert!(config.validate_managed().is_err());
+    }
 }
 
 impl Default for WebServerConfig {
@@ -197,6 +256,7 @@ impl Default for WebServerConfig {
             first_login_assign_global_hosts: true,
             forwarded_header: None,
             media_ticket_secret: None,
+            control_plane_url: None,
         }
     }
 }
