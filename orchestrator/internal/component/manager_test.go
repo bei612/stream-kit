@@ -191,6 +191,9 @@ func TestShutdownRejectsSubsequentStarts(t *testing.T) {
 		t.Fatal(err)
 	}
 	m.Shutdown()
+	if m.StartAllAsync() {
+		t.Fatal("batch start accepted after shutdown")
+	}
 	if err := m.Start("test"); err == nil {
 		t.Fatal("start accepted after shutdown")
 	}
@@ -230,6 +233,13 @@ func TestForceStopWaitsForOwnedChild(t *testing.T) {
 }
 
 func TestComponentPreflightChild(t *testing.T) {
+	if marker := os.Getenv("STREAM_KIT_PREFLIGHT_WAIT_MARKER"); marker != "" {
+		if err := os.WriteFile(marker, []byte("started"), 0600); err != nil {
+			os.Exit(8)
+		}
+		time.Sleep(30 * time.Second)
+		os.Exit(0)
+	}
 	if os.Getenv("STREAM_KIT_CRASH_CHILD") != "wait" {
 		return
 	}
@@ -238,6 +248,43 @@ func TestComponentPreflightChild(t *testing.T) {
 	}
 	os.Stderr.WriteString("private-preflight-diagnostic")
 	os.Exit(9)
+}
+
+func TestShutdownCancelsNativePreflightBeforeLaunch(t *testing.T) {
+	m := crashManager(t, 0)
+	cfg := m.configs["test"]
+	marker := filepath.Join(t.TempDir(), "preflight-started")
+	cfg.Env["STREAM_KIT_PREFLIGHT_WAIT_MARKER"] = marker
+	cfg.PreflightArgs = "-test.run=^TestComponentPreflightChild$"
+	m.configs["test"] = cfg
+	started := make(chan error, 1)
+	go func() { started <- m.Start("test") }()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		if _, err := os.Stat(marker); err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("native preflight did not start")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	stopped := make(chan struct{})
+	go func() { m.Shutdown(); close(stopped) }()
+	select {
+	case <-stopped:
+	case <-time.After(3 * time.Second):
+		t.Fatal("shutdown waited for preflight timeout")
+	}
+	if err := <-started; err == nil {
+		t.Fatal("cancelled preflight allowed launch")
+	}
+	cs := m.components["test"]
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	if cs.Status != StatusStopped || cs.process != nil || cs.PID != 0 || cs.generation != 1 {
+		t.Fatalf("shutdown launched component: status=%s pid=%d generation=%d", cs.Status, cs.PID, cs.generation)
+	}
 }
 
 func TestFailedPreflightPreservesRunningProcess(t *testing.T) {

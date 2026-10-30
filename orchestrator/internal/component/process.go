@@ -114,14 +114,17 @@ func forceStop(mp *ManagedProcess) error {
 
 // preflight uses the same native executable, environment and working directory.
 // Output is discarded: diagnostics may include credentials or configuration.
-func preflight(cfg config.ComponentConfig) error {
+func preflight(parent context.Context, cfg config.ComponentConfig) error {
+	if parent.Err() != nil {
+		return fmt.Errorf("组件原生配置预检已取消")
+	}
 	if cfg.PreflightArgs == "" {
 		return nil
 	}
 	if cfg.ExePath == "" {
 		return fmt.Errorf("组件预检需要可执行程序路径")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(parent, 15*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, cfg.ExePath, splitArgs(cfg.PreflightArgs)...)
 	cmd.Dir = cfg.WorkingDir
@@ -130,6 +133,9 @@ func preflight(cfg config.ComponentConfig) error {
 	}
 	setPlatformAttrs(cmd)
 	if err := cmd.Run(); err != nil {
+		if parent.Err() != nil {
+			return fmt.Errorf("组件原生配置预检已取消")
+		}
 		if ctx.Err() != nil {
 			return fmt.Errorf("组件原生配置预检超时")
 		}

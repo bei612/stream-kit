@@ -148,6 +148,10 @@ The gateway example uses `config check`; installations using a custom config
 path or CLI overrides must include those same options in the preflight command.
 Arguments are redacted in configuration responses and editable in the unified
 settings page. Changing this supervisor setting requires Orchestrator restart.
+Supervisor shutdown cancels in-flight preflight processes and delayed automatic
+retries before waiting for component lifecycle locks. Batch startup readiness
+waits also observe shutdown. Cancellation is reported separately from timeout;
+the subsequent launch path rechecks shutdown before allocating a new lifetime.
 
 Start and automatic recovery must pass preflight before launch. Restart first
 checks before stopping the current process, so a failed check preserves it and

@@ -1,6 +1,7 @@
 package component
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -28,7 +29,7 @@ func TestNativeGatewayPreflight(t *testing.T) {
 		if err := os.WriteFile(path, []byte(tc.body), 0600); err != nil {
 			t.Fatal(err)
 		}
-		if err := preflight(cfg); (err == nil) != tc.valid {
+		if err := preflight(context.Background(), cfg); (err == nil) != tc.valid {
 			t.Fatalf("preflight valid=%v: %v", tc.valid, err)
 		}
 	}

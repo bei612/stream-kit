@@ -1,6 +1,7 @@
 package component
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -52,6 +53,8 @@ type Manager struct {
 	startStopMu     sync.Mutex // prevents concurrent StartAll/StopAll
 	pidMu           sync.Mutex // serializes snapshots and writes across components
 	closing         atomic.Bool
+	ctx             context.Context
+	cancel          context.CancelFunc
 }
 
 func NewManager(
@@ -64,7 +67,10 @@ func NewManager(
 	if shutdownTimeout <= 0 {
 		shutdownTimeout = 5
 	}
+	ctx, cancel := context.WithCancel(context.Background())
 	m := &Manager{
+		ctx:             ctx,
+		cancel:          cancel,
 		components:      make(map[string]*ComponentState),
 		configs:         configs,
 		shutdownTimeout: shutdownTimeout,
@@ -153,13 +159,16 @@ func (m *Manager) start(name string, cs *ComponentState, retry bool) error {
 		return nil // idempotent
 	}
 	cs.mu.Unlock()
-	if err := preflight(cfg); err != nil {
+	if err := preflight(m.ctx, cfg); err != nil {
 		cs.mu.Lock()
 		cs.Status = StatusError
 		cs.LastError = err.Error()
 		cs.mu.Unlock()
 		m.emitEvent(name, StatusError)
 		return err
+	}
+	if m.closing.Load() {
+		return fmt.Errorf("组件管理器正在关闭")
 	}
 	cs.mu.Lock()
 	cs.Status = StatusStarting
@@ -287,7 +296,7 @@ func (m *Manager) Restart(name string) error {
 	}
 	cs.opMu.Lock()
 	defer cs.opMu.Unlock()
-	if err := preflight(m.configs[name]); err != nil {
+	if err := preflight(m.ctx, m.configs[name]); err != nil {
 		return err // leave the running component and its health checker untouched
 	}
 	if err := m.stop(name, cs); err != nil {
@@ -299,6 +308,9 @@ func (m *Manager) Restart(name string) error {
 func (m *Manager) StartAll() {
 	// Start in config order: iterate all configured components
 	for name, cfg := range m.configs {
+		if m.closing.Load() {
+			return
+		}
 		if !cfg.AutoStart {
 			continue
 		}
@@ -316,6 +328,8 @@ func (m *Manager) waitUntilRunning(name string, timeout time.Duration) {
 	defer ticker.Stop()
 	for {
 		select {
+		case <-m.ctx.Done():
+			return
 		case <-deadline:
 			m.logger.Warn("等待组件就绪超时", zap.String("component", name))
 			return
@@ -333,6 +347,9 @@ func (m *Manager) waitUntilRunning(name string, timeout time.Duration) {
 
 // StartAllAsync runs StartAll in a background goroutine. Returns false if already in progress.
 func (m *Manager) StartAllAsync() bool {
+	if m.closing.Load() {
+		return false
+	}
 	if !m.startStopMu.TryLock() {
 		return false
 	}
@@ -363,6 +380,7 @@ func (m *Manager) StopAll() {
 
 func (m *Manager) Shutdown() {
 	m.closing.Store(true)
+	m.cancel()
 	m.StopAll()
 }
 
@@ -409,7 +427,13 @@ func (m *Manager) waitForExit(name string, cs *ComponentState, proc *ManagedProc
 		if delay <= 0 {
 			delay = 5
 		}
-		time.Sleep(time.Duration(delay) * time.Second)
+		timer := time.NewTimer(time.Duration(delay) * time.Second)
+		select {
+		case <-m.ctx.Done():
+			timer.Stop()
+			return
+		case <-timer.C:
+		}
 
 		cs.opMu.Lock()
 		defer cs.opMu.Unlock()
