@@ -28,9 +28,16 @@ pub enum Error {
 }
 
 #[derive(Serialize)]
+pub struct RuntimeIdentity {
+    pub process_id: u32,
+    pub instance_id: String,
+}
+
+#[derive(Serialize)]
 pub struct View {
     pub revision: String,
     pub running_revision: Option<String>,
+    pub runtime: RuntimeIdentity,
     pub restart_required: bool,
     pub apply_policy: &'static str,
     pub values: Value,
@@ -41,6 +48,7 @@ pub struct View {
 pub struct Settings {
     path: PathBuf,
     running_revision: Option<String>,
+    instance_id: String,
     overrides: CliConfig,
     lock: Mutex<()>,
 }
@@ -54,6 +62,7 @@ impl Settings {
         Self {
             path,
             running_revision: source.map(|s| revision(s.as_bytes())),
+            instance_id: uuid::Uuid::new_v4().simple().to_string(),
             overrides,
             lock: Mutex::new(()),
         }
@@ -107,6 +116,10 @@ impl Settings {
         let rev = revision(data);
         Ok(View {
             running_revision: self.running_revision.clone(),
+            runtime: RuntimeIdentity {
+                process_id: std::process::id(),
+                instance_id: self.instance_id.clone(),
+            },
             restart_required: self.running_revision.as_ref() != Some(&rev),
             revision: rev,
             apply_policy: "gateway_restart",
@@ -248,6 +261,8 @@ mod tests {
         let before = settings.view()?;
         assert!(!before.restart_required);
         assert_eq!(before.running_revision.as_ref(), Some(&before.revision));
+        assert_eq!(before.runtime.process_id, std::process::id());
+        assert_eq!(hex::decode(&before.runtime.instance_id)?.len(), 16);
         assert!(!serde_json::to_string(&before)?.contains("original-private-secret"));
         let changes = BTreeMap::from([(
             "/moonlight/pair_device_name".into(),
@@ -256,11 +271,13 @@ mod tests {
         let saved = settings.save(&before.revision, changes.clone())?;
         assert!(saved.restart_required);
         assert_eq!(saved.running_revision, before.running_revision);
+        assert_eq!(saved.runtime.instance_id, before.runtime.instance_id);
         let source = fs::read_to_string(&settings.path)?;
         let restarted = Settings::new(settings.path.clone(), Some(&source), CliConfig::default());
         let applied = restarted.view()?;
         assert!(!applied.restart_required);
         assert_eq!(applied.running_revision.as_ref(), Some(&saved.revision));
+        assert_ne!(applied.runtime.instance_id, before.runtime.instance_id);
         assert!(matches!(
             settings.save(&before.revision, changes),
             Err(Error::Conflict)

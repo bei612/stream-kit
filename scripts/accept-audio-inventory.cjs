@@ -86,6 +86,8 @@ module.exports = async function acceptAudioInventory({ root, binary, gatewayURL,
     assert.match(settings.running_revision,/^[0-9a-f]{64}$/);
     assert.notEqual(settings.running_revision,settings.revision);
     assert.equal(settings.restart_required,true);
+    assert.ok(Number.isInteger(settings.runtime.process_id)&&settings.runtime.process_id>0);
+    assert.match(settings.runtime.instance_id,/^[0-9a-f]{32}$/);
     await page.getByRole('button',{name:'重新读取网关配置',exact:true}).click();
     await page.getByText('网关存在待生效配置，请在维护时段协调重启。',{exact:true}).waitFor();
     await page.getByText(settings.running_revision,{exact:true}).waitFor();
@@ -93,6 +95,7 @@ module.exports = async function acceptAudioInventory({ root, binary, gatewayURL,
     assert.deepEqual(errors, []);
     return {
       passed: true, browser: browser.version(), device_count: inventory.devices.length,
+      gateway_runtime: settings.runtime,
       control_sha256: crypto.createHash('sha256').update(fs.readFileSync(binary)).digest('hex'),
       web_assets_sha256: Object.fromEntries(fs.readdirSync(path.join(scratch, 'dist/assets')).map(name => [name,
         crypto.createHash('sha256').update(fs.readFileSync(path.join(scratch, 'dist/assets', name))).digest('hex')])),

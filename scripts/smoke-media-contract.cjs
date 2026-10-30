@@ -118,12 +118,15 @@ async function main() {
     assert.equal(beforeSettings.status,200);
     assert.equal(beforeSettings.result.data.restart_required,false);
     assert.equal(beforeSettings.result.data.running_revision,beforeSettings.result.data.revision);
+    assert.equal(beforeSettings.result.data.runtime.process_id,child.pid);
+    assert.match(beforeSettings.result.data.runtime.instance_id,/^[0-9a-f]{32}$/);
     assert.equal(beforeSettings.result.data.values.web_server.media_ticket_secret,null);
     const revision = beforeSettings.result.data.revision;
     const changed = await configurationRequest('save',{revision,changes:{'/moonlight/pair_device_name':'Unified native settings'}});
     assert.equal(changed.status,200);
     assert.equal(changed.result.data.restart_required,true);
     assert.equal(changed.result.data.running_revision,beforeSettings.result.data.revision);
+    assert.deepEqual(changed.result.data.runtime,beforeSettings.result.data.runtime);
     assert.equal(changed.result.data.apply_policy,'gateway_restart');
     assert.equal(JSON.parse(fs.readFileSync(configPath,'utf8')).web_server.media_ticket_secret,secret);
     assert.equal((await configurationRequest('save',{revision,changes:{'/moonlight/pair_device_name':'stale'}})).status,409);
@@ -211,6 +214,7 @@ async function main() {
       root, binary: process.argv[3], gatewayURL: `http://127.0.0.1:${port}/gateway`, secret, output,
       configuredRoutes: config.local_audio_targets,
     }) : undefined;
+    if(managementInventory)assert.deepEqual(managementInventory.gateway_runtime,beforeSettings.result.data.runtime);
     const result = { passed: true, platform: process.platform, architecture: process.arch, at: new Date().toISOString(), gateway_sha256: crypto.createHash('sha256').update(fs.readFileSync(binary)).digest('hex'),
       audio_inventory_status: inventoryResponse.status,
       checks: [inventoryResponse.ok ? 'signed audio inventory with nonce and configured routes' : 'native audio backend unavailable reported as HTTP 503', 'inventory rejects unsigned/wrong-domain/stale requests', 'signed HTTP acknowledgement', 'request/revision binding', 'unsigned rejection', 'replay rejection', 'configured idle target', 'v1 rejection', 'invalid/rollback epoch rejection', 'coalesced ownership transfer', 'revocation',
@@ -236,6 +240,8 @@ async function main() {
     assert.equal(applied.running_revision,rotation.result.data.revision);
     assert.equal(applied.revision,applied.running_revision);
     assert.equal(applied.restart_required,false);
+    assert.equal(applied.runtime.process_id,child.pid);
+    assert.notEqual(applied.runtime.instance_id,beforeSettings.result.data.runtime.instance_id);
     assert.equal(applied.values.moonlight.pair_device_name,'Unified native settings');
     const oldTrustBody=JSON.stringify({schema_version:1,request_id:crypto.randomBytes(16).toString('hex'),issued_at_ms:Date.now(),operation:'read'});
     const oldTrust=await fetch(configurationURL,{method:'POST',headers:{'Content-Type':'application/json',
@@ -243,6 +249,10 @@ async function main() {
     assert.equal(oldTrust.status,401,'Restarted gateway still accepts the old trust secret');
     result.checks.push('real gateway restart loads saved revision and rotated trust secret');
     result.running_revision=applied.running_revision;
+    result.runtime=applied.runtime;
+    result.checks.push('signed runtime PID matches owned child; instance changes only after restart');
+    result.evidence_file=path.relative(root,path.join(fixture,'result.json')).replaceAll('\\','/');
+    fs.writeFileSync(path.join(fixture, 'result.json'), JSON.stringify(result, null, 2));
     fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(result, null, 2));
     console.log(JSON.stringify(result));
   } finally {

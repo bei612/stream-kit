@@ -13,7 +13,7 @@ import (
 
 func TestGatewayConfigurationSignedBoundary(t *testing.T) {
 	secret := []byte("configuration-test-secret")
-	for _, mode := range []string{"read", "save", "unsigned", "wrong-domain", "wrong-nonce", "conflict", "invalid", "status-mismatch", "running-mismatch", "running-invalid", "running-known"} {
+	for _, mode := range []string{"read", "save", "unsigned", "wrong-domain", "wrong-nonce", "conflict", "invalid", "status-mismatch", "running-mismatch", "running-invalid", "running-known", "runtime-valid", "runtime-zero-pid", "runtime-invalid", "runtime-missing-instance"} {
 		t.Run(mode, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				raw, err := io.ReadAll(r.Body)
@@ -50,6 +50,19 @@ func TestGatewayConfigurationSignedBoundary(t *testing.T) {
 					result["data"] = view
 				}
 				status := 200
+				if strings.HasPrefix(mode, "runtime-") {
+					view := result["data"].(GatewayConfiguration)
+					view.Runtime = &GatewayRuntimeIdentity{ProcessID: 1234, InstanceID: strings.Repeat("c", 32)}
+					switch mode {
+					case "runtime-zero-pid":
+						view.Runtime.ProcessID = 0
+					case "runtime-invalid":
+						view.Runtime.InstanceID = strings.Repeat("z", 32)
+					case "runtime-missing-instance":
+						view.Runtime.InstanceID = ""
+					}
+					result["data"] = view
+				}
 				if mode == "conflict" || mode == "status-mismatch" {
 					status = 409
 					result = map[string]any{"status": "error", "code": "CONFIGURATION_CONFLICT", "message": "private remote diagnostic"}
@@ -86,9 +99,12 @@ func TestGatewayConfigurationSignedBoundary(t *testing.T) {
 			}
 			view, err := p.GatewayConfiguration(context.Background(), revision, changes)
 			switch mode {
-			case "read", "save", "running-known":
+			case "read", "save", "running-known", "runtime-valid":
 				if err != nil || view == nil {
 					t.Fatal(err)
+				}
+				if mode == "runtime-valid" && (view.Runtime == nil || view.Runtime.ProcessID != 1234 || view.Runtime.InstanceID != strings.Repeat("c", 32)) {
+					t.Fatal("runtime identity was not preserved")
 				}
 			case "conflict":
 				if !errors.Is(err, ErrConfigurationConflict) {

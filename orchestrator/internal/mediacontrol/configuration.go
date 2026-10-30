@@ -23,11 +23,19 @@ var ErrConfigurationUnavailable = errors.New("gateway configuration unavailable"
 type GatewayConfiguration struct {
 	Revision        string                     `json:"revision"`
 	RunningRevision *string                    `json:"running_revision"`
+	Runtime         *GatewayRuntimeIdentity    `json:"runtime,omitempty"`
 	RestartRequired bool                       `json:"restart_required"`
 	ApplyPolicy     string                     `json:"apply_policy"`
 	Values          map[string]json.RawMessage `json:"values"`
 	RedactedPaths   []string                   `json:"redacted_paths"`
 	OverriddenPaths []string                   `json:"overridden_paths"`
+}
+
+// Runtime identity is authenticated by the configuration response signature.
+// It is evidence for a restart, not permission to terminate an arbitrary PID.
+type GatewayRuntimeIdentity struct {
+	ProcessID  uint32 `json:"process_id"`
+	InstanceID string `json:"instance_id"`
 }
 
 // GatewayConfiguration uses the native owner's versioned file operation. It
@@ -111,6 +119,12 @@ func (p *Publisher) GatewayConfiguration(ctx context.Context, revision string, c
 	if view.RunningRevision != nil {
 		decoded, err := hex.DecodeString(*view.RunningRevision)
 		if err != nil || len(decoded) != 32 || view.RestartRequired != (*view.RunningRevision != view.Revision) {
+			return nil, ErrConfigurationUnavailable
+		}
+	}
+	if view.Runtime != nil {
+		instance, err := hex.DecodeString(view.Runtime.InstanceID)
+		if err != nil || len(instance) != 16 || view.Runtime.ProcessID == 0 {
 			return nil, ErrConfigurationUnavailable
 		}
 	}
