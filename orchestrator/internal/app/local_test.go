@@ -153,7 +153,9 @@ func TestLocalRegistrationProjectsProgramAndOwnedPathsToSunshine(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		switch {
 		case r.URL.Path == "/api/stream-kit/capabilities":
-			_, _ = w.Write([]byte(`{"schema_version":1,"capture_modes":["desktop","application"],"capture_mode_apply":"application_restart","managed_apps_version":1}`))
+			_, _ = w.Write([]byte(`{"schema_version":1,"capture_modes":["desktop","application"],"capture_mode_apply":"application_restart","managed_apps_version":1,"managed_runtime_version":1}`))
+		case r.URL.Path == "/api/stream-kit/runtime":
+			_ = json.NewEncoder(w).Encode(sunshine.Runtime{SchemaVersion: 1})
 		case r.URL.Path == "/api/csrf-token":
 			_, _ = w.Write([]byte(`{"csrf_token":"test"}`))
 		case r.Method == "PUT" && strings.HasPrefix(r.URL.Path, "/api/stream-kit/apps/"):

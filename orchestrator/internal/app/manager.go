@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,6 +22,8 @@ import (
 )
 
 type EventCallback func(appID string, status model.AppStatus)
+
+var ErrOperationConflict = errors.New("应用正在执行其他操作")
 
 type Manager struct {
 	store      *store.Store
@@ -79,7 +82,7 @@ func (m *Manager) TryLock(appID string) (func(), error) {
 	val, _ := m.locks.LoadOrStore(appID, &sync.Mutex{})
 	mu := val.(*sync.Mutex)
 	if !mu.TryLock() {
-		return nil, fmt.Errorf("应用正在执行其他操作")
+		return nil, ErrOperationConflict
 	}
 	return mu.Unlock, nil
 }
@@ -265,19 +268,23 @@ func (m *Manager) runPipeline(appID, archivePath string, unlockUpload func()) {
 	m.registerWithSunshine(appID)
 }
 
-func (m *Manager) registerWithSunshine(appID string) {
+func (m *Manager) registerWithSunshine(appID string) error {
 	app, err := m.store.GetApp(appID)
 	if err != nil || app == nil {
 		m.logger.Error("注册：获取应用失败", zap.String("app_id", appID), zap.Error(err))
-		return
+		return fmt.Errorf("获取待注册应用失败: %w", err)
 	}
 
-	m.updateStatus(appID, model.AppStatusRegistering, "")
+	if err := m.updateStatus(appID, model.AppStatusRegistering, ""); err != nil {
+		return err
+	}
 
 	if m.sunClient == nil {
-		m.updateStatus(appID, model.AppStatusReady, "")
+		if err := m.updateStatus(appID, model.AppStatusReady, ""); err != nil {
+			return err
+		}
 		m.store.CreateLog("app", appID, "register", "success", "Sunshine 未配置，跳过注册", nil)
-		return
+		return nil
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -318,7 +325,7 @@ func (m *Manager) registerWithSunshine(appID string) {
 		m.updateStatus(appID, model.AppStatusRegisterFailed, "编码器注册失败: "+err.Error())
 		m.store.CreateLog("app", appID, "register", "failure", err.Error(), nil)
 		m.logger.Warn("编码器注册失败", zap.String("app_id", appID), zap.Error(err))
-		return
+		return fmt.Errorf("编码器注册失败: %w", err)
 	}
 
 	// Try to get stream info from Moonlight-Web
@@ -337,11 +344,14 @@ func (m *Manager) registerWithSunshine(appID string) {
 		"sunshine_app_id": registration.GameStreamID,
 	}); err != nil {
 		m.updateStatus(appID, model.AppStatusRegisterFailed, "保存编码器应用身份失败: "+err.Error())
-		return
+		return err
 	}
-	m.updateStatus(appID, model.AppStatusReady, "")
+	if err := m.updateStatus(appID, model.AppStatusReady, ""); err != nil {
+		return err
+	}
 	m.store.CreateLog("app", appID, "register", "success", "已注册到 Sunshine", nil)
 	m.logger.Info("应用已注册到 Sunshine", zap.String("app_id", appID), zap.String("name", app.Name))
+	return nil
 }
 
 // RetryRegister re-attempts Sunshine registration for a register_failed app.
@@ -668,14 +678,42 @@ func sleepSeconds(seconds int) {
 // UpdateApp updates app configuration. Pointer fields: nil=no change, non-nil=set value.
 // If args or name change, Sunshine registration is automatically synced.
 func (m *Manager) UpdateApp(appID string, name, args, argsTemplate *string, captureMode *model.CaptureMode) error {
+	m.runtimeMu.Lock()
+	defer m.runtimeMu.Unlock()
+	unlock, err := m.TryLock(appID)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	app, err := m.store.GetApp(appID)
 	if err != nil {
 		return err
 	}
 
-	// Reject changes while streaming (Sunshine can't hot-swap command line)
-	if app.Status == model.AppStatusRunning {
-		return fmt.Errorf("请先停止串流再修改参数")
+	// Restart-required settings must not race admission, stop or deletion. A
+	// cached status is insufficient: a viewer may already be starting upstream.
+	switch app.Status {
+	case model.AppStatusReady, model.AppStatusStopped, model.AppStatusCrashed, model.AppStatusRegisterFailed:
+	default:
+		return fmt.Errorf("请等待应用处理完成并停止串流后再修改参数")
+	}
+	if m.sessions != nil {
+		for _, s := range m.sessions.List() {
+			if s.AppID == int64(app.SunshineAppID) && s.State != session.StateStopped {
+				return fmt.Errorf("请先停止观看会话再修改参数")
+			}
+		}
+	}
+	if m.sunClient != nil && app.SunshineAppID > 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		active, err := m.sunClient.Runtime(ctx)
+		if err != nil {
+			return fmt.Errorf("无法确认应用已停止，参数尚未修改: %w", err)
+		}
+		if active.AppID == app.ID || active.GameStreamID == app.SunshineAppID {
+			return fmt.Errorf("请先停止编码器中的应用再修改参数")
+		}
 	}
 
 	fields := map[string]interface{}{}
@@ -726,12 +764,15 @@ func (m *Manager) UpdateApp(appID string, name, args, argsTemplate *string, capt
 
 	// Re-register with Sunshine if args/name changed and app is in a registered state
 	registeredStates := map[model.AppStatus]bool{
-		model.AppStatusReady:   true,
-		model.AppStatusStopped: true,
-		model.AppStatusCrashed: true,
+		model.AppStatusReady:          true,
+		model.AppStatusStopped:        true,
+		model.AppStatusCrashed:        true,
+		model.AppStatusRegisterFailed: true,
 	}
 	if needsReRegister && registeredStates[app.Status] && m.sunClient != nil {
-		m.registerWithSunshine(appID)
+		if err := m.registerWithSunshine(appID); err != nil {
+			return fmt.Errorf("参数已保存，但尚未确认编码器应用成功，请查看应用状态并重试注册: %w", err)
+		}
 	}
 
 	return nil

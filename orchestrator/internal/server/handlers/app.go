@@ -81,13 +81,6 @@ func (h *AppHandler) Get(c *gin.Context) {
 func (h *AppHandler) Update(c *gin.Context) {
 	id := c.Param("app_id")
 
-	unlock, err := h.Manager.TryLock(id)
-	if err != nil {
-		errResponse(c, http.StatusConflict, "APP_OPERATION_CONFLICT", err.Error())
-		return
-	}
-	defer unlock()
-
 	var req struct {
 		CaptureMode  *model.CaptureMode `json:"capture_mode"`
 		Name         *string            `json:"name"`
@@ -106,6 +99,10 @@ func (h *AppHandler) Update(c *gin.Context) {
 	}
 
 	if err := h.Manager.UpdateApp(id, req.Name, req.Args, req.ArgsTemplate, req.CaptureMode); err != nil {
+		if errors.Is(err, app.ErrOperationConflict) {
+			errResponse(c, http.StatusConflict, "APP_OPERATION_CONFLICT", err.Error())
+			return
+		}
 		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", err.Error())
 		return
 	}
