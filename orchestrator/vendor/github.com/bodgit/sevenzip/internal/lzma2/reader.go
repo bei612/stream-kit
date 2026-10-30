@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/bodgit/sevenzip/internal/limits"
 	"github.com/ulikunitz/xz/lzma"
 )
 
@@ -62,9 +63,14 @@ func NewReader(p []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, erro
 		return nil, errInvalidProperties
 	}
 
-	config := lzma.Reader2Config{
-		DictCap: (2 | (int(p[0]) & 1)) << (p[0]/2 + 11), // This gem came from Lzma2Dec.c
+	dictionary := (uint64(2) | uint64(p[0]&1)) << (p[0]/2 + 11)
+	if p[0] == 40 {
+		dictionary = 1<<32 - 1
 	}
+	if err := limits.Dictionary(dictionary); err != nil {
+		return nil, err
+	}
+	config := lzma.Reader2Config{DictCap: int(dictionary)}
 
 	if err := config.Verify(); err != nil {
 		return nil, fmt.Errorf("lzma2: error verifying config: %w", err)

@@ -4,6 +4,7 @@ package zstd
 import (
 	"errors"
 	"fmt"
+	"github.com/bodgit/sevenzip/internal/limits"
 	"io"
 	"runtime"
 	"sync"
@@ -66,7 +67,7 @@ func NewReader(_ []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, erro
 			return nil, fmt.Errorf("zstd: error resetting: %w", err)
 		}
 	} else {
-		if r, err = zstd.NewReader(readers[0]); err != nil {
+		if r, err = zstd.NewReader(readers[0], zstd.WithDecoderConcurrency(1), zstd.WithDecoderMaxMemory(limits.DictionaryBytes)); err != nil {
 			return nil, fmt.Errorf("zstd: error creating reader: %w", err)
 		}
 

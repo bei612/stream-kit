@@ -16,6 +16,7 @@ github.com/bodgit/sevenzip/internal/brotli
 github.com/bodgit/sevenzip/internal/bzip2
 github.com/bodgit/sevenzip/internal/deflate
 github.com/bodgit/sevenzip/internal/delta
+github.com/bodgit/sevenzip/internal/limits
 github.com/bodgit/sevenzip/internal/lz4
 github.com/bodgit/sevenzip/internal/lzma
 github.com/bodgit/sevenzip/internal/lzma2

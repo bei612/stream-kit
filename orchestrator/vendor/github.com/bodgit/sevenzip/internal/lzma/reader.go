@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/bodgit/sevenzip/internal/limits"
 	"github.com/ulikunitz/xz/lzma"
 )
 
@@ -54,6 +55,12 @@ func NewReader(p []byte, s uint64, readers []io.ReadCloser) (io.ReadCloser, erro
 		return nil, errNeedOneReader
 	}
 
+	if len(p) != 5 {
+		return nil, errors.New("lzma: invalid properties length")
+	}
+	if err := limits.Dictionary(uint64(binary.LittleEndian.Uint32(p[1:]))); err != nil {
+		return nil, err
+	}
 	h := bytes.NewBuffer(p)
 	_ = binary.Write(h, binary.LittleEndian, s)
 

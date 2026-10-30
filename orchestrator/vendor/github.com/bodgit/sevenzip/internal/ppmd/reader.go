@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/bodgit/sevenzip/internal/limits"
 	"io"
 
 	"github.com/stangelandcl/ppmd"
@@ -60,6 +61,9 @@ func NewReader(p []byte, uncompressedSize uint64, readers []io.ReadCloser) (io.R
 
 	order := p[0]
 	memory := binary.LittleEndian.Uint32(p[1:])
+	if err := limits.Dictionary(uint64(memory)); err != nil {
+		return nil, err
+	}
 
 	pr, err := ppmd.NewH7zReader(readers[0], int(order), int(memory), int(uncompressedSize)) //nolint:gosec
 	if err != nil {
