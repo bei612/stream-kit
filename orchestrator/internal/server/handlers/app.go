@@ -119,14 +119,10 @@ func (h *AppHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	unlock, err := h.Manager.TryLock(id)
-	if err != nil {
-		errResponse(c, http.StatusConflict, "APP_OPERATION_CONFLICT", err.Error())
-		return
-	}
-	defer unlock()
-
 	if err := h.Manager.DeleteApp(id); err != nil {
+		if operationConflict(c, err) {
+			return
+		}
 		errResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 		return
 	}
@@ -147,13 +143,6 @@ func (h *AppHandler) Candidates(c *gin.Context) {
 func (h *AppHandler) SelectExe(c *gin.Context) {
 	id := c.Param("app_id")
 
-	unlock, err := h.Manager.TryLock(id)
-	if err != nil {
-		errResponse(c, http.StatusConflict, "APP_OPERATION_CONFLICT", err.Error())
-		return
-	}
-	defer unlock()
-
 	var req struct {
 		ExePath string `json:"exe_path" binding:"required"`
 	}
@@ -163,6 +152,9 @@ func (h *AppHandler) SelectExe(c *gin.Context) {
 	}
 
 	if err := h.Manager.SelectExe(id, req.ExePath); err != nil {
+		if operationConflict(c, err) {
+			return
+		}
 		errResponse(c, http.StatusBadRequest, "APP_STATE_INVALID", err.Error())
 		return
 	}
@@ -205,14 +197,10 @@ func (h *AppHandler) Logs(c *gin.Context) {
 func (h *AppHandler) Stop(c *gin.Context) {
 	id := c.Param("app_id")
 
-	unlock, err := h.Manager.TryLock(id)
-	if err != nil {
-		errResponse(c, http.StatusConflict, "APP_OPERATION_CONFLICT", err.Error())
-		return
-	}
-	defer unlock()
-
 	if err := h.Manager.StopApp(id); err != nil {
+		if operationConflict(c, err) {
+			return
+		}
 		errResponse(c, http.StatusBadRequest, "APP_STATE_INVALID", err.Error())
 		return
 	}
@@ -239,15 +227,11 @@ func (h *AppHandler) Launch(c *gin.Context) {
 		}
 	}
 
-	unlock, err := h.Manager.TryLock(id)
-	if err != nil {
-		errResponse(c, http.StatusConflict, "APP_OPERATION_CONFLICT", err.Error())
-		return
-	}
-	defer unlock()
-
 	streamURL, err := h.Manager.LaunchApp(id)
 	if err != nil {
+		if operationConflict(c, err) {
+			return
+		}
 		msg := err.Error()
 		if contains(msg, "离线") {
 			errResponse(c, http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", msg)
@@ -267,8 +251,19 @@ func (h *AppHandler) Launch(c *gin.Context) {
 func (h *AppHandler) Register(c *gin.Context) {
 	id := c.Param("app_id")
 	if err := h.Manager.RetryRegister(id); err != nil {
+		if operationConflict(c, err) {
+			return
+		}
 		errResponse(c, http.StatusBadRequest, "APP_STATE_INVALID", err.Error())
 		return
 	}
 	okResponse(c, gin.H{"message": "正在重新注册到编码器..."})
+}
+
+func operationConflict(c *gin.Context, err error) bool {
+	if !errors.Is(err, app.ErrOperationConflict) {
+		return false
+	}
+	errResponse(c, http.StatusConflict, "APP_OPERATION_CONFLICT", err.Error())
+	return true
 }

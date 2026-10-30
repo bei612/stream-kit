@@ -61,3 +61,37 @@ func TestApplicationUpdateOwnsItsDomainLock(t *testing.T) {
 		t.Fatal("update was not persisted", err)
 	}
 }
+
+func TestApplicationOperationConflictsUseHTTP409(t *testing.T) {
+	st, err := store.New(filepath.Join(t.TempDir(), "state.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	m := app.NewManager(st, &config.Config{}, nil, nil, nil, zap.NewNop())
+	h := NewAppHandler(m, st, nil)
+	router := gin.New()
+	router.DELETE("/apps/:app_id", h.Delete)
+	router.PUT("/apps/:app_id/exe", h.SelectExe)
+	router.POST("/apps/:app_id/stop", h.Stop)
+	router.POST("/apps/:app_id/launch", h.Launch)
+	router.POST("/apps/:app_id/register", h.Register)
+	unlock, err := m.TryLock("busy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unlock()
+	for _, tc := range []struct{ method, path, body string }{
+		{"DELETE", "/apps/busy?confirm=true", ""},
+		{"PUT", "/apps/busy/exe", `{"exe_path":"example.exe"}`},
+		{"POST", "/apps/busy/stop", ""},
+		{"POST", "/apps/busy/launch", ""},
+		{"POST", "/apps/busy/register", ""},
+	} {
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, httptest.NewRequest(tc.method, tc.path, bytes.NewBufferString(tc.body)))
+		if res.Code != 409 {
+			t.Fatalf("%s %s: %d %s", tc.method, tc.path, res.Code, res.Body.String())
+		}
+	}
+}

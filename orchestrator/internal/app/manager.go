@@ -356,19 +356,20 @@ func (m *Manager) registerWithSunshine(appID string) error {
 
 // RetryRegister re-attempts Sunshine registration for a register_failed app.
 func (m *Manager) RetryRegister(appID string) error {
-	app, err := m.store.GetApp(appID)
+	unlock, err := m.TryLock(appID)
 	if err != nil {
 		return err
 	}
+	app, err := m.store.GetApp(appID)
+	if err != nil {
+		unlock()
+		return err
+	}
 	if app.Status != model.AppStatusRegisterFailed {
+		unlock()
 		return fmt.Errorf("仅 register_failed 状态可重试注册，当前: %s", app.Status)
 	}
 	go func() {
-		unlock, err := m.TryLock(appID)
-		if err != nil {
-			m.logger.Warn("重试注册无法获取锁", zap.String("app_id", appID))
-			return
-		}
 		defer unlock()
 		m.registerWithSunshine(appID)
 	}()
@@ -378,6 +379,11 @@ func (m *Manager) RetryRegister(appID string) error {
 // LaunchApp validates preconditions and returns the stream URL for the frontend to open.
 // The actual streaming is initiated by Moonlight-Web when the user opens the URL.
 func (m *Manager) LaunchApp(appID string) (string, error) {
+	unlock, err := m.TryLock(appID)
+	if err != nil {
+		return "", err
+	}
+	defer unlock()
 	app, err := m.store.GetApp(appID)
 	if err != nil {
 		return "", err
@@ -462,6 +468,11 @@ func (m *Manager) LaunchApp(appID string) (string, error) {
 func (m *Manager) StopApp(appID string) error {
 	m.runtimeMu.Lock()
 	defer m.runtimeMu.Unlock()
+	unlock, err := m.TryLock(appID)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	app, err := m.store.GetApp(appID)
 	if err != nil {
 		return err
@@ -577,6 +588,11 @@ func (m *Manager) ReadLogs(appID string, lines int) ([]string, error) {
 
 // SelectExe manually selects an entry exe for an app in "detecting" state.
 func (m *Manager) SelectExe(appID, exeRelPath string) error {
+	unlock, err := m.TryLock(appID)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	app, err := m.store.GetApp(appID)
 	if err != nil {
 		return err
@@ -593,17 +609,17 @@ func (m *Manager) SelectExe(appID, exeRelPath string) error {
 	}
 
 	exeFullPath := filepath.Join(app.AppDir, exeRelPath)
-	m.store.UpdateAppFields(appID, map[string]interface{}{
+	if err := m.store.UpdateAppFields(appID, map[string]interface{}{
 		"exe_relative_path": exeRelPath,
 		"exe_path":          exeFullPath,
 		"working_dir":       filepath.Dir(exeFullPath),
-	})
+	}); err != nil {
+		return err
+	}
 
 	m.store.CreateLog("app", appID, "extract", "success", "入口已选择: "+exeRelPath, nil)
 
-	// Register with Sunshine directly (caller already holds per-app lock)
-	m.registerWithSunshine(appID)
-	return nil
+	return m.registerWithSunshine(appID)
 }
 
 // GetCandidates returns exe candidates for an app.
@@ -625,6 +641,11 @@ func (m *Manager) GetCandidates(appID string) ([]ExeCandidate, error) {
 func (m *Manager) DeleteApp(appID string) error {
 	m.runtimeMu.Lock()
 	defer m.runtimeMu.Unlock()
+	unlock, err := m.TryLock(appID)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	app, err := m.store.GetApp(appID)
 	if err != nil {
 		return err
