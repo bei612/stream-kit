@@ -38,6 +38,7 @@ pub mod auth;
 pub mod host;
 pub mod media;
 pub mod upstream;
+pub mod mixer;
 pub mod password;
 pub mod role;
 pub mod storage;

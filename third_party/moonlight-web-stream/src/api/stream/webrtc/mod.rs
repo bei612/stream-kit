@@ -509,7 +509,8 @@ pub async fn webrtc_post(
         audio_config: AudioConfig::STEREO,
         gamepads_attached: ActiveGamepads::empty(),
         gamepads_persist_after_disconnect: false,
-        enable_mic: mic_channel.is_some(),
+        // The first viewer must not disable microphone transport for later controllers.
+        enable_mic: true,
     };
 
     // -- Get and Apply Permissions

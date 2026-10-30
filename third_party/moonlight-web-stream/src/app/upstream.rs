@@ -2,7 +2,7 @@
 use std::{collections::HashMap, future::Future, sync::{Arc, Weak}, time::Duration};
 use moonlight_common::stream::{
     HostFeatures, audio::OpusMultistreamConfig, video::VideoSetup,
-    proto::{control::packet::ControlPacket, video::VideoStreamEvent},
+    proto::{audio::AudioStreamEvent, control::packet::ControlPacket, video::VideoStreamEvent},
     tokio::{MoonlightStream, MoonlightStreamEvent},
 };
 use tokio::sync::{Mutex, broadcast, mpsc};
@@ -45,6 +45,15 @@ impl UpstreamPool {
             }
         }
         let mut stream = start().await?;
+        let setup = stream.audio_setup();
+        if setup.sample_rate != 48_000 || setup.channel_count != 2 || setup.streams != 1 {
+            return Err(AppError::WebRtcClientCodecNotSupported);
+        }
+        let mut mixer = super::mixer::AudioMixer::new().map_err(|error| {
+            tracing::error!(%error, "cannot initialize session mixer");
+            AppError::StreamClosed
+        })?;
+        let mut microphone_peer: Option<String> = None;
         let (commands, mut receiver) = mpsc::channel(256);
         let (events, _) = broadcast::channel(256);
         let shared = Arc::new(Shared {
@@ -67,11 +76,37 @@ impl UpstreamPool {
                             if matches!(result, Some(Err(_))) { break; }
                         }
                         Some(Command::Microphone(peer_id, timestamp, bytes)) => {
-                            authority.with_controller(&key, &peer_id, || stream.send_microphone_opus_data(timestamp, &bytes)).await;
+                            authority.with_controller(&key, &peer_id, || {
+                                if microphone_peer.as_deref() != Some(&peer_id) {
+                                    let _ = mixer.clear_microphone();
+                                    microphone_peer = Some(peer_id.clone());
+                                }
+                                if let Err(error) = mixer.microphone(&bytes) {
+                                    tracing::warn!(%error, "invalid microphone Opus packet");
+                                    return;
+                                }
+                                stream.send_microphone_opus_data(timestamp, &bytes);
+                            }).await;
                         }
                         None => { let _ = stream.disconnect(); break; }
                     },
                     result = stream.drive() => match result {
+                        Ok(MoonlightStreamEvent::Audio(AudioStreamEvent::OnFrame(mut frame))) => {
+                            if let Some(peer_id) = microphone_peer.as_deref() {
+                                if !authority.can_control(&key, peer_id).await {
+                                    let _ = mixer.clear_microphone();
+                                    microphone_peer = None;
+                                }
+                            }
+                            match mixer.mix(&frame.buffer) {
+                                Ok(mixed) => frame.buffer = mixed.into(),
+                                Err(error) => {
+                                    tracing::warn!(%error, "dropping invalid audio frame from mixer");
+                                    continue;
+                                }
+                            }
+                            let _ = events.send(Arc::new(MoonlightStreamEvent::Audio(AudioStreamEvent::OnFrame(frame))));
+                        }
                         Ok(MoonlightStreamEvent::Video(VideoStreamEvent::SignalIdr)) => {
                             let _ = stream.send_raw(ControlPacket::RequestIdr);
                         }
