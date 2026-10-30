@@ -83,8 +83,13 @@ foreach ($case in @(
         if ($statusText -notlike '*explicit audio device*') { throw "Unselected recording did not fail visibly: $statusText" }
         [CheckerboardProbe]::SendMessage([CheckerboardProbe]::GetDlgItem($process.MainWindowHandle, 212), 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
         $deadline = [DateTime]::UtcNow.AddSeconds(5)
-        do { Start-Sleep -Milliseconds 50; $statusText = [CheckerboardProbe]::Text($statusControl) } while ($statusText -notlike 'State: idle*' -and [DateTime]::UtcNow -lt $deadline)
-        if ($statusText -notlike 'State: idle*') { throw 'Stop did not restore idle state' }
+        do { Start-Sleep -Milliseconds 50; $statusText = [CheckerboardProbe]::Text($statusControl) } while ($statusText -notlike 'Input: idle*Output: idle*' -and [DateTime]::UtcNow -lt $deadline)
+        if ($statusText -notlike 'Input: idle*Output: idle*') { throw 'Stop did not restore both audio directions to idle' }
+        foreach ($controlId in @(215, 216)) {
+            $stopControl = [CheckerboardProbe]::GetDlgItem($process.MainWindowHandle, $controlId)
+            if ($stopControl -eq [IntPtr]::Zero) { throw 'Independent audio stop control is missing' }
+            [CheckerboardProbe]::SendMessage($stopControl, 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+        }
         $audioChildren = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$($process.Id)" | Where-Object { $_.Name -eq 'audio-probe.exe' } | Select-Object -ExpandProperty ProcessId)
         if ($audioChildren.Count -ne 1) { throw 'Example does not own exactly one audio component' }
         $screenshot = Join-Path $outputDir ($case.Name + '.png')

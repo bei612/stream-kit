@@ -28,14 +28,16 @@ type audioDevice struct {
 	Output bool   `json:"output"`
 }
 type audioState struct {
-	State    string  `json:"state"`
-	Captured uint64  `json:"captured_frames"`
-	Played   uint64  `json:"played_frames"`
-	Rate     uint64  `json:"sample_rate"`
-	Peak     float64 `json:"peak"`
-	RMS      float64 `json:"rms"`
-	Dropped  uint64  `json:"dropped_frames"`
-	Error    *string `json:"error"`
+	State       string  `json:"state"`
+	InputState  string  `json:"input_state"`
+	OutputState string  `json:"output_state"`
+	Captured    uint64  `json:"captured_frames"`
+	Played      uint64  `json:"played_frames"`
+	Rate        uint64  `json:"sample_rate"`
+	Peak        float64 `json:"peak"`
+	RMS         float64 `json:"rms"`
+	Dropped     uint64  `json:"dropped_frames"`
+	Error       *string `json:"error"`
 }
 type probeMessage struct {
 	Version int             `json:"schema_version"`
@@ -65,7 +67,7 @@ type audioProbe struct {
 }
 
 func startAudio(hwnd uintptr) *audioProbe {
-	p := &audioProbe{hwnd: hwnd, state: audioState{State: "idle", Rate: 48000}, commands: make(chan probeCommand, 8), done: make(chan struct{})}
+	p := &audioProbe{hwnd: hwnd, state: audioState{State: "idle", InputState: "idle", OutputState: "idle", Rate: 48000}, commands: make(chan probeCommand, 8), done: make(chan struct{})}
 	path, err := os.Executable()
 	if err != nil {
 		p.errorText = err.Error()
@@ -195,7 +197,7 @@ var (
 	pKillTimer                                                                  = user32.NewProc("KillTimer")
 	probe                                                                       *audioProbe
 	inputCombo, outputCombo, audioStatus, audioHeading, inputLabel, outputLabel uintptr
-	audioButtons                                                                [5]uintptr
+	audioButtons                                                                [7]uintptr
 	inputDevices, outputDevices                                                 []audioDevice
 	inputCount, pointerCount, frameCount                                        uint64
 	audioBackground, audioFont                                                  uintptr
@@ -219,7 +221,7 @@ func setupAudio(hwnd uintptr) {
 	inputCombo = control(hwnd, "COMBOBOX", "", 0x00200000|0x00010000|3, 200)
 	outputLabel = control(hwnd, "STATIC", "Program audio output (997 Hz test tone / recorded input)", 0, 0)
 	outputCombo = control(hwnd, "COMBOBOX", "", 0x00200000|0x00010000|3, 201)
-	for i, label := range []string{"Refresh devices", "Record input", "Stop", "Play test tone", "Play recording"} {
+	for i, label := range audioButtonLabels {
 		audioButtons[i] = control(hwnd, "BUTTON", label, 0x00010000|0x0000000b, 210+i)
 	}
 	audioStatus = control(hwnd, "STATIC", "Audio initialization...", 0, 220)
@@ -255,7 +257,7 @@ func layoutAudio(hwnd uintptr) {
 	for i, h := range audioButtons {
 		pMoveWindow.Call(h, uintptr(x+(i%3)*(buttonW+8)), uintptr(y+164+(i/3)*38), uintptr(buttonW), 30, 1)
 	}
-	move(audioStatus, y+248, 76)
+	move(audioStatus, y+286, 76)
 }
 func selected(combo uintptr, devices []audioDevice) string {
 	i, _, _ := pSendMessage.Call(combo, 0x0147, 0, 0)
@@ -325,9 +327,9 @@ func refreshAudio() {
 		if errText != "" || state.Error != nil {
 			automaticToneDevice = ""
 			automaticToneRemaining = 0
-		} else if state.State == "tone" {
+		} else if state.OutputState == "tone" {
 			automaticToneSeen = true
-		} else if state.State == "completed" && automaticToneSeen {
+		} else if state.OutputState == "completed" && automaticToneSeen {
 			automaticToneSeen = false
 			if automaticToneRemaining > 0 {
 				automaticToneRemaining--
@@ -337,7 +339,7 @@ func refreshAudio() {
 			}
 		}
 	}
-	text := fmt.Sprintf("State: %s   |   Captured: %.2f s   |   Peak: %.3f   RMS: %.3f\r\nInput frames dropped: %d   |   Playback frames: %d\r\nSelect devices, then start a test. Input is held in memory only.", state.State, float64(state.Captured)/48000, state.Peak, state.RMS, state.Dropped, state.Played)
+	text := fmt.Sprintf("Input: %s   |   Output: %s   |   Captured: %.2f s   |   Peak: %.3f   RMS: %.3f\r\nInput frames dropped: %d   |   Playback frames: %d\r\nRecording and test tone can run together. Input is held in memory only.", state.InputState, state.OutputState, float64(state.Captured)/48000, state.Peak, state.RMS, state.Dropped, state.Played)
 	if errText != "" {
 		text = "Audio error: " + errText
 	}
@@ -366,9 +368,8 @@ func drawAudioButton(item *drawItem) {
 	pSetTextColor.Call(item.DC, rgb(232, 238, 248))
 	pSetBkMode.Call(item.DC, TRANSPARENT)
 	old, _, _ := pSelectObject.Call(item.DC, audioFont)
-	labels := []string{"Refresh devices", "Record input", "Stop", "Play test tone", "Play recording"}
-	if item.ID >= 210 && item.ID <= 214 {
-		t, _ := syscall.UTF16PtrFromString(labels[item.ID-210])
+	if item.ID >= 210 && item.ID < 210+uint32(len(audioButtonLabels)) {
+		t, _ := syscall.UTF16PtrFromString(audioButtonLabels[item.ID-210])
 		pDrawTextW.Call(item.DC, uintptr(unsafe.Pointer(t)), ^uintptr(0), uintptr(unsafe.Pointer(&item.Rect)), DT_CENTER|DT_VCENTER|DT_SINGLELINE)
 	}
 	pSelectObject.Call(item.DC, old)
@@ -394,5 +395,11 @@ func audioCommand(id uintptr) {
 		probe.send("tone", selected(outputCombo, outputDevices))
 	case 214:
 		probe.send("playback", selected(outputCombo, outputDevices))
+	case 215:
+		probe.send("stop_capture", "")
+	case 216:
+		probe.send("stop_playback", "")
 	}
 }
+
+var audioButtonLabels = [...]string{"Refresh devices", "Record input", "Stop all", "Play test tone", "Play recording", "Stop recording", "Stop playback"}

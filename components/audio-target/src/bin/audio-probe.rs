@@ -71,15 +71,48 @@ impl Recording {
     }
 }
 
-struct Active {
-    _stream: cpal::Stream,
+struct Active<S = cpal::Stream> {
+    _stream: S,
     kind: &'static str,
     failed: Arc<AtomicBool>,
     frames: Arc<AtomicU64>,
     complete: Arc<AtomicBool>,
 }
+
+/// Poll each owned stream independently; completion or failure closes only that direction.
+fn poll_active<S>(active: &mut Option<Active<S>>) -> (&'static str, u64) {
+    let Some(stream) = active.as_ref() else {
+        return ("idle", 0);
+    };
+    let frames = stream.frames.load(Ordering::Relaxed);
+    let state = if stream.failed.load(Ordering::Acquire) {
+        "failed"
+    } else if stream.complete.load(Ordering::Acquire) {
+        "completed"
+    } else {
+        return (stream.kind, frames);
+    };
+    *active = None;
+    (state, frames)
+}
+
+fn validate_start(op: &str, input_active: bool, output_active: bool) -> Result<(), String> {
+    let input = op == "capture";
+    if (input && input_active) || (!input && output_active) {
+        return Err("Stop the current test in this direction before starting another".into());
+    }
+    if op == "playback" && input_active {
+        return Err(
+            "Stop recording before playing recorded audio; test tone can run during recording"
+                .into(),
+        );
+    }
+    Ok(())
+}
+
 struct Probe {
-    active: Option<Active>,
+    input: Option<Active>,
+    output: Option<Active>,
     recording: Arc<Mutex<Recording>>,
     dropped: Arc<AtomicU64>,
     last_error: Option<String>,
@@ -87,7 +120,8 @@ struct Probe {
 impl Default for Probe {
     fn default() -> Self {
         Self {
-            active: None,
+            input: None,
+            output: None,
             recording: Arc::new(Mutex::new(Recording::new())),
             dropped: Arc::new(AtomicU64::new(0)),
             last_error: None,
@@ -233,8 +267,8 @@ impl Probe {
             }
             "status" => return Ok(self.status()),
             "analyze" => {
-                if self.active.is_some() {
-                    return Err("Stop the current test before analyzing recorded audio".into());
+                if self.input.is_some() {
+                    return Err("Stop recording before analyzing recorded audio".into());
                 }
                 let frequency = command
                     .frequency_hz
@@ -246,16 +280,23 @@ impl Probe {
                 return Ok(json!(analysis));
             }
             "stop" => {
-                self.active = None;
+                self.input = None;
+                self.output = None;
+                return Ok(self.status());
+            }
+            "stop_capture" => {
+                self.input = None;
+                return Ok(self.status());
+            }
+            "stop_playback" => {
+                self.output = None;
                 return Ok(self.status());
             }
             "capture" | "tone" | "playback" => {}
             _ => return Err("Unknown probe command".into()),
         }
-        if self.active.is_some() {
-            return Err("Stop the current test before starting another".into());
-        }
         let input = command.op == "capture";
+        validate_start(&command.op, self.input.is_some(), self.output.is_some())?;
         let (device, config) = device_config(&command.device_id, input)?;
         let failed = Arc::new(AtomicBool::new(false));
         let frames = Arc::new(AtomicU64::new(0));
@@ -313,7 +354,12 @@ impl Probe {
         .map_err(|e| e.to_string())?;
         stream.play().map_err(|e| e.to_string())?;
         self.last_error = None;
-        self.active = Some(Active {
+        let slot = if input {
+            &mut self.input
+        } else {
+            &mut self.output
+        };
+        *slot = Some(Active {
             _stream: stream,
             kind: if input {
                 "capture"
@@ -329,23 +375,27 @@ impl Probe {
         Ok(self.status())
     }
     fn status(&mut self) -> Value {
-        let mut state = "idle";
-        let mut played = 0;
-        if let Some(active) = &self.active {
-            state = active.kind;
-            played = active.frames.load(Ordering::Relaxed);
-            if active.failed.load(Ordering::Acquire) {
-                self.last_error = Some("Audio device failed; reselect the device and retry".into());
-                self.active = None;
-                state = "failed";
-            } else if active.complete.load(Ordering::Acquire) {
-                self.active = None;
-                state = "completed";
-            }
+        let (input_state, _) = poll_active(&mut self.input);
+        let (output_state, played) = poll_active(&mut self.output);
+        if input_state == "failed" || output_state == "failed" {
+            self.last_error = Some("Audio device failed; reselect the device and retry".into());
         }
+        let state = if self.input.is_some() && self.output.is_some() {
+            "duplex"
+        } else if self.input.is_some() {
+            input_state
+        } else if self.output.is_some() {
+            output_state
+        } else if input_state == "failed" || output_state == "failed" {
+            "failed"
+        } else if input_state == "completed" || output_state == "completed" {
+            "completed"
+        } else {
+            "idle"
+        };
         let mut data = self.recording.lock().expect("recording lock");
         let rms = (data.square_sum / data.window_frames.max(1) as f64).sqrt();
-        let result = json!({"state":state,"captured_frames":data.samples.len(),"played_frames":played,"sample_rate":RATE,"peak":data.peak,"rms":rms,"dropped_frames":self.dropped.load(Ordering::Relaxed),"error":self.last_error});
+        let result = json!({"state":state,"input_state":input_state,"output_state":output_state,"captured_frames":data.samples.len(),"played_frames":played,"sample_rate":RATE,"peak":data.peak,"rms":rms,"dropped_frames":self.dropped.load(Ordering::Relaxed),"error":self.last_error});
         data.peak = 0.0;
         data.square_sum = 0.0;
         data.window_frames = 0;
@@ -390,7 +440,7 @@ fn main() -> io::Result<()> {
             Ok(Ok(command)) => emit(command.id, "response", probe.execute(&command))?,
             Ok(Err(error)) => emit(0, "response", Err(error))?,
             Err(mpsc::RecvTimeoutError::Timeout) => {
-                if probe.active.is_some() {
+                if probe.input.is_some() || probe.output.is_some() {
                     emit(0, "status", Ok(probe.status()))?;
                 }
             }
@@ -403,6 +453,58 @@ fn main() -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn duplex_admission_keeps_directions_independent() {
+        assert!(validate_start("capture", false, true).is_ok());
+        assert!(validate_start("tone", true, false).is_ok());
+        assert!(validate_start("capture", true, false).is_err());
+        assert!(validate_start("tone", false, true).is_err());
+        assert!(validate_start("playback", true, false).is_err());
+        assert!(validate_start("playback", false, false).is_ok());
+    }
+
+    #[test]
+    fn completion_and_failure_release_only_their_owned_direction() {
+        struct Owned(Arc<AtomicBool>);
+        impl Drop for Owned {
+            fn drop(&mut self) {
+                self.0.store(true, Ordering::Release);
+            }
+        }
+        let input_closed = Arc::new(AtomicBool::new(false));
+        let output_closed = Arc::new(AtomicBool::new(false));
+        let make = |kind, closed| {
+            Some(Active {
+                _stream: Owned(closed),
+                kind,
+                failed: Arc::new(AtomicBool::new(false)),
+                frames: Arc::new(AtomicU64::new(960)),
+                complete: Arc::new(AtomicBool::new(false)),
+            })
+        };
+        let mut input = make("capture", input_closed.clone());
+        let mut output = make("tone", output_closed.clone());
+        assert_eq!(poll_active(&mut input), ("capture", 960));
+        assert_eq!(poll_active(&mut output), ("tone", 960));
+        output
+            .as_ref()
+            .unwrap()
+            .complete
+            .store(true, Ordering::Release);
+        assert_eq!(poll_active(&mut output), ("completed", 960));
+        assert!(output_closed.load(Ordering::Acquire));
+        assert!(!input_closed.load(Ordering::Acquire));
+        assert_eq!(poll_active(&mut input), ("capture", 960));
+        assert_eq!(poll_active(&mut output), ("idle", 0));
+        input
+            .as_ref()
+            .unwrap()
+            .failed
+            .store(true, Ordering::Release);
+        assert_eq!(poll_active(&mut input), ("failed", 960));
+        assert!(input_closed.load(Ordering::Acquire));
+    }
+
     #[test]
     fn recording_is_bounded_and_measures_actual_pcm() {
         let mut r = Recording::new();
@@ -433,7 +535,7 @@ mod tests {
                     })
                     .is_err()
             );
-            assert!(probe.active.is_none());
+            assert!(probe.input.is_none() && probe.output.is_none());
         }
     }
     #[test]
@@ -452,7 +554,7 @@ mod tests {
         let result = probe.execute(&command).unwrap();
         assert_eq!(result["analyzed_frames"], RATE);
         assert!(result["peak_amplitude"].as_f64().unwrap() > 0.079);
-        assert!(probe.active.is_none());
+        assert!(probe.input.is_none() && probe.output.is_none());
         assert_eq!(probe.recording.lock().unwrap().samples.len(), RATE);
     }
     #[test]

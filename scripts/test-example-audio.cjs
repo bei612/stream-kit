@@ -23,6 +23,11 @@ async function run() {
     assert.match((await command('analyze',undefined,1,24000)).error,/frequency/);
     const state=(await command('status')).data;
     assert.equal(state.state,'idle'); assert.equal(state.captured_frames,0); assert.equal(state.played_frames,0);
+    assert.equal(state.input_state,'idle'); assert.equal(state.output_state,'idle');
+    for (const op of ['stop_capture','stop_playback']) {
+      const stopped=(await command(op)).data;
+      assert.equal(stopped.input_state,'idle'); assert.equal(stopped.output_state,'idle');
+    }
     assert.equal((await command('stop')).data.state,'idle');
     await probe.close();
     await assert.rejects(probe.command('status'), /closed/);
