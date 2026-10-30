@@ -22,6 +22,7 @@ var ErrConfigurationUnavailable = errors.New("gateway configuration unavailable"
 
 type GatewayConfiguration struct {
 	Revision        string                     `json:"revision"`
+	RunningRevision *string                    `json:"running_revision"`
 	RestartRequired bool                       `json:"restart_required"`
 	ApplyPolicy     string                     `json:"apply_policy"`
 	Values          map[string]json.RawMessage `json:"values"`
@@ -106,6 +107,12 @@ func (p *Publisher) GatewayConfiguration(ctx context.Context, revision string, c
 	view := envelope.Result.Data
 	if response.StatusCode != 200 || envelope.Result.Status != "ok" || view == nil || len(view.Revision) != 64 || view.ApplyPolicy != "gateway_restart" || view.Values == nil || view.RedactedPaths == nil || view.OverriddenPaths == nil {
 		return nil, ErrConfigurationUnavailable
+	}
+	if view.RunningRevision != nil {
+		decoded, err := hex.DecodeString(*view.RunningRevision)
+		if err != nil || len(decoded) != 32 || view.RestartRequired != (*view.RunningRevision != view.Revision) {
+			return nil, ErrConfigurationUnavailable
+		}
 	}
 	return view, nil
 }

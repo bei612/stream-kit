@@ -10,6 +10,7 @@ export interface ConfigurationView {
 
 export interface GatewayConfigurationView {
   revision:string
+  running_revision?:string|null
   restart_required:boolean
   apply_policy:'gateway_restart'
   values:Record<string,ConfigValue>

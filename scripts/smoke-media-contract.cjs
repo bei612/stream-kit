@@ -16,7 +16,7 @@ fs.mkdirSync(output, { recursive: true });
 fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify({ passed: false, status: 'running', at: new Date().toISOString() }));
 const fixture = fs.mkdtempSync(path.join(output, 'run-'));
 const configPath = path.join(fixture, 'config.json');
-const secret = crypto.randomBytes(32).toString('hex');
+let secret = crypto.randomBytes(32).toString('hex');
 const env = { ...process.env, WEBRTC_ICE_SERVER_COUNT: '0' };
 for (const name of ['SSL_CERTIFICATE', 'SSL_PRIVATE_KEY', 'FORWARDED_HEADER']) delete env[name];
 const sign = (domain, body) => crypto.createHmac('sha256', secret).update(domain).update(body).digest('hex');
@@ -42,12 +42,12 @@ async function main() {
   config.webrtc.ice_servers = [];
   config.local_audio_targets = [];
   fs.writeFileSync(configPath, JSON.stringify(config));
-  const child = spawn(binary, ['--config-path', configPath, '--bind-address', `127.0.0.1:${port}`, '--path-prefix', '/gateway', 'run'], {
+  let child = spawn(binary, ['--config-path', configPath, '--bind-address', `127.0.0.1:${port}`, '--path-prefix', '/gateway', 'run'], {
     cwd: fixture, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
   });
   const log = fs.createWriteStream(path.join(fixture, 'gateway.log'));
   child.stdout.pipe(log, { end: false }); child.stderr.pipe(log, { end: false });
-  const exited = once(child, 'exit');
+  let exited = once(child, 'exit');
   const endpoint = `http://127.0.0.1:${port}/gateway/internal/v3/media-state`;
   const post = async (state, valid = true) => {
     const body = JSON.stringify(state);
@@ -117,11 +117,13 @@ async function main() {
     const beforeSettings = await configurationRequest('read');
     assert.equal(beforeSettings.status,200);
     assert.equal(beforeSettings.result.data.restart_required,false);
+    assert.equal(beforeSettings.result.data.running_revision,beforeSettings.result.data.revision);
     assert.equal(beforeSettings.result.data.values.web_server.media_ticket_secret,null);
     const revision = beforeSettings.result.data.revision;
     const changed = await configurationRequest('save',{revision,changes:{'/moonlight/pair_device_name':'Unified native settings'}});
     assert.equal(changed.status,200);
     assert.equal(changed.result.data.restart_required,true);
+    assert.equal(changed.result.data.running_revision,beforeSettings.result.data.revision);
     assert.equal(changed.result.data.apply_policy,'gateway_restart');
     assert.equal(JSON.parse(fs.readFileSync(configPath,'utf8')).web_server.media_ticket_secret,secret);
     assert.equal((await configurationRequest('save',{revision,changes:{'/moonlight/pair_device_name':'stale'}})).status,409);
@@ -216,6 +218,31 @@ async function main() {
         'signed native configuration read/save with redaction and request binding', 'configuration rejects unsigned/wrong-domain/stale requests', 'configuration version conflict and invalid edit preserve file', 'pending native trust configuration does not alter runtime'],
       management_inventory: managementInventory,
       scope: 'Isolated real gateway HTTP contract; no active media or target recording.' };
+    child.kill();
+    await exited;
+    secret = replacementSecret;
+    child = spawn(binary, ['--config-path', configPath, '--bind-address', `127.0.0.1:${port}`, '--path-prefix', '/gateway', 'run'], {
+      cwd:fixture, env, windowsHide:true, stdio:['ignore','pipe','pipe'],
+    });
+    exited = once(child,'exit');
+    child.stdout.pipe(log,{end:false}); child.stderr.pipe(log,{end:false});
+    let applied;
+    for(let attempt=0;attempt<80;attempt++) {
+      if(child.exitCode!==null) throw new Error('Restarted gateway exited before configuration verification');
+      try { const response=await configurationRequest('read'); if(response.status===200) {applied=response.result.data;break;} } catch {}
+      await delay(100);
+    }
+    assert.ok(applied,'Restarted gateway did not provide signed configuration evidence');
+    assert.equal(applied.running_revision,rotation.result.data.revision);
+    assert.equal(applied.revision,applied.running_revision);
+    assert.equal(applied.restart_required,false);
+    assert.equal(applied.values.moonlight.pair_device_name,'Unified native settings');
+    const oldTrustBody=JSON.stringify({schema_version:1,request_id:crypto.randomBytes(16).toString('hex'),issued_at_ms:Date.now(),operation:'read'});
+    const oldTrust=await fetch(configurationURL,{method:'POST',headers:{'Content-Type':'application/json',
+      'x-stream-control-signature':crypto.createHmac('sha256',config.web_server.media_ticket_secret).update('stream-kit/gateway-configuration/request/v1\n').update(oldTrustBody).digest('hex')},body:oldTrustBody,signal:AbortSignal.timeout(3000)});
+    assert.equal(oldTrust.status,401,'Restarted gateway still accepts the old trust secret');
+    result.checks.push('real gateway restart loads saved revision and rotated trust secret');
+    result.running_revision=applied.running_revision;
     fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(result, null, 2));
     console.log(JSON.stringify(result));
   } finally {

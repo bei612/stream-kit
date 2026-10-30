@@ -148,6 +148,11 @@ export function GatewayConfigurationEditor() {
   return <Card>
     <CardHeader><CardTitle>媒体网关配置</CardTitle><p className="text-sm text-muted-foreground">统一管理原生网关参数。以下设置均在网关重启后生效；会话音量与控制权仍在渲染会话页面实时调整。</p></CardHeader>
     <CardContent className="space-y-4">
+      {view&&<div className="space-y-1 text-xs text-muted-foreground">
+        <p className="break-all">已保存版本：<code>{view.revision}</code></p>
+        <p className="break-all">运行版本：<code>{view.running_revision||'网关未提供运行版本证据'}</code></p>
+        {view.running_revision===view.revision&&!view.restart_required&&<p role="status" className="text-emerald-400">当前进程已加载此配置文件版本。</p>}
+      </div>}
       {view?.restart_required&&<Alert variant="warning" role="status">网关存在待生效配置，请在维护时段协调重启。</Alert>}
       {!!view?.overridden_paths.length&&<Alert variant="warning">部分字段由启动参数或环境变量覆盖，修改文件后仍可能使用部署值。</Alert>}
       {error&&<Alert variant="error" role="alert">{error}</Alert>}

@@ -30,6 +30,7 @@ pub enum Error {
 #[derive(Serialize)]
 pub struct View {
     pub revision: String,
+    pub running_revision: Option<String>,
     pub restart_required: bool,
     pub apply_policy: &'static str,
     pub values: Value,
@@ -105,6 +106,7 @@ impl Settings {
         }
         let rev = revision(data);
         Ok(View {
+            running_revision: self.running_revision.clone(),
             restart_required: self.running_revision.as_ref() != Some(&rev),
             revision: rev,
             apply_policy: "gateway_restart",
@@ -245,6 +247,7 @@ mod tests {
         let (dir, settings) = fixture()?;
         let before = settings.view()?;
         assert!(!before.restart_required);
+        assert_eq!(before.running_revision.as_ref(), Some(&before.revision));
         assert!(!serde_json::to_string(&before)?.contains("original-private-secret"));
         let changes = BTreeMap::from([(
             "/moonlight/pair_device_name".into(),
@@ -252,6 +255,12 @@ mod tests {
         )]);
         let saved = settings.save(&before.revision, changes.clone())?;
         assert!(saved.restart_required);
+        assert_eq!(saved.running_revision, before.running_revision);
+        let source = fs::read_to_string(&settings.path)?;
+        let restarted = Settings::new(settings.path.clone(), Some(&source), CliConfig::default());
+        let applied = restarted.view()?;
+        assert!(!applied.restart_required);
+        assert_eq!(applied.running_revision.as_ref(), Some(&saved.revision));
         assert!(matches!(
             settings.save(&before.revision, changes),
             Err(Error::Conflict)

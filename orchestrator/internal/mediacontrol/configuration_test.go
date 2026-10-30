@@ -13,7 +13,7 @@ import (
 
 func TestGatewayConfigurationSignedBoundary(t *testing.T) {
 	secret := []byte("configuration-test-secret")
-	for _, mode := range []string{"read", "save", "unsigned", "wrong-domain", "wrong-nonce", "conflict", "invalid", "status-mismatch"} {
+	for _, mode := range []string{"read", "save", "unsigned", "wrong-domain", "wrong-nonce", "conflict", "invalid", "status-mismatch", "running-mismatch", "running-invalid", "running-known"} {
 		t.Run(mode, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				raw, err := io.ReadAll(r.Body)
@@ -37,6 +37,18 @@ func TestGatewayConfigurationSignedBoundary(t *testing.T) {
 					t.Error("wrong operation")
 				}
 				result := map[string]any{"status": "ok", "data": GatewayConfiguration{Revision: strings.Repeat("a", 64), ApplyPolicy: "gateway_restart", Values: map[string]json.RawMessage{"webrtc": json.RawMessage(`{}`)}, RedactedPaths: []string{}, OverriddenPaths: []string{}}}
+				if strings.HasPrefix(mode, "running-") {
+					view := result["data"].(GatewayConfiguration)
+					running := view.Revision
+					if mode == "running-mismatch" {
+						running = strings.Repeat("b", 64)
+					}
+					if mode == "running-invalid" {
+						running = strings.Repeat("z", 64)
+					}
+					view.RunningRevision = &running
+					result["data"] = view
+				}
 				status := 200
 				if mode == "conflict" || mode == "status-mismatch" {
 					status = 409
@@ -74,7 +86,7 @@ func TestGatewayConfigurationSignedBoundary(t *testing.T) {
 			}
 			view, err := p.GatewayConfiguration(context.Background(), revision, changes)
 			switch mode {
-			case "read", "save":
+			case "read", "save", "running-known":
 				if err != nil || view == nil {
 					t.Fatal(err)
 				}

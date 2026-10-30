@@ -19,7 +19,7 @@ module.exports = async function acceptAudioInventory({ root, binary, gatewayURL,
   const config = {
     server: { bind_address: `127.0.0.1:${port}`, ...credentials, jwt_secret: crypto.randomBytes(32).toString('hex'), media_ticket_secret: secret },
     components: {}, sunshine_api: { base_url: '' }, moonlight_web: { base_url: gatewayURL },
-    storage: { apps_dir: 'apps', temp_dir: 'temp', db_path: 'control.db', max_upload_size_bytes: 10485760 },
+    storage: { apps_dir: 'apps', temp_dir: 'temp', db_path: 'control.db', max_upload_size_bytes: 10485760, max_extract_size_bytes:20971520, max_file_count:1000 },
     process: { monitor_interval_seconds: 2, graceful_shutdown_timeout_seconds: 2 },
     log: { level: 'info', file: { enabled: false }, access_log: { enabled: false } },
   };
@@ -77,33 +77,19 @@ module.exports = async function acceptAudioInventory({ root, binary, gatewayURL,
       const response=await fetch(origin+'/api/v1'+resource,{method,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(body)});
       assert.equal(response.status,status); return response.json();
     };
-    const created=(await command('/stream-sessions','POST',{host_id:1,app_id:2})).data;
-    await page.locator('nav a[href="/stream-sessions"]').click();
-    await page.getByLabel('发送方式',{exact:true}).selectOption('disabled');
-    const saveResponse=page.waitForResponse(response => response.request().method()==='PATCH' && new URL(response.url()).pathname.endsWith('/audio-target'));
-    await page.getByRole('button',{name:'保存并应用目标'}).click();
-    const saved=await saveResponse; assert.equal(saved.status(),200);
-    const changed=(await saved.json()).data;
-    assert.equal(changed.audio.target.mode,'disabled');
-    assert.ok(changed.audio.target.epoch>created.audio.target.epoch);
-    await page.getByRole('button',{name:'重新应用目标'}).waitFor();
-    await command(`/stream-sessions/${created.session_id}/audio-target`,'PATCH',{
-      expected_epoch:created.audio.target.epoch,target:{mode:'upstream',render_device_id:'',capture_device_id:''},
-    },409);
-    await command(`/stream-sessions/${created.session_id}/audio-target`,'PATCH',{
-      expected_epoch:changed.audio.target.epoch,target:{mode:'local',render_device_id:'not-present-render',capture_device_id:'not-present-capture'},
-    },400);
-    let observation;
-    for(let i=0;i<20;i++) {
-      const response=await fetch(origin+'/api/v1/media-control',{headers:{Authorization:`Bearer ${token}`}});
-      const status=(await response.json()).data;
-      observation=status.observations?.[created.session_id];
-      if(status.observations_valid && observation?.microphone_target.epoch===changed.audio.target.epoch)break;
-      await delay(100);
-    }
-    assert.equal(observation?.microphone_target.epoch,changed.audio.target.epoch);
-    assert.equal(observation.microphone_target.state,'idle','Unstarted application must not claim an open device');
-    await page.screenshot({path:path.join(output,'audio-target-management.png'),fullPage:true});
+    // This fixture has no managed rendering application. The production
+    // admission boundary must reject a fabricated host/app session.
+    await command('/stream-sessions','POST',{host_id:1,app_id:2},400);
+    const readConfiguration=await fetch(origin+'/api/v1/gateway-configuration',{headers:{Authorization:`Bearer ${token}`}});
+    assert.equal(readConfiguration.status,200);
+    const settings=(await readConfiguration.json()).data;
+    assert.match(settings.running_revision,/^[0-9a-f]{64}$/);
+    assert.notEqual(settings.running_revision,settings.revision);
+    assert.equal(settings.restart_required,true);
+    await page.getByRole('button',{name:'重新读取网关配置',exact:true}).click();
+    await page.getByText('网关存在待生效配置，请在维护时段协调重启。',{exact:true}).waitFor();
+    await page.getByText(settings.running_revision,{exact:true}).waitFor();
+    await page.screenshot({path:path.join(output,'gateway-running-revision.png'),fullPage:true});
     assert.deepEqual(errors, []);
     return {
       passed: true, browser: browser.version(), device_count: inventory.devices.length,
@@ -112,7 +98,7 @@ module.exports = async function acceptAudioInventory({ root, binary, gatewayURL,
         crypto.createHash('sha256').update(fs.readFileSync(path.join(scratch, 'dist/assets', name))).digest('hex')])),
       checks: ['real management login', 'anonymous denied', 'Go to Rust authenticated inventory', 'actual OS device enumeration',
         configuredRoutes.length ? 'missing configured endpoints visible' : 'no configured target shown', 'explicit refresh without polling', 'desktop and narrow viewport without overflow',
-        'real browser target update', 'stale target command rejected', 'missing endpoint selection rejected', 'gateway acknowledgement binds target epoch without inventing device open'],
+        'unmanaged host/app session admission rejected', 'signed gateway running revision passes through Go to management page'],
       scope: 'Native device enumeration through real gateway, control process and production browser. No audio stream open or recording.',
     };
   } finally {

@@ -74,13 +74,23 @@ signature and request binding before trusting values or errors. Authentication,
 malformed input and resource admission failures can return unsigned rejection;
 these responses must never be interpreted as configuration snapshots.
 
-The result's data contains `revision`, `restart_required`,
+The result's data contains `revision`, `running_revision`, `restart_required`,
 `apply_policy: gateway_restart`, `values`, `redacted_paths`, and
 `overridden_paths`. Trust secrets, TLS material, ICE script and ICE credentials
 or URLs are redacted to null and identified explicitly. Omitted changes retain
 their original values; null is an explicit replacement, not a retain marker.
 Overrides are captured from the running gateway's CLI/environment. Their values
 are never persisted by configuration editing.
+
+`revision` hashes the current saved file bytes. `running_revision` is the hash
+of the source file actually read by this process at startup, or null when startup
+used defaults without a source file. Saves never change the running revision.
+The administrator client validates a supplied running hash and its consistency
+with `restart_required`; an older gateway without this field supplies no explicit
+running-version evidence. File-version equality does not override deployment
+arguments/environment, prove media operation, or prove certificate-file contents
+are unchanged. Deploy the matching control-plane binary before the gateway;
+older strict response decoders may reject this new response field.
 
 Save checks the raw file revision, derives and validates the effective native
 configuration, writes and syncs a new same-directory file, and replaces the

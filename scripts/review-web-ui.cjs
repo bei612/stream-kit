@@ -53,6 +53,7 @@ async function main() {
       let conflictConfiguration=true;
       const gatewayConfiguration={revision:'native-1',restart_required:false,apply_policy:'gateway_restart',values:{moonlight:{pair_device_name:'Stream Kit',default_http_port:47989},web_server:{media_ticket_secret:null,control_plane_url:'https://control.example'},webrtc:{port_range:null,ice_servers:[{urls:null,username:'turn-user',credential:null}],include_loopback_candidates:true}},redacted_paths:['/web_server/media_ticket_secret','/webrtc/ice_servers/0/urls','/webrtc/ice_servers/0/credential'],overridden_paths:['/web_server/control_plane_url']};
       let conflictGateway=true;
+      gatewayConfiguration.running_revision=gatewayConfiguration.revision;
       gatewayConfiguration.values.web_server.certificate=null;
       gatewayConfiguration.redacted_paths.push('/web_server/certificate');
       const context = await browser.newContext({ viewport:{width,height:900}, locale:'zh-CN', reducedMotion:'reduce' });
@@ -180,6 +181,7 @@ async function main() {
           await page.getByLabel('目标程序读取端 · 输入设备',{exact:true}).selectOption('wasapi:capture-fixture');
         }
         if(name==='settings') {
+          await page.getByText('当前进程已加载此配置文件版本。',{exact:true}).waitFor();
           await page.locator('summary').filter({hasText:'渲染主机连接'}).click();
           await page.getByLabel('配对设备名称',{exact:true}).fill('Gateway draft');
           await page.getByRole('button',{name:'保存网关配置',exact:true}).click();
@@ -191,6 +193,7 @@ async function main() {
           await page.getByRole('button',{name:'保存网关配置',exact:true}).click();
           await page.getByText('网关配置已保存，重启网关后生效。当前串流继续使用原配置。',{exact:true}).waitFor();
           await page.getByText('网关存在待生效配置，请在维护时段协调重启。',{exact:true}).waitFor();
+          assert.equal(await page.getByText('当前进程已加载此配置文件版本。',{exact:true}).count(),0);
           await page.locator('summary').filter({hasText:'访问与信任'}).click();
           assert.equal(await page.getByLabel('媒体信任密钥',{exact:true}).inputValue(),'');
           await page.getByRole('button',{name:'清空可选配置',exact:true}).click();
