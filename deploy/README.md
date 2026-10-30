@@ -33,6 +33,15 @@ service result without waiting for keyboard input. Pending operations report
 checkpoints to SCM. The listener is owned continuously from startup through
 shutdown, rather than being probed, closed and reopened.
 
+Runtime shutdown also joins the media-state reconciler, session lease reaper and
+encoder monitor before releasing application persistence. Automatic component
+startup is joined after cancelling the component manager, so a readiness wait
+cannot outlive shutdown or hold it until the normal startup timeout. The shared
+goroutine helper exposes completion only after deferred cleanup and panic
+reporting finish. Tests include cancellation during an in-flight encoder HTTP
+observation, HTTP/HTTPS shutdown and SQLite release; lifecycle and completion
+tests pass with the Windows race detector.
+
 The Windows installer requires an existing configuration and management page,
 rejects an existing same-named service with different launch paths, and configures
 failure recovery delays of 5, 15 and 60 seconds. It does not silently migrate an

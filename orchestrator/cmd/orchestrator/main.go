@@ -132,7 +132,15 @@ func run(ctx context.Context, ready func()) error {
 		},
 		logger,
 	)
-	defer compMgr.Shutdown()
+	var autoStartDone <-chan struct{}
+	defer func() {
+		// StartAll can be waiting on component readiness. Cancel the manager
+		// before joining it, so shutdown does not wait for the startup timeout.
+		compMgr.Shutdown()
+		if autoStartDone != nil {
+			<-autoStartDone
+		}
+	}()
 
 	// Sunshine & Moonlight clients (nil if not configured)
 	var sunClient *sunshine.Client
@@ -206,17 +214,23 @@ func run(ctx context.Context, ready func()) error {
 
 	// Monitor streaming state (detects when apps start/stop via Sunshine)
 	streamCtx, streamCancel := context.WithCancel(ctx)
-	defer streamCancel()
+	var background []<-chan struct{}
+	defer func() {
+		streamCancel()
+		for _, done := range background {
+			<-done
+		}
+	}()
 	if srv.MediaControl != nil {
-		util.SafeGo(logger, "media-state-reconciler", func() { srv.MediaControl.Run(streamCtx, logger) })
+		background = append(background, util.SafeGo(logger, "media-state-reconciler", func() { srv.MediaControl.Run(streamCtx, logger) }))
 	}
-	util.SafeGo(logger, "session-lease-reaper", func() {
+	background = append(background, util.SafeGo(logger, "session-lease-reaper", func() {
 		sessionMgr.RunLeaseReaper(streamCtx, 5*time.Second)
-	})
-	util.SafeGo(logger, "stream-monitor", func() { appMgr.MonitorStreaming(streamCtx) })
+	}))
+	background = append(background, util.SafeGo(logger, "stream-monitor", func() { appMgr.MonitorStreaming(streamCtx) }))
 
 	// Auto-start components in background
-	util.SafeGo(logger, "auto-start", func() {
+	autoStartDone = util.SafeGo(logger, "auto-start", func() {
 		select {
 		case <-streamCtx.Done():
 			return

@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,11 +23,12 @@ import (
 )
 
 func TestRuntimeCancellationClosesHTTPAndDatabase(t *testing.T) {
-	t.Run("HTTP", func(t *testing.T) { testRuntimeCancellation(t, false) })
-	t.Run("HTTPS", func(t *testing.T) { testRuntimeCancellation(t, true) })
+	t.Run("HTTP", func(t *testing.T) { testRuntimeCancellation(t, false, false) })
+	t.Run("HTTPS", func(t *testing.T) { testRuntimeCancellation(t, true, false) })
+	t.Run("active encoder monitor", func(t *testing.T) { testRuntimeCancellation(t, false, true) })
 }
 
-func testRuntimeCancellation(t *testing.T, encrypted bool) {
+func testRuntimeCancellation(t *testing.T, encrypted, monitor bool) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -36,6 +38,30 @@ func testRuntimeCancellation(t *testing.T, encrypted bool) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.json")
 	cfg := config.Config{Server: config.ServerConfig{BindAddress: address, Username: "test", Password: "test-password", JWTSecret: strings.Repeat("x", 32)}, Components: map[string]config.ComponentConfig{}, Storage: config.StorageConfig{AppsDir: "apps", TempDir: "temp", DBPath: "control.db", MaxUploadSize: 1024, MaxExtractSize: 1024, MaxFileCount: 10}, Process: config.ProcessConfig{MonitorInterval: 1, GracefulShutdownTimeout: 1}}
+	entered, cancelled := make(chan struct{}, 1), make(chan struct{}, 1)
+	if monitor {
+		encoder := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/api/stream-kit/capabilities" {
+				_, _ = w.Write([]byte(`{"schema_version":1,"capture_modes":["desktop"],"capture_mode_apply":"application_restart","managed_runtime_version":1}`))
+				return
+			}
+			if r.URL.Path != "/api/stream-kit/runtime" {
+				http.NotFound(w, r)
+				return
+			}
+			select {
+			case entered <- struct{}{}:
+			default:
+			}
+			<-r.Context().Done()
+			select {
+			case cancelled <- struct{}{}:
+			default:
+			}
+		}))
+		defer encoder.Close()
+		cfg.SunshineAPI.BaseURL = encoder.URL
+	}
 	scheme := "http"
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	defer transport.CloseIdleConnections()
@@ -98,6 +124,13 @@ func testRuntimeCancellation(t *testing.T, encrypted bool) {
 	if response.StatusCode != 200 {
 		t.Fatalf("health status %d", response.StatusCode)
 	}
+	if monitor {
+		select {
+		case <-entered:
+		case <-time.After(10 * time.Second):
+			t.Fatal("encoder monitor did not start")
+		}
+	}
 	cancel()
 	select {
 	case err := <-done:
@@ -106,6 +139,13 @@ func testRuntimeCancellation(t *testing.T, encrypted bool) {
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("shutdown timed out")
+	}
+	if monitor {
+		select {
+		case <-cancelled:
+		case <-time.After(time.Second):
+			t.Fatal("encoder observation survived cancellation")
+		}
 	}
 	if response, err := client.Get(scheme + "://" + address + "/api/v1/health"); err == nil {
 		response.Body.Close()
