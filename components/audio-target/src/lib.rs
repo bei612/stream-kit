@@ -32,7 +32,9 @@ pub enum Error {
     Platform(#[from] cpal::Error),
     #[error("configured {0} endpoint is unavailable")]
     Missing(&'static str),
-    #[error("endpoint must support 48 kHz mono/stereo PCM (f32/i16/i32)")]
+    #[error(
+        "endpoint must support 48 kHz mono/stereo PCM (f32/i16/i32) with a buffer of at most 20 ms"
+    )]
     UnsupportedFormat,
 }
 
@@ -116,25 +118,8 @@ impl AudioTarget {
         let device = host
             .device_by_id(&render_id)
             .ok_or(Error::Missing("render"))?;
-        let config = device
-            .supported_output_configs()?
-            .find(|config| {
-                (1..=2).contains(&config.channels())
-                    && config.min_sample_rate() <= 48_000
-                    && config.max_sample_rate() >= 48_000
-                    && matches!(
-                        config.sample_format(),
-                        SampleFormat::F32 | SampleFormat::I16 | SampleFormat::I32
-                    )
-            })
-            .ok_or(Error::UnsupportedFormat)?
-            .with_sample_rate(48_000);
+        let (config, frames) = select_output_config(device.supported_output_configs()?)?;
         let shared = Arc::new(Shared::default());
-        let frames = match *config.buffer_size() {
-            cpal::SupportedBufferSize::Range { min, max } if min <= 960 => 960.min(max),
-            cpal::SupportedBufferSize::Unknown => 960,
-            _ => return Err(Error::UnsupportedFormat),
-        };
         let format = config.sample_format();
         let mut config: cpal::StreamConfig = config.into();
         config.buffer_size = cpal::BufferSize::Fixed(frames);
@@ -181,6 +166,38 @@ impl AudioTarget {
             shared: self.shared.clone(),
         }
     }
+}
+
+/// Validate format and callback buffer together before selecting an advertised
+/// configuration. An unusable first range must not hide a later usable range.
+fn select_output_config(
+    configurations: impl IntoIterator<Item = cpal::SupportedStreamConfigRange>,
+) -> Result<(cpal::SupportedStreamConfig, u32), Error> {
+    configurations
+        .into_iter()
+        .find_map(|config| {
+            if !(1..=2).contains(&config.channels())
+                || config.min_sample_rate() > 48_000
+                || config.max_sample_rate() < 48_000
+                || !matches!(
+                    config.sample_format(),
+                    SampleFormat::F32 | SampleFormat::I16 | SampleFormat::I32
+                )
+            {
+                return None;
+            }
+            let frames = match *config.buffer_size() {
+                cpal::SupportedBufferSize::Range { min, max }
+                    if min <= max && max > 0 && min <= 960 =>
+                {
+                    960.min(max)
+                }
+                cpal::SupportedBufferSize::Unknown => 960,
+                _ => return None,
+            };
+            Some((config.with_sample_rate(48_000), frames))
+        })
+        .ok_or(Error::UnsupportedFormat)
 }
 
 impl Shared {
@@ -261,6 +278,46 @@ fn record_error(shared: &Shared, error: cpal::Error) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn later_usable_device_configuration_is_not_hidden_by_large_first_buffer() {
+        let configurations = [
+            cpal::SupportedStreamConfigRange::new(
+                2,
+                48_000,
+                48_000,
+                cpal::SupportedBufferSize::Range {
+                    min: 2048,
+                    max: 4096,
+                },
+                SampleFormat::F32,
+            ),
+            cpal::SupportedStreamConfigRange::new(
+                2,
+                44_100,
+                96_000,
+                cpal::SupportedBufferSize::Range { min: 128, max: 512 },
+                SampleFormat::I16,
+            ),
+        ];
+        let (selected, frames) = select_output_config(configurations).expect("usable second range");
+        assert_eq!(selected.sample_format(), SampleFormat::I16);
+        assert_eq!(selected.sample_rate(), 48_000);
+        assert_eq!(frames, 512);
+    }
+
+    #[test]
+    fn invalid_or_excessive_buffers_are_not_opened() {
+        for (min, max) in [(0, 0), (512, 128), (961, 2048)] {
+            let config = cpal::SupportedStreamConfigRange::new(
+                2,
+                48_000,
+                48_000,
+                cpal::SupportedBufferSize::Range { min, max },
+                SampleFormat::F32,
+            );
+            assert!(select_output_config([config]).is_err());
+        }
+    }
     #[test]
     fn missing_ids_are_not_replaced_by_default_devices() {
         for (render, capture) in [("", ""), ("invalid", "invalid")] {
