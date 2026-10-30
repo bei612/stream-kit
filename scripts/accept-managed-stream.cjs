@@ -476,7 +476,7 @@ async function main() {
     if(applyManagedEncoder){
       const started=Date.now();
       const selected=await api(`/stream-sessions/${invite.session_id}/controller/${ids[0]}`,'POST');
-      const beforeFrames=await Promise.all(pages.map(page=>page.evaluate(()=>document.querySelector('video').getVideoPlaybackQuality().totalVideoFrames)));
+      const priorPeers=await Promise.all(pages.map(page=>page.evaluate(()=>window.__acceptancePeers.length)));
       await adminPage.getByRole('button',{name:'重新读取编码器配置',exact:true}).click();
       await adminPage.getByRole('button',{name:'重启编码器并加载配置',exact:true}).click();
       await adminPage.getByRole('status').filter({hasText:'编码器已重启，新实例已读取目标配置文件'}).waitFor({timeout:90000});
@@ -485,7 +485,12 @@ async function main() {
       const nativeAfter=await sunshine('/api/config');
       for(const [key,value]of Object.entries(nativeBefore))if(key!=='sunshine_name')assert.deepEqual(nativeAfter[key],value,`Untouched field changed: ${key}`);
       result.encoder_apply={passed:false,loaded_revision_verified:true};save();
-      await Promise.all(pages.map((page,index)=>waitForPageCondition(page,previous=>{const video=document.querySelector('video');return !!video&&video.readyState>=2&&video.getVideoPlaybackQuality().totalVideoFrames>previous+10},beforeFrames[index],{timeout:60000})));
+      await Promise.all(pages.map((page,index)=>waitForPageCondition(page,async previous=>{
+        const peers=window.__acceptancePeers,peer=peers.at(-1),video=document.querySelector('video');
+        if(peers.length<=previous||peer?.connectionState!=='connected'||!video||video.readyState<2)return false;
+        const stats=[...(await peer.getStats()).values()];
+        return (stats.find(s=>s.type==='inbound-rtp'&&s.kind==='video')?.framesDecoded||0)>=30;
+      },priorPeers[index],{timeout:60000})));
       const audio=await Promise.all(pages.map(page=>measureReceivedTone(page)));
       assert.ok(audio.every(level=>level>-65),'Every viewer must receive program audio after encoder replacement');
       await Promise.all(pages.map(page=>page.evaluate(()=>window.__toneProbe.context.close())));
@@ -493,7 +498,7 @@ async function main() {
       assert.equal(resumed.controller_connection_id,selected.controller_connection_id);
       assert.equal(resumed.control_epoch,selected.control_epoch);
       assert.deepEqual(Object.keys(resumed.connections).sort(),ids.slice().sort());
-      result.encoder_apply={passed:true,loaded_revision_verified:true,clients_recovered:clientCount,recovery_ms:Date.now()-started,program_audio_db:audio,connection_identity_preserved:true,control_epoch_preserved:true};
+      result.encoder_apply={passed:true,loaded_revision_verified:true,clients_recovered:clientCount,recovery_ms:Date.now()-started,peer_replacements_verified:true,program_audio_db:audio,connection_identity_preserved:true,control_epoch_preserved:true};
     }
     await adminPage.close();
     result.encoder_configuration={passed:true,browser_form:true,conflict_rejected:true,video_continued:true,apply_policy:saved.apply_policy,runtime_verified:false,loaded_revision_preserved:true,command_line_override_reported:true,restart_required:saved.restart_required};
@@ -898,10 +903,21 @@ async function main() {
     assert.ok(streams.some(s => s.kind === 'video' && s.frames > 15));
     assert.ok(streams.some(s => s.kind === 'audio' && s.packets > 0), 'Each viewer receives the shared audio track');
   }
+  const departingSnapshot=await mediaSnapshot();
   await pages[0].evaluate(() => window.app.getStream().stop());
   await pages[0].close();
   await delay(2500);
   result.remaining_viewer_frames = await videoFrames(pages[1]);
+  result.viewer_departure={before:departingSnapshot[1],after:await pages[1].evaluate(async()=>{
+    const peer=window.__acceptancePeers.at(-1),stats=[...(await peer.getStats()).values()];
+    const video=stats.find(s=>s.type==='inbound-rtp'&&s.kind==='video'),audio=stats.find(s=>s.type==='inbound-rtp'&&s.kind==='audio');
+    return {state:peer.connectionState,frames:video?.framesDecoded||0,audio_packets:audio?.packetsReceived||0,presented_frames:window.__presentedVideoFrames};
+  }),shared:(await api('/media-control')).observations?.[invite.session_id]};save();
+  assert.equal(result.viewer_departure.after.state,'connected');
+  assert.ok(result.viewer_departure.after.frames>result.viewer_departure.before.frames+10,'Remaining viewer decoder must continue after another viewer leaves');
+  assert.ok(result.viewer_departure.after.audio_packets>result.viewer_departure.before.audio_packets,'Remaining viewer audio must continue after another viewer leaves');
+  assert.equal(result.viewer_departure.shared?.subscribers,clientCount-1);
+  assert.equal(result.viewer_departure.shared?.upstream_active,true);
   assert.ok(result.remaining_viewer_frames > result.frames_before_disconnect[1] + 10, 'Remaining viewer must continue decoding after first viewer leaves');
   if (stopActive) {
     // The initial invitation can naturally expire during a long hold. Obtain
