@@ -861,12 +861,21 @@ namespace platf::audio {
           return capture_e::error;
         }
         DWORD buffer_flags;
+#ifdef SUNSHINE_TESTS
+        UINT64 device_position = 0;
+        UINT64 clock_position = 0;
+#endif
         status = audio_capture->GetBuffer(
           (BYTE **) &sample_aligned.samples,
           &block_aligned.audio_sample_size,
           &buffer_flags,
+#ifdef SUNSHINE_TESTS
+          &device_position,
+          &clock_position
+#else
           nullptr,
           nullptr
+#endif
         );
 
         switch (status) {
@@ -882,6 +891,29 @@ namespace platf::audio {
         if (buffer_flags & AUDCLNT_BUFFERFLAGS_DATA_DISCONTINUITY) {
           BOOST_LOG(debug) << "Audio capture signaled buffer discontinuity";
         }
+#ifdef SUNSHINE_TESTS
+        if (capture_diagnostics[0]++ == 0) {
+          capture_diagnostics[3] = device_position;
+          capture_diagnostics[5] = clock_position;
+        } else if (clock_position >= capture_diagnostics[6]) {
+          const auto delta = clock_position - capture_diagnostics[6];
+          if (delta > capture_diagnostics[8]) {
+            capture_diagnostics[8] = delta;
+            capture_diagnostics[11] = capture_diagnostics[6] - capture_diagnostics[5];
+          }
+          if (delta > 150000) {
+            ++capture_diagnostics[9];
+            capture_diagnostics[10] += delta - 100000;
+          }
+        }
+        capture_diagnostics[1] += block_aligned.audio_sample_size;
+        if (buffer_flags & AUDCLNT_BUFFERFLAGS_SILENT) {
+          capture_diagnostics[2] += block_aligned.audio_sample_size;
+        }
+        capture_diagnostics[4] = device_position + block_aligned.audio_sample_size;
+        capture_diagnostics[6] = clock_position;
+        capture_diagnostics[7] += (buffer_flags & AUDCLNT_BUFFERFLAGS_TIMESTAMP_ERROR) != 0;
+#endif
 
         sample_aligned.uninitialized = std::end(sample_buf) - sample_buf_pos;
         auto n = std::min(sample_aligned.uninitialized, block_aligned.audio_sample_size * channels);
@@ -914,6 +946,9 @@ namespace platf::audio {
 
   public:
     co_init_t com_;  ///< Declared before COM resources so the apartment is released last.
+#ifdef SUNSHINE_TESTS
+    std::array<std::uint64_t, 12> capture_diagnostics {};  ///< Test-only packet, frame, silence and native timestamp observations.
+#endif
     handle_t audio_event;  ///< Event signaled by WASAPI when captured audio is available.
 
     device_enum_t device_enum;  ///< Device enum.
@@ -1507,6 +1542,11 @@ namespace platf::audio {
 
 #ifdef SUNSHINE_TESTS
   namespace tests {
+    /** @brief Read native packet timing without changing capture. @param mic WASAPI capture under test. @return Packet/frame/silence counts and first/last device/QPC timestamps. */
+    std::array<std::uint64_t, 12> capture_observations(const mic_t &mic) {
+      return dynamic_cast<const mic_wasapi_t &>(mic).capture_diagnostics;
+    }
+
     /** @brief Empty packet source for notification tests without opening host audio devices. */
     class empty_capture_t final: public IAudioCaptureClient {
     public:

@@ -12,6 +12,10 @@
   #include <fstream>
   #include <gtest/gtest.h>
 
+namespace platf::audio::tests {
+  std::array<std::uint64_t, 12> capture_observations(const mic_t &mic);
+}
+
 namespace {
   /** @brief Own the example process and COM apartment for explicit integration acceptance. */
   class ApplicationCaptureIntegrationTest: public ::testing::Test {
@@ -284,9 +288,12 @@ namespace {
     int timeouts = 0;
     double first_packet_ms = -1;
     double last_packet_ms = -1;
+    double longest_sample_ms = 0;
     while (std::chrono::steady_clock::now() < until) {
       std::vector<float> packet(480);
+      const auto sample_started = std::chrono::steady_clock::now();
       const auto status = microphone->sample(packet);
+      longest_sample_ms = std::max(longest_sample_ms, std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - sample_started).count());
       ASSERT_NE(status, platf::capture_e::error);
       ASSERT_NE(status, platf::capture_e::reinit);
       if (status == platf::capture_e::ok) {
@@ -305,14 +312,21 @@ namespace {
     target_->retire();
     std::vector<float> retired_packet(480);
     EXPECT_EQ(microphone->sample(retired_packet), platf::capture_e::error);
+    const auto observed = platf::audio::tests::capture_observations(*microphone);
+    const std::array<const char *, 12> names {"native_packets", "native_frames", "native_silent_frames", "native_first_position", "native_end_position", "native_first_qpc", "native_last_qpc", "native_timestamp_errors", "native_max_delta_100ns", "native_gaps_over_15ms", "native_gap_excess_100ns", "native_max_gap_start_100ns"};
+    for (std::size_t i = 0; i < names.size(); ++i) {
+      RecordProperty(names[i], std::to_string(observed[i]));
+    }
     microphone.reset();
     RecordProperty("captured_frames", std::to_string(samples.size()));
     RecordProperty("first_packet_ms", std::to_string(first_packet_ms));
     RecordProperty("last_packet_ms", std::to_string(last_packet_ms));
     RecordProperty("capture_timeouts", timeouts);
+    RecordProperty("longest_sample_ms", std::to_string(longest_sample_ms));
     // Four seconds must remain four seconds of PCM, including silent intervals.
-    ASSERT_GT(samples.size(), 48000U * 38U / 10U);
-    ASSERT_LT(samples.size(), 48000U * 42U / 10U);
+    EXPECT_GT(samples.size(), 48000U * 38U / 10U);
+    EXPECT_LT(samples.size(), 48000U * 42U / 10U);
+    ASSERT_FALSE(samples.empty());
     double energy = 0;
     double real = 0;
     double imaginary = 0;
