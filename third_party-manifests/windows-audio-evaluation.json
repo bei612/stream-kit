@@ -1,0 +1,36 @@
+{
+  "reviewed_on": "2026-10-31",
+  "purpose": "Windows render-to-capture endpoints for browser microphone delivery to example, recorders and UE5",
+  "adopted": false,
+  "installation_performed": false,
+  "security_settings_changed": false,
+  "candidates": [
+    {
+      "repository": "https://github.com/VirtualDrivers/Virtual-Audio-Driver",
+      "commit": "bb34fba15faf569a6ae9bdea360bc1cf4821354e",
+      "local_review_checkout": ".local/research/virtual-audio-driver",
+      "source_downloaded": true,
+      "finding": "Capture WriteBytes fills its DMA buffer with RtlZeroMemory; render ReadBytes writes to a file. This is not the required render-to-capture virtual cable.",
+      "source_evidence": "Source/Main/minwavertstream.cpp: CMiniportWaveRTStream::WriteBytes and ReadBytes",
+      "signing_evidence": "Current README requires test signing. Public GitHub releases API returned an empty list; old search snippets about signed releases were not accepted as current package evidence.",
+      "decision": "Do not deploy as the microphone bridge"
+    },
+    {
+      "repository": "https://github.com/doctorspider42/radio-voice",
+      "commit": "872f7d570f093f94b514ebdcfbbb1a23ecc458d9",
+      "local_review_checkout": ".local/research/radio-voice",
+      "source_downloaded": true,
+      "finding": "Driver source contains a render-to-capture loopback buffer and documents 48 kHz stereo PCM. Documented installation requires test signing and Secure Boot disabled.",
+      "source_evidence": "driver/src/LoopbackBuffer.cpp; driver/README.md; README.md driver signing sections",
+      "decision": "Source candidate only. No installation or production adoption; kernel safety, build, production signing and endpoint behavior remain unverified."
+    }
+  ],
+  "next_acceptance_requirements": [
+    "Package accepted under normal Windows kernel signing policy",
+    "Explicit endpoint identities and recorded proof of render-to-capture flow",
+    "Client test tone present, program test tone absent, silence after controller revocation",
+    "No system-default audio changes or unrelated service modifications",
+    "Source, license, reproducible build and signing provenance before production packaging"
+  ],
+  "remaining": "No production-signed dedicated virtual capture device deployed; Windows recorder/UE5 microphone delivery is not complete."
+}

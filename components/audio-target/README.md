@@ -1,5 +1,7 @@
 # 渲染节点音频目标适配
 
+2026-10-31 已下载并检查两套 Windows 驱动候选源码，锁定提交与结论见 [候选核查记录](../../third_party-manifests/windows-audio-evaluation.json)。[Virtual-Audio-Driver 当前检查版本](https://github.com/VirtualDrivers/Virtual-Audio-Driver/blob/bb34fba15faf569a6ae9bdea360bc1cf4821354e/Source/Main/minwavertstream.cpp) 的录音路径填充静音，不能用作本项目所需的播放到录音桥；[RadioVoice 当前检查版本](https://github.com/doctorspider42/radio-voice/blob/872f7d570f093f94b514ebdcfbbb1a23ecc458d9/README.md) 的安装说明要求测试签名及关闭 Secure Boot，不能直接作为现场生产方案。两者均未安装，未更改安全策略、默认音频设备或现有服务。源码下载和端点枚举均不代表目标录音验收完成。
+
 此组件将会话总线输出的麦克风 PCM 写入明确指定的本机播放端点，供虚拟声卡另一侧的录音端点被目标程序采集。它不把程序声音送回录音端点，不切换默认设备，不安装驱动，不运行 AudioRelay，也不使用设备名称猜测或默认设备回退。
 
 平台 I/O 统一封装在锁定版本的 [CPAL 0.18.2](https://github.com/RustAudio/cpal) 后面：Windows 使用 WASAPI，Linux 启用 PulseAudio 和 ALSA。当前输入格式为每帧 20ms、48kHz、双声道 f32；设备侧支持 48kHz 单/双声道 f32、i16、i32，单声道进行双声道平均。申请不超过 20ms 的设备回调缓冲；不支持该格式的设备明确返回错误，重采样适配仍需扩展。
