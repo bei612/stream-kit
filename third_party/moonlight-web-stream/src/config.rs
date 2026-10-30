@@ -23,6 +23,61 @@ pub struct Config {
     pub moonlight: MoonlightConfig,
     #[serde(default)]
     pub log: LogConfig,
+    #[serde(default)]
+    pub local_audio_targets: Vec<LocalAudioTarget>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LocalAudioTarget {
+    pub host_id: u32,
+    pub app_id: u32,
+    pub endpoint: stream_kit_audio_target::EndpointPair,
+}
+
+impl Config {
+    pub fn validate_audio_targets(&self) -> Result<(), &'static str> {
+        let mut apps = std::collections::HashSet::new();
+        let mut renders = std::collections::HashSet::new();
+        let mut captures = std::collections::HashSet::new();
+        for route in &self.local_audio_targets {
+            if !apps.insert((route.host_id, route.app_id))
+                || !renders.insert(&route.endpoint.render_device_id)
+                || !captures.insert(&route.endpoint.capture_device_id)
+            {
+                return Err(
+                    "audio target routes must have unique applications and dedicated devices",
+                );
+            }
+            if route.endpoint.render_device_id.trim().is_empty()
+                || route.endpoint.capture_device_id.trim().is_empty()
+                || route.endpoint.render_device_id == route.endpoint.capture_device_id
+            {
+                return Err("audio target requires explicit render and capture endpoint IDs");
+            }
+        }
+        Ok(())
+    }
+    pub fn local_audio_target(&self, host: u32, app: u32) -> Option<&LocalAudioTarget> {
+        self.local_audio_targets
+            .iter()
+            .find(|target| target.host_id == host && target.app_id == app)
+    }
+    pub fn validate_audio_host(
+        &self,
+        host: u32,
+        app: u32,
+        address: &str,
+    ) -> Result<(), &'static str> {
+        if self.local_audio_target(host, app).is_some()
+            && !address
+                .parse::<std::net::IpAddr>()
+                .is_ok_and(|ip| ip.is_loopback())
+        {
+            return Err("native audio target requires a loopback render host on this node");
+        }
+        Ok(())
+    }
 }
 
 // -- Log
@@ -325,4 +380,47 @@ fn default_moonlight_http_port() -> u16 {
 
 fn default_pair_device_name() -> String {
     "roth".to_string()
+}
+
+#[cfg(test)]
+mod audio_target_tests {
+    use super::*;
+    fn route() -> LocalAudioTarget {
+        LocalAudioTarget {
+            host_id: 1,
+            app_id: 2,
+            endpoint: stream_kit_audio_target::EndpointPair {
+                render_device_id: "dedicated-render".into(),
+                capture_device_id: "dedicated-capture".into(),
+            },
+        }
+    }
+    #[test]
+    fn audio_devices_cannot_be_shared_across_unrelated_applications() {
+        let mut config = Config::default();
+        config.local_audio_targets.push(route());
+        assert!(config.validate_audio_targets().is_ok());
+        let mut second = route();
+        second.app_id = 3;
+        config.local_audio_targets.push(second);
+        assert!(config.validate_audio_targets().is_err());
+        config.local_audio_targets.pop();
+        config.local_audio_targets[0]
+            .endpoint
+            .capture_device_id
+            .clear();
+        assert!(config.validate_audio_targets().is_err());
+    }
+    #[test]
+    fn local_audio_never_targets_a_remote_render_host() {
+        let mut config = Config::default();
+        config.local_audio_targets.push(route());
+        for address in ["127.0.0.1", "::1"] {
+            assert!(config.validate_audio_host(1, 2, address).is_ok());
+        }
+        for address in ["192.168.1.20", "example.test", "localhost", "::"] {
+            assert!(config.validate_audio_host(1, 2, address).is_err());
+        }
+        assert!(config.validate_audio_host(1, 3, "192.168.1.20").is_ok());
+    }
 }

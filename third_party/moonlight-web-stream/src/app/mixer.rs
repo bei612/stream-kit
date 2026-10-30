@@ -84,8 +84,10 @@ pub struct AudioMixer {
     encoder: Encoder,
     scratch: Vec<f32>,
     output: Vec<f32>,
+    target_output: Vec<f32>,
     program_gain: f32,
     microphone_gain: f32,
+    broadcast_microphone: bool,
     last_output: Option<Duration>,
 }
 impl AudioMixer {
@@ -96,8 +98,10 @@ impl AudioMixer {
             encoder: Encoder::new(48_000, Channels::Stereo, Application::Audio)?,
             scratch: vec![0.0; 5760 * 2],
             output: vec![0.0; FRAME_SAMPLES],
+            target_output: vec![0.0; FRAME_SAMPLES],
             program_gain: 1.0,
             microphone_gain: 1.0,
+            broadcast_microphone: true,
             last_output: None,
         })
     }
@@ -106,8 +110,7 @@ impl AudioMixer {
         policy: &super::control_state::AudioPolicy,
     ) -> Result<(), opus::Error> {
         self.program_gain = 10.0f32.powf(policy.program_gain_db / 20.0);
-        let microphone_gain = if policy.microphone_enabled && policy.broadcast_controller_microphone
-        {
+        let microphone_gain = if policy.microphone_enabled {
             10.0f32.powf(policy.microphone_gain_db / 20.0)
         } else {
             0.0
@@ -115,11 +118,16 @@ impl AudioMixer {
         if microphone_gain == 0.0 && self.microphone_gain != 0.0 {
             self.clear_microphone()?;
         }
+        if self.broadcast_microphone && !policy.broadcast_controller_microphone {
+            self.encoder.reset_state()?;
+        }
+        self.broadcast_microphone = policy.broadcast_controller_microphone;
         self.microphone_gain = microphone_gain;
         Ok(())
     }
     pub fn clear_microphone(&mut self) -> Result<(), opus::Error> {
         self.microphone.clear()?;
+        self.target_output.fill(0.0);
         // Remove microphone history in the output codec as well.
         self.encoder.reset_state()
     }
@@ -131,6 +139,9 @@ impl AudioMixer {
     }
     pub fn program(&mut self, packet: &[u8], now: Instant) -> Result<(), opus::Error> {
         self.program.push(packet, &mut self.scratch, now)
+    }
+    pub fn target_pcm(&self) -> &[f32] {
+        &self.target_output
     }
     pub fn render(&mut self, timestamp: Duration, now: Instant) -> Result<Vec<u8>, opus::Error> {
         self.program.expire(now)?;
@@ -147,10 +158,16 @@ impl AudioMixer {
             self.microphone.discard(discard);
         }
         self.last_output = Some(timestamp);
-        for sample in &mut self.output {
-            *sample = (self.program.pending.pop_front().unwrap_or(0.0) * self.program_gain
-                + self.microphone.pending.pop_front().unwrap_or(0.0) * self.microphone_gain)
+        for (sample, target) in self.output.iter_mut().zip(&mut self.target_output) {
+            *target = (self.microphone.pending.pop_front().unwrap_or(0.0) * self.microphone_gain)
                 .clamp(-1.0, 1.0);
+            *sample = (self.program.pending.pop_front().unwrap_or(0.0) * self.program_gain
+                + if self.broadcast_microphone {
+                    *target
+                } else {
+                    0.0
+                })
+            .clamp(-1.0, 1.0);
         }
         let mut packet = vec![0; 4000];
         let len = self.encoder.encode_float(&self.output, &mut packet)?;
@@ -271,9 +288,37 @@ mod tests {
             })
             .unwrap();
         mixer.microphone(&tone(FRAME_SAMPLES), now).unwrap();
+        let private = decoded(&mixer.render(Duration::ZERO, now).unwrap());
+        assert!(private.iter().all(|sample| sample.abs() < 0.0001));
+        assert!(mixer.target_pcm().iter().any(|sample| sample.abs() > 0.01));
         mixer.configure(&Default::default()).unwrap();
         assert!(mixer.microphone.pending.is_empty());
-        let pcm = decoded(&mixer.render(Duration::ZERO, now).unwrap());
+        let pcm = decoded(&mixer.render(FRAME_DURATION, now + FRAME_DURATION).unwrap());
         assert!(pcm.iter().all(|sample| sample.abs() < 0.0001));
+    }
+    #[test]
+    fn program_audio_never_loops_back_into_target_microphone() {
+        let now = Instant::now();
+        let mut mixer = AudioMixer::new().unwrap();
+        mixer.program(&tone(FRAME_SAMPLES), now).unwrap();
+        let pcm = decoded(&mixer.render(Duration::ZERO, now).unwrap());
+        assert!(pcm.iter().any(|sample| sample.abs() > 0.01));
+        assert!(mixer.target_pcm().iter().all(|sample| *sample == 0.0));
+    }
+    #[test]
+    fn disabling_microphone_revokes_both_outputs() {
+        let now = Instant::now();
+        let mut mixer = AudioMixer::new().unwrap();
+        mixer.microphone(&tone(FRAME_SAMPLES * 2), now).unwrap();
+        mixer.render(Duration::ZERO, now).unwrap();
+        mixer
+            .configure(&super::super::control_state::AudioPolicy {
+                microphone_enabled: false,
+                ..Default::default()
+            })
+            .unwrap();
+        let pcm = decoded(&mixer.render(FRAME_DURATION, now + FRAME_DURATION).unwrap());
+        assert!(pcm.iter().all(|sample| sample.abs() < 0.0001));
+        assert!(mixer.target_pcm().iter().all(|sample| *sample == 0.0));
     }
 }

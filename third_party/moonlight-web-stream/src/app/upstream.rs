@@ -29,11 +29,13 @@ struct Shared {
     audio: OpusMultistreamConfig,
     video: VideoSetup,
     features: HostFeatures,
+    target: Option<Arc<stream_kit_audio_target::AudioTarget>>,
 }
 
 #[derive(Default)]
 pub struct UpstreamPool {
     sessions: Mutex<HashMap<MediaSessionKey, Weak<Shared>>>,
+    local_targets: Vec<crate::config::LocalAudioTarget>,
 }
 
 pub struct UpstreamPeer {
@@ -43,6 +45,12 @@ pub struct UpstreamPeer {
 }
 
 impl UpstreamPool {
+    pub fn new(local_targets: Vec<crate::config::LocalAudioTarget>) -> Self {
+        Self {
+            local_targets,
+            ..Default::default()
+        }
+    }
     pub async fn connect<F, Fut>(
         &self,
         key: MediaSessionKey,
@@ -67,7 +75,26 @@ impl UpstreamPool {
                 });
             }
         }
+        let target = if let Some(route) = self
+            .local_targets
+            .iter()
+            .find(|route| route.host_id == key.host_id.0 && route.app_id == key.app_id.0)
+        {
+            let endpoint = route.endpoint.clone();
+            let opened = tokio::task::spawn_blocking(move || {
+                stream_kit_audio_target::AudioTarget::open(&endpoint)
+            })
+            .await
+            .map_err(|_| AppError::AudioTargetUnavailable)?;
+            Some(Arc::new(opened.map_err(|error| {
+                tracing::error!(%error, host_id = key.host_id.0, app_id = key.app_id.0, "configured audio target is unavailable");
+                AppError::AudioTargetUnavailable
+            })?))
+        } else {
+            None
+        };
         let mut stream = start().await?;
+        let remote_microphone = stream.host_features().microphone;
         let setup = stream.audio_setup();
         if setup.sample_rate != 48_000
             || setup.channel_count != 2
@@ -84,13 +111,18 @@ impl UpstreamPool {
         let mut microphone_peer: Option<String> = None;
         let (commands, mut receiver) = mpsc::channel(256);
         let (events, _) = broadcast::channel(256);
+        let mut features = stream.host_features();
+        // The gateway's session bus accepts microphone independently of the
+        // upstream host's Foundation extension. Target delivery is separate.
+        features.microphone = true;
         let shared = Arc::new(Shared {
             commands,
             events: events.clone(),
             // The session bus emits 20 ms stereo packets independently of the host.
             audio: OpusMultistreamConfig::STEREO,
             video: stream.video_setup(),
-            features: stream.host_features(),
+            features,
+            target: target.clone(),
         });
         let peer = UpstreamPeer {
             peer_id,
@@ -100,6 +132,7 @@ impl UpstreamPool {
         sessions.insert(key.clone(), Arc::downgrade(&shared));
         tokio::spawn(async move {
             let mut audio_clock = super::mixer::AudioClock::new();
+            let mut target_fault_reported = false;
             loop {
                 tokio::select! {
                     timestamp = audio_clock.tick() => {
@@ -107,16 +140,30 @@ impl UpstreamPool {
                             mixer.configure(policy)?;
                             if microphone_peer.as_deref() != controller {
                                 mixer.clear_microphone()?;
+                                if let Some(target) = &target { target.clear(); }
                                 microphone_peer = controller.map(str::to_owned);
                             }
+                            if !policy.microphone_enabled {
+                                if let Some(target) = &target { target.clear(); }
+                            }
                             let buffer = mixer.render(timestamp, std::time::Instant::now())?.into();
+                            if let Some(target) = &target {
+                                target.submit(mixer.target_pcm());
+                                if !target_fault_reported && !target.status().device_open {
+                                    tracing::error!(target = ?target.status(), "microphone target failed during session");
+                                    target_fault_reported = true;
+                                }
+                            }
                             let _ = events.send(Arc::new(MoonlightStreamEvent::Audio(AudioStreamEvent::OnFrame(AudioFrame { timestamp, buffer }))));
                             Ok::<_, opus::Error>(())
                         }).await;
                         match result {
                             Some(Ok(())) => {},
                             Some(Err(error)) => { tracing::warn!(%error, "session audio rendering failed"); break; },
-                            None => { let _ = mixer.clear_microphone(); microphone_peer = None; },
+                            None => {
+                                let _ = mixer.clear_microphone(); microphone_peer = None;
+                                if let Some(target) = &target { target.clear(); }
+                            },
                         }
                     },
                     command = receiver.recv() => match command {
@@ -140,13 +187,16 @@ impl UpstreamPool {
                                         tracing::warn!(%error, "cannot clear previous microphone");
                                         return;
                                     }
+                                    if let Some(target) = &target { target.clear(); }
                                     microphone_peer = Some(peer_id.clone());
                                 }
                                 if let Err(error) = mixer.microphone(&bytes, std::time::Instant::now()) {
                                     tracing::warn!(%error, "invalid microphone Opus packet");
                                     return;
                                 }
-                                stream.send_microphone_opus_data(timestamp, &bytes);
+                                if target.is_none() && remote_microphone {
+                                    stream.send_microphone_opus_data(timestamp, &bytes);
+                                }
                             }).await;
                         }
                         None => { let _ = stream.disconnect(); break; }
@@ -171,6 +221,9 @@ impl UpstreamPool {
 }
 
 impl UpstreamPeer {
+    pub fn target_status(&self) -> Option<stream_kit_audio_target::TargetStatus> {
+        self.shared.target.as_ref().map(|target| target.status())
+    }
     pub fn audio_setup(&self) -> OpusMultistreamConfig {
         self.shared.audio.clone()
     }
@@ -239,6 +292,7 @@ mod tests {
                 redraw_rate: 60,
             },
             features: HostFeatures::default(),
+            target: None,
         });
         pool.sessions
             .lock()
@@ -296,6 +350,30 @@ mod tests {
                 .is_err()
             );
         }
+        assert!(pool.sessions.lock().await.is_empty());
+    }
+    #[tokio::test]
+    async fn invalid_target_fails_before_launch_without_default_device_fallback() {
+        let pool = UpstreamPool::new(vec![crate::config::LocalAudioTarget {
+            host_id: 1,
+            app_id: 2,
+            endpoint: stream_kit_audio_target::EndpointPair {
+                render_device_id: "invalid".into(),
+                capture_device_id: "invalid".into(),
+            },
+        }]);
+        let result = pool
+            .connect(
+                MediaSessionKey {
+                    host_id: HostId(1),
+                    app_id: AppId(2),
+                },
+                MediaSessionRegistry::new(),
+                "a".into(),
+                || async { panic!("must not launch with invalid target") },
+            )
+            .await;
+        assert!(matches!(result, Err(AppError::AudioTargetUnavailable)));
         assert!(pool.sessions.lock().await.is_empty());
     }
 }

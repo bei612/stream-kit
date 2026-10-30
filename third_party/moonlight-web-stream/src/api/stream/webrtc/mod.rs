@@ -47,8 +47,8 @@ use tokio::sync::Notify;
 use tokio::sync::mpsc::{self};
 use tokio::time::sleep;
 use tokio::{select, spawn};
-use uuid::Uuid;
 use tracing::{Instrument, debug, debug_span, error, info, instrument, warn};
+use uuid::Uuid;
 use webrtc::data_channel::DataChannel;
 use webrtc::media_stream::track_remote::TrackRemote;
 use webrtc::peer_connection::{
@@ -302,38 +302,54 @@ pub async fn webrtc_post(
 
     // Get app
     let app_id = AppId(session.app_id);
+    if app
+        .config()
+        .validate_audio_host(host_id.0, app_id.0, host.address())
+        .is_err()
+    {
+        // Local endpoint IDs are meaningful only on this rendering node. Never
+        // redirect a remote host's microphone into the gateway machine.
+        return Err(AppError::BadRequest);
+    }
 
     let media_key = crate::app::media::MediaSessionKey {
         host_id,
         app_id: crate::app::host::AppId(app_id.0),
     };
-    let (media_peer_id, media_role) = if let Some(secret) = app.config().web_server.media_ticket_secret.as_deref() {
-        let token = req
-            .headers()
-            .get("x-stream-media-ticket")
-            .and_then(|value| value.to_str().ok())
-            .ok_or(AppError::Unauthorized)?;
-        let claims = crate::app::media::verify_media_ticket(token, secret)?;
-        if claims.host_id != i64::from(host_id.0) || claims.app_id != i64::from(app_id.0) {
-            return Err(AppError::Unauthorized);
-        }
-        {
-            let authority = app.media_sessions().control.read().await;
-            let now = crate::app::control_state::now_ms();
-            if !authority.admits(&media_key, &claims.connection_id, now)
-                || !authority.session(&media_key, now).is_some_and(|s| s.session_id == claims.session_id) {
+    let (media_peer_id, media_role) =
+        if let Some(secret) = app.config().web_server.media_ticket_secret.as_deref() {
+            let token = req
+                .headers()
+                .get("x-stream-media-ticket")
+                .and_then(|value| value.to_str().ok())
+                .ok_or(AppError::Unauthorized)?;
+            let claims = crate::app::media::verify_media_ticket(token, secret)?;
+            if claims.host_id != i64::from(host_id.0) || claims.app_id != i64::from(app_id.0) {
                 return Err(AppError::Unauthorized);
             }
-        }
-        let role = if claims.role == "controller" {
-            crate::app::media::PeerRole::Controller
+            {
+                let authority = app.media_sessions().control.read().await;
+                let now = crate::app::control_state::now_ms();
+                if !authority.admits(&media_key, &claims.connection_id, now)
+                    || !authority
+                        .session(&media_key, now)
+                        .is_some_and(|s| s.session_id == claims.session_id)
+                {
+                    return Err(AppError::Unauthorized);
+                }
+            }
+            let role = if claims.role == "controller" {
+                crate::app::media::PeerRole::Controller
+            } else {
+                crate::app::media::PeerRole::Viewer
+            };
+            (claims.connection_id, role)
         } else {
-            crate::app::media::PeerRole::Viewer
+            (
+                Uuid::new_v4().to_string(),
+                crate::app::media::PeerRole::Viewer,
+            )
         };
-        (claims.connection_id, role)
-    } else {
-        (Uuid::new_v4().to_string(), crate::app::media::PeerRole::Viewer)
-    };
 
     // Create offer based on the sdp
     let offer = RTCSessionDescription::offer(session_description)?;
@@ -544,40 +560,50 @@ pub async fn webrtc_post(
         .find(|app| app.id == app_id)
         .map(|app| app.title);
 
-    let moonlight_stream = app.upstreams().connect(media_key.clone(), app.media_sessions().clone(), media_peer_id.clone(), || async {
-    let config = host
-        .start_stream(
-            app_id,
-            &settings,
-            aes_key,
-            aes_iv,
-            // TODO: replace with normal `MoonlightStream::launch`
-            MoonlightStreamSetup::launch_query_parameters(),
+    let moonlight_stream = app
+        .upstreams()
+        .connect(
+            media_key.clone(),
+            app.media_sessions().clone(),
+            media_peer_id.clone(),
+            || async {
+                let config = host
+                    .start_stream(
+                        app_id,
+                        &settings,
+                        aes_key,
+                        aes_iv,
+                        // TODO: replace with normal `MoonlightStream::launch`
+                        MoonlightStreamSetup::launch_query_parameters(),
+                    )
+                    .await?;
+
+                info!(config = ?config, "connecting to host");
+
+                let moonlight_stream = match MoonlightStream::connect(
+                    config,
+                    settings,
+                    Arc::new(RustCryptoBackend),
+                    VideoCapabilities::default(),
+                )
+                .await
+                {
+                    Ok(value) => value,
+                    Err(err) => {
+                        error!(error = %err, "failed to start stream");
+                        return Err(err.into());
+                    }
+                };
+                Ok(moonlight_stream)
+            },
         )
         .await?;
-
-    info!(config = ?config, "connecting to host");
-
-    let moonlight_stream = match MoonlightStream::connect(
-        config,
-        settings,
-        Arc::new(RustCryptoBackend),
-        VideoCapabilities::default(),
-    )
-    .await
-    {
-        Ok(value) => value,
-        Err(err) => {
-            error!(error = %err, "failed to start stream");
-            return Err(err.into());
-        }
-    };
-    Ok(moonlight_stream)
-    }).await?;
     let host_features = moonlight_stream.host_features();
+    info!(target = ?moonlight_stream.target_status(), "session local microphone target");
 
     // Add audio and video track forwarding
-    let audio_channel = match AudioChannel::new_track(moonlight_stream.audio_setup(), &*peer).await {
+    let audio_channel = match AudioChannel::new_track(moonlight_stream.audio_setup(), &*peer).await
+    {
         Ok(value) => value,
         Err(err) => {
             error!(error = %err, "failed to add audio track to webrtc peer");
@@ -625,15 +651,24 @@ pub async fn webrtc_post(
     // Register only after negotiation has succeeded. This gives the shared
     // media driver one authoritative attach/detach boundary and avoids
     // exposing half-open SDP offers as online clients.
-    app.media_sessions().attach_as(media_key.clone(), media_peer_id.clone(), media_role).await?;
-    if app.config().web_server.media_ticket_secret.is_none() && media_role == crate::app::media::PeerRole::Controller {
-        if let Err(error) = app.media_sessions().claim_controller(&media_key, &media_peer_id, false).await {
-            app.media_sessions().detach(&media_key, &media_peer_id).await;
+    app.media_sessions()
+        .attach_as(media_key.clone(), media_peer_id.clone(), media_role)
+        .await?;
+    if app.config().web_server.media_ticket_secret.is_none()
+        && media_role == crate::app::media::PeerRole::Controller
+    {
+        if let Err(error) = app
+            .media_sessions()
+            .claim_controller(&media_key, &media_peer_id, false)
+            .await
+        {
+            app.media_sessions()
+                .detach(&media_key, &media_peer_id)
+                .await;
             let _ = peer.close().await;
             return Err(error);
         }
     }
-
 
     info!(peer_id = %media_peer_id, "attached peer to media session");
 
@@ -662,8 +697,6 @@ pub async fn webrtc_post(
                 media_registry.clone(),
                 loop_key,
                 loop_peer_id,
-
-
             )
             .await
             {
@@ -723,7 +756,9 @@ pub async fn webrtc_post(
     let stream = match Stream::new(&app, &user, event_sender).await {
         Ok(value) => value,
         Err(err) => {
-            app.media_sessions().detach(&media_key, &media_peer_id).await;
+            app.media_sessions()
+                .detach(&media_key, &media_peer_id)
+                .await;
 
             return Err(err);
         }

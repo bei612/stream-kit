@@ -74,10 +74,26 @@ jobs:
           cache-dependency-path: third_party/moonlight-web-stream/package-lock.json
       - uses: ilammy/msvc-dev-cmd@v1
         if: runner.os == 'Windows'
+      - name: Install Linux audio development libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libpulse-dev pulseaudio pulseaudio-utils
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: third_party/moonlight-web-stream
       - run: cargo check --locked
+      - run: cargo test --locked --manifest-path ../../components/audio-target/Cargo.toml
+      - run: cargo clippy --locked --manifest-path ../../components/audio-target/Cargo.toml --all-targets -- -D warnings
+      - name: Verify isolated Linux microphone endpoint pair
+        if: runner.os == 'Linux'
+        run: sh ../../scripts/test-audio-target-linux.sh
+      - uses: actions/upload-artifact@v4
+        if: always() && runner.os == 'Linux'
+        with:
+          name: audio-target-linux-acceptance
+          path: artifacts/audio-target
+          if-no-files-found: warn
       - run: cargo test --locked
       - run: cargo install wasm-bindgen-cli --version 0.2.128 --locked
       - run: npm ci

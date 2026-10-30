@@ -61,6 +61,8 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
+    /// Lists native audio endpoint IDs without opening streams or changing defaults.
+    AudioDevices,
     /// Runs the server (default if no command specified)
     Run,
     /// Config related commands

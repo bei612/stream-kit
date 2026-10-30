@@ -67,6 +67,19 @@ async fn main() {
     cli.options.apply(&mut config);
 
     match cli.command {
+        Some(Command::AudioDevices) => {
+            match stream_kit_audio_target::devices() {
+                Ok(devices) => println!(
+                    "{}",
+                    serde_json::to_string_pretty(&devices).expect("serialize audio devices")
+                ),
+                Err(error) => {
+                    eprintln!("audio device enumeration failed: {error}");
+                    std::process::exit(1);
+                }
+            }
+            return;
+        }
         Some(Command::Config(ConfigCommand::Print)) => {
             let json =
                 serde_json::to_string_pretty(&config).expect("failed to serialize config to json");
