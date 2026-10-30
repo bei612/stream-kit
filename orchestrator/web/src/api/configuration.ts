@@ -4,11 +4,22 @@ export interface EncoderConfigurationAcknowledgement {
   apply_policy:'encoder_restart'
   runtime_verified:false
 }
+export interface EncoderStartupState {
+  revision:string
+  loaded_revision:string
+  instance_id:string
+  process_id:number
+  managed_instance_id?:string
+  restart_required:boolean
+  overridden_keys:string[]
+}
 export interface EncoderConfigurationView extends EncoderConfigurationAcknowledgement {
   values:Record<string,ConfigValue>
   redacted_keys:string[]
   loaded_revision?:string
   instance_id?:string
+  process_id?:number
+  managed_instance_id?:string
   overridden_keys?:string[]
   restart_required?:boolean
 }

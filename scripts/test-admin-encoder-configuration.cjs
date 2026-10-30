@@ -8,6 +8,7 @@ const {chromium}=createRequire(path.resolve('third_party/moonlight-web-stream/pa
   const root=path.resolve('orchestrator/web/dist');
   const browser=await chromium.launch({headless:true,channel:process.env.BROWSER_CHANNEL||'chrome'});
   const revision='"'+'a'.repeat(64)+'"';
+  let desiredRevision=revision,loadedRevision=revision,instance='c'.repeat(64),applyCalls=0;
   let failure=true,readFailure=false;const writes=[],errors=[];
   try {
     const page=await browser.newPage({viewport:{width:1280,height:900}});
@@ -17,12 +18,19 @@ const {chromium}=createRequire(path.resolve('third_party/moonlight-web-stream/pa
       const url=new URL(route.request().url());
       if(url.hostname!=='admin.test')return route.abort();
       if(url.pathname.startsWith('/api/')) {
+        if(url.pathname.endsWith('/components/sunshine'))return route.fulfill({json:{status:'ok',data:{pid:700}}});
+        if(url.pathname.endsWith('/encoder-configuration/apply')) {
+          assert.deepEqual(route.request().postDataJSON(),{revision:desiredRevision,instance_id:instance});
+          applyCalls++;loadedRevision=desiredRevision;instance='e'.repeat(64);
+          return route.fulfill({json:{status:'ok',data:{revision:desiredRevision,loaded_revision:loadedRevision,instance_id:instance,process_id:701,managed_instance_id:'f'.repeat(32),restart_required:false,overridden_keys:['sunshine_name']}}});
+        }
         if(url.pathname.endsWith('/encoder-configuration')) {
           if(route.request().method()==='PATCH') {
             writes.push(route.request().postDataJSON());
+            if(!failure)desiredRevision='"'+'b'.repeat(64)+'"';
             return route.fulfill({status:failure?409:200,json:failure?{status:'error',message:'配置已变化，请重新读取'}:{status:'ok',data:{revision:'"'+'b'.repeat(64)+'"',apply_policy:'encoder_restart',runtime_verified:false}}});
           }
-          return route.fulfill({status:readFailure?503:200,json:readFailure?{status:'error',message:'编码器读取失败'}:{status:'ok',data:{revision,loaded_revision:revision,instance_id:'c'.repeat(64),restart_required:false,overridden_keys:['sunshine_name'],apply_policy:'encoder_restart',runtime_verified:false,values:{sunshine_name:'Renderer',pkey:null},redacted_keys:['pkey']}}});
+          return route.fulfill({status:readFailure?503:200,json:readFailure?{status:'error',message:'编码器读取失败'}:{status:'ok',data:{revision:desiredRevision,loaded_revision:loadedRevision,instance_id:instance,process_id:700,managed_instance_id:'d'.repeat(32),restart_required:desiredRevision!==loadedRevision,overridden_keys:['sunshine_name'],apply_policy:'encoder_restart',runtime_verified:false,values:{sunshine_name:'Renderer',pkey:null},redacted_keys:['pkey']}}});
         }
         return route.fulfill({status:503,json:{status:'error',message:'测试中未连接此服务'}});
       }
@@ -49,6 +57,11 @@ const {chromium}=createRequire(path.resolve('third_party/moonlight-web-stream/pa
     await page.getByRole('status').filter({hasText:'配置文件已变化，需重启编码器加载'}).waitFor();
     assert.deepEqual(writes[1],{revision,changes:{pkey:null}});
     assert.equal(await save.isDisabled(),true);
+    assert.equal(await page.getByRole('button',{name:'重启编码器并加载配置',exact:true}).isDisabled(),true);
+    await page.getByRole('button',{name:'重新读取编码器配置',exact:true}).click();
+    await page.getByRole('button',{name:'重启编码器并加载配置',exact:true}).click();
+    await page.getByRole('status').filter({hasText:'编码器已重启，新实例已读取目标配置文件'}).waitFor();
+    assert.equal(applyCalls,1);
     readFailure=true;
     await page.getByRole('button',{name:'重新读取编码器配置',exact:true}).click();
     await page.getByRole('alert').filter({hasText:'编码器读取失败'}).waitFor();

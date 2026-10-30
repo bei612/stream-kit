@@ -669,6 +669,7 @@ TEST_F(EncoderConfigurationHttpTest, ReportsLoadedRevisionWithoutTreatingSaveAsR
   EXPECT_EQ(client->request("GET", "/encoder-state-test")->status_code, "401 Unauthorized");
   auto before = nlohmann::json::parse(client->request("GET", "/encoder-state-test", "", auth)->content.string());
   EXPECT_EQ(before["loaded_revision"], revision);
+  EXPECT_GT(before["process_id"].get<std::uint64_t>(), 0);
   EXPECT_EQ(before["restart_required"], false);
   EXPECT_EQ(before["overridden_keys"], nlohmann::json::array({"sunshine_name"}));
   ASSERT_EQ(client->request("POST", "/encoder-config-test", R"({"mouse":"disabled"})", auth)->status_code, "200 OK");
@@ -676,6 +677,7 @@ TEST_F(EncoderConfigurationHttpTest, ReportsLoadedRevisionWithoutTreatingSaveAsR
   EXPECT_EQ(after["loaded_revision"], revision);
   EXPECT_NE(after["revision"], revision);
   EXPECT_EQ(after["instance_id"], before["instance_id"]);
+  EXPECT_EQ(after["process_id"], before["process_id"]);
   EXPECT_EQ(after["restart_required"], true);
   {
     std::lock_guard lock {config_transaction::mutex};

@@ -101,7 +101,7 @@ func TestConfigurationStateRequiresConsistentStartupEvidence(t *testing.T) {
 	revision := `"` + strings.Repeat("a", 64) + `"`
 	for _, scenario := range []string{"loaded", "pending", "unknown", "missing-version", "missing-restart", "missing-instance", "contradictory", "unknown-with-evidence"} {
 		t.Run(scenario, func(t *testing.T) {
-			state := map[string]any{"status": true, "schema_version": 1, "revision": revision, "apply_policy": "encoder_restart", "runtime_available": true, "loaded_revision": revision, "instance_id": strings.Repeat("b", 64), "restart_required": false, "overridden_keys": []string{"sunshine_name"}}
+			state := map[string]any{"status": true, "schema_version": 1, "revision": revision, "apply_policy": "encoder_restart", "runtime_available": true, "process_id": 123, "loaded_revision": revision, "instance_id": strings.Repeat("b", 64), "restart_required": false, "overridden_keys": []string{"sunshine_name"}}
 			switch scenario {
 			case "pending":
 				state["revision"] = `"` + strings.Repeat("c", 64) + `"`

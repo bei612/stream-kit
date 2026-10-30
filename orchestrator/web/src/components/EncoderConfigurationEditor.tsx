@@ -13,17 +13,30 @@ export function EncoderConfigurationEditor() {
   const [view,setView]=useState<EncoderConfigurationView|null>(null)
   const [drafts,setDrafts]=useState<Record<string,Draft>>({})
   const [busy,setBusy]=useState(false),[reloadRequired,setReloadRequired]=useState(false)
+  const [canApply,setCanApply]=useState(false)
   const [error,setError]=useState(''),[notice,setNotice]=useState(''),[newKey,setNewKey]=useState('')
   async function load() {
     setBusy(true);setError('');setNotice('')
     try {
-      const {data}=await api.getEncoderConfiguration()
+      const [{data},component]=await Promise.all([api.getEncoderConfiguration(),api.getComponent('sunshine').catch(()=>null)])
       if(!data?.values||!/^"[a-f0-9]{64}"$/i.test(data.revision)||data.apply_policy!=='encoder_restart'||!Array.isArray(data.redacted_keys))throw new Error('编码器未返回有效配置版本。')
       setView(data);setDrafts({});setReloadRequired(false);setNewKey('')
+      setCanApply(!!data.managed_instance_id&&data.process_id===component?.data?.pid)
     } catch(e) {setReloadRequired(true);setError(e instanceof Error?e.message:'无法读取编码器配置')}
     finally {setBusy(false)}
   }
   useEffect(()=>{void load()},[])
+  async function apply() {
+    if(!view?.instance_id||!canApply||busy||reloadRequired||Object.keys(drafts).length)return
+    setBusy(true);setError('');setNotice('')
+    try {
+      const {data}=await api.applyEncoderConfiguration(view.revision,view.instance_id)
+      if(!data||data.restart_required||data.loaded_revision!==view.revision||data.revision!==view.revision||data.instance_id===view.instance_id)throw new Error('尚未确认新编码器实例加载了目标配置，请重新读取。')
+      setView({...view,...data})
+      setNotice('编码器已重启，新实例已读取目标配置文件。命令行覆盖项仍有效。')
+    }catch(e){setReloadRequired(true);setError(e instanceof Error?e.message:'配置应用未确认，请重新读取')}
+    finally{setBusy(false)}
+  }
   function edit(key:string,draft:Draft) {setDrafts(current=>({...current,[key]:draft}));setNotice('')}
   async function save() {
     if(!view||busy||reloadRequired)return
@@ -59,6 +72,11 @@ export function EncoderConfigurationEditor() {
       </div>:<Alert variant="warning">尚未取得编码器启动配置版本。</Alert>}
       {error&&<Alert variant="error" role="alert">{error}</Alert>}
       {notice&&<Alert variant="success" role="status">{notice}</Alert>}
+      {canApply&&view?.restart_required&&<div className="rounded-lg border border-border p-3 space-y-2">
+        <p className="text-sm text-muted-foreground">重启会中断当前渲染和观看连接。监听地址、证书或凭据变更需同步调整连接配置；失败不会自动回滚。</p>
+        <Button variant="outline" onClick={apply} disabled={busy||reloadRequired||!!Object.keys(drafts).length}>重启编码器并加载配置</Button>
+        {(reloadRequired||!!Object.keys(drafts).length)&&<p className="text-xs text-muted-foreground">请先保存或撤销编辑，并重新读取已保存配置。</p>}
+      </div>}
       <fieldset disabled={busy||reloadRequired} className="space-y-3 min-w-0">
         {keys.map(key=>{
           const draft=Object.hasOwn(drafts,key)?drafts[key]:undefined,hidden=view?.redacted_keys.includes(key)

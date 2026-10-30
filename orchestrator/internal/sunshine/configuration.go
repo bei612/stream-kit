@@ -3,6 +3,7 @@ package sunshine
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,15 +26,17 @@ type EncoderConfiguration struct {
 // EncoderConfigurationState proves which file was read at startup, not that
 // every option was accepted by the native parser or overrides are absent.
 type EncoderConfigurationState struct {
-	Status           bool     `json:"status"`
-	SchemaVersion    int      `json:"schema_version"`
-	Revision         string   `json:"revision"`
-	ApplyPolicy      string   `json:"apply_policy"`
-	RuntimeAvailable bool     `json:"runtime_available"`
-	LoadedRevision   string   `json:"loaded_revision"`
-	InstanceID       string   `json:"instance_id"`
-	OverriddenKeys   []string `json:"overridden_keys"`
-	RestartRequired  *bool    `json:"restart_required"`
+	Status            bool     `json:"status"`
+	SchemaVersion     int      `json:"schema_version"`
+	Revision          string   `json:"revision"`
+	ApplyPolicy       string   `json:"apply_policy"`
+	RuntimeAvailable  bool     `json:"runtime_available"`
+	LoadedRevision    string   `json:"loaded_revision"`
+	InstanceID        string   `json:"instance_id"`
+	ProcessID         int      `json:"process_id"`
+	ManagedInstanceID string   `json:"managed_instance_id"`
+	OverriddenKeys    []string `json:"overridden_keys"`
+	RestartRequired   *bool    `json:"restart_required"`
 }
 
 func (c *Client) ConfigurationState(ctx context.Context) (*EncoderConfigurationState, error) {
@@ -45,6 +48,15 @@ func (c *Client) ConfigurationState(ctx context.Context) (*EncoderConfigurationS
 		return nil, errors.New("invalid encoder configuration state")
 	}
 	if state.RuntimeAvailable {
+		if state.ProcessID <= 0 {
+			return nil, errors.New("missing encoder process identity")
+		}
+		if state.ManagedInstanceID != "" {
+			decoded, err := hex.DecodeString(state.ManagedInstanceID)
+			if err != nil || len(decoded) != 16 {
+				return nil, errors.New("invalid managed encoder identity")
+			}
+		}
 		if !configurationRevision(state.LoadedRevision) || !configurationRevision(`"`+state.InstanceID+`"`) || state.RestartRequired == nil || *state.RestartRequired != (state.Revision != state.LoadedRevision) || state.OverriddenKeys == nil {
 			return nil, errors.New("incomplete encoder startup evidence")
 		}

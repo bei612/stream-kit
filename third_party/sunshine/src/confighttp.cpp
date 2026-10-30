@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <bit>
 #include <charconv>
+#include <cstdlib>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -34,6 +35,8 @@
   #include "platform/windows/utf_utils.h"
 
   #include <Windows.h>
+#else
+  #include <unistd.h>
 #endif
 
 // local includes
@@ -1585,6 +1588,20 @@ namespace confighttp {
       if (!loaded.revision.empty()) {
         result["loaded_revision"] = loaded.revision;
         result["instance_id"] = loaded.instance_id;
+#ifdef _WIN32
+        result["process_id"] = GetCurrentProcessId();
+#else
+        result["process_id"] = getpid();
+#endif
+        const auto managed = std::getenv("STREAM_KIT_PROCESS_INSTANCE");
+        if (managed) {
+          const std::string_view instance {managed};
+          if (instance.size() == 32 && std::all_of(instance.begin(), instance.end(), [](char c) {
+                return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
+              })) {
+            result["managed_instance_id"] = instance;
+          }
+        }
         result["overridden_keys"] = loaded.overridden_keys;
         result["restart_required"] = revision != loaded.revision;
       }

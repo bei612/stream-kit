@@ -93,8 +93,11 @@ func (s *Server) setupRoutes() {
 	authed.GET("/logs", h.GetLogs)
 	authed.GET("/metrics", h.Metrics)
 	var encoderConfiguration handlers.EncoderConfigurationClient
+	var encoderState handlers.EncoderStateClient
 	if s.Config.SunshineAPI.BaseURL != "" {
-		encoderConfiguration = sunshine.NewClient(s.Config.SunshineAPI, s.Logger)
+		client := sunshine.NewClient(s.Config.SunshineAPI, s.Logger)
+		encoderConfiguration = client
+		encoderState = client
 	}
 	authed.GET("/encoder-configuration", handlers.EncoderConfiguration(encoderConfiguration))
 	authed.PATCH("/encoder-configuration", handlers.EncoderConfiguration(encoderConfiguration))
@@ -104,10 +107,11 @@ func (s *Server) setupRoutes() {
 	}
 	authed.GET("/gateway-configuration", handlers.GatewayConfiguration(gatewayConfiguration))
 	authed.PATCH("/gateway-configuration", handlers.GatewayConfiguration(gatewayConfiguration))
-	var gatewayRestarter handlers.GatewayRestarter
+	var gatewayRestarter handlers.ComponentRestarter
 	if s.CompManager != nil {
 		gatewayRestarter = s.CompManager
 	}
+	authed.POST("/encoder-configuration/apply", handlers.EncoderConfigurationApply(encoderState, gatewayRestarter, s.Config.SunshineAPI.BaseURL))
 	authed.POST("/gateway-configuration/apply", handlers.GatewayConfigurationApply(gatewayConfiguration, gatewayRestarter, s.Config.MoonlightWeb.BaseURL))
 	authed.GET("/audio-devices", func(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")

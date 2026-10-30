@@ -85,6 +85,8 @@ func EncoderConfiguration(client EncoderConfigurationClient) gin.HandlerFunc {
 		if snapshot.State != nil && snapshot.State.RuntimeAvailable {
 			view["loaded_revision"] = snapshot.State.LoadedRevision
 			view["instance_id"] = snapshot.State.InstanceID
+			view["process_id"] = snapshot.State.ProcessID
+			view["managed_instance_id"] = snapshot.State.ManagedInstanceID
 			view["overridden_keys"] = snapshot.State.OverriddenKeys
 			view["restart_required"] = snapshot.State.RestartRequired
 		}

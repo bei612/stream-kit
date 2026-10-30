@@ -16,11 +16,11 @@ import (
 	"github.com/stream-kit/orchestrator/internal/mediacontrol"
 )
 
-type GatewayRestarter interface {
+type ComponentRestarter interface {
 	RestartVerified(context.Context, string, int, string, func(context.Context, int, string) error, func(context.Context, int, string) error) error
 }
 
-func GatewayConfigurationApply(client GatewayConfigurationClient, manager GatewayRestarter, baseURL string) gin.HandlerFunc {
+func GatewayConfigurationApply(client GatewayConfigurationClient, manager ComponentRestarter, baseURL string) gin.HandlerFunc {
 	// Only literal loopback destinations can be matched to local owned PIDs.
 	u, parseErr := url.Parse(baseURL)
 	local := false
