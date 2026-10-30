@@ -32,11 +32,23 @@ jobs:
       - run: go -C ../third_party/sevenzip test ./...
       - if: runner.os == 'Linux'
         run: go test -race ./internal/app ./internal/session ./internal/ws ./internal/server/...
-      - run: go build -trimpath -ldflags "-s -w" -o dist/orchestrator${{ runner.os == 'Windows' && '.exe' || '' }} ./cmd/orchestrator
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.4.0'
+          cache: npm
+          cache-dependency-path: orchestrator/web/package-lock.json
+      - run: npm ci
+        working-directory: orchestrator/web
+      - run: npm run build
+        working-directory: orchestrator/web
+      - run: go build -trimpath -ldflags "-s -w" -o bundle/orchestrator${{ runner.os == 'Windows' && '.exe' || '' }} ./cmd/orchestrator
+      - name: Include the unified management page
+        shell: bash
+        run: mkdir -p bundle/dist && cp -R web/dist/. bundle/dist/
       - uses: actions/upload-artifact@v4
         with:
           name: orchestrator-${{ runner.os }}-${{ runner.arch }}
-          path: orchestrator/dist/orchestrator${{ runner.os == 'Windows' && '.exe' || '' }}
+          path: orchestrator/bundle
           if-no-files-found: error
 
   web:

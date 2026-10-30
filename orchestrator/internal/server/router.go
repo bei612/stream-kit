@@ -210,18 +210,28 @@ func (s *Server) setupRoutes() {
 }
 
 func (s *Server) setupSPA() {
-	// Try to serve from dist/ directory
-	distDir := filepath.Join(config.BaseDir, "dist")
-	if _, err := os.Stat(distDir); os.IsNotExist(err) {
-		// Try web/dist for development
-		distDir = filepath.Join(config.BaseDir, "web", "dist")
-	}
-
-	if _, err := os.Stat(distDir); err == nil {
+	executable, _ := os.Executable()
+	distDir := spaDirectory(config.BaseDir, executable)
+	if distDir != "" {
 		s.Engine.Use(spaMiddleware(distDir))
 	} else {
-		s.Logger.Warn("前端静态文件目录不存在，跳过 SPA 服务", zap.String("path", distDir))
+		s.Logger.Warn("未找到管理页 index.html，跳过 SPA 服务", zap.String("config_directory", config.BaseDir))
 	}
+}
+
+// Keep configuration-local overrides and development assets compatible, while
+// allowing service configuration and installed program files to live separately.
+func spaDirectory(baseDir, executable string) string {
+	candidates := []string{filepath.Join(baseDir, "dist"), filepath.Join(baseDir, "web", "dist")}
+	if executable != "" {
+		candidates = append(candidates, filepath.Join(filepath.Dir(executable), "dist"))
+	}
+	for _, candidate := range candidates {
+		if info, err := os.Stat(filepath.Join(candidate, "index.html")); err == nil && info.Mode().IsRegular() {
+			return candidate
+		}
+	}
+	return ""
 }
 
 func spaMiddleware(distDir string) gin.HandlerFunc {
