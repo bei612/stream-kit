@@ -136,6 +136,8 @@ export const api = {
     request<{ ticket: string; expires_at: string; role: 'viewer' | 'controller' }>(`/stream-sessions/${sessionId}/connections/${connectionId}/ticket`, { method: 'POST' }),
 
   // Apps
+  registerLocalApp: (data: { name:string; exe_path:string; working_dir:string; args:string; args_template:string }) =>
+    request<{id:string}>('/apps/local', { method:'POST', body:JSON.stringify(data) }),
   listApps: () => request<any[]>('/apps'),
   getApp: (id: string) => request<any>(`/apps/${id}`),
   updateApp: (id: string, data: any) =>

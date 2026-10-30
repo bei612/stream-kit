@@ -108,6 +108,7 @@ func (s *Server) setupRoutes() {
 		uh := handlers.NewUploadHandler(s.AppManager, s.Config, s.Logger)
 
 		authed.POST("/apps/upload", uh.Upload)
+		authed.POST("/apps/local", ah.RegisterLocal)
 		authed.GET("/apps/upload-status", uh.UploadStatus)
 		apps := authed.Group("/apps")
 		apps.GET("", ah.List)

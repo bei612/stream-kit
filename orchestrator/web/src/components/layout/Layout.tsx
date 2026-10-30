@@ -7,7 +7,7 @@ const navItems = [
   { path: '/', label: '工作台', icon: LayoutDashboard },
   { path: '/components', label: '组件管理', icon: Box },
   { path: '/apps', label: '应用管理', icon: AppWindow },
-  { path: '/upload', label: '上传应用', icon: Upload },
+  { path: '/upload', label: '添加应用', icon: Upload },
   { path: '/stream-sessions', label: '渲染会话', icon: Radio },
   { path: '/logs', label: '操作日志', icon: ScrollText },
   { path: '/settings', label: '系统设置', icon: Settings },

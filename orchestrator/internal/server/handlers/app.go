@@ -1,6 +1,9 @@
 package handlers
 
 import (
+	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -11,13 +14,38 @@ import (
 )
 
 type AppHandler struct {
-	Manager    *app.Manager
-	Store      *store.Store
-	CompMgr    *component.Manager
+	Manager *app.Manager
+	Store   *store.Store
+	CompMgr *component.Manager
 }
 
 func NewAppHandler(mgr *app.Manager, st *store.Store, compMgr *component.Manager) *AppHandler {
 	return &AppHandler{Manager: mgr, Store: st, CompMgr: compMgr}
+}
+
+func (h *AppHandler) RegisterLocal(c *gin.Context) {
+	var req app.LocalAppRequest
+	decoder := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, 16384))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil {
+		errResponse(c, 400, "CONFIG_INVALID", "本机程序配置格式错误")
+		return
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		errResponse(c, 400, "CONFIG_INVALID", "请求包含多余数据")
+		return
+	}
+	record, err := h.Manager.RegisterLocal(req)
+	if err != nil {
+		if errors.Is(err, app.ErrInvalidLocalApp) {
+			errResponse(c, 400, "CONFIG_INVALID", err.Error())
+		} else {
+			errResponse(c, 500, "INTERNAL_ERROR", "本机程序注册失败")
+		}
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	okResponse(c, record)
 }
 
 func (h *AppHandler) List(c *gin.Context) {

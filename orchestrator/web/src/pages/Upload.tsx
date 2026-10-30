@@ -9,6 +9,9 @@ import { Alert } from '@/components/ui/alert'
 import { Upload as UploadIcon, X } from 'lucide-react'
 
 export default function UploadPage() {
+  const [source,setSource]=useState<'archive'|'local'>('archive')
+  const [exePath,setExePath]=useState('')
+  const [workingDir,setWorkingDir]=useState('')
   const [file, setFile] = useState<File | null>(null)
   const [name, setName] = useState('')
   const [argsMode, setArgsMode] = useState('none')
@@ -43,14 +46,22 @@ export default function UploadPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!file || !name) return
+    if (!name || (source==='archive' ? !file : !exePath)) return
 
     setUploading(true)
     setError('')
-    setProgress(0)
+    setProgress(source==='archive' ? 0 : -1)
+
+    if (source==='local') {
+      try {
+        const result=await api.registerLocalApp({name,exe_path:exePath,working_dir:workingDir,args:argsMode==='custom'?linesToArgs(customArgsText):'',args_template:argsMode!=='none'&&argsMode!=='custom'?argsMode:''})
+        navigate(`/apps/${result.data?.id}`)
+      } catch (err:any) { setError(err.message) } finally { setUploading(false) }
+      return
+    }
 
     const fd = new FormData()
-    fd.append('file', file)
+    fd.append('file', file!)
     fd.append('name', name)
 
     if (argsMode === 'custom') {
@@ -84,15 +95,20 @@ export default function UploadPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div className="page-heading"><div><p className="page-eyebrow">应用部署</p><h2>上传应用</h2><p className="page-description">上传应用包，完成部署与串流注册。</p></div></div>
+      <div className="page-heading"><div><p className="page-eyebrow">应用部署</p><h2>添加应用</h2><p className="page-description">上传应用包，或连接服务器上已有的程序。</p></div></div>
 
-      {blocked && !uploading && (
+      <div className="flex gap-2" role="group" aria-label="应用来源">
+        <Button type="button" variant={source==='archive'?'primary':'outline'} aria-pressed={source==='archive'} disabled={uploading} onClick={()=>{setSource('archive');setError('');setProgress(-1)}}>上传压缩包</Button>
+        <Button type="button" variant={source==='local'?'primary':'outline'} aria-pressed={source==='local'} disabled={uploading} onClick={()=>{setSource('local');setError('');setProgress(-1)}}>本机已有程序</Button>
+      </div>
+
+      {source==='archive' && blocked && !uploading && (
         <Alert variant="warning">当前有其他应用正在上传或解压中，请等待完成后再上传。</Alert>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Drop zone */}
-        <Card
+        {source==='archive' ? <Card
           onDragOver={e => e.preventDefault()}
           onDrop={handleDrop}
           onClick={() => fileRef.current?.click()}
@@ -136,12 +152,18 @@ export default function UploadPage() {
               }
             }}
           />
-        </Card>
+        </Card> : <Card className="p-5 space-y-4">
+          <p className="text-sm text-muted-foreground">填写当前服务器的绝对路径。程序文件保留在原位置，平台注册不会启动程序；移除注册仅清理平台日志和配置。</p>
+          <div><Label htmlFor="local-executable">程序绝对路径</Label><Input id="local-executable" value={exePath} onChange={e=>setExePath(e.target.value)} placeholder="D:\Apps\MyApp\MyApp.exe 或 /opt/myapp/myapp" required autoComplete="off" /></div>
+          <div><Label htmlFor="local-working-dir">工作目录（可选）</Label><Input id="local-working-dir" value={workingDir} onChange={e=>setWorkingDir(e.target.value)} placeholder="留空时使用程序所在目录" autoComplete="off" /></div>
+          <p className="text-xs text-muted-foreground">Windows 使用 EXE；Linux 文件须具备执行权限。启动参数在下方配置，下次启动时生效。</p>
+        </Card>}
 
         {/* App name */}
         <div>
-          <Label>应用名称</Label>
+          <Label htmlFor="application-name">应用名称</Label>
           <Input
+            id="application-name"
             type="text"
             value={name}
             onChange={e => setName(e.target.value)}
@@ -214,13 +236,13 @@ export default function UploadPage() {
 
         <Button
           type="submit"
-          disabled={!file || !name || uploading || blocked}
+          disabled={!name || uploading || (source==='archive'? !file || blocked : !exePath)}
           className="w-full"
         >
-          {uploading ? '上传中...' : '开始上传'}
+          {uploading ? (source==='archive'?'上传中...':'注册中...') : (source==='archive'?'开始上传':'注册本机程序')}
         </Button>
 
-        {uploading && (
+        {uploading && source==='archive' && (
           <Button
             type="button"
             variant="outline"

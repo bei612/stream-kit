@@ -95,7 +95,7 @@ export default function Dashboard() {
         <div className="flex gap-3">
           <Link to="/upload">
             <Button>
-              <Upload className="w-4 h-4" /> 上传应用
+              <Upload className="w-4 h-4" /> 添加应用
             </Button>
           </Link>
           <Link to="/apps">

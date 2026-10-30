@@ -72,7 +72,7 @@ export default function AppDetail() {
 
   const handleDelete = async () => {
     if (!id || !app) return
-    if (!confirm(`确定删除应用 "${app.name}"？`)) return
+    if (!confirm(app.source==='local' ? `移除 "${app.name}" 的平台注册？原程序及工作目录会保留。` : `确定删除应用 "${app.name}" 及上传文件？`)) return
     try {
       await api.deleteApp(id)
       navigate('/apps')
@@ -241,17 +241,17 @@ export default function AppDetail() {
           <CardTitle>基本信息</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
             <div>
               <span className="text-muted-foreground">入口文件：</span>
-              <span className="break-all text-card-foreground">{app.exe_relative_path || '-'}</span>
+              <span className="break-all text-card-foreground">{app.source==='local'?app.exe_path:(app.exe_relative_path || '-')}</span>
             </div>
             <div>
-              <span className="text-muted-foreground">大小：</span>
-              <span className="text-card-foreground">{formatBytes(app.extracted_size_bytes || app.file_size_bytes)}</span>
+              <span className="text-muted-foreground">来源：</span>
+              <span className="text-card-foreground">{app.source==='local'?'本机程序（外部管理文件）':`上传包 · ${formatBytes(app.extracted_size_bytes || app.file_size_bytes)}`}</span>
             </div>
             <div>
-              <span className="text-muted-foreground">上传时间：</span>
+              <span className="text-muted-foreground">添加时间：</span>
               <span className="text-card-foreground">{formatTime(app.created_at)}</span>
             </div>
             <div>
@@ -294,7 +294,7 @@ export default function AppDetail() {
         </CardHeader>
         <CardContent>
           <Button variant="destructive" size="sm" onClick={handleDelete}>
-            <Trash2 className="w-3 h-3" /> 删除应用
+            <Trash2 className="w-3 h-3" /> {app.source==='local'?'移除平台注册':'删除应用'}
           </Button>
         </CardContent>
       </Card>

@@ -54,10 +54,10 @@ export default function Apps() {
     <QueryWrapper loading={loading} error={error} onRetry={refresh}>
       <div className="space-y-4">
         <div className="page-heading">
-          <div><p className="page-eyebrow">渲染内容</p><h2>应用管理</h2><p className="page-description">管理已上传应用，启动或结束串流。</p></div>
+          <div><p className="page-eyebrow">渲染内容</p><h2>应用管理</h2><p className="page-description">管理上传包和本机程序，启动或结束串流。</p></div>
           <Link to="/upload">
             <Button>
-              <Upload className="w-4 h-4" /> 上传应用
+              <Upload className="w-4 h-4" /> 添加应用
             </Button>
           </Link>
         </div>
@@ -65,7 +65,7 @@ export default function Apps() {
         {apps.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground">
             <p className="text-lg mb-2">暂无应用</p>
-            <p className="text-sm">点击"上传应用"添加你的第一个应用</p>
+            <p className="text-sm">点击“添加应用”，上传压缩包或指定本机程序路径</p>
           </div>
         ) : (
           <Table>

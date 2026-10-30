@@ -126,6 +126,7 @@ func (m *Manager) CreateApp(name, argsTemplate, args, exePath string, fileSize i
 	}
 
 	app := &model.App{
+		Source:          model.AppSourceArchive,
 		ID:              id,
 		Name:            name,
 		Status:          model.AppStatusUploading,
@@ -277,11 +278,11 @@ func (m *Manager) registerWithSunshine(appID string) {
 
 	// Variable substitution in args
 	args := app.Args
-	args = strings.ReplaceAll(args, "{app_dir}", app.AppDir)
+	args = strings.ReplaceAll(args, "{app_dir}", strings.ReplaceAll(programDirectory(app), "$", "$$"))
 	args = strings.ReplaceAll(args, "{app_name}", app.Name)
 
 	// Build command: exe path + args
-	cmd := app.ExePath
+	cmd := quoteProgram(app.ExePath)
 	if args != "" {
 		cmd = cmd + " " + args
 	}
@@ -295,8 +296,8 @@ func (m *Manager) registerWithSunshine(appID string) {
 	sunApp := sunshine.SunshineApp{
 		Name:        app.SunshineAppName,
 		Cmd:         cmd,
-		WorkingDir:  app.WorkingDir,
-		Output:      filepath.Join(app.AppDir, "output.log"),
+		WorkingDir:  strings.ReplaceAll(app.WorkingDir, "$", "$$"),
+		Output:      strings.ReplaceAll(filepath.Join(app.AppDir, "output.log"), "$", "$$"),
 		ImagePath:   iconPath,
 		AutoDetach:  false,
 		WaitAll:     true,
@@ -372,6 +373,18 @@ func (m *Manager) LaunchApp(appID string) (string, error) {
 	app, err := m.store.GetApp(appID)
 	if err != nil {
 		return "", err
+	}
+	if app.Source == model.AppSourceLocal {
+		resolved, err := canonicalLocalPath(app.ExePath, false)
+		if err != nil {
+			return "", err
+		}
+		if resolved != app.ExePath {
+			return "", fmt.Errorf("本机程序入口已改变，请重新注册")
+		}
+		if _, err = canonicalLocalPath(app.WorkingDir, true); err != nil {
+			return "", err
+		}
 	}
 
 	// Idempotent: if already running, return existing stream_url
@@ -555,6 +568,9 @@ func (m *Manager) SelectExe(appID, exeRelPath string) error {
 	if app.Status != model.AppStatusDetecting {
 		return fmt.Errorf("应用当前状态 %s，仅 detecting 状态可选择入口", app.Status)
 	}
+	if app.Source == model.AppSourceLocal {
+		return fmt.Errorf("本机程序入口已明确指定")
+	}
 
 	if err := ValidateExePath(app.AppDir, exeRelPath); err != nil {
 		return err
@@ -580,10 +596,14 @@ func (m *Manager) GetCandidates(appID string) ([]ExeCandidate, error) {
 	if err != nil {
 		return nil, err
 	}
+	if app.Source == model.AppSourceLocal {
+		return []ExeCandidate{}, nil
+	}
 	return DetectEntryExe(app.AppDir)
 }
 
-// DeleteApp deletes an app and all its files.
+// DeleteApp removes the registration and its platform-owned files only.
+// Local executable and working-directory references are never cleanup targets.
 // Order: DB first (authoritative), then best-effort Sunshine unregister + file cleanup.
 // Rationale: orphaned files are recoverable; orphaned DB records pointing to missing files are not.
 func (m *Manager) DeleteApp(appID string) error {
@@ -593,7 +613,10 @@ func (m *Manager) DeleteApp(appID string) error {
 	}
 
 	appName := app.SunshineAppName
-	appDir := app.AppDir
+	appDir, err := m.ownedDirectory(app)
+	if err != nil {
+		return err
+	}
 
 	// Pre-condition: stop streaming if running (inline, not via StopApp to avoid lock re-entry)
 	if app.Status == model.AppStatusRunning && m.sunClient != nil {
