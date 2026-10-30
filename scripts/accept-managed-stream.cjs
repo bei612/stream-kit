@@ -24,6 +24,8 @@ const numericOption = (name, fallback) => process.argv.includes(name) ? Number(p
 const clientCount = numericOption('--clients', 2);
 const holdSeconds = numericOption('--hold-seconds', 5);
 const microphoneTest = process.argv.includes('--microphone-tone');
+const restartServices = process.argv.includes('--restart-services');
+assert.ok(!restartServices || !microphoneTest, 'Run recovery and microphone isolation as separate acceptance cases');
 assert.ok(!microphoneTest || clientCount === 2, 'Microphone isolation acceptance uses two clients');
 assert.ok(Number.isInteger(clientCount) && clientCount >= 2 && clientCount <= 20);
 assert.ok(Number.isInteger(holdSeconds) && holdSeconds >= 0 && holdSeconds <= 86400);
@@ -34,6 +36,7 @@ fs.mkdirSync(output, { recursive: true });
 const result = { passed: false, status: 'running', clients: clientCount, hold_seconds: holdSeconds,
   started_at: new Date().toISOString(), scope: microphoneTest
     ? 'Real browser capture of a generated 997 Hz WAV via Chromium test microphone, Opus uplink/mix/downlink and control revocation; no physical microphone or target recording.'
+    : restartServices ? 'Real browser recovery across forced termination/restart of the isolated gateway and control processes; same ports/data, no page reload or host input. Not a network partition or long outage test.'
     : 'Real browser Desktop streams through isolated control and media services; no host input or microphone capture.' };
 const save = () => fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(result, null, 2));
 save();
@@ -53,11 +56,18 @@ function launch(binary, args, name) {
   const child = spawn(binary, args, { cwd: scratch, windowsHide: true,
     stdio: ['ignore', log, log], env: { ...process.env, WEBRTC_ICE_SERVER_COUNT: '0' } });
   fs.closeSync(log);
-  children.push({ child, exited: once(child, 'exit') });
+  const record = { child, exited: once(child, 'exit'), expectedExit: false };
+  children.push(record);
+  return record;
+}
+async function stopProcess(record) {
+  record.expectedExit = true;
+  if (record.child.exitCode === null) record.child.kill();
+  await record.exited;
 }
 async function ready(url) {
   for (let i = 0; i < 100; i++) {
-    assert.ok(children.every(({ child }) => child.exitCode === null), 'Test process exited during startup');
+    assert.ok(children.every(({ child, expectedExit }) => expectedExit || child.exitCode === null), 'Test process exited during startup');
     try { if ((await fetch(url, { signal: AbortSignal.timeout(500) })).ok) return; } catch {}
     await delay(100);
   }
@@ -114,6 +124,8 @@ async function main() {
   fs.writeFileSync(gatewayConfigFile, JSON.stringify(config));
   fs.cpSync(path.join(root, 'third_party/moonlight-web-stream/dist'), path.join(scratch, 'dist'), { recursive: true });
   fs.cpSync(path.join(root, 'third_party/moonlight-web-stream/dist'), path.join(scratch, 'static'), { recursive: true });
+  result.web_assets_sha256 = Object.fromEntries(fs.readdirSync(path.join(scratch, 'dist'))
+    .filter(name => /\.(js|wasm|html)$/.test(name)).map(name => [name, sha(path.join(scratch, 'dist', name))]));
   const controlConfig = { server: { bind_address: `127.0.0.1:${controlPort}`, ...credentials,
     jwt_secret: crypto.randomBytes(32).toString('hex'), media_ticket_secret: secret, cors_origins: [gateway] },
     components: {}, moonlight_web: { base_url: gateway, public_url: gateway, ...credentials },
@@ -122,14 +134,17 @@ async function main() {
     log: { level: 'info', file: { enabled: false }, access_log: { enabled: false } } };
   const controlConfigFile = path.join(scratch, 'control-config.json');
   fs.writeFileSync(controlConfigFile, JSON.stringify(controlConfig));
-  launch(gatewayBinary, ['--config-path', gatewayConfigFile, 'run'], 'gateway');
-  launch(orchestratorBinary, ['--config', controlConfigFile], 'orchestrator');
+  let gatewayProcess = launch(gatewayBinary, ['--config-path', gatewayConfigFile, 'run'], 'gateway');
+  const controlProcess = launch(orchestratorBinary, ['--config', controlConfigFile], 'orchestrator');
   await ready(gateway + '/config.js');
   await ready(control + '/api/v1/health');
-  const nativeLogin = await fetch(gateway + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: credentials.username, password: credentials.password }) });
-  assert.equal(nativeLogin.status, 200);
-  const cookie = nativeLogin.headers.get('set-cookie').split(';')[0];
+  async function gatewayLogin() {
+    const response = await fetch(gateway + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: credentials.username, password: credentials.password }) });
+    assert.equal(response.status, 200);
+    return response.headers.get('set-cookie').split(';')[0];
+  }
+  let cookie = await gatewayLogin();
   const native = (resource, method = 'GET', body) => json(gateway + '/api' + resource, {
     method, headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
   const known = await fetch(gateway + '/api/hosts', { headers: { Cookie: cookie } });
@@ -248,6 +263,54 @@ async function main() {
   assert.equal(Object.values(transferred.connections).filter(c => c.role === 'controller').length, 1);
   await api(`/stream-sessions/${invite.session_id}/controller`, 'DELETE');
   result.control_transfer = { unique_controller: true, epoch_before: claimed.control_epoch, epoch_after: transferred.control_epoch };
+  if (restartServices) {
+    const selected = await api(`/stream-sessions/${invite.session_id}/controller/${ids[0]}`, 'POST');
+    const peerCounts = await Promise.all(pages.map(page => page.evaluate(() => window.__acceptancePeers.length)));
+    const started = Date.now();
+    // Terminate only the isolated child owned by this acceptance run. Restart
+    // from the same config/data on the same port, without reloading browsers.
+    await stopProcess(gatewayProcess);
+    gatewayProcess = launch(gatewayBinary, ['--config-path', gatewayConfigFile, 'run'], 'gateway-restarted');
+    await ready(gateway + '/config.js');
+    cookie = await gatewayLogin();
+    await Promise.all(pages.map((page,index) => page.waitForFunction(async count => {
+      const peers = window.__acceptancePeers;
+      if(peers.length <= count) return false;
+      const peer = peers.at(-1);
+      if(peer.connectionState !== 'connected') return false;
+      return [...(await peer.getStats()).values()].some(s => s.type === 'inbound-rtp' && s.kind === 'video' && s.framesDecoded > 15);
+    }, peerCounts[index], { timeout: 90000 })));
+    let restartedStatus;
+    for(let i=0;i<100;i++) {
+      restartedStatus = await api('/media-control');
+      if(restartedStatus.observations_valid && restartedStatus.observations[invite.session_id]?.subscribers === clientCount) break;
+      await delay(200);
+    }
+    result.gateway_restart_observation = restartedStatus;
+    assert.ok(restartedStatus.observations_valid && restartedStatus.observations[invite.session_id]?.subscribers === clientCount, 'Restarted gateway must confirm the recovered subscribers');
+    const recovered = await api(`/stream-sessions/${invite.session_id}`);
+    assert.deepEqual(Object.keys(recovered.connections).sort(), [...ids].sort(), 'Gateway recovery must retain logical connections');
+    assert.equal(recovered.controller_connection_id, selected.controller_connection_id);
+    assert.equal(recovered.control_epoch, selected.control_epoch);
+    result.gateway_restart = { recovered_ms: Date.now()-started, retained_connections:true, retained_control_epoch:true };
+    console.log('Gateway restart recovered without page reload');
+    const beforeControl = await Promise.all(pages.map(videoFrames));
+    await stopProcess(controlProcess);
+    launch(orchestratorBinary, ['--config', controlConfigFile], 'orchestrator-restarted');
+    await ready(control + '/api/v1/health');
+    await delay(6000); // Observe the next existing browser heartbeat and state publication.
+    const restored = await api(`/stream-sessions/${invite.session_id}`);
+    assert.deepEqual(Object.keys(restored.connections).sort(), [...ids].sort(), 'Control restart must restore persisted connections');
+    assert.equal(restored.controller_connection_id, selected.controller_connection_id);
+    assert.equal(restored.control_epoch, selected.control_epoch);
+    const status = await api('/media-control');
+    result.control_restart_observation = status;
+    assert.ok(status.observations_valid && status.observations[invite.session_id]?.subscribers === clientCount);
+    for(let i=0;i<pages.length;i++) assert.ok(await videoFrames(pages[i]) > beforeControl[i]+15, 'Video must continue across control restart');
+    result.control_restart = { restored_connections:true, retained_control_epoch:true, video_continued:true };
+    await api(`/stream-sessions/${invite.session_id}/controller`, 'DELETE');
+    console.log('Control restart retained session and unique controller');
+  }
   if (microphoneTest) {
     for (const page of pages) await page.evaluate(async () => {
       const audioTrack = window.__acceptancePeers.flatMap(pc => pc.getReceivers()).find(r => r.track.kind === 'audio').track;
@@ -364,8 +427,13 @@ async function main() {
   await cleanupRenderer();
   cleanupRenderer = null;
   assert.deepEqual(pageErrors, []);
-  result.upstream_connections = (fs.readFileSync(path.join(output, 'gateway.log'), 'utf8').match(/: connected control stream\r?\n/g) || []).length;
+  const upstreamCount = name => (fs.readFileSync(path.join(output, name), 'utf8').match(/: connected control stream\r?\n/g) || []).length;
+  result.upstream_connections = upstreamCount('gateway.log');
   assert.equal(result.upstream_connections, 1, 'All viewers must share exactly one Moonlight transport connection');
+  if (restartServices) {
+    result.restarted_upstream_connections = upstreamCount('gateway-restarted.log');
+    assert.equal(result.restarted_upstream_connections, 1, 'Restarted gateway must still share one upstream');
+  }
   result.final_observation = observed;
   result.passed = true;
   result.gateway_sha256 = sha(gatewayBinary);
@@ -381,10 +449,7 @@ main().catch(error => { result.error = error.message; process.exitCode = 1; }).f
     try { await cleanupRenderer(); }
     catch (error) { result.cleanup_error = error.message; result.passed = false; process.exitCode = 1; }
   }
-  for (const { child, exited } of children.reverse()) {
-    if (child.exitCode === null) child.kill();
-    await exited;
-  }
+  for (const record of children.reverse()) await stopProcess(record);
   result.finished_at = new Date().toISOString();
   result.status = result.passed ? 'passed' : 'failed';
   save();

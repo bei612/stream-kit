@@ -26,6 +26,7 @@ export class WebRTCTransport implements Transport {
 
     private peer: RTCPeerConnection
     private location: string | null = null
+    private closed = false
 
     constructor(api: Api, configuration: RTCConfiguration, logger?: Logger) {
         this.logger = logger
@@ -82,9 +83,6 @@ export class WebRTCTransport implements Transport {
         this.logger?.debug(`successfully generated webrtc sdp with options ${JSON.stringify(this.sdpOfferOptions)}`)
         console.debug("Client Sdp", sdp)
 
-        this.logger?.debug(`starting ice candidate sender`)
-        this.sendIceCandidates()
-
         return sdp
     }
     async setAnswer(response: WebRTCAnswer): Promise<void> {
@@ -107,6 +105,7 @@ export class WebRTCTransport implements Transport {
             type: "answer",
             sdp: response.answerSdp,
         })
+        this.scheduleIceCandidates()
     }
 
     private connectData: TransportConnectData | null = null
@@ -152,27 +151,33 @@ export class WebRTCTransport implements Transport {
 
     private wasConnected = false
     private onStateChange() {
+        if (this.closed) return
         if (this.peer.connectionState == "connected") {
             this.wasConnected = true
 
             this.generateConnectData().then(connectData => {
-                if (this.onconnect) {
+                if (!this.closed && this.onconnect) {
                     this.onconnect(connectData)
                 }
-            })
+            }).catch(error => this.fail(error))
         } else if (this.peer.connectionState == "failed" || this.peer.connectionState == "closed") {
-            const shutdown = this.wasConnected ? "failed" : "failednoconnect"
-
-            if (this.onclose) {
-                this.onclose(shutdown)
-            }
+            this.fail(`Peer state: ${this.peer.connectionState}`)
         }
+    }
+
+    private fail(error: unknown) {
+        if (this.closed) return
+        const shutdown = this.wasConnected ? "failed" : "failednoconnect"
+        this.logger?.debug(`WebRTC transport failed: ${error}`)
+        void this.close(shutdown)
     }
 
     // -- Trickle Ice
     private iceCandidateSendTimer: number | null = null
     private pendingIceCandidates: Array<string> = []
+    private iceSending = false
     private onIceCandidate(event: RTCPeerConnectionIceEvent) {
+        if (this.closed) return
         if (!event.candidate) {
             // Ice Gathering finished
             this.logger?.debug("ice gathering finished")
@@ -182,34 +187,35 @@ export class WebRTCTransport implements Transport {
         const candidate = event.candidate.toJSON().candidate
         if (candidate) {
             this.pendingIceCandidates.push(candidate)
+            this.scheduleIceCandidates()
         }
     }
 
     private boundSendIceCandidates = this.sendIceCandidates.bind(this)
+    private scheduleIceCandidates() {
+        if (this.closed || !this.location || this.iceSending || this.iceCandidateSendTimer != null || this.pendingIceCandidates.length === 0) return
+        this.iceCandidateSendTimer = globalObject().setTimeout(this.boundSendIceCandidates, 50)
+    }
     private async sendIceCandidates() {
         this.iceCandidateSendTimer = null
-        if (this.iceCandidateSendTimer != null) {
-            globalObject().clearTimeout(this.iceCandidateSendTimer)
-        }
-
-        for (const candidate of this.pendingIceCandidates) {
-            this.logger?.debug(`sending ice candidate: ${candidate}`)
-        }
-
-        if (this.location && this.pendingIceCandidates.length > 0) {
-            const trickleIceSdpFrag = this.pendingIceCandidates.map(x => `a=${x}`).join("\r\n")
-
+        if (this.closed || !this.location || this.iceSending || this.pendingIceCandidates.length === 0) return
+        // Detach only this batch. Candidates arriving during the HTTP request
+        // belong to the next batch and must not be cleared by its completion.
+        const candidates = this.pendingIceCandidates.splice(0)
+        this.iceSending = true
+        try {
             await fetchApi(this.api, this.location, "PATCH", {
                 noUrlModify: true,
-                trickleIceSdpFrag,
+                trickleIceSdpFrag: candidates.map(x => `a=${x}`).join("\r\n"),
                 response: "ignore",
             })
-
-            this.pendingIceCandidates = []
-        }
-
-        if (this.peer.iceGatheringState != "complete") {
-            this.iceCandidateSendTimer = globalObject().setTimeout(this.boundSendIceCandidates, 2000)
+        } catch (error) {
+            // A vanished WHEP resource invalidates this transport; its owner
+            // re-admits a replacement using the existing logical connection.
+            this.fail(error)
+        } finally {
+            this.iceSending = false
+            this.scheduleIceCandidates()
         }
     }
 
@@ -316,13 +322,18 @@ export class WebRTCTransport implements Transport {
         }
     }
 
-    async close(): Promise<void> {
+    async close(reason: TransportShutdown = "disconnect"): Promise<void> {
+        if (this.closed) return
+        this.closed = true
+        this.pendingIceCandidates = []
+        this.controlStream.close()
         // Close the peer
         this.peer.close()
 
         // Delete the ice candidate send loop
         globalObject().clearTimeout(this.iceCandidateSendTimer)
         this.iceCandidateSendTimer = null
+        this.onclose?.(reason)
 
         // Delete our current session on the server
         if (this.location) {
@@ -446,6 +457,18 @@ class WebRtcControlStream implements IControlStream {
 
     // Buffering
     private packetBuffer: Array<ControlPacket> = []
+    private closed = false
+    private animationFrame: number | null = null
+
+    close() {
+        if (this.closed) return
+        this.closed = true
+        if (this.animationFrame != null) globalObject().cancelAnimationFrame(this.animationFrame)
+        this.animationFrame = null
+        this.packetBuffer = []
+        this.currentPressedKeys.clear()
+        this.remoteKeyStates.clear()
+    }
 
     constructor(peer: RTCPeerConnection, logger?: Logger) {
         this.logger = logger
@@ -737,10 +760,11 @@ class WebRtcControlStream implements IControlStream {
 
     private boundSendBatchedInputs = this.sendBatchedInputs.bind(this)
     private sendBatchedInputs() {
-        if (this.channel?.readyState == "closed") {
+        this.animationFrame = null
+        if (this.closed || this.channel?.readyState == "closed") {
             return
         }
-        globalObject().requestAnimationFrame(this.boundSendBatchedInputs)
+        this.animationFrame = globalObject().requestAnimationFrame(this.boundSendBatchedInputs)
 
         // -- Send mouse
         if ("x" in this.mouseState) {
