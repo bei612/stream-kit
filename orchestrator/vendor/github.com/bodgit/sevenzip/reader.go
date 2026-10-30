@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/bodgit/plumbing"
+	"github.com/bodgit/sevenzip/internal/limits"
 	"github.com/bodgit/sevenzip/internal/pool"
 	"github.com/bodgit/sevenzip/internal/util"
 	"github.com/spf13/afero"
@@ -439,6 +440,15 @@ func (z *Reader) init(r io.ReaderAt, size int64) (err error) {
 	}
 
 	// Seek over the streams
+	if start.Size > limits.HeaderBytes {
+		return limits.ErrHeader
+	}
+	// Check unsigned offsets before int64 conversion and addition. The header
+	// must be contained in this input, including when embedded in an SFX file.
+	available := size - off - z.start
+	if available < 0 || start.Offset > uint64(available) || start.Size > uint64(available)-start.Offset {
+		return errFormat
+	}
 	if z.end, err = sr.Seek(int64(start.Offset), io.SeekCurrent); err != nil { //nolint:gosec
 		return fmt.Errorf("sevenzip: error seeking over streams: %w", err)
 	}
@@ -491,6 +501,10 @@ func (z *Reader) init(r io.ReaderAt, size int64) (err error) {
 		if streamsInfo.Folders() != 1 {
 			return errOneHeaderStream
 		}
+		headerSize := streamsInfo.unpackInfo.folder[0].unpackSize()
+		if headerSize > limits.HeaderBytes {
+			return limits.ErrHeader
+		}
 
 		var (
 			fr        *folderReadCloser
@@ -510,11 +524,16 @@ func (z *Reader) init(r io.ReaderAt, size int64) (err error) {
 			err = errors.Join(err, fr.Close())
 		}()
 
-		if header, err = readEncodedHeader(util.ByteReadCloser(fr)); err != nil {
+		payload := &io.LimitedReader{R: fr, N: int64(headerSize)}
+		decoded := bufio.NewReader(payload)
+		if header, err = readEncodedHeader(decoded); err != nil {
 			return &ReadError{
 				Encrypted: fr.hasEncryption,
 				Err:       err,
 			}
+		}
+		if _, err := decoded.ReadByte(); err != io.EOF || payload.N != 0 {
+			return errTooMuch
 		}
 
 		if crc != 0 && !util.CRC32Equal(fr.Checksum(), crc) {

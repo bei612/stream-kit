@@ -9,6 +9,6 @@
   "license": "BSD-3-Clause",
   "integration": "orchestrator/go.mod local replace; ordinary tracked source, no submodule",
   "baseline": "Complete Go module source distribution including tests and fixtures; 90 files byte-verified against the pinned module cache before integration",
-  "local_changes": "128 MiB pre-allocation dictionary ceilings for LZMA/LZMA2/PPMd; bounded single-concurrency Zstandard decoder; exact file-property framing and UTF-16 filename length/termination checks",
+  "local_changes": "128 MiB pre-allocation dictionary ceilings for LZMA/LZMA2/PPMd; bounded single-concurrency Zstandard decoder; exact file-property framing and UTF-16 filename length/termination checks; 64 MiB stored and decoded header limits, checked input ranges and exact decoded header consumption",
   "pending": "Aggregate per-reader metadata and decoder allocation budgets; per-decoder ceilings do not bound total parser memory"
 }
