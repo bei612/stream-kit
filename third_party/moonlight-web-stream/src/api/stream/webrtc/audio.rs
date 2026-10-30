@@ -4,7 +4,7 @@ use bytes::Bytes;
 use moonlight_common::{
     crypto::rustcrypto::RustCryptoBackend,
     http::pair::PairingCryptoBackend,
-    stream::{audio::AudioFrame, tokio::MoonlightStream},
+    stream::audio::{AudioFrame, OpusMultistreamConfig},
 };
 use rtc::{
     media_stream::MediaStreamTrack,
@@ -37,12 +37,12 @@ pub struct AudioChannel {
 
 impl AudioChannel {
     pub async fn new_track(
-        stream: &MoonlightStream,
+        config: OpusMultistreamConfig,
         peer: &dyn PeerConnection,
     ) -> Result<Self, AppError> {
         // TODO: what audio format is used?
 
-        let config = stream.audio_setup();
+
 
         // Create audio track
         let mut ssrc = [0; 4];

@@ -13,7 +13,7 @@ use moonlight_common::stream::{
         control::{ControlStreamEvent, packet::ControlPacket},
         video::VideoStreamEvent,
     },
-    tokio::{MoonlightStream, MoonlightStreamEvent},
+    tokio::MoonlightStreamEvent,
 };
 use tokio::{select, sync::mpsc};
 use tracing::{debug, info, warn};
@@ -32,11 +32,12 @@ use crate::{
         video::{VideoChannel, VideoChannelEvent},
     },
     app::AppError,
-    app::media::{MediaSessionKey, MediaSessionRegistry, MediaSubscription},
+    app::upstream::UpstreamPeer,
+    app::media::{MediaSessionKey, MediaSessionRegistry},
 };
 
 pub async fn webrtc_loop(
-    mut stream: MoonlightStream,
+    mut stream: UpstreamPeer,
     _peer: &dyn PeerConnection,
     mut audio_channel: AudioChannel,
     mut video_channel: VideoChannel,
@@ -48,18 +49,18 @@ pub async fn webrtc_loop(
     media_registry: MediaSessionRegistry,
     media_key: MediaSessionKey,
     media_peer_id: String,
-    upstream_owner: bool,
-    mut media_subscription: MediaSubscription,
+
+
 ) -> Result<(), AppError> {
     info!("started main webrtc loop");
 
     let mut last_key_states_sequence_number = 0;
     let mut last_key_states = CompactKeyStates::default();
 
-    let mut moonlight_disconnected = false;
+
     let mut peer_was_disconnected = true;
     loop {
-        if upstream_owner && !stream.is_alive() {
+        if !stream.is_alive() {
             info!("stopping stream because the moonlight stream is dead");
             break;
         }
@@ -78,8 +79,7 @@ pub async fn webrtc_loop(
                 peer_was_disconnected = false;
             }
             RTCPeerConnectionState::Failed | RTCPeerConnectionState::Closed => {
-                let _ = stream.disconnect();
-                moonlight_disconnected = true;
+                return Ok(());
             }
             _ => {
                 peer_was_disconnected = true;
@@ -87,23 +87,6 @@ pub async fn webrtc_loop(
         }
 
         select! {
-            result = media_subscription.audio.recv(), if !upstream_owner => {
-                if let Ok(frame) = result {
-                    if matches!(peer_state, RTCPeerConnectionState::Connected) {
-                        audio_channel.on_frame(AudioFrame {
-                            timestamp: frame.timestamp,
-                            buffer: Bytes::copy_from_slice(&frame.buffer),
-                        });
-                    }
-                }
-            }
-            result = media_subscription.video.recv(), if !upstream_owner => {
-                if let Ok(frame) = result {
-                    if matches!(peer_state, RTCPeerConnectionState::Connected) {
-                        video_channel.on_frame(frame);
-                    }
-                }
-            }
             Some(data_channel) = async { if on_data_channel.is_closed() { pending().await } else { on_data_channel.recv().await } } => {
                 let label = data_channel.label().await?;
                 debug!(data_channel = ?label, "got data channel");
@@ -119,24 +102,18 @@ pub async fn webrtc_loop(
                     mic_channel.set_track(track);
                 }
             }
-            result = stream.drive(), if upstream_owner => {
-                if moonlight_disconnected {
-                    continue;
-                }
+            result = stream.drive() => {
 
                 let event = result?;
 
-                match event {
+                match event.as_ref() {
                     MoonlightStreamEvent::Audio(AudioStreamEvent::OnFrame(frame)) => {
-                        if !upstream_owner {
-                            continue;
-                        }
                         if !matches!(peer_state, RTCPeerConnectionState::Connected) {
                             continue;
                         }
 
-                        media_registry.publish_audio(&media_key, &frame).await;
-                        audio_channel.on_frame(frame);
+
+                        audio_channel.on_frame(AudioFrame { timestamp: frame.timestamp, buffer: Bytes::copy_from_slice(&frame.buffer) });
                     }
                     MoonlightStreamEvent::Video(VideoStreamEvent::SignalIdr) => {
                         debug!("requesting idr on behalf of the video stream (packet loss likely)");
@@ -145,20 +122,17 @@ pub async fn webrtc_loop(
                         }
                     }
                     MoonlightStreamEvent::Video(VideoStreamEvent::OnFrame(frame)) => {
-                        if !upstream_owner {
-                            continue;
-                        }
                         if !matches!(peer_state, RTCPeerConnectionState::Connected) {
                             continue;
                         }
 
-                        media_registry.publish_video(&media_key, frame.clone()).await;
-                        video_channel.on_frame(frame);
+
+                        video_channel.on_frame(frame.clone());
                     }
                     MoonlightStreamEvent::Control(ControlStreamEvent::Packet(packet)) => {
                         if let ControlPacket::ServerTermination { reason } = &packet {
                             info!(?reason, "relaying host termination to browser");
-                            control_channel.send(packet);
+                            control_channel.send(packet.clone());
 
                             // Keep SCTP alive until the viewer has received the message
                             // and closed the channel. Closing the peer immediately can
@@ -176,7 +150,7 @@ pub async fn webrtc_loop(
                             video_channel.set_hdr_enabled(*enabled, *sunshine);
                         }
 
-                        control_channel.send(packet);
+                        control_channel.send(packet.clone());
                     }
                     _ => {}
                 }
@@ -267,7 +241,7 @@ pub async fn webrtc_loop(
 }
 
 fn send_key_change(
-    stream: &mut MoonlightStream,
+    stream: &mut UpstreamPeer,
     modifiers: KeyModifiers,
     key_code: KeyCode,
     action: KeyAction,

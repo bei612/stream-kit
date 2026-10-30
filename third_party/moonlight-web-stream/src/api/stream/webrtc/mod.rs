@@ -535,6 +535,7 @@ pub async fn webrtc_post(
         .find(|app| app.id == app_id)
         .map(|app| app.title);
 
+    let moonlight_stream = app.upstreams().connect(media_key.clone(), || async {
     let config = host
         .start_stream(
             app_id,
@@ -562,10 +563,12 @@ pub async fn webrtc_post(
             return Err(err.into());
         }
     };
+    Ok(moonlight_stream)
+    }).await?;
     let host_features = moonlight_stream.host_features();
 
     // Add audio and video track forwarding
-    let audio_channel = match AudioChannel::new_track(&moonlight_stream, &*peer).await {
+    let audio_channel = match AudioChannel::new_track(moonlight_stream.audio_setup(), &*peer).await {
         Ok(value) => value,
         Err(err) => {
             error!(error = %err, "failed to add audio track to webrtc peer");
@@ -617,8 +620,8 @@ pub async fn webrtc_post(
     if media_role == crate::app::media::PeerRole::Controller {
         app.media_sessions().claim_controller(&media_key, &media_peer_id, false).await?;
     }
-    let upstream_owner = app.media_sessions().is_upstream_owner(&media_key, &media_peer_id).await;
-    let media_subscription = app.media_sessions().subscribe(&media_key).await?;
+
+
     info!(peer_id = %media_peer_id, "attached peer to media session");
 
     // Keep the Moonlight transport alive while STUN/ICE gathering runs. Waiting here can
@@ -646,8 +649,8 @@ pub async fn webrtc_post(
                 media_registry.clone(),
                 loop_key,
                 loop_peer_id,
-                upstream_owner,
-                media_subscription,
+
+
             )
             .await
             {
