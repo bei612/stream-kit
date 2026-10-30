@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: cross-platform-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   orchestrator:
     name: Orchestrator (${{ matrix.os }})
@@ -28,7 +32,18 @@ jobs:
           cache-dependency-path: orchestrator/go.sum
       - run: go mod vendor
       - run: git diff --exit-code -- vendor
-      - run: go test ./...
+      - name: Test Orchestrator
+        shell: bash
+        run: mkdir -p ../artifacts/ci && go test -json ./... | tee ../artifacts/ci/orchestrator-tests.jsonl
+      - name: Annotate failing Go tests
+        if: failure()
+        run: node ../scripts/report-go-test-failures.mjs ../artifacts/ci/orchestrator-tests.jsonl
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: orchestrator-tests-${{ runner.os }}-${{ runner.arch }}
+          path: artifacts/ci/orchestrator-tests.jsonl
+          if-no-files-found: warn
       - run: go -C ../third_party/sevenzip test ./...
       - if: runner.os == 'Linux'
         run: go test -race ./cmd/orchestrator ./internal/util ./internal/app ./internal/session ./internal/ws ./internal/server/...
@@ -64,6 +79,7 @@ jobs:
           cache-dependency-path: orchestrator/web/package-lock.json
       - run: npm ci
       - run: npm run build
+      - run: node --test ../../scripts/test-go-test-failures.mjs
       - run: node --experimental-strip-types --test ../../scripts/test-microphone-capture.mjs ../../scripts/test-microphone-sender.mjs ../../scripts/test-media-access.mjs ../../scripts/test-media-observation.mjs ../../scripts/test-viewer-bootstrap.mjs ../../scripts/test-webrtc-lifecycle.mjs ../../scripts/test-management-websocket.mjs ../../scripts/test-canvas-lifecycle.mjs ../../scripts/test-stream-pipelines.mjs ../../scripts/test-decoder-lifecycle.mjs ../../scripts/test-browser-condition.cjs
 
   moonlight-web:

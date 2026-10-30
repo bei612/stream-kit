@@ -21,6 +21,16 @@ from the same source first; CI does this before invoking the bundle script.
 Hashes identify the packaged bytes; the manifest is not a signature, SBOM or
 proof that the complete platform has passed acceptance.
 
+CI retains structured Orchestrator test events per OS and annotates failing
+test/package names without copying test output into annotations. The workflow
+cancels superseded runs in the same ref's concurrency group; this does not
+retroactively put older workflow versions into that group. On 2026-10-31,
+the Actions API showed run `41147255650` (commit `7dfa293b`) queued without an
+assigned runner. The most recent completed run `41117602538` (commit `606a181e`)
+failed Windows Orchestrator tests while its other five jobs succeeded. The log
+download returned HTTP 403, so the specific historical test failure remains
+unidentified; local passing tests do not establish that remote CI is green.
+
 Static page discovery requires a regular `index.html`, and checks the
 configuration directory's `dist/`, its development `web/dist/`, then the
 executable's sibling `dist/`, in that order. An empty directory or a directory
