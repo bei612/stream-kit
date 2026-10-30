@@ -3,6 +3,7 @@
  * @brief Verify retained application identity without capturing the host or sending input.
  */
 #include "src/capture_target.h"
+#include "src/capture_input.h"
 
 #include <gtest/gtest.h>
 
@@ -108,8 +109,11 @@ namespace {
     auto target = bind();
     ASSERT_NE(target, nullptr);
     EXPECT_EQ(target->renderer(), nullptr);
+    EXPECT_FALSE(capture::input_origin(target));
+    EXPECT_FALSE(capture::input_origin({}));
     target->retire();
     EXPECT_EQ(target->renderer(), nullptr);
+    EXPECT_FALSE(capture::input_origin(target));
   }
 
   TEST_F(CaptureTargetTest, OwnershipTransferRetiresOnlyTheReplacedLaunch) {

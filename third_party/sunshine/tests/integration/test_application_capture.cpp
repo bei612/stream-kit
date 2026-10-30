@@ -4,6 +4,7 @@
  */
 #ifdef _WIN32
   #include "src/platform/windows/display.h"
+  #include "src/capture_input.h"
 
   #include <array>
   #include <cmath>
@@ -173,6 +174,25 @@ namespace {
     EXPECT_EQ(status, platf::capture_e::ok);
     EXPECT_EQ(frames, 3);
 
+    const auto origin_before = capture::input_origin(target_);
+    ASSERT_TRUE(origin_before);
+    EXPECT_EQ(origin_before->first, display->offset_x);
+    EXPECT_EQ(origin_before->second, display->offset_y);
+    const auto window = reinterpret_cast<HWND>(renderer->window_handle());
+    RECT before_move {};
+    ASSERT_TRUE(GetWindowRect(window, &before_move));
+    ASSERT_TRUE(SetWindowPos(window, nullptr, before_move.left + 40, before_move.top + 30, 0, 0,
+                            SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE));
+    const auto moved_origin = capture::input_origin(target_);
+    ASSERT_TRUE(moved_origin);
+    EXPECT_NE(moved_origin->first, origin_before->first);
+    EXPECT_NE(moved_origin->second, origin_before->second);
+    EXPECT_EQ(target_->renderer(), renderer);
+    ShowWindow(window, SW_HIDE);
+    EXPECT_FALSE(capture::input_origin(target_));
+    ShowWindow(window, SW_SHOWNOACTIVATE);
+    EXPECT_TRUE(capture::input_origin(target_));
+
     struct resize_t {
       const capture::target_t *target;  ///< Retained tree that owns the example window.
       HWND window {nullptr};  ///< Main example window to resize.
@@ -215,6 +235,7 @@ namespace {
     EXPECT_GT(display->width, old_width);
     target_->retire();
     EXPECT_EQ(target_->renderer(), nullptr);
+    EXPECT_FALSE(capture::input_origin(target_));
     EXPECT_EQ(display->capture([](auto &&, bool) {
       return false;
     },

@@ -28,6 +28,7 @@ extern "C" {
 #include <boost/endian/buffers.hpp>
 
 // local includes
+#include "capture_input.h"
 #include "config.h"
 #include "globals.h"
 #include "input.h"
@@ -267,11 +268,14 @@ namespace input {
      *
      * @param touch_port_event Event carrying the active touch port.
      * @param feedback_queue Queue used for controller feedback.
+     * @param target Owned capture target used for live input coordinates.
      */
     input_t(
       safe::mail_raw_t::event_t<input::touch_port_t> touch_port_event,
-      platf::feedback_queue_t feedback_queue
+      platf::feedback_queue_t feedback_queue,
+      capture::target_ptr target
     ):
+        target {std::move(target)},
         shortcutFlags {},
         gamepads(MAX_GAMEPADS),
         client_context {platf::allocate_client_input_context(platf_input)},
@@ -282,6 +286,8 @@ namespace input {
         accumulated_vscroll_delta {},
         accumulated_hscroll_delta {} {
     }
+
+    capture::target_ptr target;  ///< Input-worker-owned application identity; null means desktop mode.
 
     // Keep track of alt+ctrl+shift key combo
     int shortcutFlags;  ///< Shortcut flags.
@@ -400,8 +406,11 @@ namespace input {
    *
    * @param input Retained input state.
    * @param mail Mailbox for the resumed stream connection.
+   * @param target Capture identity for the resumed application.
    */
-  void rebind_input(const std::shared_ptr<input_t> &input, const safe::mail_t &mail) {
+  void rebind_input(const std::shared_ptr<input_t> &input, const safe::mail_t &mail, capture::target_ptr target) {
+    input->target = std::move(target);
+    input->touch_port = {};
     input->touch_port_event = mail->event<input::touch_port_t>(mail::touch_port);
     input->feedback_queue = mail->queue<platf::gamepad_feedback_msg_t>(mail::gamepad_feedback);
 
@@ -738,6 +747,15 @@ namespace input {
     if (!touch_port) {
       BOOST_LOG(verbose) << "Ignoring early absolute input without a touch port"sv;
       return std::nullopt;
+    }
+
+    if (input->target) {
+      const auto origin = capture::input_origin(input->target);
+      if (!origin) {
+        return std::nullopt;
+      }
+      touch_port.offset_x = origin->first;
+      touch_port.offset_y = origin->second;
     }
 
     auto scalarX = touch_port.width / size.first;
@@ -2306,7 +2324,7 @@ namespace input {
   /**
    * @brief Allocate and initialize platform input state for a stream.
    */
-  std::shared_ptr<input_t> alloc(safe::mail_t mail, std::string session_id) {
+  std::shared_ptr<input_t> alloc(safe::mail_t mail, std::string session_id, capture::target_ptr target) {
     std::shared_ptr<input_t> input;
     bool resumed = false;
     {
@@ -2319,15 +2337,16 @@ namespace input {
       } else {
         input = std::make_shared<input_t>(
           mail->event<input::touch_port_t>(mail::touch_port),
-          mail->queue<platf::gamepad_feedback_msg_t>(mail::gamepad_feedback)
+          mail->queue<platf::gamepad_feedback_msg_t>(mail::gamepad_feedback),
+          target
         );
         state.inputs.try_emplace(std::move(session_id), input);
       }
     }
 
     if (resumed) {
-      dispatch_input_task([input, mail = std::move(mail)]() {
-        rebind_input(input, mail);
+      dispatch_input_task([input, mail = std::move(mail), target = std::move(target)]() {
+        rebind_input(input, mail, target);
       });
     }
 
@@ -2336,6 +2355,10 @@ namespace input {
 
 #ifdef SUNSHINE_TESTS
   namespace testing {
+    std::optional<std::pair<float, float>> map_client_pointer(std::shared_ptr<input_t> &input, std::pair<float, float> value, std::pair<float, float> size) {
+      return client_to_touchport(input, value, size);
+    }
+
     void set_platform_input(platf::input_t input) {
       terminate_gamepads();
       platf_input = std::move(input);

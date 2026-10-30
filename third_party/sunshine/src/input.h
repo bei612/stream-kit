@@ -80,9 +80,10 @@ namespace input {
    *
    * @param mail Mailbox used to exchange messages with worker threads.
    * @param session_id Stable paired-client identity shared by launch and resume connections.
+   * @param target Application identity, or null for desktop input coordinates.
    * @return Shared input state bound to the stream mailbox.
    */
-  std::shared_ptr<input_t> alloc(safe::mail_t mail, std::string session_id);
+  std::shared_ptr<input_t> alloc(safe::mail_t mail, std::string session_id, capture::target_ptr target = {});
 
 #ifdef SUNSHINE_TESTS
   namespace testing {
@@ -168,6 +169,8 @@ namespace input {
      * @return Number of queued packets, or zero for an empty input pointer.
      */
     std::size_t queued_input_packet_count(const std::shared_ptr<input_t> &input);
+    /** @brief Map a pointer without injecting OS input. @param input Stream context. @param value Client point. @param size Client dimensions. @return Mapped point or rejection. */
+    std::optional<std::pair<float, float>> map_client_pointer(std::shared_ptr<input_t> &input, std::pair<float, float> value, std::pair<float, float> size);
   }  // namespace testing
 #endif
 

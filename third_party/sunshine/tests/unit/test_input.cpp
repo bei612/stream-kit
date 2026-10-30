@@ -28,6 +28,23 @@ extern "C" {
 #include "src/utility.h"
 
 namespace {
+  /** @brief Live launch with no capturable window, used to verify fail-closed input mapping. */
+  class unavailable_input_target_t final: public capture::target_t {
+  public:
+    std::uint32_t process_id() const override {
+      return 1;
+    }
+    bool alive() const override {
+      return !retired();
+    }
+    bool contains(std::uint32_t) const override {
+      return false;
+    }
+    capture::renderer_ptr renderer() const override {
+      return {};
+    }
+  };
+
   /**
    * @brief Protocol metadata for a fixed-size input packet.
    */
@@ -124,6 +141,29 @@ TEST_F(InputGamepadSessionTest, ConnectingAndResumingDoesNotScheduleSyntheticInp
   auto resumed = input::alloc(std::make_shared<safe::mail_raw_t>(), "passive-viewer");
   EXPECT_EQ(first, resumed);
   EXPECT_FALSE(task_pool.next());
+}
+
+TEST_F(InputGamepadSessionTest, ApplicationMappingFailsClosedAndResumeRequiresFreshViewport) {
+  auto mailbox = std::make_shared<safe::mail_raw_t>();
+  auto target = std::make_shared<unavailable_input_target_t>();
+  auto stream = input::alloc(mailbox, "scoped-pointer", target);
+  const input::touch_port_t viewport {{30, 40, 800, 600, 0, 0}, 1920, 1080, 0, 0, 1, 1, 0, 0};
+  mailbox->event<input::touch_port_t>(mail::touch_port)->raise(viewport);
+  EXPECT_FALSE(input::testing::map_client_pointer(stream, {100, 100}, {800, 600}));
+
+  auto resumed_mail = std::make_shared<safe::mail_raw_t>();
+  auto resumed = input::alloc(resumed_mail, "scoped-pointer");
+  ASSERT_EQ(stream, resumed);
+  EXPECT_FALSE(input::testing::map_client_pointer(resumed, {100, 100}, {800, 600}));
+  resumed_mail->event<input::touch_port_t>(mail::touch_port)->raise(viewport);
+  const auto point = input::testing::map_client_pointer(resumed, {100, 100}, {800, 600});
+  ASSERT_TRUE(point);
+  EXPECT_EQ(point->first, 130);
+  EXPECT_EQ(point->second, 140);
+
+  resumed = input::alloc(mailbox, "scoped-pointer", target);
+  mailbox->event<input::touch_port_t>(mail::touch_port)->raise(viewport);
+  EXPECT_FALSE(input::testing::map_client_pointer(resumed, {100, 100}, {800, 600}));
 }
 
 TEST(InputPacketValidationTest, RejectsEveryBufferShorterThanTheHeader) {

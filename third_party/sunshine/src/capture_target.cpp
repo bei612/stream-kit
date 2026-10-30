@@ -2,6 +2,7 @@
  * @file src/capture_target.cpp
  * @brief OS-backed identities for application-scoped capture.
  */
+#include "capture_input.h"
 #include "capture_target.h"
 
 #ifdef _WIN32
@@ -11,6 +12,32 @@
   #include <windows.h>
 
 namespace capture {
+  std::optional<std::pair<int, int>> input_origin(const target_ptr &target) {
+    if (!target || !target->alive()) {
+      return std::nullopt;
+    }
+    const auto renderer = target->renderer();
+    if (!renderer || !renderer->alive() || !target->contains(renderer->process_id())) {
+      return std::nullopt;
+    }
+    const auto window = reinterpret_cast<HWND>(renderer->window_handle());
+    if (!IsWindowVisible(window) || IsIconic(window)) {
+      return std::nullopt;
+    }
+    DWORD cloaked = 0;
+    if (SUCCEEDED(DwmGetWindowAttribute(window, DWMWA_CLOAKED, &cloaked, sizeof(cloaked))) && cloaked) {
+      return std::nullopt;
+    }
+    RECT bounds {};
+    if (FAILED(DwmGetWindowAttribute(window, DWMWA_EXTENDED_FRAME_BOUNDS, &bounds, sizeof(bounds))) && !GetWindowRect(window, &bounds)) {
+      return std::nullopt;
+    }
+    if (!target->alive() || !renderer->alive() || bounds.right <= bounds.left || bounds.bottom <= bounds.top) {
+      return std::nullopt;
+    }
+    return std::pair {bounds.left - GetSystemMetrics(SM_XVIRTUALSCREEN), bounds.top - GetSystemMetrics(SM_YVIRTUALSCREEN)};
+  }
+
   namespace {
     /** @brief Window identity backed by a retained rendering-process handle. */
     class windows_renderer_t final: public renderer_t {
@@ -235,6 +262,10 @@ namespace capture {
 }  // namespace capture
 #else
 namespace capture {
+  std::optional<std::pair<int, int>> input_origin(const target_ptr &) {
+    return std::nullopt;
+  }
+
   target_ptr bind_application(std::uint32_t, std::uintptr_t, std::uintptr_t) {
     // An unsupported backend must reject application scope, never capture desktop.
     return nullptr;
