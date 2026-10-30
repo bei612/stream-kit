@@ -49,6 +49,7 @@ jobs:
           cache-dependency-path: orchestrator/web/package-lock.json
       - run: npm ci
       - run: npm run build
+      - run: node --experimental-strip-types --test ../../scripts/test-microphone-capture.mjs
 
   moonlight-web:
     name: Moonlight Web (${{ matrix.os }})

@@ -1,9 +1,9 @@
-import { TrackAudioPlayer } from ".";
+import { MicrophoneSink } from ".";
 import { globalObject } from "../../util";
 import { Pipe, PipeInfo } from "../pipeline";
 import { addPipePassthrough } from "../pipeline/pipes";
 
-export class RtpTrackSenderPipe implements TrackAudioPlayer {
+export class RtpTrackSenderPipe implements MicrophoneSink {
     static readonly pipeName = "RtpTrackSender"
 
     static readonly type = "audiotrack"

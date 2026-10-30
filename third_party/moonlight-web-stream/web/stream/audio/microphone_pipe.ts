@@ -1,11 +1,17 @@
-import { TrackAudioPlayer } from ".";
+import { MicrophoneSink } from ".";
 import { showNotification } from "../../component/notification";
 import { globalObject } from "../../util";
 import { Logger } from "../log";
 import { Pipe, PipeInfo } from "../pipeline";
 import { addPipePassthrough } from "../pipeline/pipes";
+import { MicrophoneCapture } from "./microphone_capture";
 
-export class MicrophonePipe implements Pipe {
+export interface MicrophoneSource extends Pipe {
+    cleanup(): void
+    isLive(): boolean
+}
+
+export class MicrophonePipe implements MicrophoneSource {
     static readonly pipeName = "MicrophonePipe"
 
     static readonly baseType = "audiotrack"
@@ -13,10 +19,7 @@ export class MicrophonePipe implements Pipe {
 
     static async getInfo(): Promise<PipeInfo> {
         return {
-            environmentSupported: "navigator" in globalObject() &&
-                "mediaDevices" in navigator &&
-                "getUserMedia" in navigator.mediaDevices &&
-                typeof navigator.mediaDevices.getDisplayMedia == "function"
+            environmentSupported: MicrophoneCapture.supported(globalObject())
         }
     }
 
@@ -24,11 +27,11 @@ export class MicrophonePipe implements Pipe {
 
     private logger: Logger | null = null
 
-    private base: TrackAudioPlayer
+    private base: MicrophoneSink
 
-    private microphoneTrack: MediaStreamTrack | null = null
+    private capture = new MicrophoneCapture()
 
-    constructor(base: TrackAudioPlayer, logger?: Logger) {
+    constructor(base: MicrophoneSink, logger?: Logger) {
         this.implementationName = `microphone -> ${base.implementationName}`
 
         this.logger = logger ?? null
@@ -38,27 +41,23 @@ export class MicrophonePipe implements Pipe {
         addPipePassthrough(this)
     }
 
-    private triedToAquire = false
-
     private async tryRequestMicrophone() {
-        if (this.microphoneTrack || this.triedToAquire) {
-            return
-        }
-        this.triedToAquire = true
-
-        this.logger?.debug("Trying to aquire microphone")
-
-        let microphone
+        this.logger?.debug("Requesting microphone capture")
         try {
-            microphone = await navigator.mediaDevices.getUserMedia({ audio: true })
+            const track = await this.capture.acquire()
+            if (track) this.base.setTrack(track)
         } catch (e) {
-            this.logger?.debug(`Failed to aquire microphone: ${e}`)
-            showNotification(`Failed to aquire microphone!`)
+            this.logger?.debug(`Failed to acquire microphone: ${e}`)
+            showNotification("Microphone access failed. Check permission and try again.")
             return
         }
+    }
 
-        this.microphoneTrack = microphone.getAudioTracks()[0]
-        this.base.setTrack(this.microphoneTrack)
+    isLive(): boolean { return this.capture.isLive() }
+
+    cleanup(): void {
+        this.capture.dispose()
+        this.base.cleanup()
     }
 
     onUserInteraction() {

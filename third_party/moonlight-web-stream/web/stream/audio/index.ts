@@ -28,6 +28,11 @@ export interface TrackAudioPlayer extends Pipe {
     setTrack(track: MediaStreamTrack): void
 }
 
+/** A microphone destination must explicitly release its sender binding. */
+export interface MicrophoneSink extends TrackAudioPlayer {
+    cleanup(): void
+}
+
 export type AudioDecodeUnit = {
     timestampMicroseconds: number
     durationMicroseconds: number

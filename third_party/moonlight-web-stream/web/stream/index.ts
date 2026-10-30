@@ -16,7 +16,7 @@ import { VideoRenderer, VideoRendererSetup } from "./video/index"
 import { querySupportedDataVideoCodecs, selectVideoPipeline, VideoPipelineOptions } from "./video/pipeline"
 import { StreamPermissions } from "../api_bindings"
 import { selectAudioPipeline } from "./audio/pipeline"
-import { MicrophonePipe } from "./audio/microphone_pipe"
+import { MicrophonePipe, MicrophoneSource } from "./audio/microphone_pipe"
 import { showNotification } from "../component/notification"
 
 export type ExecutionEnvironment = {
@@ -114,7 +114,7 @@ export class Stream implements Component {
 
     private videoRenderer: VideoRenderer | null = null
     private audioPlayer: AudioPlayer | null = null
-    private microphoneListener: Pipe | null = null
+    private microphoneListener: MicrophoneSource | null = null
 
     private input: StreamInput
     private stats: StreamStats
@@ -173,16 +173,20 @@ export class Stream implements Component {
             this.debugLog(`Using transport: ${desiredTransport}`)
 
             let shutdownReason: TransportShutdown | null = null
-            if (desiredTransport == "auto") {
-                shutdownReason = await this.tryWebRTCTransport()
-                if (shutdownReason == "failednoconnect") {
-                    this.debugLog("Failed to establish WebRTC connection. Falling back to Web Socket transport.", { type: "ifErrorDescription" })
+            try {
+                if (desiredTransport == "auto") {
+                    shutdownReason = await this.tryWebRTCTransport()
+                    if (shutdownReason == "failednoconnect") {
+                        this.debugLog("Failed to establish WebRTC connection. Falling back to Web Socket transport.", { type: "ifErrorDescription" })
+                        shutdownReason = await this.tryWebSocketTransport()
+                    }
+                } else if (desiredTransport == "webrtc") {
+                    shutdownReason = await this.tryWebRTCTransport()
+                } else if (desiredTransport == "websocket") {
                     shutdownReason = await this.tryWebSocketTransport()
                 }
-            } else if (desiredTransport == "webrtc") {
-                shutdownReason = await this.tryWebRTCTransport()
-            } else if (desiredTransport == "websocket") {
-                shutdownReason = await this.tryWebSocketTransport()
+            } finally {
+                await this.releaseMediaAccess()
             }
 
             if (this.stopped || shutdownReason == "disconnect") return
@@ -352,7 +356,7 @@ export class Stream implements Component {
         if (!this.mediaAccess || this.mediaHeartbeatTimer != null) return
         const send = () => {
             if (!this.mediaAccess) return
-            apiMediaHeartbeat(this.mediaAccess, this.settings.microphone, this.settings.microphone)
+            apiMediaHeartbeat(this.mediaAccess, this.settings.microphone, this.microphoneListener?.isLive() ?? false)
                 .catch(error => this.debugLog(`Media heartbeat failed: ${error}`))
         }
         send()
@@ -360,6 +364,8 @@ export class Stream implements Component {
     }
 
     private async releaseMediaAccess() {
+        this.microphoneListener?.cleanup()
+        this.microphoneListener = null
         if (this.mediaHeartbeatTimer != null) {
             window.clearInterval(this.mediaHeartbeatTimer)
             this.mediaHeartbeatTimer = null
@@ -420,7 +426,7 @@ export class Stream implements Component {
         }
 
         // -- Connection successful
-        this.onConnect(connectData)
+        await this.onConnect(connectData)
 
         return await onClose
     }
@@ -610,7 +616,11 @@ export class Stream implements Component {
             return
         }
 
-        this.microphoneListener = await this.transport.connectMicrophonePipeline(pipeline)
+        const transport = this.transport
+        const source = await transport.connectMicrophonePipeline(pipeline) as MicrophoneSource | null
+        if (this.stopped || this.transport !== transport) { source?.cleanup(); return }
+        this.microphoneListener?.cleanup()
+        this.microphoneListener = source
     }
 
     mount(parent: HTMLElement): void {
@@ -632,6 +642,8 @@ export class Stream implements Component {
 
     async stop(): Promise<boolean> {
         this.stopped = true
+        this.microphoneListener?.cleanup()
+        this.microphoneListener = null
         // Stop transport
         try {
             await this.transport?.close()
