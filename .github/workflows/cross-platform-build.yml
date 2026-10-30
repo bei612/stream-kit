@@ -49,7 +49,7 @@ jobs:
           cache-dependency-path: orchestrator/web/package-lock.json
       - run: npm ci
       - run: npm run build
-      - run: node --experimental-strip-types --test ../../scripts/test-microphone-capture.mjs ../../scripts/test-media-access.mjs
+      - run: node --experimental-strip-types --test ../../scripts/test-microphone-capture.mjs ../../scripts/test-media-access.mjs ../../scripts/test-media-observation.mjs
 
   moonlight-web:
     name: Moonlight Web (${{ matrix.os }})
@@ -108,6 +108,7 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo clippy --locked --all-targets -- -D warnings
       - run: cargo build --locked --release
+      - run: node ../../scripts/smoke-media-contract.cjs target/release/web-server${{ runner.os == 'Windows' && '.exe' || '' }}
       - uses: actions/upload-artifact@v4
         with:
           name: moonlight-web-${{ runner.os }}-${{ runner.arch }}

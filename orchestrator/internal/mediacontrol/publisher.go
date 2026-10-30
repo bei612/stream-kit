@@ -11,12 +11,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/stream-kit/orchestrator/internal/session"
-	"go.uber.org/zap"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/stream-kit/orchestrator/internal/session"
+	"go.uber.org/zap"
 )
 
 const SigningContext = "stream-kit/media-state/v1\n"
@@ -51,18 +53,29 @@ type Publisher struct {
 }
 
 type Status struct {
-	Reachable      bool              `json:"reachable"`
-	LeaseValid     bool              `json:"lease_valid"`
-	AcknowledgedAt int64             `json:"acknowledged_at_ms"`
-	LeaseExpiresAt int64             `json:"lease_expires_at_ms"`
-	Revisions      map[string]uint64 `json:"applied_revisions"`
+	Reachable             bool                          `json:"reachable"`
+	LeaseValid            bool                          `json:"lease_valid"`
+	AcknowledgedAt        int64                         `json:"acknowledged_at_ms"`
+	LeaseExpiresAt        int64                         `json:"lease_expires_at_ms"`
+	Revisions             map[string]uint64             `json:"applied_revisions"`
+	ObservedAt            int64                         `json:"observed_at_ms"`
+	ObservationsValid     bool                          `json:"observations_valid"`
+	ObservationsExpiresAt int64                         `json:"observations_expires_at_ms"`
+	Observations          map[string]SessionObservation `json:"observations"`
 }
 
 func (p *Publisher) Status() Status {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	s := p.status
-	s.LeaseValid = time.Now().UnixMilli() < s.LeaseExpiresAt
+	now := time.Now().UnixMilli()
+	s.LeaseValid = now < s.LeaseExpiresAt
+	s.ObservationsExpiresAt = min(s.LeaseExpiresAt, s.AcknowledgedAt+observationFreshnessMS)
+	s.ObservationsValid = s.Reachable && s.LeaseValid && now >= s.AcknowledgedAt && now < s.ObservationsExpiresAt
+	s.Observations = make(map[string]SessionObservation, len(p.status.Observations))
+	for id, observation := range p.status.Observations {
+		s.Observations[id] = cloneObservation(observation)
+	}
 	s.Revisions = make(map[string]uint64, len(p.status.Revisions))
 	for id, rev := range p.status.Revisions {
 		s.Revisions[id] = rev
@@ -119,11 +132,24 @@ func (p *Publisher) Sync(ctx context.Context) (err error) {
 		return err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusNoContent {
+	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("media state rejected: HTTP %d", resp.StatusCode)
+	}
+	responseBody, err := io.ReadAll(io.LimitReader(resp.Body, observationMaxBytes+1))
+	if err != nil {
+		return err
+	}
+	ack, err := decodeAcknowledgement(p.secret, resp.Header.Get("X-Stream-Observation-Signature"), responseBody, envelope, time.Now().UnixMilli())
+	if err != nil {
+		return err
 	}
 	p.status.AcknowledgedAt = time.Now().UnixMilli()
 	p.status.LeaseExpiresAt = envelope.ExpiresAt
+	p.status.ObservedAt = ack.ObservedAt
+	p.status.Observations = make(map[string]SessionObservation, len(ack.Sessions))
+	for _, observation := range ack.Sessions {
+		p.status.Observations[observation.SessionID] = observation
+	}
 	p.status.Revisions = make(map[string]uint64, len(envelope.Sessions))
 	for _, s := range envelope.Sessions {
 		p.status.Revisions[s.ID] = s.Revision

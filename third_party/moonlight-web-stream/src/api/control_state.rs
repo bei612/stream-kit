@@ -28,12 +28,32 @@ pub async fn apply(
         .and_then(|s| s.to_str().ok())
         .ok_or(AppError::Unauthorized)?;
     let state = decode_signed_state(secret, signature, &body)?;
+    let issued_at_ms = state.issued_at_ms;
+    let sessions = state.sessions.clone();
     app.media_sessions()
         .control
         .write()
         .await
         .apply(state, now_ms())?;
-    Ok(HttpResponse::NoContent().finish())
+    let acknowledgement = crate::app::media_observation::Acknowledgement {
+        schema_version: 1,
+        state_issued_at_ms: issued_at_ms,
+        sessions: app.upstreams().observe(&sessions).await,
+        observed_at_ms: now_ms(),
+    };
+    let body = serde_json::to_vec(&acknowledgement).map_err(|_| AppError::BadRequest)?;
+    let mut mac =
+        Hmac::<Sha256>::new_from_slice(secret.as_bytes()).map_err(|_| AppError::Unauthorized)?;
+    mac.update(crate::app::media_observation::SIGNING_CONTEXT);
+    mac.update(&body);
+    Ok(HttpResponse::Ok()
+        .insert_header((
+            "x-stream-observation-signature",
+            hex::encode(mac.finalize().into_bytes()),
+        ))
+        .insert_header(("cache-control", "no-store"))
+        .content_type("application/json")
+        .body(body))
 }
 
 fn decode_signed_state(

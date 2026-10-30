@@ -44,4 +44,37 @@ export interface MediaControlStatus {
   acknowledged_at_ms: number
   lease_expires_at_ms: number
   applied_revisions: Record<string, number>
+  observed_at_ms: number
+  observations_valid: boolean
+  observations_expires_at_ms: number
+  observations: Record<string, MediaObservation>
+}
+
+export interface TargetDeviceStatus {
+  device_open: boolean
+  device_sample_frames: number
+  dropped_frames: number
+  xruns: number
+  realtime_denied: boolean
+  error: string | null
+}
+
+export interface MediaObservation {
+  session_id: string
+  revision: number
+  upstream_active: boolean
+  subscribers: number
+  microphone_target: {
+    state: 'unconfigured' | 'idle' | 'device_open' | 'device_failed' | 'upstream_transport'
+    device: TargetDeviceStatus | null
+  }
+}
+
+// A saved policy, an acknowledged revision and an observed device are separate
+// facts. Never render stale runtime telemetry as evidence of current delivery.
+export function currentMediaObservation(status: MediaControlStatus | null | undefined, session: Pick<RenderSession, 'session_id' | 'revision'>, now = Date.now()): MediaObservation | undefined {
+  if (!status?.reachable || !status.lease_valid || !status.observations_valid ||
+    now >= status.lease_expires_at_ms || now < status.acknowledged_at_ms || !(now < status.observations_expires_at_ms)) return undefined
+  const observed = status.observations?.[session.session_id]
+  return observed?.session_id === session.session_id && observed.revision === session.revision ? observed : undefined
 }

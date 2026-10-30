@@ -38,6 +38,7 @@ pub mod auth;
 pub mod control_state;
 pub mod host;
 pub mod media;
+pub mod media_observation;
 pub mod mixer;
 pub mod password;
 pub mod role;

@@ -2,19 +2,41 @@ package server
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stream-kit/orchestrator/internal/config"
+	"github.com/stream-kit/orchestrator/internal/mediacontrol"
 	"github.com/stream-kit/orchestrator/internal/session"
 	"go.uber.org/zap"
 )
 
 func TestManagedClientAdmissionAndAuthorityBoundaries(t *testing.T) {
-	gateway := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) }))
+	gateway := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request mediacontrol.Envelope
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Error(err)
+			w.WriteHeader(400)
+			return
+		}
+		ack := mediacontrol.Acknowledgement{SchemaVersion: 1, StateIssuedAt: request.IssuedAt, ObservedAt: time.Now().UnixMilli(), Sessions: []mediacontrol.SessionObservation{}}
+		for _, item := range request.Sessions {
+			ack.Sessions = append(ack.Sessions, mediacontrol.SessionObservation{SessionID: item.ID, Revision: item.Revision, MicrophoneTarget: mediacontrol.TargetObservation{State: "unconfigured"}})
+		}
+		body, _ := json.Marshal(ack)
+		mac := hmac.New(sha256.New, []byte("media-secret"))
+		mac.Write([]byte(mediacontrol.ObservationSigningContext))
+		mac.Write(body)
+		w.Header().Set("X-Stream-Observation-Signature", hex.EncodeToString(mac.Sum(nil)))
+		_, _ = w.Write(body)
+	}))
 	defer gateway.Close()
 	cfg := &config.Config{Server: config.ServerConfig{Username: "admin", Password: "test-password", JWTSecret: "management-secret", MediaTicketSecret: "media-secret"}, MoonlightWeb: config.MoonlightWebConfig{BaseURL: gateway.URL}}
 	manager := session.NewManager(nil)

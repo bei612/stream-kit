@@ -64,7 +64,7 @@ func TestPublisherReconcilesCommittedChangesAndStops(t *testing.T) {
 			return
 		}
 		received <- envelope
-		w.WriteHeader(http.StatusNoContent)
+		writeAcknowledgement(t, w, envelope, "secret")
 	}))
 	defer server.Close()
 	p := New(manager, server.URL, "secret")
@@ -139,8 +139,19 @@ func TestPublisherDoesNotFollowRedirectOrAcceptFailure(t *testing.T) {
 }
 
 func TestFailedSyncPreservesOnlyPreviousAcknowledgement(t *testing.T) {
-	statusCode := http.StatusNoContent
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(statusCode) }))
+	statusCode := http.StatusOK
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if statusCode != http.StatusOK {
+			w.WriteHeader(statusCode)
+			return
+		}
+		var envelope Envelope
+		if err := json.NewDecoder(r.Body).Decode(&envelope); err != nil {
+			t.Error(err)
+			return
+		}
+		writeAcknowledgement(t, w, envelope, "secret")
+	}))
 	defer server.Close()
 	m := session.NewManager(nil)
 	s, _ := m.Ensure(1, 2)
@@ -164,4 +175,25 @@ func TestFailedSyncPreservesOnlyPreviousAcknowledgement(t *testing.T) {
 	if p.Status().Revisions[s.ID] != 1 {
 		t.Fatal("status exposed mutable publisher state")
 	}
+	if got.ObservationsValid {
+		t.Fatal("failed sync reported fresh observations")
+	}
+}
+
+func writeAcknowledgement(t *testing.T, w http.ResponseWriter, request Envelope, secret string) {
+	t.Helper()
+	ack := Acknowledgement{SchemaVersion: 1, StateIssuedAt: request.IssuedAt, ObservedAt: time.Now().UnixMilli(), Sessions: []SessionObservation{}}
+	for _, session := range request.Sessions {
+		ack.Sessions = append(ack.Sessions, SessionObservation{SessionID: session.ID, Revision: session.Revision, MicrophoneTarget: TargetObservation{State: "unconfigured"}})
+	}
+	body, err := json.Marshal(ack)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(ObservationSigningContext))
+	mac.Write(body)
+	w.Header().Set("X-Stream-Observation-Signature", hex.EncodeToString(mac.Sum(nil)))
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(body)
 }

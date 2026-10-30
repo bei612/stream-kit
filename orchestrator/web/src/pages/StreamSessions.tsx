@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { api } from '@/api/client'
-import type { RenderSession, SessionAudio } from '@/api/sessions'
+import { currentMediaObservation, type MediaObservation, type RenderSession, type SessionAudio } from '@/api/sessions'
 import { useQuery } from '@/hooks/useQuery'
 import QueryWrapper from '@/components/QueryWrapper'
 import StatusBadge from '@/components/StatusBadge'
@@ -9,6 +9,26 @@ import { Button } from '@/components/ui/button'
 import { Crown, Mic, MicOff, RefreshCw, UserX, Unlock, Users } from 'lucide-react'
 
 type Action = (operation: () => Promise<unknown>) => Promise<void>
+
+function MediaRuntime({ observation }: { observation?: MediaObservation }) {
+  if (!observation) return <p role="status" className="text-sm text-amber-400 mb-4">媒体运行状态未确认，等待网关最新反馈。</p>
+  const target = observation.microphone_target
+  const labels: Record<MediaObservation['microphone_target']['state'], string> = {
+    unconfigured: '未配置可用的目标录音输入',
+    idle: '已配置目标录音输入，尚未启动',
+    device_open: '目标输入设备已打开',
+    device_failed: '目标输入设备故障',
+    upstream_transport: '上游支持麦克风传输',
+  }
+  return <div role="status" className="rounded-md border border-border p-3 mb-4 space-y-2 text-sm">
+    <p>{observation.upstream_active ? '共享上游运行中' : '共享上游未运行'} · 媒体订阅数 {observation.subscribers}</p>
+    <p className={target.state === 'device_failed' || target.state === 'unconfigured' ? 'text-amber-400' : ''}>{labels[target.state]}</p>
+    {target.device && <p className="text-xs text-muted-foreground">设备处理采样数（含静音）{target.device.device_sample_frames} · 队列丢帧 {target.device.dropped_frames} · 缓冲异常 {target.device.xruns}</p>}
+    {target.device?.realtime_denied && <p className="text-xs text-amber-400">设备未获得实时调度权限，需关注音频稳定性。</p>}
+    {target.device?.error && <p className="text-xs text-red-400">{target.device.error}</p>}
+    <p className="text-xs text-muted-foreground">设备和传输状态不代表目标程序已录到声音。目标录音与观众收听需分别验证。</p>
+  </div>
+}
 
 function AudioSettings({ session, busy, action }: { session: RenderSession; busy: boolean; action: Action }) {
   const [audio, setAudio] = useState<SessionAudio>(session.audio)
@@ -40,6 +60,12 @@ function AudioSettings({ session, busy, action }: { session: RenderSession; busy
 }
 
 export default function StreamSessions() {
+  const [now, setNow] = useState(Date.now)
+  useEffect(() => {
+    // Expire displayed evidence even while a poll is stalled or offline.
+    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [])
   const { data, loading, error, refresh } = useQuery({
     queryFn: useCallback(() => api.listStreamSessions(), []),
     pollInterval: 5000,
@@ -68,7 +94,7 @@ export default function StreamSessions() {
       {sessions.map((session) => {
         const connections = Object.values(session.connections)
         const appliedRevision = media.data?.applied_revisions[session.session_id] ?? 0
-        const leaseValid = media.data?.lease_valid && media.data.lease_expires_at_ms > Date.now()
+        const leaseValid = media.data?.lease_valid && media.data.lease_expires_at_ms > now
         const applied = leaseValid && appliedRevision >= session.revision
         return <Card key={session.session_id}>
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3 mb-4">
@@ -79,10 +105,11 @@ export default function StreamSessions() {
             </div>
             <div className="flex items-center gap-3 text-sm text-muted-foreground"><span className="inline-flex items-center gap-1"><Users className="w-4 h-4" />{connections.length}</span><span>上限 {session.policy.max_viewers || '不限'}</span><span>{session.controller_connection_id ? '控制中' : '暂无控制者'}</span></div>
           </div>
+          <MediaRuntime observation={media.error ? undefined : currentMediaObservation(media.data, session, now)} />
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {connections.map((connection) => {
               const isController = connection.connection_id === session.controller_connection_id
-              const expired = Date.parse(connection.expires_at) <= Date.now()
+              const expired = Date.parse(connection.expires_at) <= now
               return <div key={connection.connection_id} className="rounded-md border border-border p-3 space-y-3">
                 <div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="font-medium text-card-foreground truncate">{connection.user_id || '匿名客户端'}</div><div className="text-[11px] text-muted-foreground font-mono truncate">{connection.connection_id}</div></div>{isController && <Crown className="w-4 h-4 text-amber-400 shrink-0" />}</div>
                 <div className="flex flex-wrap gap-2 text-xs text-muted-foreground"><span>{isController ? '控制者' : '观众'}</span><span>{expired ? '连接已过期' : '已连接'}</span><span className="inline-flex items-center gap-1">{connection.microphone_live ? <Mic className="w-3 h-3 text-green-400" /> : <MicOff className="w-3 h-3" />}{connection.microphone_live ? '客户端报告麦克风活动' : '麦克风未活动'}</span></div>
