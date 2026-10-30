@@ -110,6 +110,7 @@ export class Stream implements Component {
     private eventTarget = new EventTarget()
 
     private transportOverride: TransportType | null = null
+    private stopped = false
 
     private videoRenderer: VideoRenderer | null = null
     private audioPlayer: AudioPlayer | null = null
@@ -167,7 +168,7 @@ export class Stream implements Component {
     async startConnection() {
         this.debugLog(`Permissions: ${JSON.stringify(this.permissions)}`)
         let retryDelay = 1000
-        for (;;) {
+        while (!this.stopped) {
             const desiredTransport = this.transportOverride ?? this.settings.dataTransport
             this.debugLog(`Using transport: ${desiredTransport}`)
 
@@ -184,7 +185,7 @@ export class Stream implements Component {
                 shutdownReason = await this.tryWebSocketTransport()
             }
 
-            if (shutdownReason == "disconnect") return
+            if (this.stopped || shutdownReason == "disconnect") return
             this.debugLog("Stream disconnected; reconnecting", { type: "ifErrorDescription" })
             await wait(retryDelay)
             retryDelay = Math.min(retryDelay * 2, 30000)
@@ -243,6 +244,10 @@ export class Stream implements Component {
         try {
             mediaAccess = await apiEnsureMediaAccess(this.api, this.hostId, this.appId)
             this.mediaAccess = mediaAccess
+            if (this.stopped) {
+                await this.releaseMediaAccess()
+                return "disconnect"
+            }
         } catch (error) {
             this.debugLog(`Media control admission failed: ${error}`)
             return "failednoconnect"
@@ -258,6 +263,10 @@ export class Stream implements Component {
             return "failednoconnect"
         }
 
+        if (this.stopped) {
+            await this.releaseMediaAccess()
+            return "disconnect"
+        }
         this.debugLog("Received WebRTC Config, Creating Transport")
 
         // Create transport
@@ -304,6 +313,11 @@ export class Stream implements Component {
             return "failednoconnect"
         }
 
+        if (this.stopped) {
+            await transport.close()
+            await this.releaseMediaAccess()
+            return "disconnect"
+        }
         // Set Transport
         this.setTransport(transport)
 
@@ -617,9 +631,14 @@ export class Stream implements Component {
     }
 
     async stop(): Promise<boolean> {
+        this.stopped = true
         // Stop transport
-        await this.transport?.close()
-        this.transport = null
+        try {
+            await this.transport?.close()
+        } finally {
+            this.transport = null
+            await this.releaseMediaAccess()
+        }
 
         return true
     }
