@@ -2,11 +2,14 @@ package component
 
 import (
 	"bufio"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -80,6 +83,30 @@ func (mp *ManagedProcess) RunWait() {
 func (mp *ManagedProcess) WaitDone() int {
 	<-mp.Done
 	return mp.ExitCode
+}
+
+// forceStop uses the owned process handle and bounds the wait for RunWait.
+// A failure must retain ownership in Manager rather than permit another launch.
+func forceStop(mp *ManagedProcess) error {
+	select {
+	case <-mp.Done:
+		return nil
+	default:
+	}
+	if err := mp.Cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+		select {
+		case <-mp.Done:
+			return nil
+		default:
+		}
+		return fmt.Errorf("terminate managed process: %w", err)
+	}
+	select {
+	case <-mp.Done:
+		return nil
+	case <-time.After(5 * time.Second):
+		return fmt.Errorf("managed process did not exit after termination")
+	}
 }
 
 func captureOutput(r io.ReadCloser, buf *RingBuffer, prefix string) {

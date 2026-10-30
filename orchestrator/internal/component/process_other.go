@@ -47,10 +47,6 @@ func stopProcess(mp *ManagedProcess, timeoutSec int) error {
 	case <-mp.Done:
 		return nil
 	case <-time.After(time.Duration(timeoutSec) * time.Second):
-		if mp.Cmd.Process != nil {
-			mp.Cmd.Process.Kill()
-		}
-		<-mp.Done // wait for RunWait to finish
-		return nil
+		return forceStop(mp)
 	}
 }

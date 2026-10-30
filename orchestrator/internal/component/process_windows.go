@@ -40,6 +40,11 @@ func setPlatformAttrs(cmd *exec.Cmd) {
 
 // stopProcess sends CTRL_BREAK, waits for Done, then TerminateProcess on timeout.
 func stopProcess(mp *ManagedProcess, timeoutSec int) error {
+	select {
+	case <-mp.Done:
+		return nil
+	default:
+	}
 	pid := uint32(mp.PID)
 
 	dll := windows.NewLazySystemDLL("kernel32.dll")
@@ -50,13 +55,6 @@ func stopProcess(mp *ManagedProcess, timeoutSec int) error {
 	case <-mp.Done:
 		return nil
 	case <-time.After(time.Duration(timeoutSec) * time.Second):
-		handle, err := windows.OpenProcess(windows.PROCESS_TERMINATE, false, pid)
-		if err == nil {
-			windows.TerminateProcess(handle, 1)
-			windows.CloseHandle(handle)
-		}
-		<-mp.Done
-		time.Sleep(1 * time.Second) // Windows Defender file handle release
-		return nil
+		return forceStop(mp)
 	}
 }

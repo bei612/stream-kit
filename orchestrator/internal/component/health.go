@@ -1,6 +1,7 @@
 package component
 
 import (
+	"context"
 	"crypto/tls"
 	"net/http"
 	"sync"
@@ -18,19 +19,28 @@ type HealthChecker struct {
 	mu               sync.Mutex
 	consecutiveFails int
 	consecutiveOK    int
+	ctx              context.Context
+	cancel           context.CancelFunc
 }
 
 func NewHealthChecker(name string, cfg config.HealthCheckConfig, logger *zap.Logger) *HealthChecker {
+	ctx, cancel := context.WithCancel(context.Background())
+	timeout := time.Duration(cfg.TimeoutSeconds) * time.Second
+	if timeout <= 0 {
+		timeout = 5 * time.Second
+	}
 	transport := &http.Transport{}
 	if cfg.VerifySSL != nil && !*cfg.VerifySSL {
 		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 	return &HealthChecker{
+		ctx:    ctx,
+		cancel: cancel,
 		cfg:    cfg,
 		logger: logger,
 		name:   name,
 		client: &http.Client{
-			Timeout:   time.Duration(cfg.TimeoutSeconds) * time.Second,
+			Timeout:   timeout,
 			Transport: transport,
 		},
 	}
@@ -42,7 +52,7 @@ func (hc *HealthChecker) Check() bool {
 		return true
 	}
 
-	req, err := http.NewRequest(http.MethodGet, hc.cfg.URL, nil)
+	req, err := http.NewRequestWithContext(hc.ctx, http.MethodGet, hc.cfg.URL, nil)
 	if err != nil {
 		hc.recordFail()
 		return false
@@ -108,6 +118,7 @@ func (hc *HealthChecker) IntervalDuration() time.Duration {
 
 // Close releases idle HTTP connections held by the transport.
 func (hc *HealthChecker) Close() {
+	hc.cancel()
 	if t, ok := hc.client.Transport.(*http.Transport); ok {
 		t.CloseIdleConnections()
 	}

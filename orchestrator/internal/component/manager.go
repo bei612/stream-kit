@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/stream-kit/orchestrator/internal/config"
@@ -35,6 +36,8 @@ type ComponentState struct {
 	process       *ManagedProcess
 	healthChecker *HealthChecker
 	mu            sync.Mutex
+	opMu          sync.Mutex // serializes lifecycle operations, including automatic restart
+	generation    uint64
 }
 
 type EventCallback func(name string, status Status)
@@ -47,6 +50,8 @@ type Manager struct {
 	dataDir         string
 	onEvent         EventCallback
 	startStopMu     sync.Mutex // prevents concurrent StartAll/StopAll
+	pidMu           sync.Mutex // serializes snapshots and writes across components
+	closing         atomic.Bool
 }
 
 func NewManager(
@@ -130,15 +135,33 @@ func (m *Manager) Start(name string) error {
 	if !ok {
 		return fmt.Errorf("组件 %s 不存在", name)
 	}
+	cs.opMu.Lock()
+	defer cs.opMu.Unlock()
+	return m.start(name, cs, false)
+}
+
+// start requires opMu. Automatic retries retain their crash budget.
+func (m *Manager) start(name string, cs *ComponentState, retry bool) error {
+	if m.closing.Load() {
+		return fmt.Errorf("组件管理器正在关闭")
+	}
 	cfg := m.configs[name]
 
 	cs.mu.Lock()
-	if cs.Status == StatusRunning || cs.Status == StatusStarting {
+	if cs.process != nil || cs.Status == StatusRunning || cs.Status == StatusStarting || cs.Status == StatusUnhealthy {
 		cs.mu.Unlock()
 		return nil // idempotent
 	}
 	cs.Status = StatusStarting
 	cs.LastError = ""
+	if cs.healthChecker != nil {
+		cs.healthChecker.Close()
+		cs.healthChecker = nil
+	}
+	cs.generation++
+	if !retry {
+		cs.CrashCount = 0
+	}
 	cs.mu.Unlock()
 
 	m.emitEvent(name, StatusStarting)
@@ -147,9 +170,10 @@ func (m *Manager) Start(name string) error {
 	if cfg.ExePath == "" {
 		cs.mu.Lock()
 		cs.healthChecker = NewHealthChecker(name, cfg.HealthCheck, m.logger)
+		hc := cs.healthChecker
 		cs.mu.Unlock()
 		m.logger.Info("组件监控模式（外部管理）", zap.String("component", name))
-		util.SafeGo(m.logger, "waitForStartup-"+name, func() { m.waitForStartup(name, cs) })
+		util.SafeGo(m.logger, "waitForStartup-"+name, func() { m.waitForStartup(name, cs, hc) })
 		return nil
 	}
 
@@ -170,15 +194,15 @@ func (m *Manager) Start(name string) error {
 	cs.process = proc
 	cs.PID = proc.PID
 	cs.StartedAt = time.Now()
-	cs.CrashCount = 0
 	cs.healthChecker = NewHealthChecker(name, cfg.HealthCheck, m.logger)
+	hc := cs.healthChecker
 	cs.mu.Unlock()
 
 	m.logger.Info("组件已启动", zap.String("component", name), zap.Int("pid", proc.PID))
 
 	// Background goroutines — all with panic recovery
 	util.SafeGo(m.logger, "waitForExit-"+name, func() { m.waitForExit(name, cs, proc, cfg) })
-	util.SafeGo(m.logger, "waitForStartup-"+name, func() { m.waitForStartup(name, cs) })
+	util.SafeGo(m.logger, "waitForStartup-"+name, func() { m.waitForStartup(name, cs, hc) })
 
 	m.savePIDs()
 	return nil
@@ -189,8 +213,20 @@ func (m *Manager) Stop(name string) error {
 	if !ok {
 		return fmt.Errorf("组件 %s 不存在", name)
 	}
+	cs.opMu.Lock()
+	defer cs.opMu.Unlock()
+	return m.stop(name, cs)
+}
+
+// stop requires opMu and invalidates delayed restart and health callbacks.
+func (m *Manager) stop(name string, cs *ComponentState) error {
 
 	cs.mu.Lock()
+	cs.generation++
+	if cs.healthChecker != nil {
+		cs.healthChecker.Close()
+		cs.healthChecker = nil
+	}
 	if cs.Status == StatusStopped {
 		cs.mu.Unlock()
 		return nil // idempotent
@@ -209,7 +245,14 @@ func (m *Manager) Stop(name string) error {
 
 	m.logger.Info("正在停止组件", zap.String("component", name), zap.Int("pid", proc.PID))
 	proc.Stopping.Store(true)
-	stopProcess(proc, m.shutdownTimeout)
+	if err := stopProcess(proc, m.shutdownTimeout); err != nil {
+		cs.mu.Lock()
+		cs.Status = StatusError
+		cs.LastError = err.Error()
+		cs.mu.Unlock()
+		m.emitEvent(name, StatusError)
+		return err
+	}
 
 	cs.mu.Lock()
 	cs.Status = StatusStopped
@@ -228,11 +271,16 @@ func (m *Manager) Stop(name string) error {
 }
 
 func (m *Manager) Restart(name string) error {
-	if err := m.Stop(name); err != nil {
+	cs, ok := m.components[name]
+	if !ok {
+		return fmt.Errorf("组件 %s 不存在", name)
+	}
+	cs.opMu.Lock()
+	defer cs.opMu.Unlock()
+	if err := m.stop(name, cs); err != nil {
 		return err
 	}
-	time.Sleep(500 * time.Millisecond)
-	return m.Start(name)
+	return m.start(name, cs, false)
 }
 
 func (m *Manager) StartAll() {
@@ -301,6 +349,7 @@ func (m *Manager) StopAll() {
 }
 
 func (m *Manager) Shutdown() {
+	m.closing.Store(true)
 	m.StopAll()
 }
 
@@ -310,12 +359,24 @@ func (m *Manager) Shutdown() {
 func (m *Manager) waitForExit(name string, cs *ComponentState, proc *ManagedProcess, cfg config.ComponentConfig) {
 	proc.RunWait() // blocks until process exits, closes proc.Done
 
+	cs.opMu.Lock()
 	if proc.Stopping.Load() {
+		cs.opMu.Unlock()
 		return // intentional stop, handled by Stop()
 	}
 
 	exitCode := proc.ExitCode
 	cs.mu.Lock()
+	if cs.process != proc {
+		cs.mu.Unlock()
+		cs.opMu.Unlock()
+		return
+	}
+	if cs.healthChecker != nil {
+		cs.healthChecker.Close()
+		cs.healthChecker = nil
+	}
+	generation := cs.generation
 	cs.CrashCount++
 	cs.LastError = fmt.Sprintf("进程退出，退出码: %d", exitCode)
 	cs.PID = 0
@@ -328,6 +389,8 @@ func (m *Manager) waitForExit(name string, cs *ComponentState, proc *ManagedProc
 		cs.Status = StatusCrashed
 		cs.mu.Unlock()
 		m.emitEvent(name, StatusCrashed)
+		m.savePIDs()
+		cs.opMu.Unlock()
 
 		delay := cfg.RestartDelay
 		if delay <= 0 {
@@ -335,7 +398,15 @@ func (m *Manager) waitForExit(name string, cs *ComponentState, proc *ManagedProc
 		}
 		time.Sleep(time.Duration(delay) * time.Second)
 
-		if err := m.Start(name); err != nil {
+		cs.opMu.Lock()
+		defer cs.opMu.Unlock()
+		cs.mu.Lock()
+		current := cs.generation == generation && cs.Status == StatusCrashed
+		cs.mu.Unlock()
+		if !current {
+			return
+		}
+		if err := m.start(name, cs, true); err != nil {
 			m.logger.Error("重启失败", zap.String("component", name), zap.Error(err))
 		}
 	} else {
@@ -343,112 +414,80 @@ func (m *Manager) waitForExit(name string, cs *ComponentState, proc *ManagedProc
 		cs.mu.Unlock()
 		m.emitEvent(name, StatusError)
 		m.logger.Error("组件崩溃次数超限", zap.String("component", name))
+		cs.opMu.Unlock()
 	}
 	m.savePIDs()
 }
 
-func (m *Manager) waitForStartup(name string, cs *ComponentState) {
+// healthTransition rejects callbacks from a previous component lifetime.
+// Network requests never hold the lifecycle lock.
+func (m *Manager) healthTransition(name string, cs *ComponentState, hc *HealthChecker, from, to Status, message string) bool {
+	cs.opMu.Lock()
+	defer cs.opMu.Unlock()
 	cs.mu.Lock()
-	hc := cs.healthChecker
-	cs.mu.Unlock()
-
-	if hc == nil {
-		cs.mu.Lock()
-		if cs.Status == StatusStarting {
-			cs.Status = StatusRunning
-		}
+	if cs.healthChecker != hc || cs.Status != from {
 		cs.mu.Unlock()
-		m.emitEvent(name, StatusRunning)
-		// Start periodic health check
-		util.SafeGo(m.logger, "healthCheck-"+name, func() { m.runHealthCheck(name, cs) })
-		return
+		return false
 	}
+	cs.Status = to
+	cs.LastError = message
+	cs.mu.Unlock()
+	m.emitEvent(name, to)
+	return true
+}
 
-	timeout := hc.StartupTimeout()
-	deadline := time.After(timeout)
-	ticker := time.NewTicker(1 * time.Second)
+func (m *Manager) waitForStartup(name string, cs *ComponentState, hc *HealthChecker) {
+	deadline := time.NewTimer(hc.StartupTimeout())
+	defer deadline.Stop()
+	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
-
 	for {
 		select {
-		case <-deadline:
-			cs.mu.Lock()
-			if cs.Status == StatusStarting {
-				cs.Status = StatusError
-				cs.LastError = "启动超时，健康检查未通过"
-			}
-			cs.mu.Unlock()
-			m.emitEvent(name, StatusError)
+		case <-hc.ctx.Done():
+			return
+		case <-deadline.C:
+			m.healthTransition(name, cs, hc, StatusStarting, StatusError, "启动超时，健康检查未通过")
 			return
 		case <-ticker.C:
-			cs.mu.Lock()
-			if cs.Status != StatusStarting {
-				cs.mu.Unlock()
-				return // status changed externally
-			}
-			cs.mu.Unlock()
-
-			if hc.Check() {
-				cs.mu.Lock()
-				if cs.Status == StatusStarting {
-					cs.Status = StatusRunning
-				}
-				cs.mu.Unlock()
-				m.emitEvent(name, StatusRunning)
-				m.logger.Info("组件健康检查通过", zap.String("component", name))
-				// Reset crash count after 60s stable run
+			if hc.Check() && m.healthTransition(name, cs, hc, StatusStarting, StatusRunning, "") {
 				util.SafeGo(m.logger, "crashReset-"+name, func() {
-					time.Sleep(60 * time.Second)
-					cs.mu.Lock()
-					if cs.Status == StatusRunning {
-						cs.CrashCount = 0
+					timer := time.NewTimer(60 * time.Second)
+					defer timer.Stop()
+					select {
+					case <-hc.ctx.Done():
+						return
+					case <-timer.C:
+						cs.mu.Lock()
+						if cs.healthChecker == hc && cs.Status == StatusRunning {
+							cs.CrashCount = 0
+						}
+						cs.mu.Unlock()
 					}
-					cs.mu.Unlock()
 				})
-				// Start periodic health check
-				util.SafeGo(m.logger, "healthCheck-"+name, func() { m.runHealthCheck(name, cs) })
+				m.runHealthCheck(name, cs, hc)
 				return
 			}
 		}
 	}
 }
 
-func (m *Manager) runHealthCheck(name string, cs *ComponentState) {
-	cs.mu.Lock()
-	hc := cs.healthChecker
-	cs.mu.Unlock()
-	if hc == nil {
-		return
-	}
-
+func (m *Manager) runHealthCheck(name string, cs *ComponentState, hc *HealthChecker) {
 	ticker := time.NewTicker(hc.IntervalDuration())
 	defer ticker.Stop()
-
-	for range ticker.C {
-		cs.mu.Lock()
-		if cs.Status != StatusRunning && cs.Status != StatusUnhealthy {
-			cs.mu.Unlock()
+	for {
+		select {
+		case <-hc.ctx.Done():
 			return
-		}
-		cs.mu.Unlock()
-
-		hc.Check()
-
-		cs.mu.Lock()
-		if hc.IsUnhealthy() && cs.Status == StatusRunning {
-			cs.Status = StatusUnhealthy
-			cs.mu.Unlock()
-			m.emitEvent(name, StatusUnhealthy)
-		} else if hc.IsHealthy() && cs.Status == StatusUnhealthy {
-			cs.Status = StatusRunning
-			cs.mu.Unlock()
-			m.emitEvent(name, StatusRunning)
-		} else {
-			cs.mu.Unlock()
+		case <-ticker.C:
+			hc.Check()
+			if hc.IsUnhealthy() {
+				m.healthTransition(name, cs, hc, StatusRunning, StatusUnhealthy, "")
+			} else if hc.IsHealthy() {
+				m.healthTransition(name, cs, hc, StatusUnhealthy, StatusRunning, "")
+			}
 		}
 	}
 }
-
 func (m *Manager) emitEvent(name string, status Status) {
 	if m.onEvent != nil {
 		m.onEvent(name, status)
@@ -489,6 +528,8 @@ type pidData struct {
 }
 
 func (m *Manager) savePIDs() {
+	m.pidMu.Lock()
+	defer m.pidMu.Unlock()
 	data := pidData{Components: make(map[string]int)}
 	for name, cs := range m.components {
 		cs.mu.Lock()
