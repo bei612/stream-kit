@@ -998,7 +998,16 @@ namespace platf {
       free_proc_thread_attr_list(list);
     });
 
-    DWORD creation_flags = EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT | CREATE_BREAKAWAY_FROM_JOB;
+    // Supported Windows versions provide nested jobs. Respect the supervisor's
+    // policy instead of unconditionally requesting a forbidden breakaway. The
+    // legacy Sunshine service explicitly allows it so applications can survive a
+    // service crash; a non-breakaway supervisor retains its containment boundary.
+    DWORD creation_flags = EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT;
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION parent_limits {};
+    if (QueryInformationJobObject(nullptr, JobObjectExtendedLimitInformation, &parent_limits, sizeof(parent_limits), nullptr) &&
+        (parent_limits.BasicLimitInformation.LimitFlags & JOB_OBJECT_LIMIT_BREAKAWAY_OK)) {
+      creation_flags |= CREATE_BREAKAWAY_FROM_JOB;
+    }
 
     // Create a new console for interactive processes and use no console for non-interactive processes
     creation_flags |= interactive ? CREATE_NEW_CONSOLE : CREATE_NO_WINDOW;

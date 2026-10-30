@@ -13,6 +13,7 @@
 #endif
 
 // standard includes
+#include <mutex>
 #include <optional>
 #include <unordered_map>
 
@@ -77,34 +78,38 @@ namespace proc {
     std::string output;  ///< Captured output from the launched process.
     std::string image_path;  ///< Image path.
     std::string id;  ///< Stable identifier for the configured application.
-    bool elevated;  ///< Whether the process should be launched elevated.
-    bool auto_detach;  ///< Whether the process should detach automatically.
-    bool wait_all;  ///< Whether Sunshine waits for all child processes.
+    bool elevated {false};  ///< Whether the process should be launched elevated.
+    bool auto_detach {false};  ///< Whether the process should detach automatically.
+    bool wait_all {false};  ///< Whether Sunshine waits for all child processes.
     bool application_capture {false};  ///< Capture this launch's window and process audio instead of the desktop.
-    std::chrono::seconds exit_timeout;  ///< Exit timeout.
+    std::chrono::seconds exit_timeout {};  ///< Exit timeout.
   };
+
+  /** @brief Parsed configuration for future launches, independent of live process ownership. */
+  struct catalog_t {
+    boost::process::v1::environment env;  ///< Base environment copied into each new launch.
+    std::vector<ctx_t> apps;  ///< Configured applications for subsequent launches.
+  };
+
+  /**
+   * @brief Copy the process environment without exposing mutable host state.
+   * @return Owned environment with Windows UTF-16 names and values converted to UTF-8.
+   */
+  boost::process::v1::environment current_environment();
 
   /**
    * @brief Tracks launched child processes and terminates them during shutdown.
    */
   class proc_t {
   public:
-    KITTY_DEFAULT_CONSTR_MOVE_THROW(proc_t)
+    /** @brief Construct an idle manager whose process ownership cannot be moved or copied. */
+    proc_t() = default;
 
     /**
-     * @brief Construct a process manager.
-     *
-     * @param env Environment used when launching processes.
-     * @param apps Application launch contexts.
+     * @brief Publish configuration for future launches without altering the running instance.
+     * @param catalog Fully parsed application configuration.
      */
-    proc_t(
-      boost::process::v1::environment &&env,
-      std::vector<ctx_t> &&apps
-    ):
-        _app_id(0),
-        _env(std::move(env)),
-        _apps(std::move(apps)) {
-    }
+    void replace_catalog(catalog_t catalog);
 
     /**
      * @brief Launch the configured application process.
@@ -125,15 +130,9 @@ namespace proc {
     /**
      * @brief Return the configured applications.
      *
-     * @return Immutable application list owned by the process manager.
+     * @return Independent snapshot safe to retain across configuration updates.
      */
-    const std::vector<ctx_t> &get_apps() const;
-    /**
-     * @brief Return the configured applications.
-     *
-     * @return Mutable application list owned by the process manager.
-     */
-    std::vector<ctx_t> &get_apps();
+    std::vector<ctx_t> get_apps() const;
     /**
      * @brief Get app image.
      *
@@ -163,16 +162,20 @@ namespace proc {
     /**
      * @brief Inspect capture scope before display preparation or process launch.
      * @param app_id Configured application ID.
-     * @return True when the application explicitly requests application capture.
+     * @return Active launch scope when running, otherwise the configured scope for the next launch.
      */
     bool uses_application_capture(int app_id) const;
 
   private:
-    int _app_id;
+    /** @brief Terminate the active launch while holding the lifecycle mutex. */
+    void terminate_locked();
 
-    boost::process::v1::environment _env;
-    std::vector<ctx_t> _apps;
-    ctx_t _app;
+    mutable std::mutex _mutex;  ///< Serializes configuration publication and process lifecycle operations.
+    catalog_t _catalog;  ///< Configuration for future launches; never owns a running process.
+    int _app_id {0};
+
+    boost::process::v1::environment _env;  ///< Environment retained through the active launch's undo commands.
+    ctx_t _app {};  ///< Immutable configuration snapshot of the most recent launch.
     capture::target_owner_t _capture_target;  ///< Identity retired before any process replacement.
     std::chrono::steady_clock::time_point _app_launch_time;
 
@@ -183,8 +186,7 @@ namespace proc {
     boost::process::v1::group _process_group;
 
     file_t _pipe;
-    std::vector<cmd_t>::const_iterator _app_prep_it;
-    std::vector<cmd_t>::const_iterator _app_prep_begin;
+    std::size_t _executed_prep_count {0};  ///< Completed prep commands whose undo remains pending.
   };
 
   /**
@@ -206,7 +208,7 @@ namespace proc {
    */
   std::string validate_app_image_path(std::string app_image_path);
   /**
-   * @brief Refresh cached platform state from the operating system.
+   * @brief Refresh future launch configuration while preserving the active process and capture identity.
    *
    * @param file_name File name.
    */
@@ -217,7 +219,7 @@ namespace proc {
    * @param file_name File name.
    * @return Parsed value or parse status.
    */
-  std::optional<proc::proc_t> parse(const std::string &file_name);
+  std::optional<catalog_t> parse(const std::string &file_name);
 
   /**
    * @brief Initialize proc functions

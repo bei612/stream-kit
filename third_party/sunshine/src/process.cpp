@@ -150,14 +150,13 @@ namespace proc {
   }
 
   int proc_t::execute(int app_id, std::shared_ptr<rtsp_stream::launch_session_t> launch_session) {
-    // Ensure starting from a clean slate
-    terminate();
+    std::lock_guard lock {_mutex};
 
-    auto iter = std::find_if(_apps.begin(), _apps.end(), [&app_id](const auto app) {
+    auto iter = std::find_if(_catalog.apps.begin(), _catalog.apps.end(), [&app_id](const auto &app) {
       return app.id == std::to_string(app_id);
     });
 
-    if (iter == _apps.end()) {
+    if (iter == _catalog.apps.end()) {
       BOOST_LOG(error) << "Couldn't find app with ID ["sv << app_id << ']';
       return 404;
     }
@@ -173,10 +172,18 @@ namespace proc {
     }
 #endif
 
+    if (!launch_session) {
+      return 400;
+    }
+
+    // Validate and copy the next launch before touching the current process.
+    auto next_app = *iter;
+    auto next_env = _catalog.env;
+    terminate_locked();
     _app_id = app_id;
-    _app = *iter;
-    _app_prep_begin = std::begin(_app.prep_cmds);
-    _app_prep_it = _app_prep_begin;
+    _app = std::move(next_app);
+    _env = std::move(next_env);
+    _executed_prep_count = 0;
 
     // Add Stream-specific environment variables
     _env["SUNSHINE_APP_ID"] = std::to_string(_app_id);
@@ -221,11 +228,11 @@ namespace proc {
     std::error_code ec;
     // Executed when returning from function
     auto fg = util::fail_guard([&]() {
-      terminate();
+      terminate_locked();
     });
 
-    for (; _app_prep_it != std::end(_app.prep_cmds); ++_app_prep_it) {
-      auto &cmd = *_app_prep_it;
+    for (; _executed_prep_count < _app.prep_cmds.size(); ++_executed_prep_count) {
+      auto &cmd = _app.prep_cmds[_executed_prep_count];
 
       // Skip empty commands
       if (cmd.do_cmd.empty()) {
@@ -311,6 +318,7 @@ namespace proc {
   }
 
   int proc_t::running() {
+    std::lock_guard lock {_mutex};
 #ifndef _WIN32
     // On POSIX OSes, we must periodically wait for our children to avoid
     // them becoming zombies. This must be synchronized carefully with
@@ -320,6 +328,10 @@ namespace proc {
       while (waitpid(-1, nullptr, WNOHANG) > 0);
     });
 #endif
+
+    if (_app_id <= 0) {
+      return 0;
+    }
 
     if (placebo) {
       return _app_id;
@@ -339,13 +351,21 @@ namespace proc {
     // Perform cleanup actions now if needed
     if (_process) {
       BOOST_LOG(info) << "App exited with code ["sv << _process.native_exit_code() << ']';
-      terminate();
+      terminate_locked();
     }
 
     return 0;
   }
 
   void proc_t::terminate() {
+    std::lock_guard lock {_mutex};
+    terminate_locked();
+  }
+
+  void proc_t::terminate_locked() {
+    if (_app_id <= 0) {
+      return;
+    }
     _capture_target.replace({});
     input::terminate_gamepads();
     std::error_code ec;
@@ -354,8 +374,8 @@ namespace proc {
     _process = boost::process::v1::child();
     _process_group = boost::process::v1::group();
 
-    for (; _app_prep_it != _app_prep_begin; --_app_prep_it) {
-      auto &cmd = *(_app_prep_it - 1);
+    while (_executed_prep_count > 0) {
+      auto &cmd = _app.prep_cmds[--_executed_prep_count];
 
       if (cmd.undo_cmd.empty()) {
         continue;
@@ -385,9 +405,9 @@ namespace proc {
 
     // Only show the Stopped notification if we actually have an app to stop
     // Since terminate() is always run when a new app has started
-    if (proc::proc.get_last_run_app_name().length() > 0 && has_run) {
+    if (!_app.name.empty() && has_run) {
 #if defined SUNSHINE_TRAY && SUNSHINE_TRAY >= 1
-      system_tray::update_tray_stopped(proc::proc.get_last_run_app_name());
+      system_tray::update_tray_stopped(_app.name);
 #endif
 
       display_device::revert_configuration();
@@ -396,20 +416,26 @@ namespace proc {
     _app_id = -1;
   }
 
-  const std::vector<ctx_t> &proc_t::get_apps() const {
-    return _apps;
+  void proc_t::replace_catalog(catalog_t catalog) {
+    std::lock_guard lock {_mutex};
+    _catalog = std::move(catalog);
+  }
+
+  std::vector<ctx_t> proc_t::get_apps() const {
+    std::lock_guard lock {_mutex};
+    return _catalog.apps;
   }
 
   bool proc_t::uses_application_capture(int app_id) const {
+    std::lock_guard lock {_mutex};
+    if (_app_id > 0 && _app_id == app_id) {
+      return _app.application_capture;
+    }
     const auto id = std::to_string(app_id);
-    const auto app = std::find_if(_apps.begin(), _apps.end(), [&id](const auto &entry) {
+    const auto app = std::find_if(_catalog.apps.begin(), _catalog.apps.end(), [&id](const auto &entry) {
       return entry.id == id;
     });
-    return app != _apps.end() && app->application_capture;
-  }
-
-  std::vector<ctx_t> &proc_t::get_apps() {
-    return _apps;
+    return app != _catalog.apps.end() && app->application_capture;
   }
 
   // Gets application image from application list.
@@ -417,15 +443,17 @@ namespace proc {
   // Returns default image if image configuration is not set.
   // Returns http content-type header compatible image type.
   std::string proc_t::get_app_image(int app_id) {
-    auto iter = std::find_if(_apps.begin(), _apps.end(), [&app_id](const auto app) {
+    std::lock_guard lock {_mutex};
+    auto iter = std::find_if(_catalog.apps.begin(), _catalog.apps.end(), [&app_id](const auto &app) {
       return app.id == std::to_string(app_id);
     });
-    auto app_image_path = iter == _apps.end() ? std::string() : iter->image_path;
+    auto app_image_path = iter == _catalog.apps.end() ? std::string() : iter->image_path;
 
     return validate_app_image_path(app_image_path);
   }
 
   std::string proc_t::get_last_run_app_name() {
+    std::lock_guard lock {_mutex};
     return _app.name;
   }
 
@@ -473,7 +501,7 @@ namespace proc {
    * @param val_raw Raw value that may contain $(NAME) substitutions.
    * @return Value with recognized environment-variable substitutions expanded.
    */
-  std::string parse_env_val(boost::process::v1::native_environment &env, const std::string_view &val_raw) {
+  std::string parse_env_val(boost::process::v1::environment &env, const std::string_view &val_raw) {
     auto pos = std::begin(val_raw);
     auto dollar = std::find(pos, std::end(val_raw), '$');
 
@@ -696,10 +724,22 @@ namespace proc {
     return std::make_tuple(id_no_index, id_with_index);
   }
 
+  boost::process::v1::environment current_environment() {
+#ifdef _WIN32
+    boost::process::v1::environment result;
+    for (const auto &entry : boost::this_process::wenvironment()) {
+      result[utf_utils::to_utf8(entry.get_name())] = utf_utils::to_utf8(entry.to_string());
+    }
+    return result;
+#else
+    return boost::process::v1::environment(boost::this_process::environment());
+#endif
+  }
+
   /**
    * @brief Parse serialized text into the corresponding runtime representation.
    */
-  std::optional<proc::proc_t> parse(const std::string &file_name) {
+  std::optional<catalog_t> parse(const std::string &file_name) {
     pt::ptree tree;
 
     try {
@@ -708,7 +748,7 @@ namespace proc {
       auto &apps_node = tree.get_child("apps"s);
       auto &env_vars = tree.get_child("env"s);
 
-      auto this_env = boost::this_process::environment();
+      auto this_env = current_environment();
 
       for (auto &[name, val] : env_vars) {
         this_env[name] = parse_env_val(this_env, val.get_value<std::string>());
@@ -824,7 +864,7 @@ namespace proc {
         apps.emplace_back(std::move(ctx));
       }
 
-      return proc::proc_t {
+      return catalog_t {
         std::move(this_env),
         std::move(apps)
       };
@@ -836,13 +876,13 @@ namespace proc {
   }
 
   /**
-   * @brief Refresh cached platform state from the operating system.
+   * @brief Publish a parsed catalog without replacing the running process manager.
    */
   void refresh(const std::string &file_name) {
-    auto proc_opt = proc::parse(file_name);
+    auto catalog = proc::parse(file_name);
 
-    if (proc_opt) {
-      proc = std::move(*proc_opt);
+    if (catalog) {
+      proc.replace_catalog(std::move(*catalog));
     }
   }
 }  // namespace proc
