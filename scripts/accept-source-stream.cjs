@@ -66,6 +66,7 @@ async function main() {
     file_apps:nativePath('apps.json'), file_state:nativePath('state.json'), credentials_file:nativePath('credentials.json'),
     pkey:nativePath('key.pem'), cert:nativePath('cert.pem'), log_path:nativePath('sunshine.log'), sunshine_name:'StreamKit source acceptance' };
   fs.writeFileSync(configFile,Object.entries(config).map(([key,value])=>`${key} = ${value}`).join('\n'));
+  if(process.argv.includes('--edit-encoder-configuration'))fs.appendFileSync(configFile,'\nglobal_prep_cmd = [\n]\n');
   try { execFileSync(encoder,[configFile,'--creds',credentials.username,credentials.password],{cwd:scratch,windowsHide:true,stdio:'ignore',timeout:30000}); }
   catch { throw new Error('Failed to initialize isolated native credentials'); }
   const fd=fs.openSync(path.join(output,'sunshine.log'),'w');
@@ -81,13 +82,14 @@ async function main() {
   result.capabilities=await native('/api/stream-kit/capabilities');
   assert.ok(result.capabilities.capture_modes.includes('application'));
   assert.equal(result.capabilities.managed_runtime_version,1);
+  const encoderConfigurationBefore=process.argv.includes('--edit-encoder-configuration')?await native('/api/config'):null;
   const runtime=path.join(scratch,'runtime.json');
   fs.writeFileSync(runtime,JSON.stringify({sunshine_api:{base_url:`https://127.0.0.1:${base+1}`,server_info_url:info,...credentials,verify_ssl:false}}));
   console.log('Source-built Sunshine ready; starting program browser acceptance');
   const fd2=fs.openSync(path.join(output,'acceptance.log'),'w');
   const probe=spawn(process.execPath,[path.join(__dirname,'accept-managed-stream.cjs'),'--gateway',gateway,'--orchestrator',control,
     '--runtime-config',runtime,'--scratch',path.join(scratch,'media'),'--output-dir',path.join(output,'browser'),'--example',example,'--example-output',outputDevice,
-    ...['--microphone-tone','--target-switch','--stop-active','--delete-active','--restart-services','--expire-client-lease','--edit-gateway-configuration','--apply-managed-gateway'].filter(flag => process.argv.includes(flag)),
+    ...['--microphone-tone','--target-switch','--stop-active','--delete-active','--restart-services','--expire-client-lease','--edit-gateway-configuration','--edit-encoder-configuration','--apply-managed-gateway'].filter(flag => process.argv.includes(flag)),
     ...['--audio-probe','--target-render-device','--target-capture-device','--clients','--hold-seconds'].flatMap(flag=>process.argv.includes(flag)?[flag,option(flag)]:[])],
     {cwd:root,windowsHide:true,stdio:['ignore',fd2,fd2]}); fs.closeSync(fd2);
   const [code]=await once(probe,'exit');
@@ -95,6 +97,14 @@ async function main() {
   result.browser_result=path.relative(root,path.join(output,'browser/result.json')).replaceAll('\\','/');
   const browserResult = JSON.parse(fs.readFileSync(path.join(output,'browser/result.json'),'utf8'));
   assert.equal(browserResult.passed,true);
+  if(encoderConfigurationBefore) {
+    assert.equal(browserResult.encoder_configuration?.passed,true);
+    const after=await native('/api/config');
+    assert.equal(after.sunshine_name,'Stream Kit encoder acceptance');
+    for(const [key,value] of Object.entries(encoderConfigurationBefore))if(key!=='sunshine_name')assert.deepEqual(after[key],value,`Untouched encoder field changed: ${key}`);
+    assert.equal(after.global_prep_cmd,'[\n]');
+    result.encoder_configuration={passed:true,untouched_fields_preserved:true,multiline_preserved:true};
+  }
   if (process.argv.includes('--target-switch')) {
     assert.deepEqual(browserResult.target_mode_switch?.observations.map(item=>item.mode),['disabled','upstream'], 'Requested audio target mode switching was not verified');
     assert.equal(browserResult.target_mode_switch.video_continued,true);

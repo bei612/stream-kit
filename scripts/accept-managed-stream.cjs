@@ -196,7 +196,7 @@ async function main() {
     log: { level: 'info', file: { enabled: false }, access_log: { enabled: false } } };
   const controlConfigFile = path.join(scratch, 'control', 'config.json');
   fs.mkdirSync(path.dirname(controlConfigFile),{recursive:true});
-  if(process.argv.includes('--edit-gateway-configuration')) {
+  if(process.argv.includes('--edit-gateway-configuration')||process.argv.includes('--edit-encoder-configuration')) {
     fs.cpSync(path.join(root,'orchestrator/web/dist'),path.join(scratch,'control/dist'),{recursive:true});
     result.management_assets_sha256=Object.fromEntries(fs.readdirSync(path.join(scratch,'control/dist/assets')).map(name=>[name,sha(path.join(scratch,'control/dist/assets',name))]));
   }
@@ -416,6 +416,37 @@ async function main() {
   await api(`/stream-sessions/${invite.session_id}/controller`, 'DELETE');
   result.control_transfer = { unique_controller: true, epoch_before: claimed.control_epoch, epoch_after: transferred.control_epoch };
   let configurationPage;
+  if(process.argv.includes('--edit-encoder-configuration')) {
+    assert.ok(applicationExample,'Encoder editing requires the isolated source encoder');
+    const before=await api('/encoder-configuration');
+    assert.equal(before.apply_policy,'encoder_restart');
+    assert.equal(before.runtime_verified,false);
+    assert.ok(before.redacted_keys.includes('pkey'));
+    assert.equal(before.values.pkey,null);
+    const adminPage=await context.newPage();
+    adminPage.on('pageerror',error=>pageErrors.push(error.message));
+    await adminPage.goto(control+'/login');
+    await adminPage.getByLabel('用户名',{exact:true}).fill(credentials.username);
+    await adminPage.getByLabel('密码',{exact:true}).fill(credentials.password);
+    await adminPage.getByRole('button',{name:'登录控制台',exact:true}).click();
+    await adminPage.getByRole('heading',{name:'工作台',exact:true}).waitFor();
+    await adminPage.locator('nav a[href="/settings"]').click();
+    await adminPage.locator('#encoder-setting-sunshine_name').fill('Stream Kit encoder acceptance');
+    await adminPage.getByRole('button',{name:'保存编码器配置',exact:true}).click();
+    await adminPage.getByRole('status').filter({hasText:'配置已保存，需重启编码器后生效'}).waitFor();
+    const saved=await api('/encoder-configuration');
+    assert.notEqual(saved.revision,before.revision);
+    assert.equal(saved.values.sunshine_name,'Stream Kit encoder acceptance');
+    assert.equal(saved.values.pkey,null);
+    const stale=await fetch(control+'/api/v1/encoder-configuration',{method:'PATCH',headers:{Authorization:'Bearer '+login.data.token,'Content-Type':'application/json'},body:JSON.stringify({revision:before.revision,changes:{sunshine_name:'stale'}})});
+    assert.equal(stale.status,409);
+    assert.equal((await api('/encoder-configuration')).revision,saved.revision);
+    const frames=await Promise.all(pages.map(page=>page.evaluate(()=>document.querySelector('video').getVideoPlaybackQuality().totalVideoFrames)));
+    await Promise.all(pages.map((page,index)=>waitForPageCondition(page,previous=>document.querySelector('video').getVideoPlaybackQuality().totalVideoFrames>previous,frames[index],{timeout:15000})));
+    await adminPage.screenshot({path:path.join(output,'encoder-settings.png'),fullPage:true});
+    await adminPage.close();
+    result.encoder_configuration={passed:true,browser_form:true,conflict_rejected:true,video_continued:true,apply_policy:saved.apply_policy,runtime_verified:false};
+  }
   if (process.argv.includes('--edit-gateway-configuration')) {
     const before = await api('/gateway-configuration');
     assert.equal(before.apply_policy,'gateway_restart');

@@ -33,3 +33,7 @@ PATCH 请求为 `{"revision":"<原生强 ETag>","changes":{"sunshine_name":"Rend
 系统设置中的“渲染编码器配置”支持显式字段编辑、添加原生参数、结构化 JSON 和恢复默认。仅编辑过的字段加入 PATCH；脱敏占位不会自动提交。保存未确认时保留草稿并锁定继续提交，重新读取按钮明确提示放弃修改。保存确认后也需重新读取，以获得原生规范化后的显式字段集合。
 
 界面验证：`scripts/test-admin-encoder-configuration.cjs` 对生产构建页面使用受控 API 响应，覆盖脱敏保留、冲突草稿、明确删除覆盖、保存与运行状态区分、读取失败锁定；结果位于 `artifacts/encoder-configuration/admin-browser-result.json`。此验证不启动或重启真实编码器，不代替配置生效端到端验收。
+
+真实链路验证：`scripts/accept-source-stream.cjs --edit-encoder-configuration` 启动隔离的源码编码器，并通过共享媒体验收脚本启动控制面、网关和浏览器。管理页面修改节点名称，旧版本 PATCH 必须返回 409，随后核对原生配置中的所有未修改字段以及多行列表。保存期间每名观看者的视频帧数必须继续增加。测试仅修改本次创建的配置文件，不重启或覆盖现场服务。
+
+2026-10-31 本机 Windows 验证通过，证据目录：`artifacts/source-stream/2026-10-30T22-41-38-386Z/`（目录名为 UTC）。两名浏览器观看者共享上游、接收程序音频；配置页面保存、冲突拒绝、未修改字段和多行列表保留均通过，随后完成受管应用停止与连接清理。编码器 SHA256 为 `1200b7d1e3a98913b512d24a9ec4a7dff0a1d4e0f47ff54446aa30eedccc6f62`，控制面 SHA256 为 `5e4ab9bf37afca6bcb5130f1f5522de78ebb430fe9fe5bb799b2afaffd68ca4d`。这证明期望配置事务与持续观看可共存，不证明编码器重启后的运行版本、Linux 或移动真机已验收。
