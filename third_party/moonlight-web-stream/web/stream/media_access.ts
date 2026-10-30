@@ -107,3 +107,14 @@ export async function mediaHeartbeat(access: MediaAccess, microphone: boolean, l
 export async function releaseMediaAccess(access: MediaAccess): Promise<void> {
     await request(access.baseUrl, access.bearer, path(access), "DELETE")
 }
+
+export async function resumeMediaAccess(access: MediaAccess): Promise<void> {
+    const current = await request<ConnectionResponse>(access.baseUrl, access.bearer, `${path(access)}/resume`, "POST")
+    if (current.session_id !== access.sessionId || current.connection.connection_id !== access.connectionId) {
+        throw new MediaAccessError("Resumed connection identity does not match", 401)
+    }
+    access.bearer = current.connection_token
+    access.role = current.connection.role
+    access.microphoneEnabled = current.audio?.microphone_enabled === true
+    await refreshMediaTicket(access)
+}

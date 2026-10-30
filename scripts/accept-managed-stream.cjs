@@ -27,6 +27,7 @@ assert.ok(!applicationExample || exampleOutput, 'Application acceptance requires
 const numericOption = (name, fallback) => process.argv.includes(name) ? Number(process.argv[process.argv.indexOf(name) + 1]) : fallback;
 const clientCount = numericOption('--clients', 2);
 const holdSeconds = numericOption('--hold-seconds', 5);
+const expireClientLease = process.argv.includes('--expire-client-lease');
 const programToneCount = Math.min(28800, Math.max(20, Math.ceil((clientCount*60+holdSeconds+30)/3)));
 const microphoneTest = process.argv.includes('--microphone-tone');
 const endpointOption = name => {
@@ -526,6 +527,68 @@ async function main() {
     result.microphone_tone = levels;
     result.microphone_capture_released_on_revocation = true;
     for (const page of pages) await page.evaluate(() => window.__toneProbe.context.close());
+  }
+  if (expireClientLease) {
+    const page = pages[0];
+    const connectionId = await page.evaluate(() => window.app.getStream().mediaAccess.connectionId);
+    await api(`/stream-sessions/${invite.session_id}/controller/${connectionId}`, 'POST');
+    let peerCount;
+    const route = `${control}/**`;
+    const abort = request => request.abort('internetdisconnected');
+    await page.route(route, abort);
+    const started = Date.now();
+    let expired;
+    try {
+      for (let attempt = 0; attempt < 35; attempt++) {
+        expired = await api(`/stream-sessions/${invite.session_id}`);
+        if (!expired.connections[connectionId]) break;
+        await delay(1000);
+      }
+      assert.ok(!expired.connections[connectionId], 'HTTP outage must expire the client lease');
+      assert.ok(!expired.controller_connection_id, 'Expiry must revoke controller authority');
+      assert.equal(Object.keys(expired.connections).length, clientCount - 1);
+      let applied;
+      for (let attempt = 0; attempt < 30; attempt++) {
+        const status = await api('/media-control');
+        applied = status.observations_valid && status.observations?.[invite.session_id];
+        if (applied && applied.subscribers === clientCount - 1) break;
+        await delay(200);
+      }
+      assert.equal(applied?.subscribers, clientCount - 1, 'Gateway must apply expired membership before restoring HTTP');
+      peerCount = await page.evaluate(() => window.__acceptancePeers.length);
+    } finally { await page.unroute(route, abort); }
+    let recovered;
+    for (let attempt = 0; attempt < 45; attempt++) {
+      recovered = await api(`/stream-sessions/${invite.session_id}`);
+      if (recovered.connections[connectionId]) break;
+      await delay(1000);
+    }
+    assert.equal(Object.keys(recovered.connections).length, clientCount, 'Heartbeat must restore authoritative membership');
+    let restoredMedia;
+    for (let attempt = 0; attempt < 90; attempt++) {
+      const browserMedia = await page.evaluate(async () => {
+        const peers = window.__acceptancePeers, peer = peers.at(-1);
+        const stats = [...(await peer.getStats()).values()];
+        return { peers:peers.length, state:peer.connectionState,
+          frames:stats.find(s => s.type === 'inbound-rtp' && s.kind === 'video')?.framesDecoded || 0 };
+      });
+      const status = await api('/media-control');
+      restoredMedia = { ...browserMedia, prior_peers:peerCount, subscribers:status.observations?.[invite.session_id]?.subscribers,
+        observations_valid:status.observations_valid };
+      if (restoredMedia.peers > peerCount && restoredMedia.state === 'connected' && restoredMedia.frames > 15 &&
+          restoredMedia.observations_valid && restoredMedia.subscribers === clientCount) break;
+      await delay(1000);
+    }
+    assert.ok(restoredMedia.peers > peerCount && restoredMedia.state === 'connected' && restoredMedia.frames > 15 &&
+      restoredMedia.observations_valid && restoredMedia.subscribers === clientCount, `Media did not recover: ${JSON.stringify(restoredMedia)}`);
+    assert.equal(recovered.connections[connectionId].role, 'viewer');
+    assert.ok(!recovered.controller_connection_id);
+    assert.ok(!recovered.connections[connectionId].microphone_live);
+    assert.equal(await page.evaluate(() => window.app.getStream().mediaAccess.connectionId), connectionId);
+    result.expired_lease_recovery = { passed:true, connection_id:connectionId, elapsed_ms:Date.now()-started, media:restoredMedia,
+      scope:'One browser HTTP control-plane outage until lease expiry, followed by new decoded media without reload; not a UDP or system network outage.' };
+    save();
+    console.log('Expired client lease recovered as viewer without restoring controller authority');
   }
   const firstFrames = await Promise.all(pages.map(videoFrames));
   const mediaSnapshot = () => Promise.all(pages.map(page => page.evaluate(async () => {

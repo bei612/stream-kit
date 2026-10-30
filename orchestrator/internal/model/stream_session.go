@@ -15,6 +15,7 @@ type StreamSession struct {
 	AudioJSON              string    `json:"audio_json" gorm:"type:text;not null"`
 	PolicyJSON             string    `json:"policy_json" gorm:"type:text;not null"`
 	ConnectionsJSON        string    `json:"connections_json" gorm:"type:text;not null"`
+	ResumableJSON          string    `json:"-" gorm:"type:text;not null;default:'{}'"`
 	CreatedAt              time.Time `json:"created_at"`
 	UpdatedAt              time.Time `json:"updated_at"`
 }

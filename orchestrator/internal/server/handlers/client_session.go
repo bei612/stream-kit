@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -131,7 +132,13 @@ func (h *ClientSessionHandler) Authorize() gin.HandlerFunc {
 			return
 		}
 		conn, ok := s.Connections[claims.ConnectionID]
-		if !ok || conn.UserID != claims.Subject || !time.Now().Before(conn.ExpiresAt) || s.State == session.StateStopped || s.State == session.StateStopping {
+		// Explicit disconnect also revokes dormant recovery authority. Other
+		// commands still require a live lease and cannot use this exception.
+		disconnecting := c.Request.Method == http.MethodDelete
+		if !ok && disconnecting {
+			conn, ok = s.Resumable[claims.ConnectionID]
+		}
+		if !ok || conn.UserID != claims.Subject || (!disconnecting && !time.Now().Before(conn.ExpiresAt)) || s.State == session.StateStopped || s.State == session.StateStopping {
 			errResponse(c, 410, "CONNECTION_EXPIRED", "connection is no longer active")
 			c.Abort()
 			return
@@ -169,6 +176,31 @@ func (h *ClientSessionHandler) Heartbeat(c *gin.Context) {
 		return
 	}
 	h.Current(c)
+}
+
+// Resume validates the connection capability independently of the live lease.
+// It cannot authenticate an invitation, another connection, or an expired token.
+func (h *ClientSessionHandler) Resume(c *gin.Context) {
+	claims, err := identity.Verify(bearer(c), identity.Connection, h.connectionKey, time.Now())
+	if err != nil || claims.SessionID != c.Param("session_id") || claims.ConnectionID != c.Param("connection_id") {
+		errResponse(c, 401, "CONNECTION_UNAUTHORIZED", "connection credential is invalid")
+		return
+	}
+	conn, err := h.sessions.Manager.ResumeConnection(claims.SessionID, claims.ConnectionID, claims.Subject)
+	if errors.Is(err, session.ErrNotFound) || errors.Is(err, session.ErrInvalidState) {
+		errResponse(c, 410, "CONNECTION_EXPIRED", "connection can no longer resume; open a new viewing link")
+		return
+	}
+	if err != nil {
+		respondSessionError(c, err)
+		return
+	}
+	s, err := h.sessions.Manager.Get(claims.SessionID)
+	if err != nil {
+		respondSessionError(c, err)
+		return
+	}
+	h.respondConnection(c, s, conn)
 }
 
 func (h *ClientSessionHandler) respondConnection(c *gin.Context, s *session.RenderSession, conn *session.Connection) {

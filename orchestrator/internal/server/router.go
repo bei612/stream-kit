@@ -164,6 +164,7 @@ func (s *Server) setupRoutes() {
 		clientHandler.GatewayPublicURL = s.Config.MoonlightWeb.PublicURL
 		authed.POST("/stream-invitations", clientHandler.Invite)
 		api.POST("/client-sessions/join", clientHandler.Join)
+		api.POST("/client-sessions/:session_id/connections/:connection_id/resume", clientHandler.Resume)
 		clients := api.Group("/client-sessions/:session_id/connections/:connection_id", clientHandler.Authorize())
 		clients.GET("", clientHandler.Current)
 		clients.POST("/heartbeat", clientHandler.Heartbeat)

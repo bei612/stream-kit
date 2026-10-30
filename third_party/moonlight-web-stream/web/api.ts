@@ -89,7 +89,7 @@ export type Api = {
 }
 
 export { MediaAccess, managedStreaming, MediaAccessError, refreshMediaTicket as apiRefreshMediaTicket } from "./stream/media_access"
-export { mediaHeartbeat as apiMediaHeartbeat, releaseMediaAccess as apiReleaseMediaAccess } from "./stream/media_access"
+export { mediaHeartbeat as apiMediaHeartbeat, releaseMediaAccess as apiReleaseMediaAccess, resumeMediaAccess as apiResumeMediaAccess } from "./stream/media_access"
 import { acquireMediaAccess, managedStreaming, MediaAccess, refreshMediaTicket, releaseMediaAccess } from "./stream/media_access"
 
 import { StreamProfile } from "./api_bindings"

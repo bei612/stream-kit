@@ -70,6 +70,7 @@ type RenderSession struct {
 	Audio                  AudioConfig            `json:"audio"`
 	Policy                 Policy                 `json:"policy"`
 	Connections            map[string]*Connection `json:"connections"`
+	Resumable              map[string]*Connection `json:"-"`
 	CreatedAt              time.Time              `json:"created_at"`
 	UpdatedAt              time.Time              `json:"updated_at"`
 }
@@ -305,10 +306,13 @@ func (m *Manager) UpdatePolicy(id string, p Policy) error {
 }
 func (m *Manager) Disconnect(id, connectionID string) error {
 	return m.mutate(id, "stream_connection_changed", func(s *RenderSession) error {
-		if _, ok := s.Connections[connectionID]; !ok {
+		_, active := s.Connections[connectionID]
+		_, resumable := s.Resumable[connectionID]
+		if !active && !resumable {
 			return ErrNotFound
 		}
 		delete(s.Connections, connectionID)
+		delete(s.Resumable, connectionID)
 		if s.ControllerConnectionID == connectionID {
 			s.ControllerConnectionID = ""
 		}
@@ -336,8 +340,10 @@ func (m *Manager) SweepExpired(now time.Time) (int, error) {
 	for _, current := range m.sessions {
 		next := clone(current)
 		expired := 0
+		changed := pruneResumable(next, now)
 		for id, c := range next.Connections {
 			if !now.Before(c.ExpiresAt) {
+				rememberExpired(next, c, now)
 				delete(next.Connections, id)
 				if next.ControllerConnectionID == id {
 					next.ControllerConnectionID = ""
@@ -345,7 +351,7 @@ func (m *Manager) SweepExpired(now time.Time) (int, error) {
 				expired++
 			}
 		}
-		if expired == 0 {
+		if expired == 0 && !changed {
 			continue
 		}
 		next.UpdatedAt = now.UTC()
@@ -386,13 +392,22 @@ func (m *Manager) persist(s *RenderSession) error {
 	if err != nil {
 		return err
 	}
-	return m.store.UpsertStreamSession(&model.StreamSession{ID: s.ID, Revision: s.Revision, ControlEpoch: s.ControlEpoch, HostID: s.HostID, AppID: s.AppID, State: s.State, ControllerConnectionID: s.ControllerConnectionID, AudioJSON: audio, PolicyJSON: policy, ConnectionsJSON: connections, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt})
+	resumable, err := json.Marshal(s.Resumable)
+	if err != nil {
+		return err
+	}
+	return m.store.UpsertStreamSession(&model.StreamSession{ID: s.ID, Revision: s.Revision, ControlEpoch: s.ControlEpoch, HostID: s.HostID, AppID: s.AppID, State: s.State, ControllerConnectionID: s.ControllerConnectionID, AudioJSON: audio, PolicyJSON: policy, ConnectionsJSON: connections, ResumableJSON: string(resumable), CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt})
 }
 
 func fromRecord(record model.StreamSession) (*RenderSession, error) {
 	s := &RenderSession{ID: record.ID, Revision: record.Revision, ControlEpoch: record.ControlEpoch, HostID: record.HostID, AppID: record.AppID, State: record.State, ControllerConnectionID: record.ControllerConnectionID, CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt, Connections: map[string]*Connection{}}
 	if err := store.DecodeStreamSessionSnapshot(&record, &s.Audio, &s.Policy, &s.Connections); err != nil {
 		return nil, err
+	}
+	if record.ResumableJSON != "" {
+		if err := json.Unmarshal([]byte(record.ResumableJSON), &s.Resumable); err != nil {
+			return nil, err
+		}
 	}
 	if s.Audio.Target == (AudioTarget{}) {
 		var fields map[string]json.RawMessage
@@ -422,6 +437,10 @@ func clone(s *RenderSession) *RenderSession {
 	x.Connections = make(map[string]*Connection, len(s.Connections))
 	for id, c := range s.Connections {
 		x.Connections[id] = copyConnection(c)
+	}
+	x.Resumable = make(map[string]*Connection, len(s.Resumable))
+	for id, c := range s.Resumable {
+		x.Resumable[id] = copyConnection(c)
 	}
 	return &x
 }

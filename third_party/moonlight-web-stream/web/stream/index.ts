@@ -1,4 +1,4 @@
-import { Api, apiEnsureMediaAccess, apiMediaHeartbeat, apiRefreshMediaTicket, apiReleaseMediaAccess, apiWebRTCConfiguration, apiWebRTCOffer, MediaAccess, MediaAccessError, managedStreaming } from "../api"
+import { Api, apiEnsureMediaAccess, apiMediaHeartbeat, apiRefreshMediaTicket, apiReleaseMediaAccess, apiResumeMediaAccess, apiWebRTCConfiguration, apiWebRTCOffer, MediaAccess, MediaAccessError, managedStreaming } from "../api"
 import { Component } from "../component/index"
 import { Settings, TransportType } from "../component/settings_menu"
 import { ControlPacket, ControlPacket_Tags, TerminationReason_Tags, VideoFormats } from "../uniffi/moonlight_common_bindings"
@@ -268,7 +268,9 @@ export class Stream implements Component {
             }
         } catch (error) {
             this.debugLog(`Media control admission failed: ${error}`)
-            if (this.mediaAccess && !(error instanceof MediaAccessError && (error.status === 401 || error.status === 410))) {
+            // The heartbeat owns expired-lease recovery. A ticket request can
+            // race that recovery and must not tear down its connection state.
+            if (this.mediaAccess && !(error instanceof MediaAccessError && error.status === 401)) {
                 return "failednoconnect"
             }
             return "disconnect"
@@ -373,11 +375,30 @@ export class Stream implements Component {
         let pending = false
         const send = async () => {
             if (!this.mediaAccess || pending) return
+            const access = this.mediaAccess
             pending = true
             try {
-                await apiMediaHeartbeat(this.mediaAccess, this.settings.microphone, this.microphoneListener?.isLive() ?? false)
+                try {
+                    await apiMediaHeartbeat(access, this.settings.microphone, this.microphoneListener?.isLive() ?? false)
+                } catch (error) {
+                    if (this.mediaAccess !== access || this.stopped) return
+                    this.microphoneListener?.setAllowed(false)
+                    if (!(error instanceof MediaAccessError) || error.status !== 410) throw error
+                    await apiResumeMediaAccess(access)
+                    // Stop may race a successful resume. Release the restored lease
+                    // rather than leaving an invisible viewer until it times out.
+                    if (this.mediaAccess !== access || this.stopped) {
+                        await apiReleaseMediaAccess(access).catch(() => {})
+                        return
+                    }
+                }
+                if (this.mediaAccess !== access || this.stopped) return
                 this.microphoneListener?.setAllowed(this.microphoneAllowed())
             } catch (error) {
+                if (this.mediaAccess !== access || this.stopped) {
+                    await apiReleaseMediaAccess(access).catch(() => {})
+                    return
+                }
                 this.microphoneListener?.setAllowed(false)
                 this.debugLog(`Media heartbeat failed: ${error}`)
                 if (error instanceof MediaAccessError && (error.status === 401 || error.status === 410)) await this.stop()

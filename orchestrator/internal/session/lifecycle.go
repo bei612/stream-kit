@@ -16,6 +16,7 @@ func transitionState(s *RenderSession, state string) error {
 	if state == StateStopping || state == StateStopped {
 		s.ControllerConnectionID = ""
 		s.Connections = map[string]*Connection{}
+		s.Resumable = nil
 	}
 	return nil
 }

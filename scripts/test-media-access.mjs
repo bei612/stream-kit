@@ -76,6 +76,42 @@ test('revocation remains a typed terminal authorization failure', async () => {
   await assert.rejects(api.mediaHeartbeat(access, false, false), error => error instanceof api.MediaAccessError && error.status === 410)
 })
 
+test('resume renews the same connection and replaces controller authority before ticket refresh', async () => {
+  const resumed = structuredClone(joined)
+  resumed.body.data.connection_token = 'resumed-connection'
+  const { api, calls } = browser([joined, ticket, resumed, ticket])
+  const access = await api.acquireMediaAccess(1, 2)
+  access.role = 'controller'
+  await api.resumeMediaAccess(access)
+  assert.equal(access.connectionId, 'client')
+  assert.equal(access.role, 'viewer')
+  assert.equal(access.bearer, 'resumed-connection')
+  assert.equal(calls[2].url, 'https://control.example/api/v1/client-sessions/session/connections/client/resume')
+  assert.equal(calls[2].options.headers.Authorization, 'Bearer own-connection')
+  assert.equal(calls[3].options.headers.Authorization, 'Bearer resumed-connection')
+  assert.equal(calls.filter(call => call.url.endsWith('/join')).length, 1)
+})
+
+test('revoked resume and mismatched identity cannot request another media ticket', async () => {
+  const mismatch = structuredClone(joined)
+  mismatch.body.data.connection.connection_id = 'different-client'
+  for (const reply of [{ status: 410, body: { status: 'error', message: 'revoked' } }, mismatch]) {
+    const { api, calls } = browser([joined, ticket, reply])
+    const access = await api.acquireMediaAccess(1, 2)
+    await assert.rejects(api.resumeMediaAccess(access), error => error instanceof api.MediaAccessError)
+    assert.equal(calls.length, 3)
+    assert.equal(access.bearer, 'own-connection')
+  }
+})
+
+test('ticket failure after resume still retains the new viewer authority', async () => {
+  const { api } = browser([joined, ticket, joined, { status: 503, body: { status: 'error' } }])
+  const access = await api.acquireMediaAccess(1, 2)
+  access.role = 'controller'
+  await assert.rejects(api.resumeMediaAccess(access))
+  assert.equal(access.role, 'viewer')
+})
+
 test('missing invitation or insecure control configuration never forwards credentials', async () => {
   for (const control of [null, 'http://control.example', 'https://user:secret@control.example']) {
     const { api, calls } = browser([], { managed_streaming: true, control_plane_url: control })
