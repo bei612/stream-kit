@@ -11,6 +11,12 @@ const DictionaryBytes uint64 = 128 << 20
 // bound allocations implied by counts inside that input.
 const HeaderBytes uint64 = 64 << 20
 
+// MetadataItems limits any count/length used to allocate header structures.
+// This is a per-collection ceiling, not a total archive memory guarantee.
+const MetadataItems uint64 = 1 << 20
+
+var ErrMetadata = errors.New("sevenzip: metadata count exceeds resource limit")
+
 var ErrHeader = errors.New("sevenzip: header exceeds resource limit")
 
 var ErrDictionary = errors.New("sevenzip: decoder dictionary exceeds resource limit")

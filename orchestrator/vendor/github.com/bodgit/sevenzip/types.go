@@ -11,6 +11,7 @@ import (
 	"math/bits"
 	"time"
 
+	"github.com/bodgit/sevenzip/internal/limits"
 	"github.com/bodgit/sevenzip/internal/util"
 	"github.com/bodgit/windows"
 	"golang.org/x/text/encoding/unicode"
@@ -67,6 +68,9 @@ func checkUint64(v uint64, nonZero bool) error {
 	// on 64-bit architectures.
 	if v > uint64(math.MaxInt) || v > math.MaxUint32 {
 		return errUint64TooLarge
+	}
+	if v > limits.MetadataItems {
+		return limits.ErrMetadata
 	}
 
 	return nil
@@ -513,6 +517,9 @@ func readSubStreamsInfo(r util.Reader, folder []*folder) (*subStreamsInfo, error
 	// Count the files in each stream
 	files := uint64(0)
 	for _, v := range s.streams {
+		if v > limits.MetadataItems-files {
+			return nil, limits.ErrMetadata
+		}
 		files += v
 	}
 
@@ -536,6 +543,9 @@ func readSubStreamsInfo(r util.Reader, folder []*folder) (*subStreamsInfo, error
 					return nil, err
 				}
 
+				if s.size[k] > folder[i].unpackSize()-total {
+					return nil, errSubstreamSize
+				}
 				total += s.size[k]
 				k++
 			}
@@ -567,6 +577,8 @@ func readSubStreamsInfo(r util.Reader, folder []*folder) (*subStreamsInfo, error
 
 	return s, nil
 }
+
+var errSubstreamSize = errors.New("sevenzip: substream sizes exceed folder size")
 
 //nolint:cyclop
 func readStreamsInfo(r util.Reader) (*streamsInfo, error) {
