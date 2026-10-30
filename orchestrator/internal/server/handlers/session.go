@@ -30,10 +30,11 @@ func respondSessionError(c *gin.Context, err error) {
 }
 
 type SessionHandler struct {
-	ValidateAudioTarget func(context.Context, session.AudioTarget) error
-	SyncMedia           func(context.Context) error
-	Manager             *session.Manager
-	TicketSecret        []byte
+	EnsureViewingSession func(context.Context, int64, int64) (*session.RenderSession, error)
+	ValidateAudioTarget  func(context.Context, session.AudioTarget) error
+	SyncMedia            func(context.Context) error
+	Manager              *session.Manager
+	TicketSecret         []byte
 }
 
 func (h *SessionHandler) AudioTarget(c *gin.Context) {
@@ -86,7 +87,9 @@ func (h *SessionHandler) AudioTarget(c *gin.Context) {
 }
 
 func NewSessionHandler(m *session.Manager, ticketSecret []byte) *SessionHandler {
-	return &SessionHandler{Manager: m, TicketSecret: ticketSecret}
+	return &SessionHandler{Manager: m, TicketSecret: ticketSecret, EnsureViewingSession: func(_ context.Context, host, app int64) (*session.RenderSession, error) {
+		return m.Ensure(host, app)
+	}}
 }
 func (h *SessionHandler) List(c *gin.Context) { okResponse(c, h.Manager.List()) }
 func (h *SessionHandler) Get(c *gin.Context) {
@@ -113,7 +116,7 @@ func (h *SessionHandler) Ensure(c *gin.Context) {
 		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", "host_id and app_id are required")
 		return
 	}
-	s, err := h.Manager.Ensure(host, app)
+	s, err := h.EnsureViewingSession(c.Request.Context(), host, app)
 	if err != nil {
 		respondSessionError(c, err)
 		return

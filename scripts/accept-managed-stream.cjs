@@ -484,6 +484,15 @@ async function main() {
     if (deleteActive) {
       await api(`/apps/${ownedApp.id}?confirm=true`, 'DELETE');
       assert.equal(sha(applicationExample), result.application.example_sha256, 'Deleting a local registration must preserve the external program');
+      for (const endpoint of ['/stream-invitations', '/stream-sessions']) {
+        const stale = await fetch(control + '/api/v1' + endpoint, {
+          method:'POST', headers:{ Authorization:'Bearer '+login.data.token, 'Content-Type':'application/json' },
+          body:JSON.stringify({ host_id:host.host_id, app_id:desktop.app_id })
+        });
+        assert.equal(stale.status, 404, `Deleted application must be rejected by ${endpoint}`);
+        assert.equal((await stale.json()).code, 'SESSION_NOT_FOUND');
+      }
+      result.deleted_application_readmission_rejected = true;
       result.deleted_active_registration = true;
     }
     await cleanupRenderer(); cleanupRenderer = null;

@@ -148,6 +148,9 @@ func (s *Server) setupRoutes() {
 	}
 	if s.SessionMgr != nil {
 		sh := handlers.NewSessionHandler(s.SessionMgr, []byte(s.Config.Server.MediaTicketSecret))
+		if s.AppManager != nil {
+			sh.EnsureViewingSession = s.AppManager.EnsureViewingSession
+		}
 		if s.MediaControl != nil {
 			sh.SyncMedia = s.MediaControl.Sync
 			sh.ValidateAudioTarget = s.MediaControl.ValidateAudioTarget

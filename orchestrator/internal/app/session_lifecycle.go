@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/stream-kit/orchestrator/internal/model"
@@ -13,6 +14,61 @@ import (
 // media publisher before serving requests. It must not be changed at runtime.
 func (m *Manager) ConfigureSessionLifecycle(sessions *session.Manager, syncMedia func(context.Context) error) {
 	m.sessions, m.syncMedia = sessions, syncMedia
+}
+
+// EnsureViewingSession shares the application lifecycle boundary with stop and
+// delete. Admission checks authoritative registration while holding that boundary;
+// a stale browser URL cannot recreate a session after its app was removed.
+func (m *Manager) EnsureViewingSession(ctx context.Context, hostID, appID int64) (*session.RenderSession, error) {
+	m.runtimeMu.Lock()
+	defer m.runtimeMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if hostID <= 0 || appID <= 0 || hostID > math.MaxUint32 || appID > math.MaxUint32 {
+		return nil, session.ErrInvalidState
+	}
+	if m.sessions == nil || m.moonClient == nil || m.sunClient == nil {
+		return nil, session.ErrInvalidState
+	}
+	apps, err := m.store.ListApps()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", session.ErrPersistence, err)
+	}
+	var target *model.App
+	for i := range apps {
+		if int64(apps[i].SunshineAppID) == appID {
+			if target != nil {
+				return nil, session.ErrInvalidState
+			}
+			target = &apps[i]
+		}
+	}
+	if target == nil {
+		return nil, session.ErrNotFound
+	}
+	switch target.Status {
+	case model.AppStatusReady, model.AppStatusStopped, model.AppStatusCrashed, model.AppStatusRunning:
+	default:
+		return nil, session.ErrInvalidState
+	}
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	registered, err := m.sunClient.GetManagedApp(ctx, target.ID)
+	if err != nil {
+		return nil, err
+	}
+	if int64(registered.GameStreamID) != appID {
+		return nil, session.ErrInvalidState
+	}
+	stream, err := m.moonClient.FindStreamInfoByID(ctx, uint32(appID))
+	if err != nil {
+		return nil, err
+	}
+	if int64(stream.HostID) != hostID {
+		return nil, session.ErrInvalidState
+	}
+	return m.sessions.Ensure(hostID, appID)
 }
 
 // stopManagedExecution orders admission revocation, gateway acknowledgement,
@@ -38,8 +94,8 @@ func (m *Manager) revokeViewingSession(app *model.App) (string, error) {
 	if m.sessions == nil || app.SunshineAppID <= 0 {
 		return "", nil
 	}
-	// No current viewing generation means there are no old viewer capabilities
-	// to revoke. A concurrent new administrator admission is a separate intent.
+	// Admission uses the same runtimeMu boundary as stop/delete, so no new
+	// generation can appear between this inspection and the native acknowledgement.
 	needed := false
 	for _, s := range m.sessions.List() {
 		if s.AppID == int64(app.SunshineAppID) && s.State != session.StateStopped {

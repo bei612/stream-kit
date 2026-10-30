@@ -83,7 +83,7 @@ func (h *ClientSessionHandler) Invite(c *gin.Context) {
 		errResponse(c, 400, "CONFIG_INVALID", "host_id and app_id are required")
 		return
 	}
-	s, err := h.sessions.Manager.Ensure(req.HostID, req.AppID)
+	s, err := h.sessions.EnsureViewingSession(c.Request.Context(), req.HostID, req.AppID)
 	if err != nil {
 		respondSessionError(c, err)
 		return

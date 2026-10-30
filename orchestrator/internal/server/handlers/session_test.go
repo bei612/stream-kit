@@ -13,6 +13,36 @@ import (
 	"github.com/stream-kit/orchestrator/internal/session"
 )
 
+func TestBothViewingEntrypointsUseApplicationAdmission(t *testing.T) {
+	m := session.NewManager(nil)
+	h := NewSessionHandler(m, []byte("secret"))
+	calls := 0
+	h.EnsureViewingSession = func(ctx context.Context, host, app int64) (*session.RenderSession, error) {
+		calls++
+		if host != 1 || app != 2 {
+			t.Fatal("admission identity changed")
+		}
+		return nil, session.ErrNotFound
+	}
+	h.SyncMedia = func(context.Context) error { return nil }
+	client := NewClientSessionHandler(h, []byte("secret"))
+	router := gin.New()
+	router.POST("/ensure", h.Ensure)
+	router.POST("/invite", client.Invite)
+	for _, path := range []string{"/ensure", "/invite"} {
+		request := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(`{"host_id":1,"app_id":2}`))
+		request.Header.Set("Content-Type", "application/json")
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, request)
+		if recorder.Code != http.StatusNotFound {
+			t.Fatalf("%s bypassed admission: %d", path, recorder.Code)
+		}
+	}
+	if calls != 2 || len(m.List()) != 0 {
+		t.Fatal("admission rejection created a session")
+	}
+}
+
 func TestTransferEndpointRequiresExplicitExpectedController(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	m := session.NewManager(nil)
