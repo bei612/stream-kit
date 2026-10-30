@@ -16,6 +16,7 @@ import (
 	"github.com/stream-kit/orchestrator/internal/server/handlers"
 	"github.com/stream-kit/orchestrator/internal/session"
 	"github.com/stream-kit/orchestrator/internal/store"
+	"github.com/stream-kit/orchestrator/internal/sunshine"
 	"github.com/stream-kit/orchestrator/internal/ws"
 	"go.uber.org/zap"
 )
@@ -91,6 +92,12 @@ func (s *Server) setupRoutes() {
 	authed.GET("/templates", h.GetTemplates)
 	authed.GET("/logs", h.GetLogs)
 	authed.GET("/metrics", h.Metrics)
+	var encoderConfiguration handlers.EncoderConfigurationClient
+	if s.Config.SunshineAPI.BaseURL != "" {
+		encoderConfiguration = sunshine.NewClient(s.Config.SunshineAPI, s.Logger)
+	}
+	authed.GET("/encoder-configuration", handlers.EncoderConfiguration(encoderConfiguration))
+	authed.PATCH("/encoder-configuration", handlers.EncoderConfiguration(encoderConfiguration))
 	var gatewayConfiguration handlers.GatewayConfigurationClient
 	if s.MediaControl != nil {
 		gatewayConfiguration = s.MediaControl

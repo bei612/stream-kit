@@ -12,6 +12,7 @@ import (
 )
 
 var ErrConfigurationConflict = errors.New("encoder configuration changed; reload before saving")
+var ErrConfigurationInvalid = errors.New("invalid encoder configuration patch")
 
 // EncoderConfiguration is an internal snapshot, never a public API response:
 // values can contain credentials and command arguments.
@@ -54,6 +55,12 @@ func (c *Client) configurationRequest(ctx context.Context, method, revision stri
 		return nil, "", fmt.Errorf("encoder configuration request failed: %w", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusForbidden {
+		c.invalidateCSRF()
+	}
+	if method == http.MethodPost && resp.StatusCode == http.StatusBadRequest {
+		return nil, "", ErrConfigurationInvalid
+	}
 	if resp.StatusCode == http.StatusPreconditionFailed {
 		return nil, "", ErrConfigurationConflict
 	}
@@ -91,19 +98,19 @@ func (c *Client) ReadConfiguration(ctx context.Context) (EncoderConfiguration, e
 // A nil JSON value removes an override, restoring the encoder default.
 func (c *Client) PatchConfiguration(ctx context.Context, expected string, changes map[string]json.RawMessage) (string, error) {
 	if !configurationRevision(expected) || len(changes) == 0 || len(changes) > 256 {
-		return "", errors.New("invalid encoder configuration patch")
+		return "", ErrConfigurationInvalid
 	}
 	for key, value := range changes {
 		if len(key) == 0 || len(key) > 128 || key == "status" || key == "platform" || key == "version" {
-			return "", errors.New("invalid encoder configuration key")
+			return "", ErrConfigurationInvalid
 		}
 		for _, ch := range key {
 			if !(ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z' || ch >= '0' && ch <= '9' || ch == '_') {
-				return "", errors.New("invalid encoder configuration key")
+				return "", ErrConfigurationInvalid
 			}
 		}
 		if !json.Valid(value) {
-			return "", errors.New("invalid encoder configuration value")
+			return "", ErrConfigurationInvalid
 		}
 	}
 	snapshot, err := c.ReadConfiguration(ctx)
@@ -118,7 +125,7 @@ func (c *Client) PatchConfiguration(ctx context.Context, expected string, change
 	}
 	payload, err := json.Marshal(snapshot.Values)
 	if err != nil || len(payload) > 1<<20 {
-		return "", errors.New("encoder configuration exceeds request limit")
+		return "", ErrConfigurationInvalid
 	}
 	result, revision, err := c.configurationRequest(ctx, http.MethodPost, expected, payload)
 	if err != nil {

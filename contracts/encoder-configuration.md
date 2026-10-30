@@ -19,3 +19,13 @@
 请求限制 1MiB、最多 512 字段；字段名最多 128 字节，仅允许 ASCII 字母、数字和下划线。字符串值拒绝换行、回车和 NUL；null 和空字符串沿用省略行为。参数类型、范围、平台能力的统一目录和运行版本确认尚未完整实现，不应把结构验证视为完整配置校验。
 
 旧客户端没有 If-Match 将收到 428，必须随本项目源码一并升级，不提供无版本覆盖通道。
+
+## 统一控制面适配
+
+`GET /api/v1/encoder-configuration` 和 `PATCH /api/v1/encoder-configuration` 使用 Orchestrator 现有管理员 JWT 鉴权，响应禁止缓存。GET 返回 `revision`、`values`、`redacted_keys`、`apply_policy: encoder_restart` 和 `runtime_verified: false`。当前返回显式配置，不包含尚未建立的完整默认参数目录。
+
+仅已分类的显示、采集、编码、音频和输入基础字段返回原值；命令、密钥相关字段及未分类扩展均返回 null，并列入 `redacted_keys`。这不代表原值为空。保存时应省略未修改字段，不可把脱敏 null 自动回传；显式提交 null 表示删除该覆盖项，恢复原生默认值。字段分类将随参数目录完善扩充。
+
+PATCH 请求为 `{"revision":"<原生强 ETag>","changes":{"sunshine_name":"Renderer"}}`，字段键使用原生配置名，最多 256 项，请求最多 256KiB。客户端读取当前原生配置并核对版本，合并修改后再以同一 If-Match 提交；读取期间和提交期间发生的并发修改均拒绝覆盖。未修改的敏感值保留在服务端，不经过浏览器。
+
+成功仅返回本次提交的 `revision`、`apply_policy` 和 `runtime_verified: false`，不将后续读取的其他事务版本冒充本次结果。冲突返回 409，结构无效返回 400，无法读取或确认写入返回 503；错误响应不包含原生正文或配置值。不自动重试写入。此接口尚未连接统一管理页，也不提供重启及运行版本确认。
