@@ -6,7 +6,6 @@ import (
 	"io"
 	"math"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -101,27 +100,25 @@ func (h *UploadHandler) Upload(c *gin.Context) {
 	}
 
 	// Step 1: Save file to temp FIRST (before creating DB record)
-	tempDir := h.Config.Storage.TempDir
-	if err := os.MkdirAll(tempDir, 0755); err != nil {
-		errResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "创建临时目录失败")
-		return
-	}
-	out, err := os.CreateTemp(tempDir, "upload-*"+app.ArchiveExtension(filename))
+	archive, err := h.Manager.CreateUploadArchive(filename)
 	if err != nil {
 		errResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "创建临时文件失败")
 		return
 	}
-
-	tempPath := out.Name()
-	written, copyErr := io.Copy(out, io.LimitReader(file, maxSize+1))
-	err = errors.Join(copyErr, out.Close())
+	defer func() {
+		if !pipelineStarted {
+			if err := archive.Cleanup(); err != nil {
+				h.Logger.Error("上传归档回收失败，将在重启时重试", zap.Error(err))
+			}
+		}
+	}()
+	written, copyErr := io.Copy(archive.File, io.LimitReader(file, maxSize+1))
+	err = errors.Join(copyErr, archive.File.Close())
 	if written > maxSize {
-		os.Remove(tempPath)
 		errResponse(c, http.StatusRequestEntityTooLarge, "UPLOAD_TOO_LARGE", "上传文件超限")
 		return
 	}
 	if err != nil {
-		os.Remove(tempPath)
 		errResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "保存文件失败")
 		return
 	}
@@ -129,7 +126,6 @@ func (h *UploadHandler) Upload(c *gin.Context) {
 	// Step 2: Create DB record only after file is safely saved
 	appRecord, err := h.Manager.CreateApp(name, argsTemplate, args, exePath, written, model.CaptureMode(c.PostForm("capture_mode")))
 	if err != nil {
-		os.Remove(tempPath) // cleanup temp file on DB failure
 		if strings.Contains(err.Error(), "同名") {
 			errResponse(c, http.StatusConflict, "APP_ALREADY_EXISTS", err.Error())
 		} else if errors.Is(err, app.ErrCaptureModeUnavailable) {
@@ -148,7 +144,7 @@ func (h *UploadHandler) Upload(c *gin.Context) {
 
 	// Trigger async pipeline: extract → detect → (register)
 	pipelineStarted = true
-	h.Manager.ProcessUploadComplete(appRecord.ID, tempPath, unlockUpload)
+	h.Manager.ProcessUploadComplete(appRecord.ID, archive, unlockUpload)
 
 	c.JSON(http.StatusOK, gin.H{
 		"status": "ok",

@@ -158,8 +158,9 @@ func (m *Manager) CreateApp(name, argsTemplate, args, exePath string, fileSize i
 
 // ProcessUploadComplete handles the post-upload pipeline: extract → detect → register.
 // Runs in a goroutine. unlockUpload releases the global upload lock when pipeline finishes.
-func (m *Manager) ProcessUploadComplete(appID, archivePath string, unlockUpload func()) {
+func (m *Manager) ProcessUploadComplete(appID string, archive *UploadArchive, unlockUpload func()) {
 	go func() {
+		defer func() { m.logIfErr("cleanup upload archive", archive.Cleanup()) }()
 		defer func() {
 			if r := recover(); r != nil {
 				m.logger.Error("上传处理 panic", zap.String("app_id", appID), zap.Any("panic", r))
@@ -172,13 +173,11 @@ func (m *Manager) ProcessUploadComplete(appID, archivePath string, unlockUpload 
 			return
 		}
 		defer unlock()
-		m.runPipeline(appID, archivePath, unlockUpload)
+		m.runPipeline(appID, archive.Path, unlockUpload)
 	}()
 }
 
 func (m *Manager) runPipeline(appID, archivePath string, unlockUpload func()) {
-	// This is the upload-owned temporary archive, including failure paths.
-	defer os.Remove(archivePath)
 	uploadLockReleased := false
 	releaseUploadLock := func() {
 		if !uploadLockReleased {

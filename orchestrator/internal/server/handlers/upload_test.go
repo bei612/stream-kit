@@ -78,7 +78,11 @@ func TestUploadPreservesCompoundArchiveAndCleansTemporaryFiles(t *testing.T) {
 					t.Fatal(err)
 				}
 				files, _ := os.ReadDir(cfg.Storage.TempDir)
-				if record.Status == model.AppStatusError && !manager.IsUploading() && len(files) == 0 {
+				archives, err := st.ListUploadArchives()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if record.Status == model.AppStatusError && !manager.IsUploading() && len(files) == 0 && len(archives) == 0 {
 					break
 				}
 				time.Sleep(10 * time.Millisecond)
@@ -89,6 +93,9 @@ func TestUploadPreservesCompoundArchiveAndCleansTemporaryFiles(t *testing.T) {
 			files, err := os.ReadDir(cfg.Storage.TempDir)
 			if err != nil || len(files) != 0 {
 				t.Fatalf("temporary archive leaked: %v %v", files, err)
+			}
+			if archives, err := st.ListUploadArchives(); err != nil || len(archives) != 0 {
+				t.Fatal("upload ownership journal did not settle", err)
 			}
 			output, err := os.ReadFile(filepath.Join(record.AppDir, "payload.bin"))
 			if test.corrupt {

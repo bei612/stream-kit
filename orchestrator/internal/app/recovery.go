@@ -7,8 +7,9 @@ import (
 )
 
 // RecoverInterruptedOperations runs before serving requests or starting workers.
-// It repairs workflow state only. Native ownership still requires an encoder
-// acknowledgement; startup must not delete files or infer that execution stopped.
+// It repairs workflow state and reclaims explicitly journaled staging files.
+// Native ownership still requires an encoder acknowledgement; startup must not
+// delete application directories or infer that execution stopped.
 func (m *Manager) RecoverInterruptedOperations() error {
 	apps, err := m.store.ListApps()
 	if err != nil {
@@ -34,5 +35,5 @@ func (m *Manager) RecoverInterruptedOperations() error {
 		}
 		m.logIfErr("record application recovery", m.store.CreateLog("app", record.ID, "recover", "success", reason, nil))
 	}
-	return nil
+	return m.recoverUploadArchives()
 }
