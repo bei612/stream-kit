@@ -58,6 +58,7 @@ type Connection struct {
 }
 
 type RenderSession struct {
+	ControlEpoch           uint64                 `json:"control_epoch"`
 	Revision               uint64                 `json:"revision"`
 	ID                     string                 `json:"session_id"`
 	HostID                 int64                  `json:"host_id"`
@@ -161,7 +162,17 @@ func (m *Manager) mutate(id, event string, change func(*RenderSession) error) er
 }
 
 func (m *Manager) commitLocked(next *RenderSession, event string) error {
+	if next.Revision == math.MaxUint64 {
+		return ErrInvalidState
+	}
 	next.Revision++
+	// The ownership generation is durable, independent of heartbeat revisions,
+	// and survives coalesced A -> B -> A publications.
+	previous := m.sessions[next.ID]
+	if previous == nil || previous.ControllerConnectionID != next.ControllerConnectionID ||
+		((previous.State == StateStopping || previous.State == StateStopped) != (next.State == StateStopping || next.State == StateStopped)) {
+		next.ControlEpoch = next.Revision
+	}
 	if err := m.persist(next); err != nil {
 		return fmt.Errorf("%w: %v", ErrPersistence, err)
 	}
@@ -234,15 +245,14 @@ func (m *Manager) Release(id string) error {
 	})
 }
 
-// Transfer changes ownership in one durable command. Comparing controller IDs
-// prevents two operators from silently overwriting each other without making
-// routine client heartbeat revisions invalidate an administrator's command.
-func (m *Manager) Transfer(id, connectionID, expectedControllerID string) error {
+// Transfer compares the observed ownership generation, not the heartbeat
+// revision. Even A -> B -> A cannot make a stale administrator command valid.
+func (m *Manager) Transfer(id, connectionID, expectedControllerID string, expectedEpoch uint64) error {
 	return m.mutate(id, "stream_controller_changed", func(s *RenderSession) error {
 		if s.State == StateStopped || s.State == StateStopping {
 			return ErrInvalidState
 		}
-		if s.ControllerConnectionID != expectedControllerID {
+		if s.ControllerConnectionID != expectedControllerID || s.ControlEpoch != expectedEpoch {
 			return ErrControllerChanged
 		}
 		c, ok := s.Connections[connectionID]
@@ -361,11 +371,11 @@ func (m *Manager) persist(s *RenderSession) error {
 	if err != nil {
 		return err
 	}
-	return m.store.UpsertStreamSession(&model.StreamSession{ID: s.ID, Revision: s.Revision, HostID: s.HostID, AppID: s.AppID, State: s.State, ControllerConnectionID: s.ControllerConnectionID, AudioJSON: audio, PolicyJSON: policy, ConnectionsJSON: connections, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt})
+	return m.store.UpsertStreamSession(&model.StreamSession{ID: s.ID, Revision: s.Revision, ControlEpoch: s.ControlEpoch, HostID: s.HostID, AppID: s.AppID, State: s.State, ControllerConnectionID: s.ControllerConnectionID, AudioJSON: audio, PolicyJSON: policy, ConnectionsJSON: connections, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt})
 }
 
 func fromRecord(record model.StreamSession) (*RenderSession, error) {
-	s := &RenderSession{ID: record.ID, Revision: record.Revision, HostID: record.HostID, AppID: record.AppID, State: record.State, ControllerConnectionID: record.ControllerConnectionID, CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt, Connections: map[string]*Connection{}}
+	s := &RenderSession{ID: record.ID, Revision: record.Revision, ControlEpoch: record.ControlEpoch, HostID: record.HostID, AppID: record.AppID, State: record.State, ControllerConnectionID: record.ControllerConnectionID, CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt, Connections: map[string]*Connection{}}
 	if err := store.DecodeStreamSessionSnapshot(&record, &s.Audio, &s.Policy, &s.Connections); err != nil {
 		return nil, err
 	}

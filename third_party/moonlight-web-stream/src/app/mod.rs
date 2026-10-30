@@ -37,6 +37,7 @@ use crate::app::{
 pub mod auth;
 pub mod control_state;
 pub mod host;
+pub mod input;
 pub mod media;
 pub mod media_observation;
 pub mod mixer;

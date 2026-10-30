@@ -40,11 +40,11 @@ async function main() {
   const log = fs.createWriteStream(path.join(fixture, 'gateway.log'));
   child.stdout.pipe(log, { end: false }); child.stderr.pipe(log, { end: false });
   const exited = once(child, 'exit');
-  const endpoint = `http://127.0.0.1:${port}/gateway/internal/v1/media-state`;
+  const endpoint = `http://127.0.0.1:${port}/gateway/internal/v2/media-state`;
   const post = async (state, valid = true) => {
     const body = JSON.stringify(state);
     return fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json',
-      'x-stream-state-signature': valid ? sign('stream-kit/media-state/v1\n', body) : '0'.repeat(64) }, body, signal: AbortSignal.timeout(2000) });
+      'x-stream-state-signature': valid ? sign('stream-kit/media-state/v2\n', body) : '0'.repeat(64) }, body, signal: AbortSignal.timeout(2000) });
   };
   try {
     let ready = false;
@@ -55,7 +55,7 @@ async function main() {
       await delay(100);
     }
     assert.ok(ready, 'Gateway readiness timeout');
-    const state = JSON.parse(fs.readFileSync(path.join(root, 'contracts/media-state/v1.fixture.json'), 'utf8'));
+    const state = JSON.parse(fs.readFileSync(path.join(root, 'contracts/media-state/v2.fixture.json'), 'utf8'));
     state.issued_at_ms = Date.now(); state.expires_at_ms = state.issued_at_ms + 10000;
     for (const connection of state.sessions[0].connections) connection.expires_at_ms = state.expires_at_ms;
     assert.equal((await post(state, false)).status, 401);
@@ -73,12 +73,27 @@ async function main() {
     assert.equal(ack.sessions[0].subscribers, 0);
     assert.deepEqual(ack.sessions[0].microphone_target, { state: 'idle', device: null });
     assert.equal((await post(state)).status, 400, 'Replay must fail');
+    for (const mutate of [
+      s => { s.schema_version = 1; },
+      s => { s.sessions[0].control_epoch = 0; },
+      s => { s.sessions[0].control_epoch--; },
+      s => { s.sessions[0].controller_connection_id = 'client-b'; },
+    ]) {
+      const invalid = structuredClone(state);
+      invalid.issued_at_ms++;
+      mutate(invalid);
+      assert.equal((await post(invalid)).status, 400, 'Invalid ownership generation/schema must fail');
+    }
+    state.issued_at_ms++; state.sessions[0].revision += 2; state.sessions[0].control_epoch += 2;
+    const transferred = await post(state);
+    assert.equal(transferred.status, 200, 'Coalesced A B A must accept the newer generation');
+    assert.equal((await transferred.json()).sessions[0].revision, 9);
     state.issued_at_ms++; state.sessions = [];
     const revoked = await post(state);
     assert.equal(revoked.status, 200);
     assert.deepEqual((await revoked.json()).sessions, []);
     const result = { passed: true, platform: process.platform, architecture: process.arch, at: new Date().toISOString(), gateway_sha256: crypto.createHash('sha256').update(fs.readFileSync(binary)).digest('hex'),
-      checks: ['signed HTTP acknowledgement', 'request/revision binding', 'unsigned rejection', 'replay rejection', 'configured idle target', 'revocation'],
+      checks: ['signed HTTP acknowledgement', 'request/revision binding', 'unsigned rejection', 'replay rejection', 'configured idle target', 'v1 rejection', 'invalid/rollback epoch rejection', 'coalesced ownership transfer', 'revocation'],
       scope: 'Isolated real gateway HTTP contract; no active media or target recording.' };
     fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(result, null, 2));
     console.log(JSON.stringify(result));

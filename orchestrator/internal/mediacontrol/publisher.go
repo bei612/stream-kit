@@ -21,13 +21,14 @@ import (
 	"go.uber.org/zap"
 )
 
-const SigningContext = "stream-kit/media-state/v1\n"
+const SigningContext = "stream-kit/media-state/v2\n"
 
 type Connection struct {
 	ID        string `json:"connection_id"`
 	ExpiresAt int64  `json:"expires_at_ms"`
 }
 type Session struct {
+	ControlEpoch uint64              `json:"control_epoch"`
 	ID           string              `json:"session_id"`
 	Revision     uint64              `json:"revision"`
 	HostID       int64               `json:"host_id"`
@@ -87,7 +88,7 @@ func New(manager *session.Manager, baseURL, secret string) *Publisher {
 	if manager == nil || baseURL == "" || secret == "" {
 		return nil
 	}
-	return &Publisher{manager: manager, endpoint: strings.TrimRight(baseURL, "/") + "/internal/v1/media-state", secret: []byte(secret), client: &http.Client{Timeout: 2 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
+	return &Publisher{manager: manager, endpoint: strings.TrimRight(baseURL, "/") + "/internal/v2/media-state", secret: []byte(secret), client: &http.Client{Timeout: 2 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 }
 func (p *Publisher) Sync(ctx context.Context) (err error) {
 	p.mu.Lock()
@@ -98,12 +99,12 @@ func (p *Publisher) Sync(ctx context.Context) (err error) {
 		now = p.lastIssued + 1
 	}
 	p.lastIssued = now
-	envelope := Envelope{SchemaVersion: 1, IssuedAt: now, ExpiresAt: now + 10000, Sessions: []Session{}}
+	envelope := Envelope{SchemaVersion: 2, IssuedAt: now, ExpiresAt: now + 10000, Sessions: []Session{}}
 	for _, s := range p.manager.List() {
 		if s.State == session.StateStopped || s.State == session.StateStopping {
 			continue
 		}
-		item := Session{ID: s.ID, Revision: s.Revision, HostID: s.HostID, AppID: s.AppID, ControllerID: s.ControllerConnectionID, Audio: s.Audio, Connections: []Connection{}}
+		item := Session{ID: s.ID, ControlEpoch: s.ControlEpoch, Revision: s.Revision, HostID: s.HostID, AppID: s.AppID, ControllerID: s.ControllerConnectionID, Audio: s.Audio, Connections: []Connection{}}
 		for _, c := range s.Connections {
 			if c.ExpiresAt.UnixMilli() > now {
 				item.Connections = append(item.Connections, Connection{ID: c.ID, ExpiresAt: c.ExpiresAt.UnixMilli()})

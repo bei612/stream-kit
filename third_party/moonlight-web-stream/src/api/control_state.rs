@@ -9,7 +9,7 @@ use actix_web::{
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
-#[post("/internal/v1/media-state")]
+#[post("/internal/v2/media-state")]
 pub async fn apply(
     req: HttpRequest,
     body: Bytes,
@@ -79,10 +79,10 @@ mod tests {
     use super::*;
     #[test]
     fn cross_language_signature_rejects_tampering_and_wrong_domain() {
-        let body = include_str!("../../../../contracts/media-state/v1.fixture.json")
+        let body = include_str!("../../../../contracts/media-state/v2.fixture.json")
             .trim()
             .as_bytes();
-        let signature = "b3efbc5198168d4923d53aaca0cfc4453d773a349712e0249a0e4b556623d98c";
+        let signature = "ba1977d27b1515dcba31b19028d754620ab0d7ec29b03eb2d67446edf915c427";
         let state = decode_signed_state("contract-test-secret", signature, body)
             .expect("signed state test setup must succeed");
         assert_eq!(state.sessions[0].host_id, 2636897928);

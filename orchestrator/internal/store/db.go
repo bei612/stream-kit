@@ -42,6 +42,11 @@ func New(dbPath string) (*Store, error) {
 	if err := db.AutoMigrate(&model.App{}, &model.OperationLog{}, &model.StreamSession{}); err != nil {
 		return nil, fmt.Errorf("auto migrate: %w", err)
 	}
+	// Backfill the pre-generation schema exactly once. Subsequent ownership
+	// changes store the new revision and generation in the same durable write.
+	if err := db.Model(&model.StreamSession{}).Where("control_epoch = 0").Update("control_epoch", gorm.Expr("CASE WHEN revision > 0 THEN revision ELSE 1 END")).Error; err != nil {
+		return nil, fmt.Errorf("migrate control epoch: %w", err)
+	}
 
 	return &Store{DB: db}, nil
 }

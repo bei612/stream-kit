@@ -4,10 +4,6 @@ use bytes::Bytes;
 
 use moonlight_common::stream::{
     audio::AudioFrame,
-    control::{
-        CompactKeyStates, KeyAction, KeyCode, KeyFlags, KeyModifiers, MouseButton,
-        MouseButtonAction,
-    },
     proto::{
         audio::AudioStreamEvent,
         control::{ControlStreamEvent, packet::ControlPacket},
@@ -52,9 +48,6 @@ pub async fn webrtc_loop(
 ) -> Result<(), AppError> {
     info!("started main webrtc loop");
 
-    let mut last_key_states_sequence_number = 0;
-    let mut last_key_states = CompactKeyStates::default();
-
     let mut peer_was_disconnected = true;
     let mut lease_check = tokio::time::interval(Duration::from_millis(250));
     loop {
@@ -70,7 +63,7 @@ pub async fn webrtc_loop(
                 if peer_was_disconnected {
                     // request idr after connecting
                     debug!("requesting idr after webrtc peers connected");
-                    if let Err(err) = stream.send_raw(ControlPacket::RequestIdr) {
+                    if let Err(err) = stream.send_raw(ControlPacket::RequestIdr).await {
                         warn!(error = %err, "failed to request initial idr");
                     }
                 }
@@ -118,7 +111,7 @@ pub async fn webrtc_loop(
                     }
                     MoonlightStreamEvent::Video(VideoStreamEvent::SignalIdr) => {
                         debug!("requesting idr on behalf of the video stream (packet loss likely)");
-                        if let Err(err) = stream.send_raw(ControlPacket::RequestIdr) {
+                        if let Err(err) = stream.send_raw(ControlPacket::RequestIdr).await {
                             warn!(error = %err, "failed to send idr");
                         }
                     }
@@ -162,7 +155,7 @@ pub async fn webrtc_loop(
                 match event {
                     VideoChannelEvent::SignalIdr => {
                         debug!("requesting idr because the webrtc client requested it");
-                        if let Err(err) = stream.send_raw(ControlPacket::RequestIdr) {
+                        if let Err(err) = stream.send_raw(ControlPacket::RequestIdr).await {
                             warn!(error = %err, "failed to send idr");
                         }
                     }
@@ -172,47 +165,22 @@ pub async fn webrtc_loop(
                 let event = result?;
 
                 match event {
-                    ControlChannelEvent::Packet(ControlPacket::WebState { sequence_number, keys }) => {
-                        if !media_registry.can_control(&media_key, &media_peer_id).await {
-                            debug!(peer_id = %media_peer_id, "dropping viewer keyboard state");
-                            continue;
-                        }
-                        // The server doesn't support this packet, so we must remove it
-                        if sequence_number <= last_key_states_sequence_number && sequence_number.abs_diff(last_key_states_sequence_number) < 1000 {
-                            // packets can be dropped when the sequence number is larger than the last the sequence number
-                            // and when the sequence number doesn't change dramatically
-                            continue;
-                        }
-                        last_key_states_sequence_number = sequence_number;
-
-                        let modifiers = extract_modifiers(keys);
-
-                        // Find newly pressed keys
-                        for changed_key in (keys & !last_key_states).pressed_iter() {
-                            send_key_change(&mut stream, modifiers, changed_key, KeyAction::Down);
-                        }
-
-                        // Find newly released keys
-                        for changed_key in (last_key_states & !keys).pressed_iter() {
-                            send_key_change(&mut stream, modifiers, changed_key, KeyAction::Up);
-                        }
-
-                        // Update last keys
-                        last_key_states = keys;
-
-                        continue;
-                    }
                     ControlChannelEvent::Packet(packet) => {
                         if !media_registry.can_control(&media_key, &media_peer_id).await {
                             debug!(peer_id = %media_peer_id, "dropping viewer control packet");
                             continue;
                         }
-                        if let Err(err) = stream.send_raw(packet) {
-                            warn!(error = %err, "failed to relay webrtc client packet to server");
+                        match stream.send_raw(packet).await {
+                            Ok(()) | Err(AppError::Forbidden) => {},
+                            // A dropped key-up cannot be repaired by waiting
+                            // for another event. End this attachment so the
+                            // shared runtime releases its accepted input.
+                            Err(error) => return Err(error),
                         }
                     },
                     ControlChannelEvent::Closed => {
                         info!("control channel closed");
+                        return Err(AppError::StreamClosed);
                     },
                 }
             }
@@ -225,7 +193,7 @@ pub async fn webrtc_loop(
                         data,
                     } => {
                         if media_registry.can_control(&media_key, &media_peer_id).await {
-                            stream.send_microphone_opus_data(timestamp, &data);
+                            stream.send_microphone_opus_data(timestamp, &data).await;
                         } else {
                             debug!(peer_id = %media_peer_id, "dropping viewer microphone frame");
                         }
@@ -239,103 +207,4 @@ pub async fn webrtc_loop(
     }
 
     Ok(())
-}
-
-fn send_key_change(
-    stream: &mut UpstreamPeer,
-    modifiers: KeyModifiers,
-    key_code: KeyCode,
-    action: KeyAction,
-) {
-    let mouse_button = match key_code {
-        KeyCode::VK_LBUTTON => Some(MouseButton::Left),
-        KeyCode::VK_MBUTTON => Some(MouseButton::Middle),
-        KeyCode::VK_RBUTTON => Some(MouseButton::Right),
-        KeyCode::VK_XBUTTON1 => Some(MouseButton::X1),
-        KeyCode::VK_XBUTTON2 => Some(MouseButton::X2),
-        _ => None,
-    };
-
-    let packet = if let Some(button) = mouse_button {
-        let action = if action == KeyAction::Down {
-            MouseButtonAction::Press
-        } else {
-            MouseButtonAction::Release
-        };
-
-        ControlPacket::MouseButton { action, button }
-    } else {
-        ControlPacket::Keyboard {
-            action,
-            flags: KeyFlags::empty(),
-            key_code,
-            modifiers,
-            zero: 0,
-        }
-    };
-
-    if let Err(err) = stream.send_raw(packet) {
-        warn!(error = %err, "failed to send control packet");
-    }
-}
-
-fn extract_modifiers(key_states: CompactKeyStates) -> KeyModifiers {
-    // Get current modifiers
-    let mut modifiers = KeyModifiers::empty();
-
-    if key_states.is_pressed(KeyCode::VK_SHIFT).expect("shift key") == KeyAction::Down
-        || key_states
-            .is_pressed(KeyCode::VK_LSHIFT)
-            .expect("left shift key")
-            == KeyAction::Down
-        || key_states
-            .is_pressed(KeyCode::VK_RSHIFT)
-            .expect("right shift key")
-            == KeyAction::Down
-    {
-        modifiers |= KeyModifiers::SHIFT;
-    }
-
-    if key_states
-        .is_pressed(KeyCode::VK_CONTROL)
-        .expect("control key")
-        == KeyAction::Down
-        || key_states
-            .is_pressed(KeyCode::VK_LCONTROL)
-            .expect("left control key")
-            == KeyAction::Down
-        || key_states
-            .is_pressed(KeyCode::VK_RCONTROL)
-            .expect("right control key")
-            == KeyAction::Down
-    {
-        modifiers |= KeyModifiers::CTRL;
-    }
-
-    if key_states.is_pressed(KeyCode::VK_MENU).expect("alt key") == KeyAction::Down
-        || key_states
-            .is_pressed(KeyCode::VK_LMENU)
-            .expect("left alt key")
-            == KeyAction::Down
-        || key_states
-            .is_pressed(KeyCode::VK_RMENU)
-            .expect("right alt key")
-            == KeyAction::Down
-    {
-        modifiers |= KeyModifiers::ALT;
-    }
-
-    if key_states
-        .is_pressed(KeyCode::VK_LWIN)
-        .expect("left windows key")
-        == KeyAction::Down
-        || key_states
-            .is_pressed(KeyCode::VK_RWIN)
-            .expect("right windows key")
-            == KeyAction::Down
-    {
-        modifiers |= KeyModifiers::META;
-    }
-
-    modifiers
 }

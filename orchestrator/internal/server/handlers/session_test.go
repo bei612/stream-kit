@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -19,6 +20,7 @@ func TestTransferEndpointRequiresExplicitExpectedController(t *testing.T) {
 	a, _ := m.AddConnection(s.ID, "a")
 	b, _ := m.AddConnection(s.ID, "b")
 	_ = m.Claim(s.ID, a.ID)
+	observed, _ := m.Get(s.ID)
 	h := NewSessionHandler(m, []byte("secret"))
 	router := gin.New()
 	router.PUT("/:session_id/controller/:connection_id", h.Transfer)
@@ -27,9 +29,10 @@ func TestTransferEndpointRequiresExplicitExpectedController(t *testing.T) {
 		status int
 	}{
 		{`{}`, http.StatusBadRequest},
-		{`{"expected_controller_connection_id":"stale"}`, http.StatusConflict},
-		{`{"expected_controller_connection_id":"` + a.ID + `"}`, http.StatusOK},
-		{`{"expected_controller_connection_id":"` + a.ID + `"}`, http.StatusConflict},
+		{`{"expected_controller_connection_id":"stale"}`, http.StatusBadRequest},
+		{fmt.Sprintf(`{"expected_controller_connection_id":"stale","expected_control_epoch":%d}`, observed.ControlEpoch), http.StatusConflict},
+		{fmt.Sprintf(`{"expected_controller_connection_id":"%s","expected_control_epoch":%d}`, a.ID, observed.ControlEpoch), http.StatusOK},
+		{fmt.Sprintf(`{"expected_controller_connection_id":"%s","expected_control_epoch":%d}`, a.ID, observed.ControlEpoch), http.StatusConflict},
 	} {
 		recorder := httptest.NewRecorder()
 		request := httptest.NewRequest(http.MethodPut, "/"+s.ID+"/controller/"+b.ID, bytes.NewBufferString(test.body))

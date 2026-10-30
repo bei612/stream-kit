@@ -12,7 +12,7 @@ import (
 )
 
 func TestObservationContractAuthenticationAndBinding(t *testing.T) {
-	requestBody, err := os.ReadFile("../../../contracts/media-state/v1.fixture.json")
+	requestBody, err := os.ReadFile("../../../contracts/media-state/v2.fixture.json")
 	if err != nil {
 		t.Fatal(err)
 	}

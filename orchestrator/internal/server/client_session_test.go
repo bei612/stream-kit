@@ -95,7 +95,8 @@ func TestManagedClientAdmissionAndAuthorityBoundaries(t *testing.T) {
 	token = heartbeat["connection_token"].(string)
 	ticket := request("POST", prefix+aid+"/ticket", token, nil, 200)["ticket"].(string)
 	request("GET", prefix+aid, ticket, nil, 401)
-	if err := manager.Transfer(sid, aid, ""); err != nil {
+	observed, _ := manager.Get(sid)
+	if err := manager.Transfer(sid, aid, "", observed.ControlEpoch); err != nil {
 		t.Fatal(err)
 	}
 	heartbeat = request("POST", prefix+aid+"/heartbeat", token, map[string]bool{"microphone": true, "microphone_live": true}, 200)

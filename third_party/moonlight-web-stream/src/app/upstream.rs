@@ -1,7 +1,7 @@
 //! A transport belongs to a rendering session, never to an individual browser.
 use super::{
     AppError,
-    media::{MediaSessionKey, MediaSessionRegistry},
+    media::{ControlGrant, MediaSessionKey, MediaSessionRegistry},
 };
 use moonlight_common::stream::{
     HostFeatures,
@@ -18,16 +18,19 @@ use std::{
     collections::HashMap,
     future::Future,
     sync::{Arc, Weak},
-    time::Duration,
+    time::{Duration, Instant},
 };
 use tokio::sync::{Mutex, broadcast, mpsc};
 
 enum Command {
-    Packet(String, ControlPacket),
-    Microphone(String, Duration, Vec<u8>),
+    Recovery,
+    Packet(ControlGrant, ControlPacket),
+    Microphone(ControlGrant, Instant, Duration, Vec<u8>),
 }
 
 struct Shared {
+    authority: MediaSessionRegistry,
+    key: MediaSessionKey,
     _slot: Arc<SessionSlot>,
     commands: mpsc::Sender<Command>,
     events: broadcast::Sender<Arc<MoonlightStreamEvent>>,
@@ -219,7 +222,8 @@ impl UpstreamPool {
             tracing::error!(%error, "cannot initialize session mixer");
             AppError::StreamClosed
         })?;
-        let mut microphone_peer: Option<String> = None;
+        let mut microphone_peer: Option<ControlGrant> = None;
+        let mut input = super::input::InputRuntime::default();
         let (commands, mut receiver) = mpsc::channel(256);
         let (events, _) = broadcast::channel(256);
         let mut features = stream.host_features();
@@ -227,6 +231,8 @@ impl UpstreamPool {
         // upstream host's Foundation extension. Target delivery is separate.
         features.microphone = true;
         let shared = Arc::new(Shared {
+            authority: authority.clone(),
+            key: key.clone(),
             _slot: slot.clone(),
             commands,
             events: events.clone(),
@@ -260,17 +266,20 @@ impl UpstreamPool {
                 }
                 tokio::select! {
                     timestamp = audio_clock.tick() => {
-                        let result = authority.with_audio_output(&key, |policy, controller| {
-                            mixer.configure(policy)?;
-                            if microphone_peer.as_deref() != controller {
-                                mixer.clear_microphone()?;
+                        let result = authority.with_runtime(&key, |policy, controller| {
+                            for packet in input.reconcile(controller.clone()) {
+                                resources.stream.send_raw(packet).map_err(|e| e.to_string())?;
+                            }
+                            mixer.configure(policy).map_err(|e| e.to_string())?;
+                            if microphone_peer != controller {
+                                mixer.clear_microphone().map_err(|e| e.to_string())?;
                                 if let Some(target) = &resources.target { target.clear(); }
-                                microphone_peer = controller.map(str::to_owned);
+                                microphone_peer = controller;
                             }
                             if !policy.microphone_enabled && let Some(target) = &resources.target {
                                 target.clear();
                             }
-                            let buffer = mixer.render(timestamp, std::time::Instant::now())?.into();
+                            let buffer = mixer.render(timestamp, Instant::now()).map_err(|e| e.to_string())?.into();
                             if let Some(target) = &resources.target {
                                 target.submit(mixer.target_pcm());
                                 if !target_fault_reported && !target.status().device_open {
@@ -279,42 +288,49 @@ impl UpstreamPool {
                                 }
                             }
                             let _ = events.send(Arc::new(MoonlightStreamEvent::Audio(AudioStreamEvent::OnFrame(AudioFrame { timestamp, buffer }))));
-                            Ok::<_, opus::Error>(())
+                            Ok::<_, String>(())
                         }).await;
                         match result {
                             Some(Ok(())) => {},
                             Some(Err(error)) => { tracing::warn!(%error, "session audio rendering failed"); break; },
                             None => {
+                                if input.reconcile(None).into_iter().any(|p| resources.stream.send_raw(p).is_err()) { break; }
                                 let _ = mixer.clear_microphone(); microphone_peer = None;
                                 if let Some(target) = &resources.target { target.clear(); }
                             },
                         }
                     },
                     command = receiver.recv() => match command {
-                        Some(Command::Packet(peer_id, packet)) => {
-                            // Viewers may request decoder recovery but cannot send input.
-                            let result = if matches!(packet, ControlPacket::RequestIdr) {
-                                Some(resources.stream.send_raw(packet))
-                            } else {
-                                authority.with_controller(&key, &peer_id, || resources.stream.send_raw(packet)).await
-                            };
+                        Some(Command::Recovery) => {
+                            if resources.stream.send_raw(ControlPacket::RequestIdr).is_err() { break; }
+                        }
+                        Some(Command::Packet(grant, packet)) => {
+                            let result = authority.with_controller(&key, &grant.peer_id, |current| {
+                                if current != grant { return Ok(()); }
+                                let mut packets = input.reconcile(Some(current));
+                                packets.extend(input.accept(packet));
+                                for packet in packets { resources.stream.send_raw(packet)?; }
+                                Ok::<_, moonlight_common::error::Error>(())
+                            }).await;
                             if matches!(result, Some(Err(_))) { break; }
                         }
-                        Some(Command::Microphone(peer_id, timestamp, bytes)) => {
-                            authority.with_microphone(&key, &peer_id, |policy| {
+                        Some(Command::Microphone(grant, arrived, timestamp, bytes)) => {
+                            authority.with_microphone(&key, &grant.peer_id, |policy, current| {
+                                // Age is measured at ingress, never at queue consumption.
+                                if current != grant || arrived.elapsed() >= Duration::from_millis(60) { return; }
                                 if let Err(error) = mixer.configure(policy) {
                                     tracing::warn!(%error, "cannot apply microphone policy");
                                     return;
                                 }
-                                if microphone_peer.as_deref() != Some(&peer_id) {
+                                if microphone_peer.as_ref() != Some(&current) {
                                     if let Err(error) = mixer.clear_microphone() {
                                         tracing::warn!(%error, "cannot clear previous microphone");
                                         return;
                                     }
                                     if let Some(target) = &resources.target { target.clear(); }
-                                    microphone_peer = Some(peer_id.clone());
+                                    microphone_peer = Some(current);
                                 }
-                                if let Err(error) = mixer.microphone(&bytes, std::time::Instant::now()) {
+                                if let Err(error) = mixer.microphone(&bytes, arrived) {
                                     tracing::warn!(%error, "invalid microphone Opus packet");
                                     return;
                                 }
@@ -344,6 +360,11 @@ impl UpstreamPool {
                 }
             }
             receiver.close();
+            for packet in input.reconcile(None) {
+                if let Err(error) = resources.stream.send_raw(packet) {
+                    tracing::debug!(%error, "input cleanup ended with transport error");
+                }
+            }
             if let Some(target) = &resources.target {
                 target.clear();
             }
@@ -379,21 +400,42 @@ impl UpstreamPeer {
     pub fn is_alive(&self) -> bool {
         !self.shared.commands.is_closed()
     }
-    pub fn send_raw(&mut self, packet: ControlPacket) -> Result<(), AppError> {
+    pub async fn send_raw(&mut self, packet: ControlPacket) -> Result<(), AppError> {
+        if matches!(packet, ControlPacket::RequestIdr) {
+            return self
+                .shared
+                .commands
+                .try_send(Command::Recovery)
+                .map_err(|_| AppError::StreamClosed);
+        }
         self.shared
-            .commands
-            .try_send(Command::Packet(self.peer_id.clone(), packet))
-            .map_err(|_| AppError::StreamClosed)
+            .authority
+            .with_controller(&self.shared.key, &self.peer_id, |grant| {
+                self.shared
+                    .commands
+                    .try_send(Command::Packet(grant, packet))
+                    .map_err(|_| AppError::StreamClosed)
+            })
+            .await
+            .unwrap_or(Err(AppError::Forbidden))
     }
-    pub fn send_microphone_opus_data(&mut self, timestamp: Duration, bytes: &[u8]) -> bool {
+    pub async fn send_microphone_opus_data(&mut self, timestamp: Duration, bytes: &[u8]) -> bool {
+        let arrived = Instant::now();
         self.shared
-            .commands
-            .try_send(Command::Microphone(
-                self.peer_id.clone(),
-                timestamp,
-                bytes.to_vec(),
-            ))
-            .is_ok()
+            .authority
+            .with_microphone(&self.shared.key, &self.peer_id, |_, grant| {
+                self.shared
+                    .commands
+                    .try_send(Command::Microphone(
+                        grant,
+                        arrived,
+                        timestamp,
+                        bytes.to_vec(),
+                    ))
+                    .is_ok()
+            })
+            .await
+            .unwrap_or(false)
     }
     pub async fn drive(&mut self) -> Result<Arc<MoonlightStreamEvent>, AppError> {
         loop {
@@ -401,7 +443,7 @@ impl UpstreamPeer {
                 _ = self.shared.commands.closed() => return Err(AppError::StreamClosed),
                 event = self.events.recv() => match event {
                     Ok(event) => return Ok(event),
-                    Err(broadcast::error::RecvError::Lagged(_)) => { self.send_raw(ControlPacket::RequestIdr)?; }
+                    Err(broadcast::error::RecvError::Lagged(_)) => { self.send_raw(ControlPacket::RequestIdr).await?; }
                     Err(broadcast::error::RecvError::Closed) => return Err(AppError::StreamClosed),
                 }
             }
@@ -547,7 +589,7 @@ mod tests {
 
     fn observed_session() -> super::super::control_state::SessionAuthority {
         let mut state: super::super::control_state::StateEnvelope = serde_json::from_str(
-            include_str!("../../../../contracts/media-state/v1.fixture.json"),
+            include_str!("../../../../contracts/media-state/v2.fixture.json"),
         )
         .expect("upstream test setup or assertion failed");
         let mut session = state.sessions.remove(0);
@@ -628,10 +670,13 @@ mod tests {
             host_id: HostId(1),
             app_id: AppId(2),
         };
+        let authority = MediaSessionRegistry::new();
         let (commands, mut receiver) = mpsc::channel(256);
         let (events, _) = broadcast::channel(256);
         let slot = Arc::new(SessionSlot::default());
         let shared = Arc::new(Shared {
+            authority: authority.clone(),
+            key: key.clone(),
             _slot: slot.clone(),
             commands,
             events,
@@ -685,11 +730,9 @@ mod tests {
         );
         second
             .send_raw(ControlPacket::RequestIdr)
+            .await
             .expect("upstream test setup or assertion failed");
-        assert!(matches!(
-            receiver.recv().await,
-            Some(Command::Packet(_, ControlPacket::RequestIdr))
-        ));
+        assert!(matches!(receiver.recv().await, Some(Command::Recovery)));
         drop(second);
         assert!(
             receiver.recv().await.is_none(),

@@ -116,7 +116,7 @@ export default function StreamSessions() {
                 <div className="flex flex-wrap gap-2">
                   {isController
                     ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void action(() => api.releaseStreamController(session.session_id))}><Unlock className="w-3 h-3" />释放控制权</Button>
-                    : <Button size="sm" disabled={busy || expired} onClick={() => void action(() => api.transferStreamController(session.session_id, connection.connection_id, session.controller_connection_id ?? ''))}><Crown className="w-3 h-3" />{session.controller_connection_id ? '转移控制权' : '授予控制权'}</Button>}
+                    : <Button size="sm" disabled={busy || expired} onClick={() => void action(() => api.transferStreamController(session.session_id, connection.connection_id, session.controller_connection_id ?? '', session.control_epoch))}><Crown className="w-3 h-3" />{session.controller_connection_id ? '转移控制权' : '授予控制权'}</Button>}
                   <Button size="sm" variant="destructive" disabled={busy} onClick={() => void action(() => api.disconnectStreamConnection(session.session_id, connection.connection_id))}><UserX className="w-3 h-3" />断开连接</Button>
                 </div>
               </div>

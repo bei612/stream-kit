@@ -25,6 +25,7 @@ export interface SessionConnection {
 }
 
 export interface RenderSession {
+  control_epoch: number
   session_id: string
   revision: number
   host_id: number

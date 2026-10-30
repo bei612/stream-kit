@@ -114,9 +114,9 @@ export const api = {
   listStreamSessions: () => request<RenderSession[]>('/stream-sessions'),
   getStreamSession: (id: string) => request<RenderSession>(`/stream-sessions/${id}`),
   getMediaControl: () => request<MediaControlStatus>('/media-control'),
-  transferStreamController: (sessionId: string, connectionId: string, expectedControllerId: string) =>
+  transferStreamController: (sessionId: string, connectionId: string, expectedControllerId: string, expectedControlEpoch: number) =>
     request<RenderSession>(`/stream-sessions/${sessionId}/controller/${connectionId}`, {
-      method: 'PUT', body: JSON.stringify({ expected_controller_connection_id: expectedControllerId }),
+      method: 'PUT', body: JSON.stringify({ expected_controller_connection_id: expectedControllerId, expected_control_epoch: expectedControlEpoch }),
     }),
   updateStreamAudio: (sessionId: string, audio: SessionAudio) =>
     request<RenderSession>(`/stream-sessions/${sessionId}/audio`, { method: 'PATCH', body: JSON.stringify(audio) }),

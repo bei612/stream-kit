@@ -5,6 +5,7 @@ import "time"
 // StreamSession stores the control-plane snapshot. JSON columns keep the
 // schema stable while the media plane evolves independently.
 type StreamSession struct {
+	ControlEpoch           uint64    `json:"control_epoch" gorm:"not null;default:0"`
 	Revision               uint64    `json:"revision" gorm:"not null;default:0"`
 	ID                     string    `json:"id" gorm:"primaryKey;size:36"`
 	HostID                 int64     `json:"host_id" gorm:"index;not null"`

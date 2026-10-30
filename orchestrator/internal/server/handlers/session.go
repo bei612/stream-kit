@@ -163,12 +163,13 @@ func (h *SessionHandler) Release(c *gin.Context) {
 func (h *SessionHandler) Transfer(c *gin.Context) {
 	var req struct {
 		ExpectedControllerID *string `json:"expected_controller_connection_id"`
+		ExpectedControlEpoch uint64  `json:"expected_control_epoch"`
 	}
-	if c.ShouldBindJSON(&req) != nil || req.ExpectedControllerID == nil {
-		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", "expected controller is required")
+	if c.ShouldBindJSON(&req) != nil || req.ExpectedControllerID == nil || req.ExpectedControlEpoch == 0 {
+		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", "expected controller and control epoch are required")
 		return
 	}
-	if err := h.Manager.Transfer(c.Param("session_id"), c.Param("connection_id"), *req.ExpectedControllerID); err != nil {
+	if err := h.Manager.Transfer(c.Param("session_id"), c.Param("connection_id"), *req.ExpectedControllerID, req.ExpectedControlEpoch); err != nil {
 		respondSessionError(c, err)
 		return
 	}

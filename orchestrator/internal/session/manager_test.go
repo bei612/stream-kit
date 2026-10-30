@@ -24,9 +24,10 @@ func TestConcurrentControllerTransferIsAtomic(t *testing.T) {
 	if err = m.Heartbeat(s.ID, a.ID, true, true); err != nil {
 		t.Fatal(err)
 	}
+	observed, _ := m.Get(s.ID)
 	results := make(chan error, 2)
 	for _, id := range []string{b.ID, c.ID} {
-		go func(target string) { results <- m.Transfer(s.ID, target, a.ID) }(id)
+		go func(target string) { results <- m.Transfer(s.ID, target, a.ID, observed.ControlEpoch) }(id)
 	}
 	successes := 0
 	for range 2 {
@@ -53,7 +54,7 @@ func TestConcurrentControllerTransferIsAtomic(t *testing.T) {
 	if controllers != 1 || current.Connections[a.ID].MicrophoneLive {
 		t.Fatal("previous controller retained authority")
 	}
-	if err = m.Transfer(s.ID, "missing", current.ControllerConnectionID); !errors.Is(err, ErrNotFound) {
+	if err = m.Transfer(s.ID, "missing", current.ControllerConnectionID, current.ControlEpoch); !errors.Is(err, ErrNotFound) {
 		t.Fatal(err)
 	}
 	after, _ := m.Get(s.ID)

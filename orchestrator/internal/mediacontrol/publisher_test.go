@@ -19,7 +19,7 @@ import (
 )
 
 func TestCrossLanguageContract(t *testing.T) {
-	body, err := os.ReadFile("../../../contracts/media-state/v1.fixture.json")
+	body, err := os.ReadFile("../../../contracts/media-state/v2.fixture.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func TestCrossLanguageContract(t *testing.T) {
 	mac := hmac.New(sha256.New, []byte("contract-test-secret"))
 	mac.Write([]byte(SigningContext))
 	mac.Write(body)
-	if hex.EncodeToString(mac.Sum(nil)) != "b3efbc5198168d4923d53aaca0cfc4453d773a349712e0249a0e4b556623d98c" {
+	if hex.EncodeToString(mac.Sum(nil)) != "ba1977d27b1515dcba31b19028d754620ab0d7ec29b03eb2d67446edf915c427" {
 		t.Fatal("wire signature changed")
 	}
 }
@@ -52,7 +52,7 @@ func TestPublisherReconcilesCommittedChangesAndStops(t *testing.T) {
 		mac.Write([]byte(SigningContext))
 		mac.Write(body)
 		signature, _ := hex.DecodeString(r.Header.Get("X-Stream-State-Signature"))
-		if r.Method != http.MethodPost || r.URL.Path != "/internal/v1/media-state" || !hmac.Equal(signature, mac.Sum(nil)) {
+		if r.Method != http.MethodPost || r.URL.Path != "/internal/v2/media-state" || !hmac.Equal(signature, mac.Sum(nil)) {
 			t.Error("invalid signed request")
 			w.WriteHeader(401)
 			return

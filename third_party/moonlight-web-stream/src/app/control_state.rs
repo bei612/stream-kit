@@ -7,7 +7,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-pub const SIGNING_CONTEXT: &[u8] = b"stream-kit/media-state/v1\n";
+pub const SIGNING_CONTEXT: &[u8] = b"stream-kit/media-state/v2\n";
 pub fn now_ms() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -23,7 +23,7 @@ mod tests {
     const NOW: i64 = 1700000000000;
     fn fixture() -> StateEnvelope {
         serde_json::from_str(include_str!(
-            "../../../../contracts/media-state/v1.fixture.json"
+            "../../../../contracts/media-state/v2.fixture.json"
         ))
         .expect("valid authority fixture must be accepted")
     }
@@ -45,6 +45,7 @@ mod tests {
         let mut transfer = fixture();
         transfer.issued_at_ms += 1;
         transfer.sessions[0].revision += 1;
+        transfer.sessions[0].control_epoch += 1;
         transfer.sessions[0].controller_connection_id = "client-b".into();
         transfer.sessions[0].connections[1].expires_at_ms = NOW + 100;
         state
@@ -99,6 +100,44 @@ mod tests {
             assert!(ControlState::default().apply(envelope, NOW).is_err());
         }
     }
+
+    #[test]
+    fn rejects_old_schema_and_invalid_control_generations_atomically() {
+        let mut state = ControlState::default();
+        state.apply(fixture(), NOW).expect("initial state");
+        for (epoch, revision, controller) in [
+            (0, 8, "client-a"),
+            (9, 8, "client-a"),
+            (4, 8, "client-a"),
+            (5, 8, "client-b"),
+        ] {
+            let mut next = fixture();
+            next.issued_at_ms += 1;
+            next.sessions[0].control_epoch = epoch;
+            next.sessions[0].revision = revision;
+            next.sessions[0].controller_connection_id = controller.into();
+            assert!(state.apply(next, NOW + 1).is_err());
+            assert!(state.controls(&key(), "client-a", NOW + 1));
+        }
+        let mut old = fixture();
+        old.schema_version = 1;
+        old.issued_at_ms += 1;
+        assert!(state.apply(old, NOW + 1).is_err());
+        let mut coalesced = fixture();
+        coalesced.issued_at_ms += 1;
+        coalesced.sessions[0].control_epoch += 2;
+        coalesced.sessions[0].revision += 2;
+        state
+            .apply(coalesced, NOW + 1)
+            .expect("coalesced A B A must retain new epoch");
+        assert_eq!(
+            state
+                .session(&key(), NOW + 1)
+                .expect("session")
+                .control_epoch,
+            7
+        );
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -125,6 +164,7 @@ pub struct ConnectionAuthority {
 }
 #[derive(Clone, Debug, Deserialize)]
 pub struct SessionAuthority {
+    pub control_epoch: u64,
     pub session_id: String,
     pub revision: u64,
     pub host_id: u32,
@@ -149,7 +189,7 @@ pub struct ControlState {
 }
 impl ControlState {
     pub fn apply(&mut self, envelope: StateEnvelope, now: i64) -> Result<(), AppError> {
-        if envelope.schema_version != 1
+        if envelope.schema_version != 2
             || envelope.issued_at_ms <= self.issued_at_ms
             || envelope.issued_at_ms > now + 2000
             || envelope.expires_at_ms <= now
@@ -162,6 +202,8 @@ impl ControlState {
         for session in envelope.sessions {
             if session.session_id.is_empty()
                 || session.revision == 0
+                || session.control_epoch == 0
+                || session.control_epoch > session.revision
                 || !(-60.0..=12.0).contains(&session.audio.program_gain_db)
                 || !(-60.0..=12.0).contains(&session.audio.microphone_gain_db)
             {
@@ -183,7 +225,11 @@ impl ControlState {
             let key = (session.host_id, session.app_id);
             if let Some(old) = self.sessions.get(&key)
                 && old.session_id == session.session_id
-                && old.revision > session.revision
+                && (old.revision > session.revision
+                    || old.control_epoch > session.control_epoch
+                    || (!session.controller_connection_id.is_empty()
+                        && old.controller_connection_id != session.controller_connection_id
+                        && old.control_epoch == session.control_epoch))
             {
                 return Err(AppError::BadRequest);
             }

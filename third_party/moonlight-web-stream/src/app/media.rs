@@ -1,6 +1,9 @@
 use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
+    collections::HashMap,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
     time::SystemTime,
 };
 
@@ -105,13 +108,24 @@ fn chrono_like_now() -> i64 {
 struct MediaSessionState {
     // Membership and controller identity are independent. Managed authority is
     // always read from the signed projection, never a cached per-peer role.
-    peers: HashSet<String>,
+    peers: HashMap<String, u64>,
+    control_epoch: u64,
     controller_id: Option<String>,
+}
+
+/// A command is bound to both durable ownership and a physical attachment.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ControlGrant {
+    pub peer_id: String,
+    session_id: String,
+    epoch: u64,
+    attachment: u64,
 }
 
 #[derive(Clone, Debug)]
 pub struct MediaSessionRegistry {
     pub control: Arc<RwLock<super::control_state::ControlState>>,
+    generation: Arc<AtomicU64>,
     sessions: Arc<RwLock<HashMap<MediaSessionKey, MediaSessionState>>>,
 }
 
@@ -126,27 +140,28 @@ impl MediaSessionRegistry {
         Self {
             sessions: Arc::new(RwLock::new(HashMap::new())),
             control: Default::default(),
+            generation: Arc::new(AtomicU64::new(1)),
         }
     }
 
     pub async fn attach(&self, key: MediaSessionKey, peer_id: String) -> Result<(), AppError> {
         let mut sessions = self.sessions.write().await;
         let session = sessions.entry(key).or_insert_with(|| MediaSessionState {
-            peers: HashSet::new(),
+            peers: HashMap::new(),
+            control_epoch: 0,
             controller_id: None,
         });
-        if !session.peers.insert(peer_id) {
+        if session.peers.contains_key(&peer_id) {
             return Err(AppError::BadRequest);
         }
+        session.peers.insert(peer_id, self.next_generation()?);
         Ok(())
     }
 
     pub async fn detach(&self, key: &MediaSessionKey, peer_id: &str) -> Option<()> {
         let mut sessions = self.sessions.write().await;
         let session = sessions.get_mut(key)?;
-        if !session.peers.remove(peer_id) {
-            return None;
-        }
+        session.peers.remove(peer_id)?;
 
         if session.controller_id.as_deref() == Some(peer_id) {
             session.controller_id = None;
@@ -165,7 +180,7 @@ impl MediaSessionRegistry {
     ) -> Result<(), AppError> {
         let mut sessions = self.sessions.write().await;
         let session = sessions.get_mut(key).ok_or(AppError::StreamClosed)?;
-        if !session.peers.contains(peer_id) {
+        if !session.peers.contains_key(peer_id) {
             return Err(AppError::StreamClosed);
         }
         if let Some(current) = session.controller_id.as_deref()
@@ -174,115 +189,206 @@ impl MediaSessionRegistry {
         {
             return Err(AppError::Forbidden);
         }
-        session.controller_id = Some(peer_id.to_owned());
+        if session.controller_id.as_deref() != Some(peer_id) {
+            session.control_epoch = self.next_generation()?;
+            session.controller_id = Some(peer_id.to_owned());
+        }
         Ok(())
     }
 
-    pub async fn can_control(&self, key: &MediaSessionKey, peer_id: &str) -> bool {
-        let control = self.control.read().await;
-        if control.required {
-            return control.controls(key, peer_id, super::control_state::now_ms());
-        }
-        self.sessions
-            .read()
-            .await
-            .get(key)
-            .and_then(|s| s.controller_id.as_deref())
-            .is_some_and(|id| id == peer_id)
+    fn next_generation(&self) -> Result<u64, AppError> {
+        self.generation
+            .try_update(Ordering::Relaxed, Ordering::Relaxed, |n| n.checked_add(1))
+            .map_err(|_| AppError::StreamClosed)
     }
 
-    /// Keep the read lock until the synchronous transport operation completes,
-    /// so a controller transfer cannot race an already checked queued command.
+    pub async fn can_control(&self, key: &MediaSessionKey, peer_id: &str) -> bool {
+        self.with_controller(key, peer_id, |_| ()).await.is_some()
+    }
+
     pub async fn with_controller<T>(
         &self,
         key: &MediaSessionKey,
         peer_id: &str,
-        action: impl FnOnce() -> T,
+        action: impl FnOnce(ControlGrant) -> T,
     ) -> Option<T> {
-        self.with_authority(key, peer_id, false, |_| action()).await
+        self.with_runtime(key, |_, grant| {
+            grant.filter(|g| g.peer_id == peer_id).map(action)
+        })
+        .await
+        .flatten()
     }
 
     pub async fn with_microphone<T>(
         &self,
         key: &MediaSessionKey,
         peer_id: &str,
-        action: impl FnOnce(&super::control_state::AudioPolicy) -> T,
+        action: impl FnOnce(&super::control_state::AudioPolicy, ControlGrant) -> T,
     ) -> Option<T> {
-        self.with_authority(key, peer_id, true, action).await
-    }
-
-    async fn with_authority<T>(
-        &self,
-        key: &MediaSessionKey,
-        peer_id: &str,
-        microphone: bool,
-        action: impl FnOnce(&super::control_state::AudioPolicy) -> T,
-    ) -> Option<T> {
-        let control = self.control.read().await;
-        if control.required {
-            let now = super::control_state::now_ms();
-            if !control.controls(key, peer_id, now) {
-                return None;
-            }
-            // A logical lease cannot authorize queued input from a detached
-            // transport. Hold both read locks through delivery so detach and
-            // control transfer share the same boundary.
-            let sessions = self.sessions.read().await;
-            if !sessions.get(key).is_some_and(|s| s.peers.contains(peer_id)) {
-                return None;
-            }
-            let policy = &control.session(key, now)?.audio;
-            return if !microphone || policy.microphone_enabled {
-                Some(action(policy))
-            } else {
-                None
-            };
-        }
-        let sessions = self.sessions.read().await;
-        if sessions.get(key).and_then(|s| s.controller_id.as_deref()) == Some(peer_id) {
-            Some(action(&Default::default()))
-        } else {
-            None
-        }
+        self.with_runtime(key, |policy, grant| {
+            grant
+                .filter(|g| g.peer_id == peer_id && policy.microphone_enabled)
+                .map(|grant| action(policy, grant))
+        })
+        .await
+        .flatten()
     }
 
     pub async fn admitted(&self, key: &MediaSessionKey, peer_id: &str) -> bool {
         let control = self.control.read().await;
         !control.required || control.admits(key, peer_id, super::control_state::now_ms())
     }
-    /// Select policy and controller atomically, and hold authority through
-    /// publishing the mixed frame so transfer cannot race buffered microphone.
-    pub async fn with_audio_output<T>(
+
+    /// One atomic boundary for input, microphone and output. Both projection
+    /// and attachment locks remain held until the synchronous operation ends.
+    pub async fn with_runtime<T>(
         &self,
         key: &MediaSessionKey,
-        action: impl FnOnce(&super::control_state::AudioPolicy, Option<&str>) -> T,
+        action: impl FnOnce(&super::control_state::AudioPolicy, Option<ControlGrant>) -> T,
     ) -> Option<T> {
         let control = self.control.read().await;
+        let sessions = self.sessions.read().await;
         if control.required {
             let now = super::control_state::now_ms();
             let session = control.session(key, now)?;
-            let controller = session.controller_connection_id.as_str();
-            let sessions = self.sessions.read().await;
-            let attached = sessions
+            let controller = &session.controller_connection_id;
+            let grant = sessions
                 .get(key)
-                .is_some_and(|s| s.peers.contains(controller));
-            return Some(action(
-                &session.audio,
-                (attached && control.controls(key, controller, now)).then_some(controller),
-            ));
+                .and_then(|s| s.peers.get(controller))
+                .filter(|_| control.controls(key, controller, now))
+                .map(|attachment| ControlGrant {
+                    peer_id: controller.clone(),
+                    session_id: session.session_id.clone(),
+                    epoch: session.control_epoch,
+                    attachment: *attachment,
+                });
+            return Some(action(&session.audio, grant));
         }
-        let sessions = self.sessions.read().await;
         let session = sessions.get(key)?;
-        Some(action(
-            &Default::default(),
-            session.controller_id.as_deref(),
-        ))
+        let grant = session.controller_id.as_ref().and_then(|id| {
+            session.peers.get(id).map(|attachment| ControlGrant {
+                peer_id: id.clone(),
+                session_id: String::new(),
+                epoch: session.control_epoch,
+                attachment: *attachment,
+            })
+        });
+        Some(action(&Default::default(), grant))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn grants_distinguish_reattach_and_coalesced_managed_transfer() {
+        use super::super::control_state::{StateEnvelope, now_ms};
+        let registry = MediaSessionRegistry::new();
+        let now = now_ms();
+        let fixture = || {
+            let mut state: StateEnvelope = serde_json::from_str(include_str!(
+                "../../../../contracts/media-state/v2.fixture.json"
+            ))
+            .expect("fixture");
+            state.issued_at_ms = now;
+            state.expires_at_ms = now + 10000;
+            state.sessions[0].host_id = 1;
+            state.sessions[0].app_id = 2;
+            for c in &mut state.sessions[0].connections {
+                c.expires_at_ms = now + 10000;
+            }
+            state
+        };
+        registry.control.write().await.required = true;
+        registry
+            .control
+            .write()
+            .await
+            .apply(fixture(), now)
+            .expect("initial state");
+        registry
+            .attach(key(), "client-a".into())
+            .await
+            .expect("attach");
+        let old = registry
+            .with_controller(&key(), "client-a", |g| g)
+            .await
+            .expect("grant");
+        let mut heartbeat = fixture();
+        heartbeat.issued_at_ms += 1;
+        heartbeat.sessions[0].revision += 1;
+        registry
+            .control
+            .write()
+            .await
+            .apply(heartbeat, now + 1)
+            .expect("heartbeat");
+        assert_eq!(
+            registry.with_controller(&key(), "client-a", |g| g).await,
+            Some(old.clone())
+        );
+        let mut transfer = fixture();
+        transfer.issued_at_ms += 2;
+        transfer.sessions[0].revision += 3;
+        transfer.sessions[0].control_epoch += 2;
+        registry
+            .control
+            .write()
+            .await
+            .apply(transfer, now + 2)
+            .expect("coalesced transfer");
+        let new = registry
+            .with_controller(&key(), "client-a", |g| g)
+            .await
+            .expect("new grant");
+        assert_ne!(
+            old, new,
+            "same controller ID must not revive old queued commands"
+        );
+        registry.detach(&key(), "client-a").await.expect("detach");
+        registry
+            .attach(key(), "client-a".into())
+            .await
+            .expect("reattach");
+        let reattached = registry
+            .with_controller(&key(), "client-a", |g| g)
+            .await
+            .expect("reattached grant");
+        assert_ne!(
+            new, reattached,
+            "old physical transport must not survive reconnect"
+        );
+        assert_eq!(reattached.epoch, new.epoch);
+    }
+
+    #[tokio::test]
+    async fn standalone_transfer_also_invalidates_queued_grants() {
+        let registry = MediaSessionRegistry::new();
+        registry.attach(key(), "a".into()).await.expect("attach a");
+        registry.attach(key(), "b".into()).await.expect("attach b");
+        registry
+            .claim_controller(&key(), "a", false)
+            .await
+            .expect("claim a");
+        let old = registry
+            .with_controller(&key(), "a", |g| g)
+            .await
+            .expect("grant");
+        registry
+            .claim_controller(&key(), "b", true)
+            .await
+            .expect("transfer b");
+        registry
+            .claim_controller(&key(), "a", true)
+            .await
+            .expect("transfer a");
+        let new = registry
+            .with_controller(&key(), "a", |g| g)
+            .await
+            .expect("grant");
+        assert_ne!(old, new);
+    }
 
     fn signed_ticket(exp: i64, role: &str) -> String {
         let header = URL_SAFE_NO_PAD.encode(br#"{"alg":"HS256","typ":"MEDIA"}"#);
@@ -362,25 +468,25 @@ mod tests {
             .claim_controller(&key(), "a", false)
             .await
             .expect("media authority test setup must succeed");
-        assert_eq!(registry.with_controller(&key(), "a", || 1).await, Some(1));
+        assert_eq!(registry.with_controller(&key(), "a", |_| 1).await, Some(1));
         registry
             .claim_controller(&key(), "b", true)
             .await
             .expect("media authority test setup must succeed");
         assert!(
             registry
-                .with_controller(&key(), "a", || panic!("revoked input sent"))
+                .with_controller(&key(), "a", |_| panic!("revoked input sent"))
                 .await
                 .is_none()
         );
-        assert_eq!(registry.with_controller(&key(), "b", || 2).await, Some(2));
+        assert_eq!(registry.with_controller(&key(), "b", |_| 2).await, Some(2));
         registry
             .detach(&key(), "b")
             .await
             .expect("media authority test setup must succeed");
         assert!(
             registry
-                .with_controller(&key(), "b", || panic!("detached microphone sent"))
+                .with_controller(&key(), "b", |_| panic!("detached microphone sent"))
                 .await
                 .is_none()
         );
@@ -392,7 +498,7 @@ mod tests {
         let registry = MediaSessionRegistry::new();
         let now = now_ms();
         let mut state: StateEnvelope = serde_json::from_str(include_str!(
-            "../../../../contracts/media-state/v1.fixture.json"
+            "../../../../contracts/media-state/v2.fixture.json"
         ))
         .expect("media authority test setup must succeed");
         state.issued_at_ms = now;
@@ -411,7 +517,7 @@ mod tests {
         }
         assert_eq!(
             registry
-                .with_audio_output(&key(), |_, controller| controller.map(str::to_owned))
+                .with_runtime(&key(), |_, controller| controller.map(|g| g.peer_id))
                 .await,
             Some(None)
         );
@@ -421,7 +527,7 @@ mod tests {
             .expect("attach controller transport");
         assert_eq!(
             registry
-                .with_audio_output(&key(), |policy, controller| {
+                .with_runtime(&key(), |policy, controller| {
                     assert!(
                         registry.control.try_write().is_err(),
                         "publication must retain authority lock"
@@ -431,14 +537,14 @@ mod tests {
                         registry.sessions.try_write().is_err(),
                         "publication must retain membership lock"
                     );
-                    controller.map(str::to_owned)
+                    controller.map(|g| g.peer_id)
                 })
                 .await,
             Some(Some("client-a".to_owned()))
         );
 
         assert_eq!(
-            registry.with_controller(&key(), "client-a", || 1).await,
+            registry.with_controller(&key(), "client-a", |_| 1).await,
             Some(1)
         );
         registry
@@ -447,13 +553,13 @@ mod tests {
             .expect("detach controller transport");
         assert!(
             registry
-                .with_controller(&key(), "client-a", || panic!("detached input delivered"))
+                .with_controller(&key(), "client-a", |_| panic!("detached input delivered"))
                 .await
                 .is_none()
         );
         assert!(
             registry
-                .with_microphone(&key(), "client-a", |_| panic!(
+                .with_microphone(&key(), "client-a", |_, _| panic!(
                     "detached microphone delivered"
                 ))
                 .await
@@ -461,7 +567,7 @@ mod tests {
         );
         assert_eq!(
             registry
-                .with_audio_output(&key(), |_, controller| controller.map(str::to_owned))
+                .with_runtime(&key(), |_, controller| controller.map(|g| g.peer_id))
                 .await,
             Some(None)
         );
@@ -474,7 +580,7 @@ mod tests {
             .await
             .apply(
                 StateEnvelope {
-                    schema_version: 1,
+                    schema_version: 2,
                     issued_at_ms: now + 1,
                     expires_at_ms: now + 10000,
                     sessions: vec![],
@@ -484,7 +590,7 @@ mod tests {
             .expect("media authority test setup must succeed");
         assert!(
             registry
-                .with_audio_output(&key(), |_, _| panic!("revoked session published audio"))
+                .with_runtime(&key(), |_, _| panic!("revoked session published audio"))
                 .await
                 .is_none()
         );
