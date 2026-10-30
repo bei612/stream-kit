@@ -9,9 +9,13 @@ export type MediaAccess = {
     expiresAt: string
     role: "viewer" | "controller"
     microphoneEnabled: boolean
+    revision?: number
+    controlEpoch?: number
 }
 
 type ConnectionResponse = {
+    revision?: number
+    control_epoch?: number
     session_id: string
     host_id: number
     app_id: number
@@ -77,6 +81,7 @@ export async function acquireMediaAccess(hostId: number, appId: number): Promise
         baseUrl, bearer: joined.connection_token, sessionId: joined.session_id,
         connectionId: joined.connection.connection_id, role: joined.connection.role,
         microphoneEnabled: joined.audio?.microphone_enabled === true,
+        revision: joined.revision, controlEpoch: joined.control_epoch,
         ticket: "", expiresAt: "",
     }
     try {
@@ -99,9 +104,19 @@ export async function refreshMediaTicket(access: MediaAccess): Promise<void> {
 
 export async function mediaHeartbeat(access: MediaAccess, microphone: boolean, live: boolean): Promise<void> {
     const current = await request<ConnectionResponse>(access.baseUrl, access.bearer, `${path(access)}/heartbeat`, "POST", { microphone, microphone_live: live })
+    applyConnectionState(access, current)
+}
+
+function applyConnectionState(access: MediaAccess, current: ConnectionResponse): void {
+    if (current.session_id !== access.sessionId || current.connection.connection_id !== access.connectionId) {
+        throw new MediaAccessError("Connection identity does not match", 401)
+    }
+    if (Number.isSafeInteger(current.revision) && Number.isSafeInteger(access.revision) && current.revision! < access.revision!) return
     access.bearer = current.connection_token
     access.role = current.connection.role
     access.microphoneEnabled = current.audio?.microphone_enabled === true
+    access.revision = current.revision
+    access.controlEpoch = current.control_epoch
 }
 
 export async function releaseMediaAccess(access: MediaAccess): Promise<void> {
@@ -113,8 +128,6 @@ export async function resumeMediaAccess(access: MediaAccess): Promise<void> {
     if (current.session_id !== access.sessionId || current.connection.connection_id !== access.connectionId) {
         throw new MediaAccessError("Resumed connection identity does not match", 401)
     }
-    access.bearer = current.connection_token
-    access.role = current.connection.role
-    access.microphoneEnabled = current.audio?.microphone_enabled === true
+    applyConnectionState(access, current)
     await refreshMediaTicket(access)
 }

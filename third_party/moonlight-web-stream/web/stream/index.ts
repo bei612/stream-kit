@@ -116,6 +116,8 @@ export class Stream implements Component {
     private videoRenderer: VideoRenderer | null = null
     private audioPlayer: AudioPlayer | null = null
     private microphoneListener: MicrophoneSource | null = null
+    private microphoneResumeKey: string | null = null
+    private microphoneSourceKey: string | null = null
 
     private input: StreamInput
     private stats: StreamStats
@@ -384,7 +386,7 @@ export class Stream implements Component {
                     await apiMediaHeartbeat(access, this.settings.microphone, this.microphoneListener?.isLive() ?? false)
                 } catch (error) {
                     if (this.mediaAccess !== access || this.stopped) return
-                    this.microphoneListener?.setAllowed(false)
+                    this.updateMicrophoneAuthority(false)
                     if (!(error instanceof MediaAccessError) || error.status !== 410) throw error
                     await apiResumeMediaAccess(access)
                     // Stop may race a successful resume. Release the restored lease
@@ -395,13 +397,13 @@ export class Stream implements Component {
                     }
                 }
                 if (this.mediaAccess !== access || this.stopped) return
-                this.microphoneListener?.setAllowed(this.microphoneAllowed())
+                this.updateMicrophoneAuthority(this.microphoneAllowed())
             } catch (error) {
                 if (this.mediaAccess !== access || this.stopped) {
                     await apiReleaseMediaAccess(access).catch(() => {})
                     return
                 }
-                this.microphoneListener?.setAllowed(false)
+                this.updateMicrophoneAuthority(false)
                 this.debugLog(`Media heartbeat failed: ${error}`)
                 if (error instanceof MediaAccessError && (error.status === 401 || error.status === 410)) await this.stop()
             } finally { pending = false }
@@ -412,6 +414,7 @@ export class Stream implements Component {
 
     private async releaseMediaAccess() {
         this.cleanupMicrophone()
+        this.microphoneResumeKey = null
         if (this.mediaHeartbeatTimer != null) {
             window.clearInterval(this.mediaHeartbeatTimer)
             this.mediaHeartbeatTimer = null
@@ -425,6 +428,10 @@ export class Stream implements Component {
 
     private cleanupMicrophone() {
         const microphone = this.microphoneListener
+        const key = this.microphoneAuthorityKey()
+        if (this.stopped || !key) this.microphoneResumeKey = null
+        else if (microphone?.isLive?.() && this.microphoneSourceKey === key) this.microphoneResumeKey = key
+        this.microphoneSourceKey = null
         this.microphoneListener = null
         try { microphone?.cleanup() }
         catch (error) { this.debugLog(`Failed to release microphone: ${error}`) }
@@ -454,6 +461,22 @@ export class Stream implements Component {
     private microphoneAllowed(): boolean {
         return this.settings.microphone && (!managedStreaming() ||
             (this.mediaAccess?.role === "controller" && this.mediaAccess.microphoneEnabled))
+    }
+    private microphoneAuthorityKey(): string | null {
+        const access = this.mediaAccess
+        if (this.stopped || !this.settings.microphone || !access || access.role !== "controller" || !access.microphoneEnabled ||
+            !Number.isSafeInteger(access.controlEpoch) || access.controlEpoch! < 0) return null
+        return JSON.stringify([access.sessionId, access.connectionId, access.controlEpoch])
+    }
+    private updateMicrophoneAuthority(allowed: boolean): void {
+        const key = allowed ? this.microphoneAuthorityKey() : null
+        if (!allowed || (this.microphoneSourceKey && key !== this.microphoneSourceKey)) {
+            this.microphoneResumeKey = null
+            this.microphoneListener?.setAllowed(false)
+        }
+        if (this.microphoneResumeKey && this.microphoneResumeKey !== key) this.microphoneResumeKey = null
+        this.microphoneSourceKey = key
+        this.microphoneListener?.setAllowed(allowed)
     }
     private async tryWebSocketTransport(): Promise<TransportShutdown | null> {
         // A signed media ticket is an explicit authorization for the WebRTC
@@ -727,6 +750,22 @@ export class Stream implements Component {
         source?.setAllowed(this.microphoneAllowed())
         this.microphoneListener?.cleanup()
         this.microphoneListener = source
+        this.microphoneSourceKey = this.microphoneAuthorityKey()
+        if (source && this.microphoneResumeKey && this.microphoneResumeKey === this.microphoneSourceKey && this.mediaAccess) {
+            const access = this.mediaAccess
+            try {
+                await apiMediaHeartbeat(access, this.settings.microphone, false)
+                if (!this.isCurrentPipeline(transport, generation) || this.microphoneListener !== source || this.mediaAccess !== access) return
+                this.updateMicrophoneAuthority(this.microphoneAllowed())
+                if (this.microphoneResumeKey && this.microphoneResumeKey === this.microphoneSourceKey) {
+                    this.microphoneResumeKey = null
+                    await source.resumeCapture()
+                }
+            } catch (error) {
+                if (this.microphoneListener === source) this.updateMicrophoneAuthority(false)
+                this.debugLog(`Microphone resume authorization failed: ${error}`)
+            }
+        }
     }
 
     mount(parent: HTMLElement): void {

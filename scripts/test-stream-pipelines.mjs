@@ -7,11 +7,12 @@ import ts from '../orchestrator/web/node_modules/typescript/lib/typescript.js'
 const source = readFileSync(new URL('../third_party/moonlight-web-stream/web/stream/index.ts', import.meta.url), 'utf8')
 const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
 function deferred() { let resolve; const promise = new Promise(r => { resolve = r }); return { promise, resolve } }
-function fixture() {
+function fixture(heartbeat = async () => {}) {
   const exports = {}, selection = deferred(), construction = deferred(), setup = deferred(), building = deferred(), mounting = deferred()
   let builds = 0, mounts = 0, unmounts = 0, cleanups = 0, closes = 0, releases = 0
   const output = { mount() { mounts++; mounting.resolve() }, unmount() { unmounts++ }, cleanup() { cleanups++ }, setup() { return setup.promise } }
   vm.runInNewContext(compiled, { exports, require(name) {
+    if (name === '../api') return { managedStreaming: () => true, apiMediaHeartbeat: heartbeat }
     if (name === './video/pipeline') return { selectVideoPipeline: () => selection.promise }
     if (name === './audio/pipeline') return { selectAudioPipeline: () => selection.promise }
     if (name === './video') return { emptyVideoCodecs: () => ({}) }
@@ -69,6 +70,36 @@ test('one failing output cannot prevent the other output from being released', (
   f.stream.cleanupPipelines()
   assert.equal(f.counts().cleanups, 1); assert.equal(f.stream.videoRenderer, null); assert.equal(f.stream.audioPlayer, null)
 })
+
+for (const outcome of ['same', 'epoch', 'viewer', 'failure', 'stop', 'no-consent']) {
+  test(`microphone recovery requires current consent and refreshed authority: ${outcome}`, async () => {
+    const gate = deferred()
+    const f = fixture(async access => {
+      await gate.promise
+      if (outcome === 'failure') throw new Error('unavailable')
+      if (outcome === 'epoch') access.controlEpoch++
+      if (outcome === 'viewer') access.role = 'viewer'
+    })
+    f.stream.settings.microphone = true
+    f.stream.mediaAccess = { sessionId: 's', connectionId: 'c', role: 'controller', microphoneEnabled: true, controlEpoch: 7 }
+    let disposed = 0, resumed = 0
+    f.stream.microphoneListener = { isLive: () => outcome !== 'no-consent', cleanup() { disposed++ } }
+    f.stream.microphoneResumeKey = null
+    f.stream.microphoneSourceKey = f.stream.microphoneAuthorityKey()
+    f.stream.cleanupMicrophone()
+    assert.equal(disposed, 1)
+    assert.equal(!!f.stream.microphoneResumeKey, outcome !== 'no-consent')
+    const source = { setAllowed() {}, cleanup() {}, async resumeCapture() { resumed++ } }
+    f.transport.connectMicrophonePipeline = async () => source
+    const pending = f.stream.configureMicrophone('audiotrack')
+    await Promise.resolve()
+    if (outcome === 'stop') await f.stream.stop()
+    gate.resolve()
+    await pending
+    assert.equal(resumed, outcome === 'same' ? 1 : 0)
+    assert.equal(f.stream.microphoneResumeKey, null)
+  })
+}
 test('microphone cleanup failure cannot prevent transport and outputs from closing', async () => {
   const f = fixture()
   f.stream.microphoneListener = { cleanup() { throw new Error('sender failed') } }

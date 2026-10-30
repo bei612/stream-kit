@@ -52,7 +52,7 @@ assert.ok(!targetSwitch || microphoneTest, 'Target mode switching acceptance req
 const restartServices = process.argv.includes('--restart-services');
 const applyManagedGateway = process.argv.includes('--apply-managed-gateway');
 const applyManagedEncoder = process.argv.includes('--apply-managed-encoder');
-assert.ok(!applyManagedEncoder||(process.argv.includes('--edit-encoder-configuration')&&applicationExample&&!applyManagedGateway&&!restartServices&&!microphoneTest&&!expireClientLease),'Managed encoder apply requires an isolated program/configuration acceptance case');
+assert.ok(!applyManagedEncoder||(process.argv.includes('--edit-encoder-configuration')&&applicationExample&&!applyManagedGateway&&!restartServices&&!targetRecording&&!targetSwitch&&!expireClientLease),'Managed encoder apply requires an isolated program/configuration acceptance case');
 assert.ok(!applyManagedGateway || (process.argv.includes('--edit-gateway-configuration')&&!restartServices&&!microphoneTest&&!expireClientLease), 'Managed apply requires configuration editing and a separate recovery case');
 assert.ok(!restartServices || !microphoneTest, 'Run recovery and microphone isolation as separate acceptance cases');
 assert.ok(!microphoneTest || clientCount === 2, 'Microphone isolation acceptance uses two clients');
@@ -438,6 +438,7 @@ async function main() {
   await api(`/stream-sessions/${invite.session_id}/controller`, 'DELETE');
   result.control_transfer = { unique_controller: true, epoch_before: claimed.control_epoch, epoch_after: transferred.control_epoch };
   let configurationPage;
+  let applyEncoderDuringMicrophone;
   if(process.argv.includes('--edit-encoder-configuration')) {
     const nativeBefore=applyManagedEncoder?await sunshine('/api/config'):null;
     assert.ok(applicationExample,'Encoder editing requires the isolated source encoder');
@@ -474,33 +475,37 @@ async function main() {
     await Promise.all(pages.map((page,index)=>waitForPageCondition(page,previous=>document.querySelector('video').getVideoPlaybackQuality().totalVideoFrames>previous,frames[index],{timeout:15000})));
     await adminPage.screenshot({path:path.join(output,'encoder-settings.png'),fullPage:true});
     if(applyManagedEncoder){
-      const started=Date.now();
-      const selected=await api(`/stream-sessions/${invite.session_id}/controller/${ids[0]}`,'POST');
-      const priorPeers=await Promise.all(pages.map(page=>page.evaluate(()=>window.__acceptancePeers.length)));
-      await adminPage.getByRole('button',{name:'重新读取编码器配置',exact:true}).click();
-      await adminPage.getByRole('button',{name:'重启编码器并加载配置',exact:true}).click();
-      await adminPage.getByRole('status').filter({hasText:'编码器已重启，新实例已读取目标配置文件'}).waitFor({timeout:90000});
-      const applied=await api('/encoder-configuration');
-      assert.equal(applied.loaded_revision,saved.revision);assert.equal(applied.restart_required,false);assert.notEqual(applied.instance_id,before.instance_id);
-      const nativeAfter=await sunshine('/api/config');
-      for(const [key,value]of Object.entries(nativeBefore))if(key!=='sunshine_name')assert.deepEqual(nativeAfter[key],value,`Untouched field changed: ${key}`);
-      result.encoder_apply={passed:false,loaded_revision_verified:true};save();
-      await Promise.all(pages.map((page,index)=>waitForPageCondition(page,async previous=>{
-        const peers=window.__acceptancePeers,peer=peers.at(-1),video=document.querySelector('video');
-        if(peers.length<=previous||peer?.connectionState!=='connected'||!video||video.readyState<2)return false;
-        const stats=[...(await peer.getStats()).values()];
-        return (stats.find(s=>s.type==='inbound-rtp'&&s.kind==='video')?.framesDecoded||0)>=30;
-      },priorPeers[index],{timeout:60000})));
-      const audio=await Promise.all(pages.map(page=>measureReceivedTone(page)));
-      assert.ok(audio.every(level=>level>-65),'Every viewer must receive program audio after encoder replacement');
-      await Promise.all(pages.map(page=>page.evaluate(()=>window.__toneProbe.context.close())));
-      const resumed=await api(`/stream-sessions/${invite.session_id}`);
-      assert.equal(resumed.controller_connection_id,selected.controller_connection_id);
-      assert.equal(resumed.control_epoch,selected.control_epoch);
-      assert.deepEqual(Object.keys(resumed.connections).sort(),ids.slice().sort());
-      result.encoder_apply={passed:true,loaded_revision_verified:true,clients_recovered:clientCount,recovery_ms:Date.now()-started,peer_replacements_verified:true,program_audio_db:audio,connection_identity_preserved:true,control_epoch_preserved:true};
+      const apply=async selectedController=>{
+        const started=Date.now();
+        const selected=selectedController||await api(`/stream-sessions/${invite.session_id}/controller/${ids[0]}`,'POST');
+        const priorPeers=await Promise.all(pages.map(page=>page.evaluate(()=>window.__acceptancePeers.length)));
+        await adminPage.getByRole('button',{name:'重新读取编码器配置',exact:true}).click();
+        await adminPage.getByRole('button',{name:'重启编码器并加载配置',exact:true}).click();
+        await adminPage.getByRole('status').filter({hasText:'编码器已重启，新实例已读取目标配置文件'}).waitFor({timeout:90000});
+        const applied=await api('/encoder-configuration');
+        assert.equal(applied.loaded_revision,saved.revision);assert.equal(applied.restart_required,false);assert.notEqual(applied.instance_id,before.instance_id);
+        const nativeAfter=await sunshine('/api/config');
+        for(const [key,value]of Object.entries(nativeBefore))if(key!=='sunshine_name')assert.deepEqual(nativeAfter[key],value,`Untouched field changed: ${key}`);
+        result.encoder_apply={passed:false,loaded_revision_verified:true};save();
+        await Promise.all(pages.map((page,index)=>waitForPageCondition(page,async previous=>{
+          const peers=window.__acceptancePeers,peer=peers.at(-1),video=document.querySelector('video');
+          if(peers.length<=previous||peer?.connectionState!=='connected'||!video||video.readyState<2)return false;
+          const stats=[...(await peer.getStats()).values()];
+          return (stats.find(s=>s.type==='inbound-rtp'&&s.kind==='video')?.framesDecoded||0)>=30;
+        },priorPeers[index],{timeout:60000})));
+        const audio=await Promise.all(pages.map(page=>measureReceivedTone(page)));
+        assert.ok(audio.every(level=>level>-65),'Every viewer must receive program audio after encoder replacement');
+        await Promise.all(pages.map(page=>page.evaluate(()=>window.__toneProbe.context.close())));
+        const resumed=await api(`/stream-sessions/${invite.session_id}`);
+        assert.equal(resumed.controller_connection_id,selected.controller_connection_id);
+        assert.equal(resumed.control_epoch,selected.control_epoch);
+        assert.deepEqual(Object.keys(resumed.connections).sort(),ids.slice().sort());
+        result.encoder_apply={passed:true,loaded_revision_verified:true,clients_recovered:clientCount,recovery_ms:Date.now()-started,peer_replacements_verified:true,program_audio_db:audio,connection_identity_preserved:true,control_epoch_preserved:true};
+      };
+      if(microphoneTest)applyEncoderDuringMicrophone=async selected=>{await apply(selected);await adminPage.close()};
+      else await apply();
     }
-    await adminPage.close();
+    if(!applyManagedEncoder||!microphoneTest)await adminPage.close();
     result.encoder_configuration={passed:true,browser_form:true,conflict_rejected:true,video_continued:true,apply_policy:saved.apply_policy,runtime_verified:false,loaded_revision_preserved:true,command_line_override_reported:true,restart_required:saved.restart_required};
   }
   if (process.argv.includes('--edit-gateway-configuration')) {
@@ -726,6 +731,14 @@ async function main() {
     if (applicationExample) {
       levels.simultaneous_program_db = await Promise.all(pages.map(page => measureReceivedTone(page, 997)));
       assert.ok(levels.simultaneous_program_db.every(level => level > -65), 'Program audio must reach both viewers while microphone broadcasting');
+    }
+    if(applyEncoderDuringMicrophone){
+      await applyEncoderDuringMicrophone(active);
+      await waitForPageCondition(pages[0],()=>!!window.app.getStream().getMicrophoneListener()?.isLive(),null,{timeout:15000});
+      const afterRestart=await measure(pages[1]);
+      assert.ok(afterRestart>-55&&afterRestart>levels.viewer_denied_db+20,'Authorized microphone must resume broadcasting after encoder restart without another gesture');
+      assert.equal(await pages[1].evaluate(()=>window.app.getStream().getMicrophoneListener()?.isLive()||false),false,'Viewer microphone must remain stopped across encoder replacement');
+      result.encoder_microphone_recovery={passed:true,broadcast_db:afterRestart,viewer_capture_denied:true,additional_gesture_required:false};save();
     }
     if (targetSwitch) {
       const before = await Promise.all(pages.map(videoFrames));

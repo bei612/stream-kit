@@ -30,6 +30,21 @@ function browser(replies, config = { managed_streaming: true, control_plane_url:
 const joined = { status: 200, body: { status: 'ok', data: { session_id: 'session', host_id: 1, app_id: 2, connection_token: 'own-connection', connection: { connection_id: 'client', role: 'viewer' }, audio: { microphone_enabled: true } } } }
 const ticket = { status: 200, body: { status: 'ok', data: { ticket: 'media-admission', expires_at: 'later', role: 'viewer' } } }
 
+test('delayed heartbeat cannot restore authority from an older control epoch', async () => {
+  const newer = structuredClone(joined), older = structuredClone(joined)
+  Object.assign(newer.body.data, { revision: 12, control_epoch: 4, connection_token: 'new-token' })
+  Object.assign(older.body.data, { revision: 11, control_epoch: 3 })
+  older.body.data.connection.role = 'controller'
+  const { api } = browser([joined, ticket, newer, older])
+  const access = await api.acquireMediaAccess(1, 2)
+  await api.mediaHeartbeat(access, true, false)
+  await api.mediaHeartbeat(access, true, false)
+  assert.equal(access.role, 'viewer')
+  assert.equal(access.controlEpoch, 4)
+  assert.equal(access.revision, 12)
+  assert.equal(access.bearer, 'new-token')
+})
+
 test('admission uses configured origin and distinct credentials, scrubs URL secrets', async () => {
   const { api, window, calls } = browser([joined, ticket])
   const access = await api.acquireMediaAccess(1, 2)

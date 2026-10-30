@@ -35,6 +35,7 @@ type ClientConnectionState struct {
 	HostID          int64               `json:"host_id"`
 	AppID           int64               `json:"app_id"`
 	Revision        uint64              `json:"revision"`
+	ControlEpoch    uint64              `json:"control_epoch"`
 	Connection      *session.Connection `json:"connection"`
 	Audio           ClientAudioPolicy   `json:"audio"`
 	ConnectionToken string              `json:"connection_token"`
@@ -207,6 +208,6 @@ func (h *ClientSessionHandler) respondConnection(c *gin.Context, s *session.Rend
 	now := time.Now().UTC()
 	token := identity.Sign(identity.Connection, identity.Claims{Subject: conn.UserID, SessionID: s.ID, ConnectionID: conn.ID, IssuedAt: now.Unix(), ExpiresAt: now.Add(15 * time.Minute).Unix()}, h.connectionKey)
 	c.Header("Cache-Control", "no-store")
-	okResponse(c, ClientConnectionState{SessionID: s.ID, HostID: s.HostID, AppID: s.AppID, Revision: s.Revision,
+	okResponse(c, ClientConnectionState{SessionID: s.ID, HostID: s.HostID, AppID: s.AppID, Revision: s.Revision, ControlEpoch: s.ControlEpoch,
 		Connection: conn, Audio: clientAudioPolicy(s.Audio), ConnectionToken: token, TokenExpiresAt: now.Add(15 * time.Minute)})
 }
