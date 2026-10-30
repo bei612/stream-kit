@@ -189,8 +189,8 @@ func (s *Settings) Save(expected string, changes map[string]json.RawMessage) (*S
 	if err != nil {
 		return nil, err
 	}
-	if errs := validate(next); len(errs) > 0 {
-		return nil, fmt.Errorf("invalid configuration: %s", strings.Join(errs, "; "))
+	if _, err := deploymentConfig(next); err != nil {
+		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
 	output, err := json.MarshalIndent(next, "", "  ")
 	if err != nil {

@@ -150,18 +150,29 @@ func Load(configPath string) (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
-	if err := applyEnvironment(cfg); err != nil {
+	cfg, err = deploymentConfig(cfg)
+	if err != nil {
 		return nil, err
 	}
 
 	resolvePaths(cfg)
 	cfg.sourcePath, cfg.sourceRevision = absPath, revision(source)
 
-	if errs := validate(cfg); len(errs) > 0 {
-		return nil, fmt.Errorf("config validation errors:\n  %s", strings.Join(errs, "\n  "))
-	}
-
 	return cfg, nil
+}
+
+// deploymentConfig derives the effective configuration without mutating the
+// file snapshot. Startup and editing must validate the same environment overlay;
+// callers persist only the original snapshot, never deployment credentials.
+func deploymentConfig(file *Config) (*Config, error) {
+	effective := *file
+	if err := applyEnvironment(&effective); err != nil {
+		return nil, err
+	}
+	if issues := validate(&effective); len(issues) != 0 {
+		return nil, fmt.Errorf("config validation errors:\n  %s", strings.Join(issues, "\n  "))
+	}
+	return &effective, nil
 }
 
 func resolvePaths(cfg *Config) {
@@ -260,8 +271,8 @@ func generateDefaultConfig(path string) error {
 	if err != nil {
 		return fmt.Errorf("invalid example configuration: %w", err)
 	}
-	if issues := validate(cfg); len(issues) != 0 {
-		return fmt.Errorf("invalid example configuration: %s", strings.Join(issues, "; "))
+	if _, err := deploymentConfig(cfg); err != nil {
+		return fmt.Errorf("invalid example configuration: %w", err)
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
