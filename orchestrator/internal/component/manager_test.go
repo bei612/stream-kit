@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -224,5 +226,64 @@ func TestForceStopWaitsForOwnedChild(t *testing.T) {
 	case <-proc.Done:
 	default:
 		t.Fatal("termination returned before process exit")
+	}
+}
+
+func TestComponentPreflightChild(t *testing.T) {
+	if os.Getenv("STREAM_KIT_CRASH_CHILD") != "wait" {
+		return
+	}
+	if data, err := os.ReadFile("preflight-ready"); err == nil && string(data) == "valid" {
+		os.Exit(0)
+	}
+	os.Stderr.WriteString("private-preflight-diagnostic")
+	os.Exit(9)
+}
+
+func TestFailedPreflightPreservesRunningProcess(t *testing.T) {
+	m := crashManager(t, 0)
+	cfg := m.configs["test"]
+	cfg.Env["STREAM_KIT_CRASH_CHILD"] = "wait"
+	cfg.WorkingDir = t.TempDir()
+	cfg.PreflightArgs = "-test.run=^TestComponentPreflightChild$"
+	m.configs["test"] = cfg
+	marker := filepath.Join(cfg.WorkingDir, "preflight-ready")
+	if err := os.WriteFile(marker, []byte("valid"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Start("test"); err != nil {
+		t.Fatal(err)
+	}
+	cs := m.components["test"]
+	cs.mu.Lock()
+	proc, hc, generation := cs.process, cs.healthChecker, cs.generation
+	cs.mu.Unlock()
+	if err := os.Remove(marker); err != nil {
+		t.Fatal(err)
+	}
+	err := m.Restart("test")
+	if err == nil || strings.Contains(err.Error(), "private-preflight-diagnostic") {
+		t.Fatalf("unexpected preflight error: %v", err)
+	}
+	cs.mu.Lock()
+	unchanged := cs.process == proc && cs.healthChecker == hc && cs.generation == generation
+	cs.mu.Unlock()
+	if !unchanged {
+		t.Fatal("failed preflight changed running ownership")
+	}
+	select {
+	case <-proc.Done:
+		t.Fatal("failed preflight stopped running process")
+	default:
+	}
+	if err := m.Stop("test"); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Start("test"); err == nil {
+		t.Fatal("start accepted invalid native configuration")
+	}
+	info, _ := m.Get("test")
+	if info.PID != 0 || info.Status != StatusError {
+		t.Fatalf("invalid preflight launched process: %+v", info)
 	}
 }

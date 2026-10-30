@@ -20,7 +20,7 @@ const session = {
   audio: { target:{epoch:1,mode:'upstream',render_device_id:'',capture_device_id:''}, program_gain_db: 0, microphone_gain_db: 0, microphone_enabled: true, broadcast_controller_microphone: true, controller_monitor: false },
   policy: { max_viewers: 20, controller_disconnect_policy: 'release', allow_viewer_microphone: false },
 };
-const components = ['sunshine', 'web_server'].map((name, i) => ({ name, status: 'running', pid: 1000 + i, started_at: new Date().toISOString() }));
+const components = ['sunshine', 'web_server'].map((name, i) => ({ name, status: 'running', pid: 1000 + i, crash_count:0, started_at: new Date().toISOString() }));
 const apps = [{ id: 'demo', name: '鼓楼直播电商基地 · UE5 场景', status: 'running', file_size_bytes: 5368709120, created_at: new Date().toISOString() }];
 const token = `fixture.${Buffer.from(JSON.stringify({exp:Math.floor(Date.now()/1000)+3600})).toString('base64url')}.fixture`;
 const server = http.createServer((req, res) => {
@@ -48,6 +48,7 @@ async function main() {
     for(const width of [1440,390]) {
       const detail = {...apps[0],status:'ready',source:'local',exe_path:'C:\\Render\\Example.exe',args:'--initial',capture_mode:'application'};
       let failSettings = true;
+      let failComponentRestart = true;
       const configuration = {revision:'config-1',restart_required:false,apply_policy:'service_restart',values:{server:{bind_address:'127.0.0.1:9000',password:'****'},storage:{max_file_count:1000},components:{gateway:{auto_start:true,env:{PRIVATE:'****'}}}},redacted_paths:['/server/password','/components/gateway/env/PRIVATE'],environment_overrides:[]};
       let conflictConfiguration=true;
       const gatewayConfiguration={revision:'native-1',restart_required:false,apply_policy:'gateway_restart',values:{moonlight:{pair_device_name:'Stream Kit',default_http_port:47989},web_server:{media_ticket_secret:null,control_plane_url:'https://control.example'},webrtc:{port_range:null,ice_servers:[{urls:null,username:'turn-user',credential:null}],include_loopback_candidates:true}},redacted_paths:['/web_server/media_ticket_secret','/webrtc/ice_servers/0/urls','/webrtc/ice_servers/0/credential'],overridden_paths:['/web_server/control_plane_url']};
@@ -63,6 +64,13 @@ async function main() {
         if(route.request().method() !== 'GET') mutations.push({path:pathname,method:route.request().method()});
         if(pathname === '/api/v1/login') data = { token };
         else if(pathname === '/api/v1/components') data = components;
+        else if(pathname === '/api/v1/components/web_server/restart') {
+          if(failComponentRestart) {
+            failComponentRestart=false;
+            return route.fulfill({status:500,json:{status:'error',message:'组件原生配置预检失败，请检查配置及运行环境'}});
+          }
+          data=components[1];
+        }
         else if(pathname === '/api/v1/apps') data = apps;
         else if(pathname === '/api/v1/apps/capture-capabilities') data = {schema_version:1,capture_modes:['desktop','application'],capture_mode_apply:'application_restart'};
         else if(pathname === '/api/v1/apps/demo') {
@@ -150,6 +158,15 @@ async function main() {
       for(const [route,name] of [['/stream-sessions','sessions'],['/components','components'],['/apps','apps'],['/upload','upload'],['/logs','logs'],['/settings','settings']]) {
         await page.locator(`nav a[href="${route}"]`).click();
         await page.locator('main h2').waitFor();
+        if(name==='components') {
+          assert.equal(await page.getByRole('button',{name:'启动',exact:true}).first().isDisabled(),true);
+          await page.getByRole('button',{name:'重启',exact:true}).nth(1).click();
+          await page.getByRole('alert').filter({hasText:'组件原生配置预检失败'}).waitFor();
+          assert.equal(await page.getByRole('button',{name:'重启',exact:true}).nth(1).isEnabled(),true);
+          await page.getByRole('button',{name:'重启',exact:true}).nth(1).click();
+          await page.getByRole('alert').filter({hasText:'组件原生配置预检失败'}).waitFor({state:'hidden'});
+          await page.waitForFunction(()=>[...document.querySelectorAll('button')].filter(button=>button.textContent.trim()==='重启').every(button=>!button.disabled));
+        }
         if(name==='sessions') {
           await page.getByText('客户端 B36D81',{exact:true}).waitFor();
           const card=page.locator('.client-card').filter({hasText:'客户端 B36D81'});

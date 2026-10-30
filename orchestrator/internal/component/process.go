@@ -2,6 +2,7 @@ package component
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/stream-kit/orchestrator/internal/config"
 
 	"go.uber.org/zap"
 )
@@ -107,6 +110,32 @@ func forceStop(mp *ManagedProcess) error {
 	case <-time.After(5 * time.Second):
 		return fmt.Errorf("managed process did not exit after termination")
 	}
+}
+
+// preflight uses the same native executable, environment and working directory.
+// Output is discarded: diagnostics may include credentials or configuration.
+func preflight(cfg config.ComponentConfig) error {
+	if cfg.PreflightArgs == "" {
+		return nil
+	}
+	if cfg.ExePath == "" {
+		return fmt.Errorf("组件预检需要可执行程序路径")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, cfg.ExePath, splitArgs(cfg.PreflightArgs)...)
+	cmd.Dir = cfg.WorkingDir
+	if len(cfg.Env) > 0 {
+		cmd.Env = append(os.Environ(), mapToEnvSlice(cfg.Env)...)
+	}
+	setPlatformAttrs(cmd)
+	if err := cmd.Run(); err != nil {
+		if ctx.Err() != nil {
+			return fmt.Errorf("组件原生配置预检超时")
+		}
+		return fmt.Errorf("组件原生配置预检失败，请检查配置及运行环境")
+	}
+	return nil
 }
 
 func captureOutput(r io.ReadCloser, buf *RingBuffer, prefix string) {

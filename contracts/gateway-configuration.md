@@ -129,6 +129,25 @@ entry and credential instead of accidentally resubmitting redacted placeholders.
 Drafts survive failed saves; per-field undo and reload discard them explicitly.
 Coordinated component restart remains outstanding.
 
+## Managed component preflight
+
+The component supervisor accepts `components.<name>.preflight_args`. When set,
+it executes that component's own executable with these arguments, using the
+same working directory and environment, with a 15-second timeout and no shell.
+The gateway example uses `config check`; installations using a custom config
+path or CLI overrides must include those same options in the preflight command.
+Arguments are redacted in configuration responses and editable in the unified
+settings page. Changing this supervisor setting requires Orchestrator restart.
+
+Start and automatic recovery must pass preflight before launch. Restart first
+checks before stopping the current process, so a failed check preserves it and
+its health monitor. The launch path checks again after stop to catch file changes
+during shutdown. A failure at that point leaves the component stopped with an
+error; this is not rollback or an atomic deployment transaction. Successful
+launch still requires health checks and gateway revision verification before
+claiming configuration activation. Component operation failures appear inline
+in the management page and do not turn a preflight failure into a stopped state.
+
 `--edit-gateway-configuration` on the source-stream acceptance runner logs into
 the production administrator page and edits through its form while video and
 audio are active, then checks the API result, pending restart and stale-version

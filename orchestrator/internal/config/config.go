@@ -40,6 +40,7 @@ type ServerConfig struct {
 type ComponentConfig struct {
 	ExePath            string            `json:"exe_path" mapstructure:"exe_path"`
 	Args               string            `json:"args" mapstructure:"args"`
+	PreflightArgs      string            `json:"preflight_args" mapstructure:"preflight_args"`
 	WorkingDir         string            `json:"working_dir" mapstructure:"working_dir"`
 	Env                map[string]string `json:"env" mapstructure:"env"`
 	AutoStart          bool              `json:"auto_start" mapstructure:"auto_start"`
@@ -220,6 +221,7 @@ func validate(cfg *Config) []string {
 	check(cfg.Process.GracefulShutdownTimeout < 0, "process.graceful_shutdown_timeout_seconds 不能为负数")
 	for name, component := range cfg.Components {
 		prefix := "components." + name
+		check(component.PreflightArgs != "" && component.ExePath == "", prefix+" 预检需要配置可执行程序路径")
 		check(component.RestartDelay < 0 || component.MaxRestartAttempts < 0, prefix+" 重启等待与次数不能为负数")
 		health := component.HealthCheck
 		if health.URL != "" {
@@ -332,6 +334,7 @@ func (c *Config) Sanitized() map[string]interface{} {
 		for _, raw := range components {
 			if component, ok := raw.(map[string]interface{}); ok {
 				mask(component, "args")
+				mask(component, "preflight_args")
 				if env, ok := component["env"].(map[string]interface{}); ok {
 					for key := range env {
 						mask(env, key)

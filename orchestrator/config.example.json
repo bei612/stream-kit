@@ -34,6 +34,7 @@
     "web_server": {
       "exe_path": "C:\\Program Files\\Moonlight\\moonlight-web-x86_64-pc-windows-gnu\\web-server.exe",
       "args": "",
+      "preflight_args": "config check",
       "working_dir": "C:\\Program Files\\Moonlight\\moonlight-web-x86_64-pc-windows-gnu\\",
       "env": {},
       "auto_start": true,

@@ -152,6 +152,16 @@ func (m *Manager) start(name string, cs *ComponentState, retry bool) error {
 		cs.mu.Unlock()
 		return nil // idempotent
 	}
+	cs.mu.Unlock()
+	if err := preflight(cfg); err != nil {
+		cs.mu.Lock()
+		cs.Status = StatusError
+		cs.LastError = err.Error()
+		cs.mu.Unlock()
+		m.emitEvent(name, StatusError)
+		return err
+	}
+	cs.mu.Lock()
 	cs.Status = StatusStarting
 	cs.LastError = ""
 	if cs.healthChecker != nil {
@@ -277,6 +287,9 @@ func (m *Manager) Restart(name string) error {
 	}
 	cs.opMu.Lock()
 	defer cs.opMu.Unlock()
+	if err := preflight(m.configs[name]); err != nil {
+		return err // leave the running component and its health checker untouched
+	}
 	if err := m.stop(name, cs); err != nil {
 		return err
 	}

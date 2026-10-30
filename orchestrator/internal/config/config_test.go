@@ -31,8 +31,9 @@ func TestSanitizedOmitsOpaqueCredentialsWithoutMutatingConfiguration(t *testing.
 		SunshineAPI: SunshineAPIConfig{BaseURL: "https://u:service-private@example.test", ServerInfoURL: "https://example.test/info-private"},
 		Components: map[string]ComponentConfig{"gateway": {
 			ExePath: "gateway.exe", Args: "--credential=argument-private",
-			Env:         map[string]string{"CUSTOM_VALUE": "environment-private", "EMPTY": ""},
-			HealthCheck: HealthCheckConfig{URL: "https://user:health-private@example.test/path-private?query-private#fragment-private"},
+			PreflightArgs: "--credential=preflight-private config check",
+			Env:           map[string]string{"CUSTOM_VALUE": "environment-private", "EMPTY": ""},
+			HealthCheck:   HealthCheckConfig{URL: "https://user:health-private@example.test/path-private?query-private#fragment-private"},
 		}},
 		Notifications: NotificationsConfig{WebhookURL: "https://example.test/webhook-private"},
 		Templates:     map[string]string{"custom": "--key=template-private"},
@@ -43,7 +44,7 @@ func TestSanitizedOmitsOpaqueCredentialsWithoutMutatingConfiguration(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, secret := range []string{"abcd", "efgh", "ijkl", "service-private", "info-private", "argument-private", "environment-private", "health-private", "path-private", "query-private", "fragment-private", "webhook-private", "template-private"} {
+	for _, secret := range []string{"abcd", "efgh", "ijkl", "service-private", "info-private", "argument-private", "preflight-private", "environment-private", "health-private", "path-private", "query-private", "fragment-private", "webhook-private", "template-private"} {
 		if strings.Contains(string(encoded), secret) {
 			t.Fatalf("exposed credential %s", secret)
 		}

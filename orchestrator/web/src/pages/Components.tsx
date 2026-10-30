@@ -5,6 +5,7 @@ import QueryWrapper from '@/components/QueryWrapper'
 import StatusBadge from '@/components/StatusBadge'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Alert } from '@/components/ui/alert'
 import { Play, Square, RotateCcw } from 'lucide-react'
 import { formatDuration } from '@/lib/utils'
 
@@ -23,7 +24,8 @@ export default function Components() {
     wsInvalidateEvents: ['component_status'],
   })
   const [logs, setLogs] = useState<Record<string, string[]>>({})
-  const [actionLoading, setActionLoading] = useState('')
+  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({})
+  const [actionErrors, setActionErrors] = useState<Record<string, string>>({})
 
   const components = (data ?? []) as any[]
 
@@ -35,14 +37,16 @@ export default function Components() {
   }
 
   const action = async (name: string, fn: () => Promise<any>) => {
-    setActionLoading(name)
+    setActionLoading(previous => ({ ...previous, [name]: true }))
+    setActionErrors(previous => ({ ...previous, [name]: '' }))
     try {
       await fn()
       await refresh()
-    } catch (e: any) {
-      alert(e.message)
+    } catch (e: unknown) {
+      setActionErrors(previous => ({ ...previous, [name]: e instanceof Error ? e.message : '组件操作失败' }))
+    } finally {
+      setActionLoading(previous => ({ ...previous, [name]: false }))
     }
-    setActionLoading('')
   }
 
   return (
@@ -65,13 +69,13 @@ export default function Components() {
                   <span className="ml-3"><StatusBadge status={c.status} /></span>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => action(c.name, () => api.startComponent(c.name))} disabled={actionLoading === c.name || c.status === 'running'}>
+                  <Button size="sm" onClick={() => action(c.name, () => api.startComponent(c.name))} disabled={actionLoading[c.name] || ['running','starting','unhealthy'].includes(c.status) || c.pid > 0}>
                     <Play className="w-3 h-3" /> 启动
                   </Button>
-                  <Button size="sm" variant="destructive" onClick={() => action(c.name, () => api.stopComponent(c.name))} disabled={actionLoading === c.name || c.status === 'stopped'}>
+                  <Button size="sm" variant="destructive" onClick={() => action(c.name, () => api.stopComponent(c.name))} disabled={actionLoading[c.name] || c.status === 'stopped'}>
                     <Square className="w-3 h-3" /> 停止
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => action(c.name, () => api.restartComponent(c.name))} disabled={actionLoading === c.name}>
+                  <Button size="sm" variant="outline" onClick={() => action(c.name, () => api.restartComponent(c.name))} disabled={actionLoading[c.name]}>
                     <RotateCcw className="w-3 h-3" /> 重启
                   </Button>
                 </div>
@@ -84,6 +88,8 @@ export default function Components() {
               </div>
 
               {c.last_error && <div className="text-xs text-red-300 mb-2">错误: {c.last_error}</div>}
+              {actionErrors[c.name] && <Alert role="alert" variant="error">{actionErrors[c.name]}</Alert>}
+              {actionLoading[c.name] && <p className="text-xs text-muted-foreground mb-2" role="status">正在执行组件操作，启停结果以健康检查状态为准。</p>}
 
               <div>
                 <button onClick={() => loadLogs(c.name)} className="text-xs text-primary hover:underline mb-1">加载日志</button>

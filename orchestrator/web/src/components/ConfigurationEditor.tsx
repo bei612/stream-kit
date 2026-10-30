@@ -9,7 +9,7 @@ import { Alert } from '@/components/ui/alert'
 const labels:Record<string,string> = {
   server:'管理服务与登录',components:'服务组件',sunshine_api:'串流编码器连接',moonlight_web:'媒体网关连接',storage:'应用与存储',process:'进程管理',notifications:'通知',log:'日志',templates:'启动参数模板',
   bind_address:'监听地址',username:'用户名',password:'密码',jwt_secret:'管理签名密钥',media_ticket_secret:'媒体签名密钥',cors_origins:'允许访问的来源',tls_cert:'TLS 证书路径',tls_key:'TLS 私钥路径',
-  exe_path:'可执行程序路径',args:'启动参数',working_dir:'工作目录',env:'环境变量',auto_start:'自动启动',restart_on_crash:'崩溃后重启',restart_delay_seconds:'重启等待（秒）',max_restart_attempts:'最大重启次数',health_check:'健康检查',
+  exe_path:'可执行程序路径',args:'启动参数',preflight_args:'原生配置预检参数',working_dir:'工作目录',env:'环境变量',auto_start:'自动启动',restart_on_crash:'崩溃后重启',restart_delay_seconds:'重启等待（秒）',max_restart_attempts:'最大重启次数',health_check:'健康检查',
   type:'检查类型',url:'检查地址',interval_seconds:'检查间隔（秒）',timeout_seconds:'检查超时（秒）',unhealthy_threshold:'异常判定次数',healthy_threshold:'恢复判定次数',startup_timeout_seconds:'启动等待（秒）',verify_ssl:'校验 TLS 证书',
   base_url:'服务连接地址',public_url:'浏览器访问地址',server_info_url:'编码器信息地址',apps_dir:'应用存储目录',temp_dir:'临时目录',db_path:'数据库路径',max_upload_size_bytes:'上传大小上限（字节）',max_extract_size_bytes:'解压大小上限（字节）',max_file_count:'解压文件数上限',
   monitor_interval_seconds:'进程检查间隔（秒）',graceful_shutdown_timeout_seconds:'停止等待（秒）',webhook_url:'Webhook 地址',events:'通知事件',level:'日志级别',file:'日志文件',enabled:'启用',path:'文件路径',max_size_mb:'单文件上限（MB）',max_backups:'保留文件数',max_age_days:'保留天数',compress:'压缩历史日志',access_log:'访问日志',exclude_paths:'排除路径',operation_log:'操作日志',max_count:'保留记录数',
@@ -79,11 +79,12 @@ export function ConfigurationEditor() {
       </div>
     }
     const hidden=view?.redacted_paths.includes(path), id='setting'+path
-    const sensitive=hidden||['password','jwt_secret','media_ticket_secret','webhook_url','args'].includes(key)||path.includes('/env/')||path.startsWith('/templates/')
+    const sensitive=hidden||['password','jwt_secret','media_ticket_secret','webhook_url','args','preflight_args'].includes(key)||path.includes('/env/')||path.startsWith('/templates/')
     const text=drafts[path]??(hidden?'':Array.isArray(value)?value.join('\n'):value===null?'':String(value))
     const title=labels[key]||key
     return <div key={path} className="space-y-1">
       <Label htmlFor={id}>{title}</Label>
+      {key==='preflight_args'&&<p className="text-xs text-muted-foreground">使用同一程序、工作目录和环境执行，最长等待 15 秒。媒体网关可填 config check；自定义配置路径需与启动参数一致。重启预检失败会保留当前进程。留空则不执行预检。</p>}
       {typeof value==='boolean'||key==='verify_ssl'?<Select id={id} value={drafts[path]??(value===null?'default':String(value))} onChange={e=>edit(path,e.target.value)}>
         {key==='verify_ssl'&&<option value="default">使用默认策略</option>}<option value="true">启用</option><option value="false">禁用</option>
       </Select>:Array.isArray(value)||lists.has(key)?<Textarea id={id} rows={3} value={text} placeholder="每行一项" onChange={e=>edit(path,e.target.value)}/>:<Input id={id} type={sensitive?'password':typeof value==='number'?'number':'text'} autoComplete="off" value={text} placeholder={hidden?'已设置；不编辑则保留原值':''} onChange={e=>edit(path,e.target.value)}/>}
