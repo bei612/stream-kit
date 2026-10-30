@@ -65,9 +65,16 @@ func TestManagedClientAdmissionAndAuthorityBoundaries(t *testing.T) {
 	request("POST", "/api/v1/stream-invitations", "", map[string]int{"host_id": 1, "app_id": 2}, 401)
 	request("GET", "/api/v1/config?token="+admin, "", nil, 401)
 	invitation := request("POST", "/api/v1/stream-invitations", admin, map[string]int{"host_id": 1, "app_id": 2}, 200)["invitation"].(string)
+	managed := manager.List()[0]
+	if err := manager.UpdateAudioTarget(managed.ID, managed.Audio.Target.Epoch, session.AudioTarget{Mode: "local", RenderDeviceID: "private-render", CaptureDeviceID: "private-capture"}); err != nil {
+		t.Fatal(err)
+	}
 	request("POST", "/api/v1/client-sessions/join", admin, nil, 401)
 	request("GET", "/api/v1/config", invitation, nil, 401)
 	a := request("POST", "/api/v1/client-sessions/join", invitation, map[string]string{"user_id": "admin"}, 200)
+	if _, exposed := a["audio"].(map[string]any)["target"]; exposed {
+		t.Fatal("viewer received native endpoint topology")
+	}
 	b := request("POST", "/api/v1/client-sessions/join", invitation, nil, 200)
 	token := a["connection_token"].(string)
 	sid := a["session_id"].(string)
@@ -93,6 +100,12 @@ func TestManagedClientAdmissionAndAuthorityBoundaries(t *testing.T) {
 		t.Fatal("viewer became live controller")
 	}
 	token = heartbeat["connection_token"].(string)
+	// A v2 gateway must not issue admission after silently ignoring a route.
+	request("POST", prefix+aid+"/ticket", token, nil, 503)
+	routed, _ := manager.Get(sid)
+	if err := manager.UpdateAudioTarget(sid, routed.Audio.Target.Epoch, session.AudioTarget{Mode: "upstream"}); err != nil {
+		t.Fatal(err)
+	}
 	ticket := request("POST", prefix+aid+"/ticket", token, nil, 200)["ticket"].(string)
 	request("GET", prefix+aid, ticket, nil, 401)
 	observed, _ := manager.Get(sid)

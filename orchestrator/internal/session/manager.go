@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -32,11 +33,12 @@ const (
 )
 
 type AudioConfig struct {
-	ProgramGainDB          float64 `json:"program_gain_db"`
-	MicrophoneGainDB       float64 `json:"microphone_gain_db"`
-	MicrophoneEnabled      bool    `json:"microphone_enabled"`
-	BroadcastControllerMic bool    `json:"broadcast_controller_microphone"`
-	ControllerMonitor      bool    `json:"controller_monitor"`
+	Target                 AudioTarget `json:"target"`
+	ProgramGainDB          float64     `json:"program_gain_db"`
+	MicrophoneGainDB       float64     `json:"microphone_gain_db"`
+	MicrophoneEnabled      bool        `json:"microphone_enabled"`
+	BroadcastControllerMic bool        `json:"broadcast_controller_microphone"`
+	ControllerMonitor      bool        `json:"controller_monitor"`
 }
 
 type Policy struct {
@@ -101,6 +103,9 @@ func NewManagerWithStore(hub *ws.Hub, st *store.Store) (*Manager, error) {
 		}
 		m.sessions[s.ID] = s
 	}
+	if err := m.validateAudioTargets(); err != nil {
+		return nil, err
+	}
 	return m, nil
 }
 
@@ -137,7 +142,7 @@ func (m *Manager) Ensure(hostID, appID int64) (*RenderSession, error) {
 		return nil, ErrInvalidState
 	}
 	now := time.Now().UTC()
-	s := &RenderSession{ID: uuid.NewString(), HostID: hostID, AppID: appID, State: StateStarting, Audio: AudioConfig{MicrophoneEnabled: true, BroadcastControllerMic: true}, Policy: Policy{ControllerDisconnectPolicy: "release", MaxViewers: 20}, Connections: map[string]*Connection{}, CreatedAt: now, UpdatedAt: now}
+	s := &RenderSession{ID: uuid.NewString(), HostID: hostID, AppID: appID, State: StateStarting, Audio: AudioConfig{Target: AudioTarget{Epoch: 1, Mode: "upstream"}, MicrophoneEnabled: true, BroadcastControllerMic: true}, Policy: Policy{ControllerDisconnectPolicy: "release", MaxViewers: 20}, Connections: map[string]*Connection{}, CreatedAt: now, UpdatedAt: now}
 	if err := m.commitLocked(s, "stream_session_created"); err != nil {
 		return nil, err
 	}
@@ -164,6 +169,11 @@ func (m *Manager) mutate(id, event string, change func(*RenderSession) error) er
 func (m *Manager) commitLocked(next *RenderSession, event string) error {
 	if next.Revision == math.MaxUint64 {
 		return ErrInvalidState
+	}
+	// Reservation safety also applies to state transitions, especially reviving
+	// a stopped session after its old endpoints have been reassigned.
+	if err := m.checkAudioTargetReservation(next); err != nil {
+		return err
 	}
 	next.Revision++
 	// The ownership generation is durable, independent of heartbeat revisions,
@@ -273,6 +283,9 @@ func (m *Manager) UpdateAudio(id string, cfg AudioConfig) error {
 		return ErrInvalidState
 	}
 	return m.mutate(id, "stream_audio_changed", func(s *RenderSession) error {
+		// Routing has its own compare-and-set command; gain/mute updates cannot
+		// overwrite endpoint selection from an older page snapshot.
+		cfg.Target = s.Audio.Target
 		s.Audio = cfg
 		if !cfg.MicrophoneEnabled {
 			for _, peer := range s.Connections {
@@ -378,6 +391,21 @@ func fromRecord(record model.StreamSession) (*RenderSession, error) {
 	s := &RenderSession{ID: record.ID, Revision: record.Revision, ControlEpoch: record.ControlEpoch, HostID: record.HostID, AppID: record.AppID, State: record.State, ControllerConnectionID: record.ControllerConnectionID, CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt, Connections: map[string]*Connection{}}
 	if err := store.DecodeStreamSessionSnapshot(&record, &s.Audio, &s.Policy, &s.Connections); err != nil {
 		return nil, err
+	}
+	if s.Audio.Target == (AudioTarget{}) {
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(record.AudioJSON), &fields); err != nil {
+			return nil, err
+		}
+		if _, present := fields["target"]; present {
+			return nil, ErrInvalidState
+		}
+		// Existing snapshots had no endpoint routing. Native upstream delivery
+		// retains its previous capability-gated behavior after migration.
+		s.Audio.Target = AudioTarget{Epoch: max(1, s.Revision), Mode: "upstream"}
+	}
+	if !s.Audio.Target.valid() || s.Audio.Target.Epoch == 0 || s.Audio.Target.Epoch > s.Revision {
+		return nil, ErrInvalidState
 	}
 	if s.Connections == nil {
 		s.Connections = map[string]*Connection{}

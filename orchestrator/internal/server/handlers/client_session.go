@@ -35,9 +35,23 @@ type ClientConnectionState struct {
 	AppID           int64               `json:"app_id"`
 	Revision        uint64              `json:"revision"`
 	Connection      *session.Connection `json:"connection"`
-	Audio           session.AudioConfig `json:"audio"`
+	Audio           ClientAudioPolicy   `json:"audio"`
 	ConnectionToken string              `json:"connection_token"`
 	TokenExpiresAt  time.Time           `json:"token_expires_at"`
+}
+
+// Viewer state is an explicit projection. Native endpoint identities and future
+// administrator-only audio settings never travel with a connection capability.
+type ClientAudioPolicy struct {
+	ProgramGainDB          float64 `json:"program_gain_db"`
+	MicrophoneGainDB       float64 `json:"microphone_gain_db"`
+	MicrophoneEnabled      bool    `json:"microphone_enabled"`
+	BroadcastControllerMic bool    `json:"broadcast_controller_microphone"`
+	ControllerMonitor      bool    `json:"controller_monitor"`
+}
+
+func clientAudioPolicy(audio session.AudioConfig) ClientAudioPolicy {
+	return ClientAudioPolicy{audio.ProgramGainDB, audio.MicrophoneGainDB, audio.MicrophoneEnabled, audio.BroadcastControllerMic, audio.ControllerMonitor}
 }
 
 func NewClientSessionHandler(sessions *SessionHandler, secret []byte) *ClientSessionHandler {
@@ -162,5 +176,5 @@ func (h *ClientSessionHandler) respondConnection(c *gin.Context, s *session.Rend
 	token := identity.Sign(identity.Connection, identity.Claims{Subject: conn.UserID, SessionID: s.ID, ConnectionID: conn.ID, IssuedAt: now.Unix(), ExpiresAt: now.Add(15 * time.Minute).Unix()}, h.connectionKey)
 	c.Header("Cache-Control", "no-store")
 	okResponse(c, ClientConnectionState{SessionID: s.ID, HostID: s.HostID, AppID: s.AppID, Revision: s.Revision,
-		Connection: conn, Audio: s.Audio, ConnectionToken: token, TokenExpiresAt: now.Add(15 * time.Minute)})
+		Connection: conn, Audio: clientAudioPolicy(s.Audio), ConnectionToken: token, TokenExpiresAt: now.Add(15 * time.Minute)})
 }

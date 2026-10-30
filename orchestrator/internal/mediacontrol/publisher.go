@@ -27,15 +27,30 @@ type Connection struct {
 	ID        string `json:"connection_id"`
 	ExpiresAt int64  `json:"expires_at_ms"`
 }
+
+// Keep the versioned wire projection explicit. New durable domain fields must
+// not silently become protocol extensions an older gateway could ignore.
+type AudioPolicy struct {
+	ProgramGainDB          float64 `json:"program_gain_db"`
+	MicrophoneGainDB       float64 `json:"microphone_gain_db"`
+	MicrophoneEnabled      bool    `json:"microphone_enabled"`
+	BroadcastControllerMic bool    `json:"broadcast_controller_microphone"`
+	ControllerMonitor      bool    `json:"controller_monitor"`
+}
+
+func projectAudio(audio session.AudioConfig) AudioPolicy {
+	return AudioPolicy{audio.ProgramGainDB, audio.MicrophoneGainDB, audio.MicrophoneEnabled, audio.BroadcastControllerMic, audio.ControllerMonitor}
+}
+
 type Session struct {
-	ControlEpoch uint64              `json:"control_epoch"`
-	ID           string              `json:"session_id"`
-	Revision     uint64              `json:"revision"`
-	HostID       int64               `json:"host_id"`
-	AppID        int64               `json:"app_id"`
-	ControllerID string              `json:"controller_connection_id"`
-	Connections  []Connection        `json:"connections"`
-	Audio        session.AudioConfig `json:"audio"`
+	ControlEpoch uint64       `json:"control_epoch"`
+	ID           string       `json:"session_id"`
+	Revision     uint64       `json:"revision"`
+	HostID       int64        `json:"host_id"`
+	AppID        int64        `json:"app_id"`
+	ControllerID string       `json:"controller_connection_id"`
+	Connections  []Connection `json:"connections"`
+	Audio        AudioPolicy  `json:"audio"`
 }
 type Envelope struct {
 	SchemaVersion int       `json:"schema_version"`
@@ -104,7 +119,12 @@ func (p *Publisher) Sync(ctx context.Context) (err error) {
 		if s.State == session.StateStopped || s.State == session.StateStopping {
 			continue
 		}
-		item := Session{ID: s.ID, ControlEpoch: s.ControlEpoch, Revision: s.Revision, HostID: s.HostID, AppID: s.AppID, ControllerID: s.ControllerConnectionID, Audio: s.Audio, Connections: []Connection{}}
+		// V2 cannot represent routing. Until the coordinated v3 runtime upgrade,
+		// never acknowledge a desired route that this gateway protocol ignores.
+		if s.Audio.Target.Mode != "upstream" {
+			return fmt.Errorf("audio target routing requires media-state v3")
+		}
+		item := Session{ID: s.ID, ControlEpoch: s.ControlEpoch, Revision: s.Revision, HostID: s.HostID, AppID: s.AppID, ControllerID: s.ControllerConnectionID, Audio: projectAudio(s.Audio), Connections: []Connection{}}
 		for _, c := range s.Connections {
 			if c.ExpiresAt.UnixMilli() > now {
 				item.Connections = append(item.Connections, Connection{ID: c.ID, ExpiresAt: c.ExpiresAt.UnixMilli()})

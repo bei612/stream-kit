@@ -20,7 +20,7 @@ func respondSessionError(c *gin.Context, err error) {
 		errResponse(c, http.StatusNotFound, "SESSION_NOT_FOUND", "session or live connection not found")
 	case errors.Is(err, session.ErrInvalidState):
 		errResponse(c, http.StatusBadRequest, "SESSION_COMMAND_INVALID", "invalid session command")
-	case errors.Is(err, session.ErrControllerExists), errors.Is(err, session.ErrControllerChanged), errors.Is(err, session.ErrCapacity):
+	case errors.Is(err, session.ErrControllerExists), errors.Is(err, session.ErrControllerChanged), errors.Is(err, session.ErrCapacity), errors.Is(err, session.ErrAudioTargetChanged), errors.Is(err, session.ErrAudioTargetInUse):
 		errResponse(c, http.StatusConflict, "SESSION_CONFLICT", err.Error())
 	default:
 		errResponse(c, http.StatusInternalServerError, "SESSION_INTERNAL_ERROR", "session command failed")
