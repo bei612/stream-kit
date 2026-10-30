@@ -9,12 +9,14 @@ import { Textarea } from '@/components/ui/input'
 import { Alert } from '@/components/ui/alert'
 import { formatBytes, formatTime, argsToLines, linesToArgs } from '@/lib/utils'
 import { ArrowLeft, ExternalLink, Trash2, Save, RotateCcw, Play, Square, Copy, Check } from 'lucide-react'
+import CaptureModeField, { type CaptureMode } from '@/components/CaptureModeField'
 
 export default function AppDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [app, setApp] = useState<any>(null)
   const [args, setArgs] = useState('')
+  const [captureMode,setCaptureMode]=useState<CaptureMode>('desktop')
   const [argsDirty, setArgsDirty] = useState(false)
   const argsDirtyRef = useRef(false)
   const [saving, setSaving] = useState(false)
@@ -30,6 +32,7 @@ export default function AppDetail() {
       setLoadError('')
       if (!argsDirtyRef.current) {
         setArgs(argsToLines(res.data?.args || ''))
+        setCaptureMode(res.data?.capture_mode || 'desktop')
       }
 
       if (res.data?.status === 'detecting') {
@@ -60,7 +63,7 @@ export default function AppDetail() {
     if (!id) return
     setSaving(true)
     try {
-      await api.updateApp(id, { args: linesToArgs(args) })
+      await api.updateApp(id, { args: linesToArgs(args), capture_mode:captureMode })
       argsDirtyRef.current = false
       setArgsDirty(false)
       await refresh()
@@ -266,11 +269,13 @@ export default function AppDetail() {
       {/* Args editing */}
       <Card>
         <CardHeader>
-          <CardTitle>启动参数</CardTitle>
+          <CardTitle>采集与启动配置</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          <CaptureModeField value={captureMode} disabled={saving||app.status==='running'} onChange={mode=>{setCaptureMode(mode);setArgsDirty(true);argsDirtyRef.current=true}} />
           <p className="text-xs text-muted-foreground">每行一个参数，含空格的路径请用引号包裹</p>
           <Textarea
+            disabled={saving||app.status==='running'}
             value={args}
             onChange={e => { setArgs(e.target.value); setArgsDirty(true); argsDirtyRef.current = true }}
             rows={5}
@@ -279,7 +284,7 @@ export default function AppDetail() {
           />
           <Button
             onClick={handleSave}
-            disabled={saving || linesToArgs(args) === (app.args || '')}
+            disabled={saving || app.status==='running' || (linesToArgs(args) === (app.args || '') && captureMode===(app.capture_mode||'desktop'))}
             size="sm"
           >
             <Save className="w-3 h-3" /> {saving ? '保存中...' : '保存'}

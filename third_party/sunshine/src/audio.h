@@ -71,6 +71,7 @@ namespace audio {
     stream_params_t customStreamParams;  ///< Custom Opus layout used when CUSTOM_SURROUND_PARAMS is enabled.
 
     std::bitset<MAX_FLAGS> flags;  ///< Enabled audio feature flags.
+    capture::target_ptr capture_target {};  ///< The same launch identity used by the video stream.
   };
 
   /**

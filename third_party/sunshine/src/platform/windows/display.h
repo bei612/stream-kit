@@ -708,16 +708,33 @@ namespace platf::dxgi {
    * Display duplicator that uses the Windows.Graphics.Capture API.
    */
   class wgc_capture_t {
+    capture::target_ptr application_target;  ///< Retained launch identity; never cleared to enable desktop fallback.
+    capture::renderer_ptr application_renderer;  ///< Window/process identity shared with program audio.
+    HWND application_window {nullptr};  ///< Window selected exclusively from the launch's process group.
+    winrt::Windows::Graphics::SizeInt32 content_size {};  ///< Frame-pool dimensions checked against every frame.
+    std::shared_ptr<std::atomic_bool> item_closed {std::make_shared<std::atomic_bool>(false)};  ///< Closure signal safe across asynchronous callbacks.
     winrt::Windows::Graphics::DirectX::Direct3D11::IDirect3DDevice uwp_device {nullptr};
     winrt::Windows::Graphics::Capture::GraphicsCaptureItem item {nullptr};
     winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool frame_pool {nullptr};
     winrt::Windows::Graphics::Capture::GraphicsCaptureSession capture_session {nullptr};
-    winrt::Windows::Graphics::Capture::Direct3D11CaptureFrame produced_frame {nullptr};
     winrt::Windows::Graphics::Capture::Direct3D11CaptureFrame consumed_frame {nullptr};
-    SRWLOCK frame_lock = SRWLOCK_INIT;
-    CONDITION_VARIABLE frame_present_cv;
 
-    void on_frame_arrived(winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool const &sender, winrt::Windows::Foundation::IInspectable const &);
+    /** @brief Frame exchange retained independently by asynchronous WinRT callbacks. */
+    struct frame_state_t {
+      winrt::Windows::Graphics::Capture::Direct3D11CaptureFrame produced {nullptr};  ///< Latest frame awaiting consumption.
+      SRWLOCK lock = SRWLOCK_INIT;  ///< Protects the latest frame slot.
+      CONDITION_VARIABLE ready = CONDITION_VARIABLE_INIT;  ///< Wakes the capture consumer.
+      std::atomic_bool stopped {false};  ///< Rejects late callbacks during capture destruction.
+    };
+
+    std::shared_ptr<frame_state_t> frames {std::make_shared<frame_state_t>()};  ///< Callback-safe frame exchange.
+
+    /**
+     * @brief Publish one asynchronous frame without retaining a raw capture-object pointer.
+     * @param frames Shared exchange retained through callback completion.
+     * @param sender Frame pool delivering the event.
+     */
+    static void on_frame_arrived(const std::shared_ptr<frame_state_t> &frames, winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool const &sender);
 
   public:
     wgc_capture_t();

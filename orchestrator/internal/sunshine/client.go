@@ -16,19 +16,21 @@ import (
 	"time"
 
 	"github.com/stream-kit/orchestrator/internal/config"
+	"github.com/stream-kit/orchestrator/internal/model"
 	"go.uber.org/zap"
 )
 
 type SunshineApp struct {
-	Name        string `json:"name"`
-	Cmd         string `json:"cmd,omitempty"`
-	WorkingDir  string `json:"working-dir,omitempty"`
-	Output      string `json:"output,omitempty"`
-	AutoDetach  bool   `json:"auto-detach"`
-	WaitAll     bool   `json:"wait-all"`
-	ExitTimeout int    `json:"exit-timeout"`
-	Elevated    bool   `json:"elevated"`
-	ImagePath   string `json:"image-path,omitempty"`
+	CaptureMode model.CaptureMode `json:"capture-mode,omitempty"`
+	Name        string            `json:"name"`
+	Cmd         string            `json:"cmd,omitempty"`
+	WorkingDir  string            `json:"working-dir,omitempty"`
+	Output      string            `json:"output,omitempty"`
+	AutoDetach  bool              `json:"auto-detach"`
+	WaitAll     bool              `json:"wait-all"`
+	ExitTimeout int               `json:"exit-timeout"`
+	Elevated    bool              `json:"elevated"`
+	ImagePath   string            `json:"image-path,omitempty"`
 }
 
 type Client struct {
@@ -138,6 +140,9 @@ func (c *Client) ListApps(ctx context.Context) ([]SunshineApp, error) {
 }
 
 func (c *Client) CreateApp(ctx context.Context, app SunshineApp) error {
+	if err := c.RequireCaptureMode(ctx, app.CaptureMode); err != nil {
+		return err
+	}
 	return c.doAppWrite(ctx, http.MethodPost, app, -1)
 }
 
@@ -274,6 +279,7 @@ func (c *Client) doAppWrite(ctx context.Context, method string, app SunshineApp,
 	}
 
 	payload := map[string]interface{}{
+		"capture-mode": app.CaptureMode.Normalized(),
 		"index":        index,
 		"name":         app.Name,
 		"cmd":          app.Cmd,
@@ -322,6 +328,7 @@ func (c *Client) doAppWriteRetry(ctx context.Context, method string, app Sunshin
 		return err
 	}
 	payload := map[string]interface{}{
+		"capture-mode": app.CaptureMode.Normalized(),
 		"index":        index,
 		"name":         app.Name,
 		"cmd":          app.Cmd,

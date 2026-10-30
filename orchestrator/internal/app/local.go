@@ -15,11 +15,12 @@ import (
 // AppDir always belongs to the platform, irrespective of the executable source.
 // A local application's executable/working directory are references, never owned.
 type LocalAppRequest struct {
-	Name         string `json:"name"`
-	ExePath      string `json:"exe_path"`
-	WorkingDir   string `json:"working_dir"`
-	Args         string `json:"args"`
-	ArgsTemplate string `json:"args_template"`
+	CaptureMode  model.CaptureMode `json:"capture_mode"`
+	Name         string            `json:"name"`
+	ExePath      string            `json:"exe_path"`
+	WorkingDir   string            `json:"working_dir"`
+	Args         string            `json:"args"`
+	ArgsTemplate string            `json:"args_template"`
 }
 
 var ErrInvalidLocalApp = errors.New("本机程序配置无效")
@@ -60,6 +61,9 @@ func canonicalLocalPath(name string, directory bool) (string, error) {
 }
 
 func (m *Manager) RegisterLocal(req LocalAppRequest) (*model.App, error) {
+	if err := m.validateCaptureMode(req.CaptureMode); err != nil {
+		return nil, fmt.Errorf("%w：%s", ErrInvalidLocalApp, err)
+	}
 	req.Name = strings.TrimSpace(req.Name)
 	if req.Name == "" || len(req.Name) > 255 || strings.ContainsAny(req.Name+req.Args, "\x00\r\n") || len(req.Args) > 4096 {
 		return nil, fmt.Errorf("%w：名称或参数无效", ErrInvalidLocalApp)
@@ -118,7 +122,7 @@ func (m *Manager) RegisterLocal(req LocalAppRequest) (*model.App, error) {
 	if err = os.Mkdir(owned, 0755); err != nil {
 		return nil, err
 	}
-	record := &model.App{ID: id, Name: req.Name, Source: model.AppSourceLocal, Status: model.AppStatusDetecting, ExePath: exe, WorkingDir: working, AppDir: owned, Args: req.Args, ArgsTemplate: template, SunshineAppName: req.Name}
+	record := &model.App{ID: id, Name: req.Name, Source: model.AppSourceLocal, CaptureMode: req.CaptureMode.Normalized(), Status: model.AppStatusDetecting, ExePath: exe, WorkingDir: working, AppDir: owned, Args: req.Args, ArgsTemplate: template, SunshineAppName: req.Name}
 	if err = m.store.CreateApp(record); err != nil {
 		_ = os.Remove(owned)
 		return nil, err

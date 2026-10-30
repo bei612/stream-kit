@@ -110,6 +110,7 @@ func (s *Server) setupRoutes() {
 		authed.POST("/apps/upload", uh.Upload)
 		authed.POST("/apps/local", ah.RegisterLocal)
 		authed.GET("/apps/upload-status", uh.UploadStatus)
+		authed.GET("/apps/capture-capabilities", ah.CaptureCapabilities)
 		apps := authed.Group("/apps")
 		apps.GET("", ah.List)
 		apps.GET("/:app_id", ah.Get)

@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stream-kit/orchestrator/internal/app"
 	"github.com/stream-kit/orchestrator/internal/config"
+	"github.com/stream-kit/orchestrator/internal/model"
 	"go.uber.org/zap"
 )
 
@@ -126,11 +127,13 @@ func (h *UploadHandler) Upload(c *gin.Context) {
 	}
 
 	// Step 2: Create DB record only after file is safely saved
-	appRecord, err := h.Manager.CreateApp(name, argsTemplate, args, exePath, written)
+	appRecord, err := h.Manager.CreateApp(name, argsTemplate, args, exePath, written, model.CaptureMode(c.PostForm("capture_mode")))
 	if err != nil {
 		os.Remove(tempPath) // cleanup temp file on DB failure
 		if strings.Contains(err.Error(), "同名") {
 			errResponse(c, http.StatusConflict, "APP_ALREADY_EXISTS", err.Error())
+		} else if errors.Is(err, app.ErrCaptureModeUnavailable) {
+			errResponse(c, http.StatusBadRequest, "CAPTURE_UNAVAILABLE", err.Error())
 		} else {
 			errResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 		}

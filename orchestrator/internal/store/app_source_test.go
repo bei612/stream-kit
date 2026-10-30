@@ -21,6 +21,9 @@ func TestApplicationSourceMigrationAndReopen(t *testing.T) {
 	if err = st.DB.Migrator().DropColumn(&model.App{}, "Source"); err != nil {
 		t.Fatal(err)
 	}
+	if err = st.DB.Migrator().DropColumn(&model.App{}, "CaptureMode"); err != nil {
+		t.Fatal(err)
+	}
 	if err = st.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -29,7 +32,7 @@ func TestApplicationSourceMigrationAndReopen(t *testing.T) {
 		t.Fatal(err)
 	}
 	old, err := st.GetApp("old")
-	if err != nil || old.Source != model.AppSourceArchive {
+	if err != nil || old.Source != model.AppSourceArchive || old.CaptureMode != model.CaptureDesktop {
 		t.Fatalf("old source: %+v %v", old, err)
 	}
 	if err = st.CreateApp(&model.App{ID: "local", Name: "Existing program", Source: model.AppSourceLocal, Status: model.AppStatusReady, ExePath: "external", AppDir: "owned"}); err != nil {

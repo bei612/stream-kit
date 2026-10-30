@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stream-kit/orchestrator/internal/app"
 	"github.com/stream-kit/orchestrator/internal/component"
+	"github.com/stream-kit/orchestrator/internal/model"
 	"github.com/stream-kit/orchestrator/internal/store"
 )
 
@@ -21,6 +22,16 @@ type AppHandler struct {
 
 func NewAppHandler(mgr *app.Manager, st *store.Store, compMgr *component.Manager) *AppHandler {
 	return &AppHandler{Manager: mgr, Store: st, CompMgr: compMgr}
+}
+
+func (h *AppHandler) CaptureCapabilities(c *gin.Context) {
+	capabilities, err := h.Manager.CaptureCapabilities(c.Request.Context())
+	if err != nil {
+		errResponse(c, http.StatusServiceUnavailable, "CAPTURE_UNAVAILABLE", err.Error())
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	okResponse(c, capabilities)
 }
 
 func (h *AppHandler) RegisterLocal(c *gin.Context) {
@@ -78,16 +89,23 @@ func (h *AppHandler) Update(c *gin.Context) {
 	defer unlock()
 
 	var req struct {
-		Name         *string `json:"name"`
-		Args         *string `json:"args"`
-		ArgsTemplate *string `json:"args_template"`
+		CaptureMode  *model.CaptureMode `json:"capture_mode"`
+		Name         *string            `json:"name"`
+		Args         *string            `json:"args"`
+		ArgsTemplate *string            `json:"args_template"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil {
+	decoder := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, 16384))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil {
 		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", "请求格式错误")
 		return
 	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", "请求包含多余数据")
+		return
+	}
 
-	if err := h.Manager.UpdateApp(id, req.Name, req.Args, req.ArgsTemplate); err != nil {
+	if err := h.Manager.UpdateApp(id, req.Name, req.Args, req.ArgsTemplate, req.CaptureMode); err != nil {
 		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", err.Error())
 		return
 	}

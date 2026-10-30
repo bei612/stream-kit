@@ -7,8 +7,10 @@ import { Input, Textarea, Select, Label } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
 import { Upload as UploadIcon, X } from 'lucide-react'
+import CaptureModeField, { type CaptureMode } from '@/components/CaptureModeField'
 
 export default function UploadPage() {
+  const [captureMode,setCaptureMode]=useState<CaptureMode>('desktop')
   const [source,setSource]=useState<'archive'|'local'>('archive')
   const [exePath,setExePath]=useState('')
   const [workingDir,setWorkingDir]=useState('')
@@ -54,7 +56,7 @@ export default function UploadPage() {
 
     if (source==='local') {
       try {
-        const result=await api.registerLocalApp({name,exe_path:exePath,working_dir:workingDir,args:argsMode==='custom'?linesToArgs(customArgsText):'',args_template:argsMode!=='none'&&argsMode!=='custom'?argsMode:''})
+        const result=await api.registerLocalApp({name,exe_path:exePath,working_dir:workingDir,args:argsMode==='custom'?linesToArgs(customArgsText):'',args_template:argsMode!=='none'&&argsMode!=='custom'?argsMode:'',capture_mode:captureMode})
         navigate(`/apps/${result.data?.id}`)
       } catch (err:any) { setError(err.message) } finally { setUploading(false) }
       return
@@ -63,6 +65,7 @@ export default function UploadPage() {
     const fd = new FormData()
     fd.append('file', file!)
     fd.append('name', name)
+    fd.append('capture_mode',captureMode)
 
     if (argsMode === 'custom') {
       const args = linesToArgs(customArgsText)
@@ -173,6 +176,7 @@ export default function UploadPage() {
         </div>
 
         {/* Args mode selector */}
+        <CaptureModeField value={captureMode} onChange={setCaptureMode} disabled={uploading} />
         <div>
           <Label>启动参数</Label>
           <Select

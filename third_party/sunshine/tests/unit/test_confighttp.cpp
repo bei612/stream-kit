@@ -326,6 +326,7 @@ protected:
     };
 
     server->resource["^/virtual-input-status-test$"]["GET"] = confighttp::getVirtualInputStatus;
+    server->resource["^/capture-capabilities-test$"]["GET"] = confighttp::getCaptureCapabilities;
     server->resource["^/virtual-input-license-test$"]["GET"] = confighttp::getVirtualInputLicense;
     server->resource["^/virtual-input-license-test$"]["POST"] = confighttp::updateVirtualInputLicense;
     server->resource["^/pairing-test$"]["DELETE"] = confighttp::cancelPairing;
@@ -551,6 +552,26 @@ INSTANTIATE_TEST_SUITE_P(
   ),
   invalid_license_request_name
 );
+
+TEST_F(ConfigHttpTest, CaptureCapabilitiesRequireAuthentication) {
+  const auto response = client->request("GET", "/capture-capabilities-test");
+  EXPECT_EQ(response->status_code, "401 Unauthorized");
+}
+
+TEST_F(ConfigHttpTest, CaptureCapabilitiesExposeVersionedApplyPolicy) {
+  SimpleWeb::CaseInsensitiveMultimap headers;
+  headers.emplace("Authorization", create_auth_header("testuser", "testpass"));
+  const auto response = client->request("GET", "/capture-capabilities-test", "", headers);
+  ASSERT_EQ(response->status_code, "200 OK");
+  const auto body = nlohmann::json::parse(response->content.string());
+  EXPECT_EQ(body.at("schema_version"), 1);
+  EXPECT_EQ(body.at("capture_mode_apply"), "application_restart");
+  const auto modes = body.at("capture_modes").get<std::vector<std::string>>();
+  EXPECT_NE(std::find(modes.begin(), modes.end(), "desktop"), modes.end());
+#ifndef _WIN32
+  EXPECT_EQ(modes.size(), 1U);
+#endif
+}
 
 TEST_F(ConfigHttpTest, PairingMutationsRejectUnauthenticatedRestRequests) {
   SimpleWeb::CaseInsensitiveMultimap headers;

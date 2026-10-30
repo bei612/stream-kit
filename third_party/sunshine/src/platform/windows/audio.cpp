@@ -17,6 +17,7 @@
 #include <synchapi.h>
 
 // local includes
+#include "process_loopback.h"
 #include "src/config.h"
 #include "src/logging.h"
 #include "src/platform/common.h"
@@ -285,13 +286,22 @@ namespace platf::audio {
    */
   class co_init_t: public deinit_t {
   public:
-    co_init_t() {
-      CoInitializeEx(nullptr, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY);
-    }
+    co_init_t():
+        status_(CoInitializeEx(nullptr, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY)) {}
 
     ~co_init_t() override {
-      CoUninitialize();
+      if (SUCCEEDED(status_)) {
+        CoUninitialize();
+      }
     }
+
+    /** @brief Check MTA initialization. @return True when this thread joined the MTA. */
+    bool ready() const {
+      return SUCCEEDED(status_);
+    }
+
+  private:
+    HRESULT status_;  ///< Paired COM initialization result for this thread.
   };
 
   /**
@@ -569,12 +579,18 @@ namespace platf::audio {
      * @return Capture status reported to the streaming pipeline.
      */
     capture_e sample(std::vector<float> &sample_out) override {
+      if (application_target && !application_target->alive()) {
+        return capture_e::error;
+      }
+      if (application_renderer && !application_renderer->alive()) {
+        return capture_e::reinit;
+      }
       auto sample_size = sample_out.size();
 
       // Refill the sample buffer if needed
       while (sample_buf_pos - std::begin(sample_buf) < sample_size) {
         auto capture_result = _fill_buffer();
-        if (capture_result == capture_e::timeout && continuous_audio) {
+        if (capture_result == capture_e::timeout && continuous_audio && !application_target) {
           // Write silence to sample_buf
           std::fill_n(sample_buf_pos, sample_size, 0.0f);
           sample_buf_pos += sample_size;
@@ -590,7 +606,10 @@ namespace platf::audio {
       std::move(&sample_buf[sample_size], sample_buf_pos, std::begin(sample_buf));
       sample_buf_pos -= sample_size;
 
-      return capture_e::ok;
+      if (application_target && !application_target->alive()) {
+        return capture_e::error;
+      }
+      return application_renderer && !application_renderer->alive() ? capture_e::reinit : capture_e::ok;
     }
 
     /**
@@ -601,9 +620,24 @@ namespace platf::audio {
      * @param channels_out Channels out.
      * @param continuous Whether silent audio should continue to be emitted.
      * @param capture_device Endpoint device to capture from; the default render device is used when empty.
+     * @param target Application identity, or null for endpoint capture.
      * @return 0 on success; nonzero or negative platform status on failure.
      */
-    int init(std::uint32_t sample_rate, std::uint32_t frame_size, std::uint32_t channels_out, bool continuous, device_t capture_device) {
+    int init(std::uint32_t sample_rate, std::uint32_t frame_size, std::uint32_t channels_out, bool continuous, device_t capture_device, capture::target_ptr target = {}) {
+      application_target = std::move(target);
+      if (application_target) {
+        const auto deadline = std::chrono::steady_clock::now() + 5s;
+        while (application_target->alive() && !(application_renderer = application_target->renderer()) && std::chrono::steady_clock::now() < deadline) {
+          std::this_thread::sleep_for(50ms);
+        }
+        if (!application_renderer || !application_target->alive()) {
+          return -1;
+        }
+      }
+      if (!com_.ready()) {
+        BOOST_LOG(error) << "Audio capture requires a COM MTA thread";
+        return -1;
+      }
       audio_event.reset(CreateEventA(nullptr, FALSE, FALSE, nullptr));
       if (!audio_event) {
         BOOST_LOG(error) << "Couldn't create Event handle"sv;
@@ -613,31 +647,33 @@ namespace platf::audio {
 
       HRESULT status;
 
-      status = CoCreateInstance(
-        CLSID_MMDeviceEnumerator,
-        nullptr,
-        CLSCTX_ALL,
-        IID_IMMDeviceEnumerator,
-        (void **) &device_enum
-      );
+      if (!application_target) {
+        status = CoCreateInstance(
+          CLSID_MMDeviceEnumerator,
+          nullptr,
+          CLSCTX_ALL,
+          IID_IMMDeviceEnumerator,
+          (void **) &device_enum
+        );
 
-      if (FAILED(status)) {
-        BOOST_LOG(error) << "Couldn't create Device Enumerator [0x"sv << util::hex(status).to_string_view() << ']';
+        if (FAILED(status)) {
+          BOOST_LOG(error) << "Couldn't create Device Enumerator [0x"sv << util::hex(status).to_string_view() << ']';
 
-        return -1;
-      }
+          return -1;
+        }
 
-      status = device_enum->RegisterEndpointNotificationCallback(&endpt_notification);
-      if (FAILED(status)) {
-        BOOST_LOG(error) << "Couldn't register endpoint notification [0x"sv << util::hex(status).to_string_view() << ']';
+        status = device_enum->RegisterEndpointNotificationCallback(&endpt_notification);
+        if (FAILED(status)) {
+          BOOST_LOG(error) << "Couldn't register endpoint notification [0x"sv << util::hex(status).to_string_view() << ']';
 
-        return -1;
-      }
+          return -1;
+        }
 
-      select_capture_device(std::move(capture_device));
+        select_capture_device(std::move(capture_device));
 
-      if (!device) {
-        return -1;
+        if (!device) {
+          return -1;
+        }
       }
 
       for (const auto &format : formats) {
@@ -648,7 +684,25 @@ namespace platf::audio {
         }
 
         BOOST_LOG(debug) << "Trying audio format ["sv << format.name << ']';
-        audio_client = make_audio_client(device, format);
+        if (application_target) {
+          IAudioClient *client = nullptr;
+          status = activate_process_loopback(application_target, &client, application_renderer);
+          if (FAILED(status)) {
+            BOOST_LOG(error) << "Could not activate application audio [0x" << util::hex(status).to_string_view() << ']';
+            return -1;
+          }
+          audio_client.reset(client);
+          auto waveformat = create_waveformat(sample_format_e::f32, format.channel_count, format.capture_waveformat_channel_mask);
+          waveformat.Format.nSamplesPerSec = sample_rate;
+          waveformat.Format.nAvgBytesPerSec = sample_rate * waveformat.Format.nBlockAlign;
+          status = audio_client->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_LOOPBACK | AUDCLNT_STREAMFLAGS_EVENTCALLBACK | AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY, 0, 0, &waveformat.Format, nullptr);
+          if (FAILED(status)) {
+            BOOST_LOG(warning) << "Application audio format rejected [0x" << util::hex(status).to_string_view() << ']';
+            audio_client.reset();
+          }
+        } else {
+          audio_client = make_audio_client(device, format);
+        }
 
         if (audio_client) {
           BOOST_LOG(debug) << "Found audio format ["sv << format.name << ']';
@@ -662,9 +716,15 @@ namespace platf::audio {
         return -1;
       }
 
-      REFERENCE_TIME default_latency;
-      audio_client->GetDevicePeriod(&default_latency, nullptr);
-      default_latency_ms = default_latency / 1000;
+      // Process loopback supplies its own silent packets. A scheduling timeout is
+      // not an audio-clock interval and must never insert additional samples.
+      default_latency_ms = 100;
+      if (!application_target) {
+        REFERENCE_TIME default_latency = 0;
+        if (SUCCEEDED(audio_client->GetDevicePeriod(&default_latency, nullptr)) && default_latency > 0) {
+          default_latency_ms = std::max<REFERENCE_TIME>(100, default_latency / 10000);
+        }
+      }
       continuous_audio = continuous;
 
       std::uint32_t frames;
@@ -741,6 +801,9 @@ namespace platf::audio {
 
   private:
     capture_e _fill_buffer() {
+      if (application_target && !application_target->alive()) {
+        return capture_e::error;
+      }
       HRESULT status;
 
       // Total number of samples
@@ -768,22 +831,35 @@ namespace platf::audio {
         }
       }
 
-      status = WaitForSingleObjectEx(audio_event.get(), default_latency_ms, FALSE);
-      switch (status) {
-        case WAIT_OBJECT_0:
-          break;
-        case WAIT_TIMEOUT:
-          return capture_e::timeout;
-        default:
-          BOOST_LOG(error) << "Couldn't wait for audio event: [0x"sv << util::hex(status).to_string_view() << ']';
-          return capture_e::error;
-      }
-
       std::uint32_t packet_size {};
-      for (
+      status = audio_capture->GetNextPacketSize(&packet_size);
+      if (status == AUDCLNT_E_DEVICE_INVALIDATED) {
+        return capture_e::reinit;
+      }
+      if (FAILED(status)) {
+        return capture_e::error;
+      }
+      // Drain one packet per refill, including already queued packets before
+      // waiting on the auto-reset event. Draining every packet at once used to
+      // discard the tail whenever the fixed staging buffer filled up.
+      if (!packet_size) {
+        status = WaitForSingleObjectEx(audio_event.get(), default_latency_ms, FALSE);
+        switch (status) {
+          case WAIT_OBJECT_0:
+            break;
+          case WAIT_TIMEOUT:
+            return capture_e::timeout;
+          default:
+            BOOST_LOG(error) << "Couldn't wait for audio event: [0x"sv << util::hex(status).to_string_view() << ']';
+            return capture_e::error;
+        }
         status = audio_capture->GetNextPacketSize(&packet_size);
-        SUCCEEDED(status) && packet_size > 0;
-        status = audio_capture->GetNextPacketSize(&packet_size)) {
+      }
+      if (SUCCEEDED(status) && packet_size > 0) {
+        if (packet_size > static_cast<std::size_t>(std::end(sample_buf) - sample_buf_pos) / channels) {
+          BOOST_LOG(error) << "Audio packet exceeds the negotiated capture buffer";
+          return capture_e::error;
+        }
         DWORD buffer_flags;
         status = audio_capture->GetBuffer(
           (BYTE **) &sample_aligned.samples,
@@ -822,7 +898,7 @@ namespace platf::audio {
 
         sample_buf_pos += n;
 
-        audio_capture->ReleaseBuffer(block_aligned.audio_sample_size);
+        status = audio_capture->ReleaseBuffer(block_aligned.audio_sample_size);
       }
 
       if (status == AUDCLNT_E_DEVICE_INVALIDATED) {
@@ -837,6 +913,7 @@ namespace platf::audio {
     }
 
   public:
+    co_init_t com_;  ///< Declared before COM resources so the apartment is released last.
     handle_t audio_event;  ///< Event signaled by WASAPI when captured audio is available.
 
     device_enum_t device_enum;  ///< Device enum.
@@ -853,7 +930,9 @@ namespace platf::audio {
     float *sample_buf_pos;  ///< Current write position in `sample_buf`.
     int channels;  ///< Number of channels in the capture format.
     bool continuous_audio;  ///< Whether audio packets continue during silence.
-    bool follows_default_device;  ///< Whether capture follows the default render device rather than an explicit sink.
+    bool follows_default_device {false};  ///< Whether capture follows the default render device rather than an explicit sink.
+    capture::target_ptr application_target;  ///< Retained identity for process-loopback capture.
+    capture::renderer_ptr application_renderer;  ///< Shared source window/process for picture and audio.
 
     HANDLE mmcss_task_handle = nullptr;  ///< MMCSS task handle for the audio capture thread.
   };
@@ -1428,6 +1507,60 @@ namespace platf::audio {
 
 #ifdef SUNSHINE_TESTS
   namespace tests {
+    /** @brief Empty packet source for notification tests without opening host audio devices. */
+    class empty_capture_t final: public IAudioCaptureClient {
+    public:
+      /** @brief Query the test COM interface. @param iid Interface ID. @param output Returned interface. @return COM status. */
+      HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void **output) override {
+        if (!output) {
+          return E_POINTER;
+        }
+        *output = nullptr;
+        if (iid != IID_IUnknown && iid != IID_IAudioCaptureClient) {
+          return E_NOINTERFACE;
+        }
+        *output = static_cast<IAudioCaptureClient *>(this);
+        AddRef();
+        return S_OK;
+      }
+
+      /** @brief Retain the fake source. @return Reference count. */
+      ULONG STDMETHODCALLTYPE AddRef() override {
+        return ++references_;
+      }
+
+      /** @brief Release the fake source. @return Reference count. */
+      ULONG STDMETHODCALLTYPE Release() override {
+        const auto remaining = --references_;
+        if (!remaining) {
+          delete this;
+        }
+        return remaining;
+      }
+
+      /** @brief Reject reading the empty source. @return Unexpected-operation status. */
+      HRESULT STDMETHODCALLTYPE GetBuffer(BYTE **, UINT32 *, DWORD *, UINT64 *, UINT64 *) override {
+        return E_UNEXPECTED;
+      }
+
+      /** @brief Reject releasing an absent buffer. @return Unexpected-operation status. */
+      HRESULT STDMETHODCALLTYPE ReleaseBuffer(UINT32) override {
+        return E_UNEXPECTED;
+      }
+
+      /** @brief Report no queued data. @param frames Packet length output. @return COM status. */
+      HRESULT STDMETHODCALLTYPE GetNextPacketSize(UINT32 *frames) override {
+        if (!frames) {
+          return E_POINTER;
+        }
+        *frames = 0;
+        return S_OK;
+      }
+
+    private:
+      std::atomic<ULONG> references_ {1};  ///< Reference ownership for the fake source.
+    };
+
     /**
      * @brief Resolve a sink through the production Windows endpoint lookup.
      *
@@ -1495,6 +1628,7 @@ namespace platf::audio {
      */
     capture_e simulate_default_device_change(bool follows_default_device, bool install_callback, bool render_device_changed, int &callback_count) {
       mic_wasapi_t mic;
+      mic.audio_capture.reset(new empty_capture_t());
       mic.audio_event.reset(CreateEventA(nullptr, FALSE, FALSE, nullptr));
       mic.default_latency_ms = 0;
       mic.sample_buf = util::buffer_t<float> {1};
@@ -1522,6 +1656,17 @@ namespace platf::audio {
 }  // namespace platf::audio
 
 namespace platf {
+
+  std::unique_ptr<mic_t> application_microphone(const capture::target_ptr &target, int channels, std::uint32_t sample_rate, std::uint32_t frame_size, bool continuous) {
+    if (!target || !target->alive()) {
+      return nullptr;
+    }
+    auto microphone = std::make_unique<audio::mic_wasapi_t>();
+    if (microphone->init(sample_rate, frame_size, channels, continuous, {}, target)) {
+      return nullptr;
+    }
+    return microphone;
+  }
 
   // It's not big enough to justify it's own source file :/
   namespace dxgi {

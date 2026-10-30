@@ -152,6 +152,8 @@ func TestLocalRegistrationProjectsProgramAndOwnedPathsToSunshine(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch {
+		case r.URL.Path == "/api/stream-kit/capabilities":
+			_, _ = w.Write([]byte(`{"schema_version":1,"capture_modes":["desktop","application"],"capture_mode_apply":"application_restart"}`))
 		case r.URL.Path == "/api/csrf-token":
 			_, _ = w.Write([]byte(`{"csrf_token":"test"}`))
 		case r.Method == "GET" && r.URL.Path == "/api/apps":
@@ -169,12 +171,16 @@ func TestLocalRegistrationProjectsProgramAndOwnedPathsToSunshine(t *testing.T) {
 	defer server.Close()
 	manager.sunClient = sunshine.NewClient(config.SunshineAPIConfig{BaseURL: server.URL}, zap.NewNop())
 	req.Args = `--assets "{app_dir}"`
+	req.CaptureMode = model.CaptureApplication
 	record, err := manager.RegisterLocal(req)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if record.Status != model.AppStatusReady {
 		t.Fatalf("registration: %+v", record)
+	}
+	if record.CaptureMode != model.CaptureApplication || registration.CaptureMode != model.CaptureApplication || registration.AutoDetach || !registration.WaitAll {
+		t.Fatalf("capture scope not projected into tracked launch: %+v %+v", record, registration)
 	}
 	if registration.WorkingDir != filepath.Dir(req.ExePath) || registration.Output != filepath.Join(record.AppDir, "output.log") || registration.ImagePath != filepath.Join(record.AppDir, "icon.png") {
 		t.Fatalf("unified path projection: %+v", registration)

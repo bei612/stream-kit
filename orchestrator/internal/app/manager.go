@@ -104,7 +104,10 @@ func (m *Manager) updateStatus(appID string, status model.AppStatus, errMsg stri
 }
 
 // CreateApp creates a new app record for an upload.
-func (m *Manager) CreateApp(name, argsTemplate, args, exePath string, fileSize int64) (*model.App, error) {
+func (m *Manager) CreateApp(name, argsTemplate, args, exePath string, fileSize int64, captureMode model.CaptureMode) (*model.App, error) {
+	if err := m.validateCaptureMode(captureMode); err != nil {
+		return nil, err
+	}
 	// Check name uniqueness
 	existing, err := m.store.GetAppByName(name)
 	if err != nil {
@@ -126,6 +129,7 @@ func (m *Manager) CreateApp(name, argsTemplate, args, exePath string, fileSize i
 	}
 
 	app := &model.App{
+		CaptureMode:     captureMode.Normalized(),
 		Source:          model.AppSourceArchive,
 		ID:              id,
 		Name:            name,
@@ -294,6 +298,7 @@ func (m *Manager) registerWithSunshine(appID string) {
 	}
 
 	sunApp := sunshine.SunshineApp{
+		CaptureMode: app.CaptureMode.Normalized(),
 		Name:        app.SunshineAppName,
 		Cmd:         cmd,
 		WorkingDir:  strings.ReplaceAll(app.WorkingDir, "$", "$$"),
@@ -372,6 +377,9 @@ func (m *Manager) RetryRegister(appID string) error {
 func (m *Manager) LaunchApp(appID string) (string, error) {
 	app, err := m.store.GetApp(appID)
 	if err != nil {
+		return "", err
+	}
+	if err := m.validateCaptureMode(app.CaptureMode); err != nil {
 		return "", err
 	}
 	if app.Source == model.AppSourceLocal {
@@ -681,7 +689,7 @@ func sleepSeconds(seconds int) {
 
 // UpdateApp updates app configuration. Pointer fields: nil=no change, non-nil=set value.
 // If args or name change, Sunshine registration is automatically synced.
-func (m *Manager) UpdateApp(appID string, name, args, argsTemplate *string) error {
+func (m *Manager) UpdateApp(appID string, name, args, argsTemplate *string, captureMode *model.CaptureMode) error {
 	app, err := m.store.GetApp(appID)
 	if err != nil {
 		return err
@@ -695,6 +703,18 @@ func (m *Manager) UpdateApp(appID string, name, args, argsTemplate *string) erro
 	fields := map[string]interface{}{}
 	oldName := app.SunshineAppName
 	needsReRegister := false
+	if captureMode != nil {
+		if *captureMode == "" {
+			return fmt.Errorf("采集模式不能为空")
+		}
+		if err := m.validateCaptureMode(*captureMode); err != nil {
+			return err
+		}
+		if *captureMode != app.CaptureMode.Normalized() {
+			fields["capture_mode"] = *captureMode
+			needsReRegister = true
+		}
+	}
 
 	if name != nil && *name != app.Name {
 		existing, _ := m.store.GetAppByName(*name)

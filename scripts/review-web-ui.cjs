@@ -56,6 +56,7 @@ async function main() {
         if(pathname === '/api/v1/login') data = { token };
         else if(pathname === '/api/v1/components') data = components;
         else if(pathname === '/api/v1/apps') data = apps;
+        else if(pathname === '/api/v1/apps/capture-capabilities') data = {schema_version:1,capture_modes:['desktop','application'],capture_mode_apply:'application_restart'};
         else if(pathname === '/api/v1/health') data = { version:'review', commit:'fixture' };
         else if(pathname === '/api/v1/stream-sessions') data = [session];
         else if(pathname === '/api/v1/media-control') data = {
@@ -115,6 +116,10 @@ async function main() {
           await page.getByText('2 个设备 · 1 个应用绑定',{exact:true}).waitFor();
           await page.getByText('设备当前不可见',{exact:true}).waitFor();
           await page.locator('summary').filter({hasText:'全部设备与标识'}).click();
+        }
+        if(name==='upload') {
+          await page.getByLabel('画面与声音范围',{exact:true}).selectOption('application');
+          await page.getByText('下次启动应用生效',{exact:true}).waitFor();
         }
         await capture(name);
       }

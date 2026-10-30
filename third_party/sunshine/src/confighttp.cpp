@@ -8,6 +8,7 @@
 
 // standard includes
 #include <algorithm>
+#include <bit>
 #include <charconv>
 #include <filesystem>
 #include <format>
@@ -1016,6 +1017,43 @@ namespace confighttp {
   }
 
   /**
+   * @brief Check OS prerequisites for the compiled window and process-audio backend.
+   * @return True on Windows builds supporting process loopback; runtime devices are checked at capture start.
+   */
+  bool application_capture_available() {
+#ifdef _WIN32
+    using version_query_t = LONG(WINAPI *)(OSVERSIONINFOW *);
+    const auto library = GetModuleHandleW(L"ntdll.dll");
+    const auto address = library ? GetProcAddress(library, "RtlGetVersion") : nullptr;
+    if (!address) {
+      return false;
+    }
+    OSVERSIONINFOW version {};
+    version.dwOSVersionInfoSize = sizeof(version);
+    return std::bit_cast<version_query_t>(address)(&version) == 0 &&
+           (version.dwMajorVersion > 10 || (version.dwMajorVersion == 10 && version.dwBuildNumber >= 20348));
+#else
+    return false;
+#endif
+  }
+
+  /**
+   * @brief Report the versioned capture contract to the unified administrator.
+   * @param response Authenticated management response.
+   * @param request Management request.
+   */
+  void getCaptureCapabilities(const resp_https_t &response, const req_https_t &request) {
+    if (!authenticate(response, request)) {
+      return;
+    }
+    nlohmann::json modes = {"desktop"};
+    if (application_capture_available()) {
+      modes.push_back("application");
+    }
+    send_response(response, nlohmann::json {{"schema_version", 1}, {"capture_modes", modes}, {"capture_mode_apply", "application_restart"}});
+  }
+
+  /**
    * @brief Get the list of available applications.
    * @param response The HTTP response object.
    * @param request The HTTP request object.
@@ -1128,6 +1166,19 @@ namespace confighttp {
       // TODO: Input Validation
       nlohmann::json output_tree;
       nlohmann::json input_tree = nlohmann::json::parse(ss);
+      const auto capture_mode = input_tree.value("capture-mode", "desktop"s);
+      if (capture_mode != "desktop" && capture_mode != "application") {
+        throw std::invalid_argument("capture-mode must be desktop or application");
+      }
+      if (capture_mode == "application") {
+        if (!application_capture_available()) {
+          throw std::invalid_argument("Application capture is not available on this server backend");
+        }
+        if (input_tree.value("cmd", ""s).empty() || input_tree.value("auto-detach", true) ||
+            !input_tree.value("wait-all", true) || (input_tree.contains("detached") && !input_tree["detached"].empty())) {
+          throw std::invalid_argument("Application capture requires a tracked command, wait-all, and no detached commands");
+        }
+      }
       std::string file = file_handler::read_file(config::stream.file_apps.c_str());
       BOOST_LOG(info) << file;
       nlohmann::json file_tree = nlohmann::json::parse(file);
@@ -2356,6 +2407,7 @@ namespace confighttp {
     // rest api
     server.resource["^/api/browse$"]["GET"] = browseDirectory;
     server.resource["^/api/apps$"]["GET"] = getApps;
+    server.resource["^/api/stream-kit/capabilities$"]["GET"] = getCaptureCapabilities;
     server.resource["^/api/apps$"]["POST"] = saveApp;
     server.resource["^/api/apps/([0-9]+)$"]["DELETE"] = deleteApp;
     server.resource["^/api/apps/close$"]["POST"] = closeApp;

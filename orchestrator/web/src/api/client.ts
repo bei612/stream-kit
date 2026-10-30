@@ -136,7 +136,8 @@ export const api = {
     request<{ ticket: string; expires_at: string; role: 'viewer' | 'controller' }>(`/stream-sessions/${sessionId}/connections/${connectionId}/ticket`, { method: 'POST' }),
 
   // Apps
-  registerLocalApp: (data: { name:string; exe_path:string; working_dir:string; args:string; args_template:string }) =>
+  captureCapabilities: () => request<{schema_version:number; capture_modes:('desktop'|'application')[]; capture_mode_apply:'application_restart'}>('/apps/capture-capabilities'),
+  registerLocalApp: (data: { name:string; exe_path:string; working_dir:string; args:string; args_template:string; capture_mode:'desktop'|'application' }) =>
     request<{id:string}>('/apps/local', { method:'POST', body:JSON.stringify(data) }),
   listApps: () => request<any[]>('/apps'),
   getApp: (id: string) => request<any>(`/apps/${id}`),

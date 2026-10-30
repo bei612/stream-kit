@@ -5,10 +5,46 @@
 #include "capture_target.h"
 
 #ifdef _WIN32
+  #include <dwmapi.h>
+  #include <mutex>
+  #include <vector>
   #include <windows.h>
 
 namespace capture {
   namespace {
+    /** @brief Window identity backed by a retained rendering-process handle. */
+    class windows_renderer_t final: public renderer_t {
+    public:
+      /** @brief Adopt a verified window and process. @param window Window handle. @param process Owned process handle. */
+      windows_renderer_t(HWND window, HANDLE process):
+          window_(window),
+          process_(process),
+          pid_(GetProcessId(process)) {}
+
+      /** @brief Release the rendering-process identity. */
+      ~windows_renderer_t() override {
+        CloseHandle(process_);
+      }
+
+      std::uint32_t process_id() const override {
+        return pid_;
+      }
+
+      std::uintptr_t window_handle() const override {
+        return reinterpret_cast<std::uintptr_t>(window_);
+      }
+
+      bool alive() const override {
+        DWORD pid = 0;
+        return WaitForSingleObject(process_, 0) == WAIT_TIMEOUT && GetWindowThreadProcessId(window_, &pid) != 0 && pid == pid_;
+      }
+
+    private:
+      HWND window_;  ///< Window associated with this retained renderer.
+      HANDLE process_;  ///< Holds PID identity across asynchronous media operations.
+      DWORD pid_;  ///< Original rendering-process PID.
+    };
+
     /** @brief Windows launch identity owning duplicated process and job handles. */
     class windows_target_t final: public target_t {
     public:
@@ -37,9 +73,16 @@ namespace capture {
         if (retired()) {
           return false;
         }
-        JOBOBJECT_BASIC_ACCOUNTING_INFORMATION accounting {};
-        return QueryInformationJobObject(job_, JobObjectBasicAccountingInformation, &accounting, sizeof(accounting), nullptr) &&
-               accounting.ActiveProcesses > 0;
+        if (WaitForSingleObject(process_, 0) == WAIT_TIMEOUT) {
+          return true;
+        }
+        {
+          std::lock_guard lock(renderer_mutex_);
+          if (renderer_ && renderer_->alive()) {
+            return !retired();
+          }
+        }
+        return has_live_descendant() && !retired();
       }
 
       bool contains(std::uint32_t pid) const override {
@@ -61,17 +104,107 @@ namespace capture {
         return result && !retired();
       }
 
+      renderer_ptr renderer() const override {
+        std::lock_guard lock(renderer_mutex_);
+        if (retired()) {
+          return nullptr;
+        }
+        if (renderer_ && renderer_->alive()) {
+          return renderer_;
+        }
+
+        struct selection_t {
+          const windows_target_t &target;  ///< Launch whose windows are eligible.
+          HWND window {nullptr};  ///< Largest eligible window.
+          std::int64_t area {0};  ///< Visible client area used for initial selection.
+        } selection {*this};
+
+        EnumWindows([](HWND window, LPARAM parameter) -> BOOL {
+          auto &selection = *reinterpret_cast<selection_t *>(parameter);
+          if (!IsWindowVisible(window) || IsIconic(window) || (GetWindowLongPtrW(window, GWL_EXSTYLE) & WS_EX_TOOLWINDOW)) {
+            return TRUE;
+          }
+          DWORD pid = 0;
+          GetWindowThreadProcessId(window, &pid);
+          if (!selection.target.contains(pid)) {
+            return TRUE;
+          }
+          DWORD cloaked = 0;
+          if (SUCCEEDED(DwmGetWindowAttribute(window, DWMWA_CLOAKED, &cloaked, sizeof(cloaked))) && cloaked) {
+            return TRUE;
+          }
+          RECT rect {};
+          if (GetClientRect(window, &rect)) {
+            const auto area = static_cast<std::int64_t>(rect.right - rect.left) * (rect.bottom - rect.top);
+            if (area > selection.area) {
+              selection.window = window;
+              selection.area = area;
+            }
+          }
+          return TRUE;
+        },
+                    reinterpret_cast<LPARAM>(&selection));
+        if (!selection.window) {
+          return nullptr;
+        }
+        DWORD pid = 0;
+        GetWindowThreadProcessId(selection.window, &pid);
+        std::unique_ptr<void, decltype(&CloseHandle)> process(OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | SYNCHRONIZE, FALSE, pid), &CloseHandle);
+        BOOL member = FALSE;
+        if (!process || !IsProcessInJob(process.get(), job_, &member) || !member || retired()) {
+          return nullptr;
+        }
+        auto candidate = std::make_shared<windows_renderer_t>(selection.window, process.get());
+        process.release();
+        if (!candidate->alive()) {
+          return nullptr;
+        }
+        renderer_ = std::move(candidate);
+        return renderer_;
+      }
+
     private:
+      /**
+       * @brief Verify live job members after a bootstrap root has exited.
+       * @return True if at least one retained job member is still running.
+       * @note Job accounting can lag process termination; never authorize from its count alone.
+       */
+      bool has_live_descendant() const {
+        for (std::size_t capacity = 16; capacity <= 65536; capacity *= 2) {
+          std::vector<std::uintptr_t> storage(capacity + 2);
+          auto *list = reinterpret_cast<JOBOBJECT_BASIC_PROCESS_ID_LIST *>(storage.data());
+          if (!QueryInformationJobObject(job_, JobObjectBasicProcessIdList, list, static_cast<DWORD>(storage.size() * sizeof(std::uintptr_t)), nullptr)) {
+            if (GetLastError() == ERROR_MORE_DATA) {
+              continue;
+            }
+            return false;
+          }
+          if (list->NumberOfProcessIdsInList > capacity) {
+            continue;
+          }
+          for (DWORD index = 0; index < list->NumberOfProcessIdsInList; ++index) {
+            const auto pid = static_cast<DWORD>(list->ProcessIdList[index]);
+            if (pid != pid_ && contains(pid)) {
+              return true;
+            }
+          }
+          return false;
+        }
+        return false;
+      }
+
       DWORD pid_;  ///< Stable root PID protected from reuse by process_.
       HANDLE process_;  ///< Retained root process identity.
       HANDLE job_;  ///< Retained job membership for descendant windows.
+      mutable std::mutex renderer_mutex_;  ///< Serializes shared video/audio renderer selection.
+      mutable renderer_ptr renderer_;  ///< Stable renderer until its window or process exits.
     };
   }  // namespace
 
   target_ptr bind_application(std::uint32_t pid, std::uintptr_t process_handle, std::uintptr_t group_handle) {
     const auto process = reinterpret_cast<HANDLE>(process_handle);
     const auto job = reinterpret_cast<HANDLE>(group_handle);
-    if (!pid || !process || !job || GetProcessId(process) != pid || WaitForSingleObject(process, 0) != WAIT_TIMEOUT) {
+    if (!pid || !process || !job || GetProcessId(process) != pid) {
       return nullptr;
     }
     BOOL member = FALSE;
@@ -87,7 +220,17 @@ namespace capture {
       CloseHandle(retained_process);
       return nullptr;
     }
-    return std::make_shared<windows_target_t>(pid, retained_process, retained_job);
+    target_ptr target;
+    try {
+      target = std::make_shared<windows_target_t>(pid, retained_process, retained_job);
+    } catch (...) {
+      CloseHandle(retained_process);
+      CloseHandle(retained_job);
+      throw;
+    }
+    // Launchers may exit before their process creation call returns. The job
+    // and retained root object still identify the same live renderer tree.
+    return target->alive() ? target : nullptr;
   }
 }  // namespace capture
 #else

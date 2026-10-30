@@ -162,6 +162,17 @@ namespace proc {
       return 404;
     }
 
+    if (iter->application_capture && (iter->cmd.empty() || iter->auto_detach || !iter->wait_all || !iter->detached.empty())) {
+      BOOST_LOG(error) << "Application capture requires one tracked command, wait-all, and no detached commands";
+      return 400;
+    }
+#ifndef _WIN32
+    if (iter->application_capture) {
+      BOOST_LOG(error) << "Application capture is not available on this server backend";
+      return 503;
+    }
+#endif
+
     _app_id = app_id;
     _app = *iter;
     _app_prep_begin = std::begin(_app.prep_cmds);
@@ -275,6 +286,21 @@ namespace proc {
         BOOST_LOG(warning) << "Couldn't run ["sv << _app.cmd << "]: System: "sv << ec.message();
         return -1;
       }
+#ifdef _WIN32
+      if (_app.application_capture) {
+        auto target = capture::bind_application(
+          _process.id(),
+          reinterpret_cast<std::uintptr_t>(_process.native_handle()),
+          reinterpret_cast<std::uintptr_t>(_process_group.native_handle())
+        );
+        if (!target) {
+          BOOST_LOG(error) << "Could not retain the application's process identity";
+          return 503;
+        }
+        launch_session->capture_target = target;
+        _capture_target.replace(std::move(target));
+      }
+#endif
     }
 
     _app_launch_time = std::chrono::steady_clock::now();
@@ -320,6 +346,7 @@ namespace proc {
   }
 
   void proc_t::terminate() {
+    _capture_target.replace({});
     input::terminate_gamepads();
     std::error_code ec;
     placebo = false;
@@ -371,6 +398,14 @@ namespace proc {
 
   const std::vector<ctx_t> &proc_t::get_apps() const {
     return _apps;
+  }
+
+  bool proc_t::uses_application_capture(int app_id) const {
+    const auto id = std::to_string(app_id);
+    const auto app = std::find_if(_apps.begin(), _apps.end(), [&id](const auto &entry) {
+      return entry.id == id;
+    });
+    return app != _apps.end() && app->application_capture;
   }
 
   std::vector<ctx_t> &proc_t::get_apps() {
@@ -697,6 +732,11 @@ namespace proc {
         auto auto_detach = app_node.get_optional<bool>("auto-detach"s);
         auto wait_all = app_node.get_optional<bool>("wait-all"s);
         auto exit_timeout = app_node.get_optional<int>("exit-timeout"s);
+        const auto capture_mode = app_node.get<std::string>("capture-mode", "desktop");
+        if (capture_mode != "desktop" && capture_mode != "application") {
+          throw std::invalid_argument("capture-mode must be desktop or application");
+        }
+        ctx.application_capture = capture_mode == "application";
 
         std::vector<proc::cmd_t> prep_cmds;
         if (!exclude_global_prep.value_or(false)) {

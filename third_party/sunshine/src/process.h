@@ -80,6 +80,7 @@ namespace proc {
     bool elevated;  ///< Whether the process should be launched elevated.
     bool auto_detach;  ///< Whether the process should detach automatically.
     bool wait_all;  ///< Whether Sunshine waits for all child processes.
+    bool application_capture {false};  ///< Capture this launch's window and process audio instead of the desktop.
     std::chrono::seconds exit_timeout;  ///< Exit timeout.
   };
 
@@ -151,12 +152,28 @@ namespace proc {
      */
     void terminate();
 
+    /**
+     * @brief Read the capture identity of the current launch for transport resume.
+     * @return The retained application identity, or null for explicit desktop scope.
+     */
+    capture::target_ptr capture_target() const {
+      return _capture_target.get();
+    }
+
+    /**
+     * @brief Inspect capture scope before display preparation or process launch.
+     * @param app_id Configured application ID.
+     * @return True when the application explicitly requests application capture.
+     */
+    bool uses_application_capture(int app_id) const;
+
   private:
     int _app_id;
 
     boost::process::v1::environment _env;
     std::vector<ctx_t> _apps;
     ctx_t _app;
+    capture::target_owner_t _capture_target;  ///< Identity retired before any process replacement.
     std::chrono::steady_clock::time_point _app_launch_time;
 
     // If no command associated with _app_id, yet it's still running

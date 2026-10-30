@@ -36,6 +36,13 @@ namespace confighttp {
   // Main server start function
   void start();
 
+  /**
+   * @brief Report supported capture scopes and their application timing.
+   * @param response Authenticated management response.
+   * @param request Management request.
+   */
+  void getCaptureCapabilities(const resp_https_t &response, const req_https_t &request);
+
   void print_req(const req_https_t &request);
   void send_response(const resp_https_t &response, const nlohmann::json &output_tree);
   void send_unauthorized(const resp_https_t &response, const req_https_t &request);

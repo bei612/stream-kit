@@ -165,8 +165,8 @@ namespace audio {
       apply_surround_params(stream, config.customStreamParams);
     }
 
-    auto ref = get_audio_ctx_ref();
-    if (!ref) {
+    auto ref = config.capture_target ? audio_ctx_ref_t {} : get_audio_ctx_ref();
+    if (!config.capture_target && !ref) {
       return;
     }
 
@@ -178,43 +178,45 @@ namespace audio {
       shutdown_event->view();
     });
 
-    auto &control = ref->control;
-    if (!control) {
-      return;
-    }
-
-    // Order of priority:
-    // 1. Virtual sink
-    // 2. Audio sink
-    // 3. Host
-    std::string *sink = &ref->sink.host;
-    if (!config::audio.sink.empty()) {
-      sink = &config::audio.sink;
-    }
-
-    // Prefer the virtual sink if host playback is disabled or there's no other sink
-    if (ref->sink.null && (!config.flags[config_t::HOST_AUDIO] || sink->empty())) {
-      auto &null = *ref->sink.null;
-      switch (stream.channelCount) {
-        case 2:
-          sink = &null.stereo;
-          break;
-        case 6:
-          sink = &null.surround51;
-          break;
-        case 8:
-          sink = &null.surround71;
-          break;
+    if (!config.capture_target) {
+      auto &control = ref->control;
+      if (!control) {
+        return;
       }
-    }
 
-    // Only the first to start a session may change the default sink
-    if (!ref->sink_flag->exchange(true, std::memory_order_acquire)) {
-      // If the selected sink is different than the current one, change sinks.
-      ref->restore_sink = ref->sink.host != *sink;
-      if (ref->restore_sink) {
-        if (control->set_sink(*sink)) {
-          return;
+      // Order of priority:
+      // 1. Virtual sink
+      // 2. Audio sink
+      // 3. Host
+      std::string *sink = &ref->sink.host;
+      if (!config::audio.sink.empty()) {
+        sink = &config::audio.sink;
+      }
+
+      // Prefer the virtual sink if host playback is disabled or there's no other sink
+      if (ref->sink.null && (!config.flags[config_t::HOST_AUDIO] || sink->empty())) {
+        auto &null = *ref->sink.null;
+        switch (stream.channelCount) {
+          case 2:
+            sink = &null.stereo;
+            break;
+          case 6:
+            sink = &null.surround51;
+            break;
+          case 8:
+            sink = &null.surround71;
+            break;
+        }
+      }
+
+      // Only the first to start a session may change the default sink
+      if (!ref->sink_flag->exchange(true, std::memory_order_acquire)) {
+        // If the selected sink is different than the current one, change sinks.
+        ref->restore_sink = ref->sink.host != *sink;
+        if (ref->restore_sink) {
+          if (control->set_sink(*sink)) {
+            return;
+          }
         }
       }
     }
@@ -222,7 +224,13 @@ namespace audio {
     auto frame_size = config.packetDuration * stream.sampleRate / 1000;
     bool host_audio = config.flags[config_t::HOST_AUDIO];
     bool continuous_audio = config.flags[config_t::CONTINUOUS_AUDIO];
-    auto mic = control->microphone(stream.mapping, stream.channelCount, stream.sampleRate, frame_size, continuous_audio, host_audio);
+    const auto create_microphone = [&]() -> std::unique_ptr<platf::mic_t> {
+      if (config.capture_target) {
+        return platf::application_microphone(config.capture_target, stream.channelCount, stream.sampleRate, frame_size, continuous_audio);
+      }
+      return ref->control->microphone(stream.mapping, stream.channelCount, stream.sampleRate, frame_size, continuous_audio, host_audio);
+    };
+    auto mic = create_microphone();
     if (!mic) {
       return;
     }
@@ -259,7 +267,7 @@ namespace audio {
           BOOST_LOG(info) << "Reinitializing audio capture"sv;
           mic.reset();
           do {
-            mic = control->microphone(stream.mapping, stream.channelCount, stream.sampleRate, frame_size, continuous_audio, host_audio);
+            mic = create_microphone();
             if (!mic) {
               BOOST_LOG(warning) << "Couldn't re-initialize audio input"sv;
             }
@@ -355,3 +363,11 @@ namespace audio {
     stream.mapping = params.mapping;
   }
 }  // namespace audio
+
+#ifndef _WIN32
+namespace platf {
+  std::unique_ptr<mic_t> application_microphone(const capture::target_ptr &, int, std::uint32_t, std::uint32_t, bool) {
+    return nullptr;
+  }
+}  // namespace platf
+#endif

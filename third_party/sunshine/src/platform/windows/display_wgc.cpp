@@ -80,16 +80,25 @@ constexpr auto __mingw_uuidof<winrt::IDirect3DDxgiInterfaceAccess>() -> GUID con
 #endif
 
 namespace platf::dxgi {
-  wgc_capture_t::wgc_capture_t() {
-    InitializeConditionVariable(&frame_present_cv);
-  }
+  wgc_capture_t::wgc_capture_t() = default;
 
   wgc_capture_t::~wgc_capture_t() {
-    if (capture_session) {
-      capture_session.Close();
+    frames->stopped.store(true, std::memory_order_release);
+    WakeAllConditionVariable(&frames->ready);
+    release_frame();
+    try {
+      if (capture_session) {
+        capture_session.Close();
+      }
+    } catch (const winrt::hresult_error &) {
+      // The OS may already have closed an application window's capture session.
     }
-    if (frame_pool) {
-      frame_pool.Close();
+    try {
+      if (frame_pool) {
+        frame_pool.Close();
+      }
+    } catch (const winrt::hresult_error &) {
+      // COM references below still release the closed frame pool.
     }
     item = nullptr;
     capture_session = nullptr;
@@ -101,7 +110,10 @@ namespace platf::dxgi {
    * @return 0 on success, -1 on failure.
    */
   int wgc_capture_t::init(display_base_t *display, const ::video::config_t &config) {
-    HRESULT status;
+    HRESULT status = E_FAIL;
+    application_target = config.capture_target;
+    display->display_refresh_rate = {static_cast<UINT>(std::max(1, config.framerate)), 1};
+    display->display_refresh_rate_rounded = std::max(1, config.framerate);
     dxgi::dxgi_t dxgi;
     winrt::com_ptr<::IInspectable> d3d_comhandle;
     try {
@@ -126,9 +138,49 @@ namespace platf::dxgi {
     uwp_device = d3d_comhandle.as<winrt::IDirect3DDevice>();
     display->output->GetDesc(&output_desc);
 
-    auto monitor_factory = winrt::get_activation_factory<winrt::GraphicsCaptureItem, IGraphicsCaptureItemInterop>();
-    if (monitor_factory == nullptr || FAILED(status = monitor_factory->CreateForMonitor(output_desc.Monitor, winrt::guid_of<winrt::IGraphicsCaptureItem>(), winrt::put_abi(item)))) {
-      BOOST_LOG(error) << "Screen capture is not supported on this device for this release of Windows: failed to acquire display: [0x"sv << util::hex(status).to_string_view() << ']';
+    try {
+      auto factory = winrt::get_activation_factory<winrt::GraphicsCaptureItem, IGraphicsCaptureItemInterop>();
+      if (application_target) {
+        const auto deadline = std::chrono::steady_clock::now() + 5s;
+        while (application_target->alive() && !(application_renderer = application_target->renderer()) && std::chrono::steady_clock::now() < deadline) {
+          std::this_thread::sleep_for(50ms);
+        }
+        if (!application_renderer || !application_target->alive()) {
+          BOOST_LOG(error) << "The application has no capturable window";
+          return -1;
+        }
+        application_window = reinterpret_cast<HWND>(application_renderer->window_handle());
+        status = factory->CreateForWindow(application_window, winrt::guid_of<winrt::IGraphicsCaptureItem>(), winrt::put_abi(item));
+      } else {
+        status = factory->CreateForMonitor(output_desc.Monitor, winrt::guid_of<winrt::IGraphicsCaptureItem>(), winrt::put_abi(item));
+      }
+      if (FAILED(status)) {
+        BOOST_LOG(error) << "Failed to acquire the requested capture item [0x" << util::hex(status).to_string_view() << ']';
+        return -1;
+      }
+      content_size = item.Size();
+      item.Closed([closed = item_closed](auto const &, auto const &) {
+        closed->store(true, std::memory_order_release);
+      });
+      if (application_target) {
+        if (content_size.Width <= 0 || content_size.Height <= 0) {
+          return -1;
+        }
+        display->width = display->width_before_rotation = content_size.Width;
+        display->height = display->height_before_rotation = content_size.Height;
+        display->display_rotation = DXGI_MODE_ROTATION_IDENTITY;
+        RECT bounds {};
+        if (FAILED(DwmGetWindowAttribute(application_window, DWMWA_EXTENDED_FRAME_BOUNDS, &bounds, sizeof(bounds)))) {
+          if (!GetWindowRect(application_window, &bounds)) {
+            return -1;
+          }
+        }
+        display->offset_x = bounds.left - GetSystemMetrics(SM_XVIRTUALSCREEN);
+        display->offset_y = bounds.top - GetSystemMetrics(SM_YVIRTUALSCREEN);
+        BOOST_LOG(info) << "Application capture [" << application_target->process_id() << "] renderer [" << application_renderer->process_id() << "] " << display->width << 'x' << display->height;
+      }
+    } catch (const winrt::hresult_error &e) {
+      BOOST_LOG(error) << "Failed to bind capture item [0x" << util::hex(e.code()).to_string_view() << ']';
       return -1;
     }
 
@@ -141,7 +193,9 @@ namespace platf::dxgi {
     try {
       frame_pool = winrt::Direct3D11CaptureFramePool::CreateFreeThreaded(uwp_device, static_cast<winrt::Windows::Graphics::DirectX::DirectXPixelFormat>(display->capture_format), 2, item.Size());
       capture_session = frame_pool.CreateCaptureSession(item);
-      frame_pool.FrameArrived({this, &wgc_capture_t::on_frame_arrived});
+      frame_pool.FrameArrived([frames = frames](auto const &sender, auto const &) {
+        on_frame_arrived(frames, sender);
+      });
     } catch (winrt::hresult_error &e) {
       BOOST_LOG(error) << "Screen capture is not supported on this device for this release of Windows: failed to create capture session: [0x"sv << util::hex(e.code()).to_string_view() << ']';
       return -1;
@@ -178,7 +232,10 @@ namespace platf::dxgi {
    * To maintain parity with the original display interface, this frame will be consumed by the capture thread.
    * Acquire a read-write lock, make the produced frame available to the capture thread, then wake the capture thread.
    */
-  void wgc_capture_t::on_frame_arrived(winrt::Direct3D11CaptureFramePool const &sender, winrt::IInspectable const &) {
+  void wgc_capture_t::on_frame_arrived(const std::shared_ptr<frame_state_t> &frames, winrt::Direct3D11CaptureFramePool const &sender) {
+    if (frames->stopped.load(std::memory_order_acquire)) {
+      return;
+    }
     winrt::Windows::Graphics::Capture::Direct3D11CaptureFrame frame {nullptr};
     try {
       frame = sender.TryGetNextFrame();
@@ -187,14 +244,18 @@ namespace platf::dxgi {
       return;
     }
     if (frame != nullptr) {
-      AcquireSRWLockExclusive(&frame_lock);
-      if (produced_frame) {
-        produced_frame.Close();
+      AcquireSRWLockExclusive(&frames->lock);
+      auto previous = std::move(frames->produced);
+      frames->produced = std::move(frame);
+      ReleaseSRWLockExclusive(&frames->lock);
+      WakeConditionVariable(&frames->ready);
+      if (previous) {
+        try {
+          previous.Close();
+        } catch (const winrt::hresult_error &) {
+          // Window closure can invalidate an outstanding frame.
+        }
       }
-
-      produced_frame = frame;
-      ReleaseSRWLockExclusive(&frame_lock);
-      WakeConditionVariable(&frame_present_cv);
     }
   }
 
@@ -206,36 +267,75 @@ namespace platf::dxgi {
     // this CONSUMER runs in the capture thread
     release_frame();
 
-    AcquireSRWLockExclusive(&frame_lock);
-    if (produced_frame == nullptr && SleepConditionVariableSRW(&frame_present_cv, &frame_lock, timeout.count(), 0) == 0) {
-      ReleaseSRWLockExclusive(&frame_lock);
-      if (GetLastError() == ERROR_TIMEOUT) {
+    if (item_closed->load(std::memory_order_acquire)) {
+      return application_target && application_target->alive() ? capture_e::reinit : capture_e::error;
+    }
+    if (application_target) {
+      DWORD pid = 0;
+      GetWindowThreadProcessId(application_window, &pid);
+      if (!application_target->alive()) {
+        return capture_e::error;
+      }
+      if (!application_target->contains(pid)) {
+        return capture_e::reinit;
+      }
+      if (!application_renderer->alive()) {
+        return capture_e::reinit;
+      }
+      if (IsIconic(application_window)) {
+        std::this_thread::sleep_for(timeout);
+        return capture_e::timeout;
+      }
+    }
+
+    AcquireSRWLockExclusive(&frames->lock);
+    if (frames->produced == nullptr && SleepConditionVariableSRW(&frames->ready, &frames->lock, timeout.count(), 0) == 0) {
+      const auto wait_error = GetLastError();
+      ReleaseSRWLockExclusive(&frames->lock);
+      if (wait_error == ERROR_TIMEOUT) {
         return capture_e::timeout;
       } else {
         return capture_e::error;
       }
     }
-    if (produced_frame) {
-      consumed_frame = produced_frame;
-      produced_frame = nullptr;
+    if (frames->produced) {
+      consumed_frame = std::move(frames->produced);
     }
-    ReleaseSRWLockExclusive(&frame_lock);
+    ReleaseSRWLockExclusive(&frames->lock);
     if (consumed_frame == nullptr) {  // spurious wakeup
       return capture_e::timeout;
     }
 
-    auto capture_access = consumed_frame.Surface().as<winrt::IDirect3DDxgiInterfaceAccess>();
-    if (capture_access == nullptr) {
+    if (item_closed->load(std::memory_order_acquire) || (application_target && !application_target->alive())) {
       return capture_e::error;
     }
-    capture_access->GetInterface(IID_ID3D11Texture2D, (void **) out);
-    out_time = consumed_frame.SystemRelativeTime().count();  // raw ticks from query performance counter
-    return capture_e::ok;
+    try {
+      const auto frame_size = consumed_frame.ContentSize();
+      if (frame_size.Width != content_size.Width || frame_size.Height != content_size.Height) {
+        return capture_e::reinit;
+      }
+
+      auto capture_access = consumed_frame.Surface().as<winrt::IDirect3DDxgiInterfaceAccess>();
+      if (capture_access == nullptr) {
+        return capture_e::error;
+      }
+      if (FAILED(capture_access->GetInterface(IID_ID3D11Texture2D, (void **) out))) {
+        return capture_e::error;
+      }
+      out_time = consumed_frame.SystemRelativeTime().count();  // raw ticks from query performance counter
+      return capture_e::ok;
+    } catch (const winrt::hresult_error &) {
+      return application_target && application_target->alive() ? capture_e::reinit : capture_e::error;
+    }
   }
 
   capture_e wgc_capture_t::release_frame() {
     if (consumed_frame != nullptr) {
-      consumed_frame.Close();
+      try {
+        consumed_frame.Close();
+      } catch (const winrt::hresult_error &) {
+        // Release the reference even when its source window already closed.
+      }
       consumed_frame = nullptr;
     }
     return capture_e::ok;

@@ -73,6 +73,8 @@ set(PLATFORM_TARGET_FILES
         "${CMAKE_SOURCE_DIR}/src/platform/windows/display_ram.cpp"
         "${CMAKE_SOURCE_DIR}/src/platform/windows/display_wgc.cpp"
         "${CMAKE_SOURCE_DIR}/src/platform/windows/audio.cpp"
+        "${CMAKE_SOURCE_DIR}/src/platform/windows/process_loopback.cpp"
+        "${CMAKE_SOURCE_DIR}/src/platform/windows/process_loopback.h"
         "${CMAKE_SOURCE_DIR}/src/platform/windows/utf_utils.cpp"
         "${CMAKE_SOURCE_DIR}/src/platform/windows/utf_utils.h"
         "${CMAKE_SOURCE_DIR}/third-party/ViGEmClient/src/ViGEmClient.cpp"
@@ -95,6 +97,7 @@ list(PREPEND PLATFORM_LIBRARIES
         dxgi
         iphlpapi
         ksuser
+        mmdevapi
         libssp.a
         libstdc++.a
         libwinpthread.a
