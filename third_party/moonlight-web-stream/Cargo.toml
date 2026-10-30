@@ -40,7 +40,7 @@ moonlight-common = { path = "../moonlight-common-rust", features = [
 ], default-features = false }
 
 # WebRTC
-webrtc = "0.21.1"
+webrtc = { path = "../webrtc-rs" }
 rtc = "0.21.1"
 
 # Log

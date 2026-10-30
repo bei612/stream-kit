@@ -1,0 +1,12 @@
+{
+  "name": "webrtc",
+  "version": "0.21.1",
+  "repository": "https://github.com/webrtc-rs/webrtc",
+  "upstream_commit": "d658b5a803dd8dc389547450e245877310c9cbed",
+  "source": "https://crates.io/api/v1/crates/webrtc/0.21.1/download",
+  "archive_sha256": "b621e736302bef784948cc8d8099fd0a8fdb5757693c80a344ffbe38c49387d2",
+  "path": "third_party/webrtc-rs",
+  "license": "MIT OR Apache-2.0",
+  "integration": "Cargo path dependency; source snapshot, not a submodule",
+  "changes": ["Bind UDP ports within the configured range while retaining ownership of the selected socket; preserve range selection during ICE transport rebinding"]
+}

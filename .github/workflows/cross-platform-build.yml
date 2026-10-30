@@ -100,6 +100,8 @@ jobs:
           path: artifacts/audio-target
           if-no-files-found: warn
       - run: cargo test --locked
+      - name: Verify owned UDP port allocation
+        run: cargo test --locked --manifest-path ../webrtc-rs/Cargo.toml --lib udp_port_range
       - run: cargo install wasm-bindgen-cli --version 0.2.128 --locked
       - run: npm ci
       - run: npm run build

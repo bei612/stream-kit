@@ -1,5 +1,7 @@
 # 纳管源码与原生构建
 
+`webrtc-rs.json` 记录 WebRTC 异步层 0.21.1 的 crates.io 归档来源与摘要，源码位于 `third_party/webrtc-rs`，由网关通过 Cargo 路径依赖编译。保留 MIT/Apache-2.0 许可证；移除归档中的未使用 submodule 声明，rtc 仍使用 Cargo 锁定依赖。二开把 UDP 范围选端口放到实际套接字绑定层，避免并发连接在探测后释放端口产生竞争；ICE 重绑复用同一策略。生产依赖锁定见网关 Cargo.lock，源码单元测试依赖单独锁定在该目录 Cargo.lock。
+
 `upstream-lock.json` 锁定主组件，`sunshine-dependencies.json` 锁定 Sunshine 原有嵌套依赖及 NVENC 头文件。依赖是本仓库普通文件，不需要 `git submodule update`。清单保留上游仓库、提交、下载归档摘要以及可执行文件/符号链接模式。AMF 仅纳入构建使用的公开头文件、README 和许可证，不纳入无关示例二进制、PDB 与预编译 FFmpeg。
 
 源码二开与上游快照统一提交。源归档摘要表示导入来源，不表示二开后文件仍与原归档逐字节相同。当前构建调整包括：显式使用本地源码编译的 FFmpeg；NVENC 头文件使用本仓库源码；x265 使用准确的 4.1 归档版本；SVT-AV1 使用源码声明的版本；补丁必须实际应用或已完整应用，不能静默跳过。

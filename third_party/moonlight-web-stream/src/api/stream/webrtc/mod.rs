@@ -5,7 +5,6 @@ use crate::api::stream::webrtc::forward_interceptor::RtcpForwarderInterceptor;
 use crate::api::stream::webrtc::microphone::MicChannel;
 use crate::api::stream::webrtc::stream::webrtc_loop;
 use crate::api::stream::webrtc::video::{VideoChannel, video_rtcp_feedback};
-use crate::config::PortRange;
 use actix_web::HttpRequest;
 use actix_web::body::BoxBody;
 use actix_web::web::{Data, Path};
@@ -37,10 +36,9 @@ use rtc::rtp_transceiver::rtp_sender::{
     RTCPFeedback, RTCRtpCodec, RTCRtpCodecParameters, RTCRtpHeaderExtensionCapability, RtpCodecKind,
 };
 use std::collections::HashMap;
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tokio::net::UdpSocket;
 use tokio::sync::Notify;
 use tokio::sync::mpsc::{self};
 use tokio::time::sleep;
@@ -336,33 +334,7 @@ pub async fn webrtc_post(
     )
     .expect("register default interceptors");
 
-    // Find available port
-    let port = if let Some(PortRange { min, max }) = app.config().webrtc.port_range {
-        let mut valid_port = None;
-
-        // Try to bind a udp socket to see if the port is available
-        for port in min..=max {
-            let addr = SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), port);
-
-            if UdpSocket::bind(addr).await.is_ok() {
-                valid_port = Some(port);
-                break;
-            }
-        }
-
-        match valid_port {
-            Some(port) => port,
-            None => {
-                error!(port_min = %min, port_max = %max, "No available udp port found in given port range. Cannot create webrtc peer!");
-                return Err(AppError::WebRTC(
-                    webrtc::error::Error::ErrAddressAlreadyInUse,
-                ));
-            }
-        }
-    } else {
-        0
-    };
-    let local_addrs = vec![SocketAddr::new(Ipv4Addr::new(0, 0, 0, 0).into(), port)];
+    let local_addrs = vec![SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 0)];
 
     // Initialize senders and receivers for events
     let (on_data_channel_sender, on_data_channel) =
@@ -377,7 +349,11 @@ pub async fn webrtc_post(
     });
 
     // Create new peer
-    let peer = PeerConnectionBuilder::default()
+    let mut builder = PeerConnectionBuilder::default();
+    if let Some(range) = &app.config().webrtc.port_range {
+        builder = builder.with_udp_port_range(range.min, range.max);
+    }
+    let peer = builder
         .with_media_engine(media_engine)
         .with_interceptor_registry(interceptor_registry)
         .with_setting_engine(setting_engine.build())

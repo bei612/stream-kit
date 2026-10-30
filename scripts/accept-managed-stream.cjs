@@ -401,7 +401,7 @@ async function main() {
     assert.equal(stale.status,409);
     await adminPage.screenshot({path:path.join(output,'gateway-settings.png'),fullPage:true});
     await adminPage.close();
-    result.gateway_configuration = {passed:true,apply_policy:saved.apply_policy,restart_required:true,conflict_rejected:true,browser_form:true,
+    result.gateway_configuration = {passed:true,apply_policy:saved.apply_policy,saved_revision:saved.revision,restart_required:true,conflict_rejected:true,browser_form:true,
       scope:'Production administrator form through signed native file operation during active media; no gateway restart.'};
   }
   if (restartServices) {
@@ -434,6 +434,22 @@ async function main() {
     assert.equal(recovered.controller_connection_id, selected.controller_connection_id);
     assert.equal(recovered.control_epoch, selected.control_epoch);
     result.gateway_restart = { recovered_ms: Date.now()-started, retained_connections:true, retained_control_epoch:true };
+    if (result.gateway_configuration) {
+      const applied = await api('/gateway-configuration');
+      assert.equal(applied.running_revision,result.gateway_configuration.saved_revision);
+      assert.equal(applied.restart_required,false);
+      const candidates = await Promise.all(pages.map(page=>page.evaluate(async()=>{
+        const stats=await window.__acceptancePeers.at(-1).getStats();
+        const transport=[...stats.values()].find(item=>item.type==='transport'&&item.selectedCandidatePairId);
+        const pair=transport?stats.get(transport.selectedCandidatePairId):[...stats.values()].find(item=>item.type==='candidate-pair'&&item.state==='succeeded'&&item.nominated);
+        return pair ? stats.get(pair.remoteCandidateId) : null;
+      })));
+      result.gateway_restart.remote_candidates=candidates;
+      const ports=candidates.map(candidate=>candidate?.port);
+      for(const port of ports) assert.ok(Number.isInteger(port)&&port>=60000&&port<=60100,'Recovered media must use the configured UDP range');
+      result.gateway_restart.applied_revision=applied.running_revision;
+      result.gateway_restart.remote_udp_ports=ports;
+    }
     console.log('Gateway restart recovered without page reload');
     const beforeControl = await Promise.all(pages.map(videoFrames));
     await stopProcess(controlProcess);
