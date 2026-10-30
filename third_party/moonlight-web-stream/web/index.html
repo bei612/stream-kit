@@ -5,7 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="google" content="notranslate" />
     <title>Moonlight</title>
-    <link rel="icon" href="resources/moonlight.svg" sizes="any" type="image/svg+xml">
+    <link rel="icon" href="moonlight.svg" sizes="any" type="image/svg+xml">
 
     <script src="./config.js"></script>
 
@@ -35,7 +35,7 @@
     </script>
     <script>
         if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-            window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js'));
+            window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js').catch(error => console.warn('Offline support unavailable', error)));
         }
     </script>
 </head>

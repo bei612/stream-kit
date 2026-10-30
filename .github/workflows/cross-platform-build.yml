@@ -63,14 +63,32 @@ jobs:
         working-directory: third_party/moonlight-web-stream
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.99.0
         with:
           components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.4.0'
+          cache: npm
+          cache-dependency-path: third_party/moonlight-web-stream/package-lock.json
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: third_party/moonlight-web-stream
       - run: cargo check --locked
       - run: cargo test --locked
+      - run: cargo install wasm-bindgen-cli --version 0.2.128 --locked
+      - run: npm ci
+      - run: npm run build
+      - run: npx --no-install playwright install --with-deps chromium
+      - run: node ../../scripts/smoke-gateway-browser.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moonlight-browser-${{ runner.os }}-${{ runner.arch }}
+          path: third_party/moonlight-web-stream/dist
+          if-no-files-found: error
       - run: cargo fmt --all -- --check
       - run: cargo clippy --locked --all-targets -- -D warnings
       - run: cargo build --locked --release

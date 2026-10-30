@@ -16,7 +16,7 @@ function browser(replies, config = { managed_streaming: true, control_plane_url:
   }
   const exports = {}
   const sandbox = { exports, URL, URLSearchParams, AbortController, window,
-    require(name) { assert.equal(name, '../config.js'); return { default: config } },
+    require(name) { assert.equal(name, '../config_'); return { CONFIG: config } },
     async fetch(url, options) {
       calls.push({ url, options })
       const next = replies.shift()

@@ -10,6 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default {
+    context: __dirname,
     entry: {
         // TODO: also include i18n
         common: ["./web/styles/index.ts"],
@@ -74,6 +75,8 @@ export default {
                     from: "./web/manifest.json",
                     to: "manifest.json"
                 },
+                { from: "./web/service-worker.js", to: "service-worker.js" },
+                { from: "./web/offline.html", to: "offline.html" },
             ],
         }),
     ],

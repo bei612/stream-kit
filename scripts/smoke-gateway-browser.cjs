@@ -1,0 +1,124 @@
+// Validates real release assets and the generated Rust/WASM ABI in Chromium.
+// Authentication responses are fixtures; this is not a streaming E2E test.
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const http = require('node:http');
+const path = require('node:path');
+const { createHash } = require('node:crypto');
+const { createRequire } = require('node:module');
+const root = path.resolve(__dirname, '..');
+const gateway = path.join(root, 'third_party/moonlight-web-stream');
+const output = path.join(root, 'artifacts/gateway-browser');
+const gatewayRequire = createRequire(path.join(gateway, 'package.json'));
+const { chromium } = process.env.PLAYWRIGHT_MODULE ? require(process.env.PLAYWRIGHT_MODULE) : gatewayRequire('playwright');
+const webpack = gatewayRequire('webpack');
+fs.mkdirSync(output, { recursive: true });
+fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify({ passed: false, status: 'running', at: new Date().toISOString() }));
+const entry = path.join(output, 'probe.ts');
+fs.writeFileSync(entry, `
+import { uniffiInitAsync, keyStatesEmpty, keyStatesSetPressed, keyStatesIsPressed, KeyAction, webrtcLinkHeaderParse } from ${JSON.stringify(path.join(gateway, 'web/uniffi/entry').replaceAll('\\', '/'))};
+uniffiInitAsync().then(() => {
+  const states = keyStatesSetPressed(keyStatesEmpty(), 65, KeyAction.Down);
+  if (keyStatesIsPressed(states, 65) !== KeyAction.Down) throw new Error('Key-down ABI round trip failed');
+  const released = keyStatesSetPressed(states, 65, KeyAction.Up);
+  if (keyStatesIsPressed(released, 65) !== KeyAction.Up) throw new Error('Key-up ABI round trip failed');
+  if (webrtcLinkHeaderParse('<stun:example.test:3478>; rel="ice-server"').length !== 1) throw new Error('ICE header ABI failed');
+  document.body.dataset.ready = 'true';
+});
+`);
+
+async function main() {
+  const compiler = webpack({
+    mode: 'production', context: gateway, entry,
+    output: { path: path.join(output, 'probe'), filename: 'probe.js' },
+    resolve: { extensions: ['.ts', '.js'] },
+    module: { rules: [
+      { test: /\.ts$/, loader: gatewayRequire.resolve('ts-loader'), options: { configFile: path.join(gateway, 'tsconfig.json'), onlyCompileBundledFiles: true } },
+      { test: /\.wasm$/, type: 'asset/resource' },
+    ] },
+  });
+  await new Promise((resolve, reject) => compiler.run((error, stats) => {
+    compiler.close(closeError => {
+      if (error || closeError || stats?.hasErrors()) reject(error || closeError || new Error(stats.toString({ all: false, errors: true })));
+      else resolve();
+    });
+  }));
+  const missing = [];
+  const server = http.createServer((req, res) => {
+    const pathname = new URL(req.url, 'http://localhost').pathname;
+    if (pathname === '/gateway/config.js') {
+      res.setHeader('Content-Type', 'text/javascript');
+      res.end('window.__CONFIG_JS__ = {path_prefix:"/gateway",managed_streaming:false,control_plane_url:null};');
+      return;
+    }
+    if (pathname === '/gateway/api/authenticate') {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthenticated fixture' }));
+      return;
+    }
+    if (pathname === '/bindings/') {
+      res.setHeader('Content-Type', 'text/html');
+      res.end('<!doctype html><html><body><script src="probe.js"></script></body></html>');
+      return;
+    }
+    const base = pathname.startsWith('/gateway/') ? path.join(gateway, 'dist') : path.join(output, 'probe');
+    const filename = path.resolve(base, '.' + pathname.replace(/^\/(gateway|bindings)/, '') + (pathname.endsWith('/') ? 'index.html' : ''));
+    const relative = path.relative(base, filename);
+    if (relative.startsWith('..') || path.isAbsolute(relative) || !fs.existsSync(filename) || !fs.statSync(filename).isFile()) {
+      missing.push(pathname); res.writeHead(404); res.end(); return;
+    }
+    const type = { '.wasm': 'application/wasm', '.js': 'text/javascript', '.html': 'text/html', '.svg': 'image/svg+xml', '.png': 'image/png' }[path.extname(filename)];
+    res.setHeader('Content-Type', type || 'application/octet-stream');
+    fs.createReadStream(filename).pipe(res);
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  let browser;
+  try {
+    browser = await chromium.launch({ headless: true, ...(process.env.BROWSER_CHANNEL ? { channel: process.env.BROWSER_CHANNEL } : {}) });
+    const errors = [];
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    for (const pathname of ['index.html', 'admin.html', 'stream.html?hostId=1&appId=2']) {
+      const page = await browser.newPage();
+      page.on('pageerror', error => errors.push(`${pathname}: ${error.message}`));
+      await page.goto(`${origin}/gateway/${pathname}`);
+      await page.locator('#ml-api-name').waitFor();
+      await page.waitForLoadState('networkidle');
+      if (pathname === 'index.html') {
+        await page.evaluate(() => Promise.race([
+          navigator.serviceWorker.ready,
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Service worker activation timed out')), 15000)),
+        ]));
+        const cached = await page.evaluate(async () => {
+          const entries = [];
+          for (const key of await caches.keys()) {
+            for (const req of await (await caches.open(key)).keys()) entries.push(new URL(req.url).pathname);
+          }
+          return entries;
+        });
+        assert.deepEqual(cached, ['/gateway/offline.html']);
+        await page.context().setOffline(true);
+        await page.goto(`${origin}/gateway/stream.html?hostId=1&appId=2`);
+        await page.getByRole('heading', { name: '连接已断开' }).waitFor();
+      }
+      await page.close();
+    }
+    const page = await browser.newPage();
+    page.on('pageerror', error => errors.push(`bindings: ${error.message}`));
+    await page.goto(`${origin}/bindings/`);
+    await page.waitForFunction(() => document.body.dataset.ready === 'true');
+    assert.deepEqual(errors, [], 'Browser errors');
+    assert.deepEqual(missing.filter(url => url !== '/favicon.ico'), [], 'Missing built resources');
+    const result = { passed: true, browser: browser.version(), at: new Date().toISOString(),
+      assets: Object.fromEntries(fs.readdirSync(path.join(gateway, 'dist')).filter(name => /\.(js|wasm|html)$/.test(name)).map(name => [name, createHash('sha256').update(fs.readFileSync(path.join(gateway, 'dist', name))).digest('hex')])),
+      scope: 'Three production pages at a path prefix; offline navigation and cache isolation; release WASM initialization and Rust keyboard/ICE ABI. Authentication is a fixture, no real upstream.' };
+    fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(result, null, 2));
+    console.log(JSON.stringify(result));
+  } finally {
+    if (browser) await browser.close();
+    await new Promise(resolve => server.close(resolve));
+  }
+}
+main().catch(error => {
+  fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify({ passed: false, status: 'failed', at: new Date().toISOString(), error: error.message }, null, 2));
+  console.error(error); process.exitCode = 1;
+});
