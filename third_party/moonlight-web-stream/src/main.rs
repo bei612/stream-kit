@@ -1,8 +1,4 @@
 use crate::{cli::ConfigCommand, config::Config};
-use rustls::{
-    ServerConfig,
-    pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject},
-};
 use std::{
     fs::OpenOptions,
     io::{self, IsTerminal},
@@ -47,6 +43,7 @@ mod cli;
 mod config;
 mod configuration;
 mod human_json;
+mod tls;
 
 #[actix_web::main]
 async fn main() {
@@ -91,7 +88,10 @@ async fn main() {
 
     match cli.command {
         Some(Command::Config(ConfigCommand::Check)) => {
-            if let Err(message) = config.validate() {
+            if let Err(message) = config
+                .validate()
+                .and_then(|()| tls::load(&config).map(|_| ()))
+            {
                 eprintln!("invalid configuration: {message}");
                 std::process::exit(2);
             }
@@ -315,6 +315,8 @@ async fn start(
     config: Config,
     settings: Data<configuration::Settings>,
 ) -> Result<(), anyhow::Error> {
+    config.validate().map_err(anyhow::Error::msg)?;
+    let tls = tls::load(&config).map_err(anyhow::Error::msg)?;
     let app = App::new(config.clone()).await?;
     let app = Data::new(app);
 
@@ -349,26 +351,8 @@ async fn start(
         }
     });
 
-    if let Some(certificate) = app.config().web_server.certificate.as_ref() {
+    if let Some(config) = tls {
         info!("[Server]: Running Https Server with ssl tls");
-
-        let certificate_chain = {
-            let results =
-                CertificateDer::pem_file_iter(&certificate.certificate_pem)?.collect::<Vec<_>>();
-            let mut chain = Vec::with_capacity(results.len());
-
-            for result in results {
-                chain.push(result?);
-            }
-
-            chain
-        };
-        let private_key = PrivateKeyDer::from_pem_file(&certificate.private_key_pem)?;
-
-        let config = ServerConfig::builder()
-            .with_no_client_auth()
-            .with_single_cert(certificate_chain, private_key)?;
-
         server.bind_rustls_0_23(bind_address, config)?.run().await?;
     } else {
         server.bind(bind_address)?.run().await?;

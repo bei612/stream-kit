@@ -145,6 +145,7 @@ impl Settings {
         let mut effective = next.clone();
         self.overrides.clone().apply(&mut effective);
         effective.validate().map_err(|_| Error::Invalid)?;
+        crate::tls::load(&effective).map_err(|_| Error::Invalid)?;
         let output = serde_json::to_vec_pretty(&next).map_err(|_| Error::Invalid)?;
         if output.len() as u64 > LIMIT {
             return Err(Error::Invalid);
@@ -274,6 +275,49 @@ mod tests {
             settings.save(&saved.revision, overlapping),
             Err(Error::Invalid)
         ));
+        fs::remove_file(&settings.path)?;
+        fs::remove_dir(dir)?;
+        Ok(())
+    }
+
+    #[test]
+    fn tls_save_checks_files_and_key_match_before_replacement()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let (dir, settings) = fixture()?;
+        let fixtures = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tls");
+        let before = settings.view()?;
+        let bytes = fs::read(&settings.path)?;
+        for key in ["missing.pem", "other-test-key.pem.fixture"] {
+            let changes = BTreeMap::from([(
+                "/web_server/certificate".into(),
+                serde_json::json!({
+                    "certificate_pem": fixtures.join("test-cert.pem.fixture"),
+                    "private_key_pem": fixtures.join(key),
+                }),
+            )]);
+            assert!(matches!(
+                settings.save(&before.revision, changes),
+                Err(Error::Invalid)
+            ));
+            assert_eq!(fs::read(&settings.path)?, bytes);
+        }
+        let saved = settings.save(
+            &before.revision,
+            BTreeMap::from([(
+                "/web_server/certificate".into(),
+                serde_json::json!({
+                    "certificate_pem": fixtures.join("test-cert.pem.fixture"),
+                    "private_key_pem": fixtures.join("test-key.pem.fixture"),
+                }),
+            )]),
+        )?;
+        assert!(saved.restart_required);
+        assert!(
+            saved
+                .values
+                .pointer("/web_server/certificate")
+                .is_some_and(Value::is_null)
+        );
         fs::remove_file(&settings.path)?;
         fs::remove_dir(dir)?;
         Ok(())

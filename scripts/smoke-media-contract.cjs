@@ -128,6 +128,12 @@ async function main() {
     const savedFile = fs.readFileSync(configPath,'utf8');
     assert.equal((await configurationRequest('save',{revision:changed.result.data.revision,changes:{'/webrtc/port_range':{min:90,max:80}}})).status,400);
     assert.equal(fs.readFileSync(configPath,'utf8'),savedFile);
+    const invalidTLS = await configurationRequest('save', {revision:changed.result.data.revision,
+      changes:{'/web_server/certificate':{certificate_pem:path.join(fixture,'missing-certificate.pem'),private_key_pem:path.join(fixture,'missing-key.pem')}}});
+    assert.equal(invalidTLS.status,400);
+    assert.equal(invalidTLS.result.code,'CONFIGURATION_INVALID');
+    assert.ok(!JSON.stringify(invalidTLS).includes(fixture),'TLS diagnostic exposed a server path');
+    assert.equal(fs.readFileSync(configPath,'utf8'),savedFile);
     const replacementSecret = crypto.randomBytes(32).toString('hex');
     const rotation = await configurationRequest('save',{revision:changed.result.data.revision,changes:{'/web_server/media_ticket_secret':replacementSecret}});
     assert.equal(rotation.status,200);

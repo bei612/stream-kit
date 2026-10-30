@@ -23,10 +23,19 @@ ordered nonzero WebRTC port bounds, explicit NAT IP addresses, native host port
 and forwarded username header syntax. Unknown fields in the native configuration
 objects are rejected rather than silently ignoring an administrator's edit.
 
+TLS preflight, configuration save and startup share the same bounded PEM
+loader. Each certificate/key file must be readable, regular and at most 1 MiB.
+The native TLS library checks PEM parsing, certificate/key usability and their
+correspondence before saving or allocating startup resources. Errors omit file
+paths and contents. Relative TLS paths retain the native working-directory
+semantics; they are not relative to the configuration file.
+
 The command does not start listeners, execute ICE scripts, create runtime
-storage or open audio devices. Passing does not prove certificate validity,
-path permissions, device availability, network reachability or end-to-end media
-operation. Native configuration changes still require a gateway restart.
+storage or open audio devices. Passing does not prove certificate expiry,
+hostname or public trust, future file availability, device availability,
+network reachability or end-to-end media operation. Native configuration
+changes still require a gateway restart. External file changes after validation
+are checked again at startup; save does not install or rotate certificates.
 
 Normal gateway startup uses the same validation before creating application
 resources. A startup error returns exit 1 so the service manager can distinguish
