@@ -4,127 +4,276 @@ use std::{
     time::{Duration, Instant},
 };
 
-/// One stereo 48 kHz mix per rendering session. Host packets supply the output
-/// clock; a bounded microphone FIFO absorbs differing Opus packet durations.
-pub struct AudioMixer {
-    host: Decoder,
-    microphone: Decoder,
-    encoder: Encoder,
-    pending: VecDeque<f32>,
-    last_microphone: Option<Instant>,
-    scratch: Vec<f32>,
-    program_gain: f32,
-    microphone_gain: f32,
+pub const FRAME_DURATION: Duration = Duration::from_millis(20);
+const FRAME_SAMPLES: usize = 960 * 2;
+const MAX_PENDING: usize = FRAME_SAMPLES * 10;
+const MAX_AGE: Duration = Duration::from_millis(200);
+
+/// Scheduling and RTP time share one monotonic session epoch. Missed deadlines
+/// advance media time; they never produce a burst of old frames.
+pub struct AudioClock {
+    epoch: tokio::time::Instant,
+    interval: tokio::time::Interval,
+}
+impl AudioClock {
+    pub fn new() -> Self {
+        let epoch = tokio::time::Instant::now();
+        let mut interval = tokio::time::interval_at(epoch + FRAME_DURATION, FRAME_DURATION);
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        Self { epoch, interval }
+    }
+    pub async fn tick(&mut self) -> Duration {
+        self.interval.tick().await;
+        let elapsed = self.epoch.elapsed().as_millis();
+        let slot = (elapsed / FRAME_DURATION.as_millis()).saturating_sub(1);
+        Duration::from_millis((slot * FRAME_DURATION.as_millis()) as u64)
+    }
 }
 
+/// A decoded input owns its codec history and bounded interleaved stereo FIFO.
+struct AudioInput {
+    decoder: Decoder,
+    pending: VecDeque<f32>,
+    last_packet: Option<Instant>,
+}
+impl AudioInput {
+    fn new() -> Result<Self, opus::Error> {
+        Ok(Self {
+            decoder: Decoder::new(48_000, Channels::Stereo)?,
+            pending: VecDeque::with_capacity(MAX_PENDING),
+            last_packet: None,
+        })
+    }
+    fn push(
+        &mut self,
+        packet: &[u8],
+        scratch: &mut [f32],
+        now: Instant,
+    ) -> Result<(), opus::Error> {
+        self.expire(now)?;
+        let count = self.decoder.decode_float(packet, scratch, false)? * 2;
+        self.pending.extend(&scratch[..count]);
+        self.discard(self.pending.len().saturating_sub(MAX_PENDING));
+        self.last_packet = Some(now);
+        Ok(())
+    }
+    fn discard(&mut self, count: usize) {
+        self.pending.drain(..count.min(self.pending.len()));
+    }
+    fn clear(&mut self) -> Result<(), opus::Error> {
+        self.pending.clear();
+        self.last_packet = None;
+        self.decoder.reset_state()
+    }
+    fn expire(&mut self, now: Instant) -> Result<(), opus::Error> {
+        if self
+            .last_packet
+            .is_some_and(|time| now.saturating_duration_since(time) >= MAX_AGE)
+        {
+            self.clear()?;
+        }
+        Ok(())
+    }
+}
+
+/// One 48 kHz stereo bus per session. Arrival only fills inputs; the session
+/// clock renders 20 ms frames even when the program sends no audio.
+pub struct AudioMixer {
+    program: AudioInput,
+    microphone: AudioInput,
+    encoder: Encoder,
+    scratch: Vec<f32>,
+    output: Vec<f32>,
+    program_gain: f32,
+    microphone_gain: f32,
+    last_output: Option<Duration>,
+}
 impl AudioMixer {
     pub fn new() -> Result<Self, opus::Error> {
         Ok(Self {
-            host: Decoder::new(48_000, Channels::Stereo)?,
-            microphone: Decoder::new(48_000, Channels::Stereo)?,
+            program: AudioInput::new()?,
+            microphone: AudioInput::new()?,
             encoder: Encoder::new(48_000, Channels::Stereo, Application::Audio)?,
-            pending: VecDeque::new(),
-            last_microphone: None,
             scratch: vec![0.0; 5760 * 2],
+            output: vec![0.0; FRAME_SAMPLES],
             program_gain: 1.0,
             microphone_gain: 1.0,
+            last_output: None,
         })
     }
-
-    pub fn configure(&mut self, policy: &super::control_state::AudioPolicy) {
+    pub fn configure(
+        &mut self,
+        policy: &super::control_state::AudioPolicy,
+    ) -> Result<(), opus::Error> {
         self.program_gain = 10.0f32.powf(policy.program_gain_db / 20.0);
-        self.microphone_gain =
-            if policy.microphone_enabled && policy.broadcast_controller_microphone {
-                10.0f32.powf(policy.microphone_gain_db / 20.0)
-            } else {
-                0.0
-            };
-        if self.microphone_gain == 0.0 {
-            self.pending.clear();
-        }
-    }
-
-    pub fn clear_microphone(&mut self) -> Result<(), opus::Error> {
-        self.pending.clear();
-        self.last_microphone = None;
-        self.microphone.reset_state()
-    }
-
-    pub fn microphone(&mut self, packet: &[u8]) -> Result<(), opus::Error> {
-        let count = self
-            .microphone
-            .decode_float(packet, &mut self.scratch, false)?
-            * 2;
-        self.pending.extend(&self.scratch[..count]);
-        // Never retain more than 200 ms, even if a sender floods valid packets.
-        let excess = self.pending.len().saturating_sub(48_000 * 2 / 5);
-        self.pending.drain(..excess);
-        self.last_microphone = Some(Instant::now());
-        Ok(())
-    }
-
-    pub fn mix(&mut self, host_packet: &[u8]) -> Result<Vec<u8>, opus::Error> {
-        if self
-            .last_microphone
-            .is_some_and(|time| time.elapsed() > Duration::from_millis(200))
+        let microphone_gain = if policy.microphone_enabled && policy.broadcast_controller_microphone
         {
+            10.0f32.powf(policy.microphone_gain_db / 20.0)
+        } else {
+            0.0
+        };
+        if microphone_gain == 0.0 && self.microphone_gain != 0.0 {
             self.clear_microphone()?;
         }
-        let count = self
-            .host
-            .decode_float(host_packet, &mut self.scratch, false)?
-            * 2;
-        for sample in &mut self.scratch[..count] {
-            *sample = (*sample * self.program_gain
-                + self.pending.pop_front().unwrap_or(0.0) * self.microphone_gain)
+        self.microphone_gain = microphone_gain;
+        Ok(())
+    }
+    pub fn clear_microphone(&mut self) -> Result<(), opus::Error> {
+        self.microphone.clear()?;
+        // Remove microphone history in the output codec as well.
+        self.encoder.reset_state()
+    }
+    pub fn microphone(&mut self, packet: &[u8], now: Instant) -> Result<(), opus::Error> {
+        if self.microphone_gain == 0.0 {
+            return Ok(());
+        }
+        self.microphone.push(packet, &mut self.scratch, now)
+    }
+    pub fn program(&mut self, packet: &[u8], now: Instant) -> Result<(), opus::Error> {
+        self.program.push(packet, &mut self.scratch, now)
+    }
+    pub fn render(&mut self, timestamp: Duration, now: Instant) -> Result<Vec<u8>, opus::Error> {
+        self.program.expire(now)?;
+        self.microphone.expire(now)?;
+        if let Some(previous) = self.last_output {
+            // Drop skipped clock slots instead of replaying a delayed backlog.
+            let missed = timestamp
+                .saturating_sub(previous)
+                .as_millis()
+                .saturating_sub(FRAME_DURATION.as_millis())
+                / FRAME_DURATION.as_millis();
+            let discard = (missed.min(10) as usize) * FRAME_SAMPLES;
+            self.program.discard(discard);
+            self.microphone.discard(discard);
+        }
+        self.last_output = Some(timestamp);
+        for sample in &mut self.output {
+            *sample = (self.program.pending.pop_front().unwrap_or(0.0) * self.program_gain
+                + self.microphone.pending.pop_front().unwrap_or(0.0) * self.microphone_gain)
                 .clamp(-1.0, 1.0);
         }
-        let mut output = vec![0; 4000];
-        let len = self
-            .encoder
-            .encode_float(&self.scratch[..count], &mut output)?;
-        output.truncate(len);
-        Ok(output)
+        let mut packet = vec![0; 4000];
+        let len = self.encoder.encode_float(&self.output, &mut packet)?;
+        packet.truncate(len);
+        Ok(packet)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn packet(samples: &[f32]) -> Vec<u8> {
+    #[tokio::test(start_paused = true)]
+    async fn clock_runs_without_input_and_skips_missed_deadlines() {
+        let mut clock = AudioClock::new();
+        assert_eq!(clock.tick().await, Duration::ZERO);
+        assert_eq!(clock.tick().await, FRAME_DURATION);
+        tokio::time::advance(Duration::from_millis(100)).await;
+        assert_eq!(clock.tick().await, Duration::from_millis(120));
+        assert_eq!(clock.tick().await, Duration::from_millis(140));
+    }
+    fn tone(count: usize) -> Vec<u8> {
+        let samples: Vec<f32> = (0..count)
+            .map(|i| ((i / 2) as f32 * 0.06).sin() * 0.3)
+            .collect();
         let mut encoder = Encoder::new(48_000, Channels::Stereo, Application::Audio).unwrap();
         let mut output = vec![0; 4000];
-        let len = encoder.encode_float(samples, &mut output).unwrap();
+        let len = encoder.encode_float(&samples, &mut output).unwrap();
         output.truncate(len);
         output
     }
-    #[test]
-    fn microphone_is_audible_in_mix_and_fifo_is_bounded() {
-        let mut mixer = AudioMixer::new().unwrap();
-        let tone: Vec<f32> = (0..1920)
-            .map(|i| ((i / 2) as f32 * 0.06).sin() * 0.3)
-            .collect();
-        let voice = packet(&tone);
-        for _ in 0..100 {
-            mixer.microphone(&voice).unwrap();
-        }
-        assert!(mixer.pending.len() <= 19200);
-        let mixed = mixer.mix(&packet(&vec![0.0; 1920])).unwrap();
+    fn decoded(packet: &[u8]) -> Vec<f32> {
         let mut decoder = Decoder::new(48_000, Channels::Stereo).unwrap();
         let mut pcm = vec![0.0; 11520];
-        let count = decoder.decode_float(&mixed, &mut pcm, false).unwrap() * 2;
-        assert!(pcm[..count].iter().any(|sample| sample.abs() > 0.01));
-        mixer.clear_microphone().unwrap();
-        assert!(mixer.pending.is_empty());
+        let count = decoder.decode_float(packet, &mut pcm, false).unwrap() * 2;
+        pcm.truncate(count);
+        pcm
     }
-
     #[test]
-    fn stale_microphone_is_removed_before_next_host_frame() {
+    fn microphone_renders_without_any_program_packet() {
+        let now = Instant::now();
         let mut mixer = AudioMixer::new().unwrap();
-        mixer.microphone(&packet(&vec![0.5; 1920])).unwrap();
-        mixer.last_microphone = Some(Instant::now() - Duration::from_secs(1));
-        mixer.mix(&packet(&vec![0.0; 1920])).unwrap();
-        assert!(mixer.pending.is_empty());
-        assert!(mixer.last_microphone.is_none());
+        mixer.microphone(&tone(FRAME_SAMPLES), now).unwrap();
+        let pcm = decoded(&mixer.render(Duration::ZERO, now).unwrap());
+        assert_eq!(pcm.len(), FRAME_SAMPLES);
+        assert!(pcm.iter().any(|sample| sample.abs() > 0.01));
+    }
+    #[test]
+    fn both_inputs_are_bounded_and_stale_audio_is_not_replayed() {
+        let now = Instant::now();
+        let mut mixer = AudioMixer::new().unwrap();
+        let voice = tone(FRAME_SAMPLES);
+        for _ in 0..100 {
+            mixer.microphone(&voice, now).unwrap();
+            mixer.program(&voice, now).unwrap();
+        }
+        assert_eq!(mixer.microphone.pending.len(), MAX_PENDING);
+        assert_eq!(mixer.program.pending.len(), MAX_PENDING);
+        let pcm = decoded(
+            &mixer
+                .render(Duration::from_secs(1), now + Duration::from_secs(1))
+                .unwrap(),
+        );
+        assert!(pcm.iter().all(|sample| sample.abs() < 0.0001));
+        assert!(mixer.microphone.pending.is_empty());
+        assert!(mixer.program.pending.is_empty());
+    }
+    #[test]
+    fn different_packet_durations_feed_a_fixed_output_clock() {
+        let now = Instant::now();
+        let mut mixer = AudioMixer::new().unwrap();
+        for _ in 0..4 {
+            mixer.program(&tone(480), now).unwrap();
+        }
+        mixer.microphone(&tone(3840), now).unwrap();
+        for i in 0..2 {
+            let pcm = decoded(
+                &mixer
+                    .render(FRAME_DURATION * i, now + FRAME_DURATION * i)
+                    .unwrap(),
+            );
+            assert_eq!(pcm.len(), FRAME_SAMPLES);
+            assert!(pcm.iter().any(|sample| sample.abs() > 0.01));
+        }
+        assert!(mixer.program.pending.is_empty());
+        assert!(mixer.microphone.pending.is_empty());
+    }
+    #[test]
+    fn clock_skips_discard_backlog_without_a_catch_up_burst() {
+        let now = Instant::now();
+        let mut mixer = AudioMixer::new().unwrap();
+        for _ in 0..10 {
+            mixer.program(&tone(FRAME_SAMPLES), now).unwrap();
+        }
+        mixer.render(Duration::ZERO, now).unwrap();
+        mixer
+            .render(FRAME_DURATION * 4, now + FRAME_DURATION * 4)
+            .unwrap();
+        assert_eq!(mixer.program.pending.len(), FRAME_SAMPLES * 5);
+    }
+    #[test]
+    fn revocation_clears_fifo_and_encoder_history() {
+        let now = Instant::now();
+        let mut mixer = AudioMixer::new().unwrap();
+        mixer.microphone(&tone(3840), now).unwrap();
+        mixer.render(Duration::ZERO, now).unwrap();
+        mixer.clear_microphone().unwrap();
+        let pcm = decoded(&mixer.render(FRAME_DURATION, now + FRAME_DURATION).unwrap());
+        assert!(pcm.iter().all(|sample| sample.abs() < 0.0001));
+    }
+    #[test]
+    fn disabled_broadcast_does_not_retain_microphone_for_later() {
+        let now = Instant::now();
+        let mut mixer = AudioMixer::new().unwrap();
+        mixer
+            .configure(&super::super::control_state::AudioPolicy {
+                broadcast_controller_microphone: false,
+                ..Default::default()
+            })
+            .unwrap();
+        mixer.microphone(&tone(FRAME_SAMPLES), now).unwrap();
+        mixer.configure(&Default::default()).unwrap();
+        assert!(mixer.microphone.pending.is_empty());
+        let pcm = decoded(&mixer.render(Duration::ZERO, now).unwrap());
+        assert!(pcm.iter().all(|sample| sample.abs() < 0.0001));
     }
 }

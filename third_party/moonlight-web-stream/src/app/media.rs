@@ -293,19 +293,29 @@ impl MediaSessionRegistry {
         let control = self.control.read().await;
         !control.required || control.admits(key, peer_id, super::control_state::now_ms())
     }
-    pub async fn audio_policy(&self, key: &MediaSessionKey) -> super::control_state::AudioPolicy {
+    /// Select policy and controller atomically, and hold authority through
+    /// publishing the mixed frame so transfer cannot race buffered microphone.
+    pub async fn with_audio_output<T>(
+        &self,
+        key: &MediaSessionKey,
+        action: impl FnOnce(&super::control_state::AudioPolicy, Option<&str>) -> T,
+    ) -> Option<T> {
         let control = self.control.read().await;
-        if !control.required {
-            return Default::default();
+        if control.required {
+            let now = super::control_state::now_ms();
+            let session = control.session(key, now)?;
+            let controller = session.controller_connection_id.as_str();
+            return Some(action(
+                &session.audio,
+                control.controls(key, controller, now).then_some(controller),
+            ));
         }
-        control
-            .session(key, super::control_state::now_ms())
-            .map(|s| s.audio.clone())
-            .unwrap_or(super::control_state::AudioPolicy {
-                microphone_enabled: false,
-                broadcast_controller_microphone: false,
-                ..Default::default()
-            })
+        let sessions = self.sessions.read().await;
+        let session = sessions.get(key)?;
+        Some(action(
+            &Default::default(),
+            session.controller_id.as_deref(),
+        ))
     }
 }
 
@@ -390,6 +400,65 @@ mod tests {
         assert!(
             registry
                 .with_controller(&key(), "b", || panic!("detached microphone sent"))
+                .await
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn audio_output_uses_live_authority_under_the_publication_lock() {
+        use super::super::control_state::{StateEnvelope, now_ms};
+        let registry = MediaSessionRegistry::new();
+        let now = now_ms();
+        let mut state: StateEnvelope = serde_json::from_str(include_str!(
+            "../../../../contracts/media-state/v1.fixture.json"
+        ))
+        .unwrap();
+        state.issued_at_ms = now;
+        state.expires_at_ms = now + 10000;
+        state.sessions[0].host_id = 1;
+        state.sessions[0].app_id = 2;
+        for connection in &mut state.sessions[0].connections {
+            connection.expires_at_ms = now + 10000;
+        }
+        {
+            let mut control = registry.control.write().await;
+            control.required = true;
+            control.apply(state, now).unwrap();
+        }
+        assert_eq!(
+            registry
+                .with_audio_output(&key(), |policy, controller| {
+                    assert!(
+                        registry.control.try_write().is_err(),
+                        "publication must retain authority lock"
+                    );
+                    assert!(policy.microphone_enabled);
+                    controller.map(str::to_owned)
+                })
+                .await,
+            Some(Some("client-a".to_owned()))
+        );
+
+        // Removing a session in the next signed projection prevents output;
+        // no old buffered microphone can be published after this boundary.
+        registry
+            .control
+            .write()
+            .await
+            .apply(
+                StateEnvelope {
+                    schema_version: 1,
+                    issued_at_ms: now + 1,
+                    expires_at_ms: now + 10000,
+                    sessions: vec![],
+                },
+                now + 1,
+            )
+            .unwrap();
+        assert!(
+            registry
+                .with_audio_output(&key(), |_, _| panic!("revoked session published audio"))
                 .await
                 .is_none()
         );

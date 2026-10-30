@@ -5,7 +5,7 @@ use super::{
 };
 use moonlight_common::stream::{
     HostFeatures,
-    audio::OpusMultistreamConfig,
+    audio::{AudioFrame, OpusMultistreamConfig},
     proto::{audio::AudioStreamEvent, control::packet::ControlPacket, video::VideoStreamEvent},
     tokio::{MoonlightStream, MoonlightStreamEvent},
     video::VideoSetup,
@@ -69,7 +69,12 @@ impl UpstreamPool {
         }
         let mut stream = start().await?;
         let setup = stream.audio_setup();
-        if setup.sample_rate != 48_000 || setup.channel_count != 2 || setup.streams != 1 {
+        if setup.sample_rate != 48_000
+            || setup.channel_count != 2
+            || setup.streams != 1
+            || setup.coupled_streams != 1
+            || setup.mapping[..2] != [0, 1]
+        {
             return Err(AppError::WebRtcClientCodecNotSupported);
         }
         let mut mixer = super::mixer::AudioMixer::new().map_err(|error| {
@@ -82,7 +87,8 @@ impl UpstreamPool {
         let shared = Arc::new(Shared {
             commands,
             events: events.clone(),
-            audio: stream.audio_setup(),
+            // The session bus emits 20 ms stereo packets independently of the host.
+            audio: OpusMultistreamConfig::STEREO,
             video: stream.video_setup(),
             features: stream.host_features(),
         });
@@ -93,8 +99,26 @@ impl UpstreamPool {
         };
         sessions.insert(key.clone(), Arc::downgrade(&shared));
         tokio::spawn(async move {
+            let mut audio_clock = super::mixer::AudioClock::new();
             loop {
                 tokio::select! {
+                    timestamp = audio_clock.tick() => {
+                        let result = authority.with_audio_output(&key, |policy, controller| {
+                            mixer.configure(policy)?;
+                            if microphone_peer.as_deref() != controller {
+                                mixer.clear_microphone()?;
+                                microphone_peer = controller.map(str::to_owned);
+                            }
+                            let buffer = mixer.render(timestamp, std::time::Instant::now())?.into();
+                            let _ = events.send(Arc::new(MoonlightStreamEvent::Audio(AudioStreamEvent::OnFrame(AudioFrame { timestamp, buffer }))));
+                            Ok::<_, opus::Error>(())
+                        }).await;
+                        match result {
+                            Some(Ok(())) => {},
+                            Some(Err(error)) => { tracing::warn!(%error, "session audio rendering failed"); break; },
+                            None => { let _ = mixer.clear_microphone(); microphone_peer = None; },
+                        }
+                    },
                     command = receiver.recv() => match command {
                         Some(Command::Packet(peer_id, packet)) => {
                             // Viewers may request decoder recovery but cannot send input.
@@ -107,12 +131,18 @@ impl UpstreamPool {
                         }
                         Some(Command::Microphone(peer_id, timestamp, bytes)) => {
                             authority.with_microphone(&key, &peer_id, |policy| {
-                                mixer.configure(policy);
+                                if let Err(error) = mixer.configure(policy) {
+                                    tracing::warn!(%error, "cannot apply microphone policy");
+                                    return;
+                                }
                                 if microphone_peer.as_deref() != Some(&peer_id) {
-                                    let _ = mixer.clear_microphone();
+                                    if let Err(error) = mixer.clear_microphone() {
+                                        tracing::warn!(%error, "cannot clear previous microphone");
+                                        return;
+                                    }
                                     microphone_peer = Some(peer_id.clone());
                                 }
-                                if let Err(error) = mixer.microphone(&bytes) {
+                                if let Err(error) = mixer.microphone(&bytes, std::time::Instant::now()) {
                                     tracing::warn!(%error, "invalid microphone Opus packet");
                                     return;
                                 }
@@ -122,22 +152,10 @@ impl UpstreamPool {
                         None => { let _ = stream.disconnect(); break; }
                     },
                     result = stream.drive() => match result {
-                        Ok(MoonlightStreamEvent::Audio(AudioStreamEvent::OnFrame(mut frame))) => {
-                            mixer.configure(&authority.audio_policy(&key).await);
-                            if let Some(peer_id) = microphone_peer.as_deref() {
-                                if !authority.can_control(&key, peer_id).await {
-                                    let _ = mixer.clear_microphone();
-                                    microphone_peer = None;
-                                }
+                        Ok(MoonlightStreamEvent::Audio(AudioStreamEvent::OnFrame(frame))) => {
+                            if let Err(error) = mixer.program(&frame.buffer, std::time::Instant::now()) {
+                                tracing::warn!(%error, "dropping invalid program audio packet");
                             }
-                            match mixer.mix(&frame.buffer) {
-                                Ok(mixed) => frame.buffer = mixed.into(),
-                                Err(error) => {
-                                    tracing::warn!(%error, "dropping invalid audio frame from mixer");
-                                    continue;
-                                }
-                            }
-                            let _ = events.send(Arc::new(MoonlightStreamEvent::Audio(AudioStreamEvent::OnFrame(frame))));
                         }
                         Ok(MoonlightStreamEvent::Video(VideoStreamEvent::SignalIdr)) => {
                             let _ = stream.send_raw(ControlPacket::RequestIdr);
