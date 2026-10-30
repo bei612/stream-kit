@@ -1671,8 +1671,17 @@ namespace confighttp {
         // v.dump() will dump valid json, which we do not want for strings in the config, right now
         // we should migrate the config file to straight JSON and get rid of all this nonsense
         const auto value = v.is_string() ? v.get<std::string>() : v.dump();
-        if (value.find_first_of(std::string_view("\r\n\0", 3)) != std::string::npos) {
+        if (value.find('\0') != std::string::npos) {
           throw std::invalid_argument("Configuration values must not inject additional lines");
+        }
+        // Native lists may span lines. Use the native reader to prove this is
+        // exactly one complete value, rather than accepting arbitrary newlines.
+        if (value.find_first_of("\r\n") != std::string::npos) {
+          const auto parsed = config::parse_config(k + " = " + value + '\n');
+          const auto field = parsed.find(k);
+          if (value.front() != '[' || parsed.size() != 1 || field == parsed.end() || field->second != value) {
+            throw std::invalid_argument("Configuration values must not inject additional lines");
+          }
         }
         config_stream << k << " = " << value << '\n';
       }

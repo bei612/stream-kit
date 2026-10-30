@@ -32,7 +32,7 @@ func TestConfigurationPatchPreservesUntouchedAndChecksBothRevisions(t *testing.T
 					if scenario == "stale-read" {
 						w.Header().Set("ETag", next)
 					}
-					_, _ = w.Write([]byte(`{"status":true,"platform":"windows","version":"test","private_key":"keep-secret","fps":"60"}`))
+					_, _ = w.Write([]byte(`{"status":true,"platform":"windows","version":"test","private_key":"keep-secret","global_prep_cmd":"[\n{\"do\":\"echo hello\"}\n]","fps":"60"}`))
 					return
 				}
 				writes++
@@ -43,7 +43,7 @@ func TestConfigurationPatchPreservesUntouchedAndChecksBothRevisions(t *testing.T
 				if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 					t.Error(err)
 				}
-				if string(payload["private_key"]) != `"keep-secret"` || string(payload["fps"]) != `"30"` || len(payload) != 2 {
+				if string(payload["private_key"]) != `"keep-secret"` || string(payload["fps"]) != `"30"` || string(payload["global_prep_cmd"]) != `"[\n{\"do\":\"echo hello\"}\n]"` || len(payload) != 3 {
 					t.Errorf("incorrect merged payload keys: %d", len(payload))
 				}
 				if scenario == "concurrent-write" {

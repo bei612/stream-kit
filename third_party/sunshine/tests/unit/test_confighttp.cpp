@@ -627,6 +627,30 @@ TEST_F(EncoderConfigurationHttpTest, RejectsMalformedAndInjectedSettingsWithoutC
   EXPECT_EQ(contents(), original);
 }
 
+TEST_F(EncoderConfigurationHttpTest, PreservesMultilineNativeListsWithoutAcceptingInjectedFields) {
+  const std::string commands = "[\n  {\"do\":\"echo hello\",\"undo\":\"echo goodbye\"}\n]";
+  std::ofstream(config::sunshine.config_file, std::ios::binary) << "global_prep_cmd = " << commands << "\nmouse = enabled\n";
+  auto auth = headers();
+  const auto snapshot = client->request("GET", "/encoder-config-test", "", auth);
+  auto desired = nlohmann::json::parse(snapshot->content.string());
+  EXPECT_EQ(desired["global_prep_cmd"], commands);
+  desired.erase("status");
+  desired.erase("version");
+  desired.erase("platform");
+  desired["mouse"] = "disabled";
+  EXPECT_EQ(client->request("POST", "/encoder-config-test", desired.dump(), auth)->status_code, "200 OK");
+  const auto saved = contents();
+  EXPECT_EQ(config::parse_config(saved).at("global_prep_cmd"), commands);
+  EXPECT_EQ(config::parse_config(saved).at("mouse"), "disabled");
+  for (const auto &injected : {commands + "\nkeyboard = disabled", commands + "\n# ignored", std::string {"[\n1\n]\n[\n2\n]"}}) {
+    EXPECT_EQ(client->request("POST", "/encoder-config-test", nlohmann::json {{"global_prep_cmd", injected}}.dump(), headers())->status_code, "400 Bad Request");
+    EXPECT_EQ(contents(), saved);
+  }
+  const std::string windows_commands = "[\r\n  {\"do\":\"echo hello\"}\r\n]";
+  EXPECT_EQ(client->request("POST", "/encoder-config-test", nlohmann::json {{"global_prep_cmd", windows_commands}}.dump(), headers())->status_code, "200 OK");
+  EXPECT_EQ(config::parse_config(contents()).at("global_prep_cmd"), windows_commands);
+}
+
 TEST_F(EncoderConfigurationHttpTest, ReportsPersistenceFailureInsteadOfSuccess) {
   const auto original = contents();
   const auto directory = test_web_dir / "not-a-file";
