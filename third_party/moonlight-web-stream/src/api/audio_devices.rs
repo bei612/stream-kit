@@ -73,13 +73,32 @@ pub async fn list(req: HttpRequest, body: Bytes, app: Data<App>) -> Result<HttpR
     .await
     .map_err(|_| AppError::AudioTargetUnavailable)?
     .map_err(|_| AppError::AudioTargetUnavailable)?;
+    let control = app.media_sessions().control.read().await;
+    let configured_routes =
+        if control.required {
+            control
+                .active_sessions(now_ms())
+                .filter_map(|session| {
+                    session.audio.target.endpoint().map(|endpoint| {
+                        crate::config::LocalAudioTarget {
+                            host_id: session.host_id,
+                            app_id: session.app_id,
+                            endpoint,
+                        }
+                    })
+                })
+                .collect()
+        } else {
+            app.config().local_audio_targets.clone()
+        };
+    drop(control);
     let body = serde_json::to_vec(&Inventory {
         schema_version: 1,
         request_id: request.request_id,
         request_issued_at_ms: request.issued_at_ms,
         observed_at_ms: now_ms(),
         devices,
-        configured_routes: app.config().local_audio_targets.clone(),
+        configured_routes,
     })
     .map_err(|_| AppError::BadRequest)?;
     let signature = super::signed::sign(secret, RESPONSE_CONTEXT, &body)?;

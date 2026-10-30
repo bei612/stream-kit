@@ -1,0 +1,1 @@
+{"schema_version":2,"state_issued_at_ms":1700000000000,"observed_at_ms":1700000000010,"sessions":[{"session_id":"session-test","revision":7,"upstream_active":true,"subscribers":2,"microphone_target":{"epoch":3,"state":"device_open","device":{"device_open":true,"device_sample_frames":48000,"dropped_frames":0,"xruns":0,"realtime_denied":false,"error":null},"error":null}}]}

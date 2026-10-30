@@ -78,7 +78,7 @@ export function AudioDevices() {
             </li>)}
           </ul>
         </details>
-        <p className="text-xs leading-relaxed text-muted-foreground">设备目录反映本次读取结果。应用绑定目前由网关配置加载；设备存在不代表已配对或已录音，实际接收需在目标程序中验证。</p>
+        <p className="text-xs leading-relaxed text-muted-foreground">设备目录反映本次读取结果。应用绑定来自网关当前有效的会话配置；设备存在不代表已配对或已录音，实际接收需在目标程序中验证。</p>
       </>}
     </CardContent>
   </Card>

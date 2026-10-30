@@ -24,6 +24,8 @@ const numericOption = (name, fallback) => process.argv.includes(name) ? Number(p
 const clientCount = numericOption('--clients', 2);
 const holdSeconds = numericOption('--hold-seconds', 5);
 const microphoneTest = process.argv.includes('--microphone-tone');
+const targetSwitch = process.argv.includes('--target-switch');
+assert.ok(!targetSwitch || microphoneTest, 'Target mode switching acceptance requires the microphone tone case');
 const restartServices = process.argv.includes('--restart-services');
 assert.ok(!restartServices || !microphoneTest, 'Run recovery and microphone isolation as separate acceptance cases');
 assert.ok(!microphoneTest || clientCount === 2, 'Microphone isolation acceptance uses two clients');
@@ -369,6 +371,32 @@ async function main() {
     levels.controller_broadcast_db = await measure(pages[1]);
     assert.ok(levels.controller_broadcast_db > -55 && levels.controller_broadcast_db > levels.viewer_denied_db + 20,
       `Authorized microphone tone missing: ${JSON.stringify(levels)}`);
+    if (targetSwitch) {
+      const before = await Promise.all(pages.map(videoFrames));
+      const observations = [];
+      for (const mode of ['disabled','upstream']) {
+        const latest=await api(`/stream-sessions/${invite.session_id}`);
+        const saved=await api(`/stream-sessions/${invite.session_id}/audio-target`,'PATCH',{
+          expected_epoch:latest.audio.target.epoch,target:{mode,render_device_id:'',capture_device_id:''},
+        });
+        let applied;
+        for(let i=0;i<40;i++) {
+          const state=await api('/media-control');
+          const observed=state.observations?.[invite.session_id];
+          if(state.observations_valid && observed?.microphone_target.epoch===saved.audio.target.epoch &&
+            (mode==='disabled' ? observed.microphone_target.state==='disabled' : ['unconfigured','upstream_transport'].includes(observed.microphone_target.state))) { applied=observed;break; }
+          await delay(100);
+        }
+        assert.ok(applied,`Target mode ${mode} did not settle`);
+        assert.equal(applied.subscribers,clientCount);
+        const level=await measure(pages[1]);
+        assert.ok(level>-55,`Target mode ${mode} interrupted microphone broadcast`);
+        observations.push({mode,epoch:saved.audio.target.epoch,state:applied.microphone_target.state,broadcast_db:level});
+      }
+      for(let i=0;i<pages.length;i++) assert.ok(await videoFrames(pages[i])>before[i]+15,'Target change interrupted video');
+      result.target_mode_switch={observations,video_continued:true,scope:'Live disabled/upstream target selection; local virtual endpoint recording is not exercised.'};
+      console.log('Live audio target mode switching preserved video and controller microphone broadcast');
+    }
     await api(`/stream-sessions/${invite.session_id}/controller/${listener}`, 'PUT', {
       expected_controller_connection_id: speaker, expected_control_epoch: active.control_epoch,
     });

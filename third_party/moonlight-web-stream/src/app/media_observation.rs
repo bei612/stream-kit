@@ -2,7 +2,7 @@
 use serde::Serialize;
 use stream_kit_audio_target::TargetStatus;
 
-pub const SIGNING_CONTEXT: &[u8] = b"stream-kit/media-observation/v1\n";
+pub const SIGNING_CONTEXT: &[u8] = b"stream-kit/media-observation/v2\n";
 
 #[derive(Debug, Serialize)]
 pub struct Acknowledgement {
@@ -24,13 +24,17 @@ pub struct SessionObservation {
 
 #[derive(Debug, Serialize)]
 pub struct TargetObservation {
+    pub epoch: u64,
     pub state: TargetState,
     pub device: Option<TargetStatus>,
+    pub error: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TargetState {
+    Pending,
+    Disabled,
     Unconfigured,
     Idle,
     DeviceOpen,
@@ -47,7 +51,7 @@ mod tests {
     #[test]
     fn serialized_observation_matches_go_contract_and_signature() {
         let ack = Acknowledgement {
-            schema_version: 1,
+            schema_version: 2,
             state_issued_at_ms: 1700000000000,
             observed_at_ms: 1700000000010,
             sessions: vec![SessionObservation {
@@ -56,7 +60,9 @@ mod tests {
                 upstream_active: true,
                 subscribers: 2,
                 microphone_target: TargetObservation {
+                    epoch: 3,
                     state: TargetState::DeviceOpen,
+                    error: None,
                     device: Some(TargetStatus {
                         device_open: true,
                         device_sample_frames: 48000,
@@ -72,7 +78,7 @@ mod tests {
             .expect("observation fixture serialization or signing failed");
         assert_eq!(
             body,
-            include_str!("../../../../contracts/media-state/v1.observation.fixture.json").trim()
+            include_str!("../../../../contracts/media-state/v2.observation.fixture.json").trim()
         );
         let mut mac = Hmac::<Sha256>::new_from_slice(b"contract-test-secret")
             .expect("observation fixture serialization or signing failed");
@@ -80,7 +86,7 @@ mod tests {
         mac.update(body.as_bytes());
         assert_eq!(
             hex::encode(mac.finalize().into_bytes()),
-            "ef842938a6cf7c7c46e63ac41e50cfa0940e85aae0f971427a316facfa4c7fcb"
+            "10e436e61b69852ab70a2d81601f79a3284fb3f4d0d3495ff57b60b4c32e4a52"
         );
     }
 }

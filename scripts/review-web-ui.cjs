@@ -17,7 +17,7 @@ const session = {
     connection_id: id, user_id: 'guest:fixture', role: i ? 'viewer' : 'controller', microphone_live: !i,
     state: 'connected', expires_at: new Date(Date.now() + 3600000).toISOString(),
   }])),
-  audio: { program_gain_db: 0, microphone_gain_db: 0, microphone_enabled: true, broadcast_controller_microphone: true, controller_monitor: false },
+  audio: { target:{epoch:1,mode:'upstream',render_device_id:'',capture_device_id:''}, program_gain_db: 0, microphone_gain_db: 0, microphone_enabled: true, broadcast_controller_microphone: true, controller_monitor: false },
   policy: { max_viewers: 20, controller_disconnect_policy: 'release', allow_viewer_microphone: false },
 };
 const components = ['sunshine', 'web_server'].map((name, i) => ({ name, status: 'running', pid: 1000 + i, started_at: new Date().toISOString() }));
@@ -61,7 +61,7 @@ async function main() {
         else if(pathname === '/api/v1/media-control') data = {
           reachable:true,lease_valid:true,observations_valid:true,acknowledged_at_ms:Date.now()-5000,lease_expires_at_ms:Date.now()+30000,
           observations_expires_at_ms:Date.now()+30000,applied_revisions:{[session.session_id]:3},
-          observations:{[session.session_id]:{session_id:session.session_id,revision:3,upstream_active:true,subscribers:3,microphone_target:{state:'unconfigured',device:null}}},
+          observations:{[session.session_id]:{session_id:session.session_id,revision:session.revision,upstream_active:true,subscribers:3,microphone_target:{epoch:session.audio.target.epoch,state:'unconfigured',device:null,error:null}}},
         };
         else if(pathname === '/api/v1/logs') data = [];
         else if(pathname === '/api/v1/config') data = {server:{listen:'127.0.0.1:9000'}};
@@ -70,6 +70,11 @@ async function main() {
           {id:'wasapi:capture-fixture',name:'虚拟音频 · 应用输入',input:true,output:false},
         ],configured_routes:[{host_id:1,app_id:2,endpoint:{render_device_id:'wasapi:render-fixture',capture_device_id:'wasapi:missing-fixture'}}]};
         else if(pathname.endsWith('/controller/b36d81-viewer')) { session.controller_connection_id='b36d81-viewer'; data=session; }
+        else if(pathname.endsWith('/audio-target')) {
+          const request=route.request().postDataJSON();
+          assert.equal(request.expected_epoch,session.audio.target.epoch);
+          session.audio.target={...request.target,epoch:++session.revision}; data=session;
+        }
         else return route.fulfill({status:404,json:{status:'error',message:'Unrecognized review fixture route'}});
         return route.fulfill({json:{status:'ok',data}});
       });
@@ -97,6 +102,13 @@ async function main() {
           await page.getByText('客户端 B36D81',{exact:true}).waitFor();
           const card=page.locator('.client-card').filter({hasText:'客户端 B36D81'});
           if(width===1440) { await card.getByRole('button',{name:'转移控制权'}).click(); await card.getByRole('button',{name:'释放控制权'}).waitFor(); }
+          await page.getByLabel('发送方式',{exact:true}).selectOption('disabled');
+          await page.getByRole('button',{name:'保存并应用目标'}).click();
+          await page.getByRole('button',{name:'重新应用目标'}).waitFor();
+          await page.getByLabel('发送方式',{exact:true}).selectOption('local');
+          await page.getByRole('button',{name:'刷新音频设备'}).click();
+          await page.getByLabel('网关写入端 · 输出设备',{exact:true}).selectOption('wasapi:render-fixture');
+          await page.getByLabel('目标程序读取端 · 输入设备',{exact:true}).selectOption('wasapi:capture-fixture');
         }
         if(name==='settings') {
           await page.getByRole('button',{name:'读取设备',exact:true}).click();

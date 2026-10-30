@@ -7,7 +7,7 @@ use actix_web::{
     web::{Bytes, Data},
 };
 
-#[post("/internal/v2/media-state")]
+#[post("/internal/v3/media-state")]
 pub async fn apply(
     req: HttpRequest,
     body: Bytes,
@@ -34,7 +34,7 @@ pub async fn apply(
         .await
         .apply(state, now_ms())?;
     let acknowledgement = crate::app::media_observation::Acknowledgement {
-        schema_version: 1,
+        schema_version: 2,
         state_issued_at_ms: issued_at_ms,
         sessions: app.upstreams().observe(&sessions).await,
         observed_at_ms: now_ms(),
@@ -68,10 +68,10 @@ mod tests {
     use sha2::Sha256;
     #[test]
     fn cross_language_signature_rejects_tampering_and_wrong_domain() {
-        let body = include_str!("../../../../contracts/media-state/v2.fixture.json")
+        let body = include_str!("../../../../contracts/media-state/v3.fixture.json")
             .trim()
             .as_bytes();
-        let signature = "ba1977d27b1515dcba31b19028d754620ab0d7ec29b03eb2d67446edf915c427";
+        let signature = "991a4d11393246627842e9516d16bf92f5ab33b7ebadea711a6f553363575978";
         let state = decode_signed_state("contract-test-secret", signature, body)
             .expect("signed state test setup must succeed");
         assert_eq!(state.sessions[0].host_id, 2636897928);

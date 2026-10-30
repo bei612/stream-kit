@@ -26,9 +26,9 @@ func TestManagedClientAdmissionAndAuthorityBoundaries(t *testing.T) {
 			w.WriteHeader(400)
 			return
 		}
-		ack := mediacontrol.Acknowledgement{SchemaVersion: 1, StateIssuedAt: request.IssuedAt, ObservedAt: time.Now().UnixMilli(), Sessions: []mediacontrol.SessionObservation{}}
+		ack := mediacontrol.Acknowledgement{SchemaVersion: 2, StateIssuedAt: request.IssuedAt, ObservedAt: time.Now().UnixMilli(), Sessions: []mediacontrol.SessionObservation{}}
 		for _, item := range request.Sessions {
-			ack.Sessions = append(ack.Sessions, mediacontrol.SessionObservation{SessionID: item.ID, Revision: item.Revision, MicrophoneTarget: mediacontrol.TargetObservation{State: "unconfigured"}})
+			ack.Sessions = append(ack.Sessions, mediacontrol.SessionObservation{SessionID: item.ID, Revision: item.Revision, MicrophoneTarget: mediacontrol.TargetObservation{Epoch: item.Audio.Target.Epoch, State: "idle"}})
 		}
 		body, _ := json.Marshal(ack)
 		mac := hmac.New(sha256.New, []byte("media-secret"))
@@ -87,6 +87,7 @@ func TestManagedClientAdmissionAndAuthorityBoundaries(t *testing.T) {
 	prefix := "/api/v1/client-sessions/" + sid + "/connections/"
 	request("GET", "/api/v1/config", token, nil, 401)
 	request("POST", "/api/v1/stream-sessions/"+sid+"/controller/"+aid, token, nil, 401)
+	request("PATCH", "/api/v1/stream-sessions/"+sid+"/audio-target", token, nil, 401)
 	request("GET", prefix+bid, token, nil, 401)
 	request("DELETE", prefix+bid, token, nil, 401)
 	request("POST", prefix+bid+"/ticket", token, nil, 401)
@@ -100,12 +101,6 @@ func TestManagedClientAdmissionAndAuthorityBoundaries(t *testing.T) {
 		t.Fatal("viewer became live controller")
 	}
 	token = heartbeat["connection_token"].(string)
-	// A v2 gateway must not issue admission after silently ignoring a route.
-	request("POST", prefix+aid+"/ticket", token, nil, 503)
-	routed, _ := manager.Get(sid)
-	if err := manager.UpdateAudioTarget(sid, routed.Audio.Target.Epoch, session.AudioTarget{Mode: "upstream"}); err != nil {
-		t.Fatal(err)
-	}
 	ticket := request("POST", prefix+aid+"/ticket", token, nil, 200)["ticket"].(string)
 	request("GET", prefix+aid, ticket, nil, 401)
 	observed, _ := manager.Get(sid)

@@ -40,8 +40,7 @@ async function main() {
     first_login_create_admin: false, media_ticket_secret: secret, control_plane_url: `http://127.0.0.1:${port}` };
   config.data_storage.path = path.join(fixture, 'data.json');
   config.webrtc.ice_servers = [];
-  config.local_audio_targets = [{ host_id: 2636897928, app_id: 609885969,
-    endpoint: { render_device_id: 'test-render-not-opened', capture_device_id: 'test-capture-not-opened' } }];
+  config.local_audio_targets = [];
   fs.writeFileSync(configPath, JSON.stringify(config));
   const child = spawn(binary, ['--config-path', configPath, '--bind-address', `127.0.0.1:${port}`, '--path-prefix', '/gateway', 'run'], {
     cwd: fixture, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
@@ -49,11 +48,11 @@ async function main() {
   const log = fs.createWriteStream(path.join(fixture, 'gateway.log'));
   child.stdout.pipe(log, { end: false }); child.stderr.pipe(log, { end: false });
   const exited = once(child, 'exit');
-  const endpoint = `http://127.0.0.1:${port}/gateway/internal/v2/media-state`;
+  const endpoint = `http://127.0.0.1:${port}/gateway/internal/v3/media-state`;
   const post = async (state, valid = true) => {
     const body = JSON.stringify(state);
     return fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json',
-      'x-stream-state-signature': valid ? sign('stream-kit/media-state/v2\n', body) : '0'.repeat(64) }, body, signal: AbortSignal.timeout(2000) });
+      'x-stream-state-signature': valid ? sign('stream-kit/media-state/v3\n', body) : '0'.repeat(64) }, body, signal: AbortSignal.timeout(2000) });
   };
   try {
     let ready = false;
@@ -72,7 +71,7 @@ async function main() {
         'x-stream-control-signature': sign(domain, body) }, signal: AbortSignal.timeout(5000) });
     };
     assert.equal((await fetch(inventoryURL, {method:'POST',body:'{}'})).status, 401);
-    assert.equal((await inventoryPost(inventoryRequest, 'stream-kit/media-state/v2\n')).status, 401);
+    assert.equal((await inventoryPost(inventoryRequest, 'stream-kit/media-state/v3\n')).status, 401);
     assert.equal((await inventoryPost({...inventoryRequest, issued_at_ms:Date.now()-6000})).status, 400);
     // Headless CI may have no audio server. Check that the HTTP boundary reports
     // the same native availability as the CLI; never turn that into empty success.
@@ -96,7 +95,7 @@ async function main() {
       assert.equal(new Set(inventory.devices.map(device => device.id)).size, inventory.devices.length);
       assert.deepEqual(inventory.configured_routes, config.local_audio_targets);
     }
-    const state = JSON.parse(fs.readFileSync(path.join(root, 'contracts/media-state/v2.fixture.json'), 'utf8'));
+    const state = JSON.parse(fs.readFileSync(path.join(root, 'contracts/media-state/v3.fixture.json'), 'utf8'));
     state.issued_at_ms = Date.now(); state.expires_at_ms = state.issued_at_ms + 10000;
     for (const connection of state.sessions[0].connections) connection.expires_at_ms = state.expires_at_ms;
     assert.equal((await post(state, false)).status, 401);
@@ -104,15 +103,19 @@ async function main() {
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('cache-control'), 'no-store');
     const raw = await response.text();
-    assert.equal(response.headers.get('x-stream-observation-signature'), sign('stream-kit/media-observation/v1\n', raw));
+    assert.equal(response.headers.get('x-stream-observation-signature'), sign('stream-kit/media-observation/v2\n', raw));
     const ack = JSON.parse(raw);
-    assert.equal(ack.schema_version, 1);
+    assert.equal(ack.schema_version, 2);
     assert.equal(ack.state_issued_at_ms, state.issued_at_ms);
     assert.equal(ack.sessions[0].session_id, state.sessions[0].session_id);
     assert.equal(ack.sessions[0].revision, 7);
     assert.equal(ack.sessions[0].upstream_active, false);
     assert.equal(ack.sessions[0].subscribers, 0);
-    assert.deepEqual(ack.sessions[0].microphone_target, { state: 'idle', device: null });
+    assert.deepEqual(ack.sessions[0].microphone_target, { epoch:3, state: 'idle', device: null, error:null });
+    const bindingsResponse = await inventoryPost({...inventoryRequest, issued_at_ms:Date.now()});
+    assert.equal(bindingsResponse.status,200);
+    assert.deepEqual((await bindingsResponse.json()).configured_routes,[{host_id:state.sessions[0].host_id,app_id:state.sessions[0].app_id,
+      endpoint:{render_device_id:state.sessions[0].audio.target.render_device_id,capture_device_id:state.sessions[0].audio.target.capture_device_id}}]);
     const api = `http://127.0.0.1:${port}/gateway/api`;
     const viewerRequest = (resource, token, method = 'GET') => fetch(`${api}${resource}`, {
       method, headers: token ? { 'X-Stream-Media-Ticket': token } : {}, signal: AbortSignal.timeout(2000),

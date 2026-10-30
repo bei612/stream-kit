@@ -404,7 +404,7 @@ func fromRecord(record model.StreamSession) (*RenderSession, error) {
 		// retains its previous capability-gated behavior after migration.
 		s.Audio.Target = AudioTarget{Epoch: max(1, s.Revision), Mode: "upstream"}
 	}
-	if !s.Audio.Target.valid() || s.Audio.Target.Epoch == 0 || s.Audio.Target.Epoch > s.Revision {
+	if !s.Audio.Target.Valid() || s.Audio.Target.Epoch == 0 || s.Audio.Target.Epoch > s.Revision {
 		return nil, ErrInvalidState
 	}
 	if s.Connections == nil {

@@ -282,7 +282,7 @@ mod tests {
         let now = now_ms();
         let fixture = || {
             let mut state: StateEnvelope = serde_json::from_str(include_str!(
-                "../../../../contracts/media-state/v2.fixture.json"
+                "../../../../contracts/media-state/v3.fixture.json"
             ))
             .expect("fixture");
             state.issued_at_ms = now;
@@ -492,7 +492,7 @@ mod tests {
         let registry = MediaSessionRegistry::new();
         let now = now_ms();
         let mut state: StateEnvelope = serde_json::from_str(include_str!(
-            "../../../../contracts/media-state/v2.fixture.json"
+            "../../../../contracts/media-state/v3.fixture.json"
         ))
         .expect("media authority test setup must succeed");
         state.issued_at_ms = now;
@@ -574,7 +574,7 @@ mod tests {
             .await
             .apply(
                 StateEnvelope {
-                    schema_version: 2,
+                    schema_version: 3,
                     issued_at_ms: now + 1,
                     expires_at_ms: now + 10000,
                     sessions: vec![],

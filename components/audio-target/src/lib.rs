@@ -16,7 +16,7 @@ use std::{
     time::Instant,
 };
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct EndpointPair {
     /// Stable CPAL output ID of the provisioned virtual cable/sink.
@@ -60,7 +60,7 @@ pub fn devices() -> Result<Vec<DeviceInfo>, Error> {
     Ok(result)
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct TargetStatus {
     pub device_open: bool,
     pub device_sample_frames: u64,

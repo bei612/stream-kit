@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -28,9 +30,59 @@ func respondSessionError(c *gin.Context, err error) {
 }
 
 type SessionHandler struct {
-	SyncMedia    func(context.Context) error
-	Manager      *session.Manager
-	TicketSecret []byte
+	ValidateAudioTarget func(context.Context, session.AudioTarget) error
+	SyncMedia           func(context.Context) error
+	Manager             *session.Manager
+	TicketSecret        []byte
+}
+
+func (h *SessionHandler) AudioTarget(c *gin.Context) {
+	var req struct {
+		ExpectedEpoch uint64 `json:"expected_epoch"`
+		Target        struct {
+			Mode            string `json:"mode"`
+			RenderDeviceID  string `json:"render_device_id"`
+			CaptureDeviceID string `json:"capture_device_id"`
+		} `json:"target"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, 16384))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&req) != nil || decoder.Decode(new(any)) != io.EOF || req.ExpectedEpoch == 0 {
+		errResponse(c, 400, "AUDIO_TARGET_INVALID", "无效的音频目标配置或配置版本")
+		return
+	}
+	target := session.AudioTarget{Mode: req.Target.Mode, RenderDeviceID: req.Target.RenderDeviceID, CaptureDeviceID: req.Target.CaptureDeviceID}
+	if !target.Valid() {
+		errResponse(c, 400, "AUDIO_TARGET_INVALID", "请选择有效的目标模式和明确的音频端点")
+		return
+	}
+	current, err := h.Manager.Get(c.Param("session_id"))
+	if err != nil {
+		respondSessionError(c, err)
+		return
+	}
+	if current.Audio.Target.Epoch != req.ExpectedEpoch {
+		respondSessionError(c, session.ErrAudioTargetChanged)
+		return
+	}
+	if h.ValidateAudioTarget == nil {
+		errResponse(c, 503, "MEDIA_CONTROL_UNAVAILABLE", "媒体网关尚未配置")
+		return
+	}
+	if err := h.ValidateAudioTarget(c.Request.Context(), target); err != nil {
+		if errors.Is(err, session.ErrInvalidState) {
+			errResponse(c, 400, "AUDIO_DEVICE_UNAVAILABLE", "所选设备不可用或方向不匹配，请刷新设备目录")
+		} else {
+			errResponse(c, 503, "MEDIA_CONTROL_UNAVAILABLE", "无法确认媒体网关版本或音频设备状态")
+		}
+		return
+	}
+	if err := h.Manager.UpdateAudioTarget(current.ID, req.ExpectedEpoch, target); err != nil {
+		respondSessionError(c, err)
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	h.Get(c)
 }
 
 func NewSessionHandler(m *session.Manager, ticketSecret []byte) *SessionHandler {

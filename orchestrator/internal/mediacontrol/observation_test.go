@@ -12,7 +12,7 @@ import (
 )
 
 func TestObservationContractAuthenticationAndBinding(t *testing.T) {
-	requestBody, err := os.ReadFile("../../../contracts/media-state/v2.fixture.json")
+	requestBody, err := os.ReadFile("../../../contracts/media-state/v3.fixture.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -20,13 +20,13 @@ func TestObservationContractAuthenticationAndBinding(t *testing.T) {
 	if err := json.Unmarshal(requestBody, &request); err != nil {
 		t.Fatal(err)
 	}
-	body, err := os.ReadFile("../../../contracts/media-state/v1.observation.fixture.json")
+	body, err := os.ReadFile("../../../contracts/media-state/v2.observation.fixture.json")
 	if err != nil {
 		t.Fatal(err)
 	}
 	body = bytes.TrimSpace(body)
 	secret := []byte("contract-test-secret")
-	signature := "ef842938a6cf7c7c46e63ac41e50cfa0940e85aae0f971427a316facfa4c7fcb"
+	signature := "10e436e61b69852ab70a2d81601f79a3284fb3f4d0d3495ff57b60b4c32e4a52"
 	now := request.IssuedAt + 20
 	ack, err := decodeAcknowledgement(secret, signature, body, request, now)
 	if err != nil {
@@ -70,6 +70,13 @@ func TestObservationContractAuthenticationAndBinding(t *testing.T) {
 		{"missing session", func(a *Acknowledgement) { a.Sessions = nil }},
 		{"foreign session", func(a *Acknowledgement) { a.Sessions[0].SessionID = "other" }},
 		{"wrong revision", func(a *Acknowledgement) { a.Sessions[0].Revision++ }},
+		{"wrong target epoch", func(a *Acknowledgement) { a.Sessions[0].MicrophoneTarget.Epoch++ }},
+		{"missing target epoch", func(a *Acknowledgement) { a.Sessions[0].MicrophoneTarget.Epoch = 0 }},
+		{"success with error", func(a *Acknowledgement) { message := "open failed"; a.Sessions[0].MicrophoneTarget.Error = &message }},
+		{"wrong target mode", func(a *Acknowledgement) {
+			a.Sessions[0].MicrophoneTarget.State = "disabled"
+			a.Sessions[0].MicrophoneTarget.Device = nil
+		}},
 		{"invented state", func(a *Acknowledgement) { a.Sessions[0].MicrophoneTarget.State = "recorded" }},
 		{"closed device", func(a *Acknowledgement) { a.Sessions[0].MicrophoneTarget.Device.DeviceOpen = false }},
 		{"inactive transport", func(a *Acknowledgement) { a.Sessions[0].UpstreamActive = false }},

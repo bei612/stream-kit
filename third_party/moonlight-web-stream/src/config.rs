@@ -37,6 +37,11 @@ pub struct LocalAudioTarget {
 
 impl Config {
     pub fn validate_audio_targets(&self) -> Result<(), &'static str> {
+        if self.web_server.media_ticket_secret.is_some() && !self.local_audio_targets.is_empty() {
+            return Err(
+                "managed audio routes must be configured in Stream Kit; migrate local_audio_targets before enabling managed mode",
+            );
+        }
         let mut apps = std::collections::HashSet::new();
         let mut renders = std::collections::HashSet::new();
         let mut captures = std::collections::HashSet::new();
@@ -422,5 +427,14 @@ mod audio_target_tests {
             assert!(config.validate_audio_host(1, 2, address).is_err());
         }
         assert!(config.validate_audio_host(1, 3, "192.168.1.20").is_ok());
+    }
+    #[test]
+    fn managed_routes_cannot_have_a_second_static_authority() {
+        let mut config = Config::default();
+        config.web_server.media_ticket_secret = Some("test".into());
+        config.local_audio_targets.push(route());
+        assert!(config.validate_audio_targets().is_err());
+        config.local_audio_targets.clear();
+        assert!(config.validate_audio_targets().is_ok());
     }
 }

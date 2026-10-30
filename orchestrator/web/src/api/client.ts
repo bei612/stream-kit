@@ -1,5 +1,5 @@
 import { API_BASE, getToken, clearToken } from '@/lib/utils'
-import type { RenderSession, SessionAudio, SessionPolicy, MediaControlStatus } from './sessions'
+import type { RenderSession, SessionAudio, SessionPolicy, MediaControlStatus, AudioTarget } from './sessions'
 import type { AudioInventory } from './audio-devices'
 
 interface ApiResponse<T = unknown> {
@@ -116,6 +116,8 @@ export const api = {
   getStreamSession: (id: string) => request<RenderSession>(`/stream-sessions/${id}`),
   getMediaControl: () => request<MediaControlStatus>('/media-control'),
   getAudioDevices: () => request<AudioInventory>('/audio-devices'),
+  updateAudioTarget: (id: string, expectedEpoch: number, target: Omit<AudioTarget, 'epoch'>) =>
+    request<RenderSession>(`/stream-sessions/${id}/audio-target`, { method:'PATCH', body:JSON.stringify({expected_epoch:expectedEpoch,target}) }),
   transferStreamController: (sessionId: string, connectionId: string, expectedControllerId: string, expectedControlEpoch: number) =>
     request<RenderSession>(`/stream-sessions/${sessionId}/controller/${connectionId}`, {
       method: 'PUT', body: JSON.stringify({ expected_controller_connection_id: expectedControllerId, expected_control_epoch: expectedControlEpoch }),

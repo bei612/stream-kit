@@ -140,6 +140,7 @@ func (s *Server) setupRoutes() {
 		sh := handlers.NewSessionHandler(s.SessionMgr, []byte(s.Config.Server.MediaTicketSecret))
 		if s.MediaControl != nil {
 			sh.SyncMedia = s.MediaControl.Sync
+			sh.ValidateAudioTarget = s.MediaControl.ValidateAudioTarget
 			authed.GET("/media-control", func(c *gin.Context) {
 				c.JSON(http.StatusOK, gin.H{"status": "ok", "data": s.MediaControl.Status()})
 			})
@@ -165,6 +166,7 @@ func (s *Server) setupRoutes() {
 		sessions.PUT("/:session_id/controller/:connection_id", sh.Transfer)
 		sessions.DELETE("/:session_id/controller", sh.Release)
 		sessions.PATCH("/:session_id/audio", sh.Audio)
+		sessions.PATCH("/:session_id/audio-target", sh.AudioTarget)
 		sessions.PATCH("/:session_id/policy", sh.Policy)
 	}
 }

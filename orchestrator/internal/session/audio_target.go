@@ -18,7 +18,7 @@ type AudioTarget struct {
 	CaptureDeviceID string `json:"capture_device_id"`
 }
 
-func (target AudioTarget) valid() bool {
+func (target AudioTarget) Valid() bool {
 	switch target.Mode {
 	case "disabled", "upstream":
 		return target.RenderDeviceID == "" && target.CaptureDeviceID == ""
@@ -70,7 +70,7 @@ func (m *Manager) checkAudioTargetReservation(next *RenderSession) error {
 }
 
 func (m *Manager) UpdateAudioTarget(id string, expectedEpoch uint64, target AudioTarget) error {
-	if !target.valid() || expectedEpoch == 0 {
+	if !target.Valid() || expectedEpoch == 0 {
 		return ErrInvalidState
 	}
 	return m.mutate(id, "stream_audio_changed", func(s *RenderSession) error {

@@ -1,13 +1,13 @@
 //! Versioned, leased control-plane projection. Only signed server snapshots
 //! can replace it; browser tickets cannot grant or renew runtime authority.
 use super::{AppError, media::MediaSessionKey};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     time::{SystemTime, UNIX_EPOCH},
 };
 
-pub const SIGNING_CONTEXT: &[u8] = b"stream-kit/media-state/v2\n";
+pub const SIGNING_CONTEXT: &[u8] = b"stream-kit/media-state/v3\n";
 pub fn now_ms() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -23,7 +23,7 @@ mod tests {
     const NOW: i64 = 1700000000000;
     fn fixture() -> StateEnvelope {
         serde_json::from_str(include_str!(
-            "../../../../contracts/media-state/v2.fixture.json"
+            "../../../../contracts/media-state/v3.fixture.json"
         ))
         .expect("valid authority fixture must be accepted")
     }
@@ -138,10 +138,70 @@ mod tests {
             7
         );
     }
+
+    #[test]
+    fn target_generation_and_native_reservations_are_atomic() {
+        let mut state = ControlState::default();
+        state.apply(fixture(), NOW).expect("initial");
+        for (epoch, revision, render) in [
+            (0, 8, "test-render-not-opened"),
+            (2, 8, "test-render-not-opened"),
+            (3, 8, "different"),
+            (4, 8, "different"),
+            (9, 8, "different"),
+        ] {
+            let mut next = fixture();
+            next.issued_at_ms += 1;
+            next.sessions[0].revision = revision;
+            next.sessions[0].audio.target.epoch = epoch;
+            next.sessions[0].audio.target.render_device_id = render.into();
+            assert!(state.apply(next, NOW + 1).is_err());
+            assert_eq!(
+                state
+                    .session(&key(), NOW + 1)
+                    .expect("unchanged")
+                    .audio
+                    .target
+                    .epoch,
+                3
+            );
+        }
+        let mut duplicate = fixture();
+        duplicate.issued_at_ms += 1;
+        let mut other = duplicate.sessions[0].clone();
+        other.app_id += 1;
+        other.session_id = "other".into();
+        std::mem::swap(
+            &mut other.audio.target.render_device_id,
+            &mut other.audio.target.capture_device_id,
+        );
+        duplicate.sessions.push(other);
+        assert!(state.apply(duplicate, NOW + 1).is_err());
+        let mut next = fixture();
+        next.issued_at_ms += 1;
+        next.sessions[0].revision = 8;
+        next.sessions[0].audio.target.epoch = 8;
+        next.sessions[0].audio.target.render_device_id = "new-render".into();
+        state.apply(next, NOW + 1).expect("new route generation");
+        assert_eq!(
+            state
+                .session(&key(), NOW + 1)
+                .expect("committed")
+                .audio
+                .target
+                .epoch,
+            8
+        );
+        let mut old = fixture();
+        old.schema_version = 2;
+        old.issued_at_ms += 2;
+        assert!(state.apply(old, NOW + 2).is_err());
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct AudioPolicy {
+    pub target: AudioTarget,
     pub program_gain_db: f32,
     pub microphone_gain_db: f32,
     pub microphone_enabled: bool,
@@ -150,11 +210,55 @@ pub struct AudioPolicy {
 impl Default for AudioPolicy {
     fn default() -> Self {
         Self {
+            target: AudioTarget::default(),
             program_gain_db: 0.0,
             microphone_gain_db: 0.0,
             microphone_enabled: true,
             broadcast_controller_microphone: true,
         }
+    }
+}
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TargetMode {
+    Disabled,
+    #[default]
+    Upstream,
+    Local,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct AudioTarget {
+    pub epoch: u64,
+    pub mode: TargetMode,
+    pub render_device_id: String,
+    pub capture_device_id: String,
+}
+impl AudioTarget {
+    pub fn endpoint(&self) -> Option<stream_kit_audio_target::EndpointPair> {
+        (self.mode == TargetMode::Local).then(|| stream_kit_audio_target::EndpointPair {
+            render_device_id: self.render_device_id.clone(),
+            capture_device_id: self.capture_device_id.clone(),
+        })
+    }
+    fn valid(&self, revision: u64) -> bool {
+        let id = |value: &str| {
+            !value.is_empty()
+                && value.len() <= 4096
+                && value.trim() == value
+                && !value.chars().any(char::is_control)
+        };
+        self.epoch > 0
+            && self.epoch <= revision
+            && match self.mode {
+                TargetMode::Local => {
+                    id(&self.render_device_id)
+                        && id(&self.capture_device_id)
+                        && self.render_device_id != self.capture_device_id
+                }
+                _ => self.render_device_id.is_empty() && self.capture_device_id.is_empty(),
+            }
     }
 }
 #[derive(Clone, Debug, Deserialize)]
@@ -189,7 +293,7 @@ pub struct ControlState {
 }
 impl ControlState {
     pub fn apply(&mut self, envelope: StateEnvelope, now: i64) -> Result<(), AppError> {
-        if envelope.schema_version != 2
+        if envelope.schema_version != 3
             || envelope.issued_at_ms <= self.issued_at_ms
             || envelope.issued_at_ms > now + 2000
             || envelope.expires_at_ms <= now
@@ -199,13 +303,21 @@ impl ControlState {
             return Err(AppError::BadRequest);
         }
         let mut sessions = HashMap::new();
+        let mut endpoints = HashSet::new();
         for session in envelope.sessions {
             if session.session_id.is_empty()
                 || session.revision == 0
                 || session.control_epoch == 0
                 || session.control_epoch > session.revision
+                || !session.audio.target.valid(session.revision)
                 || !(-60.0..=12.0).contains(&session.audio.program_gain_db)
                 || !(-60.0..=12.0).contains(&session.audio.microphone_gain_db)
+            {
+                return Err(AppError::BadRequest);
+            }
+            if let Some(pair) = session.audio.target.endpoint()
+                && (!endpoints.insert(pair.render_device_id)
+                    || !endpoints.insert(pair.capture_device_id))
             {
                 return Err(AppError::BadRequest);
             }
@@ -226,6 +338,11 @@ impl ControlState {
             if let Some(old) = self.sessions.get(&key)
                 && old.session_id == session.session_id
                 && (old.revision > session.revision
+                    || old.audio.target.epoch > session.audio.target.epoch
+                    || (old.audio.target.epoch != session.audio.target.epoch
+                        && session.audio.target.epoch <= old.revision)
+                    || (old.audio.target.epoch == session.audio.target.epoch
+                        && old.audio.target != session.audio.target)
                     || old.control_epoch > session.control_epoch
                     || (!session.controller_connection_id.is_empty()
                         && old.controller_connection_id != session.controller_connection_id
@@ -247,6 +364,11 @@ impl ControlState {
             return None;
         }
         self.sessions.get(&(key.host_id.0, key.app_id.0))
+    }
+    pub fn active_sessions(&self, now: i64) -> impl Iterator<Item = &SessionAuthority> {
+        self.sessions
+            .values()
+            .filter(move |_| now < self.expires_at_ms)
     }
     pub fn admits(&self, key: &MediaSessionKey, peer: &str, now: i64) -> bool {
         self.session(key, now).is_some_and(|s| {

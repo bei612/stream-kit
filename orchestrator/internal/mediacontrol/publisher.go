@@ -21,7 +21,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const SigningContext = "stream-kit/media-state/v2\n"
+const SigningContext = "stream-kit/media-state/v3\n"
 
 type Connection struct {
 	ID        string `json:"connection_id"`
@@ -31,15 +31,16 @@ type Connection struct {
 // Keep the versioned wire projection explicit. New durable domain fields must
 // not silently become protocol extensions an older gateway could ignore.
 type AudioPolicy struct {
-	ProgramGainDB          float64 `json:"program_gain_db"`
-	MicrophoneGainDB       float64 `json:"microphone_gain_db"`
-	MicrophoneEnabled      bool    `json:"microphone_enabled"`
-	BroadcastControllerMic bool    `json:"broadcast_controller_microphone"`
-	ControllerMonitor      bool    `json:"controller_monitor"`
+	Target                 session.AudioTarget `json:"target"`
+	ProgramGainDB          float64             `json:"program_gain_db"`
+	MicrophoneGainDB       float64             `json:"microphone_gain_db"`
+	MicrophoneEnabled      bool                `json:"microphone_enabled"`
+	BroadcastControllerMic bool                `json:"broadcast_controller_microphone"`
+	ControllerMonitor      bool                `json:"controller_monitor"`
 }
 
 func projectAudio(audio session.AudioConfig) AudioPolicy {
-	return AudioPolicy{audio.ProgramGainDB, audio.MicrophoneGainDB, audio.MicrophoneEnabled, audio.BroadcastControllerMic, audio.ControllerMonitor}
+	return AudioPolicy{audio.Target, audio.ProgramGainDB, audio.MicrophoneGainDB, audio.MicrophoneEnabled, audio.BroadcastControllerMic, audio.ControllerMonitor}
 }
 
 type Session struct {
@@ -114,15 +115,10 @@ func (p *Publisher) Sync(ctx context.Context) (err error) {
 		now = p.lastIssued + 1
 	}
 	p.lastIssued = now
-	envelope := Envelope{SchemaVersion: 2, IssuedAt: now, ExpiresAt: now + 10000, Sessions: []Session{}}
+	envelope := Envelope{SchemaVersion: 3, IssuedAt: now, ExpiresAt: now + 10000, Sessions: []Session{}}
 	for _, s := range p.manager.List() {
 		if s.State == session.StateStopped || s.State == session.StateStopping {
 			continue
-		}
-		// V2 cannot represent routing. Until the coordinated v3 runtime upgrade,
-		// never acknowledge a desired route that this gateway protocol ignores.
-		if s.Audio.Target.Mode != "upstream" {
-			return fmt.Errorf("audio target routing requires media-state v3")
 		}
 		item := Session{ID: s.ID, ControlEpoch: s.ControlEpoch, Revision: s.Revision, HostID: s.HostID, AppID: s.AppID, ControllerID: s.ControllerConnectionID, Audio: projectAudio(s.Audio), Connections: []Connection{}}
 		for _, c := range s.Connections {
@@ -142,7 +138,7 @@ func (p *Publisher) Sync(ctx context.Context) (err error) {
 	mac := hmac.New(sha256.New, p.secret)
 	mac.Write([]byte(SigningContext))
 	mac.Write(body)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.baseURL+"/internal/v2/media-state", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.baseURL+"/internal/v3/media-state", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}

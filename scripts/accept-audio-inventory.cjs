@@ -64,7 +64,7 @@ module.exports = async function acceptAudioInventory({ root, binary, gatewayURL,
     assert.deepEqual(inventory.configured_routes, configuredRoutes);
     assert.ok(Array.isArray(inventory.devices));
     await page.getByText(`${inventory.devices.length} 个设备 · ${configuredRoutes.length} 个应用绑定`, { exact: true }).waitFor();
-    assert.equal(await page.getByText('设备当前不可见', { exact: true }).count(), 2);
+    assert.equal(await page.getByText('设备当前不可见', { exact: true }).count(), configuredRoutes.length * 2);
     await page.locator('summary').filter({ hasText: '全部设备与标识' }).click();
     await page.screenshot({ path: path.join(output, 'audio-devices-desktop.png'), fullPage: true });
     await page.setViewportSize({ width: 390, height: 844 });
@@ -72,6 +72,38 @@ module.exports = async function acceptAudioInventory({ root, binary, gatewayURL,
     await page.screenshot({ path: path.join(output, 'audio-devices-narrow.png'), fullPage: true });
     await delay(1200);
     assert.equal(reads, 1, 'Device enumeration unexpectedly polled');
+    const token = await page.evaluate(() => localStorage.getItem('auth_token'));
+    const command = async (resource,method,body,status=200) => {
+      const response=await fetch(origin+'/api/v1'+resource,{method,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(body)});
+      assert.equal(response.status,status); return response.json();
+    };
+    const created=(await command('/stream-sessions','POST',{host_id:1,app_id:2})).data;
+    await page.locator('nav a[href="/stream-sessions"]').click();
+    await page.getByLabel('发送方式',{exact:true}).selectOption('disabled');
+    const saveResponse=page.waitForResponse(response => response.request().method()==='PATCH' && new URL(response.url()).pathname.endsWith('/audio-target'));
+    await page.getByRole('button',{name:'保存并应用目标'}).click();
+    const saved=await saveResponse; assert.equal(saved.status(),200);
+    const changed=(await saved.json()).data;
+    assert.equal(changed.audio.target.mode,'disabled');
+    assert.ok(changed.audio.target.epoch>created.audio.target.epoch);
+    await page.getByRole('button',{name:'重新应用目标'}).waitFor();
+    await command(`/stream-sessions/${created.session_id}/audio-target`,'PATCH',{
+      expected_epoch:created.audio.target.epoch,target:{mode:'upstream',render_device_id:'',capture_device_id:''},
+    },409);
+    await command(`/stream-sessions/${created.session_id}/audio-target`,'PATCH',{
+      expected_epoch:changed.audio.target.epoch,target:{mode:'local',render_device_id:'not-present-render',capture_device_id:'not-present-capture'},
+    },400);
+    let observation;
+    for(let i=0;i<20;i++) {
+      const response=await fetch(origin+'/api/v1/media-control',{headers:{Authorization:`Bearer ${token}`}});
+      const status=(await response.json()).data;
+      observation=status.observations?.[created.session_id];
+      if(status.observations_valid && observation?.microphone_target.epoch===changed.audio.target.epoch)break;
+      await delay(100);
+    }
+    assert.equal(observation?.microphone_target.epoch,changed.audio.target.epoch);
+    assert.equal(observation.microphone_target.state,'idle','Unstarted application must not claim an open device');
+    await page.screenshot({path:path.join(output,'audio-target-management.png'),fullPage:true});
     assert.deepEqual(errors, []);
     return {
       passed: true, browser: browser.version(), device_count: inventory.devices.length,
@@ -79,7 +111,8 @@ module.exports = async function acceptAudioInventory({ root, binary, gatewayURL,
       web_assets_sha256: Object.fromEntries(fs.readdirSync(path.join(scratch, 'dist/assets')).map(name => [name,
         crypto.createHash('sha256').update(fs.readFileSync(path.join(scratch, 'dist/assets', name))).digest('hex')])),
       checks: ['real management login', 'anonymous denied', 'Go to Rust authenticated inventory', 'actual OS device enumeration',
-        'missing configured endpoints visible', 'explicit refresh without polling', 'desktop and narrow viewport without overflow'],
+        configuredRoutes.length ? 'missing configured endpoints visible' : 'no configured target shown', 'explicit refresh without polling', 'desktop and narrow viewport without overflow',
+        'real browser target update', 'stale target command rejected', 'missing endpoint selection rejected', 'gateway acknowledgement binds target epoch without inventing device open'],
       scope: 'Native device enumeration through real gateway, control process and production browser. No audio stream open or recording.',
     };
   } finally {

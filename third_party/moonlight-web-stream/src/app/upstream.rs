@@ -21,6 +21,7 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::sync::{Mutex, broadcast, mpsc};
+mod target;
 
 enum Command {
     Recovery,
@@ -37,13 +38,14 @@ struct Shared {
     audio: OpusMultistreamConfig,
     video: VideoSetup,
     features: HostFeatures,
-    target: Option<stream_kit_audio_target::TargetMonitor>,
+    target: Option<target::Monitor>,
     remote_microphone: bool,
 }
 
 #[derive(Default)]
 struct SessionSlot {
     launch: Arc<Mutex<()>>,
+    native: Arc<Mutex<()>>,
     current: std::sync::Mutex<Weak<Shared>>,
     // Keep the join handle in the slot while awaiting it: cancellation of a
     // reconnect must not detach cleanup and allow a second driver to start.
@@ -55,17 +57,10 @@ struct LaunchLease {
     _slot: Arc<SessionSlot>,
 }
 
-// Field order is intentional: a cancelled blocking open destroys the resource
-// before releasing launch ownership and the pool index entry.
-struct PreparedResource<T> {
-    resource: T,
-    lease: LaunchLease,
-}
-
 // Browser handles hold telemetry only. Native resources belong exclusively to
 // the driver; even panic/cancellation drops them before the index lifetime.
 struct DriverResources {
-    target: Option<stream_kit_audio_target::AudioTarget>,
+    target: Option<target::Runtime>,
     stream: MoonlightStream,
     _slot: Arc<SessionSlot>,
 }
@@ -74,6 +69,7 @@ struct DriverResources {
 pub struct UpstreamPool {
     sessions: Mutex<HashMap<MediaSessionKey, Weak<SessionSlot>>>,
     local_targets: Vec<crate::config::LocalAudioTarget>,
+    endpoints: target::EndpointRegistry,
 }
 
 pub struct UpstreamPeer {
@@ -137,19 +133,29 @@ impl UpstreamPool {
                         .upgrade()
                 });
                 let active = shared.as_ref().is_some_and(|s| !s.commands.is_closed());
-                let configured = self.local_targets.iter().any(|route| {
-                    route.host_id == session.host_id && route.app_id == session.app_id
-                });
-                let device = shared
+                let target = &session.audio.target;
+                let snapshot = shared
                     .as_ref()
-                    .and_then(|s| s.target.as_ref().map(|t| t.status()));
+                    .and_then(|s| s.target.as_ref().map(|t| t.snapshot()));
+                let matching = snapshot
+                    .as_ref()
+                    .filter(|s| active && s.epoch == target.epoch && !s.pending);
+                let device = matching.and_then(|s| s.device.clone());
+                let error = matching.and_then(|s| s.error.clone());
                 let state = match &device {
+                    _ if !active => TargetState::Idle,
+                    _ if matching.is_none() => TargetState::Pending,
+                    _ if error.is_some() => TargetState::DeviceFailed,
                     Some(status) if !status.device_open && status.error.is_some() => {
                         TargetState::DeviceFailed
                     }
                     Some(_) if active => TargetState::DeviceOpen,
-                    _ if configured => TargetState::Idle,
-                    _ if active && shared.as_ref().is_some_and(|s| s.remote_microphone) => {
+                    _ if target.mode == super::control_state::TargetMode::Disabled => {
+                        TargetState::Disabled
+                    }
+                    _ if target.mode == super::control_state::TargetMode::Upstream
+                        && shared.as_ref().is_some_and(|s| s.remote_microphone) =>
+                    {
                         TargetState::UpstreamTransport
                     }
                     _ => TargetState::Unconfigured,
@@ -159,7 +165,12 @@ impl UpstreamPool {
                     revision: session.revision,
                     upstream_active: active,
                     subscribers: shared.as_ref().map_or(0, |s| s.events.receiver_count()),
-                    microphone_target: TargetObservation { state, device },
+                    microphone_target: TargetObservation {
+                        epoch: target.epoch,
+                        state,
+                        device,
+                        error,
+                    },
                 }
             })
             .collect()
@@ -176,6 +187,7 @@ impl UpstreamPool {
         key: MediaSessionKey,
         authority: MediaSessionRegistry,
         peer_id: String,
+        local_host: bool,
         start: F,
     ) -> Result<UpstreamPeer, AppError>
     where
@@ -196,7 +208,7 @@ impl UpstreamPool {
                 }
             }
         };
-        let mut lease = LaunchLease {
+        let lease = LaunchLease {
             _permit: slot.launch.clone().lock_owned().await,
             _slot: slot.clone(),
         };
@@ -220,27 +232,34 @@ impl UpstreamPool {
             tracing::warn!(%error, "previous shared upstream driver failed");
         }
         *previous_driver = None;
-        let target = if let Some(route) = self
+        let legacy_target = if let Some(route) = self
             .local_targets
             .iter()
             .find(|route| route.host_id == key.host_id.0 && route.app_id == key.app_id.0)
         {
-            let endpoint = route.endpoint.clone();
-            let prepared = tokio::task::spawn_blocking(move || PreparedResource {
-                resource: stream_kit_audio_target::AudioTarget::open(&endpoint),
-                lease,
-            })
-            .await
-            .map_err(|_| AppError::AudioTargetUnavailable)?;
-            lease = prepared.lease;
-            let opened = prepared.resource;
-            Some(opened.map_err(|error| {
+            super::control_state::AudioTarget {
+                epoch: 0,
+                mode: super::control_state::TargetMode::Local,
+                render_device_id: route.endpoint.render_device_id.clone(),
+                capture_device_id: route.endpoint.capture_device_id.clone(),
+            }
+        } else {
+            super::control_state::AudioTarget::default()
+        };
+        let projected = authority
+            .with_runtime(&key, |policy, _| policy.target.clone())
+            .await;
+        if projected.is_none() && authority.control.read().await.required {
+            return Err(AppError::Unauthorized);
+        }
+        let initial_target = projected
+            .filter(|t| t.epoch != 0)
+            .unwrap_or_else(|| legacy_target.clone());
+        let target = target::Runtime::native(initial_target.epoch, initial_target.endpoint(), slot.clone(), self.endpoints.clone(), local_host)
+            .await.map_err(|error| {
                 tracing::error!(%error, host_id = key.host_id.0, app_id = key.app_id.0, "configured audio target is unavailable");
                 AppError::AudioTargetUnavailable
-            })?)
-        } else {
-            None
-        };
+            })?;
         let stream = start().await?;
         let remote_microphone = stream.host_features().microphone;
         let setup = stream.audio_setup();
@@ -274,7 +293,7 @@ impl UpstreamPool {
             audio: OpusMultistreamConfig::STEREO,
             video: stream.video_setup(),
             features,
-            target: target.as_ref().map(|target| target.monitor()),
+            target: Some(target.monitor()),
             remote_microphone,
         });
         let peer = UpstreamPeer {
@@ -284,7 +303,7 @@ impl UpstreamPool {
         };
         *slot.current.lock().expect("session slot mutex poisoned") = Arc::downgrade(&shared);
         let resources = DriverResources {
-            target,
+            target: Some(target),
             stream,
             _slot: slot.clone(),
         };
@@ -293,7 +312,6 @@ impl UpstreamPool {
             // including after the last browser has dropped its Shared handle.
             let mut resources = resources;
             let mut audio_clock = super::mixer::AudioClock::new();
-            let mut target_fault_reported = false;
             loop {
                 if events.receiver_count() == 0 {
                     break;
@@ -301,6 +319,8 @@ impl UpstreamPool {
                 tokio::select! {
                     timestamp = audio_clock.tick() => {
                         let result = authority.with_runtime(&key, |policy, controller| {
+                            let route = if policy.target.epoch == 0 { &legacy_target } else { &policy.target };
+                            if let Some(target) = resources.target.as_mut() { target.reconcile(route.epoch, route.endpoint()); }
                             for packet in input.reconcile(controller.clone()) {
                                 resources.stream.send_raw(packet).map_err(|e| e.to_string())?;
                             }
@@ -316,10 +336,6 @@ impl UpstreamPool {
                             let buffer = mixer.render(timestamp, Instant::now()).map_err(|e| e.to_string())?.into();
                             if let Some(target) = &resources.target {
                                 target.submit(mixer.target_pcm());
-                                if !target_fault_reported && !target.status().device_open {
-                                    tracing::error!(target = ?target.status(), "microphone target failed during session");
-                                    target_fault_reported = true;
-                                }
                             }
                             let _ = events.send(Arc::new(MoonlightStreamEvent::Audio(AudioStreamEvent::OnFrame(AudioFrame { timestamp, buffer }))));
                             Ok::<_, String>(())
@@ -330,7 +346,7 @@ impl UpstreamPool {
                             None => {
                                 if input.reconcile(None).into_iter().any(|p| resources.stream.send_raw(p).is_err()) { break; }
                                 let _ = mixer.clear_microphone(); microphone_peer = None;
-                                if let Some(target) = &resources.target { target.clear(); }
+                                if let Some(target) = resources.target.as_mut() { target.reconcile(0, None); }
                             },
                         }
                     },
@@ -368,7 +384,8 @@ impl UpstreamPool {
                                     tracing::warn!(%error, "invalid microphone Opus packet");
                                     return;
                                 }
-                                if resources.target.is_none() && remote_microphone {
+                                let route = if policy.target.epoch == 0 { &legacy_target } else { &policy.target };
+                                if route.mode == super::control_state::TargetMode::Upstream && remote_microphone {
                                     resources.stream.send_microphone_opus_data(timestamp, &bytes);
                                 }
                             }).await;
@@ -420,7 +437,10 @@ impl UpstreamPool {
 
 impl UpstreamPeer {
     pub fn target_status(&self) -> Option<stream_kit_audio_target::TargetStatus> {
-        self.shared.target.as_ref().map(|target| target.status())
+        self.shared
+            .target
+            .as_ref()
+            .and_then(|target| target.snapshot().device)
     }
     pub fn audio_setup(&self) -> OpusMultistreamConfig {
         self.shared.audio.clone()
@@ -516,6 +536,7 @@ mod tests {
                     task_key,
                     MediaSessionRegistry::new(),
                     "cancelled".into(),
+                    true,
                     || async { panic!("new launch preceded old cleanup") },
                 )
                 .await
@@ -540,6 +561,7 @@ mod tests {
             key,
             MediaSessionRegistry::new(),
             "retry".into(),
+            true,
             || async {
                 assert!(
                     !alive.load(Ordering::Acquire),
@@ -560,58 +582,9 @@ mod tests {
         assert!(started.load(Ordering::Acquire));
     }
 
-    #[tokio::test]
-    async fn cancelled_blocking_open_retains_slot_and_permit_until_resource_drop() {
-        let slot = Arc::new(SessionSlot::default());
-        let weak = Arc::downgrade(&slot);
-        let lease = LaunchLease {
-            _permit: slot.launch.clone().lock_owned().await,
-            _slot: slot.clone(),
-        };
-        let alive = Arc::new(AtomicBool::new(true));
-        let resource = LiveResource(alive.clone());
-        let (entered, entered_rx) = tokio::sync::oneshot::channel();
-        let (release, opening) = std::sync::mpsc::channel();
-        let waiter = tokio::spawn(async move {
-            tokio::task::spawn_blocking(move || {
-                entered.send(()).expect("signal blocking open started");
-                opening
-                    .recv_timeout(Duration::from_secs(2))
-                    .expect("release blocking open");
-                PreparedResource { resource, lease }
-            })
-            .await
-            .expect("blocking open task")
-        });
-        entered_rx.await.expect("blocking open entered");
-        waiter.abort();
-        // Awaiting the cancelled wrapper drops its detached result receiver.
-        assert!(waiter.await.is_err());
-        drop(slot);
-        assert!(
-            weak.upgrade()
-                .expect("in-flight open must retain index")
-                .launch
-                .try_lock()
-                .is_err()
-        );
-        release.send(()).expect("finish blocking open");
-        tokio::time::timeout(Duration::from_secs(1), async {
-            while weak.upgrade().is_some() {
-                tokio::task::yield_now().await;
-            }
-        })
-        .await
-        .expect("cancelled open must eventually release index");
-        assert!(
-            !alive.load(Ordering::Acquire),
-            "index released before native resource"
-        );
-    }
-
     fn observed_session() -> super::super::control_state::SessionAuthority {
         let mut state: super::super::control_state::StateEnvelope = serde_json::from_str(
-            include_str!("../../../../contracts/media-state/v2.fixture.json"),
+            include_str!("../../../../contracts/media-state/v3.fixture.json"),
         )
         .expect("upstream test setup or assertion failed");
         let mut session = state.sessions.remove(0);
@@ -634,6 +607,7 @@ mod tests {
                     },
                     MediaSessionRegistry::new(),
                     "first".into(),
+                    true,
                     || async {
                         let _ = entered.send(());
                         std::future::pending().await
@@ -649,7 +623,7 @@ mod tests {
             assert!(!snapshot[0].upstream_active);
             assert_eq!(
                 snapshot[0].microphone_target.state,
-                super::super::media_observation::TargetState::Unconfigured
+                super::super::media_observation::TargetState::Idle
             );
             assert!(
                 pool.connect(
@@ -659,6 +633,7 @@ mod tests {
                     },
                     MediaSessionRegistry::new(),
                     "second".into(),
+                    true,
                     || async { Err(AppError::StreamClosed) }
                 )
                 .await
@@ -678,6 +653,7 @@ mod tests {
                 },
                 MediaSessionRegistry::new(),
                 "retry".into(),
+                true,
                 || async { Err(AppError::StreamClosed) }
             )
             .await
@@ -726,6 +702,7 @@ mod tests {
                 key.clone(),
                 MediaSessionRegistry::new(),
                 "first".into(),
+                true,
                 || async { panic!("must reuse existing upstream") },
             )
             .await
@@ -735,6 +712,7 @@ mod tests {
                 key,
                 MediaSessionRegistry::new(),
                 "second".into(),
+                true,
                 || async { panic!("must reuse existing upstream") },
             )
             .await
@@ -745,10 +723,11 @@ mod tests {
         let snapshot = pool.observe(&[observed_session()]).await;
         assert!(snapshot[0].upstream_active);
         assert_eq!(snapshot[0].subscribers, 1);
-        // Gateway microphone capture capability does not imply target support.
+        // A subscriber without matching device telemetry cannot prove that
+        // the requested target generation has been applied.
         assert_eq!(
             snapshot[0].microphone_target.state,
-            super::super::media_observation::TargetState::Unconfigured
+            super::super::media_observation::TargetState::Pending
         );
         second
             .send_raw(ControlPacket::RequestIdr)
@@ -826,6 +805,7 @@ mod tests {
                     key.clone(),
                     MediaSessionRegistry::new(),
                     "first".into(),
+                    true,
                     || async { Err(AppError::StreamClosed) }
                 )
                 .await
@@ -858,6 +838,7 @@ mod tests {
                 },
                 MediaSessionRegistry::new(),
                 "a".into(),
+                true,
                 || async { panic!("must not launch with invalid target") },
             )
             .await;

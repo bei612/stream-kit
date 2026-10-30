@@ -44,7 +44,7 @@ async fn app() -> Data<App> {
     config.web_server.control_plane_url = Some("https://control.example".into());
     let app = Data::new(App::new(config).await.expect("test app"));
     let mut state: StateEnvelope = serde_json::from_str(include_str!(
-        "../../../../../contracts/media-state/v2.fixture.json"
+        "../../../../../contracts/media-state/v3.fixture.json"
     ))
     .expect("fixture");
     let now = now_ms();
@@ -225,7 +225,7 @@ async fn target_session_and_connection_scope_cover_stream_updates_and_revocation
         .await
         .apply(
             StateEnvelope {
-                schema_version: 2,
+                schema_version: 3,
                 issued_at_ms: now,
                 expires_at_ms: now + 10000,
                 sessions: vec![],

@@ -1,9 +1,17 @@
 export interface SessionAudio {
+  target: AudioTarget
   program_gain_db: number
   microphone_gain_db: number
   microphone_enabled: boolean
   broadcast_controller_microphone: boolean
   controller_monitor: boolean
+}
+
+export interface AudioTarget {
+  epoch: number
+  mode: 'disabled' | 'upstream' | 'local'
+  render_device_id: string
+  capture_device_id: string
 }
 
 export interface SessionPolicy {
@@ -66,8 +74,10 @@ export interface MediaObservation {
   upstream_active: boolean
   subscribers: number
   microphone_target: {
-    state: 'unconfigured' | 'idle' | 'device_open' | 'device_failed' | 'upstream_transport'
+    epoch: number
+    state: 'unconfigured' | 'idle' | 'pending' | 'disabled' | 'device_open' | 'device_failed' | 'upstream_transport'
     device: TargetDeviceStatus | null
+    error: string | null
   }
 }
 

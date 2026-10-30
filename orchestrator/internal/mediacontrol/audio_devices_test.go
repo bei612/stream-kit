@@ -3,6 +3,7 @@ package mediacontrol
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -124,5 +125,53 @@ func TestAudioInventoryRefusesRedirects(t *testing.T) {
 	p := New(session.NewManager(nil), redirect.URL, "secret")
 	if _, err := p.AudioDevices(context.Background()); err == nil || calls.Load() != 0 {
 		t.Fatal("signed request followed redirect")
+	}
+}
+
+func TestAudioTargetSelectionUsesSignedInventoryDirections(t *testing.T) {
+	var enumerations atomic.Int32
+	secret := []byte("selection-test")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/internal/v3/media-state" {
+			var request Envelope
+			if json.NewDecoder(r.Body).Decode(&request) != nil {
+				t.Error("state request")
+				w.WriteHeader(400)
+				return
+			}
+			writeAcknowledgement(t, w, request, string(secret))
+			return
+		}
+		enumerations.Add(1)
+		var request audioInventoryRequest
+		if json.NewDecoder(r.Body).Decode(&request) != nil {
+			t.Error("inventory request")
+			w.WriteHeader(400)
+			return
+		}
+		body, _ := json.Marshal(AudioInventory{1, request.RequestID, request.IssuedAt, time.Now().UnixMilli(),
+			[]AudioDevice{{"render", "Output", false, true}, {"capture", "Input", true, false}}, []AudioRoute{}})
+		w.Header().Set(audioSignatureHeader, audioSignature(secret, audioResponseContext, body))
+		_, _ = w.Write(body)
+	}))
+	defer server.Close()
+	p := New(session.NewManager(nil), server.URL, string(secret))
+	if err := p.ValidateAudioTarget(context.Background(), session.AudioTarget{Mode: "disabled"}); err != nil {
+		t.Fatal(err)
+	}
+	if enumerations.Load() != 0 {
+		t.Fatal("non-local selection enumerated devices")
+	}
+	for _, tc := range []struct {
+		render, capture string
+		valid           bool
+	}{{"render", "capture", true}, {"capture", "render", false}, {"missing", "capture", false}} {
+		err := p.ValidateAudioTarget(context.Background(), session.AudioTarget{Mode: "local", RenderDeviceID: tc.render, CaptureDeviceID: tc.capture})
+		if tc.valid && err != nil {
+			t.Fatal(err)
+		}
+		if !tc.valid && !errors.Is(err, session.ErrInvalidState) {
+			t.Fatal("invalid selection accepted", err)
+		}
 	}
 }

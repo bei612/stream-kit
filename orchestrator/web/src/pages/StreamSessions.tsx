@@ -6,6 +6,7 @@ import QueryWrapper from '@/components/QueryWrapper'
 import StatusBadge from '@/components/StatusBadge'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { AudioTargetSettings } from '@/components/AudioTargetSettings'
 import { Crown, Mic, MicOff, RefreshCw, UserX, Unlock, Users } from 'lucide-react'
 
 type Action = (operation: () => Promise<unknown>) => Promise<void>
@@ -15,7 +16,9 @@ function MediaRuntime({ observation }: { observation?: MediaObservation }) {
   const target = observation.microphone_target
   const labels: Record<MediaObservation['microphone_target']['state'], string> = {
     unconfigured: '未配置可用的目标录音输入',
-    idle: '已配置目标录音输入，当前未运行',
+    idle: '会话当前未运行，音频目标待启动',
+    pending: '音频目标正在切换',
+    disabled: '已关闭向目标程序发送麦克风',
     device_open: '目标输入设备已打开',
     device_failed: '目标输入设备故障',
     upstream_transport: '上游支持麦克风传输',
@@ -26,6 +29,7 @@ function MediaRuntime({ observation }: { observation?: MediaObservation }) {
     {target.device && <details><summary>音频设备详情</summary><p className="mt-2">设备处理采样数（含静音）{target.device.device_sample_frames} · 队列丢帧 {target.device.dropped_frames} · 缓冲异常 {target.device.xruns}</p></details>}
     {target.device?.realtime_denied && <p className="text-xs text-amber-400">设备未获得实时调度权限，需关注音频稳定性。</p>}
     {target.device?.error && <p className="text-xs text-red-400">{target.device.error}</p>}
+    {target.error && <p className="text-xs text-red-400">{target.error}</p>}
     <p className="text-xs text-muted-foreground">向目标程序送入语音时，请在程序中选择对应的录音输入设备。</p>
   </div>
 }
@@ -129,6 +133,7 @@ export default function StreamSessions() {
           </div>
           {connections.length === 0 && <div className="text-sm text-muted-foreground py-4 text-center">当前没有客户端连接</div>}
           <AudioSettings key={`${JSON.stringify(session.audio)}:${JSON.stringify(session.policy)}`} session={session} busy={busy} action={action} />
+          <AudioTargetSettings session={session} busy={busy} action={action} />
         </Card>
       })}
       {sessions.length === 0 && <div className="text-center text-muted-foreground py-12">当前没有渲染会话</div>}

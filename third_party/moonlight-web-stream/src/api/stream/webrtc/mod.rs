@@ -498,6 +498,9 @@ pub async fn webrtc_post(
             media_key.clone(),
             app.media_sessions().clone(),
             media_peer_id.clone(),
+            host.address()
+                .parse::<std::net::IpAddr>()
+                .is_ok_and(|ip| ip.is_loopback()),
             || async {
                 if let StreamAccess::Managed(admission) = &access {
                     admission.require_live(&app).await?;

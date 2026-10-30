@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/stream-kit/orchestrator/internal/session"
 	"io"
 	"net/http"
 	"time"
@@ -24,6 +25,34 @@ type AudioDevice struct {
 	Name   string `json:"name"`
 	Input  bool   `json:"input"`
 	Output bool   `json:"output"`
+}
+
+// Selection validation uses the same signed device inventory shown to the
+// administrator. Runtime still validates device availability when opening it.
+func (p *Publisher) ValidateAudioTarget(ctx context.Context, target session.AudioTarget) error {
+	if err := p.Sync(ctx); err != nil {
+		return err
+	}
+	if target.Mode != "local" {
+		return nil
+	}
+	inventory, err := p.AudioDevices(ctx)
+	if err != nil {
+		return err
+	}
+	render, capture := false, false
+	for _, device := range inventory.Devices {
+		if device.ID == target.RenderDeviceID && device.Output {
+			render = true
+		}
+		if device.ID == target.CaptureDeviceID && device.Input {
+			capture = true
+		}
+	}
+	if !render || !capture {
+		return session.ErrInvalidState
+	}
+	return nil
 }
 
 type AudioEndpointPair struct {
