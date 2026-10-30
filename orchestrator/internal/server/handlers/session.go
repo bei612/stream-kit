@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -9,17 +10,35 @@ import (
 	"github.com/stream-kit/orchestrator/internal/session"
 )
 
+// Domain errors have one transport mapping across every session command.
+func respondSessionError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, session.ErrPersistence):
+		errResponse(c, http.StatusServiceUnavailable, "SESSION_PERSISTENCE_FAILED", "session update could not be committed")
+	case errors.Is(err, session.ErrNotFound):
+		errResponse(c, http.StatusNotFound, "SESSION_NOT_FOUND", "session or live connection not found")
+	case errors.Is(err, session.ErrInvalidState):
+		errResponse(c, http.StatusBadRequest, "SESSION_COMMAND_INVALID", "invalid session command")
+	case errors.Is(err, session.ErrControllerExists), errors.Is(err, session.ErrCapacity):
+		errResponse(c, http.StatusConflict, "SESSION_CONFLICT", err.Error())
+	default:
+		errResponse(c, http.StatusInternalServerError, "SESSION_INTERNAL_ERROR", "session command failed")
+	}
+}
+
 type SessionHandler struct {
-	Manager    *session.Manager
+	Manager      *session.Manager
 	TicketSecret []byte
 }
 
-func NewSessionHandler(m *session.Manager, ticketSecret []byte) *SessionHandler { return &SessionHandler{Manager: m, TicketSecret: ticketSecret} }
-func (h *SessionHandler) List(c *gin.Context)              { okResponse(c, h.Manager.List()) }
+func NewSessionHandler(m *session.Manager, ticketSecret []byte) *SessionHandler {
+	return &SessionHandler{Manager: m, TicketSecret: ticketSecret}
+}
+func (h *SessionHandler) List(c *gin.Context) { okResponse(c, h.Manager.List()) }
 func (h *SessionHandler) Get(c *gin.Context) {
 	s, err := h.Manager.Get(c.Param("session_id"))
 	if err != nil {
-		errResponse(c, http.StatusNotFound, "SESSION_NOT_FOUND", err.Error())
+		respondSessionError(c, err)
 		return
 	}
 	okResponse(c, s)
@@ -40,7 +59,12 @@ func (h *SessionHandler) Ensure(c *gin.Context) {
 		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", "host_id and app_id are required")
 		return
 	}
-	okResponse(c, h.Manager.Ensure(host, app))
+	s, err := h.Manager.Ensure(host, app)
+	if err != nil {
+		respondSessionError(c, err)
+		return
+	}
+	okResponse(c, s)
 }
 
 func (h *SessionHandler) Connect(c *gin.Context) {
@@ -53,7 +77,7 @@ func (h *SessionHandler) Connect(c *gin.Context) {
 	}
 	conn, err := h.Manager.AddConnection(c.Param("session_id"), req.UserID)
 	if err != nil {
-		errResponse(c, http.StatusConflict, "CONNECTION_REJECTED", err.Error())
+		respondSessionError(c, err)
 		return
 	}
 	okResponse(c, conn)
@@ -61,7 +85,7 @@ func (h *SessionHandler) Connect(c *gin.Context) {
 
 func (h *SessionHandler) Disconnect(c *gin.Context) {
 	if err := h.Manager.Disconnect(c.Param("session_id"), c.Param("connection_id")); err != nil {
-		errResponse(c, http.StatusNotFound, "CONNECTION_NOT_FOUND", err.Error())
+		respondSessionError(c, err)
 		return
 	}
 	okResponse(c, gin.H{"removed": true})
@@ -77,7 +101,7 @@ func (h *SessionHandler) Heartbeat(c *gin.Context) {
 		return
 	}
 	if err := h.Manager.Heartbeat(c.Param("session_id"), c.Param("connection_id"), req.Microphone, req.Live); err != nil {
-		errResponse(c, http.StatusNotFound, "CONNECTION_NOT_FOUND", err.Error())
+		respondSessionError(c, err)
 		return
 	}
 	okResponse(c, gin.H{"ok": true})
@@ -89,9 +113,15 @@ func (h *SessionHandler) MediaTicket(c *gin.Context) {
 		return
 	}
 	s, err := h.Manager.Get(c.Param("session_id"))
-	if err != nil { errResponse(c, http.StatusNotFound, "SESSION_NOT_FOUND", err.Error()); return }
+	if err != nil {
+		respondSessionError(c, err)
+		return
+	}
 	connection, ok := s.Connections[c.Param("connection_id")]
-	if !ok { errResponse(c, http.StatusNotFound, "CONNECTION_NOT_FOUND", "connection not found"); return }
+	if !ok {
+		errResponse(c, http.StatusNotFound, "CONNECTION_NOT_FOUND", "connection not found")
+		return
+	}
 	now := time.Now().UTC()
 	ticket := SignMediaTicket(MediaTicketClaims{
 		Purpose: "stream-media", SessionID: s.ID, ConnectionID: connection.ID,
@@ -102,11 +132,7 @@ func (h *SessionHandler) MediaTicket(c *gin.Context) {
 }
 func (h *SessionHandler) Claim(c *gin.Context) {
 	if err := h.Manager.Claim(c.Param("session_id"), c.Param("connection_id")); err != nil {
-		status := http.StatusConflict
-		if err == session.ErrNotFound {
-			status = http.StatusNotFound
-		}
-		errResponse(c, status, "CONTROLLER_CHANGE_FAILED", err.Error())
+		respondSessionError(c, err)
 		return
 	}
 	s, _ := h.Manager.Get(c.Param("session_id"))
@@ -114,7 +140,7 @@ func (h *SessionHandler) Claim(c *gin.Context) {
 }
 func (h *SessionHandler) Release(c *gin.Context) {
 	if err := h.Manager.Release(c.Param("session_id")); err != nil {
-		errResponse(c, http.StatusNotFound, "SESSION_NOT_FOUND", err.Error())
+		respondSessionError(c, err)
 		return
 	}
 	s, _ := h.Manager.Get(c.Param("session_id"))
@@ -127,7 +153,7 @@ func (h *SessionHandler) Audio(c *gin.Context) {
 		return
 	}
 	if err := h.Manager.UpdateAudio(c.Param("session_id"), cfg); err != nil {
-		errResponse(c, http.StatusNotFound, "SESSION_NOT_FOUND", err.Error())
+		respondSessionError(c, err)
 		return
 	}
 	s, _ := h.Manager.Get(c.Param("session_id"))
@@ -141,10 +167,10 @@ func (h *SessionHandler) Policy(c *gin.Context) {
 	}
 	if err := h.Manager.UpdatePolicy(c.Param("session_id"), p); err != nil {
 		if err == session.ErrInvalidState {
-			errResponse(c, http.StatusBadRequest, "POLICY_INVALID", err.Error())
+			respondSessionError(c, err)
 			return
 		}
-		errResponse(c, http.StatusNotFound, "SESSION_NOT_FOUND", err.Error())
+		respondSessionError(c, err)
 		return
 	}
 	s, _ := h.Manager.Get(c.Param("session_id"))

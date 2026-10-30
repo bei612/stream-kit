@@ -1,13 +1,118 @@
 package session
 
 import (
+	"errors"
+	"github.com/stream-kit/orchestrator/internal/store"
+	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
 
+func TestRejectedConnectionDoesNotHoldManagerLock(t *testing.T) {
+	m := NewManager(nil)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_, _ = m.AddConnection("missing", "user")
+		s, err := m.Ensure(1, 2)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		_ = m.UpdatePolicy(s.ID, Policy{MaxViewers: 1, ControllerDisconnectPolicy: "release"})
+		_, _ = m.AddConnection(s.ID, "a")
+		if _, err = m.AddConnection(s.ID, "b"); err != ErrCapacity {
+			t.Errorf("capacity: %v", err)
+		}
+		m.List()
+	}()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("rejected connection deadlocked manager")
+	}
+}
+
+func TestFailedPersistenceDoesNotPublishState(t *testing.T) {
+	st, err := store.New(filepath.Join(t.TempDir(), "sessions.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := NewManagerWithStore(nil, st)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := m.Ensure(1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = st.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = m.AddConnection(s.ID, "a"); !errors.Is(err, ErrPersistence) {
+		t.Fatalf("got %v", err)
+	}
+	current, _ := m.Get(s.ID)
+	if current.Revision != s.Revision || len(current.Connections) != 0 {
+		t.Fatal("failed write changed live state")
+	}
+	if _, err = m.Ensure(3, 4); !errors.Is(err, ErrPersistence) {
+		t.Fatalf("create: %v", err)
+	}
+	if len(m.List()) != 1 {
+		t.Fatal("failed create became visible")
+	}
+}
+
+func TestConcurrentCommitsPersistMonotonicRevision(t *testing.T) {
+	st, err := store.New(filepath.Join(t.TempDir(), "sessions.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	m, err := NewManagerWithStore(nil, st)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := m.Ensure(1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := m.AddConnection(s.ID, "a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := m.Heartbeat(s.ID, c.ID, true, true); err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+	wg.Wait()
+	current, _ := m.Get(s.ID)
+	record, err := st.GetStreamSession(s.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.Revision != 22 || record.Revision != current.Revision {
+		t.Fatalf("revisions: memory %d stored %d", current.Revision, record.Revision)
+	}
+	if current.Connections[c.ID].MicrophoneLive {
+		t.Fatal("viewer reported live microphone")
+	}
+}
+
 func TestControllerIsExclusiveAndAudioUpdates(t *testing.T) {
 	m := NewManager(nil)
-	s := m.Ensure(1, 2)
+	s, err := m.Ensure(1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
 	a, err := m.AddConnection(s.ID, "a")
 	if err != nil {
 		t.Fatal(err)
@@ -36,7 +141,10 @@ func TestControllerIsExclusiveAndAudioUpdates(t *testing.T) {
 
 func TestReleaseClearsRoles(t *testing.T) {
 	m := NewManager(nil)
-	s := m.Ensure(1, 2)
+	s, err := m.Ensure(1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
 	c, _ := m.AddConnection(s.ID, "a")
 	if err := m.Claim(s.ID, c.ID); err != nil {
 		t.Fatal(err)
@@ -52,7 +160,10 @@ func TestReleaseClearsRoles(t *testing.T) {
 
 func TestSweepExpiredReleasesController(t *testing.T) {
 	m := NewManager(nil)
-	s := m.Ensure(1, 2)
+	s, err := m.Ensure(1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
 	c, err := m.AddConnection(s.ID, "a")
 	if err != nil {
 		t.Fatal(err)
@@ -60,7 +171,7 @@ func TestSweepExpiredReleasesController(t *testing.T) {
 	if err := m.Claim(s.ID, c.ID); err != nil {
 		t.Fatal(err)
 	}
-	if got := m.SweepExpired(c.ExpiresAt.Add(time.Millisecond)); got != 1 {
+	if got, err := m.SweepExpired(c.ExpiresAt.Add(time.Millisecond)); err != nil || got != 1 {
 		t.Fatalf("expired connections: got %d, want 1", got)
 	}
 	current, err := m.Get(s.ID)
@@ -74,7 +185,10 @@ func TestSweepExpiredReleasesController(t *testing.T) {
 
 func TestInvalidPolicyRejected(t *testing.T) {
 	m := NewManager(nil)
-	s := m.Ensure(1, 2)
+	s, err := m.Ensure(1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := m.UpdatePolicy(s.ID, Policy{MaxViewers: -1, ControllerDisconnectPolicy: "release"}); err != ErrInvalidState {
 		t.Fatalf("got %v, want ErrInvalidState", err)
 	}
