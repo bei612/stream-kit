@@ -6,11 +6,11 @@ use moonlight_common::stream::{
     tokio::{MoonlightStream, MoonlightStreamEvent},
 };
 use tokio::sync::{Mutex, broadcast, mpsc};
-use super::{AppError, media::MediaSessionKey};
+use super::{AppError, media::{MediaSessionKey, MediaSessionRegistry}};
 
 enum Command {
-    Packet(ControlPacket),
-    Microphone(Duration, Vec<u8>),
+    Packet(String, ControlPacket),
+    Microphone(String, Duration, Vec<u8>),
 }
 
 struct Shared {
@@ -27,12 +27,13 @@ pub struct UpstreamPool {
 }
 
 pub struct UpstreamPeer {
+    peer_id: String,
     shared: Arc<Shared>,
     events: broadcast::Receiver<Arc<MoonlightStreamEvent>>,
 }
 
 impl UpstreamPool {
-    pub async fn connect<F, Fut>(&self, key: MediaSessionKey, start: F) -> Result<UpstreamPeer, AppError>
+    pub async fn connect<F, Fut>(&self, key: MediaSessionKey, authority: MediaSessionRegistry, peer_id: String, start: F) -> Result<UpstreamPeer, AppError>
     where F: FnOnce() -> Fut, Fut: Future<Output = Result<MoonlightStream, AppError>> {
         // Serialize launch through connection establishment: simultaneous offers
         // must not both launch Sunshine. Failed/cancelled launches release the lock.
@@ -40,7 +41,7 @@ impl UpstreamPool {
         sessions.retain(|_, entry| entry.strong_count() > 0);
         if let Some(shared) = sessions.get(&key).and_then(Weak::upgrade) {
             if !shared.commands.is_closed() {
-                return Ok(UpstreamPeer { events: shared.events.subscribe(), shared });
+                return Ok(UpstreamPeer { peer_id, events: shared.events.subscribe(), shared });
             }
         }
         let mut stream = start().await?;
@@ -50,14 +51,24 @@ impl UpstreamPool {
             commands, events: events.clone(), audio: stream.audio_setup(),
             video: stream.video_setup(), features: stream.host_features(),
         });
-        let peer = UpstreamPeer { events: events.subscribe(), shared: shared.clone() };
-        sessions.insert(key, Arc::downgrade(&shared));
+        let peer = UpstreamPeer { peer_id, events: events.subscribe(), shared: shared.clone() };
+        sessions.insert(key.clone(), Arc::downgrade(&shared));
         tokio::spawn(async move {
             loop {
                 tokio::select! {
                     command = receiver.recv() => match command {
-                        Some(Command::Packet(packet)) => { if stream.send_raw(packet).is_err() { break; } }
-                        Some(Command::Microphone(timestamp, bytes)) => { stream.send_microphone_opus_data(timestamp, &bytes); }
+                        Some(Command::Packet(peer_id, packet)) => {
+                            // Viewers may request decoder recovery but cannot send input.
+                            let result = if matches!(packet, ControlPacket::RequestIdr) {
+                                Some(stream.send_raw(packet))
+                            } else {
+                                authority.with_controller(&key, &peer_id, || stream.send_raw(packet)).await
+                            };
+                            if matches!(result, Some(Err(_))) { break; }
+                        }
+                        Some(Command::Microphone(peer_id, timestamp, bytes)) => {
+                            authority.with_controller(&key, &peer_id, || stream.send_microphone_opus_data(timestamp, &bytes)).await;
+                        }
                         None => { let _ = stream.disconnect(); break; }
                     },
                     result = stream.drive() => match result {
@@ -80,10 +91,10 @@ impl UpstreamPeer {
     pub fn host_features(&self) -> HostFeatures { self.shared.features.clone() }
     pub fn is_alive(&self) -> bool { !self.shared.commands.is_closed() }
     pub fn send_raw(&mut self, packet: ControlPacket) -> Result<(), AppError> {
-        self.shared.commands.try_send(Command::Packet(packet)).map_err(|_| AppError::StreamClosed)
+        self.shared.commands.try_send(Command::Packet(self.peer_id.clone(), packet)).map_err(|_| AppError::StreamClosed)
     }
     pub fn send_microphone_opus_data(&mut self, timestamp: Duration, bytes: &[u8]) -> bool {
-        self.shared.commands.try_send(Command::Microphone(timestamp, bytes.to_vec())).is_ok()
+        self.shared.commands.try_send(Command::Microphone(self.peer_id.clone(), timestamp, bytes.to_vec())).is_ok()
     }
     pub async fn drive(&mut self) -> Result<Arc<MoonlightStreamEvent>, AppError> {
         loop {
@@ -117,13 +128,13 @@ mod tests {
             features: HostFeatures::default(),
         });
         pool.sessions.lock().await.insert(key.clone(), Arc::downgrade(&shared));
-        let first = pool.connect(key.clone(), || async { panic!("must reuse existing upstream") }).await.unwrap();
-        let mut second = pool.connect(key, || async { panic!("must reuse existing upstream") }).await.unwrap();
+        let first = pool.connect(key.clone(), MediaSessionRegistry::new(), "first".into(), || async { panic!("must reuse existing upstream") }).await.unwrap();
+        let mut second = pool.connect(key, MediaSessionRegistry::new(), "second".into(), || async { panic!("must reuse existing upstream") }).await.unwrap();
         drop(shared);
         drop(first);
         assert!(second.is_alive());
         second.send_raw(ControlPacket::RequestIdr).unwrap();
-        assert!(matches!(receiver.recv().await, Some(Command::Packet(ControlPacket::RequestIdr))));
+        assert!(matches!(receiver.recv().await, Some(Command::Packet(_, ControlPacket::RequestIdr))));
         drop(second);
         assert!(receiver.recv().await.is_none(), "last peer must release upstream driver");
     }
@@ -133,7 +144,7 @@ mod tests {
         let pool = UpstreamPool::default();
         let key = MediaSessionKey { host_id: HostId(1), app_id: AppId(2) };
         for _ in 0..2 {
-            assert!(pool.connect(key.clone(), || async { Err(AppError::StreamClosed) }).await.is_err());
+            assert!(pool.connect(key.clone(), MediaSessionRegistry::new(), "first".into(), || async { Err(AppError::StreamClosed) }).await.is_err());
         }
         assert!(pool.sessions.lock().await.is_empty());
     }

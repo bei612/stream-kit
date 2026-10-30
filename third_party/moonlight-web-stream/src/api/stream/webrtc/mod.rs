@@ -535,7 +535,7 @@ pub async fn webrtc_post(
         .find(|app| app.id == app_id)
         .map(|app| app.title);
 
-    let moonlight_stream = app.upstreams().connect(media_key.clone(), || async {
+    let moonlight_stream = app.upstreams().connect(media_key.clone(), app.media_sessions().clone(), media_peer_id.clone(), || async {
     let config = host
         .start_stream(
             app_id,
@@ -618,7 +618,11 @@ pub async fn webrtc_post(
     // exposing half-open SDP offers as online clients.
     app.media_sessions().attach_as(media_key.clone(), media_peer_id.clone(), media_role).await?;
     if media_role == crate::app::media::PeerRole::Controller {
-        app.media_sessions().claim_controller(&media_key, &media_peer_id, false).await?;
+        if let Err(error) = app.media_sessions().claim_controller(&media_key, &media_peer_id, false).await {
+            app.media_sessions().detach(&media_key, &media_peer_id).await;
+            let _ = peer.close().await;
+            return Err(error);
+        }
     }
 
 

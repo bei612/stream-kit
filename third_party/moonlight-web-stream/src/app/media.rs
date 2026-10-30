@@ -193,6 +193,17 @@ impl MediaSessionRegistry {
         self.sessions.read().await.get(key).and_then(|s| s.controller_id.as_deref()).is_some_and(|id| id == peer_id)
     }
 
+    /// Keep the read lock until the synchronous transport operation completes,
+    /// so a controller transfer cannot race an already checked queued command.
+    pub async fn with_controller<T>(&self, key: &MediaSessionKey, peer_id: &str, action: impl FnOnce() -> T) -> Option<T> {
+        let sessions = self.sessions.read().await;
+        if sessions.get(key).and_then(|s| s.controller_id.as_deref()) == Some(peer_id) {
+            Some(action())
+        } else {
+            None
+        }
+    }
+
     pub async fn is_upstream_owner(&self, key: &MediaSessionKey, peer_id: &str) -> bool {
         self.sessions.read().await.get(key)
             .and_then(|s| s.upstream_owner.as_deref()) == Some(peer_id)
@@ -276,6 +287,20 @@ mod tests {
         registry.claim_controller(&key(), "b", true).await.unwrap();
         assert!(registry.can_control(&key(), "b").await);
         assert!(!registry.can_control(&key(), "a").await);
+    }
+
+    #[tokio::test]
+    async fn queued_input_is_rejected_after_controller_transfer_or_detach() {
+        let registry = MediaSessionRegistry::new();
+        registry.attach(key(), "a".into()).await.unwrap();
+        registry.attach(key(), "b".into()).await.unwrap();
+        registry.claim_controller(&key(), "a", false).await.unwrap();
+        assert_eq!(registry.with_controller(&key(), "a", || 1).await, Some(1));
+        registry.claim_controller(&key(), "b", true).await.unwrap();
+        assert!(registry.with_controller(&key(), "a", || panic!("revoked input sent")).await.is_none());
+        assert_eq!(registry.with_controller(&key(), "b", || 2).await, Some(2));
+        registry.detach(&key(), "b").await.unwrap();
+        assert!(registry.with_controller(&key(), "b", || panic!("detached microphone sent")).await.is_none());
     }
 
     #[tokio::test]
