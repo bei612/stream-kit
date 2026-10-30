@@ -139,7 +139,7 @@ impl MediaSessionRegistry {
             return Err(AppError::BadRequest);
         }
         session.peers.insert(peer_id.clone(), MediaPeer {
-            id: peer_id,
+            id: peer_id.clone(),
             role,
             attached_at: SystemTime::now(),
         });

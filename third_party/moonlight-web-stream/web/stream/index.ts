@@ -249,7 +249,14 @@ export class Stream implements Component {
         }
 
         // Get configuration
-        const config = await apiWebRTCConfiguration(this.api)
+        let config: Awaited<ReturnType<typeof apiWebRTCConfiguration>>
+        try {
+            config = await apiWebRTCConfiguration(this.api)
+        } catch (error) {
+            this.debugLog(`WebRTC configuration failed: ${error}`)
+            await this.releaseMediaAccess()
+            return "failednoconnect"
+        }
 
         this.debugLog("Received WebRTC Config, Creating Transport")
 
@@ -273,6 +280,8 @@ export class Stream implements Component {
 
         const options = await this.createTransportOptions()
         if (!options) {
+            await transport.close()
+            await this.releaseMediaAccess()
             return "failednoconnect"
         }
 
@@ -291,6 +300,7 @@ export class Stream implements Component {
             this.debugLog(`failed to connect using webrtc because ${error}`)
 
             await transport.close()
+            await this.releaseMediaAccess()
             return "failednoconnect"
         }
 
