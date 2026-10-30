@@ -1636,24 +1636,43 @@ namespace confighttp {
 
     print_req(request);
 
-    std::stringstream ss;
-    ss << request->content.rdbuf();
     try {
-      // TODO: Input Validation
+      if (request->content.size() > 1024 * 1024) {
+        throw std::invalid_argument("Configuration exceeds the size limit");
+      }
       std::stringstream config_stream;
       nlohmann::json output_tree;
-      nlohmann::json input_tree = nlohmann::json::parse(ss);
+      nlohmann::json input_tree = nlohmann::json::parse(request->content.string());
+      if (!input_tree.is_object() || input_tree.size() > 512) {
+        throw std::invalid_argument("Configuration must be an object with at most 512 fields");
+      }
       for (const auto &[k, v] : input_tree.items()) {
+        if (k.empty() || k.size() > 128 || !std::all_of(k.begin(), k.end(), [](unsigned char c) {
+              return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+            })) {
+          throw std::invalid_argument("Invalid configuration field name");
+        }
         if (v.is_null() || (v.is_string() && v.get<std::string>().empty())) {
           continue;
         }
 
         // v.dump() will dump valid json, which we do not want for strings in the config, right now
         // we should migrate the config file to straight JSON and get rid of all this nonsense
-        config_stream << k << " = " << (v.is_string() ? v.get<std::string>() : v.dump()) << std::endl;
+        const auto value = v.is_string() ? v.get<std::string>() : v.dump();
+        if (value.find_first_of(std::string_view("\r\n\0", 3)) != std::string::npos) {
+          throw std::invalid_argument("Configuration values must not inject additional lines");
+        }
+        config_stream << k << " = " << value << '\n';
       }
-      file_handler::write_file(config::sunshine.config_file.c_str(), config_stream.str());
+      const auto saved = file_handler::atomic_replace(file_handler::from_utf8(config::sunshine.config_file), config_stream.str());
+      if (saved.error || !saved.committed) {
+        response->write(SimpleWeb::StatusCode::server_error_internal_server_error,
+                        nlohmann::json {{"status", false}, {"committed", saved.committed}, {"error", "Encoder configuration persistence failed"}}.dump(),
+                        {{"Content-Type", "application/json"}, {"Cache-Control", "no-store"}});
+        return;
+      }
       output_tree["status"] = true;
+      output_tree["apply_policy"] = "encoder_restart";
       send_response(response, output_tree);
     } catch (std::exception &e) {
       BOOST_LOG(warning) << "SaveConfig: "sv << e.what();

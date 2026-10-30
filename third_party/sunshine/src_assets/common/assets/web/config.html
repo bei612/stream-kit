@@ -81,6 +81,7 @@
 
         <!-- Tab content -->
         <div class="config-content">
+          <div class="alert alert-danger mb-4" role="alert" v-if="saveError">{{ saveError }}</div>
           <div class="alert alert-success mb-4" v-if="saved && !restarted">
             <b>{{ $t('_common.success') }}</b> {{ $t('config.apply_note') }}
           </div>
@@ -149,6 +150,7 @@
   import { initApp } from './init'
   import Navbar from './Navbar.vue'
   import { apiFetch } from './fetch_utils'
+  import { persistConfiguration } from './configuration_save'
   import General from './configs/tabs/General.vue'
   import Inputs from './configs/tabs/Inputs.vue'
   import Network from './configs/tabs/Network.vue'
@@ -201,6 +203,7 @@
       return {
         platform: "",
         saved: false,
+        saveError: '',
         restarted: false,
         config: null,
         currentTab: "general",
@@ -496,6 +499,7 @@
       },
       save() {
         this.saved = false;
+        this.saveError = '';
         this.restarted = false;
 
         // create a temp copy of this.config to use for the post request
@@ -517,20 +521,12 @@
           });
         });
 
-        return apiFetch("./api/config", {
-          method: "POST",
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(config),
-        }).then((r) => {
-          if (r.status === 200) {
-            this.saved = true
-            return this.saved
-          }
-          else {
-            return false
-          }
+        return persistConfiguration(config, apiFetch).then(() => {
+          this.saved = true;
+          return true;
+        }).catch((error) => {
+          this.saveError = error instanceof Error ? error.message : 'Encoder configuration save was not confirmed.';
+          return false;
         });
       },
       apply() {

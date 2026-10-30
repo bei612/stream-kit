@@ -329,6 +329,7 @@ protected:
 
     server->resource["^/virtual-input-status-test$"]["GET"] = confighttp::getVirtualInputStatus;
     server->resource["^/capture-capabilities-test$"]["GET"] = confighttp::getCaptureCapabilities;
+    server->resource["^/encoder-config-test$"]["POST"] = confighttp::saveConfig;
     for (const auto method : {"GET", "PUT", "DELETE"}) {
       server->resource["^/managed-apps-test/([0-9a-f-]+)$"][method] = confighttp::managedApp;
     }
@@ -561,6 +562,87 @@ INSTANTIATE_TEST_SUITE_P(
   ),
   invalid_license_request_name
 );
+
+/** @brief Exercise desired encoder configuration persistence over real HTTPS. */
+class EncoderConfigurationHttpTest: public ConfigHttpTest {
+protected:
+  /** @brief Redirect writes to an isolated fixture file. */
+  void SetUp() override {
+    ConfigHttpTest::SetUp();
+    saved_path = config::sunshine.config_file;
+    config::sunshine.config_file = (test_web_dir / "encoder.conf").string();
+    std::ofstream(config::sunshine.config_file) << "mouse = enabled\n";
+  }
+  /** @brief Stop HTTP work before restoring the original configuration path. */
+  void TearDown() override {
+    ConfigHttpTest::TearDown();
+    config::sunshine.config_file = saved_path;
+  }
+  /** @brief Build authenticated JSON headers. @return Isolated API request headers. */
+  SimpleWeb::CaseInsensitiveMultimap headers() {
+    return {{"Authorization", create_auth_header("testuser", "testpass")}, {"Content-Type", "application/json"}};
+  }
+  /** @brief Read exact persisted bytes. @return Fixture configuration contents. */
+  std::string contents() {
+    std::ifstream file(config::sunshine.config_file, std::ios::binary);
+    return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+  }
+  std::string saved_path;  ///< Original config path, never modified by fixture requests.
+};
+
+TEST_F(EncoderConfigurationHttpTest, SavesCompleteDesiredFileWithoutMutatingRuntime) {
+  const auto running_mouse = config::input.mouse;
+  const auto result = client->request("POST", "/encoder-config-test", R"({"mouse":"disabled","fec_percentage":20,"stream_audio":true,"unused":null,"empty":""})", headers());
+  ASSERT_EQ(result->status_code, "200 OK");
+  const auto body = nlohmann::json::parse(result->content.string());
+  EXPECT_EQ(body["status"], true);
+  EXPECT_EQ(body["apply_policy"], "encoder_restart");
+  EXPECT_EQ(contents(), "fec_percentage = 20\nmouse = disabled\nstream_audio = true\n");
+  EXPECT_EQ(config::input.mouse, running_mouse);
+  const auto reset = client->request("POST", "/encoder-config-test", "{}", headers());
+  EXPECT_EQ(reset->status_code, "200 OK");
+  EXPECT_TRUE(contents().empty());
+}
+
+TEST_F(EncoderConfigurationHttpTest, RejectsMalformedAndInjectedSettingsWithoutChangingFile) {
+  const auto original = contents();
+  for (const std::string body : {"[]", "null", "true", R"({"mouse\nkeyboard":"disabled"})", R"({"mouse":"enabled\nkeyboard = disabled"})", R"({"mouse":"enabled\rkeyboard = disabled"})", R"({"mouse":"enabled\u0000ignored"})", R"({"":"value"})"}) {
+    EXPECT_EQ(client->request("POST", "/encoder-config-test", body, headers())->status_code, "400 Bad Request");
+    EXPECT_EQ(contents(), original);
+  }
+  auto excessive = nlohmann::json::object();
+  for (int index = 0; index < 513; ++index) {
+    excessive["setting_" + std::to_string(index)] = true;
+  }
+  EXPECT_EQ(client->request("POST", "/encoder-config-test", excessive.dump(), headers())->status_code, "400 Bad Request");
+  EXPECT_EQ(client->request("POST", "/encoder-config-test", nlohmann::json {{"name", std::string(1024 * 1024, 'x')}}.dump(), headers())->status_code, "400 Bad Request");
+  EXPECT_EQ(contents(), original);
+}
+
+TEST_F(EncoderConfigurationHttpTest, ReportsPersistenceFailureInsteadOfSuccess) {
+  const auto original = contents();
+  const auto directory = test_web_dir / "not-a-file";
+  std::filesystem::create_directory(directory);
+  const auto fixture_path = config::sunshine.config_file;
+  config::sunshine.config_file = directory.string();
+  const auto result = client->request("POST", "/encoder-config-test", R"({"mouse":"disabled"})", headers());
+  ASSERT_EQ(result->status_code, "500 Internal Server Error");
+  const auto body = nlohmann::json::parse(result->content.string());
+  EXPECT_EQ(body["status"], false);
+  EXPECT_EQ(body["committed"], false);
+  EXPECT_TRUE(std::filesystem::is_directory(directory));
+  config::sunshine.config_file = fixture_path;
+  EXPECT_EQ(contents(), original);
+}
+
+TEST_F(EncoderConfigurationHttpTest, RequiresAuthenticationAndRejectsForeignOrigin) {
+  const auto original = contents();
+  EXPECT_EQ(client->request("POST", "/encoder-config-test", "{}", {{"Content-Type", "application/json"}})->status_code, "401 Unauthorized");
+  auto foreign = headers();
+  foreign.emplace("Origin", "https://example.invalid");
+  EXPECT_EQ(client->request("POST", "/encoder-config-test", "{}", foreign)->status_code, "400 Bad Request");
+  EXPECT_EQ(contents(), original);
+}
 
 /** @brief Exercise owned app routes over authenticated HTTPS and an isolated catalog. */
 class ManagedAppsHttpTest: public ConfigHttpTest {

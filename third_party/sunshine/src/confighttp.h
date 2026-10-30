@@ -51,6 +51,8 @@ namespace confighttp {
   void saveApp(const resp_https_t &response, const req_https_t &request);
   /** @brief Delete an unmanaged legacy application through the registry transaction. */
   void deleteApp(const resp_https_t &response, const req_https_t &request);
+  /** @brief Atomically persist desired encoder settings without changing the running configuration. @param response Authenticated response. @param request CSRF-protected JSON request. */
+  void saveConfig(const resp_https_t &response, const req_https_t &request);
 
   void print_req(const req_https_t &request);
   void send_response(const resp_https_t &response, const nlohmann::json &output_tree);
