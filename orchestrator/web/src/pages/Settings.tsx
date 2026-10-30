@@ -6,6 +6,7 @@ import { useWSStore } from '@/stores/websocket'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { LogOut } from 'lucide-react'
+import { AudioDevices } from '@/components/AudioDevices'
 
 export default function Settings() {
   const [config, setConfig] = useState<any>(null)
@@ -40,6 +41,8 @@ export default function Settings() {
           </Button>
         </CardContent>
       </Card>
+
+      <AudioDevices />
 
       {/* Current config display */}
       {config && (

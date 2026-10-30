@@ -30,12 +30,14 @@ pub mod bindings;
 pub(super) mod bindings_ext;
 
 pub mod app;
+pub mod audio_devices;
 pub mod auth;
 pub mod control_state;
 pub mod host;
 pub mod media_auth;
 pub mod role;
 pub mod settings;
+mod signed;
 pub mod stream;
 pub mod user;
 

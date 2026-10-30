@@ -65,6 +65,10 @@ async function main() {
         };
         else if(pathname === '/api/v1/logs') data = [];
         else if(pathname === '/api/v1/config') data = {server:{listen:'127.0.0.1:9000'}};
+        else if(pathname === '/api/v1/audio-devices') data = {schema_version:1,observed_at_ms:Date.now(),devices:[
+          {id:'wasapi:render-fixture',name:'虚拟音频 · 网关输出',input:false,output:true},
+          {id:'wasapi:capture-fixture',name:'虚拟音频 · 应用输入',input:true,output:false},
+        ],configured_routes:[{host_id:1,app_id:2,endpoint:{render_device_id:'wasapi:render-fixture',capture_device_id:'wasapi:missing-fixture'}}]};
         else if(pathname.endsWith('/controller/b36d81-viewer')) { session.controller_connection_id='b36d81-viewer'; data=session; }
         else return route.fulfill({status:404,json:{status:'error',message:'Unrecognized review fixture route'}});
         return route.fulfill({json:{status:'ok',data}});
@@ -93,6 +97,12 @@ async function main() {
           await page.getByText('客户端 B36D81',{exact:true}).waitFor();
           const card=page.locator('.client-card').filter({hasText:'客户端 B36D81'});
           if(width===1440) { await card.getByRole('button',{name:'转移控制权'}).click(); await card.getByRole('button',{name:'释放控制权'}).waitFor(); }
+        }
+        if(name==='settings') {
+          await page.getByRole('button',{name:'读取设备',exact:true}).click();
+          await page.getByText('2 个设备 · 1 个应用绑定',{exact:true}).waitFor();
+          await page.getByText('设备当前不可见',{exact:true}).waitFor();
+          await page.locator('summary').filter({hasText:'全部设备与标识'}).click();
         }
         await capture(name);
       }

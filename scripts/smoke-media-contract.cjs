@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const net = require('node:net');
 const crypto = require('node:crypto');
-const { spawn, execFileSync } = require('node:child_process');
+const { spawn, spawnSync, execFileSync } = require('node:child_process');
 const { once } = require('node:events');
 const { setTimeout: delay } = require('node:timers/promises');
 const root = path.resolve(__dirname, '..');
@@ -64,6 +64,38 @@ async function main() {
       await delay(100);
     }
     assert.ok(ready, 'Gateway readiness timeout');
+    const inventoryURL = `http://127.0.0.1:${port}/gateway/internal/v1/audio-devices`;
+    const inventoryRequest = { schema_version: 1, request_id: crypto.randomBytes(16).toString('hex'), issued_at_ms: Date.now() };
+    const inventoryPost = (request, domain = 'stream-kit/audio-devices/request/v1\n') => {
+      const body = JSON.stringify(request);
+      return fetch(inventoryURL, { method: 'POST', body, headers: { 'content-type': 'application/json',
+        'x-stream-control-signature': sign(domain, body) }, signal: AbortSignal.timeout(5000) });
+    };
+    assert.equal((await fetch(inventoryURL, {method:'POST',body:'{}'})).status, 401);
+    assert.equal((await inventoryPost(inventoryRequest, 'stream-kit/media-state/v2\n')).status, 401);
+    assert.equal((await inventoryPost({...inventoryRequest, issued_at_ms:Date.now()-6000})).status, 400);
+    // Headless CI may have no audio server. Check that the HTTP boundary reports
+    // the same native availability as the CLI; never turn that into empty success.
+    const nativeInventory = spawnSync(binary, ['--config-path', configPath, 'audio-devices'], {
+      env, windowsHide:true, encoding:'utf8', timeout:5000,
+    });
+    assert.ok(!nativeInventory.error && [0,1].includes(nativeInventory.status), 'Native inventory probe failed to run');
+    inventoryRequest.issued_at_ms = Date.now();
+    const inventoryResponse = await inventoryPost(inventoryRequest);
+    assert.equal(inventoryResponse.status, nativeInventory.status === 0 ? 200 : 503);
+    if (process.argv[3]) assert.equal(inventoryResponse.status, 200, 'Full browser acceptance requires an available native audio context');
+    if (inventoryResponse.ok) {
+      assert.equal(inventoryResponse.headers.get('cache-control'), 'no-store');
+      const inventoryBody = await inventoryResponse.text();
+      assert.equal(inventoryResponse.headers.get('x-stream-control-signature'), sign('stream-kit/audio-devices/response/v1\n', inventoryBody));
+      const inventory = JSON.parse(inventoryBody);
+      assert.equal(inventory.schema_version, 1);
+      assert.equal(inventory.request_id, inventoryRequest.request_id);
+      assert.equal(inventory.request_issued_at_ms, inventoryRequest.issued_at_ms);
+      assert.ok(Array.isArray(inventory.devices));
+      assert.equal(new Set(inventory.devices.map(device => device.id)).size, inventory.devices.length);
+      assert.deepEqual(inventory.configured_routes, config.local_audio_targets);
+    }
     const state = JSON.parse(fs.readFileSync(path.join(root, 'contracts/media-state/v2.fixture.json'), 'utf8'));
     state.issued_at_ms = Date.now(); state.expires_at_ms = state.issued_at_ms + 10000;
     for (const connection of state.sessions[0].connections) connection.expires_at_ms = state.expires_at_ms;
@@ -125,9 +157,15 @@ async function main() {
     assert.equal(revoked.status, 200);
     assert.deepEqual((await revoked.json()).sessions, []);
     assert.equal((await viewerRequest('/host/stream/profile', viewerToken)).status, 401, 'Revocation invalidates an unexpired ticket');
+    const managementInventory = process.argv[3] ? await require('./accept-audio-inventory.cjs')({
+      root, binary: process.argv[3], gatewayURL: `http://127.0.0.1:${port}/gateway`, secret, output,
+      configuredRoutes: config.local_audio_targets,
+    }) : undefined;
     const result = { passed: true, platform: process.platform, architecture: process.arch, at: new Date().toISOString(), gateway_sha256: crypto.createHash('sha256').update(fs.readFileSync(binary)).digest('hex'),
-      checks: ['signed HTTP acknowledgement', 'request/revision binding', 'unsigned rejection', 'replay rejection', 'configured idle target', 'v1 rejection', 'invalid/rollback epoch rejection', 'coalesced ownership transfer', 'revocation',
+      audio_inventory_status: inventoryResponse.status,
+      checks: [inventoryResponse.ok ? 'signed audio inventory with nonce and configured routes' : 'native audio backend unavailable reported as HTTP 503', 'inventory rejects unsigned/wrong-domain/stale requests', 'signed HTTP acknowledgement', 'request/revision binding', 'unsigned rejection', 'replay rejection', 'configured idle target', 'v1 rejection', 'invalid/rollback epoch rejection', 'coalesced ownership transfer', 'revocation',
         'account-free viewer profile and WHEP configuration', 'media capability cannot authenticate gateway account', 'anonymous denial', 'session/connection/application/expiry admission scope', 'revocation invalidates unexpired admission'],
+      management_inventory: managementInventory,
       scope: 'Isolated real gateway HTTP contract; no active media or target recording.' };
     fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(result, null, 2));
     console.log(JSON.stringify(result));

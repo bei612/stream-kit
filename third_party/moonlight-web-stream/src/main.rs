@@ -304,6 +304,7 @@ async fn start(config: Config) -> Result<(), anyhow::Error> {
                         )
                         .service(api_service())
                         .service(api::control_state::apply)
+                        .service(api::audio_devices::list)
                         .service(web_config_js_service())
                         .service(web_service()),
                 )

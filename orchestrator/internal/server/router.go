@@ -81,6 +81,20 @@ func (s *Server) setupRoutes() {
 	authed.GET("/templates", h.GetTemplates)
 	authed.GET("/logs", h.GetLogs)
 	authed.GET("/metrics", h.Metrics)
+	authed.GET("/audio-devices", func(c *gin.Context) {
+		c.Header("Cache-Control", "no-store")
+		if s.MediaControl == nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "error", "code": "media_unconfigured", "message": "尚未配置媒体网关连接"})
+			return
+		}
+		inventory, err := s.MediaControl.AudioDevices(c.Request.Context())
+		if err != nil {
+			s.Logger.Warn("audio device inventory unavailable", zap.Error(err))
+			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "error", "code": "audio_inventory_unavailable", "message": "无法读取音频设备，请检查媒体网关连接、版本与设备状态"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "ok", "data": inventory})
+	})
 
 	// Same management identity; browser bearer travels in the upgrade header.
 	if s.WSHub != nil {

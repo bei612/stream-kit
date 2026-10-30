@@ -46,7 +46,7 @@ type Envelope struct {
 type Publisher struct {
 	mu         sync.Mutex
 	manager    *session.Manager
-	endpoint   string
+	baseURL    string
 	secret     []byte
 	client     *http.Client
 	lastIssued int64
@@ -88,7 +88,7 @@ func New(manager *session.Manager, baseURL, secret string) *Publisher {
 	if manager == nil || baseURL == "" || secret == "" {
 		return nil
 	}
-	return &Publisher{manager: manager, endpoint: strings.TrimRight(baseURL, "/") + "/internal/v2/media-state", secret: []byte(secret), client: &http.Client{Timeout: 2 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
+	return &Publisher{manager: manager, baseURL: strings.TrimRight(baseURL, "/"), secret: []byte(secret), client: &http.Client{Timeout: 2 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 }
 func (p *Publisher) Sync(ctx context.Context) (err error) {
 	p.mu.Lock()
@@ -122,7 +122,7 @@ func (p *Publisher) Sync(ctx context.Context) (err error) {
 	mac := hmac.New(sha256.New, p.secret)
 	mac.Write([]byte(SigningContext))
 	mac.Write(body)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.endpoint, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.baseURL+"/internal/v2/media-state", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}

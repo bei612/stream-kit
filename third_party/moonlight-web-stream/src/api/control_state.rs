@@ -6,8 +6,6 @@ use actix_web::{
     HttpRequest, HttpResponse, post,
     web::{Bytes, Data},
 };
-use hmac::{Hmac, Mac};
-use sha2::Sha256;
 
 #[post("/internal/v2/media-state")]
 pub async fn apply(
@@ -42,15 +40,13 @@ pub async fn apply(
         observed_at_ms: now_ms(),
     };
     let body = serde_json::to_vec(&acknowledgement).map_err(|_| AppError::BadRequest)?;
-    let mut mac =
-        Hmac::<Sha256>::new_from_slice(secret.as_bytes()).map_err(|_| AppError::Unauthorized)?;
-    mac.update(crate::app::media_observation::SIGNING_CONTEXT);
-    mac.update(&body);
+    let signature = super::signed::sign(
+        secret,
+        crate::app::media_observation::SIGNING_CONTEXT,
+        &body,
+    )?;
     Ok(HttpResponse::Ok()
-        .insert_header((
-            "x-stream-observation-signature",
-            hex::encode(mac.finalize().into_bytes()),
-        ))
+        .insert_header(("x-stream-observation-signature", signature))
         .insert_header(("cache-control", "no-store"))
         .content_type("application/json")
         .body(body))
@@ -61,22 +57,15 @@ fn decode_signed_state(
     signature: &str,
     body: &[u8],
 ) -> Result<StateEnvelope, AppError> {
-    if secret.is_empty() || signature.len() != 64 {
-        return Err(AppError::Unauthorized);
-    }
-    let signature = hex::decode(signature).map_err(|_| AppError::Unauthorized)?;
-    let mut mac =
-        Hmac::<Sha256>::new_from_slice(secret.as_bytes()).map_err(|_| AppError::Unauthorized)?;
-    mac.update(SIGNING_CONTEXT);
-    mac.update(body);
-    mac.verify_slice(&signature)
-        .map_err(|_| AppError::Unauthorized)?;
+    super::signed::verify(secret, SIGNING_CONTEXT, signature, body)?;
     serde_json::from_slice(body).map_err(|_| AppError::BadRequest)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use hmac::{Hmac, Mac};
+    use sha2::Sha256;
     #[test]
     fn cross_language_signature_rejects_tampering_and_wrong_domain() {
         let body = include_str!("../../../../contracts/media-state/v2.fixture.json")
