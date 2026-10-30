@@ -2,6 +2,7 @@
 orchestrator/orchestrator
 orchestrator/orchestrator.exe
 orchestrator/dist/
+orchestrator/bundle/
 
 # Frontend
 orchestrator/web/node_modules/

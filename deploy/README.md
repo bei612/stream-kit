@@ -6,6 +6,21 @@ on Linux, both belong under `/opt/stream-kit/orchestrator/`; on Windows, both
 belong under the install root passed to the service installer. Configuration can
 remain in `/etc/stream-kit/` or `C:\ProgramData\StreamKit\` independently.
 
+After building `orchestrator/web`, use `node scripts/build-control-plane.mjs`
+from the repository root to build the control-plane bundle. `--go` selects the
+Go executable and `--output` selects a new output directory. Existing output is
+never overwritten. CI uses `--require-clean`, Go 1.25.0 and Node 26.4.0; a dirty
+source tree is rejected before creating a release output. Local builds without
+that flag are explicitly marked `-dirty` when appropriate.
+
+The executable reports its source commit and version. The embedded build stamp
+is the source commit timestamp for reproducibility, not wall-clock packaging
+time. `bundle-manifest.json` records the commit, dirty state, target, Go version,
+and SHA-256/size of every executable and page asset. The page must be rebuilt
+from the same source first; CI does this before invoking the bundle script.
+Hashes identify the packaged bytes; the manifest is not a signature, SBOM or
+proof that the complete platform has passed acceptance.
+
 Static page discovery requires a regular `index.html`, and checks the
 configuration directory's `dist/`, its development `web/dist/`, then the
 executable's sibling `dist/`, in that order. An empty directory or a directory
