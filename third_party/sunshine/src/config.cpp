@@ -21,6 +21,7 @@
 
 // local includes
 #include "config.h"
+#include "config_transaction.h"
 #include "entry_handler.h"
 #include "file_handler.h"
 #include "logging.h"
@@ -1045,7 +1046,14 @@ namespace config {
   }
 
   bool persist_config_option_if_missing(const std::string_view name, const std::string_view value) {
-    auto file_content = file_handler::read_file(sunshine.config_file.c_str());
+    std::lock_guard lock {config_transaction::mutex};
+    std::string file_content;
+    try {
+      file_content = config_transaction::read(file_handler::from_utf8(sunshine.config_file));
+    } catch (const std::exception &) {
+      BOOST_LOG(warning) << "Cannot read configuration before automatic option persistence"sv;
+      return false;
+    }
     if (parse_config(file_content).contains(std::string {name})) {
       return false;
     }
@@ -1054,7 +1062,11 @@ namespace config {
       file_content += '\n';
     }
     file_content += std::format("{} = {}\n", name, value);
-    if (file_handler::write_file(sunshine.config_file.c_str(), file_content) != 0) {
+    if (file_content.size() > config_transaction::max_bytes) {
+      return false;
+    }
+    const auto saved = file_handler::atomic_replace(file_handler::from_utf8(sunshine.config_file), file_content);
+    if (!saved.committed || saved.error) {
       BOOST_LOG(warning) << "Failed to persist automatically selected config option '"sv << name << "'"sv;
       return false;
     }

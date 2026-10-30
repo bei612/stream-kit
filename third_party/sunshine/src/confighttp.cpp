@@ -39,6 +39,7 @@
 // local includes
 #include "app_registry.h"
 #include "config.h"
+#include "config_transaction.h"
 #include "confighttp.h"
 #include "crypto.h"
 #include "display_device.h"
@@ -1560,13 +1561,18 @@ namespace confighttp {
     send_response(response, output_tree);
   }
 
-  /**
-   * @brief Get the configuration settings.
-   * @param response The HTTP response object.
-   * @param request The HTTP request object.
-   *
-   * @api_examples{/api/config| GET| null}
-   */
+  /** @brief Identify exact desired configuration bytes. @param content File bytes. @return Strong quoted ETag. */
+  std::string config_etag(std::string_view content) {
+    return '"' + util::hex(crypto::hash(content)).to_string() + '"';
+  }
+
+  /** @brief Return a no-cache configuration acknowledgement. @param response HTTP response. @param body JSON response. @param etag Committed or observed revision. */
+  void send_config_response(const resp_https_t &response, const nlohmann::json &body, const std::string &etag) {
+    response->write(body.dump(), {{"Content-Type", "application/json"}, {"Cache-Control", "no-store"}, {"ETag", etag},
+                                  {"X-Frame-Options", "DENY"}, {"Content-Security-Policy", "frame-ancestors 'none';"}});
+  }
+
+  /** @brief Get desired configuration and its strong revision. @param response HTTP response. @param request Authenticated request. */
   void getConfig(const resp_https_t &response, const req_https_t &request) {
     if (!authenticate(response, request)) {
       return;
@@ -1579,13 +1585,19 @@ namespace confighttp {
     output_tree["platform"] = SUNSHINE_PLATFORM;
     output_tree["version"] = PROJECT_VERSION;
 
-    auto vars = config::parse_config(file_handler::read_file(config::sunshine.config_file.c_str()));
-
-    for (auto &[name, value] : vars) {
-      output_tree[name] = std::move(value);
+    try {
+      std::lock_guard lock {config_transaction::mutex};
+      const auto content = config_transaction::read(file_handler::from_utf8(config::sunshine.config_file));
+      auto vars = config::parse_config(content);
+      for (auto &[name, value] : vars) {
+        output_tree[name] = std::move(value);
+      }
+      send_config_response(response, output_tree, config_etag(content));
+    } catch (const std::exception &) {
+      response->write(SimpleWeb::StatusCode::server_error_internal_server_error,
+                      nlohmann::json {{"status", false}, {"error", "Encoder configuration is unavailable"}}.dump(),
+                      {{"Content-Type", "application/json"}, {"Cache-Control", "no-store"}});
     }
-
-    send_response(response, output_tree);
   }
 
   /**
@@ -1664,7 +1676,24 @@ namespace confighttp {
         }
         config_stream << k << " = " << value << '\n';
       }
-      const auto saved = file_handler::atomic_replace(file_handler::from_utf8(config::sunshine.config_file), config_stream.str());
+      const auto expected = request->header.find("If-Match");
+      if (expected == request->header.end() || request->header.count("If-Match") != 1) {
+        response->write(SimpleWeb::StatusCode::client_error_precondition_required,
+                        nlohmann::json {{"status", false}, {"error", "Read configuration before saving; If-Match is required"}}.dump(),
+                        {{"Content-Type", "application/json"}, {"Cache-Control", "no-store"}});
+        return;
+      }
+      std::lock_guard lock {config_transaction::mutex};
+      const auto path = file_handler::from_utf8(config::sunshine.config_file);
+      const auto current = config_transaction::read(path);
+      if (expected->second != config_etag(current)) {
+        response->write(SimpleWeb::StatusCode::client_error_precondition_failed,
+                        nlohmann::json {{"status", false}, {"error", "Configuration changed; reload before saving"}}.dump(),
+                        {{"Content-Type", "application/json"}, {"Cache-Control", "no-store"}});
+        return;
+      }
+      const auto content = config_stream.str();
+      const auto saved = file_handler::atomic_replace(path, content);
       if (saved.error || !saved.committed) {
         response->write(SimpleWeb::StatusCode::server_error_internal_server_error,
                         nlohmann::json {{"status", false}, {"committed", saved.committed}, {"error", "Encoder configuration persistence failed"}}.dump(),
@@ -1673,7 +1702,11 @@ namespace confighttp {
       }
       output_tree["status"] = true;
       output_tree["apply_policy"] = "encoder_restart";
-      send_response(response, output_tree);
+      send_config_response(response, output_tree, config_etag(content));
+    } catch (const std::runtime_error &) {
+      response->write(SimpleWeb::StatusCode::server_error_internal_server_error,
+                      nlohmann::json {{"status", false}, {"committed", false}, {"error", "Encoder configuration is unavailable"}}.dump(),
+                      {{"Content-Type", "application/json"}, {"Cache-Control", "no-store"}});
     } catch (std::exception &e) {
       BOOST_LOG(warning) << "SaveConfig: "sv << e.what();
       bad_request(response, request, e.what());

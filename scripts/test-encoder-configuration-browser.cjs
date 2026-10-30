@@ -11,6 +11,8 @@ async function run() {
   const browser = await chromium.launch({ headless: true, ...(process.env.BROWSER_CHANNEL ? { channel: process.env.BROWSER_CHANNEL } : {}) });
   let reply = { status: 500, body: { status: false, committed: false, error: 'Encoder configuration persistence failed' } };
   let posts = 0;
+  let expectedRevision = '"initial"';
+  let readFailed = false;
   const errors = [];
   try {
     const page = await browser.newPage();
@@ -24,10 +26,13 @@ async function run() {
         if (url.pathname === '/api/config') {
           if (route.request().method() === 'POST') {
             posts++;
+            assert.equal(route.request().headers()['if-match'], expectedRevision);
             assert.equal(typeof route.request().postDataJSON(), 'object');
-            return route.fulfill({ status: reply.status, contentType: 'application/json', body: JSON.stringify(reply.body) });
+            return route.fulfill({ status: reply.status, headers: { ETag: '"next"' }, contentType: 'application/json', body: JSON.stringify(reply.body) });
           }
+          if (readFailed) return route.fulfill({ status: 500, contentType: 'application/json', body: '{}' });
           body = { status: true, platform: 'windows', version: 'test' };
+          return route.fulfill({ headers: { ETag: '"initial"' }, contentType: 'application/json', body: JSON.stringify(body) });
         }
         return route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
       }
@@ -40,7 +45,7 @@ async function run() {
     const save = page.getByRole('button', { name: 'Save', exact: true });
     await save.waitFor();
     await save.click();
-    const alert = page.locator('.config-content [role="alert"]');
+    const alert = page.locator('#content [role="alert"]');
     await alert.getByText('Encoder configuration persistence failed', { exact: true }).waitFor();
     assert.equal(await page.getByRole('button', { name: 'Apply', exact: true }).count(), 0);
 
@@ -54,11 +59,25 @@ async function run() {
     await alert.getByText(/Reload before retrying/).waitFor();
     assert.equal(await page.getByRole('button', { name: 'Apply', exact: true }).count(), 0);
 
+    reply = { status: 412, body: { status: false, error: 'Configuration changed; reload before saving' } };
+    await page.locator('#sunshine_name').fill('Unsaved editor change');
+    await save.click();
+    await alert.getByText('Configuration changed; reload before saving', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Apply', exact: true }).count(), 0);
+    assert.equal(await page.locator('#sunshine_name').inputValue(), 'Unsaved editor change');
+
     reply = { status: 200, body: { status: true, apply_policy: 'encoder_restart' } };
     await save.click();
     await page.getByRole('button', { name: 'Apply', exact: true }).waitFor();
     assert.equal(await alert.count(), 0);
-    assert.equal(posts, 4);
+    expectedRevision = '"next"';
+    await save.click();
+    await page.getByRole('button', { name: 'Apply', exact: true }).waitFor();
+    assert.equal(posts, 6);
+    readFailed = true;
+    await page.reload();
+    await alert.getByText(/Unable to read a versioned encoder configuration/).waitFor();
+    assert.equal(await save.count(), 0);
     assert.deepEqual(errors, []);
     const output = 'artifacts/encoder-configuration';
     fs.mkdirSync(output, { recursive: true });

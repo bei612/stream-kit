@@ -12,6 +12,7 @@
 
 // standard includes
 #include <array>
+#include <barrier>
 #include <chrono>
 #include <filesystem>
 #include <format>
@@ -330,6 +331,7 @@ protected:
     server->resource["^/virtual-input-status-test$"]["GET"] = confighttp::getVirtualInputStatus;
     server->resource["^/capture-capabilities-test$"]["GET"] = confighttp::getCaptureCapabilities;
     server->resource["^/encoder-config-test$"]["POST"] = confighttp::saveConfig;
+    server->resource["^/encoder-config-test$"]["GET"] = confighttp::getConfig;
     for (const auto method : {"GET", "PUT", "DELETE"}) {
       server->resource["^/managed-apps-test/([0-9a-f-]+)$"][method] = confighttp::managedApp;
     }
@@ -580,7 +582,13 @@ protected:
   }
   /** @brief Build authenticated JSON headers. @return Isolated API request headers. */
   SimpleWeb::CaseInsensitiveMultimap headers() {
-    return {{"Authorization", create_auth_header("testuser", "testpass")}, {"Content-Type", "application/json"}};
+    SimpleWeb::CaseInsensitiveMultimap result {{"Authorization", create_auth_header("testuser", "testpass")}, {"Content-Type", "application/json"}};
+    const auto snapshot = client->request("GET", "/encoder-config-test", "", result);
+    if (snapshot->status_code != "200 OK" || snapshot->header.count("ETag") != 1) {
+      throw std::runtime_error("Fixture configuration snapshot unavailable");
+    }
+    result.emplace("If-Match", snapshot->header.find("ETag")->second);
+    return result;
   }
   /** @brief Read exact persisted bytes. @return Fixture configuration contents. */
   std::string contents() {
@@ -624,8 +632,9 @@ TEST_F(EncoderConfigurationHttpTest, ReportsPersistenceFailureInsteadOfSuccess) 
   const auto directory = test_web_dir / "not-a-file";
   std::filesystem::create_directory(directory);
   const auto fixture_path = config::sunshine.config_file;
+  const auto before = headers();
   config::sunshine.config_file = directory.string();
-  const auto result = client->request("POST", "/encoder-config-test", R"({"mouse":"disabled"})", headers());
+  const auto result = client->request("POST", "/encoder-config-test", R"({"mouse":"disabled"})", before);
   ASSERT_EQ(result->status_code, "500 Internal Server Error");
   const auto body = nlohmann::json::parse(result->content.string());
   EXPECT_EQ(body["status"], false);
@@ -642,6 +651,70 @@ TEST_F(EncoderConfigurationHttpTest, RequiresAuthenticationAndRejectsForeignOrig
   foreign.emplace("Origin", "https://example.invalid");
   EXPECT_EQ(client->request("POST", "/encoder-config-test", "{}", foreign)->status_code, "400 Bad Request");
   EXPECT_EQ(contents(), original);
+}
+
+TEST_F(EncoderConfigurationHttpTest, RejectsMissingOrStaleRevisionAndAdvancesAfterSave) {
+  const auto first = headers();
+  const auto original = contents();
+  auto missing = first;
+  missing.erase("If-Match");
+  EXPECT_EQ(client->request("POST", "/encoder-config-test", "{}", missing)->status_code, "428 Precondition Required");
+  EXPECT_EQ(contents(), original);
+  const auto saved = client->request("POST", "/encoder-config-test", R"({"mouse":"disabled"})", first);
+  ASSERT_EQ(saved->status_code, "200 OK");
+  ASSERT_EQ(saved->header.count("ETag"), 1U);
+  EXPECT_NE(saved->header.find("ETag")->second, first.find("If-Match")->second);
+  EXPECT_EQ(client->request("POST", "/encoder-config-test", "{}", first)->status_code, "412 Precondition Failed");
+  EXPECT_EQ(contents(), "mouse = disabled\n");
+  auto next = first;
+  next.erase("If-Match");
+  next.emplace("If-Match", saved->header.find("ETag")->second);
+  EXPECT_EQ(client->request("POST", "/encoder-config-test", "{}", next)->status_code, "200 OK");
+  EXPECT_TRUE(contents().empty());
+}
+
+TEST_F(EncoderConfigurationHttpTest, AutomaticPersistenceInvalidatesOldEditorRevision) {
+  const auto before = headers();
+  ASSERT_TRUE(config::persist_config_option_if_missing("gamepad_driver", "all"));
+  const auto updated = contents();
+  EXPECT_EQ(client->request("POST", "/encoder-config-test", "{}", before)->status_code, "412 Precondition Failed");
+  EXPECT_EQ(contents(), updated);
+  EXPECT_NE(headers().find("If-Match")->second, before.find("If-Match")->second);
+}
+
+TEST_F(EncoderConfigurationHttpTest, UnreadableConfigurationDoesNotBecomeEmptyDefaults) {
+  std::ofstream(config::sunshine.config_file, std::ios::binary | std::ios::trunc) << std::string(1024 * 1024 + 1, 'x');
+  SimpleWeb::CaseInsensitiveMultimap auth {{"Authorization", create_auth_header("testuser", "testpass")}};
+  const auto result = client->request("GET", "/encoder-config-test", "", auth);
+  EXPECT_EQ(result->status_code, "500 Internal Server Error");
+  EXPECT_EQ(result->header.count("ETag"), 0U);
+  EXPECT_FALSE(config::persist_config_option_if_missing("gamepad_driver", "all"));
+  EXPECT_EQ(contents().size(), 1024 * 1024 + 1);
+}
+
+TEST_F(EncoderConfigurationHttpTest, ConcurrentAutomaticOptionAndEditorSaveNeverLoseTheOption) {
+  for (int attempt = 0; attempt < 20; ++attempt) {
+    std::ofstream(config::sunshine.config_file, std::ios::trunc) << "mouse = enabled\n";
+    const auto before = headers();
+    std::barrier start {2};
+    bool appended = false;
+    std::jthread updater([&]() {
+      start.arrive_and_wait();
+      appended = config::persist_config_option_if_missing("gamepad_driver", "all");
+    });
+    start.arrive_and_wait();
+    const auto result = client->request("POST", "/encoder-config-test", R"({"mouse":"disabled"})", before);
+    updater.join();
+    ASSERT_TRUE(appended);
+    const auto settings = config::parse_config(contents());
+    EXPECT_EQ(settings.at("gamepad_driver"), "all");
+    if (result->status_code == "200 OK") {
+      EXPECT_EQ(settings.at("mouse"), "disabled");
+    } else {
+      EXPECT_EQ(result->status_code, "412 Precondition Failed");
+      EXPECT_EQ(settings.at("mouse"), "enabled");
+    }
+  }
 }
 
 /** @brief Exercise owned app routes over authenticated HTTPS and an isolated catalog. */
