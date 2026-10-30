@@ -1,27 +1,19 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stream-kit/orchestrator/internal/app"
 	"github.com/stream-kit/orchestrator/internal/config"
 	"go.uber.org/zap"
 )
-
-var allowedExtensions = map[string]bool{
-	".zip":    true,
-	".tar":    true,
-	".tar.gz": true,
-	".tgz":    true,
-	".tar.bz2": true,
-}
 
 type UploadHandler struct {
 	Manager *app.Manager
@@ -56,6 +48,25 @@ func (h *UploadHandler) Upload(c *gin.Context) {
 		}
 	}()
 
+	maxSize := h.Config.Storage.MaxUploadSize
+	if maxSize <= 0 || maxSize > math.MaxInt64-(1<<20) {
+		errResponse(c, http.StatusServiceUnavailable, "CONFIG_INVALID", "上传大小限制无效")
+		return
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxSize+(1<<20))
+	parseErr := c.Request.ParseMultipartForm(8 << 20)
+	if c.Request.MultipartForm != nil {
+		defer c.Request.MultipartForm.RemoveAll()
+	}
+	if parseErr != nil {
+		var oversized *http.MaxBytesError
+		if errors.As(parseErr, &oversized) {
+			errResponse(c, http.StatusRequestEntityTooLarge, "UPLOAD_TOO_LARGE", "上传内容超限")
+		} else {
+			errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", "上传表单无效")
+		}
+		return
+	}
 	name := c.PostForm("name")
 	if name == "" {
 		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", "请提供应用名称 (name)")
@@ -90,18 +101,24 @@ func (h *UploadHandler) Upload(c *gin.Context) {
 
 	// Step 1: Save file to temp FIRST (before creating DB record)
 	tempDir := h.Config.Storage.TempDir
-	os.MkdirAll(tempDir, 0755)
-	tempID := fmt.Sprintf("upload-%d", time.Now().UnixNano())
-	tempPath := filepath.Join(tempDir, tempID+filepath.Ext(filename))
-
-	out, err := os.Create(tempPath)
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		errResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "创建临时目录失败")
+		return
+	}
+	out, err := os.CreateTemp(tempDir, "upload-*"+app.ArchiveExtension(filename))
 	if err != nil {
 		errResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "创建临时文件失败")
 		return
 	}
 
-	written, err := io.Copy(out, file)
-	out.Close()
+	tempPath := out.Name()
+	written, copyErr := io.Copy(out, io.LimitReader(file, maxSize+1))
+	err = errors.Join(copyErr, out.Close())
+	if written > maxSize {
+		os.Remove(tempPath)
+		errResponse(c, http.StatusRequestEntityTooLarge, "UPLOAD_TOO_LARGE", "上传文件超限")
+		return
+	}
 	if err != nil {
 		os.Remove(tempPath)
 		errResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "保存文件失败")
@@ -142,19 +159,9 @@ func (h *UploadHandler) Upload(c *gin.Context) {
 }
 
 func isAllowedExtension(filename string) bool {
-	lower := strings.ToLower(filename)
-	for ext := range allowedExtensions {
-		if strings.HasSuffix(lower, ext) {
-			return true
-		}
-	}
-	return false
+	return app.ArchiveExtension(filename) != ""
 }
 
 func getAllowedExtensions() []string {
-	result := make([]string, 0, len(allowedExtensions))
-	for ext := range allowedExtensions {
-		result = append(result, ext)
-	}
-	return result
+	return app.SupportedArchiveExtensions()
 }

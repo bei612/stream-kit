@@ -22,15 +22,15 @@ import (
 type EventCallback func(appID string, status model.AppStatus)
 
 type Manager struct {
-	store         *store.Store
-	config        *config.Config
-	logger        *zap.Logger
-	locks         sync.Map
-	sunClient     *sunshine.Client
-	moonClient    *moonlight.Client
-	onEvent       EventCallback
-	uploadMu      sync.Mutex    // global: only one upload/extract at a time
-	uploading     atomic.Bool   // true when upload or extract is in progress
+	store          *store.Store
+	config         *config.Config
+	logger         *zap.Logger
+	locks          sync.Map
+	sunClient      *sunshine.Client
+	moonClient     *moonlight.Client
+	onEvent        EventCallback
+	uploadMu       sync.Mutex   // global: only one upload/extract at a time
+	uploading      atomic.Bool  // true when upload or extract is in progress
 	lastLaunchedID atomic.Value // stores the appID (string) of the most recently launched app
 }
 
@@ -166,6 +166,8 @@ func (m *Manager) ProcessUploadComplete(appID, archivePath string, unlockUpload 
 }
 
 func (m *Manager) runPipeline(appID, archivePath string, unlockUpload func()) {
+	// This is the upload-owned temporary archive, including failure paths.
+	defer os.Remove(archivePath)
 	uploadLockReleased := false
 	releaseUploadLock := func() {
 		if !uploadLockReleased {
@@ -199,9 +201,6 @@ func (m *Manager) runPipeline(appID, archivePath string, unlockUpload func()) {
 		m.store.CreateLog("app", appID, "extract", "failure", err.Error(), nil)
 		return
 	}
-
-	// Delete temp archive
-	os.Remove(archivePath)
 
 	m.logIfErr("update extracted size", m.store.UpdateAppFields(appID, map[string]interface{}{
 		"extracted_size_bytes": totalBytes,
@@ -294,15 +293,15 @@ func (m *Manager) registerWithSunshine(appID string) {
 	}
 
 	sunApp := sunshine.SunshineApp{
-		Name:       app.SunshineAppName,
-		Cmd:        cmd,
-		WorkingDir: app.WorkingDir,
-		Output:     filepath.Join(app.AppDir, "output.log"),
-		ImagePath:  iconPath,
-		AutoDetach: false,
-		WaitAll:    true,
+		Name:        app.SunshineAppName,
+		Cmd:         cmd,
+		WorkingDir:  app.WorkingDir,
+		Output:      filepath.Join(app.AppDir, "output.log"),
+		ImagePath:   iconPath,
+		AutoDetach:  false,
+		WaitAll:     true,
 		ExitTimeout: 10,
-		Elevated:   false,
+		Elevated:    false,
 	}
 
 	// Find existing registration BEFORE creating new one

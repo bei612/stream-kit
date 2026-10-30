@@ -197,6 +197,8 @@ func validate(cfg *Config) []string {
 	check(cfg.Storage.TempDir == "", "storage.temp_dir 不能为空")
 	check(cfg.Storage.DBPath == "", "storage.db_path 不能为空")
 	check(cfg.Storage.MaxUploadSize <= 0, "storage.max_upload_size_bytes 必须 > 0")
+	check(cfg.Storage.MaxExtractSize <= 0, "storage.max_extract_size_bytes 必须 > 0")
+	check(cfg.Storage.MaxFileCount <= 0, "storage.max_file_count 必须 > 0")
 	check(cfg.Process.MonitorInterval <= 0, "process.monitor_interval_seconds 必须 > 0")
 	if cfg.Server.MediaTicketSecret != "" {
 		check(len(cfg.Server.MediaTicketSecret) < 32, "server.media_ticket_secret 必须至少 32 字节")

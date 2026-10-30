@@ -37,7 +37,7 @@ export default function UploadPage() {
     const f = e.dataTransfer.files[0]
     if (f) {
       setFile(f)
-      if (!name) setName(f.name.replace(/\.(zip|tar|tar\.gz|tgz|tar\.bz2)$/i, ''))
+      if (!name) setName(f.name.replace(/\.(tar\.(gz|bz2|xz|zst)|zip|7z|rar|tar|tgz|tbz2|txz|tzst)$/i, ''))
     }
   }
 
@@ -119,20 +119,20 @@ export default function UploadPage() {
                 拖拽文件到此处，或点击选择文件
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                支持 zip、tar.gz、tar.bz2 格式
+                支持 ZIP、7z、RAR、TAR 及 gzip / bzip2 / xz / zstd 压缩的 TAR
               </p>
             </div>
           )}
           <input
             ref={fileRef}
             type="file"
-            accept=".zip,.tar,.tar.gz,.tgz,.tar.bz2"
+            accept=".zip,.7z,.rar,.tar,.tar.gz,.tgz,.tar.bz2,.tbz2,.tar.xz,.txz,.tar.zst,.tzst"
             className="hidden"
             onChange={e => {
               const f = e.target.files?.[0]
               if (f) {
                 setFile(f)
-                if (!name) setName(f.name.replace(/\.(zip|tar|tar\.gz|tgz|tar\.bz2)$/i, ''))
+                if (!name) setName(f.name.replace(/\.(tar\.(gz|bz2|xz|zst)|zip|7z|rar|tar|tgz|tbz2|txz|tzst)$/i, ''))
               }
             }}
           />
