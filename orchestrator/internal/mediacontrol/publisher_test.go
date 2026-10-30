@@ -133,4 +133,35 @@ func TestPublisherDoesNotFollowRedirectOrAcceptFailure(t *testing.T) {
 	if leaked {
 		t.Fatal("signed state leaked to redirect target")
 	}
+	if p.Status().Reachable || p.Status().LeaseValid {
+		t.Fatal("failed sync reported applied")
+	}
+}
+
+func TestFailedSyncPreservesOnlyPreviousAcknowledgement(t *testing.T) {
+	statusCode := http.StatusNoContent
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(statusCode) }))
+	defer server.Close()
+	m := session.NewManager(nil)
+	s, _ := m.Ensure(1, 2)
+	p := New(m, server.URL, "secret")
+	if err := p.Sync(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got := p.Status(); !got.Reachable || !got.LeaseValid || got.Revisions[s.ID] != 1 {
+		t.Fatal("missing acknowledgement")
+	}
+	_, _ = m.AddConnection(s.ID, "client")
+	statusCode = http.StatusServiceUnavailable
+	if err := p.Sync(context.Background()); err == nil {
+		t.Fatal("gateway failure accepted")
+	}
+	got := p.Status()
+	if got.Reachable || got.Revisions[s.ID] != 1 {
+		t.Fatal("unacknowledged revision reported applied")
+	}
+	got.Revisions[s.ID] = 999
+	if p.Status().Revisions[s.ID] != 1 {
+		t.Fatal("status exposed mutable publisher state")
+	}
 }

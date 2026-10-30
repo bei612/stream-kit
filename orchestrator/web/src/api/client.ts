@@ -1,4 +1,5 @@
 import { API_BASE, getToken, clearToken } from '@/lib/utils'
+import type { RenderSession, SessionAudio, SessionPolicy, MediaControlStatus } from './sessions'
 
 interface ApiResponse<T = unknown> {
   status: 'ok' | 'error'
@@ -106,16 +107,25 @@ export const api = {
   stopAllComponents: () => request<any>('/components/stop-all', { method: 'POST' }),
 
   // Shared stream sessions
-  listStreamSessions: () => request<any[]>('/stream-sessions'),
-  getStreamSession: (id: string) => request<any>(`/stream-sessions/${id}`),
+  listStreamSessions: () => request<RenderSession[]>('/stream-sessions'),
+  getStreamSession: (id: string) => request<RenderSession>(`/stream-sessions/${id}`),
+  getMediaControl: () => request<MediaControlStatus>('/media-control'),
+  transferStreamController: (sessionId: string, connectionId: string, expectedControllerId: string) =>
+    request<RenderSession>(`/stream-sessions/${sessionId}/controller/${connectionId}`, {
+      method: 'PUT', body: JSON.stringify({ expected_controller_connection_id: expectedControllerId }),
+    }),
+  updateStreamAudio: (sessionId: string, audio: SessionAudio) =>
+    request<RenderSession>(`/stream-sessions/${sessionId}/audio`, { method: 'PATCH', body: JSON.stringify(audio) }),
+  updateStreamPolicy: (sessionId: string, policy: SessionPolicy) =>
+    request<RenderSession>(`/stream-sessions/${sessionId}/policy`, { method: 'PATCH', body: JSON.stringify(policy) }),
   claimStreamController: (sessionId: string, connectionId: string) =>
-    request<any>(`/stream-sessions/${sessionId}/controller/${connectionId}`, { method: 'POST' }),
+    request<RenderSession>(`/stream-sessions/${sessionId}/controller/${connectionId}`, { method: 'POST' }),
   releaseStreamController: (sessionId: string) =>
-    request<any>(`/stream-sessions/${sessionId}/controller`, { method: 'DELETE' }),
+    request<RenderSession>(`/stream-sessions/${sessionId}/controller`, { method: 'DELETE' }),
   disconnectStreamConnection: (sessionId: string, connectionId: string) =>
-    request<any>(`/stream-sessions/${sessionId}/connections/${connectionId}`, { method: 'DELETE' }),
+    request<{ removed: boolean }>(`/stream-sessions/${sessionId}/connections/${connectionId}`, { method: 'DELETE' }),
   issueStreamMediaTicket: (sessionId: string, connectionId: string) =>
-    request<any>(`/stream-sessions/${sessionId}/connections/${connectionId}/ticket`, { method: 'POST' }),
+    request<{ ticket: string; expires_at: string; role: 'viewer' | 'controller' }>(`/stream-sessions/${sessionId}/connections/${connectionId}/ticket`, { method: 'POST' }),
 
   // Apps
   listApps: () => request<any[]>('/apps'),

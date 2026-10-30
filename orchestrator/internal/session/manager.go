@@ -20,6 +20,7 @@ var ErrPersistence = errors.New("session persistence failed")
 var ErrCapacity = errors.New("viewer limit reached")
 var ErrNotFound = errors.New("stream session or connection not found")
 var ErrControllerExists = errors.New("stream session already has a controller")
+var ErrControllerChanged = errors.New("controller changed since the command was prepared")
 var ErrInvalidState = errors.New("invalid stream session state")
 
 const (
@@ -131,7 +132,7 @@ func (m *Manager) Ensure(hostID, appID int64) (*RenderSession, error) {
 			return clone(s), nil
 		}
 	}
-	if hostID <= 0 || appID <= 0 {
+	if hostID <= 0 || appID <= 0 || hostID > math.MaxUint32 || appID > math.MaxUint32 {
 		return nil, ErrInvalidState
 	}
 	now := time.Now().UTC()
@@ -226,8 +227,34 @@ func (m *Manager) Release(id string) error {
 	return m.mutate(id, "stream_controller_changed", func(s *RenderSession) error {
 		for _, peer := range s.Connections {
 			peer.Role = "viewer"
+			peer.MicrophoneLive = false
 		}
 		s.ControllerConnectionID = ""
+		return nil
+	})
+}
+
+// Transfer changes ownership in one durable command. Comparing controller IDs
+// prevents two operators from silently overwriting each other without making
+// routine client heartbeat revisions invalidate an administrator's command.
+func (m *Manager) Transfer(id, connectionID, expectedControllerID string) error {
+	return m.mutate(id, "stream_controller_changed", func(s *RenderSession) error {
+		if s.State == StateStopped || s.State == StateStopping {
+			return ErrInvalidState
+		}
+		if s.ControllerConnectionID != expectedControllerID {
+			return ErrControllerChanged
+		}
+		c, ok := s.Connections[connectionID]
+		if !ok || !time.Now().Before(c.ExpiresAt) {
+			return ErrNotFound
+		}
+		for _, peer := range s.Connections {
+			peer.Role = "viewer"
+			peer.MicrophoneLive = false
+		}
+		c.Role = "controller"
+		s.ControllerConnectionID = connectionID
 		return nil
 	})
 }
@@ -235,7 +262,15 @@ func (m *Manager) UpdateAudio(id string, cfg AudioConfig) error {
 	if math.IsNaN(cfg.ProgramGainDB) || math.IsNaN(cfg.MicrophoneGainDB) || cfg.ProgramGainDB < -60 || cfg.ProgramGainDB > 12 || cfg.MicrophoneGainDB < -60 || cfg.MicrophoneGainDB > 12 {
 		return ErrInvalidState
 	}
-	return m.mutate(id, "stream_audio_changed", func(s *RenderSession) error { s.Audio = cfg; return nil })
+	return m.mutate(id, "stream_audio_changed", func(s *RenderSession) error {
+		s.Audio = cfg
+		if !cfg.MicrophoneEnabled {
+			for _, peer := range s.Connections {
+				peer.MicrophoneLive = false
+			}
+		}
+		return nil
+	})
 }
 func (m *Manager) UpdatePolicy(id string, p Policy) error {
 	if p.AllowViewerMicrophone || p.MaxViewers < 0 || (p.ControllerDisconnectPolicy != "release" && p.ControllerDisconnectPolicy != "manual") {

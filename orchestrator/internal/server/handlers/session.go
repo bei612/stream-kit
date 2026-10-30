@@ -20,7 +20,7 @@ func respondSessionError(c *gin.Context, err error) {
 		errResponse(c, http.StatusNotFound, "SESSION_NOT_FOUND", "session or live connection not found")
 	case errors.Is(err, session.ErrInvalidState):
 		errResponse(c, http.StatusBadRequest, "SESSION_COMMAND_INVALID", "invalid session command")
-	case errors.Is(err, session.ErrControllerExists), errors.Is(err, session.ErrCapacity):
+	case errors.Is(err, session.ErrControllerExists), errors.Is(err, session.ErrControllerChanged), errors.Is(err, session.ErrCapacity):
 		errResponse(c, http.StatusConflict, "SESSION_CONFLICT", err.Error())
 	default:
 		errResponse(c, http.StatusInternalServerError, "SESSION_INTERNAL_ERROR", "session command failed")
@@ -154,6 +154,21 @@ func (h *SessionHandler) Claim(c *gin.Context) {
 }
 func (h *SessionHandler) Release(c *gin.Context) {
 	if err := h.Manager.Release(c.Param("session_id")); err != nil {
+		respondSessionError(c, err)
+		return
+	}
+	s, _ := h.Manager.Get(c.Param("session_id"))
+	okResponse(c, s)
+}
+func (h *SessionHandler) Transfer(c *gin.Context) {
+	var req struct {
+		ExpectedControllerID *string `json:"expected_controller_connection_id"`
+	}
+	if c.ShouldBindJSON(&req) != nil || req.ExpectedControllerID == nil {
+		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", "expected controller is required")
+		return
+	}
+	if err := h.Manager.Transfer(c.Param("session_id"), c.Param("connection_id"), *req.ExpectedControllerID); err != nil {
 		respondSessionError(c, err)
 		return
 	}

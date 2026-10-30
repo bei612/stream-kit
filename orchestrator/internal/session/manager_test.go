@@ -9,6 +9,59 @@ import (
 	"time"
 )
 
+func TestConcurrentControllerTransferIsAtomic(t *testing.T) {
+	m := NewManager(nil)
+	s, err := m.Ensure(1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, _ := m.AddConnection(s.ID, "a")
+	b, _ := m.AddConnection(s.ID, "b")
+	c, _ := m.AddConnection(s.ID, "c")
+	if err = m.Claim(s.ID, a.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err = m.Heartbeat(s.ID, a.ID, true, true); err != nil {
+		t.Fatal(err)
+	}
+	results := make(chan error, 2)
+	for _, id := range []string{b.ID, c.ID} {
+		go func(target string) { results <- m.Transfer(s.ID, target, a.ID) }(id)
+	}
+	successes := 0
+	for range 2 {
+		err := <-results
+		if err == nil {
+			successes++
+		} else if !errors.Is(err, ErrControllerChanged) {
+			t.Fatal(err)
+		}
+	}
+	if successes != 1 {
+		t.Fatalf("expected one winning transfer, got %d", successes)
+	}
+	current, _ := m.Get(s.ID)
+	controllers := 0
+	for id, peer := range current.Connections {
+		if peer.Role == "controller" {
+			controllers++
+			if id != current.ControllerConnectionID {
+				t.Fatal("controller identity mismatch")
+			}
+		}
+	}
+	if controllers != 1 || current.Connections[a.ID].MicrophoneLive {
+		t.Fatal("previous controller retained authority")
+	}
+	if err = m.Transfer(s.ID, "missing", current.ControllerConnectionID); !errors.Is(err, ErrNotFound) {
+		t.Fatal(err)
+	}
+	after, _ := m.Get(s.ID)
+	if after.Revision != current.Revision || after.ControllerConnectionID != current.ControllerConnectionID {
+		t.Fatal("invalid transfer changed state")
+	}
+}
+
 func TestRejectedConnectionDoesNotHoldManagerLock(t *testing.T) {
 	m := NewManager(nil)
 	done := make(chan struct{})

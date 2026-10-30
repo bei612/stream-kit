@@ -126,6 +126,9 @@ func (s *Server) setupRoutes() {
 		sh := handlers.NewSessionHandler(s.SessionMgr, []byte(s.Config.Server.MediaTicketSecret))
 		if s.MediaControl != nil {
 			sh.SyncMedia = s.MediaControl.Sync
+			authed.GET("/media-control", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{"status": "ok", "data": s.MediaControl.Status()})
+			})
 		}
 		sessions := authed.Group("/stream-sessions")
 		sessions.GET("", sh.List)
@@ -136,6 +139,7 @@ func (s *Server) setupRoutes() {
 		sessions.POST("/:session_id/connections/:connection_id/heartbeat", sh.Heartbeat)
 		sessions.POST("/:session_id/connections/:connection_id/ticket", sh.MediaTicket)
 		sessions.POST("/:session_id/controller/:connection_id", sh.Claim)
+		sessions.PUT("/:session_id/controller/:connection_id", sh.Transfer)
 		sessions.DELETE("/:session_id/controller", sh.Release)
 		sessions.PATCH("/:session_id/audio", sh.Audio)
 		sessions.PATCH("/:session_id/policy", sh.Policy)

@@ -47,6 +47,27 @@ type Publisher struct {
 	secret     []byte
 	client     *http.Client
 	lastIssued int64
+	status     Status
+}
+
+type Status struct {
+	Reachable      bool              `json:"reachable"`
+	LeaseValid     bool              `json:"lease_valid"`
+	AcknowledgedAt int64             `json:"acknowledged_at_ms"`
+	LeaseExpiresAt int64             `json:"lease_expires_at_ms"`
+	Revisions      map[string]uint64 `json:"applied_revisions"`
+}
+
+func (p *Publisher) Status() Status {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	s := p.status
+	s.LeaseValid = time.Now().UnixMilli() < s.LeaseExpiresAt
+	s.Revisions = make(map[string]uint64, len(p.status.Revisions))
+	for id, rev := range p.status.Revisions {
+		s.Revisions[id] = rev
+	}
+	return s
 }
 
 func New(manager *session.Manager, baseURL, secret string) *Publisher {
@@ -55,9 +76,10 @@ func New(manager *session.Manager, baseURL, secret string) *Publisher {
 	}
 	return &Publisher{manager: manager, endpoint: strings.TrimRight(baseURL, "/") + "/internal/v1/media-state", secret: []byte(secret), client: &http.Client{Timeout: 2 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 }
-func (p *Publisher) Sync(ctx context.Context) error {
+func (p *Publisher) Sync(ctx context.Context) (err error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	defer func() { p.status.Reachable = err == nil }()
 	now := time.Now().UnixMilli()
 	if now <= p.lastIssued {
 		now = p.lastIssued + 1
@@ -99,6 +121,12 @@ func (p *Publisher) Sync(ctx context.Context) error {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusNoContent {
 		return fmt.Errorf("media state rejected: HTTP %d", resp.StatusCode)
+	}
+	p.status.AcknowledgedAt = time.Now().UnixMilli()
+	p.status.LeaseExpiresAt = envelope.ExpiresAt
+	p.status.Revisions = make(map[string]uint64, len(envelope.Sessions))
+	for _, s := range envelope.Sessions {
+		p.status.Revisions[s.ID] = s.Revision
 	}
 	return nil
 }
