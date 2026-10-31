@@ -9,6 +9,7 @@ on:
       - 'tools/verify-native-tests.cjs'
       - 'scripts/test-native-test-report.cjs'
       - 'scripts/test-audio-target-linux.sh'
+      - 'components/audio-target/**'
       - '.github/workflows/linux-native-capture.yml'
   pull_request:
     branches: [main]
@@ -18,6 +19,7 @@ on:
       - 'tools/verify-native-tests.cjs'
       - 'scripts/test-native-test-report.cjs'
       - 'scripts/test-audio-target-linux.sh'
+      - 'components/audio-target/**'
       - '.github/workflows/linux-native-capture.yml'
   workflow_dispatch:
 
@@ -34,6 +36,45 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  linux-microphone-target:
+    name: Linux microphone target endpoint pair
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.99.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: components/audio-target
+      - name: Install isolated audio dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libpulse-dev pulseaudio pulseaudio-utils
+      - name: Build the production microphone target probe
+        run: cargo build --locked --examples --manifest-path components/audio-target/Cargo.toml
+      - name: Verify explicit render and capture endpoints
+        timeout-minutes: 2
+        run: |
+          mkdir -p artifacts/audio-target
+          sh scripts/test-audio-target-linux.sh 2>&1 | tee artifacts/audio-target/pair-runtime.log
+      - name: Attach endpoint failure location
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          log = Path('artifacts/audio-target/pair-runtime.log')
+          if log.exists():
+              tail = '\n'.join(log.read_text(errors='replace').splitlines()[-20:])
+              escaped = tail.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              print(f'::error title=Microphone endpoint runtime failure::{escaped}')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-microphone-target
+          path: artifacts/audio-target/
+          if-no-files-found: warn
+
   linux-native-capture:
     name: Linux native application capture
     runs-on: ubuntu-24.04

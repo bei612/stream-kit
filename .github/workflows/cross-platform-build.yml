@@ -164,6 +164,7 @@ jobs:
       - run: cargo clippy --locked --manifest-path ../../components/audio-target/Cargo.toml --all-targets -- -D warnings
       - name: Verify isolated Linux microphone endpoint pair
         if: runner.os == 'Linux'
+        timeout-minutes: 5
         run: sh ../../scripts/test-audio-target-linux.sh
       - uses: actions/upload-artifact@v4
         if: always() && runner.os == 'Linux'

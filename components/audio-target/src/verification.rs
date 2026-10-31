@@ -80,6 +80,7 @@ where
 
 /// Actively checks explicit endpoints. The caller must secure exclusive ownership.
 pub fn verify_pair(pair: &EndpointPair) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    eprintln!("audio-pair: resolving explicit capture endpoint");
     let capture_id: DeviceId = pair.capture_device_id.parse()?;
     let host = cpal::host_from_id(capture_id.host())?;
     let device = host
@@ -100,6 +101,7 @@ pub fn verify_pair(pair: &EndpointPair) -> Result<serde_json::Value, Box<dyn std
         .with_sample_rate(48_000);
     let result = Arc::new(Mutex::new(Measurement::default()));
     let failed = Arc::new(AtomicBool::new(false));
+    eprintln!("audio-pair: opening capture stream");
     let stream = match config.sample_format() {
         SampleFormat::F32 => {
             capture::<f32>(&device, config.into(), result.clone(), failed.clone())?
@@ -112,8 +114,11 @@ pub fn verify_pair(pair: &EndpointPair) -> Result<serde_json::Value, Box<dyn std
         }
         _ => return Err("capture format unsupported".into()),
     };
+    eprintln!("audio-pair: opening render endpoint");
     let target = AudioTarget::open(pair)?;
+    eprintln!("audio-pair: starting capture");
     stream.play()?;
+    eprintln!("audio-pair: measuring baseline");
     // The explicit endpoint must first be quiet. Otherwise an unrelated source
     // could satisfy the tone check without proving this route is connected.
     std::thread::sleep(Duration::from_millis(300));
@@ -121,6 +126,7 @@ pub fn verify_pair(pair: &EndpointPair) -> Result<serde_json::Value, Box<dyn std
     std::thread::sleep(Duration::from_millis(500));
     let baseline = std::mem::take(&mut *result.lock().map_err(|_| "capture measurement poisoned")?);
     let start = Instant::now();
+    eprintln!("audio-pair: transmitting test tone");
     let mut submitted = 0;
     for packet in 0..150 {
         let mut samples = [0.0; FRAME_SAMPLES];
@@ -139,17 +145,20 @@ pub fn verify_pair(pair: &EndpointPair) -> Result<serde_json::Value, Box<dyn std
         );
     }
     target.clear();
+    eprintln!("audio-pair: measuring silence after clear");
     let tone = std::mem::take(&mut *result.lock().map_err(|_| "capture measurement poisoned")?);
     // Allow already-submitted OS audio buffers to drain before measuring. This
     // is a residual-audio check, not a claim of sample-accurate revocation.
     std::thread::sleep(Duration::from_millis(300));
     *result.lock().map_err(|_| "capture measurement poisoned")? = Measurement::default();
     std::thread::sleep(Duration::from_millis(500));
+    eprintln!("audio-pair: pausing capture");
     stream.pause()?;
     let result = result.lock().map_err(|_| "capture measurement poisoned")?;
     let amplitude = tone.amplitude();
     let status = target.status();
     let monitor = target.monitor();
+    eprintln!("audio-pair: closing render endpoint");
     drop(target);
     let closed_after_drop = !monitor.status().device_open;
     let passed = submitted >= 140
@@ -160,6 +169,7 @@ pub fn verify_pair(pair: &EndpointPair) -> Result<serde_json::Value, Box<dyn std
         && status.device_open
         && closed_after_drop
         && !failed.load(Ordering::Acquire);
+    eprintln!("audio-pair: measurement complete; releasing capture");
     Ok(
         serde_json::json!({"passed": passed, "captured_frames": tone.frames,
         "tone_amplitude": amplitude, "submitted_packets": submitted, "target": status,

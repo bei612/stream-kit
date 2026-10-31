@@ -46,7 +46,7 @@ until pactl info >/dev/null 2>&1; do
 done
 mkdir -p "$repo/artifacts/audio-target"
 if [ "$application_only" -eq 0 ]; then
-    cargo run --locked --quiet --example verify_pair -- pulseaudio:stream_kit_acceptance pulseaudio:stream_kit_capture > "$repo/artifacts/audio-target/linux-pair-result.json"
+    timeout --signal=TERM --kill-after=5s 30s cargo run --locked --quiet --example verify_pair -- pulseaudio:stream_kit_acceptance pulseaudio:stream_kit_capture > "$repo/artifacts/audio-target/linux-pair-result.json"
     cat "$repo/artifacts/audio-target/linux-pair-result.json"
 fi
 cp "$fixture/server.log" "$repo/artifacts/audio-target/linux-pulse.log"
