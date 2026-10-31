@@ -36,24 +36,33 @@ export class WebRTCTransport implements Transport {
 
         // Create peer
         this.peer = new RTCPeerConnection(configuration)
-        this.controlStream = new WebRtcControlStream(this.peer)
+        let controlStream: WebRtcControlStream | undefined
+        try {
+            controlStream = new WebRtcControlStream(this.peer)
+            this.controlStream = controlStream
 
-        this.logger?.debug(`Using ice servers ${JSON.stringify(configuration.iceServers?.flatMap(server => server.urls))}`)
+            this.logger?.debug(`Using ice servers ${JSON.stringify(configuration.iceServers?.flatMap(server => server.urls))}`)
 
-        // Set Event Listeners
-        this.peer.addEventListener("connectionstatechange", this.onStateChange.bind(this))
-        this.peer.addEventListener("datachannel", this.onDataChannel.bind(this))
-        this.peer.addEventListener("track", this.onTrack.bind(this))
+            // Set Event Listeners
+            this.peer.addEventListener("connectionstatechange", this.onStateChange.bind(this))
+            this.peer.addEventListener("datachannel", this.onDataChannel.bind(this))
+            this.peer.addEventListener("track", this.onTrack.bind(this))
 
-        // Ice Gathering
-        this.peer.addEventListener("icecandidate", this.onIceCandidate.bind(this))
+            // Ice Gathering
+            this.peer.addEventListener("icecandidate", this.onIceCandidate.bind(this))
 
-        // Add Media
-        this.peer.addTransceiver("video", { direction: "recvonly" })
-        this.peer.addTransceiver("audio", { direction: "recvonly" })
+            // Add Media
+            this.peer.addTransceiver("video", { direction: "recvonly" })
+            this.peer.addTransceiver("audio", { direction: "recvonly" })
 
-        // Dummy data channel required so that the answerer knows we accept data channels
-        this.peer.createDataChannel("dummy")
+            // Dummy data channel required so that the answerer knows we accept data channels
+            this.peer.createDataChannel("dummy")
+        } catch (error) {
+            this.closed = true
+            controlStream?.close()
+            this.peer.close()
+            throw error
+        }
     }
 
     private sdpOfferOptions: WebRtcSessionOffer | null = null

@@ -6,7 +6,7 @@ import ts from '../orchestrator/web/node_modules/typescript/lib/typescript.js'
 
 const source = readFileSync(new URL('../third_party/moonlight-web-stream/web/stream/transport/webrtc.ts', import.meta.url), 'utf8')
 const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
-function fixture(fetchApi) {
+function fixture(fetchApi, failAt) {
   const timers = new Map(), frames = new Map(), requests = [], exports = {}
   let nextTimer = 0, peer
   const clock = { setTimeout(fn) { const id=++nextTimer; timers.set(id,fn); return id }, clearTimeout(id) { timers.delete(id) },
@@ -17,12 +17,13 @@ function fixture(fetchApi) {
     listeners = new Map()
     constructor() { peer=this }
     addEventListener(name, fn) { this.listeners.set(name,fn) }
-    addTransceiver() {}
-    createDataChannel() { return {} }
+    addTransceiver(kind) { if(failAt===kind)throw constructionFailure }
+    createDataChannel(label) { if(failAt===label)throw constructionFailure; return {} }
     setRemoteDescription() { return Promise.resolve() }
     close() { this.connectionState='closed'; this.listeners.get('connectionstatechange')?.() }
     candidate(value) { this.listeners.get('icecandidate')({candidate:{toJSON:()=>({candidate:value})}}) }
   }
+  const constructionFailure=new Error('fixture native initialization failure')
   vm.runInNewContext(compiled, { exports, RTCPeerConnection:Peer, console:{debug(){}}, requestAnimationFrame() {},
     require(name) {
       if(name==='../../api') return { fetchApi(...args) { requests.push(args); return fetchApi(...args) } }
@@ -32,8 +33,22 @@ function fixture(fetchApi) {
       return {}
     },
   })
-  const transport = new exports.WebRTCTransport({}, {})
-  return { transport, peer, requests, timers, frames, async flush() { const batch=[...timers.values()]; timers.clear(); await Promise.all(batch.map(fn=>fn())) } }
+  let transport, constructionError
+  try { transport = new exports.WebRTCTransport({}, {}) }
+  catch(error) { if(!failAt)throw error;constructionError=error }
+  return { transport, peer, requests, timers, frames, constructionError, constructionFailure, async flush() { const batch=[...timers.values()]; timers.clear(); await Promise.all(batch.map(fn=>fn())) } }
+}
+
+for(const failAt of ['moonlight.control.mouse','video','audio','dummy']) {
+  test(`construction failure at ${failAt} closes the peer and cancels input scheduling`,()=>{
+    const f=fixture(()=>Promise.resolve(),failAt)
+    assert.equal(f.transport,undefined)
+    assert.equal(f.constructionError,f.constructionFailure)
+    assert.equal(f.peer.connectionState,'closed')
+    assert.equal(f.frames.size,0)
+    assert.equal(f.timers.size,0)
+    assert.equal(f.requests.length,0)
+  })
 }
 
 test('ICE gathered before the answer is delivered, including candidates arriving in flight', async () => {

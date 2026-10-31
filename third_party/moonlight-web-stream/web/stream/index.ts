@@ -297,13 +297,14 @@ export class Stream implements Component {
         this.debugLog("Received WebRTC Config, Creating Transport")
 
         // Create transport
-        const transport = new WebRTCTransport(
-            this.api,
-            {
-                iceServers: config.iceServers,
-            },
-            this.logger
-        )
+        let transport: WebRTCTransport
+        try {
+            transport = new WebRTCTransport(this.api, { iceServers: config.iceServers }, this.logger)
+        } catch (error) {
+            this.debugLog(`WebRTC initialization failed: ${error}`)
+            this.cleanupMicrophone()
+            return "failednoconnect"
+        }
         transport.controlStream.onreceive = this.boundReceivePacket
 
         const onConnect = new Promise<TransportConnectData>(resolve => {

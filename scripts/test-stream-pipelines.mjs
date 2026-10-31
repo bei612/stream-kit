@@ -8,6 +8,25 @@ const source = readFileSync(new URL('../third_party/moonlight-web-stream/web/str
 const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
 function deferred() { let resolve; const promise = new Promise(r => { resolve = r }); return { promise, resolve } }
 
+test('automatic transport selection falls back when native WebRTC initialization throws', async () => {
+  const exports={};let websocket=0,releases=0,attempts=0
+  vm.runInNewContext(compiled,{exports,require(name){
+    if(name==='./transport/webrtc')return {WebRTCTransport:class{constructor(){attempts++;throw new Error('WebRTC unavailable')}}}
+    if(name==='../api')return {apiEnsureMediaAccess:async()=>null,apiWebRTCConfiguration:async()=>({iceServers:[]})}
+    return {}
+  }})
+  const stream=Object.create(exports.Stream.prototype)
+  Object.assign(stream,{api:{},permissions:{allow_transport_webrtc:true},settings:{dataTransport:'auto'},stopped:false,transport:null,
+    debugLog(){},startMediaHeartbeat(){},cleanupPipelines(){},cleanupMicrophone(){},
+    async releaseMediaAccess(){releases++},
+    async tryWebSocketTransport(){websocket++;return 'disconnect'},
+  })
+  await stream.startConnection()
+  assert.equal(attempts,1)
+  assert.equal(websocket,1)
+  assert.equal(releases,1)
+})
+
 for (const phase of ['capability-probe','offer-request']) {
   test(`stop owns and closes the WebRTC peer during ${phase}`, async () => {
     const exports={},entered=deferred(),resume=deferred()
