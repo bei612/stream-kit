@@ -236,13 +236,14 @@ else()
     set(X11_FOUND OFF)
 endif()
 if(X11_FOUND)
-    pkg_check_modules(XCB_RES REQUIRED IMPORTED_TARGET xcb xcb-res)
+    pkg_check_modules(XCB_RES REQUIRED IMPORTED_TARGET xcb xcb-res xcb-composite xcb-shm xcb-xfixes)
     add_compile_definitions(SUNSHINE_BUILD_X11)
     include_directories(SYSTEM ${X11_INCLUDE_DIR})
     list(APPEND PLATFORM_LIBRARIES ${X11_LIBRARIES} PkgConfig::XCB_RES)
     list(APPEND PLATFORM_TARGET_FILES
             "${CMAKE_SOURCE_DIR}/src/platform/linux/x11grab.h"
-            "${CMAKE_SOURCE_DIR}/src/platform/linux/x11grab.cpp")
+            "${CMAKE_SOURCE_DIR}/src/platform/linux/x11grab.cpp"
+            "${CMAKE_SOURCE_DIR}/src/platform/linux/application_frame.cpp")
 endif()
 
 # GIO

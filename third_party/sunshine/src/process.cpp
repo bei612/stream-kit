@@ -200,7 +200,7 @@ namespace proc {
       BOOST_LOG(error) << "Application capture requires one tracked command, wait-all, and no detached commands";
       return 400;
     }
-#ifndef _WIN32
+#if !defined(_WIN32) && !(defined(__linux__) && defined(SUNSHINE_BUILD_X11))
     if (iter->application_capture) {
       BOOST_LOG(error) << "Application capture is not available on this server backend";
       return 503;
@@ -340,12 +340,17 @@ namespace proc {
         BOOST_LOG(warning) << "Couldn't run ["sv << _app.cmd << "]: System: "sv << ec.message();
         return -1;
       }
-#ifdef _WIN32
+#if defined(_WIN32) || (defined(__linux__) && defined(SUNSHINE_BUILD_X11))
       if (_app.application_capture) {
         auto target = capture::bind_application(
           _process.id(),
+#ifdef _WIN32
           reinterpret_cast<std::uintptr_t>(_process.native_handle()),
           reinterpret_cast<std::uintptr_t>(_process_group.native_handle())
+#else
+          static_cast<std::uintptr_t>(_process.native_handle()),
+          static_cast<std::uintptr_t>(_process_group.native_handle())
+#endif
         );
         if (!target) {
           BOOST_LOG(error) << "Could not retain the application's process identity";

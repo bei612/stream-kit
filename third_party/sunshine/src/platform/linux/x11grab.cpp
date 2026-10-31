@@ -19,6 +19,7 @@
 #include <xcb/xfixes.h>
 
 // local includes
+#include "application_frame.h"
 #include "cuda.h"
 #include "graphics.h"
 #include "misc.h"
@@ -879,6 +880,82 @@ namespace platf {
     }
   };
 
+  /** @brief Application-only display adapter reusing the existing software/VAAPI/CUDA encode paths. */
+  struct application_attr_t: public x11_attr_t {
+    std::unique_ptr<x11::application_frame_t> frames;  ///< Owned backing-pixmap capture.
+
+    /** @brief Select the existing encoder memory path. @param memory Requested encoder memory type. */
+    explicit application_attr_t(mem_type_e memory):
+        x11_attr_t(memory) {}
+
+    /** @brief Initialize from the retained launch identity. @param config Session video configuration. @return Zero on success. */
+    int init(const ::video::config_t &config) {
+      if (!config.capture_target) {
+        return -1;
+      }
+      const auto deadline = std::chrono::steady_clock::now() + 5s;
+      while (config.capture_target->alive() && !config.capture_target->renderer() && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(50ms);
+      }
+      frames = x11::application_frame_t::create(config.capture_target);
+      if (!frames) {
+        return -1;
+      }
+      const auto &geometry = frames->geometry();
+      width = geometry.width;
+      height = geometry.height;
+      env_width = geometry.desktop_width;
+      env_height = geometry.desktop_height;
+      env_logical_width = env_width;
+      env_logical_height = env_height;
+      logical_width = width;
+      logical_height = height;
+      offset_x = geometry.x;
+      offset_y = geometry.y;
+      capture_renderer = frames->renderer();
+      delay = ::video::capture_frame_interval(config);
+      return 0;
+    }
+
+    std::shared_ptr<img_t> alloc_img() override {
+      auto image = std::make_shared<shm_img_t>();
+      image->width = width;
+      image->height = height;
+      image->pixel_pitch = 4;
+      image->row_pitch = width * 4;
+      image->data = new std::uint8_t[static_cast<std::size_t>(height) * image->row_pitch] {};
+      return image;
+    }
+
+    int dummy_img(img_t *image) override {
+      if (!image || !image->data || image->width != width || image->height != height) {
+        return -1;
+      }
+      std::fill_n(image->data, static_cast<std::size_t>(height) * image->row_pitch, 0);
+      return 0;
+    }
+
+    capture_e capture(const push_captured_image_cb_t &push, const pull_free_image_cb_t &pull, bool *cursor) override {
+      auto next_frame = std::chrono::steady_clock::now();
+      sleep_overshoot_logger.reset();
+      while (true) {
+        platf::handle_pacing(next_frame, delay, sleep_overshoot_logger);
+        std::shared_ptr<img_t> image;
+        if (!pull(image)) {
+          return capture_e::interrupted;
+        }
+        const auto status = frames->read({image->data, static_cast<std::size_t>(height) * image->row_pitch}, cursor && *cursor);
+        if (status != capture_e::ok) {
+          return status;
+        }
+        image->frame_timestamp = std::chrono::steady_clock::now();
+        if (!push(std::move(image), true)) {
+          return capture_e::ok;
+        }
+      }
+    }
+  };
+
   /**
    * @brief Create an X11 display capture backend.
    *
@@ -897,6 +974,11 @@ namespace platf {
       BOOST_LOG(error) << "Couldn't init x11 libraries"sv;
 
       return nullptr;
+    }
+
+    if (config.capture_target) {
+      auto application = std::make_shared<application_attr_t>(hwdevice_type);
+      return application->init(config) == 0 ? application : nullptr;
     }
 
     // Attempt to use shared memory X11 to avoid copying the frame

@@ -1298,6 +1298,17 @@ namespace platf {
   }
 
   std::shared_ptr<display_t> display(mem_type_e hwdevice_type, const std::string &display_name, const video::config_t &config) {
+    // An application launch must never fall through to a desktop backend.
+    if (config.capture_target) {
+#ifdef SUNSHINE_BUILD_DRM
+      platf::kms::drop_drm_worker_privileges();
+#endif
+#ifdef SUNSHINE_BUILD_X11
+      return x11_display(hwdevice_type, display_name, config);
+#else
+      return nullptr;
+#endif
+    }
     // Please ensure that KMS followed by CUDA remains at the top so that we can
     // drop DRM worker privileges once neither backend requires it.
 

@@ -5,6 +5,7 @@
 #if defined(__linux__)
 #include "src/capture_input.h"
 
+#include <algorithm>
 #include <cerrno>
 #include <chrono>
 #include <cstdlib>
@@ -18,6 +19,7 @@
 #include <vector>
 
 #ifdef SUNSHINE_BUILD_X11
+  #include "src/platform/linux/application_frame.h"
   #include <xcb/xcb.h>
 #endif
 
@@ -184,7 +186,7 @@ namespace {
   }
 
 #ifdef SUNSHINE_BUILD_X11
-  TEST_F(LinuxCaptureTargetTest, SelectsOnlyTheOwnedX11WindowAndInvalidatesItAfterExit) {
+  TEST_F(LinuxCaptureTargetTest, IsolatesOwnedWindowPixelsAndInputUntilRetirement) {
     const auto enabled = std::getenv("STREAM_KIT_TEST_X11_CAPTURE");
     if (!enabled || std::string(enabled) != "1") {
       GTEST_SKIP() << "Requires an explicit isolated X11 test server";
@@ -234,7 +236,64 @@ namespace {
     ASSERT_TRUE(set_focus(unrelated->window_handle()));
     EXPECT_FALSE(capture::input_focused(target));
     EXPECT_TRUE(capture::input_focused(foreign));
+
+    auto frames = platf::x11::application_frame_t::create(target);
+    ASSERT_NE(frames, nullptr);
+    ASSERT_EQ(frames->geometry().width, 240);
+    ASSERT_EQ(frames->geometry().height, 100);
+    EXPECT_EQ(frames->renderer(), selected);
+    const auto checked = [&](xcb_void_cookie_t request) {
+      auto error = xcb_request_check(connection.get(), request);
+      const bool success = error == nullptr;
+      std::free(error);
+      return success;
+    };
+    const auto owned_window = static_cast<xcb_window_t>(selected->window_handle());
+    const auto foreign_window = static_cast<xcb_window_t>(unrelated->window_handle());
+    const std::uint32_t placement[] {0, 0, XCB_STACK_MODE_ABOVE};
+    ASSERT_TRUE(checked(xcb_configure_window_checked(connection.get(), foreign_window,
+      XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y | XCB_CONFIG_WINDOW_STACK_MODE, placement)));
+    // Paint every child surface too, so toolkit decoration does not determine the assertion.
+    const auto paint = [&](xcb_window_t window, std::uint32_t color, std::uint16_t width, std::uint16_t height) {
+      const auto gc = xcb_generate_id(connection.get());
+      const std::uint32_t values[] {color, XCB_SUBWINDOW_MODE_INCLUDE_INFERIORS};
+      if (!checked(xcb_create_gc_checked(connection.get(), gc, window, XCB_GC_FOREGROUND | XCB_GC_SUBWINDOW_MODE, values))) {
+        return false;
+      }
+      const xcb_rectangle_t rectangle {0, 0, width, height};
+      const auto success = checked(xcb_poly_fill_rectangle_checked(connection.get(), window, gc, 1, &rectangle));
+      xcb_free_gc(connection.get(), gc);
+      return success;
+    };
+    ASSERT_TRUE(paint(owned_window, 0x00ff0000, 240, 100));
+    ASSERT_TRUE(paint(foreign_window, 0x0000ff00, 640, 480));
+    std::vector<std::uint8_t> pixels(240 * 100 * 4);
+    ASSERT_EQ(frames->read(pixels), platf::capture_e::ok);
+    for (const auto point : {20, 50, 80}) {
+      const auto offset = (point * 240 + 120) * 4;
+      EXPECT_EQ(pixels[offset], 0);
+      EXPECT_EQ(pixels[offset + 1], 0);
+      EXPECT_EQ(pixels[offset + 2], 255) << "Covered application pixels must remain red";
+    }
+    const auto screen = xcb_setup_roots_iterator(xcb_get_setup(connection.get())).data;
+    auto root_pixel = xcb_get_image_reply(connection.get(), xcb_get_image(connection.get(),
+      XCB_IMAGE_FORMAT_Z_PIXMAP, screen->root, frames->geometry().x + 120, frames->geometry().y + 50, 1, 1, UINT32_MAX), nullptr);
+    ASSERT_NE(root_pixel, nullptr);
+    if (xcb_get_image_data_length(root_pixel) >= 3) {
+      const auto color = xcb_get_image_data(root_pixel);
+      EXPECT_EQ(color[0], 0);
+      EXPECT_EQ(color[1], 255) << "The foreign green window must actually cover the application";
+      EXPECT_EQ(color[2], 0);
+    } else {
+      ADD_FAILURE() << "Missing root pixel used to verify occlusion";
+    }
+    std::free(root_pixel);
+    const std::uint32_t resized_width = 260;
+    ASSERT_TRUE(checked(xcb_configure_window_checked(connection.get(), owned_window, XCB_CONFIG_WINDOW_WIDTH, &resized_width)));
+    EXPECT_EQ(frames->read(pixels), platf::capture_e::reinit);
     target->retire();
+    EXPECT_EQ(frames->read(pixels), platf::capture_e::error);
+    EXPECT_TRUE(std::all_of(pixels.begin(), pixels.end(), [](auto value) { return value == 0; }));
     EXPECT_EQ(target->renderer(), nullptr);
     EXPECT_FALSE(capture::input_origin(target).has_value());
     EXPECT_FALSE(capture::input_focused(target));

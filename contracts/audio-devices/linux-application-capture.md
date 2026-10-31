@@ -13,11 +13,16 @@ PulseAudio 播放流必须属于目标进程；每个播放流单独设置 monit
 
 ## 尚未打通的产品路径
 
-Linux 的 `capture::bind_application` 已有进程组身份后端、X11 窗口选择及输入坐标/
-焦点校验，窗口像素捕获尚未实现，程序启动路径尚未开放。因此保留 `process.cpp`
-对 Linux application 模式的拒绝，不能将此后端提交
-描述为 Linux 程序级串流已交付。下一步必须接通这些接口，再从统一管理端启动
-应用并验证画面、音频和控制权，不能只以构造成功作为验收结果。
+Linux 的 `capture::bind_application` 已接进程组身份、X11 窗口选择及输入坐标/
+焦点校验。`application_frame.cpp` 使用 XComposite 窗口 backing pixmap 与私有
+MIT-SHM 缓冲采集客户区，接入现有软件、VAAPI、CUDA 编码适配器；不会转为桌面裁剪。
+`process.cpp` 已接通启用 X11 的 Linux 启动路径，其他 Linux 图形后端仍拒绝 application 模式。
+这属于源码实现，尚未通过 Linux 构建及完整串流验收，不能描述为已经交付。
+仍需从统一管理端启动应用，验证画面、音频和控制权。
+
+当前窗口像素支持 X11 本地服务、32 位 BGRX 布局和 TrueColor 视觉；依赖 Composite、
+MIT-SHM、X-Resource，光标叠加使用 XFixes。窗口改变尺寸时重建采集，目标退休时清空输出并停止。
+纯 Wayland 应用、非上述像素格式和 PipeWire 兼容行为未获验收。
 
 ## 验证
 
@@ -73,8 +78,10 @@ Linux 渲染程序的启动方式验证。四项 `LinuxCaptureTargetTest` 使用
 X11 窗口选择使用 X-Resource 扩展查询服务器报告的本地客户端 PID，再校验上述
 进程身份。窗口标题及应用自行设置的 `_NET_WM_PID` 不作为归属证明；只选本次
 启动组中的可见应用窗口，保持选择直到窗口或原进程失效，不选桌面根窗口。
-新增 `SelectsOnlyTheOwnedX11WindowAndInvalidatesItAfterExit` 使用 Xvfb 和两个
+新增 `IsolatesOwnedWindowPixelsAndInputUntilRetirement` 使用 Xvfb 和两个
 独立进程组的同标题窗口验证选择、身份稳定、输入坐标、焦点切换与退出失效，
 须以其实际运行结果验收。输入沿用统一 `capture::input_origin/input_focused`
 接口；过期的窗口/画面尺寸不接受输入坐标，焦点必须位于所选窗口或其子控件。
-Linux X11 构建增加 `xcb-res` 开发依赖，Debian/Ubuntu 安装项为 `libxcb-res0-dev`。
+该测试同时将目标窗口涂红并用绿色外部窗口遮挡，检查根画面确实为绿色、采集输出仍为红色，
+以及尺寸变化、退休后的输出行为；测试已加入 CI，须等待实际运行结果。
+Linux X11 构建增加 `xcb-res`、`xcb-composite`、`xcb-shm`、`xcb-xfixes` 开发依赖。

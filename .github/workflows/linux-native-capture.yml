@@ -35,7 +35,7 @@ jobs:
       - name: Install native build and isolated audio dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build g++ libpulse-dev pulseaudio pulseaudio-utils libxcb-res0-dev xvfb xauth x11-utils
+          sudo apt-get install -y cmake ninja-build g++ libpulse-dev pulseaudio pulseaudio-utils libxcb-res0-dev libxcb-composite0-dev libxcb-shm0-dev libxcb-xfixes0-dev xvfb xauth x11-utils
       - name: Build the production application capture backend
         run: |
           mkdir -p artifacts/audio-target

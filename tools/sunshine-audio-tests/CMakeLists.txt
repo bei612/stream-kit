@@ -12,13 +12,14 @@ set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
 add_subdirectory("${SUNSHINE_SOURCE}/third-party/lizardbyte-common/third-party/googletest" googletest)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(PULSE REQUIRED IMPORTED_TARGET libpulse libpulse-simple)
-pkg_check_modules(XCB_RES REQUIRED IMPORTED_TARGET xcb xcb-res)
+pkg_check_modules(XCB_RES REQUIRED IMPORTED_TARGET xcb xcb-res xcb-composite xcb-shm xcb-xfixes)
 
 # Compile the production backend and its normal Sunshine integration test unchanged.
 # No GPU or video encoder is needed. Window ownership runs against an isolated Xvfb server.
 add_executable(test_sunshine
     "${SUNSHINE_SOURCE}/src/platform/linux/application_audio.cpp"
     "${SUNSHINE_SOURCE}/src/platform/linux/application_target.cpp"
+    "${SUNSHINE_SOURCE}/src/platform/linux/application_frame.cpp"
     "${SUNSHINE_SOURCE}/tests/integration/test_linux_application_audio.cpp"
     "${SUNSHINE_SOURCE}/tests/unit/test_linux_capture_target.cpp")
 target_include_directories(test_sunshine PRIVATE "${SUNSHINE_SOURCE}")
