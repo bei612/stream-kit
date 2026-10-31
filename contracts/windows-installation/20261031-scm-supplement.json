@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "scope": "Supplemental read-only audit of the existing SCM run using frozen browser metrics and native Sunshine connection events; generated browser microphone only",
+  "automation_passed": false,
+  "automation_error": "ENOENT: no such file or directory, open 'D:\\Projects\\fuzhougulou\\stream-kit\\artifacts\\source-stream\\2026-10-31T15-37-47-225Z\\browser\\gateway.log'",
+  "supplementary_core_checks_passed": true,
+  "service": {
+    "pid": 30072,
+    "identity": "LocalSystem",
+    "state": "Running"
+  },
+  "render_session": 1,
+  "clients": 2,
+  "upstream_connections": 1,
+  "native_events": [
+    "[2026-10-31 23:38:20.952]: Info: CLIENT CONNECTED\r",
+    "[2026-10-31 23:39:00.106]: Info: CLIENT DISCONNECTED\r"
+  ],
+  "program_audio_db": [
+    -36.56474304199219,
+    -36.469139099121094
+  ],
+  "microphone_tone": {
+    "frequency_hz": 1499,
+    "viewer_denied_db": -118.47654724121094,
+    "controller_broadcast_db": -27.774154663085938,
+    "simultaneous_program_db": [
+      -36.19548034667969,
+      -36.20237731933594
+    ],
+    "previous_controller_denied_db": -127.41629028320312,
+    "new_controller_broadcast_db": -27.75756072998047,
+    "released_db": -128.49417114257812
+  },
+  "target_recording_checks_passed": true,
+  "revocation_released_capture": true,
+  "remaining_viewer_continued": true,
+  "renderer_restored_idle": true,
+  "service_removed": true,
+  "browser_receipt_sha256": "ff63fb5edbce82fb8ec7bfafb7907b4b5a6932980ff992697f34d5c63c1eddaf",
+  "native_log_sha256": "2e6b8e4a459a4ba4c42725a3486182bd281efd78a28045888459f2e21e8deaec",
+  "limitations": [
+    "Original failed automation receipt is preserved unchanged",
+    "No physical-microphone, UE5, WAN, bundled-driver or fresh current-release acceptance claim"
+  ]
+}

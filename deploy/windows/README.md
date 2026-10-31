@@ -131,9 +131,16 @@ The builder verifies payload hashes and records the resulting installer hash,
 compiler hash and source revision. The executable is currently unsigned and the
 channel remains preview. Publisher code signing is not required by the current
 delivery scope; the absence of a commercial signing certificate is not a release
-blocker. Compilation/unit tests are not installation acceptance;
-real elevated installation, streaming under SCM, and uninstall still require
-validation before publishing an installer for production deployment.
+blocker. Compilation/unit tests are not installation acceptance. The installer
+recipe `4b3b418c` with payload `c5522af9` passed real silent install, administrator
+login, LocalSystem control service and both media components running, and silent
+uninstall with runtime data retained. See
+`contracts/windows-installation/20261031.json`. A separate SCM streaming run
+failed its final missing gateway-log archive check; the original failure is
+retained. `20261031-scm-supplement.json` independently verifies its generated
+microphone/target/audience metrics and exactly one native Sunshine connection.
+It does not turn the failed automation task green or prove a newer release,
+physical microphone delivery, or bundled-driver/reboot acceptance.
 
 For an installer-only correction, append `--reuse-payload` to reuse an immutable,
 hash-verified platform bundle instead of recompiling its executable components.
