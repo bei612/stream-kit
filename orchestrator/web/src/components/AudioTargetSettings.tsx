@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useConfigurationDraft } from '@/hooks/useConfigurationDraft'
 import { api } from '@/api/client'
 import type { AudioDevice } from '@/api/audio-devices'
@@ -10,17 +10,30 @@ export function AudioTargetSettings({ session, busy, action }: {
   busy: boolean
   action: (operation: () => Promise<unknown>) => Promise<void>
 }) {
-  const targetDraft = useConfigurationDraft(session.audio.target, (a, b) => a.epoch === b.epoch && a.mode === b.mode && a.render_device_id === b.render_device_id && a.capture_device_id === b.capture_device_id)
+  const targetDraft = useConfigurationDraft(session.audio.target, (a, b) => a.epoch === b.epoch && a.mode === b.mode && a.node_id === b.node_id && a.render_device_id === b.render_device_id && a.capture_device_id === b.capture_device_id)
   const {value: draft, dirty, stale} = targetDraft
   const [devices, setDevices] = useState<AudioDevice[] | null>(null)
+  const [nodes, setNodes] = useState<{id:string;name:string}[]>([])
+  const generation = useRef(0)
+  useEffect(() => {
+    let active = true
+    void api.getRenderNodes().then(result => {
+      if (active) setNodes((result.data?.nodes ?? []).filter(node => node.id !== 'primary'))
+    }).catch(error => {
+      if (active) setError(error instanceof Error ? error.message : '无法读取渲染节点配置')
+    })
+    return () => { active = false; generation.current++ }
+  }, [])
   const [reading, setReading] = useState(false)
   const [error, setError] = useState('')
+  useEffect(()=>{generation.current++;setDevices(null);setReading(false)},[draft.mode,draft.node_id])
   const edit = (values: Partial<AudioTarget>) => targetDraft.edit({ ...draft, ...values })
   async function readDevices() {
+    const current=++generation.current
     setReading(true); setError(''); setDevices(null)
-    try { setDevices((await api.getAudioDevices()).data?.devices ?? []) }
-    catch (error) { setError(error instanceof Error ? error.message : '无法读取音频设备') }
-    finally { setReading(false) }
+    try { const inventory=draft.mode==='remote' ? (await api.getNodeAudioDevices(draft.node_id || '')).data?.inventory : (await api.getAudioDevices()).data; if(current===generation.current) setDevices(inventory?.devices ?? []) }
+    catch (error) { if (current === generation.current) setError(error instanceof Error ? error.message : '无法读取音频设备') }
+    finally { if(current===generation.current) setReading(false) }
   }
   const selection = (direction: 'output' | 'input', field: 'render_device_id' | 'capture_device_id', label: string) =>
     <label className="block min-w-0 space-y-1 text-sm">
@@ -45,16 +58,29 @@ export function AudioTargetSettings({ session, busy, action }: {
       <label className="block max-w-sm space-y-1 text-sm"><span>发送方式</span>
         <select aria-label="发送方式" className="w-full rounded-md border border-border bg-background p-2" value={draft.mode} onChange={e => {
           const mode = e.target.value as AudioTarget['mode']
-          edit({mode,...(mode === 'local' ? {} : {render_device_id:'',capture_device_id:''})})
+          generation.current++;setDevices(null);setReading(false);setError('')
+          edit({mode,node_id:mode==='remote' ? (nodes[0]?.id || '') : undefined,render_device_id:'',capture_device_id:''})
         }}>
           <option value="upstream">上游原生麦克风通道</option>
-          <option value="local">服务器虚拟音频端点</option>
+          <option value="local">当前网关 · 虚拟音频端点</option>
+          <option value="remote">指定渲染节点 · 虚拟音频端点</option>
           <option value="disabled">关闭目标程序麦克风</option>
         </select>
       </label>
-      {draft.mode === 'local' && <>
-        <p className="text-xs leading-relaxed text-muted-foreground">适用于网关与目标程序位于同一节点。请选择已部署的虚拟音频配对端点，并在目标程序中选择对应输入；任意两个物理设备不能建立音频连线。</p>
-        <Button type="button" size="sm" variant="outline" disabled={reading} onClick={readDevices}>{reading ? '正在读取…' : '刷新音频设备'}</Button>
+      {draft.mode === 'remote' && <label className="block max-w-sm space-y-1 text-sm">
+        <span>目标渲染节点</span>
+        <select aria-label="目标渲染节点" required className="w-full rounded-md border border-border bg-background p-2" value={draft.node_id || ''} onChange={e => {
+          generation.current++; setDevices(null); setReading(false); setError('')
+          edit({node_id:e.target.value, render_device_id:'', capture_device_id:''})
+        }}>
+          <option value="">请选择已配置节点</option>
+          {nodes.map(node => <option key={node.id} value={node.id}>{node.name}</option>)}
+        </select>
+        {!nodes.length && <p className="text-xs text-muted-foreground">请先在服务配置中添加渲染节点并重启管理服务。</p>}
+      </label>}
+      {(draft.mode === 'local' || draft.mode === 'remote') && <>
+        <p className="text-xs leading-relaxed text-muted-foreground">请选择目标程序所在节点已部署的虚拟音频配对端点，并在目标程序中选择对应输入；任意两个物理设备不能建立音频连线。</p>
+        <Button type="button" size="sm" variant="outline" disabled={reading || (draft.mode==='remote' && !draft.node_id)} onClick={readDevices}>{reading ? '正在读取…' : '刷新音频设备'}</Button>
         {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
         <div className="grid min-w-0 gap-3 md:grid-cols-2">
           {selection('output','render_device_id','网关写入端 · 输出设备')}

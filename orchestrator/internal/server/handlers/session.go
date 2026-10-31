@@ -41,6 +41,7 @@ func (h *SessionHandler) AudioTarget(c *gin.Context) {
 	var req struct {
 		ExpectedEpoch uint64 `json:"expected_epoch"`
 		Target        struct {
+			NodeID          string `json:"node_id"`
 			Mode            string `json:"mode"`
 			RenderDeviceID  string `json:"render_device_id"`
 			CaptureDeviceID string `json:"capture_device_id"`
@@ -52,7 +53,7 @@ func (h *SessionHandler) AudioTarget(c *gin.Context) {
 		errResponse(c, 400, "AUDIO_TARGET_INVALID", "无效的音频目标配置或配置版本")
 		return
 	}
-	target := session.AudioTarget{Mode: req.Target.Mode, RenderDeviceID: req.Target.RenderDeviceID, CaptureDeviceID: req.Target.CaptureDeviceID}
+	target := session.AudioTarget{NodeID: req.Target.NodeID, Mode: req.Target.Mode, RenderDeviceID: req.Target.RenderDeviceID, CaptureDeviceID: req.Target.CaptureDeviceID}
 	if !target.Valid() {
 		errResponse(c, 400, "AUDIO_TARGET_INVALID", "请选择有效的目标模式和明确的音频端点")
 		return

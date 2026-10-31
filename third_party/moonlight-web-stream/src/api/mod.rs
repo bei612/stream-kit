@@ -39,6 +39,7 @@ pub mod host;
 pub mod media_auth;
 pub mod node_audio;
 pub mod node_microphone;
+pub mod node_microphone_route;
 pub mod role;
 pub mod settings;
 mod signed;

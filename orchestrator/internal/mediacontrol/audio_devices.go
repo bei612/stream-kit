@@ -32,10 +32,17 @@ func (p *Publisher) ValidateAudioTarget(ctx context.Context, target session.Audi
 	if err := p.Sync(ctx); err != nil {
 		return err
 	}
-	if target.Mode != "local" {
+	if target.Mode != "local" && target.Mode != "remote" {
 		return nil
 	}
-	inventory, err := p.AudioDevices(ctx)
+	client := p.NodeClient
+	if target.Mode == "remote" {
+		client = p.nodes[target.NodeID]
+		if client == nil {
+			return session.ErrInvalidState
+		}
+	}
+	inventory, err := client.AudioDevices(ctx)
 	if err != nil {
 		return err
 	}

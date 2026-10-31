@@ -225,11 +225,14 @@ pub enum TargetMode {
     #[default]
     Upstream,
     Local,
+    Remote,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct AudioTarget {
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub node_id: String,
     pub epoch: u64,
     pub mode: TargetMode,
     pub render_device_id: String,
@@ -249,10 +252,20 @@ impl AudioTarget {
                 && value.trim() == value
                 && !value.chars().any(char::is_control)
         };
-        self.epoch > 0
+        (if self.mode == TargetMode::Remote {
+            !self.node_id.is_empty()
+                && self.node_id != "primary"
+                && self.node_id.len() <= 128
+                && self
+                    .node_id
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+        } else {
+            self.node_id.is_empty()
+        }) && self.epoch > 0
             && self.epoch <= revision
             && match self.mode {
-                TargetMode::Local => {
+                TargetMode::Local | TargetMode::Remote => {
                     id(&self.render_device_id)
                         && id(&self.capture_device_id)
                         && self.render_device_id != self.capture_device_id
@@ -316,8 +329,19 @@ impl ControlState {
                 return Err(AppError::BadRequest);
             }
             if let Some(pair) = session.audio.target.endpoint()
-                && (!endpoints.insert(pair.render_device_id)
-                    || !endpoints.insert(pair.capture_device_id))
+                && (!endpoints.insert((String::new(), pair.render_device_id))
+                    || !endpoints.insert((String::new(), pair.capture_device_id)))
+            {
+                return Err(AppError::BadRequest);
+            }
+            if session.audio.target.mode == TargetMode::Remote
+                && (!endpoints.insert((
+                    session.audio.target.node_id.clone(),
+                    session.audio.target.render_device_id.clone(),
+                )) || !endpoints.insert((
+                    session.audio.target.node_id.clone(),
+                    session.audio.target.capture_device_id.clone(),
+                )))
             {
                 return Err(AppError::BadRequest);
             }

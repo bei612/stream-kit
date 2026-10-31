@@ -95,6 +95,8 @@ func decodeAcknowledgement(secret []byte, signature string, body []byte, request
 			valid = desired.Mode == "disabled" && target.Device == nil
 		case "idle":
 			valid = !observed.UpstreamActive && target.Device == nil
+		case "remote_transport":
+			valid = observed.UpstreamActive && desired.Mode == "remote" && target.Device == nil
 		case "upstream_transport":
 			valid = observed.UpstreamActive && desired.Mode == "upstream" && target.Device == nil
 		case "device_open":

@@ -22,6 +22,7 @@ function MediaRuntime({ observation }: { observation?: MediaObservation }) {
     disabled: '已关闭向目标程序发送麦克风',
     device_open: '目标音频输出端已打开，程序录音待确认',
     device_failed: '目标音频输出端故障',
+    remote_transport: '远端麦克风传输已连接 · 录音效果请在目标程序确认',
     upstream_transport: '上游支持麦克风传输',
   }
   return <div role="status" className="runtime-strip">

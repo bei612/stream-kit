@@ -44,6 +44,7 @@ pub mod media_observation;
 pub mod mixer;
 pub mod node_audio;
 pub mod password;
+pub mod remote_routes;
 pub mod role;
 pub mod storage;
 pub mod stream;

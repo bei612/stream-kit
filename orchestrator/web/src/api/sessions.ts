@@ -9,7 +9,8 @@ export interface SessionAudio {
 
 export interface AudioTarget {
   epoch: number
-  mode: 'disabled' | 'upstream' | 'local'
+  mode: 'disabled' | 'upstream' | 'local' | 'remote'
+  node_id?: string
   render_device_id: string
   capture_device_id: string
 }
@@ -75,7 +76,7 @@ export interface MediaObservation {
   subscribers: number
   microphone_target: {
     epoch: number
-    state: 'unconfigured' | 'idle' | 'pending' | 'disabled' | 'device_open' | 'device_failed' | 'upstream_transport'
+    state: 'unconfigured' | 'idle' | 'pending' | 'disabled' | 'device_open' | 'device_failed' | 'upstream_transport' | 'remote_transport'
     device: TargetDeviceStatus | null
     error: string | null
   }

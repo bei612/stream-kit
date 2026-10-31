@@ -260,6 +260,7 @@ func run(ctx context.Context, ready func()) error {
 	}()
 	if srv.MediaControl != nil {
 		background = append(background, util.SafeGo(logger, "media-state-reconciler", func() { srv.MediaControl.Run(streamCtx, logger) }))
+		background = append(background, util.SafeGo(logger, "microphone-route-reconciler", func() { srv.MediaControl.RunRoutes(streamCtx, logger) }))
 	}
 	background = append(background, util.SafeGo(logger, "session-lease-reaper", func() {
 		sessionMgr.RunLeaseReaper(streamCtx, 5*time.Second)

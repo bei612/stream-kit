@@ -37,6 +37,8 @@ const {engine, launchBrowser, evidenceDirectory} = require('./lib/test-browser.c
         session.audio = next; session.revision++;
         return route.fulfill({json:{status:'ok',data:session}});
       }
+      if (url.pathname.endsWith('/render-nodes')) return route.fulfill({json:{status:'ok',data:{nodes:[{id:'primary',name:'主网关'},{id:'renderer-a',name:'渲染服务器 A'}]}}});
+      if (url.pathname.endsWith('/render-nodes/renderer-a/audio-devices')) return route.fulfill({json:{status:'ok',data:{node_id:'renderer-a',inventory:{schema_version:2,instance_id:'0123456789abcdef0123456789abcdef',devices:[{id:'remote-out',name:'虚拟音频输出',output:true,input:false},{id:'remote-in',name:'目标程序录音输入',input:true,output:false}],configured_routes:[]}}}});
       if (url.pathname.startsWith('/api/') && url.pathname.endsWith('/stream-sessions')) return route.fulfill({json:{status:'ok',data:[session]}});
       if (url.pathname.endsWith('/media-control')) return route.fulfill({json:{status:'ok',data:{reachable:false,lease_valid:false,observations_valid:false,applied_revisions:{},observations:{}}}});
       if (url.pathname.startsWith('/api/')) return route.fulfill({json:{status:'ok',data:{}}});
@@ -98,10 +100,20 @@ const {engine, launchBrowser, evidenceDirectory} = require('./lib/test-browser.c
     const targetSaved = page.waitForResponse(response => response.url().endsWith('/stream-sessions/audio-test/audio-target'));
     await page.getByRole('button',{name:'保存并应用目标',exact:true}).click(); await targetSaved;
     assert.deepEqual(targetWrites,[{expected_epoch:2,target:{mode:'disabled',render_device_id:'',capture_device_id:''}}]);
+    await targetMode.selectOption('remote');
+    await page.getByRole('combobox',{name:'目标渲染节点',exact:true}).selectOption('renderer-a');
+    await page.getByRole('button',{name:'刷新音频设备',exact:true}).click();
+    await page.getByRole('combobox',{name:'网关写入端 · 输出设备',exact:true}).selectOption('remote-out');
+    await page.getByRole('combobox',{name:'目标程序读取端 · 输入设备',exact:true}).selectOption('remote-in');
+    const remoteSaved=page.waitForResponse(response=>response.url().endsWith('/stream-sessions/audio-test/audio-target'));
+    await page.getByRole('button',{name:'保存并应用目标',exact:true}).click();await remoteSaved;
+    assert.deepEqual(targetWrites[1],{expected_epoch:3,target:{mode:'remote',node_id:'renderer-a',render_device_id:'remote-out',capture_device_id:'remote-in'}});
+    await page.setViewportSize({width:390,height:844});
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth),false);
     assert.deepEqual(errors,[]);
     const out = evidenceDirectory('artifacts/session-audio');
     fs.mkdirSync(out,{recursive:true});
-    fs.writeFileSync(path.join(out,'admin-browser-result.json'), JSON.stringify({passed:true,engine,browser_version:browser.version(),cases:['stale-draft-preserved','stale-submit-disabled','explicit-reload','compare-and-set-payload','untouched-form-refresh','capacity-conflict-preserves-draft','capacity-compare-and-set','target-conflict-preserves-draft','target-compare-and-set'],errors},null,2));
+    fs.writeFileSync(path.join(out,'admin-browser-result.json'), JSON.stringify({passed:true,engine,browser_version:browser.version(),cases:['stale-draft-preserved','stale-submit-disabled','explicit-reload','compare-and-set-payload','untouched-form-refresh','capacity-conflict-preserves-draft','capacity-compare-and-set','target-conflict-preserves-draft','target-compare-and-set','remote-node-device-selection-and-save','narrow-layout'],errors},null,2));
     console.log('Session audio browser checks passed');
   } finally { await browser.close(); }
 })().catch(error => {console.error(error);process.exitCode=1;});

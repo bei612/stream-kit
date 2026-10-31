@@ -85,7 +85,9 @@ impl Sender {
             .host()
             .ok_or(Error::Configuration)?
             .trim_matches(['[', ']']);
-        let loopback = host.parse::<IpAddr>().is_ok_and(|ip| ip.is_loopback());
+        let localhost = host.eq_ignore_ascii_case("localhost");
+        let loopback = host.parse::<IpAddr>().is_ok_and(|ip| ip.is_loopback()) || localhost;
+        let port = uri.port_u16().unwrap_or(80);
         if !(uri.scheme_str() == Some("wss") || uri.scheme_str() == Some("ws") && loopback)
             || uri.authority().is_some_and(|v| v.as_str().contains('@'))
             || uri.query().is_some()
@@ -110,13 +112,34 @@ impl Sender {
             .max_message_size(Some(125))
             .max_frame_size(Some(125));
         let connect_deadline = expires.min(Instant::now() + Duration::from_secs(2));
-        let (mut socket, _) = tokio::time::timeout_at(
-            connect_deadline.into(),
-            connect_async_with_config(request, Some(config), true),
-        )
-        .await
-        .map_err(|_| Error::Connection)?
-        .map_err(|_| Error::Connection)?;
+        let connection = async {
+            if localhost && request.uri().scheme_str() == Some("ws") {
+                let addresses = tokio::net::lookup_host(("localhost", port))
+                    .await
+                    .map_err(|_| Error::Connection)?;
+                for address in addresses.filter(|address| address.ip().is_loopback()) {
+                    if let Ok(stream) = tokio::net::TcpStream::connect(address).await {
+                        stream.set_nodelay(true).map_err(|_| Error::Connection)?;
+                        return tokio_tungstenite::client_async_tls_with_config(
+                            request,
+                            stream,
+                            Some(config),
+                            None,
+                        )
+                        .await
+                        .map_err(|_| Error::Connection);
+                    }
+                }
+                Err(Error::Connection)
+            } else {
+                connect_async_with_config(request, Some(config), true)
+                    .await
+                    .map_err(|_| Error::Connection)
+            }
+        };
+        let (mut socket, _) = tokio::time::timeout_at(connect_deadline.into(), connection)
+            .await
+            .map_err(|_| Error::Connection)??;
         let state = Arc::new(State {
             closed: AtomicBool::new(false),
             expires: Mutex::new(expires),

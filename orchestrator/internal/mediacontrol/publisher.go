@@ -59,6 +59,8 @@ type Envelope struct {
 	Sessions      []Session `json:"sessions"`
 }
 type Publisher struct {
+	routeErrors map[string]string
+	nodes       map[string]*NodeClient
 	*NodeClient
 	mu         sync.Mutex
 	manager    *session.Manager
@@ -93,6 +95,18 @@ func (p *Publisher) Status() Status {
 	s.Revisions = make(map[string]uint64, len(p.status.Revisions))
 	for id, rev := range p.status.Revisions {
 		s.Revisions[id] = rev
+	}
+	if p.manager != nil {
+		for _, session := range p.manager.List() {
+			if message := p.routeErrors[session.Audio.Target.NodeID]; session.Audio.Target.Mode == "remote" && message != "" {
+				if observation, ok := s.Observations[session.ID]; ok && observation.MicrophoneTarget.State == "pending" {
+					observation.MicrophoneTarget.State = "device_failed"
+					detail := "目标路由：" + message
+					observation.MicrophoneTarget.Error = &detail
+					s.Observations[session.ID] = observation
+				}
+			}
+		}
 	}
 	return s
 }
@@ -183,5 +197,28 @@ func (p *Publisher) Run(ctx context.Context, logger *zap.Logger) {
 		case <-ticker.C:
 		case <-p.manager.Changes():
 		}
+	}
+}
+
+// ConfigureNodes installs the immutable startup registry before serving requests.
+func (p *Publisher) ConfigureNodes(nodes map[string]*NodeClient) {
+	p.nodes = make(map[string]*NodeClient)
+	for id, client := range nodes {
+		if id != "primary" {
+			p.nodes[id] = client
+		}
+	}
+}
+
+func (p *Publisher) setRouteError(nodeID string, err error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.routeErrors == nil {
+		p.routeErrors = map[string]string{}
+	}
+	if err == nil {
+		delete(p.routeErrors, nodeID)
+	} else {
+		p.routeErrors[nodeID] = err.Error()
 	}
 }

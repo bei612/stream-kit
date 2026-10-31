@@ -17,6 +17,34 @@ func localTarget(render, capture string) AudioTarget {
 	return AudioTarget{Mode: "local", RenderDeviceID: render, CaptureDeviceID: capture}
 }
 
+func TestRemoteTargetsReserveDevicesWithinTheirNode(t *testing.T) {
+	m := NewManager(nil)
+	a, _ := m.Ensure(1, 2)
+	b, _ := m.Ensure(1, 3)
+	target := AudioTarget{Mode: "remote", NodeID: "renderer-a", RenderDeviceID: "out", CaptureDeviceID: "in"}
+	if err := m.UpdateAudioTarget(a.ID, a.Audio.Target.Epoch, target); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.UpdateAudioTarget(b.ID, b.Audio.Target.Epoch, target); !errors.Is(err, ErrAudioTargetInUse) {
+		t.Fatalf("same-node conflict: %v", err)
+	}
+	target.NodeID = "renderer-b"
+	if err := m.UpdateAudioTarget(b.ID, b.Audio.Target.Epoch, target); err != nil {
+		t.Fatal(err)
+	}
+	for _, node := range []string{"", "primary", "../node"} {
+		target.NodeID = node
+		if target.Valid() {
+			t.Fatalf("invalid node %q", node)
+		}
+	}
+	target = localTarget("out", "in")
+	target.NodeID = "renderer-a"
+	if target.Valid() {
+		t.Fatal("local target accepted remote node")
+	}
+}
+
 func TestAudioTargetEpochPersistenceAndCompareAndSet(t *testing.T) {
 	database := filepath.Join(t.TempDir(), "session.db")
 	st, err := store.New(database)

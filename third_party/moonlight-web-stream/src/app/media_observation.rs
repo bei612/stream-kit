@@ -40,6 +40,7 @@ pub enum TargetState {
     DeviceOpen,
     DeviceFailed,
     UpstreamTransport,
+    RemoteTransport,
 }
 
 #[cfg(test)]

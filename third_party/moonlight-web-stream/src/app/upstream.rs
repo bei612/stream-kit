@@ -68,6 +68,7 @@ struct DriverResources {
 
 #[derive(Default)]
 pub struct UpstreamPool {
+    pub remote_routes: super::remote_routes::Routes,
     sessions: Mutex<HashMap<MediaSessionKey, Weak<SessionSlot>>>,
     local_targets: Vec<crate::config::LocalAudioTarget>,
     endpoints: target::EndpointRegistry,
@@ -209,12 +210,28 @@ impl UpstreamPool {
                     revision: session.revision,
                     upstream_active: active,
                     subscribers: shared.as_ref().map_or(0, |s| s.events.receiver_count()),
-                    microphone_target: observe_target(
-                        target,
-                        active,
-                        shared.as_ref().is_some_and(|s| s.remote_microphone),
-                        snapshot.as_ref(),
-                    ),
+                    microphone_target: {
+                        let mut observation = observe_target(
+                            target,
+                            active,
+                            shared.as_ref().is_some_and(|s| s.remote_microphone),
+                            snapshot.as_ref(),
+                        );
+                        if active && target.mode == super::control_state::TargetMode::Remote {
+                            observation.state = if self.remote_routes.connected(
+                                &key,
+                                &session.session_id,
+                                target.epoch,
+                            ) {
+                                super::media_observation::TargetState::RemoteTransport
+                            } else {
+                                super::media_observation::TargetState::Pending
+                            };
+                            observation.device = None;
+                            observation.error = None;
+                        }
+                        observation
+                    },
                 }
             })
             .collect()
@@ -282,6 +299,7 @@ impl UpstreamPool {
             .find(|route| route.host_id == key.host_id.0 && route.app_id == key.app_id.0)
         {
             super::control_state::AudioTarget {
+                node_id: String::new(),
                 epoch: 0,
                 mode: super::control_state::TargetMode::Local,
                 render_device_id: route.endpoint.render_device_id.clone(),
@@ -353,13 +371,16 @@ impl UpstreamPool {
             stream,
             _slot: slot.clone(),
         };
+        let remote_routes = self.remote_routes.clone();
         *previous_driver = Some(tokio::spawn(async move {
             // Keep the index entry alive through actual resource destruction,
             // including after the last browser has dropped its Shared handle.
+            let _remote_lifetime = remote_routes.lifetime(key.clone());
             let mut resources = resources;
             let mut audio_clock = super::mixer::AudioClock::new();
             loop {
                 if events.receiver_count() == 0 {
+                    remote_routes.clear(&key);
                     break;
                 }
                 tokio::select! {
@@ -371,7 +392,7 @@ impl UpstreamPool {
                                 resources.stream.send_raw(packet).map_err(|e| e.to_string())?;
                             }
                             mixer.configure(policy).map_err(|e| e.to_string())?;
-                            let microphone = controller.map(|controller| MicrophoneGrant { controller, target_epoch: policy.target.epoch });
+                            let microphone = controller.clone().map(|controller| MicrophoneGrant { controller, target_epoch: policy.target.epoch });
                             if microphone_peer != microphone {
                                 mixer.clear_microphone().map_err(|e| e.to_string())?;
                                 resources.stream.clear_pending_microphone();
@@ -388,6 +409,7 @@ impl UpstreamPool {
                             if let Some(target) = &resources.target && let Some((samples, captured)) = mixer.target_frame() {
                                 target.submit(samples, captured);
                             }
+                            remote_routes.submit(&key, policy, controller.as_ref(), mixer.target_frame());
                             let _ = events.send(Arc::new(MoonlightStreamEvent::Audio(AudioStreamEvent::OnFrame(AudioFrame { timestamp, buffer }))));
                             Ok::<_, String>(())
                         }).await;
@@ -395,6 +417,7 @@ impl UpstreamPool {
                             Some(Ok(())) => {},
                             Some(Err(error)) => { tracing::warn!(%error, "session audio rendering failed"); break; },
                             None => {
+                                remote_routes.clear(&key);
                                 if input.reconcile(None).into_iter().any(|p| resources.stream.send_raw(p).is_err()) { break; }
                                 resources.stream.clear_pending_microphone();
                                 let _ = mixer.clear_microphone(); microphone_peer = None;

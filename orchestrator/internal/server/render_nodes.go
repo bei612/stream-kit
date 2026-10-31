@@ -27,6 +27,9 @@ func (s *Server) registerRenderNodes(authed *gin.RouterGroup) {
 		clients[id] = mediacontrol.NewNodeClient(node.BaseURL, node.ControlSecret)
 		views = append(views, renderNodeView{id, node.Name, node.BaseURL})
 	}
+	if s.MediaControl != nil {
+		s.MediaControl.ConfigureNodes(clients)
+	}
 	sort.Slice(views, func(i, j int) bool { return views[i].ID < views[j].ID })
 	authed.GET("/render-nodes", func(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")

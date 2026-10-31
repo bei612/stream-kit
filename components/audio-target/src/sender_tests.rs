@@ -100,7 +100,6 @@ async fn socket_transmits_pcm_and_binding_change_closes_it() {
 async fn rejects_unsafe_urls_before_connecting() {
     for url in [
         "ws://example.com/audio",
-        "ws://localhost/audio",
         "wss://user:password@example.com/audio",
         "wss://example.com/audio?token=secret",
         "wss://example.com/audio#fragment",

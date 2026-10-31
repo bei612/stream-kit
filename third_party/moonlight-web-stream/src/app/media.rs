@@ -116,6 +116,14 @@ pub struct ControlGrant {
     attachment: u64,
 }
 
+impl ControlGrant {
+    pub fn matches_remote(&self, binding: &stream_kit_audio_target::admission::Binding) -> bool {
+        self.session_id == binding.session_id
+            && self.peer_id == binding.connection_id
+            && self.epoch == binding.control_epoch
+    }
+}
+
 /// Microphone data also belongs to the target selected at ingress. Changing a
 /// target must not redirect already queued speech or revoke keyboard ownership.
 #[derive(Clone, Debug, Eq, PartialEq)]
