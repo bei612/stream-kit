@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { collectCargoNotices } from './lib/cargo-notices.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const gateway = path.join(root, 'third_party/moonlight-web-stream')
@@ -42,6 +43,8 @@ if (output) {
   fs.copyFileSync(path.join(gateway, 'Cargo.lock'), path.join(output, 'Cargo.lock'))
   fs.copyFileSync(path.join(gateway, 'package-lock.json'), path.join(output, 'package-lock.json'))
   fs.copyFileSync(path.join(root, 'deploy/GATEWAY-BUNDLE.md'), path.join(output, 'GATEWAY-BUNDLE.md'))
+  const notices={schema_version:1,native:collectCargoNotices(path.join(gateway,'Cargo.toml'),{env}),wasm:collectCargoNotices(path.join(gateway,'rust_modules/wasm/Cargo.toml'),{target:'wasm32-unknown-unknown',env})}
+  fs.writeFileSync(path.join(output,'THIRD_PARTY_NOTICES.rust.json'),JSON.stringify(notices,null,2)+'\n')
 }
 if (git('rev-parse', 'HEAD') !== commit || git('status', '--porcelain', '--untracked-files=normal')) {
   throw new Error('Source changed during gateway release build')

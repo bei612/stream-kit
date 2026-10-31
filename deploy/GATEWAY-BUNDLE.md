@@ -19,6 +19,15 @@ executable and viewer, and records SHA-256 hashes and the source commit in
 issue a manifest if the source changes during the build. A failed output is
 incomplete and must not be deployed.
 
+`THIRD_PARTY_NOTICES.rust.json` includes separate native and WebAssembly Cargo
+dependency graphs, declared license expressions, available license texts and
+their hashes. It excludes dependencies reachable only through development edges
+and conservatively includes build dependencies. This graph is not a final binary
+symbol inventory. `missing_notice_packages` explicitly lists packages whose
+available source package does not contain a license text; a successful preview
+build does not declare these omissions resolved or replace a license review.
+The collector never obtains license texts from the network during a build.
+
 Configure the Orchestrator's `web_server` component with the packaged executable,
 this working directory and the external configuration arguments. The source and
 receiver gateways must use compatible control contracts and distinct configured

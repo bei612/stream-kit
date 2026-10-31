@@ -4,6 +4,7 @@ import {fileURLToPath} from 'node:url'
 import {execFileSync} from 'node:child_process'
 import {createHash} from 'node:crypto'
 import {collectGoNotices} from './lib/go-notices.mjs'
+import {collectCargoNotices} from './lib/cargo-notices.mjs'
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..')
 if(process.platform!=='win32'||process.arch!=='x64'||process.argv.length!==3)throw Error('Expected native Windows x64: node build-example-release.mjs NEW_OUTPUT')
@@ -30,16 +31,7 @@ const metadata=JSON.parse(run('cargo',['metadata','--locked','--format-version',
 fs.copyFileSync(path.join(metadata.target_directory,'release/audio-probe.exe'),path.join(output,'audio-probe.exe'))
 fs.copyFileSync(path.join(audio,'Cargo.lock'),path.join(output,'Cargo.lock'))
 fs.writeFileSync(path.join(output,'THIRD_PARTY_NOTICES.go.json'),JSON.stringify(collectGoNotices(path.join(root,'example/vendor'),environment.GOROOT,{...info,Deps:info.Deps||[]}),null,2)+'\n')
-const packages=metadata.packages.map(value=>{
-  const directory=path.dirname(value.manifest_path)
-  const notices=fs.readdirSync(directory).filter(name=>/^(license|licence|copying|notice)([._-].*)?$/i.test(name)).flatMap(name=>{
-    const file=path.join(directory,name),stat=fs.lstatSync(file)
-    if(!stat.isFile()||stat.isSymbolicLink())return []
-    return [{file:name,text:fs.readFileSync(file,'utf8')}]
-  })
-  return {name:value.name,version:value.version,license:value.license,repository:value.repository,notices}
-})
-fs.writeFileSync(path.join(output,'THIRD_PARTY_NOTICES.rust.json'),JSON.stringify({scope:'Native target dependency metadata and available package notices',packages},null,2)+'\n')
+fs.writeFileSync(path.join(output,'THIRD_PARTY_NOTICES.rust.json'),JSON.stringify(collectCargoNotices(path.join(audio,'Cargo.toml')),null,2)+'\n')
 clean()
 const files=fs.readdirSync(output).sort().map(name=>{
   const file=path.join(output,name),bytes=fs.readFileSync(file)
