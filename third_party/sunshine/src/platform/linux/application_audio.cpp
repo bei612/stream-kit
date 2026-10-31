@@ -77,7 +77,7 @@ namespace platf {
 
       /** @brief Connect to the user's audio server with a bounded deadline. @return True on success. */
       bool init() {
-        if (!target_ || !target_->alive() || !pa_sample_spec_valid(&spec_) || !frames_ || frames_ > spec_.rate) {
+        if (!target_ || !target_->alive() || !pa_sample_spec_valid(&spec_) || !frames_ || frames_ > spec_.rate * 60 / 1000) {
           return false;
         }
         loop_ = pa_mainloop_new();
@@ -226,7 +226,8 @@ namespace platf {
         if (!track.stream) {
           return;
         }
-        pa_buffer_attr attr {UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX,
+        pa_buffer_attr attr {self.spec_.rate * self.spec_.channels * static_cast<std::uint32_t>(sizeof(float)) * 60 / 1000,
+                             UINT32_MAX, UINT32_MAX, UINT32_MAX,
                              self.frames_ * self.spec_.channels * static_cast<std::uint32_t>(sizeof(float))};
         pa_stream_set_read_callback(track.stream, read, &track);
         if (pa_stream_set_monitor_stream(track.stream, track.index) < 0 ||

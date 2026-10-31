@@ -31,5 +31,20 @@ sh scripts/test-audio-target-linux.sh /absolute/path/to/cmake-build-sunshine/tes
 ```
 
 `LinuxApplicationAudio.*` 包括非法目标拒绝、真实播放流排除、目标进程音频接收、
-目标退休后停止并清空输出。未指定测试服务时，真实音频用例明确跳过。
-本次尚未执行该 Linux 运行测试，不能记为通过。
+目标退休后停止并清空输出。隔离用例启动独立 `pacat` 进程播放 1477 Hz，
+先从测试设备监听源确认它确实发声，再验证目标程序的 997 Hz 音频可接收且
+1477 Hz 没有混入。未指定测试服务时，真实音频用例明确跳过。
+
+音频 PCM 接口位于 `src/platform/audio_capture.h`，不依赖图形窗口、视频编码器
+或全局服务配置。`tools/sunshine-audio-tests` 直接编译生产后端和同一个测试源文件，
+不使用替代实现。仓库工作流中的 `Linux application audio (native PulseAudio)`
+任务在 Ubuntu 24.04 上构建并执行此测试；独立入口为：
+
+```sh
+cmake -S tools/sunshine-audio-tests -B .local/cmake-build-linux-audio -G Ninja
+cmake --build .local/cmake-build-linux-audio --parallel 2
+sh scripts/test-audio-target-linux.sh --application-only "$PWD/.local/cmake-build-linux-audio/test_sunshine"
+```
+
+当前 Linux CI 尚待 runner 执行，没有编译或运行通过的证据，不能记为通过。
+这项原生音频测试也不能替代整个 Sunshine 的 Linux 构建和程序串流端到端验收。
