@@ -87,6 +87,27 @@ document.body.dataset.ready='true';
     pipe.cleanup();pipe.cleanup();await wait(()=>sender.track===null);
     return {requests,packets,resumedPackets,revoked,revokedDetached,grantDidNotCapture,allStopped:tracks.every(track=>track.readyState==='ended'),detached:sender.track===null,sourceLive:destination.stream.getAudioTracks()[0].readyState==='live',errors};
   } finally {pipe.cleanup();left.close();right.close();tracks.forEach(track=>track.stop())}
+},async microphoneBindingFailure(){
+  const peers=[new RTCPeerConnection({iceServers:[]}),new RTCPeerConnection({iceServers:[]})];
+  const tracks:MediaStreamTrack[]=[],errors:string[]=[];
+  const capture=new MicrophoneCapture(async()=>{const track=destination.stream.getAudioTracks()[0].clone();tracks.push(track);return new MediaStream([track])});
+  const sink=new RtpTrackSenderPipe({debug(message:string){errors.push(message)}} as any);
+  const pipe=new MicrophonePipe(sink);(pipe as any).capture=capture;
+  const settle=async()=>{while((sink as any).updating)await (sink as any).updating.catch(()=>{})};
+  try {
+    sink.setRtpSender(peers[0].addTransceiver('audio',{direction:'sendonly'}).sender);await settle();
+    peers[0].close();
+    await pipe.resumeCapture();await settle();
+    const rejected=!pipe.isLive()&&tracks.length===1&&tracks[0].readyState==='ended';
+    await new Promise(resolve=>setTimeout(resolve,50));
+    const noAutomaticCapture=tracks.length===1;
+    const sender=peers[1].addTransceiver('audio',{direction:'sendonly'}).sender;
+    sink.setRtpSender(sender);await settle();
+    await pipe.resumeCapture();
+    const explicitRetry=tracks.length===2&&pipe.isLive()&&sender.track===tracks[1];
+    pipe.cleanup();await settle();
+    return {rejected,noAutomaticCapture,explicitRetry,allStopped:tracks.every(track=>track.readyState==='ended'),detached:sender.track===null,senderErrors:errors};
+  } finally {pipe.cleanup();peers.forEach(peer=>peer.close());tracks.forEach(track=>track.stop())}
 },async codec(){
   if(typeof AudioEncoder!=='function'||typeof AudioDecoder!=='function')return {supported:false};
   let decodedFrames=0,cleanups=0;const errors:string[]=[];
@@ -143,6 +164,10 @@ document.body.dataset.ready='true';
     assert.ok(microphone.resumedPackets>microphone.packets+2);
     for(const key of ['revoked','revokedDetached','grantDidNotCapture','allStopped','detached','sourceLive'])assert.equal(microphone[key],true,key);
     assert.deepEqual(microphone.errors,[]);
+    const microphoneBindingFailure=await page.evaluate(()=>window.probe.microphoneBindingFailure());
+    for(const key of ['rejected','noAutomaticCapture','explicitRetry','allStopped','detached'])assert.equal(microphoneBindingFailure[key],true,key);
+    assert.ok(microphoneBindingFailure.senderErrors.length>0,'A real closed peer must report sender rejection');
+    fs.writeFileSync(path.join(output,'microphone-binding-failure.json'),JSON.stringify(microphoneBindingFailure,null,2));
     const generatedTrack=await page.evaluate(()=>window.probe.generated());
     if(engine==='chromium')assert.equal(generatedTrack.supported,true,'Chromium must exercise the generated audio path');
     if(generatedTrack.supported)assert.deepEqual(generatedTrack,{supported:true,written:true,wasLive:true,stopped:true,sampleClosed:true});

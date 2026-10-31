@@ -41,7 +41,7 @@ test('selected microphone uses exact native constraints and cannot silently swit
   capture.dispose()
 })
 
-function pipeFixture(request) {
+function pipeFixture(request, bind) {
   let capture, cleanups = 0, gestures = 0, detachments = 0
   const attached = [], notifications = []
   const exports = {}
@@ -56,7 +56,7 @@ function pipeFixture(request) {
       showNotification(message) { notifications.push(message) },
     }),
   })
-  const pipe = new exports.MicrophonePipe({implementationName:'test',setTrack:t=>attached.push(t),clearTrack(){detachments++},cleanup(){cleanups++},onUserInteraction(){gestures++}})
+  const pipe = new exports.MicrophonePipe({implementationName:'test',setTrack:async t=>{attached.push(t);await bind?.(t)},clearTrack(){detachments++},cleanup(){cleanups++},onUserInteraction(){gestures++}})
   return {pipe, attached, notifications, capture, detachments:()=>detachments, counts:()=>({cleanups,gestures})}
 }
 
@@ -74,6 +74,37 @@ test('microphone pipe never attaches a cached track after teardown or revoke/reg
     f.pipe.onUserInteraction()
     assert.deepEqual(f.counts(), {cleanups:1, gestures:0})
   }
+})
+
+test('microphone becomes live only after sender acknowledgement and failed binding releases capture for an explicit retry',async()=>{
+  const tracks=[];let finish
+  const f=pipeFixture(async()=>{const audio=track();tracks.push(audio);return stream([audio])},()=>new Promise((resolve,reject)=>{finish={resolve,reject}}))
+  const pending=f.pipe.resumeCapture()
+  assert.equal(f.pipe.resumeCapture(),pending,'concurrent gestures must share the pending sender binding')
+  for(let i=0;i<8;i++)await Promise.resolve()
+  assert.equal(f.pipe.isLive(),false)
+  finish.reject(new Error('replaceTrack rejected'))
+  await pending
+  assert.equal(f.notifications.length,1);assert.equal(f.detachments(),1)
+  assert.equal(tracks[0].readyState,'ended');assert.equal(f.pipe.isLive(),false)
+  for(let i=0;i<8;i++)await Promise.resolve()
+  assert.equal(tracks.length,1,'binding failure must not automatically reopen a microphone')
+  const retry=f.pipe.resumeCapture()
+  for(let i=0;i<8;i++)await Promise.resolve()
+  finish.resolve();await retry
+  assert.equal(tracks.length,2);assert.equal(f.pipe.isLive(),true)
+  f.pipe.cleanup();assert.equal(tracks[1].readyState,'ended')
+})
+
+test('a late sender error after revoke and regrant cannot stop the next authority or notify',async()=>{
+  const audio=track();let fail
+  const f=pipeFixture(async()=>stream([audio]),()=>new Promise((_,reject)=>{fail=reject}))
+  const pending=f.pipe.resumeCapture()
+  for(let i=0;i<8;i++)await Promise.resolve()
+  f.pipe.setAllowed(false);f.pipe.setAllowed(true)
+  fail(new Error('old sender failed'));await pending
+  assert.equal(audio.stops,1);assert.equal(f.notifications.length,0)
+  assert.equal(f.pipe.isLive(),false);f.pipe.cleanup()
 })
 
 test('concurrent microphone gestures attach once and a new authority can attach a fresh track', async () => {

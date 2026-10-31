@@ -55,10 +55,26 @@ test('sender replacement detaches old sender before attaching to the new one',as
   assert.deepEqual(calls,[['old',null],['new',mic]])
   f.pipe.cleanup();await f.settle()
 })
-test('closed-peer failures are consumed and do not retain capture or trigger retries',async()=>{
+test('closed-peer failures reach the capture owner without retries or retained capture',async()=>{
   const f=fixture();let calls=0
   const sender={async replaceTrack(){calls++;throw Error('peer closed')}}
-  f.pipe.setRtpSender(sender);await f.settle();f.pipe.setTrack(track('mic'));await f.settle()
-  f.pipe.cleanup();await f.settle()
+  f.pipe.setRtpSender(sender);await assert.rejects(f.settle(),/peer closed/)
+  await assert.rejects(f.pipe.setTrack(track('mic')),/peer closed/)
+  f.pipe.cleanup();await assert.rejects(f.settle(),/peer closed/)
   assert.equal(calls,3);assert.equal(f.errors.length,3);assert.equal(f.pipe.track,null);assert.equal(f.pipe.boundSender,null)
+})
+
+test('capture attachment waits for an update submitted during the previous finalizer',async()=>{
+  const f=fixture(),calls=[];let apply
+  const mic=track('mic')
+  const sender={replaceTrack(value){calls.push(value);return value?new Promise(resolve=>{apply=resolve}):Promise.resolve()}}
+  f.pipe.setRtpSender(sender)
+  // The initial null replace completes before its owner's finalizer runs.
+  await Promise.resolve()
+  let complete=false
+  const binding=f.pipe.setTrack(mic).then(()=>{complete=true})
+  for(let i=0;i<8;i++)await Promise.resolve()
+  assert.equal(complete,false);assert.deepEqual(calls,[null,mic])
+  apply();await binding;assert.equal(complete,true)
+  f.pipe.cleanup();await f.settle()
 })

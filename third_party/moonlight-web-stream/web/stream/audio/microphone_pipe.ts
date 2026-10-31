@@ -36,6 +36,7 @@ export class MicrophonePipe implements MicrophoneSource {
     private disposed = false
     private generation = 0
     private attachedTrack: MediaStreamTrack | null = null
+    private pendingCapture: Promise<void> | null = null
 
     constructor(base: MicrophoneSink, logger?: Logger) {
         this.implementationName = `microphone -> ${base.implementationName}`
@@ -47,25 +48,37 @@ export class MicrophonePipe implements MicrophoneSource {
         addPipePassthrough(this)
     }
 
-    private async tryRequestMicrophone() {
-        if (this.disposed) return
+    private tryRequestMicrophone(): Promise<void> {
+        if (this.disposed) return Promise.resolve()
+        if (this.pendingCapture) return this.pendingCapture
+        const pending = this.requestMicrophone().finally(() => {
+            if (this.pendingCapture === pending) this.pendingCapture = null
+        })
+        this.pendingCapture = pending
+        return pending
+    }
+
+    private async requestMicrophone() {
         const generation = this.generation
         this.logger?.debug("Requesting microphone capture")
         try {
             const track = await this.capture.acquire()
             if (track && generation === this.generation && this.capture.owns(track) && track !== this.attachedTrack) {
-                this.base.setTrack(track)
-                this.attachedTrack = track
+                await this.base.setTrack(track)
+                if (generation === this.generation && this.capture.owns(track)) this.attachedTrack = track
             }
         } catch (e) {
             if (this.disposed || generation !== this.generation) return
+            this.capture.release()
+            this.attachedTrack = null
+            this.base.clearTrack()
             this.logger?.debug(`Failed to acquire microphone: ${e}`)
-            showNotification("Microphone access failed. Check permission and try again.")
+            showNotification("Microphone could not start. Check the device, permission and connection, then try again.")
             return
         }
     }
 
-    isLive(): boolean { return this.capture.isLive() }
+    isLive(): boolean { return this.attachedTrack !== null && this.capture.isLive() }
     configure(input: MicrophoneInputOptions): void { this.capture.configure(input) }
     resumeCapture(): Promise<void> { return this.tryRequestMicrophone() }
     setAllowed(allowed: boolean): void {

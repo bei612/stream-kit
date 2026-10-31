@@ -36,11 +36,14 @@ export class RtpTrackSenderPipe implements MicrophoneSink {
         this.updateState()
     }
 
-    setTrack(track: MediaStreamTrack) {
+    async setTrack(track: MediaStreamTrack): Promise<void> {
         if (this.disposed || track.readyState === "ended") return
         this.track = track
 
-        this.updateState()
+        await this.updateState()
+        // An intent arriving between reconcile completion and its finalizer is
+        // drained by the next batch; do not acknowledge that intent early.
+        while (this.updating) await this.updating
     }
 
     clearTrack(): void {
@@ -49,18 +52,21 @@ export class RtpTrackSenderPipe implements MicrophoneSink {
         this.updateState()
     }
 
-    private updateState() {
+    private updateState(): Promise<void> {
         this.dirty = true
-        if (this.updating) return
+        if (this.updating) return this.updating
         this.updating = this.reconcile().finally(() => {
             this.updating = null
             if (this.dirty) this.updateState()
         })
+        // Lifecycle setters do not await a binding. Consume their failures here
+        // while preserving the same rejection for the capture owner's await.
+        void this.updating.catch(error => this.logger?.debug(`Microphone sender update failed: ${error}`))
+        return this.updating
     }
 
     private async replace(sender: RTCRtpSender, track: MediaStreamTrack | null) {
-        try { await sender.replaceTrack(track) }
-        catch (error) { this.logger?.debug(`Microphone sender update failed: ${error}`) }
+        await sender.replaceTrack(track)
     }
 
     private async reconcile() {
@@ -68,8 +74,9 @@ export class RtpTrackSenderPipe implements MicrophoneSink {
             this.dirty = false
             const sender = this.disposed ? null : this.sender
             if (this.boundSender && this.boundSender !== sender) {
-                await this.replace(this.boundSender, null)
+                const previous = this.boundSender
                 this.boundSender = null
+                await this.replace(previous, null)
                 // State may change while detaching; re-read it before attaching.
                 this.dirty = true
                 continue

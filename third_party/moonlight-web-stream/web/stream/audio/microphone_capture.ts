@@ -81,12 +81,17 @@ export class MicrophoneCapture {
         this.setAllowed(false)
     }
 
+    /** Release failed capture without granting authority or reopening a device. */
+    release(): void {
+        this.generation++
+        this.track?.stop()
+        this.track = null
+    }
+
     setAllowed(allowed: boolean): void {
         if (this.allowed === allowed) return
         this.allowed = allowed
         if (allowed) return // New authority never starts capture without a gesture.
-        this.generation++
-        this.track?.stop()
-        this.track = null
+        this.release()
     }
 }
