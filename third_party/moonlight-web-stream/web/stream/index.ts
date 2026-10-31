@@ -313,6 +313,10 @@ export class Stream implements Component {
             transport.onclose = resolve
         })
 
+        // Own the peer throughout negotiation so stop/revocation can close it
+        // even while capability probing or the offer request is awaiting I/O.
+        this.setTransport(transport)
+
         const options = await this.createTransportOptions()
         if (!options) {
             await transport.close()
@@ -344,9 +348,6 @@ export class Stream implements Component {
             this.cleanupMicrophone()
             return "disconnect"
         }
-        // Set Transport
-        this.setTransport(transport)
-
         // Wait for negotiation, but don't let a stuck ICE check block fallback forever.
         const onTimeout: Promise<TransportShutdown> =
             wait(WEBRTC_CONNECT_TIMEOUT_MS)

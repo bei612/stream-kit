@@ -8,6 +8,42 @@ const source = readFileSync(new URL('../third_party/moonlight-web-stream/web/str
 const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
 function deferred() { let resolve; const promise = new Promise(r => { resolve = r }); return { promise, resolve } }
 
+for (const phase of ['capability-probe','offer-request']) {
+  test(`stop owns and closes the WebRTC peer during ${phase}`, async () => {
+    const exports={},entered=deferred(),resume=deferred()
+    let peer,posts=0
+    class Transport {
+      controlStream={};closed=false
+      constructor(){peer=this}
+      async createOffer(){if(this.closed)throw new Error('closed');return 'offer'}
+      async setAnswer(){}
+      async close(){if(this.closed)return;this.closed=true;this.onclose?.('disconnect')}
+    }
+    vm.runInNewContext(compiled,{exports,require(name){
+      if(name==='./transport/webrtc')return {WebRTCTransport:Transport}
+      if(name==='../api')return {
+        apiEnsureMediaAccess:async()=>null,apiWebRTCConfiguration:async()=>({iceServers:[]}),
+        apiWebRTCOffer:async()=>{posts++;entered.resolve();await resume.promise;return {location:'/owned',answerSdp:''}},
+      }
+      return {}
+    }})
+    const stream=Object.create(exports.Stream.prototype)
+    Object.assign(stream,{api:{},permissions:{allow_transport_webrtc:true},stopped:false,transport:null,
+      debugLog(){},startMediaHeartbeat(){},cleanupPipelines(){},cleanupMicrophone(){},releaseMediaAccess:async()=>{},
+      input:{setControlStream(){}},stats:{setTransport(){}},
+      async createTransportOptions(){if(phase==='capability-probe'){entered.resolve();await resume.promise}return {microphone:false}},
+    })
+    const connecting=stream.tryWebRTCTransport()
+    await entered.promise
+    assert.equal(stream.transport,peer,'The stream must own a negotiating peer')
+    await stream.stop()
+    assert.equal(peer.closed,true)
+    resume.resolve();await connecting
+    assert.equal(stream.transport,null)
+    assert.equal(posts,phase==='offer-request'?1:0)
+  })
+}
+
 function builderFixture() {
   const source=readFileSync(new URL('../third_party/moonlight-web-stream/web/stream/pipeline/index.ts',import.meta.url),'utf8')
   const exports={}

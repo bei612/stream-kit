@@ -26,6 +26,7 @@ export class WebRTCTransport implements Transport {
 
     private peer: RTCPeerConnection
     private location: string | null = null
+    private sessionDeletion: Promise<void> | null = null
     private closed = false
 
     constructor(api: Api, configuration: RTCConfiguration, logger?: Logger) {
@@ -59,6 +60,7 @@ export class WebRTCTransport implements Transport {
     private sdpAnswer: WebRtcSessionAnswer | null = null
 
     async createOffer(options: TransportOptions): Promise<string> {
+        if (this.closed) throw new Error("WebRTC transport is closed")
         if (options.microphone) {
             this.logger?.debug("Adding microphone transceiver")
             this.microphoneTransceiver = this.peer.addTransceiver("audio", { direction: "sendonly" })
@@ -67,12 +69,14 @@ export class WebRTCTransport implements Transport {
         this.logger?.debug("Creating webrtc offer")
 
         let offer = await this.peer.createOffer()
+        if (this.closed) throw new Error("WebRTC transport closed during offer creation")
         if (offer.type != "offer") {
             throw `WHEP offer is of type ${offer.type}`
         }
 
         this.logger?.debug("Setting webrtc local description")
         await this.peer.setLocalDescription(offer)
+        if (this.closed) throw new Error("WebRTC transport closed during local description")
 
         // Insert custom options
         this.sdpOfferOptions = {
@@ -86,6 +90,13 @@ export class WebRTCTransport implements Transport {
         return sdp
     }
     async setAnswer(response: WebRTCAnswer): Promise<void> {
+        // A canceled POST can still create a remote resource. Reclaim a late
+        // response without applying SDP to the already closed peer.
+        this.location = response.location
+        if (this.closed) {
+            await this.deleteSession()
+            return
+        }
         console.debug("server sdp", JSON.stringify(response))
 
         this.logger?.debug(`received whep response with location "${response.location}"`)
@@ -95,8 +106,6 @@ export class WebRTCTransport implements Transport {
                 this.logger?.debug(`received remote ice candidate ${line.substring(2)}`)
             }
         }
-
-        this.location = response.location
 
         this.sdpAnswer = webrtcSessionAnswerParse(response.answerSdp)
         this.logger?.debug(`Server responded with extensions ${JSON.stringify(this.sdpAnswer)}`)
@@ -335,10 +344,16 @@ export class WebRTCTransport implements Transport {
         this.iceCandidateSendTimer = null
         this.onclose?.(reason)
 
-        // Delete our current session on the server
-        if (this.location) {
+        await this.deleteSession()
+    }
+
+    private deleteSession(): Promise<void> {
+        if (!this.location) return Promise.resolve()
+        if (this.sessionDeletion) return this.sessionDeletion
+        const location = this.location
+        this.sessionDeletion = (async () => {
             try {
-                await fetchApi(this.api, this.location, "DELETE", {
+                await fetchApi(this.api, location, "DELETE", {
                     keepalive: true,
                     noUrlModify: true,
                     response: "ignore",
@@ -346,7 +361,8 @@ export class WebRTCTransport implements Transport {
             } catch (e) {
                 console.debug("failed to DELETE webrtc session", e)
             }
-        }
+        })()
+        return this.sessionDeletion
     }
 
     private async findOutCodec(): Promise<keyof VideoFormats> {

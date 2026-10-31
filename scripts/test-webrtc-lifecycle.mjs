@@ -80,3 +80,67 @@ test('closing during an ICE request drops late candidates and cannot signal a ne
   assert.equal(f.requests.filter(r=>r[2]==='PATCH').length,1)
   assert.equal(f.frames.size,0)
 })
+
+test('a late answer after close reclaims its server resource without reopening the peer', async () => {
+  let finishDelete, descriptions=0
+  const f=fixture((_api,_url,method)=>method==='DELETE'?new Promise(resolve=>{finishDelete=resolve}):Promise.resolve())
+  f.peer.setRemoteDescription=()=>{descriptions++;return Promise.resolve()}
+  const closed=[];f.transport.onclose=reason=>closed.push(reason)
+  await f.transport.close()
+  const answer={location:'/api/host/stream/webrtc/late',answerSdp:'unused'}
+  const first=f.transport.setAnswer(answer), duplicate=f.transport.setAnswer(answer)
+  assert.equal(f.requests.filter(r=>r[2]==='DELETE').length,1)
+  assert.equal(f.requests[0][1],answer.location)
+  finishDelete();await Promise.all([first,duplicate])
+  assert.equal(descriptions,0)
+  assert.equal(f.peer.connectionState,'closed')
+  assert.deepEqual(closed,['disconnect'])
+  assert.equal(f.timers.size,0)
+})
+
+test('close during local offer creation prevents applying the offer', async () => {
+  let finish, applied=0
+  const f=fixture(()=>Promise.resolve())
+  f.peer.createOffer=()=>new Promise(resolve=>{finish=resolve})
+  f.peer.setLocalDescription=()=>{applied++;return Promise.resolve()}
+  const pending=f.transport.createOffer({microphone:false})
+  await f.transport.close()
+  finish({type:'offer',sdp:''})
+  await assert.rejects(pending,/closed during offer/)
+  assert.equal(applied,0)
+  assert.equal(f.requests.length,0)
+})
+
+test('close while applying an answer deletes once and does not restart ICE batching', async () => {
+  let finish
+  const f=fixture(()=>Promise.resolve())
+  f.peer.setRemoteDescription=()=>new Promise(resolve=>{finish=resolve})
+  f.peer.candidate('before-answer')
+  const applying=f.transport.setAnswer({location:'/api/host/stream/webrtc/owned',answerSdp:''})
+  await f.transport.close()
+  finish();await applying
+  await f.transport.close()
+  assert.equal(f.requests.filter(r=>r[2]==='DELETE').length,1)
+  assert.equal(f.requests.filter(r=>r[2]==='PATCH').length,0)
+  assert.equal(f.timers.size,0)
+})
+
+test('close during local description prevents publishing an offer to the caller', async () => {
+  let finish, entered
+  const ready=new Promise(resolve=>{entered=resolve})
+  const f=fixture(()=>Promise.resolve())
+  f.peer.createOffer=async()=>({type:'offer',sdp:''})
+  f.peer.setLocalDescription=()=>{entered();return new Promise(resolve=>{finish=resolve})}
+  const pending=f.transport.createOffer({microphone:false})
+  await ready;await f.transport.close();finish()
+  await assert.rejects(pending,/closed during local description/)
+  assert.equal(f.requests.length,0)
+})
+
+test('denied cleanup after revocation never reopens the peer or rejects a late answer', async () => {
+  const f=fixture(()=>Promise.reject(new Error('Managed media connection is closed')))
+  await f.transport.close()
+  await f.transport.setAnswer({location:'/api/host/stream/webrtc/revoked',answerSdp:''})
+  assert.equal(f.peer.connectionState,'closed')
+  assert.equal(f.timers.size,0)
+})
