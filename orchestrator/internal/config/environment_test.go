@@ -16,6 +16,7 @@ func TestEnvironmentOverlayIsTypedAndDoesNotRewriteFile(t *testing.T) {
 	t.Setenv("ORCH_SERVER_PASSWORD", "deployment-secret")
 	t.Setenv("ORCH_STORAGE_MAX_FILE_COUNT", "42")
 	t.Setenv("ORCH_COMPONENTS_GATEWAY_AUTO_START", "true")
+	t.Setenv("ORCH_COMPONENTS_GATEWAY_EXE_PATH", "gateway/web-server")
 	t.Setenv("ORCH_COMPONENTS_GATEWAY_ENV_SPECIAL", "deployment-device")
 	t.Setenv("ORCH_SERVER_CORS_ORIGINS", `["https://one.test","https://two.test"]`)
 	loaded, err := Load(s.path)

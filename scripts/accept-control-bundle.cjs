@@ -2,7 +2,7 @@
 // No encoder, gateway, installed service, audio device or physical input is started.
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),net=require('node:net'),crypto=require('node:crypto');
-const {spawn,execFileSync}=require('node:child_process');
+const {spawn,spawnSync,execFileSync}=require('node:child_process');
 const {once}=require('node:events');
 const {setTimeout:delay}=require('node:timers/promises');
 const {launchBrowser,engine}=require('./lib/test-browser.cjs');
@@ -23,16 +23,18 @@ async function main(){
   const port=reservation.address().port;
   await new Promise(resolve=>reservation.close(resolve));
   const origin=`http://127.0.0.1:${port}`;
-  const credentials={username:'admin',password:crypto.randomBytes(32).toString('base64url')};
-  const config={
-    server:{bind_address:`127.0.0.1:${port}`,...credentials,jwt_secret:crypto.randomBytes(32).toString('hex')},
-    components:Object.fromEntries(['sunshine','web_server'].map(name=>[name,{exe_path:binary,auto_start:false}])),
-    sunshine_api:{base_url:''},moonlight_web:{base_url:''},
-    storage:{apps_dir:'apps',temp_dir:'temp',db_path:'control.db',max_upload_size_bytes:1048576,max_extract_size_bytes:1048576,max_file_count:100},
-    process:{monitor_interval_seconds:2,graceful_shutdown_timeout_seconds:2},
-    log:{level:'warning',file:{enabled:false},access_log:{enabled:false}},
-  };
   const configFile=path.join(scratch,'config.json');
+  const bootstrap=spawnSync(binary,['--config',configFile],{cwd:scratch,windowsHide:true,encoding:'utf8',timeout:10000});
+  assert.equal(bootstrap.status,1,'First run must create configuration and exit for review');
+  const config=JSON.parse(fs.readFileSync(configFile,'utf8'));
+  assert.ok(config.server.password.length>=20,'Bootstrap must generate an administrator credential');
+  const credentials={username:config.server.username,password:config.server.password};
+  for(const name of ['sunshine','web_server']){
+    assert.equal(config.components[name].exe_path,'');
+    assert.equal(config.components[name].auto_start,false);
+  }
+  config.server.bind_address=`127.0.0.1:${port}`;
+  config.log.level='warning';config.log.file.enabled=false;
   fs.writeFileSync(configFile,JSON.stringify(config));
   let child,exited,browser;
   async function stop(){
@@ -83,6 +85,9 @@ async function main(){
     assert.equal(incomplete.status,400);
     assert.deepEqual(fs.readFileSync(configFile),initialBytes,'Rejected partial selection must not change disk');
     for(const name of ['sunshine','web_server']){
+      const executable=page.locator(`[id="setting/components/${name}/exe_path"]`);
+      assert.equal(await executable.inputValue(),'','First-run component path must be configurable from the page');
+      await executable.fill(binary);
       await page.locator(`[id="setting/components/${name}/windows_session_id"]`).fill('3');
       await page.locator(`[id="setting/components/${name}/windows_user_sid"]`).fill('S-1-5-21-1-2-3-1001');
     }
@@ -91,6 +96,8 @@ async function main(){
     const saved=await read();assert.equal(saved.restart_required,true);assert.equal(saved.apply_policy,'service_restart');
     const persisted=JSON.parse(fs.readFileSync(configFile,'utf8'));
     for(const name of ['sunshine','web_server']){
+      assert.equal(persisted.components[name].exe_path,binary);
+      assert.equal(persisted.components[name].auto_start,false);
       assert.equal(persisted.components[name].windows_session_id,3);
       assert.equal(persisted.components[name].windows_user_sid,'S-1-5-21-1-2-3-1001');
     }

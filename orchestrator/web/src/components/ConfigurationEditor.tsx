@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
 
 const labels:Record<string,string> = {
+  sunshine:'渲染服务',web_server:'媒体网关',
 	windows_session_id:'Windows 用户会话 ID',windows_user_sid:'Windows 用户 SID',
   server:'管理服务与登录',components:'服务组件',sunshine_api:'串流编码器连接',moonlight_web:'媒体网关连接',storage:'应用与存储',process:'进程管理',notifications:'通知',log:'日志',templates:'启动参数模板',
   bind_address:'监听地址',username:'用户名',password:'密码',jwt_secret:'管理签名密钥',media_ticket_secret:'媒体签名密钥',cors_origins:'允许访问的来源',tls_cert:'TLS 证书路径',tls_key:'TLS 私钥路径',

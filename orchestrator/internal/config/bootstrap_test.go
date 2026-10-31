@@ -26,8 +26,14 @@ func TestFirstRunWithoutTemplateProducesLoadableEditableConfiguration(t *testing
 			t.Fatal("unsafe bootstrap defaults")
 		}
 		passwords = append(passwords, cfg.Server.Password)
-		if !filepath.IsAbs(cfg.Storage.DBPath) || len(cfg.Components) != 0 {
-			t.Fatal("bootstrap should resolve storage without starting unconfigured components")
+		if !filepath.IsAbs(cfg.Storage.DBPath) || len(cfg.Components) != 2 {
+			t.Fatal("bootstrap should resolve storage and expose both core components")
+		}
+		for _, name := range []string{"sunshine", "web_server"} {
+			component, exists := cfg.Components[name]
+			if !exists || component.ExePath != "" || component.AutoStart {
+				t.Fatal("bootstrap must not select or start an unconfigured executable", name)
+			}
 		}
 		view, err := NewSettings(cfg).View()
 		if err != nil || view.RestartRequired {
@@ -47,6 +53,43 @@ func TestFirstRunWithoutTemplateProducesLoadableEditableConfiguration(t *testing
 	}
 	if passwords[0] == passwords[1] {
 		t.Fatal("bootstrap reused administrator credential")
+	}
+}
+
+func TestFirstRunComponentCanBeConfiguredThroughSettings(t *testing.T) {
+	previous := BaseDir
+	defer func() { BaseDir = previous }()
+	file := filepath.Join(t.TempDir(), "config.json")
+	_, _ = Load(file)
+	cfg, err := Load(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings := NewSettings(cfg)
+	view, err := settings.View()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := settings.Save(view.Revision, map[string]json.RawMessage{
+		"/components/sunshine/auto_start": json.RawMessage(`true`),
+	}); err == nil {
+		t.Fatal("unconfigured component accepted automatic startup")
+	}
+	updated, err := settings.Save(view.Revision, map[string]json.RawMessage{
+		"/components/sunshine/exe_path":   json.RawMessage(`"renderer/sunshine"`),
+		"/components/sunshine/auto_start": json.RawMessage(`true`),
+		"/components/web_server/exe_path": json.RawMessage(`"gateway/web-server"`),
+	})
+	if err != nil || !updated.RestartRequired {
+		t.Fatal("first-run component form could not be saved", err)
+	}
+	loaded, err := Load(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.Components["sunshine"].ExePath != filepath.Join(filepath.Dir(file), "renderer", "sunshine") ||
+		!loaded.Components["sunshine"].AutoStart || loaded.Components["web_server"].AutoStart {
+		t.Fatal("component setup did not preserve paths and explicit activation")
 	}
 }
 

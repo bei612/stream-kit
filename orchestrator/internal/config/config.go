@@ -235,6 +235,7 @@ func validate(cfg *Config) []string {
 			errs = append(errs, prefix+".preflight_args: "+err.Error())
 		}
 		check(component.PreflightArgs != "" && component.ExePath == "", prefix+" 预检需要配置可执行程序路径")
+		check(component.AutoStart && component.ExePath == "", prefix+" 自动启动需要配置可执行程序路径")
 		check(component.RestartDelay < 0 || component.MaxRestartAttempts < 0, prefix+" 重启等待与次数不能为负数")
 		health := component.HealthCheck
 		if health.URL != "" {
@@ -275,7 +276,7 @@ func generateDefaultConfig(path string) error {
 		// must not depend on a separately maintained subset of JSON fields.
 		cfg := Config{
 			Server:     ServerConfig{BindAddress: "127.0.0.1:9000", Username: "admin", Password: rand.Text(), JWTSecret: rand.Text() + rand.Text()},
-			Components: map[string]ComponentConfig{},
+			Components: initialComponents(),
 			Storage:    StorageConfig{AppsDir: "./apps", TempDir: "./temp", DBPath: "./data/orchestrator.db", MaxUploadSize: 50 << 30, MaxExtractSize: 50 << 30, MaxFileCount: 100000},
 			Process:    ProcessConfig{MonitorInterval: 5, GracefulShutdownTimeout: 5},
 			Log:        LogConfig{Level: "info", File: LogFileConfig{Enabled: true, Path: "./logs/orchestrator.log", MaxSizeMB: 100, MaxBackups: 5, MaxAgeDays: 30, Compress: true}, OperationLog: OpLogConfig{MaxAgeDays: 30, MaxCount: 100000}},
@@ -310,6 +311,23 @@ func generateDefaultConfig(path string) error {
 		return writeErr
 	}
 	return closeErr
+}
+
+// Keep first-run component setup available in the shared settings form. Paths
+// remain explicit deployment choices; no installed upstream binary is assumed.
+func initialComponents() map[string]ComponentConfig {
+	components := make(map[string]ComponentConfig, 2)
+	for _, name := range []string{"sunshine", "web_server"} {
+		components[name] = ComponentConfig{
+			Env: map[string]string{}, RestartOnCrash: true,
+			RestartDelay: 5, MaxRestartAttempts: 3,
+			HealthCheck: HealthCheckConfig{
+				Type: "http", IntervalSeconds: 10, TimeoutSeconds: 5,
+				UnhealthyThreshold: 3, HealthyThreshold: 1, StartupTimeoutSeconds: 60,
+			},
+		}
+	}
+	return components
 }
 
 // Sanitized returns a copy of the config with sensitive fields masked.
