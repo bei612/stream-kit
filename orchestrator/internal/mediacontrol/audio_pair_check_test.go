@@ -18,13 +18,13 @@ func TestPairCheckUsesVerifiedInventoryAndBoundRequest(t *testing.T) {
 			body, _ := io.ReadAll(r.Body)
 			var output []byte
 			var domain string
-			if r.URL.Path == "/internal/v1/audio-devices" {
+			if r.URL.Path == "/internal/v2/audio-devices" {
 				var request audioInventoryRequest
 				_ = json.Unmarshal(body, &request)
 				if r.Header.Get(controlSignatureHeader) != controlSignature([]byte("key"), audioRequestContext, body) {
 					t.Error("wrong inventory request signature")
 				}
-				output, _ = json.Marshal(AudioInventory{SchemaVersion: 1, RequestID: request.RequestID, RequestIssuedAt: request.IssuedAt, ObservedAt: time.Now().UnixMilli(), Devices: []AudioDevice{{ID: "out", Output: true}, {ID: "in", Input: true}}, ConfiguredRoutes: []AudioRoute{}})
+				output, _ = json.Marshal(AudioInventory{InstanceID: "0123456789abcdef0123456789abcdef", SchemaVersion: 2, RequestID: request.RequestID, RequestIssuedAt: request.IssuedAt, ObservedAt: time.Now().UnixMilli(), Devices: []AudioDevice{{ID: "out", Output: true}, {ID: "in", Input: true}}, ConfiguredRoutes: []AudioRoute{}})
 				domain = audioResponseContext
 			} else if r.URL.Path == "/internal/v1/audio-pair-check" {
 				checks++

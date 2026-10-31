@@ -23,7 +23,7 @@ const {launchBrowser,engine,evidenceDirectory}=require('./lib/test-browser.cjs')
           return route.fulfill({json:{status:'ok',data:{revision,restart_required:restart,apply_policy:'service_restart',values,redacted_paths:Object.keys(values.render_nodes).map(id=>`/render_nodes/${id}/control_secret`),environment_overrides:[]}}});
         }
         if(url.pathname==='/api/v1/render-nodes')return route.fulfill({json:{status:'ok',data:{apply_policy:'service_restart',nodes:[{id:'existing',name:'现有节点',base_url:'https://existing.example'}]}}});
-        if(url.pathname==='/api/v1/render-nodes/existing/audio-devices')return route.fulfill({json:{status:'ok',data:{node_id:'existing',inventory:{schema_version:1,request_id:'fixture',request_issued_at_ms:1,observed_at_ms:1,devices:[{id:'remote-output',name:'远端播放端点',input:false,output:true}],configured_routes:[]}}}});
+        if(url.pathname==='/api/v1/render-nodes/existing/audio-devices')return route.fulfill({json:{status:'ok',data:{node_id:'existing',inventory:{schema_version:2,instance_id:"0123456789abcdef0123456789abcdef",request_id:'fixture',request_issued_at_ms:1,observed_at_ms:1,devices:[{id:'remote-output',name:'远端播放端点',input:false,output:true}],configured_routes:[]}}}});
         assert.equal(route.request().method(),'GET','node editing must not restart services');
         return route.fulfill({status:503,json:{status:'error',message:'测试未连接此服务'}});
       }

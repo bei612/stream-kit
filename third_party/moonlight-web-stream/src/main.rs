@@ -43,6 +43,7 @@ mod cli;
 mod config;
 mod configuration;
 mod human_json;
+mod node_identity;
 mod tls;
 
 #[actix_web::main]

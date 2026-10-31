@@ -15,7 +15,7 @@ func TestNodeClientsKeepSignedInventoriesAndCancellationIndependent(t *testing.T
 	node := func(id, secret string) *httptest.Server {
 		return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			body, err := io.ReadAll(r.Body)
-			if err != nil || r.Method != http.MethodPost || r.URL.Path != "/node/internal/v1/audio-devices" ||
+			if err != nil || r.Method != http.MethodPost || r.URL.Path != "/node/internal/v2/audio-devices" ||
 				r.Header.Get(controlSignatureHeader) != controlSignature([]byte(secret), audioRequestContext, body) {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
@@ -26,7 +26,7 @@ func TestNodeClientsKeepSignedInventoriesAndCancellationIndependent(t *testing.T
 				return
 			}
 			response, err := json.Marshal(AudioInventory{
-				SchemaVersion: 1, RequestID: request.RequestID, RequestIssuedAt: request.IssuedAt,
+				InstanceID: "0123456789abcdef0123456789abcdef", SchemaVersion: 2, RequestID: request.RequestID, RequestIssuedAt: request.IssuedAt,
 				ObservedAt: time.Now().UnixMilli(), Devices: []AudioDevice{{ID: id, Name: id, Output: true}},
 				ConfiguredRoutes: []AudioRoute{},
 			})

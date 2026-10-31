@@ -17,7 +17,7 @@ const {launchBrowser,engine}=require('./lib/test-browser.cjs');
     const data=await new Promise(resolve=>{finish=resolve});
     return route.fulfill(data);
    }
-   if(url.pathname.endsWith('/audio-devices'))return route.fulfill({json:{status:'ok',data:{schema_version:1,observed_at_ms:Date.now(),configured_routes:[],devices:[{id:'out',name:'Test output',output:true,input:false},{id:'in',name:'Test input',output:false,input:true}]}}});
+   if(url.pathname.endsWith('/audio-devices'))return route.fulfill({json:{status:'ok',data:{schema_version:2,instance_id:"0123456789abcdef0123456789abcdef",observed_at_ms:Date.now(),configured_routes:[],devices:[{id:'out',name:'Test output',output:true,input:false},{id:'in',name:'Test input',output:false,input:true}]}}});
    if(url.pathname.startsWith('/api/'))return route.fulfill({status:503,json:{status:'error',message:'测试中未连接此服务'}});
    const file=url.pathname.startsWith('/assets/')?path.resolve(root,'.'+url.pathname):path.join(root,'index.html');if(!file.startsWith(root+path.sep))return route.abort();
    return route.fulfill({path:file,contentType:file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html'});

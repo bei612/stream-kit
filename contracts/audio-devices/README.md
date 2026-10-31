@@ -5,13 +5,13 @@
 ## 边界与接口
 
 - 管理员：`GET /api/v1/audio-devices`，使用现有管理 JWT。普通观看连接、媒体票据和匿名请求不能读取设备拓扑。成功为现有 `{status:"ok", data:...}` 包装；网关未配置或读取失败返回 503，而非空列表成功。响应 `Cache-Control: no-store`。
-- 控制面到网关：`POST /internal/v1/audio-devices`，保留网关 URL 前缀；复用 `media_ticket_secret`，请求和响应均使用 `X-Stream-Control-Signature`。该密钥不发送到浏览器，HTTP 重定向禁止跟随。
-- 请求签名：HMAC-SHA256，输入为 UTF-8 `stream-kit/audio-devices/request/v1\n`（末尾实际换行）加原始 JSON 字节；响应域为 `stream-kit/audio-devices/response/v1\n`。结果为 64 个十六进制字符。与媒体状态/媒体票据分域，不能相互替代。
+- 控制面到网关：`POST /internal/v2/audio-devices`，保留网关 URL 前缀；复用 `media_ticket_secret`，请求和响应均使用 `X-Stream-Control-Signature`。该密钥不发送到浏览器，HTTP 重定向禁止跟随。
+- 请求签名：HMAC-SHA256，输入为 UTF-8 `stream-kit/audio-devices/request/v2\n`（末尾实际换行）加原始 JSON 字节；响应域为 `stream-kit/audio-devices/response/v2\n`。结果为 64 个十六进制字符。与媒体状态/媒体票据分域，不能相互替代。
 
 请求：
 
 ```json
-{"schema_version":1,"request_id":"0123456789abcdef0123456789abcdef","issued_at_ms":1700000000000}
+{"schema_version":2,"request_id":"0123456789abcdef0123456789abcdef","issued_at_ms":1700000000000}
 ```
 
 `request_id` 为每次请求新生成的 16 字节安全随机数的十六进制编码。网关限制请求为 2048 字节，拒绝未知字段，接受不早于本机 5 秒、不晚于本机 2 秒的时间戳。认证失败 401；格式/版本/时间错误 400；枚举繁忙或平台不可用 503。此只读请求不维护重放缓存；控制面通过随机请求标识绑定响应，旧响应不能满足新请求。
@@ -20,7 +20,8 @@
 
 ```json
 {
-  "schema_version":1,
+  "schema_version":2,
+  "instance_id":"0123456789abcdef0123456789abcdef",
   "request_id":"0123456789abcdef0123456789abcdef",
   "request_issued_at_ms":1700000000000,
   "observed_at_ms":1700000000020,
@@ -64,3 +65,5 @@ node scripts/smoke-media-contract.cjs GATEWAY_EXECUTABLE [ORCHESTRATOR_EXECUTABL
 统一控制面提供管理员认证的 `POST /api/v1/audio-devices/check-pair`，请求仅包含明确的 `render_device_id`、`capture_device_id`。控制面重新读取签名设备目录并校验方向，再发送一次签名检查请求；不自动重试。检查使用独立的 15 秒请求超时，不改变权威租约同步的短超时，不持有同步锁。响应严格验证签名域、请求绑定、时效和测量结构；声称通过的结果还必须包含测试音、静音和释放设备的必要证据。
 
 管理页“服务器音频设备”中可显式选择端点并发起检查，运行期间禁用选择和重复提交；切换端点或刷新目录清除旧结果。`scripts/test-admin-audio-pair.cjs` 使用生产前端和受控 API 响应验证操作、失败状态及桌面/窄屏布局，不打开音频设备。Go 测试覆盖请求签名、响应域和绑定、假阳性拒绝、无效请求不触发操作。跨节点设备选择和真实虚拟设备验收仍未完成。
+
+?? v2 ? `instance_id` ????????????????????????? UUID??? 32 ?????????????????????????????????????????????????? ID???? v1???????????????? ID ?????????? ID ???????????????????????????????? ID????????????????????

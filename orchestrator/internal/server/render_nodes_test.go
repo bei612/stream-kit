@@ -26,7 +26,7 @@ func TestConfiguredNodeInventoryUsesOwnSignedConnection(t *testing.T) {
 	}
 	node := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
-		if r.URL.Path != "/gateway/internal/v1/audio-devices" || r.Header.Get("X-Stream-Control-Signature") != sign("stream-kit/audio-devices/request/v1\n", body) {
+		if r.URL.Path != "/gateway/internal/v2/audio-devices" || r.Header.Get("X-Stream-Control-Signature") != sign("stream-kit/audio-devices/request/v2\n", body) {
 			w.WriteHeader(401)
 			return
 		}
@@ -39,8 +39,8 @@ func TestConfiguredNodeInventoryUsesOwnSignedConnection(t *testing.T) {
 			w.WriteHeader(400)
 			return
 		}
-		response, _ := json.Marshal(map[string]any{"schema_version": 1, "request_id": request.RequestID, "request_issued_at_ms": request.IssuedAt, "observed_at_ms": time.Now().UnixMilli(), "devices": []map[string]any{{"id": "remote-output", "name": "Remote output", "output": true, "input": false}}, "configured_routes": []any{}})
-		w.Header().Set("X-Stream-Control-Signature", sign("stream-kit/audio-devices/response/v1\n", response))
+		response, _ := json.Marshal(map[string]any{"instance_id": "0123456789abcdef0123456789abcdef", "schema_version": 2, "request_id": request.RequestID, "request_issued_at_ms": request.IssuedAt, "observed_at_ms": time.Now().UnixMilli(), "devices": []map[string]any{{"id": "remote-output", "name": "Remote output", "output": true, "input": false}}, "configured_routes": []any{}})
+		w.Header().Set("X-Stream-Control-Signature", sign("stream-kit/audio-devices/response/v2\n", response))
 		w.Write(response)
 	}))
 	defer node.Close()

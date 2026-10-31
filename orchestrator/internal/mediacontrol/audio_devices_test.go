@@ -17,8 +17,8 @@ import (
 
 func TestAudioInventoryResponseBoundary(t *testing.T) {
 	secret := []byte("inventory-test")
-	request := audioInventoryRequest{1, "0123456789abcdef0123456789abcdef", 1700000000000}
-	fixture := AudioInventory{1, request.RequestID, request.IssuedAt, request.IssuedAt,
+	request := audioInventoryRequest{2, "0123456789abcdef0123456789abcdef", 1700000000000}
+	fixture := AudioInventory{"0123456789abcdef0123456789abcdef", 2, request.RequestID, request.IssuedAt, request.IssuedAt,
 		[]AudioDevice{{"wasapi:render", "Virtual cable", false, true}},
 		[]AudioRoute{{1, 2, AudioEndpointPair{"wasapi:render", "missing:capture"}}}}
 	for _, tc := range []struct {
@@ -32,6 +32,10 @@ func TestAudioInventoryResponseBoundary(t *testing.T) {
 		{name: "wrong nonce", mutate: func(v *AudioInventory) { v.RequestID = "another" }},
 		{name: "wrong request time", mutate: func(v *AudioInventory) { v.RequestIssuedAt-- }},
 		{name: "wrong version", mutate: func(v *AudioInventory) { v.SchemaVersion++ }},
+		{name: "missing instance", mutate: func(v *AudioInventory) { v.InstanceID = "" }},
+		{name: "zero instance", mutate: func(v *AudioInventory) { v.InstanceID = strings.Repeat("0", 32) }},
+		{name: "invalid instance", mutate: func(v *AudioInventory) { v.InstanceID = strings.Repeat("z", 32) }},
+		{name: "noncanonical instance", mutate: func(v *AudioInventory) { v.InstanceID = strings.ToUpper(v.InstanceID) }},
 		{name: "stale device observation", mutate: func(v *AudioInventory) { v.ObservedAt -= 2001 }},
 		{name: "future device observation", mutate: func(v *AudioInventory) { v.ObservedAt += 2001 }},
 		{name: "replayed response", now: request.IssuedAt + 5001},
@@ -80,18 +84,18 @@ func TestAudioInventoryUsesConfiguredGatewayAndDoesNotBlockState(t *testing.T) {
 	entered, release := make(chan struct{}), make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
-		if r.Method != "POST" || r.URL.Path != "/gateway/internal/v1/audio-devices" || r.Header.Get(controlSignatureHeader) != controlSignature(secret, audioRequestContext, body) {
+		if r.Method != "POST" || r.URL.Path != "/gateway/internal/v2/audio-devices" || r.Header.Get(controlSignatureHeader) != controlSignature(secret, audioRequestContext, body) {
 			t.Error("invalid signed inventory request")
 			w.WriteHeader(401)
 			return
 		}
 		var request audioInventoryRequest
-		if json.Unmarshal(body, &request) != nil || len(request.RequestID) != 32 || request.SchemaVersion != 1 {
+		if json.Unmarshal(body, &request) != nil || len(request.RequestID) != 32 || request.SchemaVersion != 2 {
 			t.Error("invalid request envelope")
 		}
 		close(entered)
 		<-release
-		body, _ = json.Marshal(AudioInventory{1, request.RequestID, request.IssuedAt, time.Now().UnixMilli(), []AudioDevice{}, []AudioRoute{}})
+		body, _ = json.Marshal(AudioInventory{"0123456789abcdef0123456789abcdef", 2, request.RequestID, request.IssuedAt, time.Now().UnixMilli(), []AudioDevice{}, []AudioRoute{}})
 		w.Header().Set(controlSignatureHeader, controlSignature(secret, audioResponseContext, body))
 		_, _ = w.Write(body)
 	}))
@@ -149,7 +153,7 @@ func TestAudioTargetSelectionUsesSignedInventoryDirections(t *testing.T) {
 			w.WriteHeader(400)
 			return
 		}
-		body, _ := json.Marshal(AudioInventory{1, request.RequestID, request.IssuedAt, time.Now().UnixMilli(),
+		body, _ := json.Marshal(AudioInventory{"0123456789abcdef0123456789abcdef", 2, request.RequestID, request.IssuedAt, time.Now().UnixMilli(),
 			[]AudioDevice{{"render", "Output", false, true}, {"capture", "Input", true, false}}, []AudioRoute{}})
 		w.Header().Set(controlSignatureHeader, controlSignature(secret, audioResponseContext, body))
 		_, _ = w.Write(body)

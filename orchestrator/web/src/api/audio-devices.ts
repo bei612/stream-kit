@@ -12,7 +12,8 @@ export interface AudioRoute {
 }
 
 export interface AudioInventory {
-  schema_version: 1
+  schema_version: 2
+  instance_id: string
   request_id: string
   request_issued_at_ms: number
   observed_at_ms: number

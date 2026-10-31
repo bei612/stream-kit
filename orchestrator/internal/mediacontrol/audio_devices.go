@@ -15,8 +15,8 @@ import (
 	"time"
 )
 
-const audioRequestContext = "stream-kit/audio-devices/request/v1\n"
-const audioResponseContext = "stream-kit/audio-devices/response/v1\n"
+const audioRequestContext = "stream-kit/audio-devices/request/v2\n"
+const audioResponseContext = "stream-kit/audio-devices/response/v2\n"
 const audioMaxBytes = 1 << 20
 
 type AudioDevice struct {
@@ -72,6 +72,7 @@ type audioInventoryRequest struct {
 }
 
 type AudioInventory struct {
+	InstanceID       string        `json:"instance_id"`
 	SchemaVersion    uint32        `json:"schema_version"`
 	RequestID        string        `json:"request_id"`
 	RequestIssuedAt  int64         `json:"request_issued_at_ms"`
@@ -88,12 +89,12 @@ func (p *NodeClient) AudioDevices(ctx context.Context) (AudioInventory, error) {
 	if _, err := rand.Read(nonce[:]); err != nil {
 		return empty, err
 	}
-	request := audioInventoryRequest{SchemaVersion: 1, RequestID: hex.EncodeToString(nonce[:]), IssuedAt: time.Now().UnixMilli()}
+	request := audioInventoryRequest{SchemaVersion: 2, RequestID: hex.EncodeToString(nonce[:]), IssuedAt: time.Now().UnixMilli()}
 	body, err := json.Marshal(request)
 	if err != nil {
 		return empty, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.baseURL+"/internal/v1/audio-devices", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.baseURL+"/internal/v2/audio-devices", bytes.NewReader(body))
 	if err != nil {
 		return empty, err
 	}
@@ -132,11 +133,15 @@ func decodeAudioInventory(secret []byte, signature string, body []byte, request 
 	if err := decoder.Decode(new(any)); err != io.EOF {
 		return inventory, fmt.Errorf("trailing audio inventory data")
 	}
-	if inventory.SchemaVersion != 1 || inventory.RequestID != request.RequestID || inventory.RequestIssuedAt != request.IssuedAt ||
+	if inventory.SchemaVersion != 2 || inventory.RequestID != request.RequestID || inventory.RequestIssuedAt != request.IssuedAt ||
 		now < request.IssuedAt || now-request.IssuedAt > 5000 ||
 		inventory.ObservedAt < request.IssuedAt-2000 || inventory.ObservedAt > now+2000 ||
 		inventory.Devices == nil || inventory.ConfiguredRoutes == nil {
 		return inventory, fmt.Errorf("mismatched or stale audio inventory")
+	}
+	instance, instanceErr := hex.DecodeString(inventory.InstanceID)
+	if instanceErr != nil || len(instance) != 16 || hex.EncodeToString(instance) != inventory.InstanceID || inventory.InstanceID == "00000000000000000000000000000000" {
+		return inventory, fmt.Errorf("invalid audio node instance")
 	}
 	seen := make(map[string]bool, len(inventory.Devices))
 	for _, device := range inventory.Devices {

@@ -63,9 +63,9 @@ async function main() {
       await delay(100);
     }
     assert.ok(ready, 'Gateway readiness timeout');
-    const inventoryURL = `http://127.0.0.1:${port}/gateway/internal/v1/audio-devices`;
-    const inventoryRequest = { schema_version: 1, request_id: crypto.randomBytes(16).toString('hex'), issued_at_ms: Date.now() };
-    const inventoryPost = (request, domain = 'stream-kit/audio-devices/request/v1\n') => {
+    const inventoryURL = `http://127.0.0.1:${port}/gateway/internal/v2/audio-devices`;
+    const inventoryRequest = { schema_version: 2, request_id: crypto.randomBytes(16).toString('hex'), issued_at_ms: Date.now() };
+    const inventoryPost = (request, domain = 'stream-kit/audio-devices/request/v2\n') => {
       const body = JSON.stringify(request);
       return fetch(inventoryURL, { method: 'POST', body, headers: { 'content-type': 'application/json',
         'x-stream-control-signature': sign(domain, body) }, signal: AbortSignal.timeout(5000) });
@@ -84,7 +84,7 @@ async function main() {
         'x-stream-control-signature':sign(domain,body)},signal:AbortSignal.timeout(10000)});
     };
     assert.equal((await fetch(pairURL,{method:'POST',body:'{}'})).status,401);
-    assert.equal((await pairPost(pairRequest,'stream-kit/audio-devices/request/v1\n')).status,401);
+    assert.equal((await pairPost(pairRequest,'stream-kit/audio-devices/request/v2\n')).status,401);
     assert.equal((await pairPost({...pairRequest,endpoint:{render_device_id:'same',capture_device_id:'same'}})).status,400);
     assert.equal((await pairPost(pairRequest)).status,503);
     assert.equal((await pairPost(pairRequest)).status,401,'Active device checks must reject a consumed nonce');
@@ -98,18 +98,36 @@ async function main() {
     const inventoryResponse = await inventoryPost(inventoryRequest);
     assert.equal(inventoryResponse.status, nativeInventory.status === 0 ? 200 : 503);
     if (process.argv[3]) assert.equal(inventoryResponse.status, 200, 'Full browser acceptance requires an available native audio context');
+    let initialAudioInstance;
     if (inventoryResponse.ok) {
       assert.equal(inventoryResponse.headers.get('cache-control'), 'no-store');
       const inventoryBody = await inventoryResponse.text();
-      assert.equal(inventoryResponse.headers.get('x-stream-control-signature'), sign('stream-kit/audio-devices/response/v1\n', inventoryBody));
+      assert.equal(inventoryResponse.headers.get('x-stream-control-signature'), sign('stream-kit/audio-devices/response/v2\n', inventoryBody));
       const inventory = JSON.parse(inventoryBody);
-      assert.equal(inventory.schema_version, 1);
+      assert.equal(inventory.schema_version, 2);
+      assert.match(inventory.instance_id, /^[0-9a-f]{32}$/);
+      initialAudioInstance = inventory.instance_id;
       assert.equal(inventory.request_id, inventoryRequest.request_id);
       assert.equal(inventory.request_issued_at_ms, inventoryRequest.issued_at_ms);
       assert.ok(Array.isArray(inventory.devices));
       assert.equal(new Set(inventory.devices.map(device => device.id)).size, inventory.devices.length);
       assert.deepEqual(inventory.configured_routes, config.local_audio_targets);
     }
+    const readAudioInstance = async () => {
+      const request = {...inventoryRequest,request_id:crypto.randomBytes(16).toString('hex'),issued_at_ms:Date.now()};
+      const response = await inventoryPost(request);
+      assert.equal(response.status,200);
+      const raw=await response.text();
+      assert.equal(response.headers.get('x-stream-control-signature'),sign('stream-kit/audio-devices/response/v2\n',raw));
+      const inventory=JSON.parse(raw);
+      assert.equal(inventory.request_id,request.request_id);
+      assert.equal(inventory.request_issued_at_ms,request.issued_at_ms);
+      assert.match(inventory.instance_id,/^[0-9a-f]{32}$/);
+      return inventory.instance_id;
+    };
+    assert.equal((await inventoryPost({...inventoryRequest,schema_version:1})).status,400);
+    assert.equal((await inventoryPost(inventoryRequest,'stream-kit/audio-devices/request/v1\n')).status,401);
+    if(initialAudioInstance) assert.equal(await readAudioInstance(),initialAudioInstance,'Boot identity changed in the same process');
     const configurationURL = `http://127.0.0.1:${port}/gateway/internal/v1/configuration`;
     const configurationRequest = async (operation, extra = {}, domain = 'stream-kit/gateway-configuration/request/v1\n') => {
       const request = {schema_version:1,request_id:crypto.randomBytes(16).toString('hex'),issued_at_ms:Date.now(),operation,...extra};
@@ -127,7 +145,7 @@ async function main() {
       return {status:response.status};
     };
     assert.equal((await fetch(configurationURL,{method:'POST',body:'{}'})).status,401);
-    assert.equal((await configurationRequest('read',{},'stream-kit/audio-devices/request/v1\n')).status,401);
+    assert.equal((await configurationRequest('read',{},'stream-kit/audio-devices/request/v2\n')).status,401);
     assert.equal((await configurationRequest('read',{issued_at_ms:Date.now()-10000})).status,400);
     const beforeSettings = await configurationRequest('read');
     assert.equal(beforeSettings.status,200);
@@ -268,6 +286,12 @@ async function main() {
       'x-stream-control-signature':crypto.createHmac('sha256',config.web_server.media_ticket_secret).update('stream-kit/gateway-configuration/request/v1\n').update(oldTrustBody).digest('hex')},body:oldTrustBody,signal:AbortSignal.timeout(3000)});
     assert.equal(oldTrust.status,401,'Restarted gateway still accepts the old trust secret');
     result.checks.push('real gateway restart loads saved revision and rotated trust secret');
+    if(initialAudioInstance) {
+      const restartedAudioInstance=await readAudioInstance();
+      assert.notEqual(restartedAudioInstance,initialAudioInstance,'Restart reused audio authority identity');
+      result.audio_instances={before:initialAudioInstance,after:restartedAudioInstance};
+      result.checks.push('signed audio inventory identity is stable in-process and changes after restart');
+    }
     result.running_revision=applied.running_revision;
     result.runtime=applied.runtime;
     result.checks.push('signed runtime PID matches owned child; instance changes only after restart');

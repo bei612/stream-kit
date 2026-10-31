@@ -8,8 +8,8 @@ use actix_web::{
 use serde::{Deserialize, Serialize};
 use tokio::sync::Semaphore;
 
-const REQUEST_CONTEXT: &[u8] = b"stream-kit/audio-devices/request/v1\n";
-const RESPONSE_CONTEXT: &[u8] = b"stream-kit/audio-devices/response/v1\n";
+const REQUEST_CONTEXT: &[u8] = b"stream-kit/audio-devices/request/v2\n";
+const RESPONSE_CONTEXT: &[u8] = b"stream-kit/audio-devices/response/v2\n";
 // The blocking job retains this permit even if the HTTP request is cancelled.
 static ENUMERATION: Semaphore = Semaphore::const_new(1);
 
@@ -23,6 +23,7 @@ struct Request {
 
 #[derive(Serialize)]
 struct Inventory {
+    instance_id: String,
     schema_version: u32,
     request_id: String,
     request_issued_at_ms: i64,
@@ -37,7 +38,7 @@ fn decode(secret: &str, signature: &str, body: &[u8], now: i64) -> Result<Reques
     }
     super::signed::verify(secret, REQUEST_CONTEXT, signature, body)?;
     let request: Request = serde_json::from_slice(body).map_err(|_| AppError::BadRequest)?;
-    if request.schema_version != 1
+    if request.schema_version != 2
         || request.request_id.len() != 32
         || !request.request_id.bytes().all(|b| b.is_ascii_hexdigit())
         || request.issued_at_ms < now.saturating_sub(5000)
@@ -48,7 +49,7 @@ fn decode(secret: &str, signature: &str, body: &[u8], now: i64) -> Result<Reques
     Ok(request)
 }
 
-#[post("/internal/v1/audio-devices")]
+#[post("/internal/v2/audio-devices")]
 pub async fn list(req: HttpRequest, body: Bytes, app: Data<App>) -> Result<HttpResponse, AppError> {
     let secret = app
         .config()
@@ -93,7 +94,8 @@ pub async fn list(req: HttpRequest, body: Bytes, app: Data<App>) -> Result<HttpR
         };
     drop(control);
     let body = serde_json::to_vec(&Inventory {
-        schema_version: 1,
+        instance_id: crate::node_identity::instance_id().to_owned(),
+        schema_version: 2,
         request_id: request.request_id,
         request_issued_at_ms: request.issued_at_ms,
         observed_at_ms: now_ms(),
@@ -114,7 +116,7 @@ mod tests {
     use super::*;
     #[test]
     fn inventory_requires_its_own_fresh_signed_request() {
-        let body = br#"{"schema_version":1,"request_id":"0123456789abcdef0123456789abcdef","issued_at_ms":1700000000000}"#;
+        let body = br#"{"schema_version":2,"request_id":"0123456789abcdef0123456789abcdef","issued_at_ms":1700000000000}"#;
         let signature =
             super::super::signed::sign("fixture", REQUEST_CONTEXT, body).expect("signature");
         assert!(decode("fixture", &signature, body, 1700000000000).is_ok());
