@@ -31,7 +31,12 @@ const destination=context.createMediaStreamDestination();gain.connect(destinatio
 const player=new AudioElementPlayer();player.setTrack(destination.stream.getAudioTracks()[0]);player.mount(document.body);
 const button=document.createElement('button');button.textContent='Enable audio';document.body.appendChild(button);
 button.onclick=()=>{pcm.onUserInteraction();player.onUserInteraction()};
-context.suspend().then(()=>{document.body.dataset.ready='true'});
+// WebKit may start interrupted before its first user gesture. Calling suspend
+// then waiting for that promise can prevent the test from ever issuing the
+// gesture that resumes it. Readiness means the graph and handler are installed;
+// real running state is still required after the click below.
+if(context.state==='running')void context.suspend();
+document.body.dataset.ready='true';
 (window as any).probe={context,pcm,async microphone(){
   const left=new RTCPeerConnection({iceServers:[]}),right=new RTCPeerConnection({iceServers:[]});
   const errors:string[]=[],tracks:MediaStreamTrack[]=[];
@@ -118,7 +123,8 @@ context.suspend().then(()=>{document.body.dataset.ready='true'});
     page.on('pageerror',error=>errors.push(error.message));
     await page.goto(`http://127.0.0.1:${server.address().port}`);
     await page.waitForFunction(()=>document.body.dataset.ready==='true');
-    assert.equal(await page.evaluate(()=>window.probe.context.state),'suspended');
+    await page.waitForFunction(()=>['suspended','interrupted'].includes(window.probe.context.state));
+    const initialContextState=await page.evaluate(()=>window.probe.context.state);
     await page.getByRole('button',{name:'Enable audio',exact:true}).click();
     await page.waitForFunction(()=>window.probe.context.state==='running'&&!document.querySelector('audio').paused&&!document.querySelector('audio').muted);
     assert.ok(await page.evaluate(()=>{window.probe.feed();return window.probe.pcm.sources.size<=7}),'PCM queue bounded after a burst');
@@ -140,7 +146,7 @@ context.suspend().then(()=>{document.body.dataset.ready='true'});
     await page.evaluate(()=>window.probe.cleanup());
     await page.waitForFunction(()=>window.probe.context.state==='closed'&&document.querySelector('audio').srcObject===null&&document.querySelector('audio').paused);
     assert.deepEqual(errors,[]);
-    fs.writeFileSync(path.join(output,'result.json'),JSON.stringify({passed:true,engine,browser:browser.version(),generatedTrack,codec,microphone,scope:'Production players resume a suspended AudioContext and play a generated silent track on a real click; PCM bursts remain bounded, suspension clears queued audio, and cleanup releases playback. Generated AudioData and real WebCodecs Opus round-trip are checked where supported. Microphone capture/sender pipes send generated audio through local real WebRTC peers, revoke tracks, reacquire and detach on cleanup. No getUserMedia permission, upstream gateway, physical microphone or target recording acceptance.',errors},null,2));
+    fs.writeFileSync(path.join(output,'result.json'),JSON.stringify({passed:true,engine,initialContextState,browser:browser.version(),generatedTrack,codec,microphone,scope:'Production players resume a suspended or interrupted AudioContext and play a generated silent track on a real click; PCM bursts remain bounded, suspension clears queued audio, and cleanup releases playback. Generated AudioData and real WebCodecs Opus round-trip are checked where supported. Microphone capture/sender pipes send generated audio through local real WebRTC peers, revoke tracks, reacquire and detach on cleanup. No getUserMedia permission, upstream gateway, physical microphone or target recording acceptance.',errors},null,2));
     console.log(`${engine}: audio playback and microphone RTP lifecycle passed`);
   }catch(error){
     const state=await page?.evaluate(()=>({ready:document.body.dataset.ready,context:window.probe?.context.state,audioContext:typeof AudioContext,track:typeof MediaStreamTrack,media:document.querySelector('audio')?{paused:document.querySelector('audio').paused,muted:document.querySelector('audio').muted,error:document.querySelector('audio').error?.message}:null})).catch(()=>null);

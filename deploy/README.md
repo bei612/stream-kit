@@ -28,6 +28,11 @@ browser configuration editing and managed encoder restart at
 preserved, and program audio was measured after recovery. These checks use the
 existing Windows host; they do not prove a fresh-OS installer or SCM session
 deployment. No installed service or system default audio device was changed.
+Gateway configuration application also passed with those staged artifacts at
+`artifacts/source-stream/2026-10-31T09-56-05-845Z/`: the production form saved the
+revision, rejected stale edits, restarted the owned gateway, verified its loaded
+revision and configured UDP ports, and recovered both clients in 21.205 seconds
+with program audio. The owned gateway was stopped during cleanup.
 
 On 2026-10-31 the required stability duration was explicitly reduced from 24 to
 4 hours. The 20-client run completed 16,280.012 seconds (about 4.52 hours), with
