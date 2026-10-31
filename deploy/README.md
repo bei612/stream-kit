@@ -67,6 +67,16 @@ reporting finish. Tests include cancellation during an in-flight encoder HTTP
 observation, HTTP/HTTPS shutdown and SQLite release; lifecycle and completion
 tests pass with the Windows race detector.
 
+Managed component stdout/stderr are drained by `exec.Cmd`'s owned copy workers.
+Process completion is published only after those workers finish and final
+unterminated lines are retained. A line retains at most 1 MiB; excess bytes are
+discarded until the next newline with an explicit truncation marker, while the
+pipe continues to drain. This prevents an oversized diagnostic line from
+blocking the child process. A two-second post-exit pipe wait bounds descendants
+holding inherited pipe handles. Tests use a real child emitting a 3 MiB line and
+final stdout/stderr fragments, plus Windows race checks. This change does not
+provide interactive-session launch or validate capture from a Windows service.
+
 The Windows installer requires an existing configuration and management page,
 rejects an existing same-named service with different launch paths, and configures
 failure recovery delays of 5, 15 and 60 seconds. It does not silently migrate an

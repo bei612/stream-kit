@@ -1,13 +1,11 @@
 package component
 
 import (
-	"bufio"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -28,6 +26,7 @@ type ManagedProcess struct {
 	LogBuf     *RingBuffer
 	ExitCode   int           // set by the single Wait() caller
 	Done       chan struct{} // closed when process exits (Wait returns)
+	outputs    []*lineLogWriter
 }
 
 // StartProcess launches a process with stdout/stderr capture.
@@ -49,14 +48,13 @@ func StartProcess(exePath, args, workingDir string, env map[string]string, logBu
 
 	setPlatformAttrs(cmd)
 
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, err
-	}
+	stdout := &lineLogWriter{buffer: logBuf}
+	stderr := &lineLogWriter{buffer: logBuf, prefix: "[STDERR] "}
+	// exec owns the copy workers; Wait joins them before closing Done.
+	cmd.Stdout, cmd.Stderr = stdout, stderr
+	// A descendant may inherit a pipe after its parent exits. Do not let that
+	// keep component ownership or service shutdown pending indefinitely.
+	cmd.WaitDelay = 2 * time.Second
 
 	if err := cmd.Start(); err != nil {
 		return nil, err
@@ -68,10 +66,8 @@ func StartProcess(exePath, args, workingDir string, env map[string]string, logBu
 		InstanceID: instanceID,
 		LogBuf:     logBuf,
 		Done:       make(chan struct{}),
+		outputs:    []*lineLogWriter{stdout, stderr},
 	}
-
-	go captureOutput(stdout, logBuf, "")
-	go captureOutput(stderr, logBuf, "[STDERR] ")
 
 	return mp, nil
 }
@@ -80,6 +76,9 @@ func StartProcess(exePath, args, workingDir string, env map[string]string, logBu
 // Must be called by exactly one goroutine (waitForExit in manager).
 func (mp *ManagedProcess) RunWait() {
 	err := mp.Cmd.Wait()
+	for _, output := range mp.outputs {
+		output.flush()
+	}
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			mp.ExitCode = exitErr.ExitCode()
@@ -150,15 +149,6 @@ func preflight(parent context.Context, cfg config.ComponentConfig) error {
 		return fmt.Errorf("组件原生配置预检失败，请检查配置及运行环境")
 	}
 	return nil
-}
-
-func captureOutput(r io.ReadCloser, buf *RingBuffer, prefix string) {
-	scanner := bufio.NewScanner(r)
-	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
-	for scanner.Scan() {
-		line := strings.TrimRight(scanner.Text(), "\r")
-		buf.Write(prefix + line)
-	}
 }
 
 // splitArgs tokenizes a command-line string respecting double and single quotes.
