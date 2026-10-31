@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths-ignore:
       - 'docs/**'
+      - '.github/workflows/windows-product-release.yml'
+      - '.github/workflows/inspect-linux-renderer.yml'
+      - '.github/scripts/**'
       - '**/*.md'
       - 'contracts/windows-installation/**'
       - 'contracts/audio-devices/windows-physical-*.json'
@@ -13,6 +16,9 @@ on:
     branches: [main]
     paths-ignore:
       - 'docs/**'
+      - '.github/workflows/windows-product-release.yml'
+      - '.github/workflows/inspect-linux-renderer.yml'
+      - '.github/scripts/**'
       - '**/*.md'
       - 'contracts/windows-installation/**'
       - 'contracts/audio-devices/windows-physical-*.json'
