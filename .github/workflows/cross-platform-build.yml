@@ -159,6 +159,9 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npx --no-install playwright install --with-deps chromium firefox
+      - name: Install WebKit media test runtime on Linux
+        if: runner.os == 'Linux'
+        run: npx --no-install playwright install --with-deps webkit
       # The production audio pipe type graph imports generated protocol bindings.
       # Run after the complete gateway build, not in the management-only job.
       - name: Verify browser audio and microphone RTP lifecycle
@@ -170,6 +173,15 @@ jobs:
           for engine in chromium firefox; do
             BROWSER_ENGINE="$engine" node scripts/test-audio-playback-browser.cjs
           done
+      # The Windows Playwright WebKit build lacks Web Audio and media tracks.
+      # Exercise the actual media APIs on Linux instead of counting that engine
+      # as supported from management-page-only tests.
+      - name: Verify WebKit audio and microphone RTP lifecycle
+        if: runner.os == 'Linux'
+        working-directory: .
+        env:
+          BROWSER_ENGINE: webkit
+        run: node scripts/test-audio-playback-browser.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -180,6 +192,11 @@ jobs:
       - run: node ../../scripts/smoke-gateway-browser.cjs
         env:
           BROWSER_ENGINE: firefox
+      - name: Verify WebKit viewer assets and WASM protocol bindings
+        if: runner.os == 'Linux'
+        run: node ../../scripts/smoke-gateway-browser.cjs
+        env:
+          BROWSER_ENGINE: webkit
       - uses: actions/upload-artifact@v4
         if: always()
         with:
