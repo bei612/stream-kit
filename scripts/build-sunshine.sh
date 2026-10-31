@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Source build only: installs dependency outputs into .local, never the host OS.
+# Additional arguments are forwarded unchanged to the Sunshine CMake configure step.
 set -euo pipefail
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$root"
@@ -43,6 +44,6 @@ cmake -S third_party/sunshine -B "$build" -G Ninja \
   -DFFMPEG_PREPARED_BINARIES="$(native_path "$deps/install/ffmpeg")" \
   -DSUNSHINE_ASSETS_DIR=assets -DSUNSHINE_PUBLISHER_NAME=Stream-Kit \
   -DSUNSHINE_PUBLISHER_WEBSITE=https://github.com/bei612/stream-kit \
-  -DSUNSHINE_PUBLISHER_ISSUE_URL=https://github.com/bei612/stream-kit/issues
+  -DSUNSHINE_PUBLISHER_ISSUE_URL=https://github.com/bei612/stream-kit/issues "$@"
 cmake --build "$build" --parallel "$jobs"
 echo "Source build completed: $build"

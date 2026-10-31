@@ -1,0 +1,81 @@
+name: linux-sunshine-build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'third_party/sunshine/**'
+      - 'third_party-manifests/sunshine-dependencies.json'
+      - 'third_party-manifests/upstream-lock.json'
+      - 'scripts/build-sunshine.sh'
+      - 'scripts/test-audio-target-linux.sh'
+      - 'tools/sunshine-codec-probe/**'
+      - 'tools/check-sunshine-vendor.cjs'
+      - 'tools/test-source-patching.cmake'
+      - '.github/workflows/linux-sunshine-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-sunshine-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sunshine:
+    name: Full Linux Sunshine (software and VAAPI)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.4.0'
+      - name: Install distribution build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build build-essential clang autoconf automake libtool meson nasm \
+            pkg-config patch texinfo python3-jinja2 zlib1g-dev libass-dev libfreetype6-dev \
+            libgnutls28-dev libmp3lame-dev libopus-dev libsdl2-dev libvorbis-dev libnuma-dev \
+            libcap-dev libcurl4-openssl-dev libdrm-dev libevdev-dev libgbm-dev libgl-dev \
+            libminiupnpc-dev libpipewire-0.3-dev libpulse-dev libssl-dev libsystemd-dev \
+            libudev-dev libva-dev libwayland-dev libx11-dev libx11-xcb-dev libxcb-dri3-dev \
+            libxcb-res0-dev libxcb-composite0-dev libxcb-shm0-dev libxcb-xfixes0-dev \
+            libxfixes-dev libxrandr-dev libxtst-dev libvulkan-dev glslang-tools \
+            qt6-base-dev qt6-svg-dev pulseaudio pulseaudio-utils xvfb xauth x11-utils
+      - name: Build vendored codecs and integrated Sunshine
+        env:
+          BUILD_JOBS: '2'
+        run: |
+          mkdir -p artifacts/linux-sunshine
+          echo '::add-matcher::third_party/sunshine/.github/matchers/gcc.json'
+          # This profile validates the complete application with software/VAAPI encoding.
+          # CUDA-specific compilation and GPU runtime acceptance remain separate requirements.
+          bash scripts/build-sunshine.sh -DSUNSHINE_ENABLE_CUDA=OFF -DBUILD_DOCS=OFF 2>&1 | tee artifacts/linux-sunshine/build.log
+      - name: Verify capture in the integrated test executable
+        timeout-minutes: 2
+        run: |
+          STREAM_KIT_TEST_X11_CAPTURE=1 xvfb-run -a sh scripts/test-audio-target-linux.sh --application-only "$GITHUB_WORKSPACE/.local/cmake-build-sunshine/tests/test_sunshine" 2>&1 | tee artifacts/linux-sunshine/runtime.log
+      - name: Publish failure details to the check
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in ('build', 'runtime'):
+              path = Path(f'artifacts/linux-sunshine/{name}.log')
+              if path.exists():
+                  tail = '\n'.join(path.read_text(errors='replace').splitlines()[-60:])
+                  escaped = tail.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                  print(f'::error title=Linux Sunshine {name}::{escaped}')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-sunshine-source-build
+          path: |
+            artifacts/linux-sunshine/
+            artifacts/audio-target/
+            .local/cmake-build-sunshine/sunshine
+          if-no-files-found: error
