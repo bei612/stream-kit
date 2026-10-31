@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "commit": "6c98ccb0d6aaae2e42c6256245ee51ff9d063e3a",
+  "scope": "Client microphone sender acknowledgement, native closed-peer rejection and explicit retry. Generated silent MediaStream tracks; not physical microphone, native target recording or Sunshine stream acceptance.",
+  "tests": {
+    "lifecycle_passed": 99,
+    "typescript_no_emit": true,
+    "production_webpack": true,
+    "webpack_warnings": 3
+  },
+  "browsers": [
+    {
+      "engine": "chromium",
+      "version": "155.0.8059.41",
+      "normal_microphone": {
+        "requests": 2,
+        "packets": 3,
+        "resumedPackets": 9,
+        "revoked": true,
+        "revokedDetached": true,
+        "grantDidNotCapture": true,
+        "allStopped": true,
+        "detached": true,
+        "sourceLive": true,
+        "errors": []
+      },
+      "binding_failure": {
+        "rejected": true,
+        "noAutomaticCapture": true,
+        "explicitRetry": true,
+        "allStopped": true,
+        "detached": true,
+        "senderErrors": [
+          "Microphone sender update failed: InvalidStateError: Failed to execute 'replaceTrack' on 'RTCRtpSender': The peer connection is closed.",
+          "Microphone sender update failed: InvalidStateError: Failed to execute 'replaceTrack' on 'RTCRtpSender': The peer connection is closed.",
+          "Microphone sender update failed: InvalidStateError: Failed to execute 'replaceTrack' on 'RTCRtpSender': The peer connection is closed."
+        ]
+      },
+      "receipt_sha256": "77705802778b497f44b08153512fb7eff32189f1bbe3dc67837002c952e62725",
+      "probe_bundle_sha256": "02abfb21eb163cae3709fd6f9e77b85b3bfc5110c9e1195ea3db121cf00c5586"
+    },
+    {
+      "engine": "firefox",
+      "version": "157.0",
+      "normal_microphone": {
+        "requests": 2,
+        "packets": 3,
+        "resumedPackets": 6,
+        "revoked": true,
+        "revokedDetached": true,
+        "grantDidNotCapture": true,
+        "allStopped": true,
+        "detached": true,
+        "sourceLive": true,
+        "errors": []
+      },
+      "binding_failure": {
+        "rejected": true,
+        "noAutomaticCapture": true,
+        "explicitRetry": true,
+        "allStopped": true,
+        "detached": true,
+        "senderErrors": [
+          "Microphone sender update failed: InvalidStateError: Peer connection is closed",
+          "Microphone sender update failed: InvalidStateError: Peer connection is closed",
+          "Microphone sender update failed: InvalidStateError: Peer connection is closed"
+        ]
+      },
+      "receipt_sha256": "4288c60a66956fcd70c9a1476efbb6a26adebb784a22b54ee52711a4921092f7",
+      "probe_bundle_sha256": "792a99d96faf75f5771ad8a7b694b615a33f8a5a91d4b5001f286370f02a2e0b"
+    }
+  ],
+  "source_hashes": {
+    "third_party/moonlight-web-stream/web/stream/audio/index.ts": "760937bedf4860d28727b62c4e7544d3bd885e615f0d287c7001905fe983530c",
+    "third_party/moonlight-web-stream/web/stream/audio/microphone_capture.ts": "c7726825b0d8703e3ba64fa3ccea8d7b62eb9b9afd6034aa1a234617d34b2fa6",
+    "third_party/moonlight-web-stream/web/stream/audio/microphone_pipe.ts": "0f1847c8369b1eb0428d7bb330bf02c92620618422d19f5c1c0cff20610b7285",
+    "third_party/moonlight-web-stream/web/stream/audio/rtp_track_sender_pipe.ts": "b07fcefdda18324503aff489e8b7daac9038090fd38c6796e5b848d1557ac332"
+  }
+}
