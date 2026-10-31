@@ -17,6 +17,9 @@ async function main(){
   const manifest=JSON.parse(fs.readFileSync(path.join(bundle,'bundle-manifest.json'),'utf8'));
   const output=path.join(root,'artifacts/control-bundle',new Date().toISOString().replace(/[:.]/g,'-'));
   fs.mkdirSync(output,{recursive:true});
+  // A fresh CI checkout has no developer-local directory. Keep credentials
+  // outside uploaded evidence, but create their parent before mkdtemp.
+  fs.mkdirSync(path.join(root,'.local'),{recursive:true});
   const scratch=fs.mkdtempSync(path.join(root,'.local/control-bundle-'));
   const reservation=net.createServer();
   await new Promise(resolve=>reservation.listen(0,'127.0.0.1',resolve));
