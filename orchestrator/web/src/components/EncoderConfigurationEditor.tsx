@@ -51,7 +51,7 @@ export function EncoderConfigurationEditor() {
           if(field.choices?.length&&!field.choices.includes(String(value)))throw new Error(`${field.label}请选择支持的值。`)
           if(field.type==='integer') {
             const text=String(value),number=Number(text)
-            if((typeof value!=='string'&&typeof value!=='number')||!/^\+?\d+$/.test(text)||!Number.isSafeInteger(number)||number<(field.minimum??0)||(field.maximum!==undefined&&number>field.maximum))throw new Error(`${field.label}必须为 ${field.minimum??0} 至 ${field.maximum??'允许上限'} 范围内的整数。`)
+            if((typeof value!=='string'&&typeof value!=='number')||!/^[+-]?\d+$/.test(text)||!Number.isSafeInteger(number)||number<(field.minimum??0)||(field.maximum!==undefined&&number>field.maximum))throw new Error(`${field.label}必须为 ${field.minimum??0} 至 ${field.maximum??'允许上限'} 范围内的整数。`)
           }
         }
       }
