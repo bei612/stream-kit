@@ -9,6 +9,9 @@
 #ifndef ArtifactDir
   #error ArtifactDir is required
 #endif
+#ifndef InstallerSuffix
+  #define InstallerSuffix ""
+#endif
 
 [Setup]
 AppId={{E7FD370E-32FD-4989-8FE8-C5F9D56187BC}
@@ -33,7 +36,7 @@ RestartIfNeededByRun=no
 Compression=lzma2
 SolidCompression=yes
 OutputDir={#ArtifactDir}
-OutputBaseFilename=stream-kit-preview-{#Copy(SourceCommit, 1, 12)}-windows-amd64-setup
+OutputBaseFilename=stream-kit-preview-{#Copy(SourceCommit, 1, 12)}-windows-amd64-setup{#InstallerSuffix}
 UninstallDisplayIcon={app}\orchestrator\orchestrator.exe
 SetupLogging=yes
 
@@ -120,7 +123,7 @@ end;
 function NextButtonClick(CurPageID: Integer): Boolean;
 begin
   Result := True;
-  if CurPageID = AdminPage.ID then begin
+  if (CurPageID = AdminPage.ID) and not WizardSilent then begin
     Result := (Trim(AdminPage.Values[0]) <> '') and (Length(UTF8Encode(AdminPage.Values[0])) <= 128) and
       (Length(AdminPage.Values[1]) >= 12) and (Length(UTF8Encode(AdminPage.Values[1])) <= 1024) and
       (AdminPage.Values[1] = AdminPage.Values[2]);

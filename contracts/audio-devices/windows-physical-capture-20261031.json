@@ -1,0 +1,27 @@
+{
+    "schema_version":  1,
+    "source_commit":  "49b6260c39d30ee800b3805f95ab7137bb4f27bc",
+    "scope":  "Physical-device getUserMedia through the production MicrophoneCapture owner, signal observation and revocation; no gateway/target/UE5 or permission-prompt acceptance",
+    "browser":  "156.0.8078.4",
+    "permission_mode":  "automation grants browser permission under test authorization; OS permissions remain in effect",
+    "passed":  true,
+    "capture":  {
+                    "label":  "麦克风 (Realtek(R) Audio)",
+                    "sample_rate":  48000,
+                    "channels":  1,
+                    "echo_cancellation":  true,
+                    "noise_suppression":  true,
+                    "auto_gain_control":  true,
+                    "sampled_frames":  61440,
+                    "peak":  0.008966460824012756,
+                    "rms":  0.0013747248387010413,
+                    "stopped_after_revocation":  true,
+                    "regrant_stays_idle":  true
+                },
+    "result_sha256":  "8560f378711ffd89105a8a29077b9000fc267f1595500f681aa21fa9dff74783",
+    "limitations":  [
+                        "Physical capture preflight only; no gateway uplink, target recording, audience audio or UE5 claim",
+                        "Browser permission was granted by automation under task authorization; no permission dialog acceptance"
+                    ],
+    "capture_source_sha256":  "8f66be549f9383d0a8e32d6cf169a971b099632db42254f322de0944709d11fd"
+}

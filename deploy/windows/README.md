@@ -134,3 +134,11 @@ delivery scope; the absence of a commercial signing certificate is not a release
 blocker. Compilation/unit tests are not installation acceptance;
 real elevated installation, streaming under SCM, and uninstall still require
 validation before publishing an installer for production deployment.
+
+For an installer-only correction, append `--reuse-payload` to reuse an immutable,
+hash-verified platform bundle instead of recompiling its executable components.
+All payload components must still have the same payload source revision. The
+installer manifest records `commit` for that payload, `installer_source_commit`
+for its clean setup recipe, and `reused_payload`; the EXE filename gains the
+recipe revision suffix. Reuse does not claim that older binaries contain newer
+runtime changes. It is for explicitly reviewed installer-only releases.
