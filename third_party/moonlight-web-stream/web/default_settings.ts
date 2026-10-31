@@ -23,6 +23,7 @@ const trueDefaultSettings: Settings =
     "canvasVsync": false,
     "playAudioLocal": false,
     "microphone": false,
+    "microphoneInput": { deviceId: "", echoCancellation: true, noiseSuppression: true, autoGainControl: true },
     // possible values: "highres", "normal"
     "mouseScrollMode": "highres",
     // possible values: "relative", "follow", "pointAndDrag"

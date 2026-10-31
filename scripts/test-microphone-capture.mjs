@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
 import ts from '../orchestrator/web/node_modules/typescript/lib/typescript.js'
-import { MicrophoneCapture } from '../third_party/moonlight-web-stream/web/stream/audio/microphone_capture.ts'
+import { MicrophoneCapture, microphoneInputOptions } from '../third_party/moonlight-web-stream/web/stream/audio/microphone_capture.ts'
 
 function track() {
   return { readyState: 'live', enabled: true, muted: false, stops: 0,
@@ -12,6 +12,34 @@ function track() {
 function stream(audio, extra = []) {
   return { getAudioTracks: () => audio, getTracks: () => [...audio, ...extra] }
 }
+
+test('legacy microphone settings preserve processing defaults and reject invalid option values',()=>{
+  assert.deepEqual(microphoneInputOptions(),{deviceId:'',echoCancellation:true,noiseSuppression:true,autoGainControl:true})
+  assert.deepEqual(microphoneInputOptions({deviceId:'x'.repeat(4097),echoCancellation:'false',noiseSuppression:false}),{deviceId:'',echoCancellation:true,noiseSuppression:false,autoGainControl:true})
+})
+
+test('selected microphone uses exact native constraints and cannot silently switch devices',async()=>{
+  const exports={},requests=[],audio=track()
+  let unavailable=false
+  const source=readFileSync(new URL('../third_party/moonlight-web-stream/web/stream/audio/microphone_capture.ts',import.meta.url),'utf8')
+  vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,{
+    exports,navigator:{mediaDevices:{getUserMedia:async constraints=>{
+      requests.push(JSON.parse(JSON.stringify(constraints)))
+      if(unavailable)throw new Error('OverconstrainedError: selected microphone unavailable')
+      return stream([audio])
+    }}}
+  })
+  const capture=new exports.MicrophoneCapture()
+  capture.configure({deviceId:'physical-input',echoCancellation:false,noiseSuppression:false,autoGainControl:false})
+  await capture.acquire()
+  assert.deepEqual(requests[0],{audio:{deviceId:{exact:'physical-input'},echoCancellation:false,noiseSuppression:false,autoGainControl:false},video:false})
+  assert.throws(()=>capture.configure({deviceId:'other-device'}),/new connection/)
+  capture.setAllowed(false);capture.setAllowed(true)
+  unavailable=true
+  await assert.rejects(capture.acquire(),/selected microphone unavailable/)
+  assert.equal(requests.length,2,'failed exact selection must not retry the system default')
+  capture.dispose()
+})
 
 function pipeFixture(request) {
   let capture, cleanups = 0, gestures = 0, detachments = 0

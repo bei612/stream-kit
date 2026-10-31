@@ -244,6 +244,7 @@ for (const outcome of ['same', 'epoch', 'viewer', 'failure', 'stop', 'no-consent
       if (outcome === 'viewer') access.role = 'viewer'
     })
     f.stream.settings.microphone = true
+    f.stream.settings.microphoneInput = {deviceId:'selected-input',echoCancellation:true,noiseSuppression:false,autoGainControl:true}
     f.stream.mediaAccess = { sessionId: 's', connectionId: 'c', role: 'controller', microphoneEnabled: true, controlEpoch: 7 }
     let disposed = 0, resumed = 0
     f.stream.microphoneListener = { isLive: () => outcome !== 'no-consent', cleanup() { disposed++ } }
@@ -252,13 +253,16 @@ for (const outcome of ['same', 'epoch', 'viewer', 'failure', 'stop', 'no-consent
     f.stream.cleanupMicrophone()
     assert.equal(disposed, 1)
     assert.equal(!!f.stream.microphoneResumeKey, outcome !== 'no-consent')
-    const source = { setAllowed() {}, cleanup() {}, async resumeCapture() { resumed++ } }
+    const configured=[]
+    const source = { configure(input) { configured.push(input) }, setAllowed() {}, cleanup() {}, async resumeCapture() { resumed++ } }
     f.transport.connectMicrophonePipeline = async () => source
     const pending = f.stream.configureMicrophone('audiotrack')
     await Promise.resolve()
     if (outcome === 'stop') await f.stream.stop()
     gate.resolve()
     await pending
+    assert.equal(configured.length,outcome==='stop'?0:1)
+    if(configured.length)assert.equal(configured[0],f.stream.settings.microphoneInput)
     assert.equal(resumed, outcome === 'same' ? 1 : 0)
     assert.equal(f.stream.microphoneResumeKey, null)
   })

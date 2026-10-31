@@ -4,13 +4,14 @@ import { globalObject } from "../../util";
 import { Logger } from "../log";
 import { Pipe, PipeInfo } from "../pipeline";
 import { addPipePassthrough } from "../pipeline/pipes";
-import { MicrophoneCapture } from "./microphone_capture";
+import { MicrophoneCapture, MicrophoneInputOptions } from "./microphone_capture";
 
 export interface MicrophoneSource extends Pipe {
     cleanup(): void
     isLive(): boolean
     setAllowed(allowed: boolean): void
     resumeCapture(): Promise<void>
+    configure(input: MicrophoneInputOptions): void
 }
 
 export class MicrophonePipe implements MicrophoneSource {
@@ -65,6 +66,7 @@ export class MicrophonePipe implements MicrophoneSource {
     }
 
     isLive(): boolean { return this.capture.isLive() }
+    configure(input: MicrophoneInputOptions): void { this.capture.configure(input) }
     resumeCapture(): Promise<void> { return this.tryRequestMicrophone() }
     setAllowed(allowed: boolean): void {
         if (!allowed) {

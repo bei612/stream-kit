@@ -749,6 +749,7 @@ export class Stream implements Component {
         const generation = this.pipelineGeneration
         const source = await transport.connectMicrophonePipeline(pipeline) as MicrophoneSource | null
         if (!this.isCurrentPipeline(transport, generation)) { source?.cleanup(); return }
+        source?.configure(this.settings.microphoneInput)
         source?.setAllowed(this.microphoneAllowed())
         this.microphoneListener?.cleanup()
         this.microphoneListener = source

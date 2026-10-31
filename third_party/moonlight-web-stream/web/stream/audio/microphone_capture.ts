@@ -1,4 +1,20 @@
 /** Owns the browser recording resource independently of a particular transport. */
+export type MicrophoneInputOptions = {
+    deviceId: string
+    echoCancellation: boolean
+    noiseSuppression: boolean
+    autoGainControl: boolean
+}
+
+export function microphoneInputOptions(value?: Partial<MicrophoneInputOptions> | null): MicrophoneInputOptions {
+    return {
+        deviceId: typeof value?.deviceId === "string" && value.deviceId.length <= 4096 ? value.deviceId : "",
+        echoCancellation: typeof value?.echoCancellation === "boolean" ? value.echoCancellation : true,
+        noiseSuppression: typeof value?.noiseSuppression === "boolean" ? value.noiseSuppression : true,
+        autoGainControl: typeof value?.autoGainControl === "boolean" ? value.autoGainControl : true,
+    }
+}
+
 export class MicrophoneCapture {
     private track: MediaStreamTrack | null = null
     private pending: Promise<MediaStreamTrack | null> | null = null
@@ -6,12 +22,22 @@ export class MicrophoneCapture {
     private allowed = true
     private generation = 0
     private request: () => Promise<MediaStream>
+    private input = microphoneInputOptions()
 
-    constructor(request = () => navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-        video: false,
-    })) {
-        this.request = request
+    constructor(request?: () => Promise<MediaStream>) {
+        this.request = request ?? (() => navigator.mediaDevices.getUserMedia({
+            audio: {
+                ...(this.input.deviceId ? { deviceId: { exact: this.input.deviceId } } : {}),
+                echoCancellation: this.input.echoCancellation,
+                noiseSuppression: this.input.noiseSuppression,
+                autoGainControl: this.input.autoGainControl,
+            }, video: false,
+        }))
+    }
+
+    configure(input?: Partial<MicrophoneInputOptions>): void {
+        if (this.pending || this.isLive()) throw new Error("Microphone input changes require a new connection")
+        this.input = microphoneInputOptions(input)
     }
 
     static supported(environment: { isSecureContext?: boolean; navigator?: { mediaDevices?: { getUserMedia?: unknown } } }): boolean {

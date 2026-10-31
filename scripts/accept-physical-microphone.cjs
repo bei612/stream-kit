@@ -35,7 +35,8 @@ const server=http.createServer((request,response)=>{
    if(matching.length!==1)throw Error(`Expected one explicit capture device, found ${matching.length}; inputs: ${devices.filter(d=>d.kind==='audioinput').map(d=>d.label).join(', ')}`);
    const device=matching[0];
    if(/cable|virtual|stereo mix|monitor|fake/i.test(device.label))throw Error('Selected device identifies a virtual/test/loopback source');
-   const capture=new MicrophoneCapture(()=>navigator.mediaDevices.getUserMedia({audio:{deviceId:{exact:device.deviceId},echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false}));
+   const capture=new MicrophoneCapture();
+   capture.configure({deviceId:device.deviceId,echoCancellation:true,noiseSuppression:true,autoGainControl:true});
    let audio;
    try {
     const track=await capture.acquire();if(!track||!capture.owns(track)||!capture.isLive())throw Error('Native capture did not return a live owned track');

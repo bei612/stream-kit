@@ -4,6 +4,7 @@ import { PageStyle } from "../styles/index"
 import { getLanguageOptions, getTranslations, Language, normalizeLanguage } from "../i18n"
 import { Component, ComponentEvent } from "./index"
 import { InputComponent, SelectComponent } from "./input"
+import { microphoneInputOptions, MicrophoneInputOptions } from "../stream/audio/microphone_capture"
 import { SidebarEdge } from "./sidebar/index"
 import { StreamPermissions } from "../api_bindings";
 
@@ -23,6 +24,7 @@ export type Settings = {
     canvasVsync: boolean
     playAudioLocal: boolean
     microphone: boolean
+    microphoneInput: MicrophoneInputOptions
     mouseScrollMode: MouseScrollMode
     mouseMode: MouseMode
     touchMode: TouchMode
@@ -109,6 +111,7 @@ export function setLocalStreamSettings(settings?: Settings) {
 export type StreamSettingsChangeListener = (event: ComponentEvent<StreamSettingsComponent>) => void
 
 function makeSettingsValid(permissions: StreamPermissions, settings: Settings) {
+    settings.microphoneInput = microphoneInputOptions(settings.microphoneInput)
     if (permissions.maximum_bitrate_kbps != null && permissions.maximum_bitrate_kbps < settings.bitrate) {
         settings.bitrate = permissions.maximum_bitrate_kbps
     }
@@ -167,6 +170,10 @@ export class StreamSettingsComponent implements Component {
 
     private microphoneHeader: HTMLHeadingElement = document.createElement("h3")
     private microphone: InputComponent
+    private microphoneDevice: SelectComponent
+    private microphoneEcho: InputComponent
+    private microphoneNoise: InputComponent
+    private microphoneGain: InputComponent
 
     private mouseHeader: HTMLHeadingElement = document.createElement("h3")
     private mouseScrollMode: SelectComponent
@@ -366,6 +373,49 @@ export class StreamSettingsComponent implements Component {
         this.microphone.addChangeListener(this.onSettingsChange.bind(this))
         this.microphone.mount(this.divElement)
 
+        const inputSettings = microphoneInputOptions(settings.microphoneInput)
+        const inputBox = document.createElement("div")
+        this.divElement.appendChild(inputBox)
+        const deviceBox = document.createElement("div")
+        inputBox.appendChild(deviceBox)
+        const initialDevices = [{value:"",name:i.microphoneDefaultDevice}, ...(inputSettings.deviceId ? [{value:inputSettings.deviceId,name:i.microphonePreviousDevice}] : [])]
+        this.microphoneDevice = new SelectComponent("microphoneDevice", initialDevices, {displayName:i.microphoneInputDevice,preSelectedOption:inputSettings.deviceId})
+        this.microphoneDevice.addChangeListener(this.onSettingsChange.bind(this))
+        this.microphoneDevice.mount(deviceBox)
+        const refresh = document.createElement("button")
+        refresh.type = "button"
+        refresh.innerText = i.microphoneRefreshDevices
+        inputBox.appendChild(refresh)
+        const inputHelp = document.createElement("p")
+        inputHelp.innerText = i.microphoneInputHelp
+        inputBox.appendChild(inputHelp)
+        const refreshDevices = async () => {
+            if (!navigator.mediaDevices?.enumerateDevices) { refresh.disabled = true; return }
+            refresh.disabled = true
+            try {
+                const devices = (await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === "audioinput" && device.deviceId && !["default","communications"].includes(device.deviceId))
+                const selected = this.microphoneDevice.getValue() ?? ""
+                const options = [{value:"",name:i.microphoneDefaultDevice}, ...devices.map((device,index) => ({value:device.deviceId,name:device.label || `${i.microphone} ${index+1}`}))]
+                if (selected && !options.some(option=>option.value===selected)) options.push({value:selected,name:i.microphonePreviousDevice})
+                this.microphoneDevice.unmount(deviceBox)
+                this.microphoneDevice = new SelectComponent("microphoneDevice", options, {displayName:i.microphoneInputDevice,preSelectedOption:selected})
+                this.microphoneDevice.addChangeListener(this.onSettingsChange.bind(this))
+                this.microphoneDevice.mount(deviceBox)
+                inputHelp.innerText = i.microphoneInputHelp
+            } catch { inputHelp.innerText = i.microphoneDeviceListFailed }
+            finally { refresh.disabled = false }
+        }
+        refresh.addEventListener("click", () => { void refreshDevices() })
+        // Enumeration never requests access or starts capture. Only the current
+        // controller's explicit stream interaction may open a microphone.
+        void refreshDevices()
+        this.microphoneEcho = new InputComponent("microphoneEchoCancellation","checkbox",i.microphoneEchoCancellation,{checked:inputSettings.echoCancellation})
+        this.microphoneNoise = new InputComponent("microphoneNoiseSuppression","checkbox",i.microphoneNoiseSuppression,{checked:inputSettings.noiseSuppression})
+        this.microphoneGain = new InputComponent("microphoneAutoGainControl","checkbox",i.microphoneAutoGainControl,{checked:inputSettings.autoGainControl})
+        for (const field of [this.microphoneEcho,this.microphoneNoise,this.microphoneGain]) {
+            field.addChangeListener(this.onSettingsChange.bind(this)); field.mount(inputBox)
+        }
+
         // Mouse
         this.mouseHeader.innerText = i.mouse
         this.divElement.appendChild(this.mouseHeader)
@@ -559,6 +609,7 @@ export class StreamSettingsComponent implements Component {
         settings.playAudioLocal = this.playAudioLocal.isChecked()
 
         settings.microphone = this.microphone.isChecked()
+        settings.microphoneInput = {deviceId:this.microphoneDevice.getValue() ?? "",echoCancellation:this.microphoneEcho.isChecked(),noiseSuppression:this.microphoneNoise.isChecked(),autoGainControl:this.microphoneGain.isChecked()}
 
         settings.mouseScrollMode = this.mouseScrollMode.getValue() as any
         settings.mouseMode = this.mouseMode.getValue() as MouseMode
