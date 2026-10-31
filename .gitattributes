@@ -16,3 +16,4 @@ third_party/sunshine/** text=auto eol=lf
 orchestrator/vendor/** -text eol=lf
 # This locally replaced module is copied into vendor by the same command.
 third_party/sevenzip/** -text
+scripts/licenses/**/LICENSE* -text

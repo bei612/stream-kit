@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 import test from 'node:test'
-import { collectNotices } from '../orchestrator/web/build-tools/notices.ts'
+import { collectNotices } from './lib/frontend-notices.ts'
 
 function fixture(t) {
   const base = fs.realpathSync(os.tmpdir())
@@ -50,6 +50,26 @@ test('installed version must match the locked dependency', t => {
   const selected = add('runtime')
   fs.writeFileSync(path.join(path.dirname(selected), 'package.json'), JSON.stringify({name:'runtime',version:'9.0.0'}))
   assert.throws(() => collectNotices(root, [selected]), /does not match lockfile/)
+})
+
+test('upstream supplemental notices require exact package integrity and source hash', t => {
+  const {root, add} = fixture(t)
+  const selected = add('omitted-license', null)
+  const lockPath = path.join(root, 'package-lock.json')
+  const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'))
+  lock.packages['node_modules/omitted-license'].integrity = 'sha512-fixture'
+  fs.writeFileSync(lockPath, JSON.stringify(lock))
+  const file = path.join(root, 'LICENSE-upstream')
+  const text = 'Exact upstream fixture license\n'
+  fs.writeFileSync(file, text)
+  const supplement = {name:'omitted-license', version:'1.2.3', integrity:'sha512-fixture', notices:[{file,sha256:createHash('sha256').update(text).digest('hex'),source:'https://example.test/pinned/LICENSE'}]}
+  const result = collectNotices(root, [selected], [supplement])
+  assert.equal(result[0].notices[0].text, text)
+  assert.equal(result[0].notices[0].source, supplement.notices[0].source)
+  assert.throws(() => collectNotices(root, [selected], [{...supplement,integrity:'sha512-other'}]), /no license text/)
+  assert.throws(() => collectNotices(root, [selected], [{...supplement,version:'2.0.0'}]), /no license text/)
+  fs.writeFileSync(file, 'changed')
+  assert.throws(() => collectNotices(root, [selected], [supplement]), /hash mismatch/)
 })
 
 test('non-file notices and dependencies outside the frontend tree fail', t => {

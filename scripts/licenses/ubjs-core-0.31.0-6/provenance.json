@@ -1,0 +1,12 @@
+{
+  "name": "@ubjs/core",
+  "version": "0.31.0-6",
+  "integrity": "sha512-pscv6Zj8mVmd5+ikb1Zr6XZ0yqYwKGeIV8HU8rf9sTvs7GW34OARAp03xFJ7rE9XE4R6LgwQhzYW9knAuz5yxA==",
+  "registry_metadata": "https://registry.npmjs.org/@ubjs%2fcore/0.31.0-6",
+  "git_head": "3dd1cd1353750dc3bfbbf4bb4d4ccde26b0fbd2e",
+  "reason": "Published npm files omit the upstream license; preserve the exact version's license notice and the referenced Mozilla license text.",
+  "notices": [
+    {"file": "LICENSE", "sha256": "d1cc4c0ada218e8a336dc8c3d8bb7d5b1c8dedfa31f5b25c9ea1759d21b8b62d", "source": "https://raw.githubusercontent.com/jhugman/uniffi-bindgen-react-native/3dd1cd1353750dc3bfbbf4bb4d4ccde26b0fbd2e/LICENSE"},
+    {"file": "LICENSE-MPL-2.0", "sha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04", "source": "https://www.mozilla.org/media/MPL/2.0/index.txt"}
+  ]
+}

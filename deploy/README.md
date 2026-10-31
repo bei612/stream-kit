@@ -192,6 +192,20 @@ browsers do not download it as part of page startup. This is the management
 frontend's notice inventory, not the complete native-product SBOM or a completed
 license review for all shipped components.
 
+Viewer Webpack builds now emit the same `THIRD_PARTY_NOTICES.json` format using
+the shared collector, including concatenated chunk modules and the Webpack
+runtime generator. The published `@ubjs/core@0.31.0-6` npm package omits its
+license file; `scripts/licenses/ubjs-core-0.31.0-6/` preserves its published
+revision's upstream notice and the referenced full MPL-2.0 text. Supplement use
+requires exact version, npm lockfile integrity and license-file hashes.
+This covers npm JavaScript dependencies, not Rust/WASM, copied project assets
+or native gateway dependencies; those remain separate release obligations.
+
+Control revision `8acd3c51` passed a clean Windows bundle build and real Chromium
+acceptance at `artifacts/control-bundle/2026-10-31T10-05-19-063Z/`, including
+read-only configuration preflight before bootstrap and after configuration save.
+Full local control Go tests passed. This does not establish SCM installation.
+
 The control executable's compiled Go dependency metadata drives
 `THIRD_PARTY_NOTICES.go.json` in the bundle root. Module versions, local
 replacements, vendor license/notice/attribution texts and their hashes are
