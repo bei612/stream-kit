@@ -25,9 +25,15 @@ load-module module-null-sink sink_name=stream_kit_acceptance rate=48000 channels
 load-module module-remap-source master=stream_kit_acceptance.monitor source_name=stream_kit_capture source_properties=device.description=StreamKitCapture
 load-module module-native-protocol-unix socket=$fixture/native auth-anonymous=1
 EOF
-pulseaudio -n --daemonize=no --use-pid-file=no --exit-idle-time=-1 --file="$fixture/default.pa" --log-target="file:$fixture/server.log" &
+pulseaudio -n --daemonize=no --use-pid-file=no --exit-idle-time=-1 --file="$fixture/default.pa" --log-level=debug --log-time=1 --log-target="file:$fixture/server.log" &
 server_pid=$!
-cleanup() { kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true; }
+cleanup() {
+    kill "$server_pid" 2>/dev/null || true
+    wait "$server_pid" 2>/dev/null || true
+    if [ -d "$repo/artifacts/audio-target" ]; then
+        cp "$fixture/server.log" "$repo/artifacts/audio-target/linux-pulse.log"
+    fi
+}
 trap cleanup EXIT HUP INT TERM
 attempt=0
 until pactl info >/dev/null 2>&1; do
@@ -47,7 +53,10 @@ cp "$fixture/server.log" "$repo/artifacts/audio-target/linux-pulse.log"
 if [ "$#" -gt 0 ]; then
     # Optional absolute path to the source-built Sunshine test executable.
     # Reuse this hardware-free server to exercise real per-application monitors.
-    PULSE_SINK=stream_kit_acceptance STREAM_KIT_TEST_PULSE_APPLICATION_AUDIO=1 \
+    if ! PULSE_SINK=stream_kit_acceptance STREAM_KIT_TEST_PULSE_APPLICATION_AUDIO=1 \
         "$1" --gtest_filter='LinuxApplicationAudio.*:LinuxCaptureTargetTest.*' \
-        --gtest_output="json:$repo/artifacts/audio-target/linux-application-audio.json"
+        --gtest_output="json:$repo/artifacts/audio-target/linux-application-audio.json"; then
+        tail -n 60 "$fixture/server.log"
+        exit 1
+    fi
 fi

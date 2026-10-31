@@ -162,7 +162,19 @@ namespace platf {
     private:
       /** @brief Service ready callbacks without waiting on audio-server IO. @return False on loop failure. */
       bool pump() {
-        return pa_mainloop_iterate(loop_, 0, nullptr) >= 0;
+        // A callback can queue deferred work or a protocol reply. Do not add a
+        // whole PCM period to each such step. Bound the dispatch work so an
+        // always-ready server cannot starve capture or target retirement.
+        for (int iteration = 0; iteration < 64; ++iteration) {
+          const auto dispatched = pa_mainloop_iterate(loop_, 0, nullptr);
+          if (dispatched < 0) {
+            return false;
+          }
+          if (dispatched == 0) {
+            break;
+          }
+        }
+        return true;
       }
 
       /** @brief Enumerate playback streams and retain only members of the selected application. */
