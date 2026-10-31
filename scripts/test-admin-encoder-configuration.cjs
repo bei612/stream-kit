@@ -2,18 +2,17 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
-const {createRequire}=require('node:module');
-const {chromium}=createRequire(path.resolve('third_party/moonlight-web-stream/package.json'))('playwright');
+const {engine,launchBrowser,evidenceDirectory}=require('./lib/test-browser.cjs');
 (async()=>{
   const root=path.resolve('orchestrator/web/dist');
-  const browser=await chromium.launch({headless:true,channel:process.env.BROWSER_CHANNEL||'chrome'});
+  const browser=await launchBrowser();
   const revision='"'+'a'.repeat(64)+'"';
   let desiredRevision=revision,loadedRevision=revision,instance='c'.repeat(64),applyCalls=0;
   let failure=true,readFailure=false;const writes=[],errors=[];
   try {
     const page=await browser.newPage({viewport:{width:1280,height:900}});
     page.on('pageerror',e=>errors.push(e.message));
-    await page.addInitScript(()=>localStorage.setItem('auth_token','test.'+btoa(JSON.stringify({exp:Math.floor(Date.now()/1000)+3600}))+'.test'));
+    await page.addInitScript(()=>localStorage.setItem('auth_token','test.'+btoa(JSON.stringify({exp:Math.floor(Date.now()/1000)+3600})).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')+'.test'));
     await page.route('**/*',async route=>{
       const url=new URL(route.request().url());
       if(url.hostname!=='admin.test')return route.abort();
@@ -93,9 +92,9 @@ const {chromium}=createRequire(path.resolve('third_party/moonlight-web-stream/pa
     await page.getByRole('alert').filter({hasText:'编码器读取失败'}).waitFor();
     assert.equal(await name.isDisabled(),true);
     assert.deepEqual(errors,[]);
-    const out=path.resolve('artifacts/encoder-configuration');fs.mkdirSync(out,{recursive:true});
+    const out=path.resolve(evidenceDirectory('artifacts/encoder-configuration'));fs.mkdirSync(out,{recursive:true});
     await page.screenshot({path:path.join(out,'admin-configuration.png'),fullPage:true});
-    fs.writeFileSync(path.join(out,'admin-browser-result.json'),JSON.stringify({passed:true,patches:writes.length,cases:['preserve-hidden','conflict-preserves-draft','explicit-reset','save-not-runtime','read-failure-locks-editor','catalog-selection','boolean-typed-value','integer-input','invalid-range-preserves-edit','signed-integer-sentinel'],errors},null,2));
+    fs.writeFileSync(path.join(out,'admin-browser-result.json'),JSON.stringify({passed:true,engine,browser_version:browser.version(),patches:writes.length,cases:['preserve-hidden','conflict-preserves-draft','explicit-reset','save-not-runtime','read-failure-locks-editor','catalog-selection','boolean-typed-value','integer-input','invalid-range-preserves-edit','signed-integer-sentinel'],errors},null,2));
     console.log('Admin encoder configuration browser checks passed');
   }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});

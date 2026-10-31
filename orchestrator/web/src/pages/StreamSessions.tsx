@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '@/api/client'
-import { currentMediaObservation, type MediaObservation, type RenderSession, type SessionAudio } from '@/api/sessions'
+import { currentMediaObservation, type MediaObservation, type RenderSession } from '@/api/sessions'
 import { useQuery } from '@/hooks/useQuery'
+import { useConfigurationDraft } from '@/hooks/useConfigurationDraft'
 import QueryWrapper from '@/components/QueryWrapper'
 import StatusBadge from '@/components/StatusBadge'
 import { Card } from '@/components/ui/card'
@@ -35,25 +36,15 @@ function MediaRuntime({ observation }: { observation?: MediaObservation }) {
 }
 
 function AudioSettings({ session, busy, action }: { session: RenderSession; busy: boolean; action: Action }) {
-  const [audio, setAudio] = useState<SessionAudio>(session.audio)
-  const [baseline, setBaseline] = useState<SessionAudio>(session.audio)
-  const sameAudio = (a: SessionAudio, b: SessionAudio) => a.program_gain_db === b.program_gain_db && a.microphone_gain_db === b.microphone_gain_db && a.microphone_enabled === b.microphone_enabled && a.broadcast_controller_microphone === b.broadcast_controller_microphone && a.controller_monitor === b.controller_monitor
-  const dirty = !sameAudio(audio, baseline)
-  const stale = !sameAudio(baseline, session.audio)
-  useEffect(() => {
-    if (!dirty) { setAudio(session.audio); setBaseline(session.audio) }
-  }, [session.audio, dirty])
-  const [capacity, setCapacity] = useState(session.policy.max_viewers)
-  const [policyBase, setPolicyBase] = useState(session.policy)
-  const capacityDirty = capacity !== policyBase.max_viewers
-  const policyStale = policyBase.max_viewers !== session.policy.max_viewers || policyBase.controller_disconnect_policy !== session.policy.controller_disconnect_policy || policyBase.allow_viewer_microphone !== session.policy.allow_viewer_microphone
-  useEffect(() => {
-    if (!capacityDirty) { setCapacity(session.policy.max_viewers); setPolicyBase(session.policy) }
-  }, [session.policy, capacityDirty])
+  const audioDraft = useConfigurationDraft(session.audio, (a, b) => a.program_gain_db === b.program_gain_db && a.microphone_gain_db === b.microphone_gain_db && a.microphone_enabled === b.microphone_enabled && a.broadcast_controller_microphone === b.broadcast_controller_microphone && a.controller_monitor === b.controller_monitor)
+  const {value: audio, baseline, dirty, stale, edit: setAudio} = audioDraft
+  const policyDraft = useConfigurationDraft(session.policy, (a, b) => a.max_viewers === b.max_viewers && a.controller_disconnect_policy === b.controller_disconnect_policy && a.allow_viewer_microphone === b.allow_viewer_microphone)
+  const capacity = policyDraft.value.max_viewers
+  const setCapacity = (max_viewers: number) => policyDraft.edit({...policyDraft.value, max_viewers})
   return <div className="border-t border-border mt-4 pt-4 grid gap-6 lg:grid-cols-2">
     <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); if (stale) return; void action(async () => {
       const result = await api.updateStreamAudio(session.session_id, audio, baseline)
-      if (result.data) { setAudio(result.data.audio); setBaseline(result.data.audio) }
+      if (result.data) audioDraft.reset()
       return result
     }) }}>
       <fieldset disabled={busy} className="space-y-3">
@@ -69,13 +60,13 @@ function AudioSettings({ session, busy, action }: { session: RenderSession; busy
         {stale && <p role="alert" className="text-sm text-amber-400">音频配置已更新，当前草稿未覆盖服务器设置。请载入最新配置后重新编辑。</p>}
         <div className="flex flex-wrap gap-2">
           <Button size="sm" type="submit" disabled={stale}>应用音频设置</Button>
-          {(dirty || stale) && <Button size="sm" type="button" variant="outline" onClick={() => {setAudio(session.audio);setBaseline(session.audio)}}>载入最新音频配置</Button>}
+          {(dirty || stale) && <Button size="sm" type="button" variant="outline" onClick={audioDraft.reset}>载入最新音频配置</Button>}
         </div>
       </fieldset>
     </form>
-    <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); if (policyStale) return; void action(async () => {
-      const result = await api.updateStreamPolicy(session.session_id, { ...policyBase, max_viewers: capacity }, policyBase)
-      if (result.data) { setCapacity(result.data.policy.max_viewers); setPolicyBase(result.data.policy) }
+    <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); if (policyDraft.stale) return; void action(async () => {
+      const result = await api.updateStreamPolicy(session.session_id, policyDraft.value, policyDraft.baseline)
+      if (result.data) policyDraft.reset()
       return result
     }) }}>
       <fieldset disabled={busy} className="space-y-3">
@@ -83,10 +74,10 @@ function AudioSettings({ session, busy, action }: { session: RenderSession; busy
         <label className="flex items-center gap-2 text-sm">最大客户端数<input className="w-20 rounded border border-border bg-background px-2 py-1" type="number" required min={0} step={1} value={capacity} onChange={(e) => setCapacity(e.target.valueAsNumber)} /></label>
         <p className="text-xs text-muted-foreground">0 表示不限制。降低上限后，已有连接保留，新连接按新上限准入。</p>
         <p className="text-xs text-muted-foreground">控制者连接租约到期后释放控制权；恢复连接后作为观众，由管理员重新授权。观众不能发送麦克风或控制输入。</p>
-        {policyStale && <p role="alert" className="text-sm text-amber-400">连接配置已更新，当前容量草稿已保留。请载入最新配置后重新编辑。</p>}
+        {policyDraft.stale && <p role="alert" className="text-sm text-amber-400">连接配置已更新，当前容量草稿已保留。请载入最新配置后重新编辑。</p>}
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" type="submit" disabled={policyStale}>应用连接容量</Button>
-          {(capacityDirty || policyStale) && <Button size="sm" type="button" variant="outline" onClick={() => {setCapacity(session.policy.max_viewers);setPolicyBase(session.policy)}}>载入最新连接配置</Button>}
+          <Button size="sm" type="submit" disabled={policyDraft.stale}>应用连接容量</Button>
+          {(policyDraft.dirty || policyDraft.stale) && <Button size="sm" type="button" variant="outline" onClick={policyDraft.reset}>载入最新连接配置</Button>}
         </div>
       </fieldset>
     </form>

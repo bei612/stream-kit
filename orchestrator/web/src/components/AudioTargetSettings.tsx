@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useConfigurationDraft } from '@/hooks/useConfigurationDraft'
 import { api } from '@/api/client'
 import type { AudioDevice } from '@/api/audio-devices'
 import type { AudioTarget, RenderSession } from '@/api/sessions'
@@ -9,14 +10,12 @@ export function AudioTargetSettings({ session, busy, action }: {
   busy: boolean
   action: (operation: () => Promise<unknown>) => Promise<void>
 }) {
-  const [draft, setDraft] = useState(session.audio.target)
-  const [dirty, setDirty] = useState(false)
+  const targetDraft = useConfigurationDraft(session.audio.target, (a, b) => a.epoch === b.epoch && a.mode === b.mode && a.render_device_id === b.render_device_id && a.capture_device_id === b.capture_device_id)
+  const {value: draft, dirty, stale} = targetDraft
   const [devices, setDevices] = useState<AudioDevice[] | null>(null)
   const [reading, setReading] = useState(false)
   const [error, setError] = useState('')
-  useEffect(() => { if (!dirty) setDraft(session.audio.target) }, [session.audio.target, dirty])
-  const stale = draft.epoch !== session.audio.target.epoch
-  const edit = (values: Partial<AudioTarget>) => { setDraft({ ...draft, ...values }); setDirty(true) }
+  const edit = (values: Partial<AudioTarget>) => targetDraft.edit({ ...draft, ...values })
   async function readDevices() {
     setReading(true); setError(''); setDevices(null)
     try { setDevices((await api.getAudioDevices()).data?.devices ?? []) }
@@ -38,7 +37,7 @@ export function AudioTargetSettings({ session, busy, action }: {
     void action(async () => {
       const { epoch, ...target } = draft
       const result = await api.updateAudioTarget(session.session_id, epoch, target)
-      if (result.data) { setDraft(result.data.audio.target); setDirty(false) }
+      if (result.data) targetDraft.reset()
     })
   }}>
     <fieldset disabled={busy} className="space-y-3">
@@ -65,7 +64,7 @@ export function AudioTargetSettings({ session, busy, action }: {
       {draft.mode === 'upstream' && <p className="text-xs text-muted-foreground">需要上游实际支持麦克风扩展。不支持时，客户端之间仍可广播语音，但目标程序不会收到。</p>}
       {draft.mode === 'disabled' && <p className="text-xs text-muted-foreground">停止向目标程序发送麦克风；客户端语音广播仍由上方广播设置控制。</p>}
       {stale && <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-amber-300">配置已在其他页面更新，请重新载入后编辑。
-        <Button type="button" size="sm" variant="outline" onClick={() => {setDraft(session.audio.target);setDirty(false)}}>载入最新配置</Button>
+        <Button type="button" size="sm" variant="outline" onClick={targetDraft.reset}>载入最新配置</Button>
       </div>}
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" size="sm" disabled={stale || reading}>{dirty ? '保存并应用目标' : '重新应用目标'}</Button>

@@ -2,22 +2,27 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const {createRequire} = require('node:module');
-const {chromium} = createRequire(path.resolve('third_party/moonlight-web-stream/package.json'))('playwright');
+const {engine, launchBrowser, evidenceDirectory} = require('./lib/test-browser.cjs');
 (async () => {
   const root = path.resolve('orchestrator/web/dist');
-  const browser = await chromium.launch({headless:true, channel:process.env.BROWSER_CHANNEL || 'chrome'});
+  const browser = await launchBrowser();
   const session = {session_id:'audio-test', revision:1, control_epoch:1, host_id:1, app_id:2, state:'running', connections:{},
     audio:{program_gain_db:0, microphone_gain_db:0, microphone_enabled:true, broadcast_controller_microphone:true, controller_monitor:false, target:{mode:'upstream',epoch:1,render_device_id:'',capture_device_id:''}},
     policy:{max_viewers:20, controller_disconnect_policy:'release', allow_viewer_microphone:false}};
-  const writes = [], policyWrites = [], errors = [];
+  const writes = [], policyWrites = [], targetWrites = [], errors = [];
   try {
     const page = await browser.newPage();
     page.on('pageerror', e => errors.push(e.message));
-    await page.addInitScript(() => localStorage.setItem('auth_token', 'test.'+btoa(JSON.stringify({exp:Date.now()/1000+3600}))+'.test'));
+    await page.addInitScript(() => localStorage.setItem('auth_token', 'test.'+btoa(JSON.stringify({exp:Math.floor(Date.now()/1000)+3600})).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')+'.test'));
     await page.route('**/*', async route => {
       const url = new URL(route.request().url());
       if (url.hostname !== 'admin.test') return route.abort();
+      if (url.pathname.endsWith('/stream-sessions/audio-test/audio-target')) {
+        const body = route.request().postDataJSON(); targetWrites.push(body);
+        assert.equal(body.expected_epoch, session.audio.target.epoch);
+        session.audio.target = {...body.target, epoch:session.audio.target.epoch+1}; session.revision++;
+        return route.fulfill({json:{status:'ok',data:session}});
+      }
       if (url.pathname.endsWith('/stream-sessions/audio-test/policy')) {
         const body = route.request().postDataJSON(); policyWrites.push(body);
         assert.deepEqual(body.expected_policy, session.policy);
@@ -80,9 +85,23 @@ const {chromium} = createRequire(path.resolve('third_party/moonlight-web-stream/
     assert.equal(policyWrites.length,1);
     assert.equal(policyWrites[0].expected_policy.max_viewers,5);
     assert.equal(policyWrites[0].controller_disconnect_policy,'release');
+    const targetMode = page.getByRole('combobox',{name:'发送方式',exact:true});
+    await targetMode.selectOption('disabled');
+    session.audio.target = {mode:'local',epoch:2,render_device_id:'render-fixture',capture_device_id:'capture-fixture'}; session.revision++;
+    await page.getByRole('button',{name:'刷新',exact:true}).click();
+    await page.getByRole('alert').filter({hasText:'配置已在其他页面更新'}).waitFor();
+    assert.equal(await targetMode.inputValue(),'disabled');
+    assert.equal(await page.getByRole('button',{name:'保存并应用目标',exact:true}).isDisabled(),true);
+    await page.getByRole('button',{name:'载入最新配置',exact:true}).click();
+    assert.equal(await targetMode.inputValue(),'local');
+    await targetMode.selectOption('disabled');
+    const targetSaved = page.waitForResponse(response => response.url().endsWith('/stream-sessions/audio-test/audio-target'));
+    await page.getByRole('button',{name:'保存并应用目标',exact:true}).click(); await targetSaved;
+    assert.deepEqual(targetWrites,[{expected_epoch:2,target:{mode:'disabled',render_device_id:'',capture_device_id:''}}]);
     assert.deepEqual(errors,[]);
-    fs.mkdirSync('artifacts/session-audio',{recursive:true});
-    fs.writeFileSync('artifacts/session-audio/admin-browser-result.json', JSON.stringify({passed:true,cases:['stale-draft-preserved','stale-submit-disabled','explicit-reload','compare-and-set-payload','untouched-form-refresh','capacity-conflict-preserves-draft','capacity-compare-and-set'],errors},null,2));
+    const out = evidenceDirectory('artifacts/session-audio');
+    fs.mkdirSync(out,{recursive:true});
+    fs.writeFileSync(path.join(out,'admin-browser-result.json'), JSON.stringify({passed:true,engine,browser_version:browser.version(),cases:['stale-draft-preserved','stale-submit-disabled','explicit-reload','compare-and-set-payload','untouched-form-refresh','capacity-conflict-preserves-draft','capacity-compare-and-set','target-conflict-preserves-draft','target-compare-and-set'],errors},null,2));
     console.log('Session audio browser checks passed');
   } finally { await browser.close(); }
 })().catch(error => {console.error(error);process.exitCode=1;});
