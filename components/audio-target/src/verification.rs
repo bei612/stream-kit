@@ -152,8 +152,11 @@ pub fn verify_pair(pair: &EndpointPair) -> Result<serde_json::Value, Box<dyn std
     std::thread::sleep(Duration::from_millis(300));
     *result.lock().map_err(|_| "capture measurement poisoned")? = Measurement::default();
     std::thread::sleep(Duration::from_millis(500));
-    eprintln!("audio-pair: pausing capture");
-    stream.pause()?;
+    // Acceptance owns a one-shot recording, not a resumable capture session.
+    // Close it before taking the final measurement lock so no native callback
+    // or worker survives a reported result.
+    eprintln!("audio-pair: closing capture endpoint");
+    drop(stream);
     let result = result.lock().map_err(|_| "capture measurement poisoned")?;
     let amplitude = tone.amplitude();
     let status = target.status();
@@ -169,7 +172,7 @@ pub fn verify_pair(pair: &EndpointPair) -> Result<serde_json::Value, Box<dyn std
         && status.device_open
         && closed_after_drop
         && !failed.load(Ordering::Acquire);
-    eprintln!("audio-pair: measurement complete; releasing capture");
+    eprintln!("audio-pair: endpoints closed; measurement complete");
     Ok(
         serde_json::json!({"passed": passed, "captured_frames": tone.frames,
         "tone_amplitude": amplitude, "submitted_packets": submitted, "target": status,
