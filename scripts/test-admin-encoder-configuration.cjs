@@ -43,10 +43,20 @@ const {engine,launchBrowser,evidenceDirectory}=require('./lib/test-browser.cjs')
     await page.getByRole('status').filter({hasText:'当前进程启动时已读取此配置文件版本'}).waitFor();
     assert.equal(await page.locator('#encoder-setting-pkey').inputValue(),'');
     const save=page.getByRole('button',{name:'保存编码器配置',exact:true});
-    await name.fill('Draft');await save.click();
+    await name.fill('Draft');
+    const search=page.getByLabel('搜索编码器参数',{exact:true});
+    await search.fill('pkey');
+    assert.equal(await name.count(),0,'Filtering must hide unmatched settings');
+    assert.equal(await page.locator('#encoder-setting-pkey').count(),1);
+    await save.click();
+    await search.fill('渲染节点');
     await page.getByRole('alert').filter({hasText:'配置已变化，请重新读取'}).waitFor();
     assert.equal(await name.inputValue(),'Draft');assert.equal(await save.isDisabled(),true);
     assert.deepEqual(writes[0],{revision,changes:{sunshine_name:'Draft'}});
+    await search.fill('NVIDIA');
+    assert.equal(await page.getByRole('combobox',{name:'选择常用编码参数',exact:true}).locator('option[value="nvenc_twopass"]').count(),1);
+    assert.equal(await page.getByRole('combobox',{name:'选择常用编码参数',exact:true}).locator('option[value="stream_audio"]').count(),0);
+    await search.fill('');
     await page.getByRole('button',{name:'放弃编码器修改并重新读取',exact:true}).click();
     await page.waitForFunction(()=>document.querySelector('#encoder-setting-sunshine_name')?.value==='Renderer');
     failure=false;
@@ -108,7 +118,7 @@ const {engine,launchBrowser,evidenceDirectory}=require('./lib/test-browser.cjs')
     assert.deepEqual(errors,[]);
     const out=path.resolve(evidenceDirectory('artifacts/encoder-configuration'));fs.mkdirSync(out,{recursive:true});
     await page.screenshot({path:path.join(out,'admin-configuration.png'),fullPage:true});
-    fs.writeFileSync(path.join(out,'admin-browser-result.json'),JSON.stringify({passed:true,engine,browser_version:browser.version(),patches:writes.length,cases:['preserve-hidden','conflict-preserves-draft','explicit-reset','save-not-runtime','read-failure-locks-editor','catalog-selection','boolean-typed-value','integer-input','invalid-range-preserves-edit','signed-integer-sentinel','decimal-range-and-fraction','native-enum-selection'],errors},null,2));
+    fs.writeFileSync(path.join(out,'admin-browser-result.json'),JSON.stringify({passed:true,engine,browser_version:browser.version(),patches:writes.length,cases:['search-preserves-hidden-drafts-on-save','search-native-key-and-label','search-catalog','preserve-hidden','conflict-preserves-draft','explicit-reset','save-not-runtime','read-failure-locks-editor','catalog-selection','boolean-typed-value','integer-input','invalid-range-preserves-edit','signed-integer-sentinel','decimal-range-and-fraction','native-enum-selection'],errors},null,2));
     console.log('Admin encoder configuration browser checks passed');
   }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});

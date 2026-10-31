@@ -49,6 +49,16 @@ func TestEncoderFieldValidationBeforeNativeWrite(t *testing.T) {
 		{"min_log_level", `"debug"`, true}, {"min_log_level", `"2"`, true},
 		{"min_log_level", `"2debug"`, false}, {"min_log_level", `"7"`, false},
 		{"stream_audio", ` null `, true}, {"stream_audio", `""`, true},
+		{"key_repeat_delay", `0`, true}, {"key_repeat_delay", `"-1"`, true},
+		{"key_repeat_delay", `-2`, false}, {"key_repeat_delay", `0.5`, false},
+		{"key_repeat_frequency", `24.9`, true}, {"key_repeat_frequency", `"0"`, true},
+		{"key_repeat_frequency", `-1`, false}, {"key_repeat_frequency", `"1e309"`, false},
+		{"back_button_timeout", `-1`, true}, {"back_button_timeout", `2000`, true},
+		{"back_button_timeout", `-2`, false}, {"back_button_timeout", `2147483648`, false},
+		{"key_rightalt_to_key_win", `true`, true}, {"key_rightalt_to_key_win", `1`, false},
+		{"ds4_back_as_touchpad_click", `false`, true}, {"ds4_back_as_touchpad_click", `[]`, false},
+		{"motion_as_ds4", `"disabled"`, true}, {"motion_as_ds4", `"invalid"`, false},
+		{"touchpad_as_ds4", `null`, true}, {"touchpad_as_ds4", `{}`, false},
 		{"extension", `{"custom":true}`, true},
 	} {
 		t.Run(tc.key+tc.value, func(t *testing.T) {
