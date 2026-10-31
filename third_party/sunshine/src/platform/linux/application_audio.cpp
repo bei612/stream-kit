@@ -2,7 +2,7 @@
  * @file src/platform/linux/application_audio.cpp
  * @brief Application-only PulseAudio capture using individual sink-input monitors.
  */
-#include "src/platform/common.h"
+#include "src/platform/audio_capture.h"
 
 #include <algorithm>
 #include <charconv>

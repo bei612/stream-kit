@@ -3,13 +3,14 @@
  * @brief Opt-in real PulseAudio application-monitor isolation and retirement checks.
  */
 #if defined(__linux__)
-#include "src/platform/common.h"
+#include "src/platform/audio_capture.h"
 
 #include <atomic>
 #include <cmath>
 #include <cstdlib>
 #include <gtest/gtest.h>
 #include <pulse/simple.h>
+#include <string_view>
 #include <thread>
 #include <unistd.h>
 

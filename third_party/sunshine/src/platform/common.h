@@ -23,6 +23,7 @@
 #include "src/capture_target.h"
 #include "src/config.h"
 #include "src/logging.h"
+#include "src/platform/audio_capture.h"
 #include "src/thread_safe.h"
 #include "src/utility.h"
 #include "src/video_colorspace.h"
@@ -665,17 +666,6 @@ namespace platf {
   };
 
   /**
-   * @brief Enumerates supported capture options.
-   */
-  enum class capture_e : int {
-    ok,  ///< Success
-    reinit,  ///< Need to reinitialize
-    timeout,  ///< Timeout
-    interrupted,  ///< Capture was interrupted
-    error  ///< Error
-  };
-
-  /**
    * @brief Abstract display capture backend used by the streaming pipeline.
    */
   class display_t {
@@ -798,33 +788,6 @@ namespace platf {
     // collect capture timing data (at loglevel debug)
     logging::time_delta_periodic_logger sleep_overshoot_logger = {debug, "Frame capture sleep overshoot"};  ///< Periodic logger for capture sleep overshoot measurements.
   };
-
-  /**
-   * @brief Audio capture source used by the streaming pipeline.
-   */
-  class mic_t {
-  public:
-    /**
-     * @brief Deliver a captured audio sample to Sunshine's audio pipeline.
-     *
-     * @param frame_buffer Destination for captured floating-point PCM samples.
-     * @return Capture status reported to the streaming pipeline.
-     */
-    virtual capture_e sample(std::vector<float> &frame_buffer) = 0;
-
-    virtual ~mic_t() = default;
-  };
-
-  /**
-   * @brief Capture only the retained application's rendered audio, without changing host endpoints.
-   * @param target Retained launch identity shared with video.
-   * @param channels Number of output channels.
-   * @param sample_rate Requested PCM sample rate.
-   * @param frame_size Samples per output frame.
-   * @param continuous Whether to emit silence while the application is silent.
-   * @return Application-only audio source; null on failure, with no desktop fallback.
-   */
-  std::unique_ptr<mic_t> application_microphone(const capture::target_ptr &target, int channels, std::uint32_t sample_rate, std::uint32_t frame_size, bool continuous);
 
   /**
    * @brief Platform audio controller that manages sinks and microphone capture.

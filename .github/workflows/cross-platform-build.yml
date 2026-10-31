@@ -211,6 +211,30 @@ jobs:
             third_party/moonlight-web-stream/target/release/web-server
           if-no-files-found: error
 
+  linux-application-audio:
+    name: Linux application audio (native PulseAudio)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native build and isolated audio dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++ libpulse-dev pulseaudio pulseaudio-utils
+      - name: Build the production application capture backend
+        run: |
+          cmake -S tools/sunshine-audio-tests -B .local/cmake-build-linux-audio -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build .local/cmake-build-linux-audio --parallel 2
+      - name: Verify audio isolation and target retirement on Linux
+        timeout-minutes: 2
+        run: sh scripts/test-audio-target-linux.sh --application-only "$GITHUB_WORKSPACE/.local/cmake-build-linux-audio/test_sunshine"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-application-audio
+          path: artifacts/audio-target/
+          if-no-files-found: error
+
   sbom:
     name: Source SBOM
     runs-on: ubuntu-latest

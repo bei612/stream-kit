@@ -3,8 +3,16 @@
 # No hardware modules, TCP listener, system defaults, or existing daemon changes.
 set -eu
 repo=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+application_only=0
+if [ "${1:-}" = --application-only ]; then
+    application_only=1
+    shift
+    [ "$#" -eq 1 ] && [ -x "$1" ] || { echo 'Pass an absolute path to test_sunshine' >&2; exit 2; }
+fi
 cd "$repo/components/audio-target"
-cargo build --locked --examples
+if [ "$application_only" -eq 0 ]; then
+    cargo build --locked --examples
+fi
 fixture=$(mktemp -d "${XDG_RUNTIME_DIR:-/tmp}/stream-kit-audio.XXXXXX")
 mkdir "$fixture/runtime" "$fixture/state"
 export PULSE_RUNTIME_PATH="$fixture/runtime"
@@ -31,8 +39,10 @@ until pactl info >/dev/null 2>&1; do
     sleep 0.1
 done
 mkdir -p "$repo/artifacts/audio-target"
-cargo run --locked --quiet --example verify_pair -- pulseaudio:stream_kit_acceptance pulseaudio:stream_kit_capture > "$repo/artifacts/audio-target/linux-pair-result.json"
-cat "$repo/artifacts/audio-target/linux-pair-result.json"
+if [ "$application_only" -eq 0 ]; then
+    cargo run --locked --quiet --example verify_pair -- pulseaudio:stream_kit_acceptance pulseaudio:stream_kit_capture > "$repo/artifacts/audio-target/linux-pair-result.json"
+    cat "$repo/artifacts/audio-target/linux-pair-result.json"
+fi
 cp "$fixture/server.log" "$repo/artifacts/audio-target/linux-pulse.log"
 if [ "$#" -gt 0 ]; then
     # Optional absolute path to the source-built Sunshine test executable.
