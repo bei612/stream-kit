@@ -36,16 +36,14 @@ defaults:
   run:
     shell: bash
 
-# Preserve evidence from a running native build while newer changes are queued.
-concurrency:
-  group: linux-native-capture-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   linux-microphone-target:
     name: Linux microphone target endpoint pair
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    concurrency:
+      group: linux-microphone-target-${{ github.ref }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -98,6 +96,9 @@ jobs:
     name: Linux native application capture
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    concurrency:
+      group: linux-application-capture-${{ github.ref }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
