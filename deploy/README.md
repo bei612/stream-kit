@@ -102,10 +102,14 @@ the control executable's module notices; Sunshine, media gateway and their
 native dependencies still require their own package inventories and review.
 
 CI retains structured Orchestrator test events per OS and annotates failing
-test/package names without copying test output into annotations. The workflow
-preserves the active run and retains the newest pending revision in the same
-ref's concurrency group, so frequent pushes do not continuously cancel native
-builds and browser acceptance. This does not restore already cancelled runs.
+test/package names without copying test output into annotations. Control-plane
+and gateway jobs have independent queues per ref and operating system; management
+Web and SBOM jobs each have their own queue. Each queue preserves its running job
+and retains the newest pending revision, so a stalled gateway cannot hold up a
+new control-plane build. Job timeouts bound failures without cancelling healthy
+builds on every push. Bundle build failures retain their compiler/packaging log
+and publish bounded diagnostic excerpts. This does not restore cancelled runs
+or cancel historical jobs started with the old workflow definition.
 Earlier on 2026-10-31,
 the Actions API showed run `41147255650` (commit `7dfa293b`) queued without an
 assigned runner. The most recent completed run `41117602538` (commit `606a181e`)
