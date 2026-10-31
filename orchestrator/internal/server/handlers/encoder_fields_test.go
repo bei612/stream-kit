@@ -86,3 +86,46 @@ func TestEncoderCatalogUsesSameReviewedFieldsAsRedaction(t *testing.T) {
 		}
 	}
 }
+
+// Native config.cpp accepts text enumerators, including the entropy-coder
+// aliases, even where its helper is named int_f. Reject numeric substitutes
+// before writing a config that the native parser would silently ignore.
+func TestEncoderNativeEnumConfiguration(t *testing.T) {
+	cases := map[string][]string{
+		"nvenc_twopass":      {"disabled", "quarter_res", "full_res"},
+		"nvenc_split_encode": {"disabled", "driver_decides", "enabled"},
+		"qsv_preset":         {"veryslow", "slower", "slow", "medium", "fast", "faster", "veryfast"},
+		"qsv_coder":          {"auto", "cabac", "ac", "cavlc", "vlc"},
+		"amd_quality":        {"balanced", "quality", "speed"},
+		"amd_rc":             {"cbr", "cqp", "vbr_latency", "vbr_peak"},
+		"amd_usage":          {"lowlatency", "lowlatency_high_quality", "transcoding", "ultralowlatency", "webcam"},
+		"amd_coder":          {"auto", "cabac", "ac", "cavlc", "vlc"},
+		"vaapi_quality":      {"balanced", "quality", "speed"},
+		"vaapi_rc":           {"avbr", "cbr", "cqp", "icq", "qvbr", "vbr"},
+	}
+	for key, choices := range cases {
+		t.Run(key, func(t *testing.T) {
+			if !reflect.DeepEqual(encoderFieldByKey[key].Choices, choices) {
+				t.Fatal("catalog choices differ from reviewed native parser")
+			}
+			values := []string{`null`, `""`}
+			for _, choice := range choices {
+				encoded, _ := json.Marshal(choice)
+				values = append(values, string(encoded))
+			}
+			validCount := len(values)
+			values = append(values, `"unknown"`, `"AUTO"`, `1`, `true`, `{}`, `[]`)
+			for i, value := range values {
+				fake := &encoderConfigurationFake{}
+				r := gin.New()
+				r.PATCH("/config", EncoderConfiguration(fake))
+				w := httptest.NewRecorder()
+				r.ServeHTTP(w, httptest.NewRequest("PATCH", "/config", strings.NewReader(`{"revision":"old","changes":{"`+key+`":`+value+`}}`)))
+				valid := i < validCount
+				if (w.Code == 200) != valid || (fake.writes == 1) != valid {
+					t.Fatalf("value=%s status=%d writes=%d", value, w.Code, fake.writes)
+				}
+			}
+		})
+	}
+}
