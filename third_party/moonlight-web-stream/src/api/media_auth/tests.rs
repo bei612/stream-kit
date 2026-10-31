@@ -30,7 +30,7 @@ fn ticket(peer: &str, session: &str, expires: i64) -> String {
     )
 }
 
-async fn app() -> Data<App> {
+async fn unleased_app() -> Data<App> {
     let mut config = crate::config::Config::default();
     let crate::config::StorageConfig::Json { path, .. } = &mut config.data_storage;
     *path = std::env::temp_dir()
@@ -42,7 +42,10 @@ async fn app() -> Data<App> {
         .into_owned();
     config.web_server.media_ticket_secret = Some(SECRET.into());
     config.web_server.control_plane_url = Some("https://control.example".into());
-    let app = Data::new(App::new(config).await.expect("test app"));
+    Data::new(App::new(config).await.expect("test app"))
+}
+
+async fn publish_authority(app: &App) {
     let mut state: StateEnvelope = serde_json::from_str(include_str!(
         "../../../../../contracts/media-state/v3.fixture.json"
     ))
@@ -59,12 +62,17 @@ async fn app() -> Data<App> {
         .await
         .apply(state, now)
         .expect("publish authority");
+}
+
+async fn app() -> Data<App> {
+    let app = unleased_app().await;
+    publish_authority(&app).await;
     app
 }
 
 #[actix_web::test]
 async fn invitation_bootstraps_without_login_and_cannot_select_default_admin() {
-    let app = app().await;
+    let app = unleased_app().await;
     let admin = app
         .try_add_first_login("node-owner".into(), "test-only-password".into())
         .await
@@ -81,6 +89,10 @@ async fn invitation_bootstraps_without_login_and_cannot_select_default_admin() {
             .service(crate::api::api_service()),
     )
     .await;
+    // Expensive real password hashing and HTTP fixture setup are not part of
+    // this ten-second authority lease. Keep production expiry enforcement and
+    // the short lease unchanged; publish only when the request can be issued.
+    publish_authority(&app).await;
     let token = ticket("client-a", "session-test", now_ms() / 1000 + 60);
     let response = test::call_service(
         &service,
