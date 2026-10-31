@@ -611,6 +611,10 @@ namespace platf {
   }
 
   bool request_process_group_exit(std::uintptr_t native_handle) {
+    if (!valid_process_group(native_handle)) {
+      BOOST_LOG(error) << "Refusing to signal an invalid process group"sv;
+      return false;
+    }
     if (kill(-((pid_t) native_handle), SIGTERM) == 0 || errno == ESRCH) {
       BOOST_LOG(debug) << "Successfully sent SIGTERM to process group: "sv << native_handle;
       return true;
@@ -621,6 +625,10 @@ namespace platf {
   }
 
   bool process_group_running(std::uintptr_t native_handle) {
+    if (!valid_process_group(native_handle)) {
+      BOOST_LOG(error) << "Refusing to query an invalid process group"sv;
+      return false;
+    }
     return waitpid(-((pid_t) native_handle), nullptr, WNOHANG) >= 0;
   }
 

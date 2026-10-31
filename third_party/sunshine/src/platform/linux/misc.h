@@ -6,8 +6,10 @@
 
 // standard includes
 #include <chrono>
+#include <cstdint>
 #include <fcntl.h>
 #include <filesystem>
+#include <limits>
 #include <thread>
 #include <unistd.h>
 #include <vector>
@@ -51,6 +53,15 @@ namespace dyn {
 }  // namespace dyn
 
 namespace platf {
+  /**
+   * @brief Reject process-group identifiers that have special POSIX signal semantics.
+   * @param handle Unsigned process-group handle supplied by the process manager.
+   * @return True only for a positive, representable group other than 1.
+   */
+  inline bool valid_process_group(std::uintptr_t handle) {
+    return handle > 1 && handle <= static_cast<std::uintptr_t>(std::numeric_limits<pid_t>::max());
+  }
+
   /**
    * @brief Remove environment variables that can load untrusted GUI modules.
    *

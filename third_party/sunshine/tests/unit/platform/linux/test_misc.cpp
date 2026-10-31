@@ -9,6 +9,7 @@
   #include <array>
   #include <cstdlib>
   #include <optional>
+  #include <limits>
   #include <string>
 
   // lib includes
@@ -16,7 +17,20 @@
 
   // local includes
   #include "src/logging.h"
+  #include "src/platform/common.h"
   #include "src/platform/linux/misc.h"
+
+TEST(LinuxProcessGroupSafety, RejectsSpecialAndUnrepresentableIdentifiers) {
+  EXPECT_FALSE(platf::valid_process_group(0));
+  EXPECT_FALSE(platf::valid_process_group(1));
+  EXPECT_TRUE(platf::valid_process_group(2));
+  EXPECT_TRUE(platf::valid_process_group(static_cast<std::uintptr_t>(std::numeric_limits<pid_t>::max())));
+  EXPECT_FALSE(platf::valid_process_group(static_cast<std::uintptr_t>(std::numeric_limits<pid_t>::max()) + 1));
+  EXPECT_FALSE(platf::request_process_group_exit(0));
+  EXPECT_FALSE(platf::request_process_group_exit(1));
+  EXPECT_FALSE(platf::process_group_running(0));
+  EXPECT_FALSE(platf::process_group_running(1));
+}
 
 namespace {
   /**
