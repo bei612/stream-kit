@@ -73,6 +73,21 @@ async function main() {
     assert.equal((await fetch(inventoryURL, {method:'POST',body:'{}'})).status, 401);
     assert.equal((await inventoryPost(inventoryRequest, 'stream-kit/media-state/v3\n')).status, 401);
     assert.equal((await inventoryPost({...inventoryRequest, issued_at_ms:Date.now()-6000})).status, 400);
+    // Invalid CPAL identities fail before any stream can be opened. Exercise
+    // the active-check authentication and replay boundary without device I/O.
+    const pairURL = `http://127.0.0.1:${port}/gateway/internal/v1/audio-pair-check`;
+    const pairRequest = {schema_version:1,request_id:crypto.randomBytes(16).toString('hex'),issued_at_ms:Date.now(),
+      endpoint:{render_device_id:'invalid-test-output',capture_device_id:'invalid-test-input'}};
+    const pairPost = (request,domain='stream-kit/audio-pair-check/request/v1\n') => {
+      const body=JSON.stringify(request);
+      return fetch(pairURL,{method:'POST',body,headers:{'content-type':'application/json',
+        'x-stream-control-signature':sign(domain,body)},signal:AbortSignal.timeout(10000)});
+    };
+    assert.equal((await fetch(pairURL,{method:'POST',body:'{}'})).status,401);
+    assert.equal((await pairPost(pairRequest,'stream-kit/audio-devices/request/v1\n')).status,401);
+    assert.equal((await pairPost({...pairRequest,endpoint:{render_device_id:'same',capture_device_id:'same'}})).status,400);
+    assert.equal((await pairPost(pairRequest)).status,503);
+    assert.equal((await pairPost(pairRequest)).status,401,'Active device checks must reject a consumed nonce');
     // Headless CI may have no audio server. Check that the HTTP boundary reports
     // the same native availability as the CLI; never turn that into empty success.
     const nativeInventory = spawnSync(binary, ['--config-path', configPath, 'audio-devices'], {
