@@ -1,5 +1,15 @@
 # Stream-Kit service deployment
 
+Gateway revision `aa4f4574` passed the Linux CI browser audio checks in
+[job 124507123027](https://github.com/bei612/stream-kit/actions/runs/41190831790/job/124507123027):
+Chromium/Firefox and WebKit playback plus microphone RTP lifecycle, including
+revocation/reacquisition, and all three viewer asset/WASM checks. The browsers
+used the isolated real PulseAudio fixture. This confirms the WebKit initial
+interrupted-context test correction; it does not establish physical microphone
+permission, mobile hardware, browser-to-UE5 recording or a signed installer.
+The observed job was still building its gateway release, so this records only
+the completed successful steps, not an overall job pass.
+
 Before registering a Windows service, or on each systemd start, deployment runs
 `orchestrator check-config --config PATH`. This validates the existing file with
 the same environment overlay as startup and loads any configured TLS key pair.

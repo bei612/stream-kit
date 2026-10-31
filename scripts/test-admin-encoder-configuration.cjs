@@ -135,6 +135,15 @@ const {engine,launchBrowser,evidenceDirectory}=require('./lib/test-browser.cjs')
       await page.getByRole('combobox',{name:'选择常用编码参数',exact:true}).selectOption(key);
       await page.locator('#encoder-setting-'+key).selectOption(value);
     }
+    // Keep the actual populated form usable on narrow phone/tablet browsers.
+    // This is responsive browser acceptance, not a physical mobile-device test.
+    for(const width of [390,768]) {
+      await page.setViewportSize({width,height:844});
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`Encoder form overflows at ${width}px`);
+      await packetSize.scrollIntoViewIfNeeded();
+      assert.equal(await packetSize.inputValue(),'1200','Resize must preserve edited configuration');
+    }
+    await page.setViewportSize({width:390,height:844});
     await save.click();
     await page.getByRole('status').filter({hasText:'配置已保存'}).waitFor();
     assert.deepEqual(writes[2],{revision:desiredRevision,changes:{packetsize:'1200',gamepad_driver:'virtualhid',virtualhid_randomize_mac:false,nvenc_twopass:'full_res',stream_audio:true,max_bitrate:'20000',ping_timeout:'-1',minimum_fps_target:'59.94',min_log_level:'warning',min_threads:'4',sw_preset:'superfast',sw_tune:'zerolatency'}});
@@ -145,7 +154,7 @@ const {engine,launchBrowser,evidenceDirectory}=require('./lib/test-browser.cjs')
     assert.deepEqual(errors,[]);
     const out=path.resolve(evidenceDirectory('artifacts/encoder-configuration'));fs.mkdirSync(out,{recursive:true});
     await page.screenshot({path:path.join(out,'admin-configuration.png'),fullPage:true});
-    fs.writeFileSync(path.join(out,'admin-browser-result.json'),JSON.stringify({passed:true,engine,browser_version:browser.version(),patches:writes.length,cases:['search-preserves-hidden-drafts-on-save','search-native-key-and-label','search-catalog','preserve-hidden','conflict-preserves-draft','explicit-reset','save-not-runtime','read-failure-locks-editor','catalog-selection','boolean-typed-value','integer-input','invalid-range-preserves-edit','signed-integer-sentinel','decimal-range-and-fraction','native-enum-selection'],errors},null,2));
+    fs.writeFileSync(path.join(out,'admin-browser-result.json'),JSON.stringify({passed:true,engine,browser_version:browser.version(),patches:writes.length,cases:['390px-and-768px-no-overflow','viewport-change-preserves-draft','390px-save','search-preserves-hidden-drafts-on-save','search-native-key-and-label','search-catalog','preserve-hidden','conflict-preserves-draft','explicit-reset','save-not-runtime','read-failure-locks-editor','catalog-selection','boolean-typed-value','integer-input','invalid-range-preserves-edit','signed-integer-sentinel','decimal-range-and-fraction','native-enum-selection'],errors},null,2));
     console.log('Admin encoder configuration browser checks passed');
   }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});
