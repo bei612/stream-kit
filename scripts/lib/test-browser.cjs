@@ -10,6 +10,9 @@ const playwright = process.env.PLAYWRIGHT_MODULE ? require(process.env.PLAYWRIGH
 
 module.exports = {
   engine,
-  launchBrowser: ({defaultChannel='chrome'} = {}) => playwright[engine].launch({headless:true, ...(engine === 'chromium' ? {channel:process.env.BROWSER_CHANNEL || defaultChannel} : {})}),
+  launchBrowser: ({defaultChannel='chrome', args=[], firefoxUserPrefs={}} = {}) => playwright[engine].launch({headless:true,
+    ...(engine === 'chromium' ? {channel:process.env.BROWSER_CHANNEL || defaultChannel, args} : {}),
+    ...(engine === 'firefox' ? {firefoxUserPrefs} : {}),
+  }),
   evidenceDirectory: base => engine === 'chromium' ? base : path.join(base, engine),
 };

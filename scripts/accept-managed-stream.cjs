@@ -10,9 +10,9 @@ const assert = require('node:assert/strict');
 const { spawn, execFileSync } = require('node:child_process');
 const { once } = require('node:events');
 const { setTimeout: delay } = require('node:timers/promises');
-const { createRequire } = require('node:module');
 const { startAudioProbe } = require('./lib/audio-probe.cjs');
 const { waitForPageCondition } = require('./lib/browser-condition.cjs');
+const { engine, launchBrowser } = require('./lib/test-browser.cjs');
 const root = path.resolve(__dirname, '..');
 const argument = name => {
   const index = process.argv.indexOf(name);
@@ -35,6 +35,7 @@ const holdSeconds = numericOption('--hold-seconds', 5);
 const expireClientLease = process.argv.includes('--expire-client-lease');
 const programToneCount = Math.max(20, Math.ceil((clientCount*60+holdSeconds+30)/3));
 const microphoneTest = process.argv.includes('--microphone-tone');
+assert.ok(!microphoneTest || engine === 'chromium', 'File-backed microphone acceptance requires Chromium; other engines support program media acceptance');
 const endpointOption = name => {
   if (!process.argv.includes(name)) return null;
   const value = process.argv[process.argv.indexOf(name)+1];
@@ -67,7 +68,7 @@ const scratch = process.argv.includes('--scratch') ? argument('--scratch') : pat
 const output = process.argv.includes('--output-dir') ? argument('--output-dir') : path.join(root, 'artifacts/managed-acceptance', new Date().toISOString().replace(/[:.]/g, '-'));
 fs.mkdirSync(scratch, { recursive: true });
 fs.mkdirSync(output, { recursive: true });
-const result = { passed: false, status: 'running', clients: clientCount, hold_seconds: holdSeconds,
+const result = { passed: false, status: 'running', browser_engine: engine, clients: clientCount, hold_seconds: holdSeconds,
   started_at: new Date().toISOString(), scope: microphoneTest
     ? 'Real browser capture of a generated 997 Hz WAV via Chromium test microphone, Opus uplink/mix/downlink and control revocation; no physical microphone or target recording.'
     : restartServices ? 'Real browser recovery across forced termination/restart of the isolated gateway and control processes; same ports/data, no page reload or host input. Not a network partition or long outage test.'
@@ -344,7 +345,6 @@ async function main() {
     program_gain_db: applicationExample ? 0 : -60, microphone_gain_db: 0, microphone_enabled: true,
     broadcast_controller_microphone: true, controller_monitor: false,
   });
-  const { chromium } = createRequire(path.join(root, 'third_party/moonlight-web-stream/package.json'))('playwright');
   const browserArgs = ['--autoplay-policy=no-user-gesture-required'];
   if (microphoneTest) {
     const rate = 48000, samples = rate * 10;
@@ -358,7 +358,7 @@ async function main() {
     fs.writeFileSync(toneFile, wav);
     browserArgs.push('--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${toneFile}`);
   }
-  browser = await chromium.launch({ headless: true, channel: process.env.BROWSER_CHANNEL || 'chrome', args: browserArgs });
+  browser = await launchBrowser({ args: browserArgs, firefoxUserPrefs: { 'media.autoplay.default': 0 } });
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   if (microphoneTest) await context.grantPermissions(['microphone'], { origin: gateway });
   await context.addInitScript(({ microphoneTest }) => {
@@ -394,7 +394,7 @@ async function main() {
     page.on('pageerror', error => pageErrors.push(error.message));
     await page.goto(`${gateway}/stream.html?hostId=${host.host_id}&appId=${desktop.app_id}#join=${invite.invitation}`);
     try {
-      await page.waitForFunction(() => { const video = document.querySelector('video'); return video && video.videoWidth > 0 && video.getVideoPlaybackQuality().totalVideoFrames > 15; }, null, { timeout: 60000 });
+      await page.waitForFunction(() => { const video = document.querySelector('video'); return video && video.videoWidth > 0 && window.__presentedVideoFrames > 15; }, null, { timeout: 60000 });
     } catch(error) {
       result.startup_failure = {client:i+1,diagnostics:await page.evaluate(async()=>{
         const video=document.querySelector('video');
@@ -404,7 +404,7 @@ async function main() {
             inbound:stats.filter(s=>s.type==='inbound-rtp').map(s=>({kind:s.kind,codecId:s.codecId,packetsReceived:s.packetsReceived,bytesReceived:s.bytesReceived,framesReceived:s.framesReceived,framesDecoded:s.framesDecoded,keyFramesDecoded:s.keyFramesDecoded,pliCount:s.pliCount,firCount:s.firCount})),
             codecs:stats.filter(s=>s.type==='codec').map(s=>({id:s.id,mimeType:s.mimeType,sdpFmtpLine:s.sdpFmtpLine}))};
         }));
-        return {video:video?{readyState:video.readyState,width:video.videoWidth,frames:video.getVideoPlaybackQuality().totalVideoFrames,error:video.error?.code}:null,peers};
+        return {video:video?{readyState:video.readyState,width:video.videoWidth,frames:video.getVideoPlaybackQuality().totalVideoFrames,presented:window.__presentedVideoFrames,paused:video.paused,error:video.error?.code}:null,peers};
       }).catch(()=>({unavailable:true}))};
       throw error;
     }

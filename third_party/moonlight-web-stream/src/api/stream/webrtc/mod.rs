@@ -310,6 +310,8 @@ pub async fn webrtc_post(
         &offer_sdp,
         session.preferred_codecs.unwrap_or(VideoFormats::all()),
     )?;
+    let audio_payload =
+        audio::offered_opus_payload(&offer_sdp).ok_or(AppError::WebRtcClientCodecNotSupported)?;
 
     // Create media engine
     let mut media_engine = create_media_engine(video_channel.supported_video_formats());
@@ -516,7 +518,12 @@ pub async fn webrtc_post(
     info!(target = ?moonlight_stream.target_status(), "session local microphone target");
 
     // Add audio and video track forwarding
-    let audio_channel = match AudioChannel::new_track(moonlight_stream.audio_setup(), &*peer).await
+    let audio_channel = match AudioChannel::new_track(
+        moonlight_stream.audio_setup(),
+        &*peer,
+        audio_payload,
+    )
+    .await
     {
         Ok(value) => value,
         Err(err) => {

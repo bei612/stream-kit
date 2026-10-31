@@ -100,6 +100,8 @@ async function main() {
   result.browser_result=path.relative(root,path.join(output,'browser/result.json')).replaceAll('\\','/');
   const browserResult = JSON.parse(fs.readFileSync(path.join(output,'browser/result.json'),'utf8'));
   assert.equal(browserResult.passed,true);
+  result.browser_engine=browserResult.browser_engine;
+  result.browser=browserResult.browser;
   if(managedEncoder){assert.equal(browserResult.encoder_apply?.passed,true);result.encoder_apply=browserResult.encoder_apply;}
   if(encoderConfigurationBefore&&!managedEncoder) {
     assert.equal(browserResult.encoder_configuration?.passed,true);

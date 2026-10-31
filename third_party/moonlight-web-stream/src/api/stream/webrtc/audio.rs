@@ -5,6 +5,7 @@ use moonlight_common::{
     crypto::rustcrypto::RustCryptoBackend,
     http::pair::PairingCryptoBackend,
     stream::audio::{AudioFrame, OpusMultistreamConfig},
+    webrtc::sdp::Session,
 };
 use rtc::{
     media_stream::MediaStreamTrack,
@@ -36,6 +37,58 @@ pub struct AudioChannel {
     frame_sender: Sender<(Instant, AudioFrame<Bytes>)>,
 }
 
+// RTP payload numbers belong to the offer, not to a browser or codec globally.
+// Select only the receiving audio m-line, never the microphone's send-only line.
+pub(super) fn offered_opus_payload(sdp: &Session) -> Option<u8> {
+    for media in &sdp.medias {
+        let attributes = &media.attributes;
+        let direction = attributes
+            .iter()
+            .find(|a| {
+                matches!(
+                    a.attribute.as_str(),
+                    "sendonly" | "recvonly" | "sendrecv" | "inactive"
+                )
+            })
+            .or_else(|| {
+                sdp.attributes.iter().find(|a| {
+                    matches!(
+                        a.attribute.as_str(),
+                        "sendonly" | "recvonly" | "sendrecv" | "inactive"
+                    )
+                })
+            });
+        if media.media != "audio"
+            || media.port == 0
+            || direction.is_some_and(|a| matches!(a.attribute.as_str(), "sendonly" | "inactive"))
+        {
+            continue;
+        }
+        for format in media.fmt.split_whitespace() {
+            let Ok(payload) = format.parse::<u8>() else {
+                continue;
+            };
+            if payload > 127 {
+                continue;
+            }
+            if attributes.iter().any(|a| {
+                a.attribute == "rtpmap"
+                    && a.value.as_deref().is_some_and(|value| {
+                        let mut fields = value.split_whitespace();
+                        fields.next() == Some(format)
+                            && fields
+                                .next()
+                                .is_some_and(|codec| codec.eq_ignore_ascii_case("opus/48000/2"))
+                            && fields.next().is_none()
+                    })
+            }) {
+                return Some(payload);
+            }
+        }
+    }
+    None
+}
+
 async fn next_live_frame(
     receiver: &mut Receiver<(Instant, AudioFrame<Bytes>)>,
 ) -> Option<AudioFrame<Bytes>> {
@@ -51,6 +104,7 @@ impl AudioChannel {
     pub async fn new_track(
         config: OpusMultistreamConfig,
         peer: &dyn PeerConnection,
+        payload_type: u8,
     ) -> Result<Self, AppError> {
         // TODO: what audio format is used?
 
@@ -104,7 +158,7 @@ impl AudioChannel {
                                     version: 2,
                                     sequence_number,
                                     timestamp,
-                                    payload_type: 111,
+                                    payload_type,
                                     ssrc,
                                     ..Default::default()
                                 },
@@ -135,6 +189,40 @@ impl AudioChannel {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn opus_payload_follows_receiving_offer() {
+        for payload in [96, 109, 111, 127] {
+            let raw = format!(
+                "v=0\r\no=- 1 1 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 112\r\na=sendonly\r\na=rtpmap:112 opus/48000/2\r\nm=audio 9 UDP/TLS/RTP/SAVPF {payload}\r\na=recvonly\r\na=rtpmap:{payload} opus/48000/2\r\n"
+            );
+            assert_eq!(
+                offered_opus_payload(
+                    &Session::parse(raw.as_bytes()).expect("receiving SDP fixture")
+                ),
+                Some(payload)
+            );
+        }
+        for (port, direction, formats, mapping) in [
+            (0, "recvonly", "109", "109 opus/48000/2"),
+            (9, "sendonly", "109", "109 opus/48000/2"),
+            (9, "inactive", "109", "109 opus/48000/2"),
+            (9, "recvonly", "111", "109 opus/48000/2"),
+            (9, "recvonly", "109", "109 opus/48000/1"),
+            (9, "recvonly", "109", "109 opus/24000/2"),
+            (9, "recvonly", "128", "128 opus/48000/2"),
+        ] {
+            let raw = format!(
+                "v=0\r\no=- 1 1 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na={direction}\r\nm=audio {port} UDP/TLS/RTP/SAVPF {formats}\r\na=rtpmap:{mapping}\r\n"
+            );
+            assert_eq!(
+                offered_opus_payload(
+                    &Session::parse(raw.as_bytes()).expect("unsupported SDP fixture")
+                ),
+                None
+            );
+        }
+    }
 
     #[tokio::test(start_paused = true)]
     async fn slow_viewer_cannot_accumulate_unbounded_audio() {
