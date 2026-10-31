@@ -159,7 +159,7 @@ func (m *Manager) start(name string, cs *ComponentState, retry bool) error {
 		return nil // idempotent
 	}
 	cs.mu.Unlock()
-	if err := preflight(m.ctx, cfg); err != nil {
+	if err := m.preflight(m.ctx, name); err != nil {
 		cs.mu.Lock()
 		cs.Status = StatusError
 		cs.LastError = err.Error()
@@ -296,13 +296,21 @@ func (m *Manager) Restart(name string) error {
 	}
 	cs.opMu.Lock()
 	defer cs.opMu.Unlock()
-	if err := preflight(m.ctx, m.configs[name]); err != nil {
+	if err := m.preflight(m.ctx, name); err != nil {
 		return err // leave the running component and its health checker untouched
 	}
 	if err := m.stop(name, cs); err != nil {
 		return err
 	}
 	return m.start(name, cs, false)
+}
+
+func (m *Manager) preflight(ctx context.Context, name string) error {
+	cfg := m.configs[name]
+	if err := checkLaunchContext(name, cfg); err != nil {
+		return err
+	}
+	return preflight(ctx, cfg)
 }
 
 func (m *Manager) StartAll() {

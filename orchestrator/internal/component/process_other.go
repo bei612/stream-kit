@@ -3,11 +3,14 @@
 package component
 
 import (
+	"github.com/stream-kit/orchestrator/internal/config"
 	"os"
 	"os/exec"
 	"syscall"
 	"time"
 )
+
+func checkLaunchContext(_ string, _ config.ComponentConfig) error { return nil }
 
 func setPlatformAttrs(cmd *exec.Cmd) {}
 

@@ -35,7 +35,7 @@ func (m *Manager) RestartVerified(ctx context.Context, name string, expectedPID 
 	if old == nil || old.PID != expectedPID || old.InstanceID != expectedInstance || m.closing.Load() {
 		return ErrRestartOwnership
 	}
-	if err := preflight(ctx, m.configs[name]); err != nil {
+	if err := m.preflight(ctx, name); err != nil {
 		return err
 	}
 	if err := before(ctx, old.PID, old.InstanceID); err != nil {

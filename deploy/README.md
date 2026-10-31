@@ -121,4 +121,14 @@ control plane as a service does not prove that render processes in session 0 can
 capture an interactive user's desktop; interactive rendering deployment still
 requires separate verification and appropriate process-session ownership.
 
+Direct managed Sunshine launches now reject Windows Session 0 before executing
+native preflight or stopping an existing process for restart. Failure to query
+the current session also rejects the launch. The headless gateway and externally
+managed Sunshine remain available to the service control plane. Nonzero session
+IDs pass this prerequisite only; they are not proof of an unlocked desktop or
+working capture. The current Go child-process API does not expose an explicit
+desktop selector. Full service-owned interactive rendering still needs a user
+session worker with authenticated local control, explicit process ownership and
+session-change cleanup; this guard does not implement that worker.
+
 TLS termination should be provided by the deployment ingress; the Orchestrator bind address must remain private when TLS is terminated outside the process.
