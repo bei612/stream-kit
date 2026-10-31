@@ -1,0 +1,30 @@
+# Managed renderer bundle
+
+This directory is staged from the source-built Sunshine renderer using its
+configured CMake installation rules. It includes the executable, runtime DLLs,
+shaders, renderer Web assets and native tools. No driver, firewall rule or
+Windows service is installed by the staging command.
+
+Use the Orchestrator's `sunshine` component to manage this executable. Set its
+working directory to this bundle, and pass an absolute external Sunshine
+configuration path as its argument. Keep the apps catalog, credentials, keys,
+certificates, pairing state and logs outside the release directory, with explicit
+paths in the Sunshine configuration. Configure the interactive Windows session
+through the Orchestrator before enabling automatic startup under its service.
+
+The upstream service installation scripts are included by CMake for completeness;
+the unified platform uses the Orchestrator supervisor. Do not register a second
+Sunshine service for the same renderer.
+
+Build and stage from a clean committed checkout:
+
+```
+node scripts/verify-sunshine-release.mjs BUILD_DIRECTORY FULL_COMMIT --output NEW_DIRECTORY
+```
+
+The build must report the same commit and use the relative `assets` directory.
+The manifest inventories regular files by SHA-256; it is not a publisher
+signature or complete third-party license clearance. Keep the old release for
+rollback and switch the executable and working directory together while stopped.
+Linux packages continue to use native CPack distribution rules rather than the
+Windows directory layout.
