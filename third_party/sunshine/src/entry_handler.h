@@ -49,6 +49,13 @@ namespace args {
   int creds(const char *name, int argc, char *argv[]);
 
   /**
+   * @brief Set credentials from bounded JSON on stdin without exposing secrets in argv.
+   * @param argc Must be zero; input contains name and password fields.
+   * @return Zero only when credential persistence succeeds.
+   */
+  int creds_stdin(int argc);
+
+  /**
    * @brief Print help to stdout, then exit.
    * @param name The name of the program.
    * @examples

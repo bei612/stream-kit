@@ -270,6 +270,7 @@ namespace logging {
       << std::endl
       << "    --help                    | print help"sv << std::endl
       << "    --creds username password | set user credentials for the Web manager"sv << std::endl
+      << "    --creds-stdin | set Web manager credentials from JSON stdin (name, password)"sv << std::endl
       << "    --version                 | print the version of sunshine"sv << std::endl
       << std::endl
       << "    flags"sv << std::endl

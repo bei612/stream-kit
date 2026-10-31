@@ -69,7 +69,7 @@ async fn main() {
         Err(err) if matches!(err.kind(), io::ErrorKind::NotFound) => {
             if matches!(
                 cli.command.as_ref(),
-                Some(Command::Config(ConfigCommand::Check))
+                Some(Command::Config(ConfigCommand::Check) | Command::InitializeAdmin)
             ) {
                 eprintln!("configuration file does not exist");
                 std::process::exit(2);
@@ -88,6 +88,14 @@ async fn main() {
     cli.options.apply(&mut config);
 
     match cli.command {
+        Some(Command::InitializeAdmin) => {
+            if let Err(error) = app::storage::json::initialize_admin(&config, io::stdin().lock()) {
+                eprintln!("administrator initialization failed: {error}");
+                std::process::exit(2);
+            }
+            println!("Initial administrator created; no listeners or media components started");
+            return;
+        }
         Some(Command::Config(ConfigCommand::Check)) => {
             if let Err(message) = config
                 .validate()

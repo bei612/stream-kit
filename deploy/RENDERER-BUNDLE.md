@@ -16,6 +16,17 @@ The upstream service installation scripts are included by CMake for completeness
 the unified platform uses the Orchestrator supervisor. Do not register a second
 Sunshine service for the same renderer.
 
+Deployment automation can invoke `sunshine.exe ABSOLUTE_CONFIG --creds-stdin`
+and pipe a JSON object with `name` and `password` fields, closing stdin afterward.
+This uses Sunshine's native credential format without putting the password in
+process arguments. Prepare the protected credentials directory first. Names
+must contain 1–128 UTF-8 bytes and passwords 12–1024 bytes; input is limited to
+16 KiB. The operation sets credentials (including replacing an existing valid
+credential file), so use it only for initial setup or an intentional reset.
+Both this command and the legacy `--creds` command return failure if persistence
+fails. Neither starts a streaming listener. Configuration and logs must remain
+outside the immutable bundle for these commands as well as normal startup.
+
 Build and stage from a clean committed checkout:
 
 ```

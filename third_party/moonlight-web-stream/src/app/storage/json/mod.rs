@@ -41,8 +41,10 @@ use crate::app::{
     user::{RoleType, UserId},
 };
 
+mod bootstrap;
 mod serde_helpers;
 mod versions;
+pub use bootstrap::initialize_admin;
 
 pub struct JsonStorage {
     file: PathBuf,

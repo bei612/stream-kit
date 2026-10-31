@@ -82,6 +82,9 @@ std::map<std::string_view, std::function<int(const char *name, int argc, char **
   {"creds"sv, [](const char *name, int argc, char **argv) {
      return args::creds(name, argc, argv);
    }},
+  {"creds-stdin"sv, [](const char *, int argc, char **) {
+     return args::creds_stdin(argc);
+   }},
   {"help"sv, [](const char *name, int argc, char **argv) {
      return args::help(name);
    }},

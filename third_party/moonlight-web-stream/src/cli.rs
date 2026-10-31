@@ -61,6 +61,8 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
+    /// Creates the sole initial administrator offline from JSON on stdin; never replaces existing data.
+    InitializeAdmin,
     /// Lists native audio endpoint IDs without opening streams or changing defaults.
     AudioDevices,
     /// Runs the server (default if no command specified)

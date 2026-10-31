@@ -7,6 +7,7 @@
 #include <format>
 #include <iostream>
 #include <thread>
+#include <nlohmann/json.hpp>
 
 // local includes
 #include "config.h"
@@ -40,13 +41,40 @@ void launch_ui(const std::optional<std::string> &path) {
 
 namespace args {
   int creds(const char *name, int argc, char *argv[]) {
-    if (argc < 2 || argv[0] == "help"sv || argv[1] == "help"sv) {
+    if (argc != 2 || argv[0] == "help"sv || argv[1] == "help"sv) {
       help(name);
+      return 2;
     }
 
-    http::save_user_creds(config::sunshine.credentials_file, argv[0], argv[1]);
+    return http::save_user_creds(config::sunshine.credentials_file, argv[0], argv[1]) == 0 ? 0 : 1;
+  }
 
-    return 0;
+  int creds_stdin(int argc) {
+    if (argc != 0) {
+      std::cerr << "--creds-stdin accepts no command arguments\n";
+      return 2;
+    }
+    std::string input;
+    char ch;
+    while (input.size() <= 16384 && std::cin.get(ch)) {
+      input.push_back(ch);
+    }
+    if (input.size() > 16384 || std::cin.bad()) {
+      std::cerr << "Credential input is unreadable or exceeds size limit\n";
+      return 2;
+    }
+    const auto value = nlohmann::json::parse(input, nullptr, false);
+    if (!value.is_object() || value.size() != 2 || !value.contains("name") || !value.contains("password") || !value["name"].is_string() || !value["password"].is_string()) {
+      std::cerr << "Expected JSON containing name and password\n";
+      return 2;
+    }
+    const auto name = value["name"].get<std::string>();
+    const auto password = value["password"].get<std::string>();
+    if (name.empty() || name.size() > 128 || password.size() < 12 || password.size() > 1024) {
+      std::cerr << "Invalid credential lengths\n";
+      return 2;
+    }
+    return http::save_user_creds(config::sunshine.credentials_file, name, password) == 0 ? 0 : 1;
   }
 
   int help(const char *name) {

@@ -25,6 +25,30 @@ receiver gateways must use compatible control contracts and distinct configured
 node secrets. The Orchestrator manages their lifecycle; this package does not
 install a second independent service supervisor.
 
+## Offline administrator initialization
+
+For a new installation, create the protected external data directory, generate
+the native configuration, set `web_server.first_login_create_admin` to `false`
+and set `data_storage.path` to a new file in that directory. Invoke:
+
+```
+web-server.exe --config-path ABSOLUTE_CONFIG initialize-admin
+```
+
+The deployment process supplies one JSON object on standard input with `name`
+and `password` fields, then closes the pipe. Do not place credentials in command
+arguments or logs. The password must contain 12–1024 UTF-8 bytes. This command
+creates one administrator using the runtime's password hashing and storage
+schema, flushes the data before returning, and starts no HTTP listener, media
+component or asynchronous writer. Existing storage is never overwritten, even
+when empty or invalid. The parent directory must already exist with appropriate
+permissions (on Windows the new file inherits its parent's ACL). A write failure
+leaves an incomplete file for inspection and does not report successful setup.
+
+This is an installation operation, not a password reset or upgrade command.
+Normal deployments continue to use the single platform administration page;
+the gateway credential is an internal control-plane connection credential.
+
 For upgrades, prepare a new directory, stop admission and active sessions through
 the management service, stop the managed gateway, update its executable and
 working directory together, and restart it. Preserve the previous release and
