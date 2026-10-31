@@ -23,7 +23,7 @@ func checkLaunchContext(name string, cfg config.ComponentConfig) error {
 	if cfg.WindowsUserSID != "" {
 		token, err := openWorkerUser(cfg.WindowsSessionID, cfg.WindowsUserSID)
 		if err != nil {
-			return fmt.Errorf("无法获取指定 Windows 渲染会话（控制服务需要 LocalSystem 权限）: %w", err)
+			return fmt.Errorf("无法获取指定 Windows 用户会话（控制服务需要 LocalSystem 权限）: %w", err)
 		}
 		return token.Close()
 	}

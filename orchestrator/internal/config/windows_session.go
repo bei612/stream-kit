@@ -11,9 +11,9 @@ func ValidateWindowsSession(name string, cfg ComponentConfig) error {
 		return nil
 	}
 	invalid := func() error {
-		return fmt.Errorf("components.%s Windows 用户会话仅适用于受管 Sunshine，必须同时设置有效会话 ID、用户 SID 和程序路径", name)
+		return fmt.Errorf("components.%s Windows 用户会话仅适用于受管 Sunshine 或媒体网关，必须同时设置有效会话 ID、用户 SID 和程序路径", name)
 	}
-	if name != "sunshine" || cfg.ExePath == "" || cfg.WindowsSessionID == 0 || cfg.WindowsSessionID == ^uint32(0) {
+	if (name != "sunshine" && name != "web_server") || cfg.ExePath == "" || cfg.WindowsSessionID == 0 || cfg.WindowsSessionID == ^uint32(0) {
 		return invalid()
 	}
 	parts := strings.Split(cfg.WindowsUserSID, "-")

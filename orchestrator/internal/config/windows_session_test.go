@@ -11,6 +11,9 @@ func TestWindowsSessionConfiguration(t *testing.T) {
 	if err := ValidateWindowsSession("sunshine", valid); err != nil {
 		t.Fatal(err)
 	}
+	if err := ValidateWindowsSession("web_server", valid); err != nil {
+		t.Fatal(err)
+	}
 	if err := ValidateWindowsSession("gateway", ComponentConfig{}); err != nil {
 		t.Fatal(err)
 	}
@@ -46,8 +49,14 @@ func TestWindowsSessionConfiguration(t *testing.T) {
 }
 
 func TestSettingsWindowsSessionPairSavedAtomically(t *testing.T) {
+	for _, name := range []string{"sunshine", "web_server"} {
+		t.Run(name, func(t *testing.T) { testSettingsWindowsSessionPairSavedAtomically(t, name) })
+	}
+}
+
+func testSettingsWindowsSessionPairSavedAtomically(t *testing.T, name string) {
 	s, cfg := settingsFixture(t)
-	cfg.Components["sunshine"] = ComponentConfig{ExePath: "sunshine.exe"}
+	cfg.Components[name] = ComponentConfig{ExePath: name + ".exe"}
 	data, _ := json.Marshal(cfg)
 	if err := os.WriteFile(s.path, data, 0600); err != nil {
 		t.Fatal(err)
@@ -56,12 +65,12 @@ func TestSettingsWindowsSessionPairSavedAtomically(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Save(view.Revision, map[string]json.RawMessage{"/components/sunshine/windows_session_id": json.RawMessage(`1`)}); err == nil {
+	if _, err := s.Save(view.Revision, map[string]json.RawMessage{"/components/" + name + "/windows_session_id": json.RawMessage(`1`)}); err == nil {
 		t.Fatal("incomplete session saved")
 	}
 	after, err := s.Save(view.Revision, map[string]json.RawMessage{
-		"/components/sunshine/windows_session_id": json.RawMessage(`1`),
-		"/components/sunshine/windows_user_sid":   json.RawMessage(`"S-1-5-21-1-2-3-1001"`),
+		"/components/" + name + "/windows_session_id": json.RawMessage(`1`),
+		"/components/" + name + "/windows_user_sid":   json.RawMessage(`"S-1-5-21-1-2-3-1001"`),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -73,10 +82,10 @@ func TestSettingsWindowsSessionPairSavedAtomically(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if persisted.Components["sunshine"].WindowsSessionID != 1 || persisted.Components["sunshine"].WindowsUserSID != "S-1-5-21-1-2-3-1001" {
+	if persisted.Components[name].WindowsSessionID != 1 || persisted.Components[name].WindowsUserSID != "S-1-5-21-1-2-3-1001" {
 		t.Fatal("session selection lost")
 	}
-	if cfg.Components["sunshine"].WindowsSessionID != 0 {
+	if cfg.Components[name].WindowsSessionID != 0 {
 		t.Fatal("running configuration mutated")
 	}
 }

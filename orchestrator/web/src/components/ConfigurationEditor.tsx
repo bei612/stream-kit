@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
 
 const labels:Record<string,string> = {
-	windows_session_id:'Windows 渲染会话 ID',windows_user_sid:'Windows 渲染用户 SID',
+	windows_session_id:'Windows 用户会话 ID',windows_user_sid:'Windows 用户 SID',
   server:'管理服务与登录',components:'服务组件',sunshine_api:'串流编码器连接',moonlight_web:'媒体网关连接',storage:'应用与存储',process:'进程管理',notifications:'通知',log:'日志',templates:'启动参数模板',
   bind_address:'监听地址',username:'用户名',password:'密码',jwt_secret:'管理签名密钥',media_ticket_secret:'媒体签名密钥',cors_origins:'允许访问的来源',tls_cert:'TLS 证书路径',tls_key:'TLS 私钥路径',
   exe_path:'可执行程序路径',args:'启动参数',preflight_args:'原生配置预检参数',working_dir:'工作目录',env:'环境变量',auto_start:'自动启动',restart_on_crash:'崩溃后重启',restart_delay_seconds:'重启等待（秒）',max_restart_attempts:'最大重启次数',health_check:'健康检查',
@@ -65,7 +65,7 @@ export function ConfigurationEditor() {
     finally { setBusy(false) }
   }
   function fields(value:ConfigValue,path:string,key:string):React.ReactNode {
-	if(['windows_session_id','windows_user_sid'].includes(key)&&!path.startsWith('/components/sunshine/'))return null
+	if(['windows_session_id','windows_user_sid'].includes(key)&&!['sunshine','web_server'].some(component=>path.startsWith(`/components/${component}/`)))return null
     const dictionary=key==='env'||key==='templates'
     if(value && typeof value==='object' && !Array.isArray(value) || dictionary) {
       const entries=value && typeof value==='object' && !Array.isArray(value)?value:{}

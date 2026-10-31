@@ -174,12 +174,22 @@ managed Sunshine remain available to the service control plane. Nonzero session
 IDs pass this prerequisite only; they are not proof of an unlocked desktop or
 working capture.
 
-Managed Sunshine can now select the native Windows user-session worker through
-`components.sunshine.windows_session_id` and `windows_user_sid`. Set both for an
+Managed Sunshine and the media gateway can select the same native Windows
+user-session worker through `components.sunshine.windows_session_id` /
+`windows_user_sid` and `components.web_server.windows_session_id` /
+`windows_user_sid`, respectively. Set both fields for an
 active logged-on user; set the ID to `0` and clear the SID to retain direct
 launch. The management configuration page exposes both fields and marks them
 as requiring a control-service restart. They are rejected for other components,
 external-monitor mode, system service accounts, or Linux deployments.
+
+For local microphone delivery, explicitly place the gateway in the same user
+session as the target application so its native audio endpoint operations run
+in that user's audio context. A headless gateway may retain direct launch when
+it does not need user-session audio devices. This selection reuses the worker's
+preflight, authenticated pipes, process ownership, session revalidation and
+shutdown; it does not install virtual audio devices or establish that target
+recording works. Session changes still require a control-service restart.
 
 The control service must run as LocalSystem to acquire the selected user's WTS
 token. The user identity and session are checked before native launch; there is
