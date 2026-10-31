@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { collectGoNotices } from './lib/go-notices.mjs'
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..')
 const options=process.argv.slice(2)
@@ -38,6 +39,11 @@ execFileSync(process.execPath,[path.join(web,'node_modules/vite/bin/vite.js'),'b
 if(!fs.lstatSync(path.join(output,'dist/index.html')).isFile())throw new Error('Management page build did not produce index.html')
 const binary=path.join(output,process.platform==='win32'?'orchestrator.exe':'orchestrator')
 execFileSync(go,['build','-trimpath','-ldflags',`-s -w -X main.version=${version} -X main.commit=${commit} -X main.buildTime=${sourceTime}`,'-o',binary,'./cmd/orchestrator'],{cwd:path.join(root,'orchestrator'),stdio:'inherit',windowsHide:true})
+const buildInfo=JSON.parse(execFileSync(go,['version','-m','-json',binary],{encoding:'utf8',windowsHide:true}))
+const goEnvironment=JSON.parse(execFileSync(go,['env','-json','GOROOT','GOVERSION'],{cwd:path.join(root,'orchestrator'),encoding:'utf8',windowsHide:true}))
+if(goEnvironment.GOVERSION!==buildInfo.GoVersion)throw new Error('Go toolchain notices do not match compiled runtime version')
+const goNotices=collectGoNotices(path.join(root,'orchestrator/vendor'),goEnvironment.GOROOT,buildInfo)
+fs.writeFileSync(path.join(output,'THIRD_PARTY_NOTICES.go.json'),JSON.stringify(goNotices,null,2)+'\n')
 
 // Inventory regular files only; linked or special entries cannot be released.
 const files=[]

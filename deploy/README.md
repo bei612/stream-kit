@@ -35,6 +35,15 @@ browsers do not download it as part of page startup. This is the management
 frontend's notice inventory, not the complete native-product SBOM or a completed
 license review for all shipped components.
 
+The control executable's compiled Go dependency metadata drives
+`THIRD_PARTY_NOTICES.go.json` in the bundle root. Module versions, local
+replacements, vendor license/notice/attribution texts and their hashes are
+retained, including nested notices. Go's root license and patents notice are
+included from the matching build toolchain. Missing license texts, invalid
+module paths and linked or special vendor entries fail packaging. This covers
+the control executable's module notices; Sunshine, media gateway and their
+native dependencies still require their own package inventories and review.
+
 CI retains structured Orchestrator test events per OS and annotates failing
 test/package names without copying test output into annotations. The workflow
 cancels superseded runs in the same ref's concurrency group; this does not
