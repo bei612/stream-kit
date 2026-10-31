@@ -29,3 +29,15 @@ func TestAnalysisCommandUsesExistingProbeProtocol(t *testing.T) {
 		t.Fatalf("Invalid analysis command: %s, %v", data, err)
 	}
 }
+
+func TestMatchDeviceRequiresUnambiguousIdentity(t *testing.T) {
+	devices := []audioDevice{{ID: "id-a", Name: "Microphone"}, {ID: "id-b", Name: "Microphone"}}
+	for _, tc := range []struct {
+		requested string
+		want      int
+	}{{"id-a", 0}, {"id-b", 1}, {"Microphone", -1}, {"missing", -1}} {
+		if got := matchDevice(devices, tc.requested); got != tc.want {
+			t.Fatalf("matchDevice(%q) = %d, want %d", tc.requested, got, tc.want)
+		}
+	}
+}

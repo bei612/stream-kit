@@ -104,6 +104,7 @@ var screenW, screenH int
 var gridCols, gridRows = 8, 8
 var fullscreen = false
 var initialToneOutput string
+var initialInputDevice string
 var initialToneCount = 1
 
 func wndProc(hwnd syscall.Handle, msg uint32, wParam uintptr, lParam unsafe.Pointer) uintptr {
@@ -282,6 +283,8 @@ func runExample() error {
 			fullscreen = true
 		} else if strings.HasPrefix(arg, "--tone-output=") {
 			initialToneOutput = strings.TrimPrefix(arg, "--tone-output=")
+		} else if strings.HasPrefix(arg, "--input-device=") {
+			initialInputDevice = strings.TrimPrefix(arg, "--input-device=")
 		} else if strings.HasPrefix(arg, "--tone-count=") {
 			count, err := strconv.Atoi(strings.TrimPrefix(arg, "--tone-count="))
 			if err != nil || count < 1 || count > 30000 {

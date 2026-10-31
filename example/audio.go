@@ -311,6 +311,20 @@ func fillDevices(combo uintptr, devices []audioDevice, selectedID string) {
 		}
 	}
 }
+
+// Device names must be unique; stable IDs are preferred for automation.
+func matchDevice(devices []audioDevice, requested string) int {
+	match := -1
+	for i, device := range devices {
+		if device.ID == requested || device.Name == requested {
+			if match >= 0 {
+				return -1
+			}
+			match = i
+		}
+	}
+	return match
+}
 func refreshAudio() {
 	if probe == nil {
 		return
@@ -336,19 +350,19 @@ func refreshAudio() {
 		}
 		fillDevices(inputCombo, inputDevices, oldInput)
 		fillDevices(outputCombo, outputDevices, oldOutput)
+		if initialInputDevice != "" {
+			requested := initialInputDevice
+			initialInputDevice = ""
+			if index := matchDevice(inputDevices, requested); index >= 0 {
+				pSendMessage.Call(inputCombo, 0x014E, uintptr(index), 0)
+			} else {
+				probe.setError("Requested microphone input is missing or ambiguous; select an explicit device")
+			}
+		}
 		if initialToneOutput != "" {
 			requested := initialToneOutput
 			initialToneOutput = ""
-			index := -1
-			for i, device := range outputDevices {
-				if device.ID == requested || device.Name == requested {
-					if index >= 0 {
-						index = -2
-						break
-					}
-					index = i
-				}
-			}
+			index := matchDevice(outputDevices, requested)
 			if index >= 0 {
 				pSendMessage.Call(outputCombo, 0x014E, uintptr(index), 0)
 				automaticToneDevice = outputDevices[index].ID
