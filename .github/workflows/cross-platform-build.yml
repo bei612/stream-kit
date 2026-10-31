@@ -215,6 +215,12 @@ jobs:
         with:
           workspaces: third_party/moonlight-web-stream
       - run: cargo check --locked
+      - name: Verify gateway source stamp validation
+        shell: bash
+        run: |
+          mkdir -p ../../artifacts/ci
+          rustc --edition 2024 --test build.rs -o ../../artifacts/ci/gateway-stamp-tests${{ runner.os == 'Windows' && '.exe' || '' }}
+          ../../artifacts/ci/gateway-stamp-tests${{ runner.os == 'Windows' && '.exe' || '' }}
       - run: cargo test --locked --all-targets --manifest-path ../../components/audio-target/Cargo.toml
       - run: cargo clippy --locked --manifest-path ../../components/audio-target/Cargo.toml --all-targets -- -D warnings
       - name: Verify isolated Linux microphone endpoint pair
@@ -285,7 +291,7 @@ jobs:
           if-no-files-found: error
       - run: cargo fmt --all -- --check
       - run: cargo clippy --locked --all-targets -- -D warnings
-      - run: cargo build --locked --release
+      - run: node ../../scripts/build-gateway-release.mjs
       - run: node ../../scripts/test-gateway-config.cjs target/release/web-server${{ runner.os == 'Windows' && '.exe' || '' }}
       - run: node ../../scripts/smoke-media-contract.cjs target/release/web-server${{ runner.os == 'Windows' && '.exe' || '' }}
       - uses: actions/upload-artifact@v4

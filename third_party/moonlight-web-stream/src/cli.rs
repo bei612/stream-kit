@@ -47,7 +47,7 @@ impl Cli {
 }
 
 #[derive(Parser)]
-#[command(version,about, long_about = None)]
+#[command(version = env!("STREAM_KIT_BUILD_VERSION"), about, long_about = None)]
 pub struct Cli {
     #[arg(short, long, default_value = "./server/config.json")]
     pub config_path: String,

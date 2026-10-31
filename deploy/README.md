@@ -1,5 +1,15 @@
 # Stream-Kit service deployment
 
+The native gateway release entry point is `node scripts/build-gateway-release.mjs`.
+It requires a clean commit, builds with the locked Cargo dependency graph, embeds
+the full source revision and explicit dirty state, executes `--version`, and
+rechecks source identity after the build. Cargo must be on PATH. Ordinary Cargo
+builds without source metadata identify themselves as `unversioned-development`;
+the upstream package version alone is not evidence of a Stream-Kit release.
+This command builds the native executable only. Gateway browser assets, runtime
+dependencies, notices and the complete platform installer remain separate
+requirements; this source stamp does not certify those artifacts.
+
 The Orchestrator CI artifact contains the executable and a sibling `dist/`
 directory with the unified management page. Keep this layout when installing:
 on Linux, both belong under `/opt/stream-kit/orchestrator/`; on Windows, both
