@@ -69,6 +69,8 @@ cmake --build "$build" --parallel "$jobs"
 if [[ "$require_clean" == 1 ]]; then
   if [[ "$(git rev-parse HEAD)" != "$source_commit" || -n "$(git status --porcelain --untracked-files=normal)" ]]; then
     echo 'Source changed during Sunshine release build; output is not a release' >&2
+    git status --porcelain --untracked-files=normal >&2
+    git diff --stat >&2
     exit 1
   fi
   node scripts/verify-sunshine-release.mjs "$(native_path "$build")" "$source_commit"
