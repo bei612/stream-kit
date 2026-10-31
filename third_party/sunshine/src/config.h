@@ -27,6 +27,15 @@ namespace config {
     std::string ffmpeg_preset_from_quality(int quality_preset);
   }  // namespace nv
 
+  namespace qsv {
+    /**
+     * @brief Parse an Intel Quick Sync preset, including the legacy web UI spelling.
+     * @param preset Configured preset name.
+     * @return Encoder preset value, or an empty optional for an unknown name.
+     */
+    std::optional<int> preset_from_view(const std::string_view &preset);
+  }  // namespace qsv
+
   // Valid range for the packetsize limit
   constexpr int PACKETSIZE_MIN = 200;  ///< Lowest accepted configured packet size in bytes.
   constexpr int PACKETSIZE_MAX = 65535;  ///< Highest accepted configured packet size in bytes.

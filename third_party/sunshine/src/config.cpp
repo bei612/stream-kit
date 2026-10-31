@@ -373,6 +373,11 @@ namespace config {
      * @return Parsed enum value, or the setting-specific default when the text is unknown.
      */
     std::optional<int> preset_from_view(const std::string_view &preset) {
+      // Older Sunshine web pages wrote "slowest", while the encoder uses
+      // "veryslow". Preserve already saved configurations.
+      if (preset == "slowest"sv) {
+        return veryslow;
+      }
 #ifndef DOXYGEN
   #define _CONVERT_(x) \
     if (preset == #x##sv) \

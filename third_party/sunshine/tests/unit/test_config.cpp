@@ -19,6 +19,13 @@ using namespace std::literals;
 
 using NvencPresetNameParam = std::pair<int, std::string_view>;
 
+TEST(QsvPresetTest, ParsesCanonicalAndLegacyValues) {
+  EXPECT_EQ(config::qsv::preset_from_view("veryslow"sv), 1);
+  EXPECT_EQ(config::qsv::preset_from_view("slowest"sv), 1);
+  EXPECT_EQ(config::qsv::preset_from_view("medium"sv), 4);
+  EXPECT_EQ(config::qsv::preset_from_view("unknown"sv), std::nullopt);
+}
+
 /**
  * @brief Parameterized coverage for FFmpeg's symbolic NVENC preset names.
  */

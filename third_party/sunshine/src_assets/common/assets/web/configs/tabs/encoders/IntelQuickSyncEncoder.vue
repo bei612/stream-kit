@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import Checkbox from "../../../Checkbox.vue";
 
 const props = defineProps([
@@ -8,6 +8,10 @@ const props = defineProps([
 ])
 
 const config = ref(props.config)
+const qsvPreset = computed({
+  get: () => config.value.qsv_preset === 'slowest' ? 'veryslow' : config.value.qsv_preset,
+  set: value => { config.value.qsv_preset = value },
+})
 </script>
 
 <template>
@@ -15,14 +19,14 @@ const config = ref(props.config)
     <!-- QuickSync Preset -->
     <div class="mb-3">
       <label for="qsv_preset" class="form-label">{{ $t('config.qsv_preset') }}</label>
-      <select id="qsv_preset" class="form-select" v-model="config.qsv_preset">
+      <select id="qsv_preset" class="form-select" v-model="qsvPreset">
         <option value="veryfast">{{ $t('config.qsv_preset_veryfast') }}</option>
         <option value="faster">{{ $t('config.qsv_preset_faster') }}</option>
         <option value="fast">{{ $t('config.qsv_preset_fast') }}</option>
         <option value="medium">{{ $t('config.qsv_preset_medium') }}</option>
         <option value="slow">{{ $t('config.qsv_preset_slow') }}</option>
         <option value="slower">{{ $t('config.qsv_preset_slower') }}</option>
-        <option value="slowest">{{ $t('config.qsv_preset_slowest') }}</option>
+        <option value="veryslow">{{ $t('config.qsv_preset_slowest') }}</option>
       </select>
     </div>
 
