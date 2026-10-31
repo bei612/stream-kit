@@ -1,0 +1,21 @@
+{
+  "test_only": true,
+  "root_secret": "stream-kit-remote-mic-test-key-01",
+  "node_key_hex": "a8f649ffcb7f66b14a59818bdd814f30b92b415275111c48aa2b1cd6d5dc8423",
+  "now": 1700000000,
+  "claims": {
+    "source_node_id": "gateway-a",
+    "target_node_id": "renderer-b",
+    "session_id": "session-a",
+    "connection_id": "controller-a",
+    "host_id": 10,
+    "app_id": 20,
+    "target_epoch": 3,
+    "control_epoch": 4,
+    "purpose": "stream-kit/remote-microphone/v1",
+    "jti": "000102030405060708090a0b0c0d0e0f",
+    "iat": 1700000000,
+    "exp": 1700000005
+  },
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IlNUUkVBTS1NSUNST1BIT05FIn0.eyJzb3VyY2Vfbm9kZV9pZCI6ImdhdGV3YXktYSIsInRhcmdldF9ub2RlX2lkIjoicmVuZGVyZXItYiIsInNlc3Npb25faWQiOiJzZXNzaW9uLWEiLCJjb25uZWN0aW9uX2lkIjoiY29udHJvbGxlci1hIiwiaG9zdF9pZCI6MTAsImFwcF9pZCI6MjAsInRhcmdldF9lcG9jaCI6MywiY29udHJvbF9lcG9jaCI6NCwicHVycG9zZSI6InN0cmVhbS1raXQvcmVtb3RlLW1pY3JvcGhvbmUvdjEiLCJqdGkiOiIwMDAxMDIwMzA0MDUwNjA3MDgwOTBhMGIwYzBkMGUwZiIsImlhdCI6MTcwMDAwMDAwMCwiZXhwIjoxNzAwMDAwMDA1fQ.2Fm1iNRUA9Loxj-3XZ7UzC2xkATtNh3uxWZjf035c-g"
+}
