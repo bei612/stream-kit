@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -57,5 +59,28 @@ func TestCheckConfigReadOnly(t *testing.T) {
 	write()
 	if err := checkConfig(path); err == nil || !strings.Contains(err.Error(), "TLS key pair") {
 		t.Fatal("unreadable TLS pair accepted", err)
+	}
+	// Hold the configured socket to distinguish TLS-first validation from an
+	// unrelated bind failure. Invalid credentials must never initialize storage.
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	cfg.Server.BindAddress = listener.Addr().String()
+	write()
+	oldArgs := os.Args
+	os.Args = []string{"orchestrator", "--config", path}
+	t.Cleanup(func() { os.Args = oldArgs })
+	ready := false
+	if err := run(context.Background(), func() { ready = true }); err == nil || !strings.Contains(err.Error(), "TLS key pair") {
+		t.Fatal("startup did not validate TLS before binding", err)
+	}
+	if ready {
+		t.Fatal("invalid TLS announced readiness")
+	}
+	entries, err = os.ReadDir(dir)
+	if err != nil || len(entries) != 1 {
+		t.Fatal("invalid TLS initialized runtime storage", err)
 	}
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"github.com/stream-kit/orchestrator/internal/app"
@@ -115,6 +114,10 @@ func run(ctx context.Context, ready func()) error {
 	if err != nil {
 		return fmt.Errorf("配置加载失败: %v", err)
 	}
+	tlsConfig, err := serverTLS(cfg.Server)
+	if err != nil {
+		return err
+	}
 
 	logger := setupLogger(cfg)
 	defer logger.Sync()
@@ -222,16 +225,9 @@ func run(ctx context.Context, ready func()) error {
 	srv := server.New(cfg, st, compMgr, appMgr, wsHub, sessionMgr, logger)
 
 	httpServer := &http.Server{
-		Addr:    cfg.Server.BindAddress,
-		Handler: srv.Engine,
-	}
-
-	if cfg.Server.TLSCert != "" && cfg.Server.TLSKey != "" {
-		certificate, err := tls.LoadX509KeyPair(cfg.Server.TLSCert, cfg.Server.TLSKey)
-		if err != nil {
-			return fmt.Errorf("加载 TLS 证书失败: %w", err)
-		}
-		httpServer.TLSConfig = &tls.Config{Certificates: []tls.Certificate{certificate}, MinVersion: tls.VersionTLS12}
+		Addr:      cfg.Server.BindAddress,
+		Handler:   srv.Engine,
+		TLSConfig: tlsConfig,
 	}
 	serveDone := make(chan struct{})
 	httpShutdownDone := make(chan struct{})

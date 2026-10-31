@@ -19,6 +19,14 @@ run it under the deployment identity/environment and verify actual service start
 separately. Windows installer preflight runs under the invoking account; SCM may
 use a different account/environment.
 
+Direct control startup also loads its TLS key pair before opening the listening
+socket, logs or database. It shares the preflight TLS implementation and retains
+the loaded certificate for serving, rather than reopening the files later.
+Native tests verify that an unreadable TLS pair fails before binding or creating
+storage and does not announce readiness; normal HTTP/HTTPS startup and shutdown
+tests pass. Certificate trust/hostname/expiry verification by clients is still
+required and is not implied by successfully loading a key pair.
+
 Windows source revision `aa254605` completed the native Sunshine release build
 with official CMake 3.31.8, clean-source verification and matching executable
 revision. Its 71 selected core native tests passed without skips (capture target,
