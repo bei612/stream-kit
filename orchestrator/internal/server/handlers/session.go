@@ -252,14 +252,17 @@ func (h *SessionHandler) Audio(c *gin.Context) {
 	okResponse(c, s)
 }
 func (h *SessionHandler) Policy(c *gin.Context) {
-	var p session.Policy
-	if c.ShouldBindJSON(&p) != nil {
+	var req struct {
+		session.Policy
+		Expected *session.Policy `json:"expected_policy"`
+	}
+	if c.ShouldBindJSON(&req) != nil || req.Expected == nil {
 		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", "invalid session policy")
 		return
 	}
-	if err := h.Manager.UpdatePolicy(c.Param("session_id"), p); err != nil {
-		if err == session.ErrInvalidState {
-			respondSessionError(c, err)
+	if err := h.Manager.CompareAndSetPolicy(c.Param("session_id"), req.Policy, *req.Expected); err != nil {
+		if errors.Is(err, session.ErrPolicyChanged) {
+			errResponse(c, http.StatusConflict, "SESSION_POLICY_CONFLICT", "连接配置已变化，请载入最新配置后重新编辑")
 			return
 		}
 		respondSessionError(c, err)

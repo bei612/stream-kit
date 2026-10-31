@@ -23,6 +23,7 @@ var ErrNotFound = errors.New("stream session or connection not found")
 var ErrControllerExists = errors.New("stream session already has a controller")
 var ErrControllerChanged = errors.New("controller changed since the command was prepared")
 var ErrAudioChanged = errors.New("audio settings changed since the command was prepared")
+var ErrPolicyChanged = errors.New("session policy changed since the command was prepared")
 var ErrInvalidState = errors.New("invalid stream session state")
 
 const (
@@ -316,10 +317,24 @@ func (m *Manager) updateAudio(id string, cfg AudioConfig, expected *AudioConfig)
 	})
 }
 func (m *Manager) UpdatePolicy(id string, p Policy) error {
-	if p.AllowViewerMicrophone || p.MaxViewers < 0 || (p.ControllerDisconnectPolicy != "release" && p.ControllerDisconnectPolicy != "manual") {
+	return m.updatePolicy(id, p, nil)
+}
+
+func (m *Manager) CompareAndSetPolicy(id string, p, expected Policy) error {
+	return m.updatePolicy(id, p, &expected)
+}
+
+func (m *Manager) updatePolicy(id string, p Policy, expected *Policy) error {
+	if p.AllowViewerMicrophone || p.MaxViewers < 0 || p.ControllerDisconnectPolicy != "release" {
 		return ErrInvalidState
 	}
-	return m.mutate(id, "stream_policy_changed", func(s *RenderSession) error { s.Policy = p; return nil })
+	return m.mutate(id, "stream_policy_changed", func(s *RenderSession) error {
+		if expected != nil && s.Policy != *expected {
+			return ErrPolicyChanged
+		}
+		s.Policy = p
+		return nil
+	})
 }
 func (m *Manager) Disconnect(id, connectionID string) error {
 	return m.mutate(id, "stream_connection_changed", func(s *RenderSession) error {
@@ -420,6 +435,11 @@ func fromRecord(record model.StreamSession) (*RenderSession, error) {
 	s := &RenderSession{ID: record.ID, Revision: record.Revision, ControlEpoch: record.ControlEpoch, HostID: record.HostID, AppID: record.AppID, State: record.State, ControllerConnectionID: record.ControllerConnectionID, CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt, Connections: map[string]*Connection{}}
 	if err := store.DecodeStreamSessionSnapshot(&record, &s.Audio, &s.Policy, &s.Connections); err != nil {
 		return nil, err
+	}
+	// Legacy "manual" was accepted but never implemented: expired controllers
+	// have always been revoked. Normalize the label to that actual behavior.
+	if s.Policy.ControllerDisconnectPolicy == "manual" {
+		s.Policy.ControllerDisconnectPolicy = "release"
 	}
 	if record.ResumableJSON != "" {
 		if err := json.Unmarshal([]byte(record.ResumableJSON), &s.Resumable); err != nil {

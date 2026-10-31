@@ -128,8 +128,8 @@ export const api = {
     }),
   updateStreamAudio: (sessionId: string, audio: SessionAudio, expected: SessionAudio) =>
     request<RenderSession>(`/stream-sessions/${sessionId}/audio`, { method: 'PATCH', body: JSON.stringify({...audio, expected_audio: expected}) }),
-  updateStreamPolicy: (sessionId: string, policy: SessionPolicy) =>
-    request<RenderSession>(`/stream-sessions/${sessionId}/policy`, { method: 'PATCH', body: JSON.stringify(policy) }),
+  updateStreamPolicy: (sessionId: string, policy: SessionPolicy, expected: SessionPolicy) =>
+    request<RenderSession>(`/stream-sessions/${sessionId}/policy`, { method: 'PATCH', body: JSON.stringify({...policy, expected_policy: expected}) }),
   claimStreamController: (sessionId: string, connectionId: string) =>
     request<RenderSession>(`/stream-sessions/${sessionId}/controller/${connectionId}`, { method: 'POST' }),
   releaseStreamController: (sessionId: string) =>

@@ -10,7 +10,7 @@ const {chromium} = createRequire(path.resolve('third_party/moonlight-web-stream/
   const session = {session_id:'audio-test', revision:1, control_epoch:1, host_id:1, app_id:2, state:'running', connections:{},
     audio:{program_gain_db:0, microphone_gain_db:0, microphone_enabled:true, broadcast_controller_microphone:true, controller_monitor:false, target:{mode:'upstream',epoch:1,render_device_id:'',capture_device_id:''}},
     policy:{max_viewers:20, controller_disconnect_policy:'release', allow_viewer_microphone:false}};
-  const writes = [], errors = [];
+  const writes = [], policyWrites = [], errors = [];
   try {
     const page = await browser.newPage();
     page.on('pageerror', e => errors.push(e.message));
@@ -18,6 +18,13 @@ const {chromium} = createRequire(path.resolve('third_party/moonlight-web-stream/
     await page.route('**/*', async route => {
       const url = new URL(route.request().url());
       if (url.hostname !== 'admin.test') return route.abort();
+      if (url.pathname.endsWith('/stream-sessions/audio-test/policy')) {
+        const body = route.request().postDataJSON(); policyWrites.push(body);
+        assert.deepEqual(body.expected_policy, session.policy);
+        const {expected_policy, ...next} = body;
+        session.policy = next; session.revision++;
+        return route.fulfill({json:{status:'ok',data:session}});
+      }
       if (url.pathname.endsWith('/stream-sessions/audio-test/audio')) {
         const body = route.request().postDataJSON(); writes.push(body);
         assert.deepEqual(body.expected_audio, session.audio);
@@ -56,9 +63,26 @@ const {chromium} = createRequire(path.resolve('third_party/moonlight-web-stream/
     session.audio.program_gain_db = -9; session.revision++;
     await page.getByRole('button',{name:'刷新',exact:true}).click();
     await page.waitForFunction(() => document.querySelector('input[type=number]')?.value === '-9');
+    const capacity = page.getByRole('spinbutton',{name:'最大客户端数'});
+    const savePolicy = page.getByRole('button',{name:'应用连接容量',exact:true});
+    await capacity.fill('10');
+    session.policy.max_viewers = 5; session.revision++;
+    await page.getByRole('button',{name:'刷新',exact:true}).click();
+    await page.getByRole('alert').filter({hasText:'当前容量草稿已保留'}).waitFor();
+    assert.equal(await capacity.inputValue(),'10');
+    assert.equal(await savePolicy.isDisabled(),true);
+    assert.equal(policyWrites.length,0);
+    await page.getByRole('button',{name:'载入最新连接配置',exact:true}).click();
+    assert.equal(await capacity.inputValue(),'5');
+    await capacity.fill('8');
+    const policySaved = page.waitForResponse(response => response.url().endsWith('/stream-sessions/audio-test/policy'));
+    await savePolicy.click(); await policySaved;
+    assert.equal(policyWrites.length,1);
+    assert.equal(policyWrites[0].expected_policy.max_viewers,5);
+    assert.equal(policyWrites[0].controller_disconnect_policy,'release');
     assert.deepEqual(errors,[]);
     fs.mkdirSync('artifacts/session-audio',{recursive:true});
-    fs.writeFileSync('artifacts/session-audio/admin-browser-result.json', JSON.stringify({passed:true,cases:['stale-draft-preserved','stale-submit-disabled','explicit-reload','compare-and-set-payload','untouched-form-refresh'],errors},null,2));
+    fs.writeFileSync('artifacts/session-audio/admin-browser-result.json', JSON.stringify({passed:true,cases:['stale-draft-preserved','stale-submit-disabled','explicit-reload','compare-and-set-payload','untouched-form-refresh','capacity-conflict-preserves-draft','capacity-compare-and-set'],errors},null,2));
     console.log('Session audio browser checks passed');
   } finally { await browser.close(); }
 })().catch(error => {console.error(error);process.exitCode=1;});

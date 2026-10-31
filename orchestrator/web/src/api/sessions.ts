@@ -15,7 +15,7 @@ export interface AudioTarget {
 }
 
 export interface SessionPolicy {
-  controller_disconnect_policy: 'release' | 'manual'
+  controller_disconnect_policy: 'release'
   max_viewers: number
   allow_viewer_microphone: boolean
 }
