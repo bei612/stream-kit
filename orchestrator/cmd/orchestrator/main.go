@@ -59,14 +59,26 @@ func main() {
 			}
 			return
 		case "version":
+			if len(os.Args) != 2 {
+				argumentError(fmt.Errorf("%s", commandUsage))
+			}
 			fmt.Printf("stream-kit orchestrator %s (commit: %s, built: %s)\n", version, commit, buildTime)
 			os.Exit(0)
 		case "print-config":
 			printConfig()
 			os.Exit(0)
+		case "help", "--help", "-h":
+			if len(os.Args) != 2 {
+				argumentError(fmt.Errorf("%s", commandUsage))
+			}
+			fmt.Println(commandUsage)
+			return
 		}
 	}
 
+	if _, err := configArgument(os.Args[1:]); err != nil {
+		argumentError(err)
+	}
 	if err := runPlatform(run); err != nil {
 		fatalError("%v", err)
 	}
@@ -83,11 +95,9 @@ func run(ctx context.Context, ready func()) error {
 	handlers.Commit = commit
 	handlers.BuildTime = buildTime
 
-	configPath := "config.json"
-	for i, arg := range os.Args {
-		if arg == "--config" && i+1 < len(os.Args) {
-			configPath = os.Args[i+1]
-		}
+	configPath, err := configArgument(os.Args[1:])
+	if err != nil {
+		return err
 	}
 
 	cfg, err := config.Load(configPath)
@@ -353,11 +363,9 @@ func fatalError(format string, args ...interface{}) {
 }
 
 func printConfig() {
-	configPath := "config.json"
-	for i, arg := range os.Args {
-		if arg == "--config" && i+1 < len(os.Args) {
-			configPath = os.Args[i+1]
-		}
+	configPath, err := configArgument(os.Args[2:])
+	if err != nil {
+		argumentError(err)
 	}
 	cfg, err := config.Load(configPath)
 	if err != nil {
