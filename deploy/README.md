@@ -16,6 +16,19 @@ test file and the target recording device was unconfigured. This does not prove
 physical microphone permission, delivery to UE5/recorder, full audio quality,
 installed-service operation or a signed platform installer.
 
+The same Windows artifacts passed service recovery at
+`artifacts/source-stream/2026-10-31T09-52-10-116Z/`: gateway recovery took
+20.315 seconds without a page reload; control restart retained connection and
+control-epoch identity while video continued. Renderer files were then staged
+with `cmake --install` into a new local directory. With PATH restricted to
+Windows system directories, the staged renderer passed full program streaming,
+browser configuration editing and managed encoder restart at
+`artifacts/source-stream/2026-10-31T09-54-04-561Z/`. Both clients recovered in
+23.096 seconds, the loaded configuration revision matched, identities were
+preserved, and program audio was measured after recovery. These checks use the
+existing Windows host; they do not prove a fresh-OS installer or SCM session
+deployment. No installed service or system default audio device was changed.
+
 On 2026-10-31 the required stability duration was explicitly reduced from 24 to
 4 hours. The 20-client run completed 16,280.012 seconds (about 4.52 hours), with
 1,603 periodic samples verifying all connections, decoded-frame and audio-packet
