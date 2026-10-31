@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { collectGoNotices } from './lib/go-notices.mjs'
+import { controlBuildTarget, verifyControlBuildInfo } from './lib/control-build-target.mjs'
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..')
 const options=process.argv.slice(2)
@@ -16,6 +17,8 @@ for(let i=0;i<options.length;i++){
 function option(name,fallback){const index=options.indexOf(name);return index<0?fallback:options[index+1]}
 const output=path.resolve(option('--output',path.join(root,'orchestrator/bundle')))
 const go=option('--go','go')
+const goEnvironment=JSON.parse(execFileSync(go,['env','-json','GOROOT','GOVERSION','GOOS','GOARCH','GOHOSTOS','GOHOSTARCH'],{cwd:path.join(root,'orchestrator'),encoding:'utf8',windowsHide:true}))
+const target=controlBuildTarget(goEnvironment)
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',windowsHide:true}).trim()
 const commit=git('rev-parse','HEAD')
 if(!/^[a-f0-9]{40}$/.test(commit))throw new Error('Invalid source revision')
@@ -37,10 +40,11 @@ fs.mkdirSync(output,{recursive:true})
 execFileSync(process.execPath,[path.join(web,'node_modules/typescript/bin/tsc'),'-b','--force'],{cwd:web,stdio:'inherit',windowsHide:true})
 execFileSync(process.execPath,[path.join(web,'node_modules/vite/bin/vite.js'),'build','--outDir',path.join(output,'dist')],{cwd:web,stdio:'inherit',windowsHide:true})
 if(!fs.lstatSync(path.join(output,'dist/index.html')).isFile())throw new Error('Management page build did not produce index.html')
-const binary=path.join(output,process.platform==='win32'?'orchestrator.exe':'orchestrator')
-execFileSync(go,['build','-trimpath','-ldflags',`-s -w -X main.version=${version} -X main.commit=${commit} -X main.buildTime=${sourceTime}`,'-o',binary,'./cmd/orchestrator'],{cwd:path.join(root,'orchestrator'),stdio:'inherit',windowsHide:true})
+const binary=path.join(output,target.binary)
+const linkerFlags=`-s -w -X main.version=${version} -X main.commit=${commit} -X main.buildTime=${sourceTime}`
+execFileSync(go,['build','-trimpath','-ldflags',linkerFlags,'-o',binary,'./cmd/orchestrator'],{cwd:path.join(root,'orchestrator'),stdio:'inherit',windowsHide:true})
 const buildInfo=JSON.parse(execFileSync(go,['version','-m','-json',binary],{encoding:'utf8',windowsHide:true}))
-const goEnvironment=JSON.parse(execFileSync(go,['env','-json','GOROOT','GOVERSION'],{cwd:path.join(root,'orchestrator'),encoding:'utf8',windowsHide:true}))
+verifyControlBuildInfo(buildInfo,target,commit)
 if(goEnvironment.GOVERSION!==buildInfo.GoVersion)throw new Error('Go toolchain notices do not match compiled runtime version')
 const goNotices=collectGoNotices(path.join(root,'orchestrator/vendor'),goEnvironment.GOROOT,buildInfo)
 fs.writeFileSync(path.join(output,'THIRD_PARTY_NOTICES.go.json'),JSON.stringify(goNotices,null,2)+'\n')
@@ -56,10 +60,12 @@ function inventory(directory){
   }
 }
 inventory(output)
-const reported=execFileSync(binary,['version'],{encoding:'utf8',windowsHide:true}).trim()
-if(!reported.includes(`(commit: ${commit},`)||!reported.includes(version))throw new Error('Compiled version does not match source')
-const target=JSON.parse(execFileSync(go,['env','-json','GOOS','GOARCH'],{encoding:'utf8',windowsHide:true}))
+let reported=null
+if(target.canExecute){
+  reported=execFileSync(binary,['version'],{encoding:'utf8',windowsHide:true}).trim()
+  if(!reported.includes(`(commit: ${commit},`)||!reported.includes(version))throw new Error('Compiled version does not match source')
+}
 if(git('rev-parse','HEAD')!==commit||((requireClean||!dirty)&&git('status','--porcelain','--untracked-files=normal')!==''))throw new Error('Source changed during release build; no bundle manifest was issued')
-const manifest={schema_version:1,component:'orchestrator',version,commit,source_commit_time:sourceTime,source_dirty:dirty,platform:target.GOOS,architecture:target.GOARCH,go_version:execFileSync(go,['version'],{encoding:'utf8',windowsHide:true}).trim(),frontend:{node_version:process.version,...frontendTools,package_lock_sha256:createHash('sha256').update(fs.readFileSync(path.join(web,'package-lock.json'))).digest('hex')},files}
+const manifest={schema_version:1,component:'orchestrator',version,commit,source_commit_time:sourceTime,source_dirty:dirty,platform:target.platform,architecture:target.architecture,runtime_version_check:{executed:target.canExecute,output:reported,reason:target.canExecute?null:'cross_compiled_requires_target_runtime'},go_version:execFileSync(go,['version'],{encoding:'utf8',windowsHide:true}).trim(),frontend:{node_version:process.version,...frontendTools,package_lock_sha256:createHash('sha256').update(fs.readFileSync(path.join(web,'package-lock.json'))).digest('hex')},files}
 fs.writeFileSync(path.join(output,'bundle-manifest.json'),JSON.stringify(manifest,null,2)+'\n')
 console.log(JSON.stringify({output,version,source_dirty:dirty,files:files.length}))
