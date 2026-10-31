@@ -4,6 +4,7 @@ import { api } from '@/api/client'
 import type { AudioInventory } from '@/api/audio-devices'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { AudioPairCheck } from '@/components/AudioPairCheck'
 
 export function AudioDevices() {
   const [inventory, setInventory] = useState<AudioInventory | null>(null)
@@ -50,6 +51,7 @@ export function AudioDevices() {
       {error && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-red-300">{error}</p>}
       {!inventory && !error && <p role="status" className="text-sm text-muted-foreground">{busy ? '正在读取服务器设备目录…' : '点击读取设备，查看当前可用端点。此操作不修改系统音频设置。'}</p>}
       {inventory && <>
+        <AudioPairCheck devices={inventory.devices} />
         <div className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
           <span>{inventory.devices.length} 个设备 · {inventory.configured_routes.length} 个应用绑定</span>
           <span>读取于 {new Date(inventory.observed_at_ms).toLocaleTimeString()}</span>

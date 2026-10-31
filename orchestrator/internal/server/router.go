@@ -127,6 +127,11 @@ func (s *Server) setupRoutes() {
 		}
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "data": inventory})
 	})
+	var pairChecker handlers.AudioPairChecker
+	if s.MediaControl != nil {
+		pairChecker = s.MediaControl
+	}
+	authed.POST("/audio-devices/check-pair", handlers.AudioPairCheck(pairChecker))
 
 	// Same management identity; browser bearer travels in the upgrade header.
 	if s.WSHub != nil {

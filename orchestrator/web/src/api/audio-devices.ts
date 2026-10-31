@@ -19,3 +19,13 @@ export interface AudioInventory {
   devices: AudioDevice[]
   configured_routes: AudioRoute[]
 }
+
+export interface AudioPairCheckResult {
+  passed: boolean
+  captured_frames: number
+  tone_amplitude: number
+  submitted_packets: number
+  closed_after_drop: boolean
+  baseline: { quiet: boolean; rms: number; peak: number }
+  after_clear: { quiet: boolean; rms: number; peak: number }
+}
