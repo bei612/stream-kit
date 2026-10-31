@@ -8,6 +8,83 @@ function compile(file) {
   return ts.transpileModule(readFileSync(new URL(`../third_party/moonlight-web-stream/web/stream/video/${file}.ts`, import.meta.url), 'utf8'),
     { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
 }
+
+test('capability collection isolates synchronous and asynchronous candidate failures and caches successful results', async () => {
+  const source=readFileSync(new URL('../third_party/moonlight-web-stream/web/stream/pipeline/index.ts',import.meta.url),'utf8')
+  const exports={},classes=new Map(),calls=new Map(),warnings=[]
+  const module=new Proxy({}, {get(_,name){
+    if(!classes.has(name))classes.set(name,class {
+      static pipeName=name
+      static getInfo(){
+        calls.set(name,(calls.get(name)||0)+1)
+        if(name==='AudioDecoderPipe')throw new Error('query unavailable')
+        if(name==='VideoDecoderPipe')return Promise.reject(new Error('codec query failed'))
+        return Promise.resolve({environmentSupported:true})
+      }
+    })
+    return classes.get(name)
+  }})
+  vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,
+    {exports,require:()=>module,console:{warn:(...args)=>warnings.push(args)}})
+  const [first,second]=await Promise.all([exports.gatherPipeInfo(),exports.gatherPipeInfo()])
+  assert.equal(first,second)
+  assert.equal(first.get(classes.get('AudioDecoderPipe')).environmentSupported,false)
+  assert.equal(first.get(classes.get('VideoDecoderPipe')).environmentSupported,false)
+  assert.ok([...first.values()].filter(info=>info.environmentSupported).length>2)
+  assert.ok([...calls.values()].every(count=>count===1))
+  assert.equal(warnings.length,2)
+})
+
+test('one rejected video codec probe does not erase supported alternatives', async () => {
+  const exports={},queried=[]
+  class Decoder {
+    static async isConfigSupported(config){
+      queried.push(config.codec)
+      if(config.codec.startsWith('avc3.'))throw new TypeError('unsupported in-band identifier')
+      return {supported:config.codec==='out-h264'}
+    }
+  }
+  vm.runInNewContext(compile('video_decoder_pipe'),{exports,VideoDecoder:Decoder,require(name){
+    if(name==='../../util')return {globalObject:()=>({VideoDecoder:Decoder})}
+    if(name==='../video')return {emptyVideoCodecs:()=>({h264:false,h265:false,h264High8444:false})}
+    if(name==='./annex_b_translator')return {VIDEO_DECODER_CODECS_OUT_OF_BAND:{h264:'out-h264',h265:'out-h265',h264High8444:'out-444'}}
+    return {}
+  }})
+  const info=await exports.VideoDecoderPipe.getInfo()
+  assert.equal(info.environmentSupported,true)
+  assert.equal(info.supportedVideoCodecs.h264,true)
+  assert.equal(info.supportedVideoCodecs.h265,false)
+  assert.ok(queried.includes('out-h264'))
+  Decoder.isConfigSupported=undefined
+  const unknown=await exports.VideoDecoderPipe.getInfo()
+  assert.ok(Object.values(unknown.supportedVideoCodecs).every(value=>value===false))
+})
+
+test('rejected hardware preference still allows a supported default video configuration', async () => {
+  const exports={},queries=[],configured=[]
+  class Decoder {
+    state='unconfigured'
+    static async isConfigSupported(config){
+      queries.push(config)
+      if(config.hardwareAcceleration)throw new Error('hardware unavailable')
+      return {supported:true}
+    }
+    configure(config){configured.push(config);this.state='configured'}
+    reset(){this.state='unconfigured'}
+    close(){this.state='closed'}
+  }
+  vm.runInNewContext(compile('video_decoder_pipe'),{exports,VideoDecoder:Decoder,require(name){
+    if(name==='../pipeline/pipes')return {addPipePassthrough(){}}
+    if(name==='./codec_level')return {videoDecoderCodecInBand:()=> 'avc3.42E01E'}
+    return {}
+  }})
+  const pipe=new exports.VideoDecoderPipe({implementationName:'test',setup(){},cleanup(){}})
+  await pipe.setup({width:1280,height:720,fps:60,codec:'h264'})
+  assert.equal(queries.length,2)
+  assert.equal(configured.length,1)
+  assert.equal(configured[0].hardwareAcceleration,undefined)
+  pipe.cleanup()
+})
 function startupFixture() {
   let resolve
   const pending = new Promise(r => { resolve = r }), exports = {}, decoded = []

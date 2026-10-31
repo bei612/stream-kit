@@ -130,7 +130,7 @@ export async function buildPipeline(pipeline: Pipeline, logger?: Logger, rendere
 
         let pipeInfo = pipesInfo.get(pipe)
         if (!pipeInfo) {
-            pipeInfo = await pipe.getInfo()
+            pipeInfo = await queryPipeInfo(pipe)
             logger?.debug(`Querying pipe info for ${pipeName(pipe)}: ${JSON.stringify(pipeInfo)}`)
         }
 
@@ -202,7 +202,7 @@ async function gatherPipeInfoInternal(): Promise<Map<PipeStatic, PipeInfo>> {
 
     const all: Array<PipeStatic> = pipes()
     for (const pipe of all) {
-        promises.push(pipe.getInfo().then(info => {
+        promises.push(queryPipeInfo(pipe).then(info => {
             map.set(pipe, info)
         }))
     }
@@ -210,6 +210,16 @@ async function gatherPipeInfoInternal(): Promise<Map<PipeStatic, PipeInfo>> {
     await Promise.all(promises)
 
     return map
+}
+
+// A browser may expose an API whose capability query rejects. Keep that
+// failure local to the candidate, so unrelated audio/video paths remain usable.
+async function queryPipeInfo(pipe: PipeInfoStatic): Promise<PipeInfo> {
+    try { return await pipe.getInfo() }
+    catch (error) {
+        console.warn(`Capability query failed for ${pipe.pipeName}`, error)
+        return { environmentSupported: false }
+    }
 }
 
 export function pipes(): Array<PipeStatic> {

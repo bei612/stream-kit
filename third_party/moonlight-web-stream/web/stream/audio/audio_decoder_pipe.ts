@@ -5,10 +5,7 @@ import { addPipePassthrough } from "../pipeline/pipes"
 import { AudioDecodeUnit, AudioPlayerSetup, DataAudioPlayer, SampleAudioPlayer } from "./index"
 
 async function detectCodec(): Promise<boolean> {
-    if (!("isConfigSupported" in AudioDecoder)) {
-        // Opus is most likely supported
-        return true
-    }
+    if (typeof AudioDecoder.isConfigSupported !== "function") return false
 
     const supported = await AudioDecoder.isConfigSupported({
         codec: "opus",
@@ -28,7 +25,7 @@ export class AudioDecoderPipe implements DataAudioPlayer {
 
     static async getInfo(): Promise<PipeInfo> {
         return {
-            environmentSupported: "AudioDecoder" in globalObject() && await detectCodec(),
+            environmentSupported: typeof globalObject().AudioDecoder === "function" && await detectCodec(),
         }
     }
 

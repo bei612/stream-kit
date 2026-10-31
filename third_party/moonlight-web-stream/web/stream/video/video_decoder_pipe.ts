@@ -25,13 +25,7 @@ export const VIDEO_DECODER_CODECS_IN_BAND: Record<keyof VideoFormats, string> = 
 }
 
 async function detectCodecs(): Promise<VideoFormats> {
-    if (!("isConfigSupported" in VideoDecoder)) {
-        const codecs = emptyVideoCodecs()
-
-        // We're just guessing that this browser supports h264
-        codecs.h264 = true
-        return codecs
-    }
+    if (typeof VideoDecoder.isConfigSupported !== "function") return emptyVideoCodecs()
 
     const codecs = emptyVideoCodecs()
     const promises = []
@@ -40,15 +34,15 @@ async function detectCodecs(): Promise<VideoFormats> {
         const codec = codec2 as keyof VideoFormats
 
         promises.push((async () => {
-            const supportedInBand = await VideoDecoder.isConfigSupported({
+            const supportedInBand = await getIfConfigSupported({
                 codec: VIDEO_DECODER_CODECS_IN_BAND[codec]
             })
 
-            const supportedOutOfBand = await VideoDecoder.isConfigSupported({
+            const supportedOutOfBand = await getIfConfigSupported({
                 codec: VIDEO_DECODER_CODECS_OUT_OF_BAND[codec]
             })
 
-            codecs[codec] = supportedInBand.supported || supportedOutOfBand.supported ? true : false
+            codecs[codec] = supportedInBand !== null || supportedOutOfBand !== null
         })())
     }
     await Promise.all(promises)
@@ -59,10 +53,10 @@ async function detectCodecs(): Promise<VideoFormats> {
     return codecs
 }
 async function getIfConfigSupported(config: VideoDecoderConfig): Promise<VideoDecoderConfig | null> {
-    const supported = await VideoDecoder.isConfigSupported(config)
-    if (supported.supported) {
-        return config
-    }
+    try {
+        const supported = await VideoDecoder.isConfigSupported(config)
+        if (supported.supported) return config
+    } catch { /* This configuration is unavailable; try the next candidate. */ }
     return null
 }
 
@@ -76,7 +70,7 @@ export class VideoDecoderPipe implements DataVideoRenderer {
     static readonly type = "videodata"
 
     static async getInfo(): Promise<PipeInfo> {
-        const supported = "VideoDecoder" in globalObject()
+        const supported = typeof globalObject().VideoDecoder === "function"
 
         return {
             environmentSupported: supported,
