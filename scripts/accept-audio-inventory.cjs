@@ -7,8 +7,9 @@ const { once } = require('node:events');
 const { setTimeout: delay } = require('node:timers/promises');
 const { createRequire } = require('node:module');
 
-module.exports = async function acceptAudioInventory({ root, binary, gatewayURL, secret, output, configuredRoutes }) {
+module.exports = async function acceptAudioInventory({ root, binary, gatewayURL, secret, output, configuredRoutes, nodeOnly=false }) {
   binary = path.resolve(binary);
+  fs.mkdirSync(output,{recursive:true});
   const scratch = fs.mkdtempSync(path.join(root, '.local/audio-inventory-'));
   const listener = net.createServer();
   await new Promise(resolve => listener.listen(0, '127.0.0.1', resolve));
@@ -23,6 +24,10 @@ module.exports = async function acceptAudioInventory({ root, binary, gatewayURL,
     process: { monitor_interval_seconds: 2, graceful_shutdown_timeout_seconds: 2 },
     log: { level: 'info', file: { enabled: false }, access_log: { enabled: false } },
   };
+  if(nodeOnly){
+    config.server.media_ticket_secret='';config.moonlight_web.base_url='';
+    config.render_nodes={'renderer-a':{name:'独立渲染节点',base_url:gatewayURL,control_secret:secret}};
+  }
   const configFile = path.join(scratch, 'config.json');
   fs.writeFileSync(configFile, JSON.stringify(config));
   fs.cpSync(path.join(root, 'orchestrator/web/dist'), path.join(scratch, 'dist'), { recursive: true });
@@ -53,6 +58,33 @@ module.exports = async function acceptAudioInventory({ root, binary, gatewayURL,
     await page.getByLabel('密码', { exact: true }).fill(credentials.password);
     await page.getByRole('button', { name: '登录控制台' }).click();
     await page.locator('nav a[href="/settings"]').click();
+    if(nodeOnly){
+      assert.equal((await fetch(origin+'/api/v1/render-nodes')).status,401);
+      assert.equal((await fetch(origin+'/api/v1/render-nodes/renderer-a/audio-devices')).status,401);
+      await page.locator('#render-node-selection').selectOption('renderer-a');
+      assert.equal(await page.locator('#render-node-selection option').count(),1,'disabled primary must not masquerade as a running node');
+      const responsePromise=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/v1/render-nodes/renderer-a/audio-devices');
+      await page.getByRole('button',{name:'读取节点设备',exact:true}).click();
+      const response=await responsePromise;
+      assert.equal(response.status(),200);assert.equal(response.headers()['cache-control'],'no-store');
+      const data=(await response.json()).data;
+      assert.equal(data.node_id,'renderer-a');assert.ok(Array.isArray(data.inventory.devices));
+      assert.deepEqual(data.inventory.configured_routes,configuredRoutes);
+      await page.getByLabel('节点音频设备').waitFor();
+      const token=await page.evaluate(()=>localStorage.getItem('auth_token'));
+      const headers={Authorization:`Bearer ${token}`};
+      assert.equal((await fetch(origin+'/api/v1/render-nodes/unknown/audio-devices',{headers})).status,404);
+      const settings=await fetch(origin+'/api/v1/configuration',{headers});assert.equal(settings.status,200);
+      assert.ok(!(await settings.text()).includes(secret),'node secret leaked in configuration view');
+      await page.setViewportSize({width:390,height:844});
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+      await page.screenshot({path:path.join(output,'node-inventory-narrow.png'),fullPage:true});
+      assert.deepEqual(errors,[]);
+      const result={passed:true,browser:browser.version(),node_id:data.node_id,device_count:data.inventory.devices.length,
+        control_sha256:crypto.createHash('sha256').update(fs.readFileSync(binary)).digest('hex'),
+        scope:'Real standalone configured node inventory through native control/gateway and browser, with primary gateway disabled. No stream, device opening or cross-node microphone delivery.'};
+      fs.writeFileSync(path.join(output,'result.json'),JSON.stringify(result,null,2));return result;
+    }
     await page.getByRole('button', { name: '读取设备', exact: true }).waitFor();
     assert.equal(reads, 0, 'Enumeration must be on explicit demand');
     const responsePromise = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/audio-devices');

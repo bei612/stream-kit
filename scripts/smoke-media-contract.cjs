@@ -230,6 +230,11 @@ async function main() {
       configuredRoutes: config.local_audio_targets,
     }) : undefined;
     if(managementInventory)assert.deepEqual(managementInventory.gateway_runtime,beforeSettings.result.data.runtime);
+    const nodeInventory = process.argv[3] ? await require('./accept-audio-inventory.cjs')({
+      root, binary:process.argv[3], gatewayURL:`http://127.0.0.1:${port}/gateway`,secret,
+      output:path.join(output,'node-inventory'),configuredRoutes:config.local_audio_targets,nodeOnly:true,
+    }) : undefined;
+    if(nodeInventory)assert.equal(nodeInventory.passed,true);
     const result = { passed: true, platform: process.platform, architecture: process.arch, at: new Date().toISOString(), gateway_sha256: crypto.createHash('sha256').update(fs.readFileSync(binary)).digest('hex'),
       audio_inventory_status: inventoryResponse.status,
       checks: [inventoryResponse.ok ? 'signed audio inventory with nonce and configured routes' : 'native audio backend unavailable reported as HTTP 503', 'inventory rejects unsigned/wrong-domain/stale requests', 'signed HTTP acknowledgement', 'request/revision binding', 'unsigned rejection', 'replay rejection', 'configured idle target', 'v1 rejection', 'invalid/rollback epoch rejection', 'coalesced ownership transfer', 'revocation',

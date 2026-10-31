@@ -245,10 +245,12 @@ jobs:
       # Run after the complete gateway build, not in the management-only job.
       - name: Record native Windows audio environment
         if: runner.os == 'Windows'
-        shell: bash
+        shell: pwsh
         working-directory: .
         run: |
-          cargo build --locked --manifest-path components/audio-target/Cargo.toml --bin audio-probe
+          New-Item -ItemType Directory -Force artifacts/audio-playback | Out-Null
+          cargo build --locked --manifest-path components/audio-target/Cargo.toml --bin audio-probe 2>&1 | Tee-Object -FilePath artifacts/audio-playback/native-probe-build.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node scripts/record-windows-audio-environment.cjs components/audio-target/target/debug/audio-probe.exe
       - name: Verify browser audio and microphone RTP lifecycle
         shell: bash
