@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-31T18:36:33.078Z",
+  "source_commit": "becefdcea66b2030afabe4713d9c11fbdac12474",
+  "workflow_run": 41229554080,
+  "workflow_url": "https://github.com/bei612/stream-kit/actions/runs/41229554080",
+  "conclusion": "success",
+  "checks": {
+    "native_capture_executed": 7,
+    "native_input_endpoint_pair": true,
+    "native_example_record_and_replay": true,
+    "endpoint_tone_amplitude": 0.09867759899389476,
+    "endpoint_drop_closes": true
+  },
+  "scope": "Native production Linux capture and process ownership code in Xvfb/PulseAudio isolation, plus real virtual endpoint record/replay. Existing CI artifacts reviewed; checks were not rerun.",
+  "exclusions": [
+    "physical microphone",
+    "physical Linux GPU/desktop hardware",
+    "UE5 application receipt",
+    "complete product installer acceptance"
+  ],
+  "artifacts": [
+    {
+      "file": "linux-native-capture/linux-application-audio.json",
+      "sha256": "ba5a9d87f6e3ae4bd197503daa3cfa5c03c30897a393ec4f1d724d6fb04721e0"
+    },
+    {
+      "file": "linux-microphone-target/linux-pair-result.json",
+      "sha256": "047d2269ba58d6877bd190f706a18119a6a4050fc246f0ccd619a5db0849862b"
+    },
+    {
+      "file": "linux-microphone-target/example-pair-result.json",
+      "sha256": "acb4bfaaa309435571834ecad7433964865c7c8e778c29ed62094e8e957ea97e"
+    }
+  ]
+}
