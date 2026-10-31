@@ -65,12 +65,16 @@ context.suspend().then(()=>{document.body.dataset.ready='true'});
     await wait(async()=>{for(const stat of (await right.getStats()).values())if(stat.type==='inbound-rtp'&&stat.kind==='audio')packets=stat.packetsReceived;return packets>2});
     const firstStopped=()=>tracks[0].readyState==='ended';
     pipe.setAllowed(false);
-    const revoked=firstStopped();pipe.setAllowed(true);
+    const revoked=firstStopped();
+    await wait(()=>sender.track===null);
+    const revokedDetached=sender.track===null;
+    pipe.setAllowed(true);
+    const grantDidNotCapture=requests===1&&sender.track===null;
     await pipe.resumeCapture();await wait(()=>sender.track===tracks[1]);
     let resumedPackets=packets;
     await wait(async()=>{for(const stat of (await right.getStats()).values())if(stat.type==='inbound-rtp'&&stat.kind==='audio')resumedPackets=stat.packetsReceived;return resumedPackets>packets+2});
     pipe.cleanup();pipe.cleanup();await wait(()=>sender.track===null);
-    return {requests,packets,resumedPackets,revoked,allStopped:tracks.every(track=>track.readyState==='ended'),detached:sender.track===null,sourceLive:destination.stream.getAudioTracks()[0].readyState==='live',errors};
+    return {requests,packets,resumedPackets,revoked,revokedDetached,grantDidNotCapture,allStopped:tracks.every(track=>track.readyState==='ended'),detached:sender.track===null,sourceLive:destination.stream.getAudioTracks()[0].readyState==='live',errors};
   } finally {pipe.cleanup();left.close();right.close();tracks.forEach(track=>track.stop())}
 },async codec(){
   if(typeof AudioEncoder!=='function'||typeof AudioDecoder!=='function')return {supported:false};
@@ -125,7 +129,7 @@ context.suspend().then(()=>{document.body.dataset.ready='true'});
     const microphone=await page.evaluate(()=>window.probe.microphone());
     assert.equal(microphone.requests,2);assert.ok(microphone.packets>2);
     assert.ok(microphone.resumedPackets>microphone.packets+2);
-    for(const key of ['revoked','allStopped','detached','sourceLive'])assert.equal(microphone[key],true,key);
+    for(const key of ['revoked','revokedDetached','grantDidNotCapture','allStopped','detached','sourceLive'])assert.equal(microphone[key],true,key);
     assert.deepEqual(microphone.errors,[]);
     const generatedTrack=await page.evaluate(()=>window.probe.generated());
     if(engine==='chromium')assert.equal(generatedTrack.supported,true,'Chromium must exercise the generated audio path');
