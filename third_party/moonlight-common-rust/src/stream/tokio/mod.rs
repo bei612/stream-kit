@@ -304,6 +304,7 @@ impl MoonlightStream {
     pub fn clear_pending_microphone(&mut self) {
         if let Some(stream) = self.foundation_mic_stream.as_mut() {
             stream.transmit = None;
+            stream.transmit_since = None;
             stream.stream_mut().clear_pending();
         }
     }

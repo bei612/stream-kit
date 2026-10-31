@@ -94,6 +94,10 @@ impl UdpStream for FoundationMicStream {
         }
     }
 
+    fn transmit_max_hold(&self) -> Option<Duration> {
+        Some(Duration::from_millis(60))
+    }
+
     fn poll_timeout(&self) -> Option<Instant> {
         None
     }

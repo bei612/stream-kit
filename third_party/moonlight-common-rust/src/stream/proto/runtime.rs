@@ -22,6 +22,11 @@ pub trait UdpStream: Send + Sync {
 
     fn poll_transmit(&mut self) -> Option<Transmit>;
 
+    /// Maximum time a datagram may wait for socket writability after dequeue.
+    fn transmit_max_hold(&self) -> Option<std::time::Duration> {
+        None
+    }
+
     fn poll_timeout(&self) -> Option<Instant>;
 
     fn poll_event(&mut self) -> Option<Self::Event>;

@@ -26,6 +26,7 @@ pub struct StreamDriver<Stream> {
     pub(crate) inner: Stream,
     pub(crate) socket: UdpSocket,
     pub(crate) transmit: Option<Transmit>,
+    pub(crate) transmit_since: Option<Instant>,
     pub(crate) recv_buffer: Vec<u8>,
 }
 
@@ -44,6 +45,7 @@ where
             inner: stream,
             socket,
             transmit: None,
+            transmit_since: None,
             recv_buffer: vec![0; 4096],
         })
     }
@@ -90,11 +92,21 @@ where
 
         loop {
             // -- Write
+            if let (Some(since), Some(max_hold)) = (
+                this.driver.transmit_since,
+                this.driver.inner.transmit_max_hold(),
+            ) {
+                if since.elapsed() >= max_hold {
+                    this.driver.transmit = None;
+                    this.driver.transmit_since = None;
+                }
+            }
             // Try to get next packet and write
             if this.driver.transmit.is_none()
                 && let Some(new_transmit) = this.driver.inner.poll_transmit()
             {
                 this.driver.transmit = Some(new_transmit);
+                this.driver.transmit_since = Some(Instant::now());
             }
 
             // Try to write the available packet
@@ -121,9 +133,11 @@ where
                         if let Some(new_transmit) = this.driver.inner.poll_transmit() {
                             // Try to get next packet and write
                             *transmit = new_transmit;
+                            this.driver.transmit_since = Some(Instant::now());
                         } else {
                             // No next packet, remove it
                             this.driver.transmit.take();
+                            this.driver.transmit_since = None;
                             break;
                         }
                     }
@@ -185,5 +199,63 @@ where
         }
 
         Poll::Pending
+    }
+}
+
+#[cfg(test)]
+mod transmit_tests {
+    use super::*;
+    use bytes::Bytes;
+
+    struct TestStream(Option<Duration>);
+    impl UdpStream for TestStream {
+        type Event = ();
+        fn poll_transmit(&mut self) -> Option<Transmit> {
+            None
+        }
+        fn transmit_max_hold(&self) -> Option<Duration> {
+            self.0
+        }
+        fn poll_timeout(&self) -> Option<SansInstant> {
+            None
+        }
+        fn poll_event(&mut self) -> Option<()> {
+            None
+        }
+        fn handle_receive(&mut self, _: SansInstant, _: Receive) -> Result<(), Error> {
+            Ok(())
+        }
+        fn handle_timeout(&mut self, _: SansInstant) -> Result<(), Error> {
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn socket_backpressure_discards_only_expired_datagrams() {
+        let receiver = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let destination = receiver.local_addr().unwrap();
+        for (limit, age, expected) in [
+            (
+                Some(Duration::from_millis(60)),
+                Duration::from_millis(61),
+                false,
+            ),
+            (Some(Duration::from_millis(60)), Duration::ZERO, true),
+            (None, Duration::from_millis(61), true),
+        ] {
+            let mut driver = StreamDriver::new(Instant::now(), TestStream(limit))
+                .await
+                .unwrap();
+            driver.transmit = Some(Transmit {
+                destination,
+                data: Bytes::from_static(b"audio"),
+            });
+            driver.transmit_since = Some(Instant::now() - age);
+            let _ = tokio::time::timeout(Duration::from_millis(10), driver.drive()).await;
+            let mut buffer = [0u8; 16];
+            let received =
+                tokio::time::timeout(Duration::from_millis(30), receiver.recv(&mut buffer)).await;
+            assert_eq!(received.is_ok(), expected);
+        }
     }
 }
