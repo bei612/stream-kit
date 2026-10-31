@@ -167,7 +167,15 @@ mod tests {
             .map(|p| u8::from_str_radix(std::str::from_utf8(p).unwrap(), 16).unwrap())
             .collect();
         let binding: Binding = serde_json::from_value(f["claims"].clone()).unwrap();
-        for mode in ["missing", "expired", "transfer", "malformed", "disconnect"] {
+        for mode in [
+            "missing",
+            "expired",
+            "transfer",
+            "malformed",
+            "disconnect",
+            "task-drop",
+            "delayed-dispatch",
+        ] {
             let admitted = Admissions::new(1)
                 .admit(
                     f["token"].as_str().unwrap(),
@@ -203,6 +211,13 @@ mod tests {
                 observed.lock().unwrap().captured,
                 now.checked_sub(Duration::from_millis(50))
             );
+            if mode == "task-drop" {
+                // Simulate cancellation of a task that never calls close().
+                drop(output);
+                let result = observed.lock().unwrap();
+                assert_eq!((result.writes, result.clears, result.drops), (1, 1, 1));
+                continue;
+            }
             match mode {
                 "missing" => assert!(!output.check(None, now)),
                 "expired" => assert!(!output.check(Some(&authority), authority.expires)),
@@ -215,6 +230,29 @@ mod tests {
                         .receive(&[], Some(&authority), 1050, now, now)
                         .is_err()
                 ),
+                "delayed-dispatch" => {
+                    wire::encode(
+                        Generation {
+                            target: binding.target_epoch,
+                            controller: binding.control_epoch,
+                        },
+                        2,
+                        1000,
+                        &[0.5; FRAME_SAMPLES],
+                        &mut frame,
+                    )
+                    .unwrap();
+                    assert_eq!(
+                        output.receive(
+                            &frame,
+                            Some(&authority),
+                            1050,
+                            now,
+                            now + Duration::from_millis(10)
+                        ),
+                        Err(ReceiveError::Frame(wire::FrameError::Expired))
+                    );
+                }
                 _ => output.close(),
             }
             assert!(

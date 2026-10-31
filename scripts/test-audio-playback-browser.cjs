@@ -21,23 +21,26 @@ import {AudioDecoderPipe} from ${source('audio_decoder_pipe')};
 import {MicrophoneCapture} from ${source('microphone_capture')};
 import {MicrophonePipe} from ${source('microphone_pipe')};
 import {RtpTrackSenderPipe} from ${source('rtp_track_sender_pipe')};
-const contextPlayer=new ContextDestinationNodeAudioPlayer();
+const playbackEvents:unknown[]=[];
+const record=(event:string,detail:unknown=null)=>{if(playbackEvents.length<64)playbackEvents.push({event,detail,at:performance.now()})};
+const contextPlayer=new ContextDestinationNodeAudioPlayer({debug:(message:unknown)=>record('player',String(message))} as any);
 const pcm=new AudioBufferPipe(contextPlayer);
 pcm.setup({sampleRate:48000,channels:2,streams:1,coupledStreams:1,samplesPerFrame:960,mapping:[]});
 const context=contextPlayer.getAudioContext();
+context.addEventListener('statechange',()=>record('context-state',context.state));
 const oscillator=context.createOscillator(),gain=context.createGain();
 gain.gain.value=0; oscillator.connect(gain);
 const destination=context.createMediaStreamDestination();gain.connect(destination);oscillator.start();
 const player=new AudioElementPlayer();player.setTrack(destination.stream.getAudioTracks()[0]);player.mount(document.body);
 const button=document.createElement('button');button.textContent='Enable audio';document.body.appendChild(button);
-button.onclick=()=>{pcm.onUserInteraction();player.onUserInteraction()};
+button.onclick=()=>{record('gesture',{state:context.state,active:navigator.userActivation?.isActive});pcm.onUserInteraction();player.onUserInteraction()};
 // WebKit may start interrupted before its first user gesture. Calling suspend
 // then waiting for that promise can prevent the test from ever issuing the
 // gesture that resumes it. Readiness means the graph and handler are installed;
 // real running state is still required after the click below.
 if(context.state==='running')void context.suspend();
 document.body.dataset.ready='true';
-(window as any).probe={context,pcm,async microphone(){
+(window as any).probe={context,pcm,playbackEvents,async microphone(){
   const left=new RTCPeerConnection({iceServers:[]}),right=new RTCPeerConnection({iceServers:[]});
   const errors:string[]=[],tracks:MediaStreamTrack[]=[];
   let requests=0;
@@ -149,7 +152,7 @@ document.body.dataset.ready='true';
     fs.writeFileSync(path.join(output,'result.json'),JSON.stringify({passed:true,engine,initialContextState,browser:browser.version(),generatedTrack,codec,microphone,scope:'Production players resume a suspended or interrupted AudioContext and play a generated silent track on a real click; PCM bursts remain bounded, suspension clears queued audio, and cleanup releases playback. Generated AudioData and real WebCodecs Opus round-trip are checked where supported. Microphone capture/sender pipes send generated audio through local real WebRTC peers, revoke tracks, reacquire and detach on cleanup. No getUserMedia permission, upstream gateway, physical microphone or target recording acceptance.',errors},null,2));
     console.log(`${engine}: audio playback and microphone RTP lifecycle passed`);
   }catch(error){
-    const state=await page?.evaluate(()=>({ready:document.body.dataset.ready,context:window.probe?.context.state,audioContext:typeof AudioContext,track:typeof MediaStreamTrack,media:document.querySelector('audio')?{paused:document.querySelector('audio').paused,muted:document.querySelector('audio').muted,error:document.querySelector('audio').error?.message}:null})).catch(()=>null);
+    const state=await page?.evaluate(()=>({ready:document.body.dataset.ready,context:window.probe?.context.state,playbackEvents:window.probe?.playbackEvents,focused:document.hasFocus(),visibility:document.visibilityState,audioContext:typeof AudioContext,track:typeof MediaStreamTrack,media:document.querySelector('audio')?{paused:document.querySelector('audio').paused,muted:document.querySelector('audio').muted,error:document.querySelector('audio').error?.message}:null})).catch(()=>null);
     fs.writeFileSync(path.join(output,'diagnostics.json'),JSON.stringify({errors,state},null,2));
     throw error;
   }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve))}

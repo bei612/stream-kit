@@ -7,8 +7,12 @@ revocation/reacquisition, and all three viewer asset/WASM checks. The browsers
 used the isolated real PulseAudio fixture. This confirms the WebKit initial
 interrupted-context test correction; it does not establish physical microphone
 permission, mobile hardware, browser-to-UE5 recording or a signed installer.
-The observed job was still building its gateway release, so this records only
-the completed successful steps, not an overall job pass.
+The Linux job subsequently completed successfully, including its gateway release
+build, configuration checks and media-contract smoke test. The matching Windows
+gateway job failed Firefox's second AudioContext resume check; Linux success
+does not resolve that failure. The same Firefox lifecycle test passed locally
+on Windows. Additional bounded probe-only gesture/state/resume-error diagnostics
+were added without weakening the running-state assertion or changing playback.
 
 Before registering a Windows service, or on each systemd start, deployment runs
 `orchestrator check-config --config PATH`. This validates the existing file with
