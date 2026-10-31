@@ -143,7 +143,9 @@ jobs:
           mkdir -p artifacts/windows-product/logs
           pacman -Q > artifacts/windows-product/logs/msys2-packages.txt
           cmake --version > artifacts/windows-product/logs/cmake-version.txt
-          bash scripts/build-sunshine.sh -DBUILD_DOCS=OFF -DSUNSHINE_USE_STATIC_QT=ON 2>&1 | tee artifacts/windows-product/logs/sunshine-build.log
+          # Product packaging does not execute the Windows GTest binary. Build
+          # only the production target; native checks have their own CI/fixtures.
+          bash scripts/build-sunshine.sh -DBUILD_DOCS=OFF -DBUILD_TESTS=OFF -DSUNSHINE_USE_STATIC_QT=ON 2>&1 | tee artifacts/windows-product/logs/sunshine-build.log
           node scripts/verify-sunshine-release.mjs "$(cygpath -m "$PWD/.local/cmake-build-sunshine")" "$GITHUB_SHA" --output "$(cygpath -m "$PWD/artifacts/windows-product/renderer")"
       - uses: actions/cache/save@v4
         if: always() && steps.codec-cache.outputs.cache-primary-key != '' && steps.codec-cache.outputs.cache-hit != 'true'
