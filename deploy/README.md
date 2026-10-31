@@ -9,9 +9,16 @@ remain in `/etc/stream-kit/` or `C:\ProgramData\StreamKit\` independently.
 After installing locked dependencies with `npm ci` in `orchestrator/web`, use `node scripts/build-control-plane.mjs`
 from the repository root to build the control-plane bundle. `--go` selects the
 Go executable and `--output` selects a new output directory. Existing output is
-never overwritten. CI uses `--require-clean`, Go 1.25.0 and Node 26.4.0; a dirty
+never overwritten. CI uses `--require-clean`, Go 1.27.3 and Node 26.4.0; a dirty
 source tree is rejected before creating a release output. Local builds without
 that flag are explicitly marked `-dirty` when appropriate.
+
+The Go module now requires Go 1.26 or later. Windows worker pipe I/O uses
+vendored Microsoft go-winio 0.6.4: concurrent `os.File` pipe reads and writes
+triggered the upstream [Windows pipe offset race](https://go-review.googlesource.com/c/go/+/829144)
+in the released runtime. The project uses the official Go 1.27.3 toolchain;
+it does not patch the runtime or disable race checking. Worker lifecycle tests
+include bidirectional traffic and idle heartbeats beyond the 30-second timeout.
 
 The executable reports its source commit and version. The embedded build stamp
 is the source commit timestamp for reproducibility, not wall-clock packaging

@@ -1,8 +1,9 @@
 module github.com/stream-kit/orchestrator
 
-go 1.25.0
+go 1.26.0
 
 require (
+	github.com/Microsoft/go-winio v0.6.4
 	github.com/bodgit/sevenzip v1.6.5
 	github.com/coder/websocket v1.8.14
 	github.com/gin-gonic/gin v1.12.0
@@ -12,7 +13,7 @@ require (
 	github.com/nwaples/rardecode/v2 v2.4.5
 	github.com/ulikunitz/xz v0.5.17
 	go.uber.org/zap v1.27.1
-	golang.org/x/sys v0.41.0
+	golang.org/x/sys v0.49.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gorm.io/gorm v1.31.1
 )

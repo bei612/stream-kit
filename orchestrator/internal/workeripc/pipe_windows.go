@@ -61,7 +61,7 @@ func Listen(instance, userSID string) (*Listener, error) {
 
 func (l *Listener) Name() string { return l.name }
 
-func (l *Listener) Accept(ctx context.Context) (*os.File, error) {
+func (l *Listener) Accept(ctx context.Context) (*Conn, error) {
 	l.mu.Lock()
 	if l.closed || l.accepting {
 		l.mu.Unlock()
@@ -107,11 +107,11 @@ func (l *Listener) Accept(ctx context.Context) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	file := os.NewFile(uintptr(h), l.name)
-	if file == nil {
-		return nil, os.ErrInvalid
+	file, err := newConnection(h)
+	if err != nil {
+		return nil, err
 	}
-	l.handle = windows.InvalidHandle // ownership moves to File and Go's I/O poller
+	l.handle = windows.InvalidHandle // ownership moves to the IOCP connection
 	return file, nil
 }
 
@@ -143,7 +143,7 @@ func (l *Listener) Close() error {
 // Dial permits only repository-owned local pipe names and anonymous SQOS: a
 // pipe server cannot impersonate the connecting user's token. Peer identity
 // must still be verified against the retained service process handle.
-func Dial(ctx context.Context, name string) (*os.File, error) {
+func Dial(ctx context.Context, name string) (*Conn, error) {
 	if !strings.HasPrefix(name, pipePrefix) {
 		return nil, ErrProtocol
 	}
@@ -161,10 +161,10 @@ func Dial(ctx context.Context, name string) (*os.File, error) {
 		h, err := windows.CreateFile(path, pipeClientAccess, 0, nil, windows.OPEN_EXISTING,
 			windows.FILE_FLAG_OVERLAPPED|windows.SECURITY_SQOS_PRESENT|windows.SECURITY_ANONYMOUS, 0)
 		if err == nil {
-			file := os.NewFile(uintptr(h), name)
-			if file == nil {
+			file, err := newConnection(h)
+			if err != nil {
 				_ = windows.CloseHandle(h)
-				return nil, os.ErrInvalid
+				return nil, err
 			}
 			return file, nil
 		}

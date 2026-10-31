@@ -22,7 +22,7 @@ import (
 func TestNativePipeWorkerHelper(t *testing.T) {
 	for i, arg := range os.Args {
 		if arg == "--" {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 			defer cancel()
 			if err := RunWorker(ctx, os.Args[i+1:]); err != nil {
 				os.Exit(32)
@@ -50,7 +50,7 @@ func TestNativeWorkerAuthenticatedLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, mode := range []string{"lifecycle", "wrong-session", "foreign-process", "cancelled"} {
+	for _, mode := range []string{"lifecycle", "managed-exit", "managed-stop", "managed-kill", "managed-disconnect", "managed-cancel", "managed-heartbeat", "wrong-session", "foreign-process", "cancelled"} {
 		t.Run(mode, func(t *testing.T) {
 			var nonce [16]byte
 			if _, err := rand.Read(nonce[:]); err != nil {
@@ -62,7 +62,11 @@ func TestNativeWorkerAuthenticatedLifecycle(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer listener.Close()
-			snapshot, err := writeWorkerLaunch(t.TempDir(), instance, user.User.Sid.String(), config.ComponentConfig{ExePath: os.Args[0], Args: "-test.run=^TestWorkerChild$", WorkingDir: filepath.Dir(os.Args[0]), Env: map[string]string{"STREAM_KIT_WORKER_TEST": "exit"}})
+			childMode := "exit"
+			if strings.HasPrefix(mode, "managed-") && mode != "managed-exit" {
+				childMode = "hold"
+			}
+			snapshot, err := writeWorkerLaunch(t.TempDir(), instance, user.User.Sid.String(), config.ComponentConfig{ExePath: os.Args[0], Args: "-test.run=^TestWorkerChild$", WorkingDir: filepath.Dir(os.Args[0]), Env: map[string]string{"STREAM_KIT_WORKER_TEST": childMode}})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -87,7 +91,7 @@ func TestNativeWorkerAuthenticatedLifecycle(t *testing.T) {
 			}
 			defer worker.Close()
 			retained := retainNativeProcess(t, worker.pid)
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 			defer cancel()
 			expectedSession := session
 			if mode == "wrong-session" {
@@ -105,7 +109,7 @@ func TestNativeWorkerAuthenticatedLifecycle(t *testing.T) {
 				defer foreign.Close()
 			}
 			connection, err := acceptNativeWorker(ctx, listener, worker, user.User.Sid.String(), expectedSession)
-			if mode != "lifecycle" {
+			if mode != "lifecycle" && !strings.HasPrefix(mode, "managed-") {
 				if err == nil || connection != nil {
 					t.Fatal("unauthorized connection accepted")
 				}
@@ -122,6 +126,62 @@ func TestNativeWorkerAuthenticatedLifecycle(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer connection.Close()
+			if strings.HasPrefix(mode, "managed-") {
+				logs := NewRingBuffer(2000)
+				process, err := attachWorkerProcess(ctx, connection, instance, worker, snapshot, logs)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var child windows.Handle
+				if mode != "managed-exit" {
+					child = retainNativeProcess(t, uint32(process.PID))
+				}
+				go process.RunWait()
+				switch mode {
+				case "managed-heartbeat":
+					// Cross the worker's 30-second command idle timeout.
+					time.Sleep(35 * time.Second)
+					select {
+					case <-process.Done:
+						t.Fatal("worker exited while heartbeat active")
+					default:
+					}
+					if err := stopProcess(process, 3); err != nil {
+						t.Fatal(err)
+					}
+				case "managed-stop":
+					if err := stopProcess(process, 3); err != nil {
+						t.Fatal(err)
+					}
+				case "managed-kill":
+					if err := forceStop(process); err != nil {
+						t.Fatal(err)
+					}
+				case "managed-disconnect":
+					_ = connection.Close()
+				case "managed-cancel":
+					cancel()
+				}
+				select {
+				case <-process.Done:
+				case <-time.After(8 * time.Second):
+					t.Fatal("managed worker teardown timeout")
+				}
+				assertNativeExited(t, retained)
+				if child != 0 {
+					assertNativeExited(t, child)
+				}
+				if mode == "managed-exit" {
+					output := strings.Join(logs.GetLast(2000), "\n")
+					if process.ExitCode != 7 || !strings.Contains(output, "final-partial") || !strings.Contains(output, "instance="+process.InstanceID) {
+						t.Fatalf("managed completion: %d %s", process.ExitCode, output)
+					}
+				}
+				if _, err := os.Stat(snapshot.path); !os.IsNotExist(err) {
+					t.Fatal("snapshot survived managed completion", err)
+				}
+				return
+			}
 			_ = connection.SetDeadline(time.Now().Add(10 * time.Second))
 			commands, _ := workeripc.New(instance, workeripc.Commands)
 			events, _ := workeripc.New(instance, workeripc.Events)
@@ -213,7 +273,7 @@ func TestNativeControllerRejectsWrongPeer(t *testing.T) {
 				expectedProcess = other.process
 			}
 			type accepted struct {
-				file *os.File
+				file *workeripc.Conn
 				err  error
 			}
 			result := make(chan accepted, 1)

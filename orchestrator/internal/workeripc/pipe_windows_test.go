@@ -3,16 +3,101 @@
 package workeripc
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"io"
 	"os"
 	"testing"
 	"time"
 
 	"golang.org/x/sys/windows"
 )
+
+func TestPrivatePipeConcurrentReadWrite(t *testing.T) {
+	instance, sid := pipeIdentity(t)
+	listener, err := Listen(instance, sid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	type accepted struct {
+		connection *Conn
+		err        error
+	}
+	ready := make(chan accepted, 1)
+	go func() { connection, err := listener.Accept(ctx); ready <- accepted{connection, err} }()
+	client, err := Dial(ctx, listener.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	server := <-ready
+	if server.err != nil {
+		t.Fatal(server.err)
+	}
+	defer server.connection.Close()
+	_ = client.SetDeadline(time.Now().Add(10 * time.Second))
+	_ = server.connection.SetDeadline(time.Now().Add(10 * time.Second))
+	done := make(chan error, 4)
+	for _, direction := range []struct {
+		sender, receiver *Conn
+		value            byte
+	}{
+		{client, server.connection, 'a'}, {server.connection, client, 'b'},
+	} {
+		go func() {
+			block := bytes.Repeat([]byte{direction.value}, 8192)
+			for range 128 {
+				if err := writeAll(direction.sender, block); err != nil {
+					done <- err
+					return
+				}
+			}
+			done <- nil
+		}()
+		go func() {
+			block := make([]byte, 8192)
+			expected := bytes.Repeat([]byte{direction.value}, len(block))
+			for range 128 {
+				if _, err := io.ReadFull(direction.receiver, block); err != nil {
+					done <- err
+					return
+				}
+				if !bytes.Equal(block, expected) {
+					done <- errors.New("concurrent pipe data corrupted")
+					return
+				}
+			}
+			done <- nil
+		}()
+	}
+	for range 4 {
+		if err := <-done; err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := client.SetReadDeadline(time.Now().Add(20 * time.Millisecond)); err != nil {
+		t.Fatal(err)
+	}
+	var one [1]byte
+	if _, err := client.Read(one[:]); !os.IsTimeout(err) {
+		t.Fatalf("missing read deadline: %v", err)
+	}
+	if err := client.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := server.connection.Write([]byte{99}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.ReadFull(client, one[:]); err != nil || one[0] != 99 {
+		t.Fatalf("deadline recovery: %v", err)
+	}
+}
 
 func pipeIdentity(t *testing.T) (string, string) {
 	t.Helper()
@@ -46,7 +131,7 @@ func TestPrivatePipeRoundTripAndOwnership(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	type result struct {
-		file *os.File
+		file *Conn
 		err  error
 	}
 	accepted := make(chan result, 1)
@@ -82,21 +167,11 @@ func TestPrivatePipeRoundTripAndOwnership(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, endpoint := range []struct {
-		file *os.File
+		file *Conn
 		side PeerSide
 	}{{server, ClientPeer}, {client, ServerPeer}} {
-		raw, err := endpoint.file.SyscallConn()
-		if err != nil {
+		if err := endpoint.file.WithHandle(func(handle windows.Handle) error { return VerifyPeer(handle, endpoint.side, process, sid, session) }); err != nil {
 			t.Fatal(err)
-		}
-		var verification error
-		if err := raw.Control(func(handle uintptr) {
-			verification = VerifyPeer(windows.Handle(handle), endpoint.side, process, sid, session)
-		}); err != nil {
-			t.Fatal(err)
-		}
-		if verification != nil {
-			t.Fatal(verification)
 		}
 	}
 	writer, _ := New(instance, Commands)
@@ -107,7 +182,7 @@ func TestPrivatePipeRoundTripAndOwnership(t *testing.T) {
 	if frame, err := reader.Read(server); err != nil || frame.Kind != "ping" {
 		t.Fatalf("frame=%+v err=%v", frame, err)
 	}
-	// Closing the File must cancel pending reads through the runtime poller.
+	// Closing the connection must cancel pending reads through IOCP.
 	readDone := make(chan error, 1)
 	go func() { var b [1]byte; _, err := server.Read(b[:]); readDone <- err }()
 	server.Close()
