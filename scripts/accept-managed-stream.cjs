@@ -48,6 +48,8 @@ const targetRender = endpointOption('--target-render-device');
 const targetCapture = endpointOption('--target-capture-device');
 const targetProbe = process.argv.includes('--audio-probe') ? argument('--audio-probe') : null;
 const targetRecording = !!(targetRender || targetCapture || targetProbe);
+const remoteTarget = process.argv.includes('--remote-target');
+assert.ok(!remoteTarget || targetRecording, 'Remote target requires explicit recording endpoints');
 assert.ok(!targetRecording || (targetRender && targetCapture && targetProbe && microphoneTest), 'Target recording requires both explicit endpoint IDs, --audio-probe and --microphone-tone');
 const deleteActive = process.argv.includes('--delete-active');
 const stopActive = process.argv.includes('--stop-active') || deleteActive;
@@ -212,6 +214,21 @@ async function main() {
     process: { monitor_interval_seconds: 2, graceful_shutdown_timeout_seconds: 2 },
     log: { level: 'info', file: { enabled: false }, access_log: { enabled: false } } };
   const controlConfigFile = path.join(scratch, 'control', 'config.json');
+  if (remoteTarget) {
+    const targetPort = await port(), targetSecret = crypto.randomBytes(32).toString('hex');
+    const targetURL = `http://127.0.0.1:${targetPort}`;
+    const receiver = structuredClone(config);
+    receiver.web_server.bind_address = `127.0.0.1:${targetPort}`;
+    receiver.web_server.media_ticket_secret = targetSecret;
+    receiver.web_server.first_login_create_admin = false;
+    receiver.data_storage.path = path.join(scratch, 'receiver-data.json');
+    const receiverConfig = path.join(scratch, 'receiver-config.json');
+    fs.writeFileSync(receiverConfig, JSON.stringify(receiver));
+    controlConfig.render_nodes = {'recording-target': {name:'Recording target',base_url:targetURL,control_secret:targetSecret}};
+    launch(gatewayBinary, ['--config-path', receiverConfig, 'run'], 'receiver');
+    await ready(targetURL + '/config.js');
+    result.remote_target = {node_id:'recording-target',transport:'loopback WebSocket between separate native gateway processes',binary_sha256:sha(gatewayBinary)};
+  }
   fs.mkdirSync(path.dirname(controlConfigFile),{recursive:true});
   if(process.argv.includes('--edit-gateway-configuration')||process.argv.includes('--edit-encoder-configuration')) {
     fs.cpSync(path.join(root,'orchestrator/web/dist'),path.join(scratch,'control/dist'),{recursive:true});
@@ -340,7 +357,7 @@ async function main() {
     assert.ok(catalog.data.devices.some(d=>d.id===targetRender&&d.output), 'Explicit target render endpoint is unavailable');
     const session=await api(`/stream-sessions/${invite.session_id}`);
     await api(`/stream-sessions/${invite.session_id}/audio-target`,'PATCH',{
-      expected_epoch:session.audio.target.epoch,target:{mode:'local',render_device_id:targetRender,capture_device_id:targetCapture}
+      expected_epoch:session.audio.target.epoch,target:{mode:remoteTarget?'remote':'local',...(remoteTarget?{node_id:'recording-target'}:{}),render_device_id:targetRender,capture_device_id:targetCapture}
     });
     result.target_recording={render_device_id:targetRender,capture_device_id:targetCapture,probe_sha256:sha(targetProbe),measurements:{},passed:false};
   }

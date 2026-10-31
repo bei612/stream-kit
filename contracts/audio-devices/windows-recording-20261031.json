@@ -1,0 +1,389 @@
+{
+  "schema_version": 1,
+  "source_commit": "cc650e8f0516b17360ae8f877888d9d25d95aa1b",
+  "example_commit": "7c076209f038a3f0b200dedb3df0634332280325",
+  "scope": "Windows Chromium controlled browser source through real Opus/WebRTC uplink, native local or separate receiver gateway, VB-CABLE output/input pair and independent native recording probe; simultaneous program/microphone audience broadcast and revocation.",
+  "limitations": [
+    "Generated browser source; no physical microphone or browser permission prompt acceptance",
+    "Remote mode uses separate processes on one Windows host over loopback, not cross-host TLS or WAN",
+    "No UE5 runtime acceptance, Windows SCM session acceptance, installer or signing claim"
+  ],
+  "runs": [
+    {
+      "run": "2026-10-31T12-57-28-018Z",
+      "mode": "local",
+      "passed": true,
+      "result_sha256": "e1fb89e2619fa5f4e80094ef490e6fa2ae4310caa97a8826b1c3cf11d5c1303b",
+      "binaries": {
+        "renderer": "6278bb67d630ccb904c1a1c00f81d51738e6596bc88b625be9e8e3153fae82f0",
+        "gateway": "724fec306946546605d9aea7c874e25e7393660d48e5ea9497956ed993a25aa8",
+        "control": "494a186e8b116aa673add82b41189c3fd9dc5e94c97902f5c9976d5956078227",
+        "example": "82cd29bf050b9ea4143c0da3b1532822637db86726dd133b6e51a31512764b3a",
+        "probe": "45678dfca32a7b05c3f24fb8c7d844f1203ac71ec26c7636b2fffdac8297663e"
+      },
+      "browser": "156.0.8078.4",
+      "microphone_source": {
+        "kind": "generated",
+        "permission_prompt_tested": false,
+        "physical_device": false
+      },
+      "program_audio_db": [
+        -35.53083038330078,
+        -35.523902893066406
+      ],
+      "microphone_tone": {
+        "frequency_hz": 1499,
+        "viewer_denied_db": -121.29820251464844,
+        "controller_broadcast_db": -27.5734920501709,
+        "simultaneous_program_db": [
+          -35.523040771484375,
+          -35.523040771484375
+        ],
+        "previous_controller_denied_db": -128.82716369628906,
+        "new_controller_broadcast_db": -27.587181091308594,
+        "released_db": -126.09645080566406
+      },
+      "microphone_capture_released_on_revocation": true,
+      "measurements": {
+        "viewer_denied": {
+          "capture": {
+            "captured_frames": 105600,
+            "dropped_frames": 0,
+            "error": null,
+            "input_state": "idle",
+            "output_state": "idle",
+            "peak": 0.000030517578125,
+            "played_frames": 0,
+            "rms": 0.000010259573747733718,
+            "sample_rate": 48000,
+            "state": "idle"
+          },
+          "microphone": {
+            "analyzed_frames": 105600,
+            "frequency_hz": 1499,
+            "mean_amplitude": 0.0000011310530478302097,
+            "peak_amplitude": 0.000011716928889203324,
+            "sample_rate": 48000,
+            "windows": 22
+          },
+          "program": {
+            "analyzed_frames": 105600,
+            "frequency_hz": 997,
+            "mean_amplitude": 6.896404186502832e-7,
+            "peak_amplitude": 0.000011045949860932281,
+            "sample_rate": 48000,
+            "windows": 22
+          }
+        },
+        "controller": {
+          "capture": {
+            "captured_frames": 105120,
+            "dropped_frames": 0,
+            "error": null,
+            "input_state": "idle",
+            "output_state": "idle",
+            "peak": 0.16680908203125,
+            "played_frames": 0,
+            "rms": 0.04803145109100547,
+            "sample_rate": 48000,
+            "state": "idle"
+          },
+          "microphone": {
+            "analyzed_frames": 100800,
+            "frequency_hz": 1499,
+            "mean_amplitude": 0.1680503180975155,
+            "peak_amplitude": 0.20114915892141766,
+            "sample_rate": 48000,
+            "windows": 21
+          },
+          "program": {
+            "analyzed_frames": 100800,
+            "frequency_hz": 997,
+            "mean_amplitude": 0.00030862944992106816,
+            "peak_amplitude": 0.0020499375216482766,
+            "sample_rate": 48000,
+            "windows": 21
+          }
+        },
+        "previous_controller_denied": {
+          "capture": {
+            "captured_frames": 105120,
+            "dropped_frames": 480,
+            "error": null,
+            "input_state": "idle",
+            "output_state": "idle",
+            "peak": 0.000030517578125,
+            "played_frames": 0,
+            "rms": 0.000010412097216763444,
+            "sample_rate": 48000,
+            "state": "idle"
+          },
+          "microphone": {
+            "analyzed_frames": 100800,
+            "frequency_hz": 1499,
+            "mean_amplitude": 0.000002767822537295839,
+            "peak_amplitude": 0.00004564814064106275,
+            "sample_rate": 48000,
+            "windows": 21
+          },
+          "program": {
+            "analyzed_frames": 100800,
+            "frequency_hz": 997,
+            "mean_amplitude": 0.0000023824665944768027,
+            "peak_amplitude": 0.00004620831849051829,
+            "sample_rate": 48000,
+            "windows": 21
+          }
+        },
+        "new_controller": {
+          "capture": {
+            "captured_frames": 104160,
+            "dropped_frames": 960,
+            "error": null,
+            "input_state": "idle",
+            "output_state": "idle",
+            "peak": 0.199371337890625,
+            "played_frames": 0,
+            "rms": 0.14042456495417674,
+            "sample_rate": 48000,
+            "state": "idle"
+          },
+          "microphone": {
+            "analyzed_frames": 100800,
+            "frequency_hz": 1499,
+            "mean_amplitude": 0.1985537655958883,
+            "peak_amplitude": 0.20205217233936495,
+            "sample_rate": 48000,
+            "windows": 21
+          },
+          "program": {
+            "analyzed_frames": 100800,
+            "frequency_hz": 997,
+            "mean_amplitude": 0.00002974005094844931,
+            "peak_amplitude": 0.0004937063013255029,
+            "sample_rate": 48000,
+            "windows": 21
+          }
+        },
+        "released": {
+          "capture": {
+            "captured_frames": 105600,
+            "dropped_frames": 0,
+            "error": null,
+            "input_state": "idle",
+            "output_state": "idle",
+            "peak": 0.000030517578125,
+            "played_frames": 0,
+            "rms": 0.000010259573747733718,
+            "sample_rate": 48000,
+            "state": "idle"
+          },
+          "microphone": {
+            "analyzed_frames": 105600,
+            "frequency_hz": 1499,
+            "mean_amplitude": 6.268734551010865e-7,
+            "peak_amplitude": 6.747675966817568e-7,
+            "sample_rate": 48000,
+            "windows": 22
+          },
+          "program": {
+            "analyzed_frames": 105600,
+            "frequency_hz": 997,
+            "mean_amplitude": 1.9017664372779543e-7,
+            "peak_amplitude": 2.915196090379378e-7,
+            "sample_rate": 48000,
+            "windows": 22
+          }
+        }
+      }
+    },
+    {
+      "run": "2026-10-31T12-58-51-090Z",
+      "mode": "remote",
+      "passed": true,
+      "result_sha256": "77006fd729430d07d3a38c9c27bc62ff721a60e6eb40e5b8e8f9bfb4d2726315",
+      "binaries": {
+        "renderer": "6278bb67d630ccb904c1a1c00f81d51738e6596bc88b625be9e8e3153fae82f0",
+        "gateway": "724fec306946546605d9aea7c874e25e7393660d48e5ea9497956ed993a25aa8",
+        "control": "494a186e8b116aa673add82b41189c3fd9dc5e94c97902f5c9976d5956078227",
+        "example": "82cd29bf050b9ea4143c0da3b1532822637db86726dd133b6e51a31512764b3a",
+        "probe": "45678dfca32a7b05c3f24fb8c7d844f1203ac71ec26c7636b2fffdac8297663e"
+      },
+      "browser": "156.0.8078.4",
+      "microphone_source": {
+        "kind": "generated",
+        "permission_prompt_tested": false,
+        "physical_device": false
+      },
+      "program_audio_db": [
+        -35.50679397583008,
+        -35.49909210205078
+      ],
+      "microphone_tone": {
+        "frequency_hz": 1499,
+        "viewer_denied_db": -121.0875015258789,
+        "controller_broadcast_db": -27.54622459411621,
+        "simultaneous_program_db": [
+          -35.500633239746094,
+          -35.499759674072266
+        ],
+        "previous_controller_denied_db": -128.60775756835938,
+        "new_controller_broadcast_db": -27.565536499023438,
+        "released_db": -126.61910247802734
+      },
+      "microphone_capture_released_on_revocation": true,
+      "measurements": {
+        "viewer_denied": {
+          "capture": {
+            "captured_frames": 106080,
+            "dropped_frames": 0,
+            "error": null,
+            "input_state": "idle",
+            "output_state": "idle",
+            "peak": 0.000030517578125,
+            "played_frames": 0,
+            "rms": 0.000010516394616768052,
+            "sample_rate": 48000,
+            "state": "idle"
+          },
+          "microphone": {
+            "analyzed_frames": 105600,
+            "frequency_hz": 1499,
+            "mean_amplitude": 6.268734551010865e-7,
+            "peak_amplitude": 6.747675966817568e-7,
+            "sample_rate": 48000,
+            "windows": 22
+          },
+          "program": {
+            "analyzed_frames": 105600,
+            "frequency_hz": 997,
+            "mean_amplitude": 1.9017664372779543e-7,
+            "peak_amplitude": 2.915196090379378e-7,
+            "sample_rate": 48000,
+            "windows": 22
+          }
+        },
+        "controller": {
+          "capture": {
+            "captured_frames": 105120,
+            "dropped_frames": 480,
+            "error": null,
+            "input_state": "idle",
+            "output_state": "idle",
+            "peak": 0.000030517578125,
+            "played_frames": 0,
+            "rms": 0.00001045162078248826,
+            "sample_rate": 48000,
+            "state": "idle"
+          },
+          "microphone": {
+            "analyzed_frames": 100800,
+            "frequency_hz": 1499,
+            "mean_amplitude": 0.03125551704178798,
+            "peak_amplitude": 0.09192708665202347,
+            "sample_rate": 48000,
+            "windows": 21
+          },
+          "program": {
+            "analyzed_frames": 100800,
+            "frequency_hz": 997,
+            "mean_amplitude": 0.00026016806154409845,
+            "peak_amplitude": 0.001851640393830328,
+            "sample_rate": 48000,
+            "windows": 21
+          }
+        },
+        "previous_controller_denied": {
+          "capture": {
+            "captured_frames": 105600,
+            "dropped_frames": 0,
+            "error": null,
+            "input_state": "idle",
+            "output_state": "idle",
+            "peak": 0.000030517578125,
+            "played_frames": 0,
+            "rms": 0.000010259573747733718,
+            "sample_rate": 48000,
+            "state": "idle"
+          },
+          "microphone": {
+            "analyzed_frames": 105600,
+            "frequency_hz": 1499,
+            "mean_amplitude": 6.268734551010865e-7,
+            "peak_amplitude": 6.747675966817568e-7,
+            "sample_rate": 48000,
+            "windows": 22
+          },
+          "program": {
+            "analyzed_frames": 105600,
+            "frequency_hz": 997,
+            "mean_amplitude": 1.9017664372779543e-7,
+            "peak_amplitude": 2.915196090379378e-7,
+            "sample_rate": 48000,
+            "windows": 22
+          }
+        },
+        "new_controller": {
+          "capture": {
+            "captured_frames": 105600,
+            "dropped_frames": 0,
+            "error": null,
+            "input_state": "idle",
+            "output_state": "idle",
+            "peak": 0.20147705078125,
+            "played_frames": 0,
+            "rms": 0.14030868246531764,
+            "sample_rate": 48000,
+            "state": "idle"
+          },
+          "microphone": {
+            "analyzed_frames": 105600,
+            "frequency_hz": 1499,
+            "mean_amplitude": 0.19369073033112005,
+            "peak_amplitude": 0.20150444352091385,
+            "sample_rate": 48000,
+            "windows": 22
+          },
+          "program": {
+            "analyzed_frames": 105600,
+            "frequency_hz": 997,
+            "mean_amplitude": 0.00006838446938214005,
+            "peak_amplitude": 0.00044482508708023623,
+            "sample_rate": 48000,
+            "windows": 22
+          }
+        },
+        "released": {
+          "capture": {
+            "captured_frames": 105120,
+            "dropped_frames": 480,
+            "error": null,
+            "input_state": "idle",
+            "output_state": "idle",
+            "peak": 0.000030517578125,
+            "played_frames": 0,
+            "rms": 0.000010412097216763444,
+            "sample_rate": 48000,
+            "state": "idle"
+          },
+          "microphone": {
+            "analyzed_frames": 100800,
+            "frequency_hz": 1499,
+            "mean_amplitude": 6.270106846111735e-7,
+            "peak_amplitude": 6.747675966817568e-7,
+            "sample_rate": 48000,
+            "windows": 21
+          },
+          "program": {
+            "analyzed_frames": 100800,
+            "frequency_hz": 997,
+            "mean_amplitude": 1.8986201512510238e-7,
+            "peak_amplitude": 2.915196090379378e-7,
+            "sample_rate": 48000,
+            "windows": 21
+          }
+        }
+      }
+    }
+  ]
+}

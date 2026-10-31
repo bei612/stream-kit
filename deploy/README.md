@@ -1,5 +1,15 @@
 # Stream-Kit service deployment
 
+The published Windows preview `cc650e8f` has now passed controlled-browser
+microphone recording into an installed VB-CABLE endpoint pair, both through a
+local gateway target and a separate receiver gateway over loopback WebSocket.
+Both runs checked viewer denial, controller delivery, transfer, old-controller
+denial, release and simultaneous audience program/microphone audio. Structured
+results and binary hashes are in
+`contracts/audio-devices/windows-recording-20261031.json`. This is real native
+endpoint recording with generated browser audio, not physical microphone,
+permission-prompt, cross-host TLS/WAN, UE5 or Windows service-session acceptance.
+
 The Windows gateway CI failure at revision `91842833` now has native environment
 evidence: job `124530698696` reported running AudioEndpointBuilder/Audiosrv but
 zero input and zero output endpoints. Firefox's gesture was active and its
