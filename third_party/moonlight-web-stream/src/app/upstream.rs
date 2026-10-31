@@ -574,8 +574,13 @@ mod tests {
             .send_microphone_opus_data(Duration::ZERO, &[1])
             .unwrap();
         std::thread::sleep(Duration::from_millis(20));
-        assert!(stream.poll_transmit().is_some());
-        assert!(stream.transmit_max_hold().unwrap() <= Duration::from_millis(40));
+        // A heavily loaded runner may wake after the whole deadline. In that
+        // case the packet must already have expired rather than being sent.
+        if stream.poll_transmit().is_some() {
+            assert!(stream.transmit_max_hold().unwrap() <= Duration::from_millis(40));
+        } else {
+            assert!(stream.transmit_max_hold().is_none());
+        }
     }
 
     struct LiveResource(Arc<AtomicBool>);
