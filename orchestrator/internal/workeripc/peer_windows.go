@@ -53,6 +53,20 @@ const (
 // close handles. The caller must keep the process handle until channel teardown.
 // Named pipe creation must separately reject remote clients and restrict its ACL.
 func VerifyPeer(pipe windows.Handle, side PeerSide, expectedProcess windows.Handle, expectedSID string, expectedSession uint32) error {
+	return verifyPeer(pipe, side, expectedProcess, 0, expectedSID, expectedSession)
+}
+
+// VerifyDelegatedPeer uses a query-only token handle delegated by the trusted
+// controller into its suspended worker. A desktop user cannot OpenProcessToken
+// on LocalSystem; no process/token ACL is weakened to permit that operation.
+func VerifyDelegatedPeer(pipe windows.Handle, side PeerSide, expectedProcess windows.Handle, token windows.Token, expectedSID string, expectedSession uint32) error {
+	if token == 0 || windows.Handle(token) == windows.InvalidHandle {
+		return ErrPeerIdentity
+	}
+	return verifyPeer(pipe, side, expectedProcess, token, expectedSID, expectedSession)
+}
+
+func verifyPeer(pipe windows.Handle, side PeerSide, expectedProcess windows.Handle, delegated windows.Token, expectedSID string, expectedSession uint32) error {
 	// -1 is a current-process pseudo handle on Windows, not retained ownership.
 	if expectedProcess == 0 || expectedProcess == windows.InvalidHandle {
 		return ErrPeerIdentity
@@ -80,11 +94,13 @@ func VerifyPeer(pipe windows.Handle, side PeerSide, expectedProcess windows.Hand
 	if err != nil || peerPID != expectedPID {
 		return ErrPeerIdentity
 	}
-	var token windows.Token
-	if err := windows.OpenProcessToken(expectedProcess, windows.TOKEN_QUERY, &token); err != nil {
-		return ErrPeerIdentity
+	token := delegated
+	if token == 0 {
+		if err := windows.OpenProcessToken(expectedProcess, windows.TOKEN_QUERY, &token); err != nil {
+			return ErrPeerIdentity
+		}
+		defer token.Close()
 	}
-	defer token.Close()
 	user, err := token.GetTokenUser()
 	if err != nil || !user.User.Sid.Equals(sid) {
 		return ErrPeerIdentity

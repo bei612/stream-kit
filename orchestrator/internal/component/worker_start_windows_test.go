@@ -118,9 +118,9 @@ func TestSessionWorkerLaunchTransaction(t *testing.T) {
 			if retained != 0 {
 				assertNativeExited(t, retained)
 			}
-			entries, err := os.ReadDir(root)
-			if err != nil || len(entries) != 0 {
-				t.Fatalf("launch resources remain: %v %v", entries, err)
+			entries, readErr := os.ReadDir(root)
+			if readErr != nil || len(entries) != 0 {
+				t.Fatalf("launch resources remain: %v %v; launch error: %v", entries, readErr, err)
 			}
 		})
 	}

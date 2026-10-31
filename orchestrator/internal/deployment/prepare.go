@@ -27,12 +27,18 @@ type Options struct {
 	UserSID       string
 	AdminName     string
 	AdminPassword string
+	ControlPort   int
+	GatewayPort   int
+	RendererPort  int
 }
 
 // Initialize creates a fresh, protected deployment. All component credentials
 // travel over stdin. The final directory appears only after every check passes.
 // Failed staging directories remain protected for diagnosis; they are never run.
 func Initialize(ctx context.Context, options Options) (string, error) {
+	if err := options.normalizePorts(); err != nil {
+		return "", err
+	}
 	if err := ValidateAdministrator(options.AdminName, options.AdminPassword); err != nil {
 		return "", err
 	}
@@ -146,6 +152,12 @@ func prepare(ctx context.Context, options Options, root, data, stage string) err
 }
 
 func prepareFiles(ctx context.Context, options Options, root, data, stage string, run nativeRunner) error {
+	if err := options.normalizePorts(); err != nil {
+		return err
+	}
+	controlAddress := fmt.Sprintf("127.0.0.1:%d", options.ControlPort)
+	gatewayAddress := fmt.Sprintf("127.0.0.1:%d", options.GatewayPort)
+	gatewayURL := "http://" + gatewayAddress
 	controlFile := filepath.Join(stage, "orchestrator.json")
 	if err := config.Initialize(controlFile); err != nil {
 		return err
@@ -160,13 +172,14 @@ func prepareFiles(ctx context.Context, options Options, root, data, stage string
 	secret := rand.Text() + rand.Text()
 	internalPassword := rand.Text() + rand.Text()
 	control.Server.MediaTicketSecret = secret
-	control.Server.CORSOrigins = []string{"http://127.0.0.1:8080"}
+	control.Server.BindAddress = controlAddress
+	control.Server.CORSOrigins = []string{gatewayURL}
 	control.Storage.AppsDir = filepath.Join(data, "apps")
 	control.Storage.TempDir = filepath.Join(data, "temp")
 	control.Storage.DBPath = filepath.Join(data, "data", "orchestrator.db")
 	control.Log.File.Path = filepath.Join(data, "logs", "orchestrator.log")
-	control.SunshineAPI = config.SunshineAPIConfig{BaseURL: "https://127.0.0.1:47990", ServerInfoURL: "http://127.0.0.1:47989/serverinfo", Username: "stream-kit", Password: internalPassword, VerifySSL: false}
-	control.MoonlightWeb = config.MoonlightWebConfig{BaseURL: "http://127.0.0.1:8080", PublicURL: "http://127.0.0.1:8080", Username: "stream-kit", Password: internalPassword}
+	control.SunshineAPI = config.SunshineAPIConfig{BaseURL: fmt.Sprintf("https://127.0.0.1:%d", options.RendererPort+1), ServerInfoURL: fmt.Sprintf("http://127.0.0.1:%d/serverinfo", options.RendererPort), Username: "stream-kit", Password: internalPassword, VerifySSL: false}
+	control.MoonlightWeb = config.MoonlightWebConfig{BaseURL: gatewayURL, PublicURL: gatewayURL, Username: "stream-kit", Password: internalPassword}
 	for _, name := range []string{"sunshine", "web_server"} {
 		component := control.Components[name]
 		component.AutoStart = true
@@ -181,7 +194,7 @@ func prepareFiles(ctx context.Context, options Options, root, data, stage string
 			component.ExePath = filepath.Join(component.WorkingDir, "web-server.exe")
 			prefix := "--config-path " + quote(filepath.Join(data, "gateway", "config.json"))
 			component.Args, component.PreflightArgs = prefix+" run", prefix+" config check"
-			component.HealthCheck.URL = "http://127.0.0.1:8080/config.js"
+			component.HealthCheck.URL = gatewayURL + "/config.js"
 		}
 		control.Components[name] = component
 	}
@@ -204,9 +217,9 @@ func prepareFiles(ctx context.Context, options Options, root, data, stage string
 	if !ok || storage["type"] != "json" {
 		return fmt.Errorf("gateway defaults lack supported storage")
 	}
-	web["bind_address"], web["url_path_prefix"], web["certificate"] = "127.0.0.1:8080", "", nil
+	web["bind_address"], web["url_path_prefix"], web["certificate"] = gatewayAddress, "", nil
 	web["first_login_create_admin"], web["session_cookie_secure"] = false, false
-	web["media_ticket_secret"], web["control_plane_url"] = secret, "http://127.0.0.1:9000"
+	web["media_ticket_secret"], web["control_plane_url"] = secret, "http://"+controlAddress
 	storage["path"] = filepath.Join(stage, "gateway", "data.json")
 	if err := writeJSON(gatewayFile, gatewayConfig); err != nil {
 		return err
@@ -225,13 +238,13 @@ func prepareFiles(ctx context.Context, options Options, root, data, stage string
 		return err
 	}
 	sunshineFile := filepath.Join(stage, "sunshine", "sunshine.conf")
-	if err := os.WriteFile(sunshineFile, []byte(rendererConfig(filepath.Join(stage, "sunshine"))), 0600); err != nil {
+	if err := os.WriteFile(sunshineFile, []byte(rendererConfig(filepath.Join(stage, "sunshine"), options.RendererPort)), 0600); err != nil {
 		return err
 	}
 	if _, err := run(ctx, control.Components["sunshine"].ExePath, stage, []string{sunshineFile, "--creds-stdin"}, credentials); err != nil {
 		return err
 	}
-	if err := os.WriteFile(sunshineFile, []byte(rendererConfig(filepath.Join(data, "sunshine"))), 0600); err != nil {
+	if err := os.WriteFile(sunshineFile, []byte(rendererConfig(filepath.Join(data, "sunshine"), options.RendererPort)), 0600); err != nil {
 		return err
 	}
 	if err := writeJSON(controlFile, control); err != nil {
@@ -239,6 +252,30 @@ func prepareFiles(ctx context.Context, options Options, root, data, stage string
 	}
 	_, err = config.LoadExisting(controlFile)
 	return err
+}
+
+// normalizePorts validates all native TCP listener offsets together.
+func (o *Options) normalizePorts() error {
+	if o.ControlPort == 0 {
+		o.ControlPort = 9000
+	}
+	if o.GatewayPort == 0 {
+		o.GatewayPort = 8080
+	}
+	if o.RendererPort == 0 {
+		o.RendererPort = 47989
+	}
+	if o.ControlPort < 1 || o.ControlPort > 65535 || o.GatewayPort < 1 || o.GatewayPort > 65535 || o.RendererPort < 6 || o.RendererPort > 65514 {
+		return fmt.Errorf("invalid deployment ports: control/gateway require 1-65535; renderer base requires 6-65514")
+	}
+	used := map[int]bool{}
+	for _, port := range []int{o.ControlPort, o.GatewayPort, o.RendererPort - 5, o.RendererPort, o.RendererPort + 1, o.RendererPort + 21} {
+		if used[port] {
+			return fmt.Errorf("deployment TCP listeners overlap on port %d", port)
+		}
+		used[port] = true
+	}
+	return nil
 }
 
 func quote(value string) string { return "\"" + value + "\"" }
@@ -251,9 +288,9 @@ func writeJSON(file string, value any) error {
 	return os.WriteFile(file, append(data, '\n'), 0600)
 }
 
-func rendererConfig(directory string) string {
+func rendererConfig(directory string, port int) string {
 	native := func(name string) string { return filepath.ToSlash(filepath.Join(directory, name)) }
-	return "bind_address = 127.0.0.1\nport = 47989\nsystem_tray = disabled\nupnp = disabled\ninstall_steam_audio_drivers = disabled\ndd_configuration_option = disabled\ndd_config_revert_on_disconnect = disabled\nnvenc_opengl_vulkan_on_dxgi = disabled\nnvenc_latency_over_power = disabled\n" +
+	return fmt.Sprintf("bind_address = 127.0.0.1\nport = %d\n", port) + "system_tray = disabled\nupnp = disabled\ninstall_steam_audio_drivers = disabled\ndd_configuration_option = disabled\ndd_config_revert_on_disconnect = disabled\nnvenc_opengl_vulkan_on_dxgi = disabled\nnvenc_latency_over_power = disabled\n" +
 		"file_apps = " + native("apps.json") + "\nfile_state = " + native("state.json") + "\ncredentials_file = " + native("credentials.json") +
 		"\npkey = " + native("key.pem") + "\ncert = " + native("cert.pem") + "\nlog_path = " + native("sunshine.log") + "\nsunshine_name = Stream-Kit\n"
 }

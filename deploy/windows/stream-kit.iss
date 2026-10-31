@@ -22,7 +22,9 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 WizardStyle=modern
 DisableProgramGroupPage=yes
-DisableWelcomePage=no
+DisableWelcomePage=yes
+DisableReadyPage=yes
+ShowLanguageDialog=no
 UsePreviousAppDir=no
 UsePreviousTasks=no
 CloseApplications=no
@@ -46,10 +48,10 @@ Source: "{#PayloadRoot}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsub
 Root: HKLM; Subkey: "Software\StreamKit"; ValueType: string; ValueName: "DataDirectory"; ValueData: "{code:DataDirectory}"; Flags: uninsdeletevalue
 
 [Icons]
-Name: "{group}\Stream-Kit 管理控制台"; Filename: "http://127.0.0.1:9000"
+Name: "{group}\Stream-Kit 管理控制台"; Filename: "{code:ControlURL}"
 
 [Run]
-Filename: "http://127.0.0.1:9000"; Description: "打开 Stream-Kit 管理控制台"; Flags: postinstall shellexec skipifsilent unchecked
+Filename: "{code:ControlURL}"; Description: "打开 Stream-Kit 管理控制台"; Flags: postinstall shellexec skipifsilent unchecked
 
 [Code]
 const
@@ -57,6 +59,11 @@ const
 var
   DataPage: TInputDirWizardPage;
   AdminPage: TInputQueryWizardPage;
+
+function ControlURL(Param: String): String;
+begin
+  Result := 'http://127.0.0.1:' + ExpandConstant('{param:CONTROLPORT|9000}');
+end;
 
 function DataDirectory(Param: String): String;
 begin
@@ -122,8 +129,8 @@ begin
     Result := '数据目录已存在，不会覆盖现有配置和应用。'
   else if not DirExists(ExtractFileDir(DataDirectory(''))) then
     Result := '数据父目录不存在。'
-  else if WizardSilent and not FileExists(ExpandConstant('{param:ADMINFILE|}')) then
-    Result := '静默安装必须使用 /ADMINFILE 指定受保护的管理员 JSON 文件。';
+  else if WizardSilent and (ExpandConstant('{param:ADMINFILE|}') <> '') and not FileExists(ExpandConstant('{param:ADMINFILE|}')) then
+    Result := '/ADMINFILE 指定的管理员 JSON 文件不存在。';
 end;
 
 function NativeCommand(Arguments: String): Boolean;
@@ -147,7 +154,11 @@ begin
   end;
   try
     Arguments := 'init-platform --root ' + Quoted(ExpandConstant('{app}')) +
-      ' --data-dir ' + Quoted(DataDirectory('')) + ' --admin-file ' + Quoted(AdminFile);
+      ' --data-dir ' + Quoted(DataDirectory('')) +
+      ' --control-port ' + Quoted(ExpandConstant('{param:CONTROLPORT|9000}')) +
+      ' --gateway-port ' + Quoted(ExpandConstant('{param:GATEWAYPORT|8080}')) +
+      ' --renderer-port ' + Quoted(ExpandConstant('{param:RENDERERPORT|47989}'));
+    if AdminFile <> '' then Arguments := Arguments + ' --admin-file ' + Quoted(AdminFile);
     if ExpandConstant('{param:SESSIONID|}') <> '' then
       Arguments := Arguments + ' --session-id ' + Quoted(ExpandConstant('{param:SESSIONID|}'));
     if ExpandConstant('{param:USERSID|}') <> '' then

@@ -90,6 +90,9 @@ func TestNativeWorkerAuthenticatedLifecycle(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer worker.Close()
+			if err := snapshot.delegateController(worker.process, token); err != nil {
+				t.Fatal(err)
+			}
 			retained := retainNativeProcess(t, worker.pid)
 			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 			defer cancel()
@@ -278,7 +281,7 @@ func TestNativeControllerRejectsWrongPeer(t *testing.T) {
 			}
 			result := make(chan accepted, 1)
 			go func() { file, err := listener.Accept(ctx); result <- accepted{file, err} }()
-			connection, dialErr := dialNativeController(ctx, listener.Name(), expectedProcess, expectedSID, expectedSession)
+			connection, dialErr := dialNativeController(ctx, listener.Name(), expectedProcess, token, expectedSID, expectedSession)
 			if connection != nil {
 				_ = connection.Close()
 			}

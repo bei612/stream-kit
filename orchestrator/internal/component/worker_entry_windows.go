@@ -4,9 +4,11 @@ package component
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"io"
+	"path/filepath"
 
 	"github.com/stream-kit/orchestrator/internal/workeripc"
 	"go.uber.org/zap"
@@ -34,12 +36,37 @@ func RunWorker(ctx context.Context, args []string) error {
 	if _, err := workeripc.New(*instance, workeripc.Commands); err != nil {
 		return err
 	}
-	controller, err := workeripc.RetainPeerProcess(uint32(*pid), *created)
+	capability, err := openWorkerLaunch(filepath.Join(filepath.Dir(*path), "controller.json"))
 	if err != nil {
 		return err
 	}
-	defer windows.CloseHandle(controller)
-	connection, err := dialNativeController(ctx, *pipe, controller, *sid, uint32(*session))
+	info, err := capability.Stat()
+	if err != nil || !info.Mode().IsRegular() || info.Size() > 4096 {
+		capability.Close()
+		return workeripc.ErrPeerIdentity
+	}
+	var handles workeripc.ControllerHandles
+	decoder := json.NewDecoder(io.LimitReader(capability, 4097))
+	decoder.DisallowUnknownFields()
+	readErr := decoder.Decode(&handles)
+	if readErr == nil && decoder.Decode(new(any)) != io.EOF {
+		readErr = workeripc.ErrPeerIdentity
+	}
+	closeErr := capability.Close()
+	if readErr != nil || closeErr != nil {
+		return workeripc.ErrPeerIdentity
+	}
+	controller, controllerToken, err := handles.Open(uint32(*pid), *created)
+	if controller != 0 {
+		defer windows.CloseHandle(controller)
+	}
+	if controllerToken != 0 {
+		defer controllerToken.Close()
+	}
+	if err != nil {
+		return err
+	}
+	connection, err := dialNativeController(ctx, *pipe, controller, controllerToken, *sid, uint32(*session))
 	if err != nil {
 		return err
 	}

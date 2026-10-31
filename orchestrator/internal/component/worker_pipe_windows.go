@@ -14,7 +14,7 @@ import (
 // dialNativeController authenticates the server before any lifecycle frame is
 // consumed. controller must be retained using trusted launch identity and kept
 // open until this connection is closed; no PID from the pipe may authorize it.
-func dialNativeController(parent context.Context, name string, controller windows.Handle, sid string, session uint32) (_ *workeripc.Conn, result error) {
+func dialNativeController(parent context.Context, name string, controller windows.Handle, token windows.Token, sid string, session uint32) (_ *workeripc.Conn, result error) {
 	ctx, cancel := context.WithTimeout(parent, 15*time.Second)
 	defer cancel()
 	connection, err := workeripc.Dial(ctx, name)
@@ -26,7 +26,10 @@ func dialNativeController(parent context.Context, name string, controller window
 			result = errors.Join(result, connection.Close())
 		}
 	}()
-	if err = verifyNativeConnection(connection, workeripc.ServerPeer, controller, sid, session); err != nil {
+	err = connection.WithHandle(func(handle windows.Handle) error {
+		return workeripc.VerifyDelegatedPeer(handle, workeripc.ServerPeer, controller, token, sid, session)
+	})
+	if err != nil {
 		return nil, err
 	}
 	if err = ctx.Err(); err != nil {

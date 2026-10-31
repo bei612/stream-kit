@@ -104,6 +104,9 @@ func launchSessionWorker(ctx context.Context, cfg config.ComponentConfig, root s
 	if err != nil {
 		return nil, err
 	}
+	if err = snapshot.delegateController(worker.process, controllerToken); err != nil {
+		return nil, err
+	}
 	connection, err = acceptNativeWorker(ctx, listener, worker, sid, session)
 	if err != nil {
 		// acceptNativeWorker already consumed the job on failed authentication.

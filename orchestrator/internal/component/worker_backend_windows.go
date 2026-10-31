@@ -174,10 +174,13 @@ func waitWorkerTree(worker *nativeWorker, terminate func() error, logs *RingBuff
 			TotalPageFaultCount, TotalProcesses, ActiveProcesses, TotalTerminatedProcesses     uint32
 		}
 		queryErr := windows.QueryInformationJobObject(worker.job, windows.JobObjectBasicAccountingInformation, uintptr(unsafe.Pointer(&accounting)), uint32(unsafe.Sizeof(accounting)), nil)
-		if queryErr == nil && accounting.ActiveProcesses == 0 {
+		// A job's active count can reach zero before process teardown finishes.
+		// Retain ownership until the worker has also closed its launch handles.
+		status, waitErr := windows.WaitForSingleObject(worker.process, 0)
+		if queryErr == nil && accounting.ActiveProcesses == 0 && waitErr == nil && status == windows.WAIT_OBJECT_0 {
 			break
 		}
-		if (err != nil || queryErr != nil) && !warned {
+		if (err != nil || queryErr != nil || waitErr != nil) && !warned {
 			if logs != nil {
 				logs.Write("[worker cleanup pending: native process ownership retained]")
 			}

@@ -18,10 +18,12 @@ import (
 )
 
 type workerSnapshot struct {
-	path      string
-	digest    string
-	directory string
-	file      *os.File
+	path           string
+	digest         string
+	directory      string
+	file           *os.File
+	controllerFile *os.File
+	fileAttributes *windows.SecurityAttributes
 }
 
 func openWorkerLaunch(path string) (*os.File, error) {
@@ -91,7 +93,7 @@ func writeWorkerLaunch(root, instance, userSID string, cfg config.ComponentConfi
 	if err = windows.CreateDirectory(dirName, directoryAttributes); err != nil {
 		return nil, err
 	}
-	snapshot := &workerSnapshot{directory: directory, path: filepath.Join(directory, "launch.json")}
+	snapshot := &workerSnapshot{directory: directory, path: filepath.Join(directory, "launch.json"), fileAttributes: fileAttributes}
 	defer func() {
 		if result != nil {
 			result = errors.Join(result, snapshot.Close())
@@ -124,8 +126,12 @@ func writeWorkerLaunch(root, instance, userSID string, cfg config.ComponentConfi
 // directory is removed; foreign contents are never recursively deleted.
 func (snapshot *workerSnapshot) Close() error {
 	var result error
+	if snapshot.controllerFile != nil {
+		result = snapshot.controllerFile.Close()
+		snapshot.controllerFile = nil
+	}
 	if snapshot.file != nil {
-		result = snapshot.file.Close()
+		result = errors.Join(result, snapshot.file.Close())
 		snapshot.file = nil
 	}
 	if snapshot.directory != "" {
@@ -137,4 +143,28 @@ func (snapshot *workerSnapshot) Close() error {
 		}
 	}
 	return result
+}
+
+func (snapshot *workerSnapshot) delegateController(worker windows.Handle, token windows.Token) error {
+	handles, err := workeripc.DelegateController(worker, token)
+	if err != nil {
+		return err
+	}
+	data, err := json.Marshal(handles)
+	if err != nil {
+		return err
+	}
+	name, err := windows.UTF16PtrFromString(filepath.Join(snapshot.directory, "controller.json"))
+	if err != nil {
+		return err
+	}
+	h, err := windows.CreateFile(name, windows.GENERIC_READ|windows.GENERIC_WRITE|windows.DELETE, windows.FILE_SHARE_READ|windows.FILE_SHARE_DELETE, snapshot.fileAttributes, windows.CREATE_NEW, windows.FILE_ATTRIBUTE_TEMPORARY|windows.FILE_FLAG_DELETE_ON_CLOSE, 0)
+	if err != nil {
+		return err
+	}
+	snapshot.controllerFile = os.NewFile(uintptr(h), filepath.Join(snapshot.directory, "controller.json"))
+	if _, err := snapshot.controllerFile.Write(data); err != nil {
+		return err
+	}
+	return snapshot.controllerFile.Sync()
 }

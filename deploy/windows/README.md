@@ -37,7 +37,10 @@ From an elevated deployment context:
 .\stream-kit-preview-COMMIT-windows-amd64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART /DIR="C:\Program Files\StreamKit" /DATADIR="C:\ProgramData\StreamKit" /ADMINFILE="C:\protected\administrator.json" /SESSIONID=1 /USERSID="S-1-5-21-..."
 ```
 
-`ADMINFILE` contains JSON `name` and `password` fields and must be readable only
+`ADMINFILE` is optional. Without it, silent setup generates a unique administrator
+password in the administrator/System-protected `orchestrator.json` data file.
+No shared default password is used. When supplied, `ADMINFILE` contains JSON
+`name` and `password` fields and must be readable only
 by the installer administrator. The caller owns and removes this supplied file.
 Credentials are not command-line values. Interactive setup instead creates and
 removes a private temporary credential file. A deployment agent running in
@@ -45,6 +48,13 @@ Session 0 must supply both the target session ID and SID; normal interactive
 installation resolves them from its current desktop session. The data parent
 must already exist. Silent mode preserves nonzero setup failure codes and never
 automatically reboots.
+
+Override initial listeners using `/CONTROLPORT=19000 /GATEWAYPORT=18080
+/RENDERERPORT=48989`. Native initialization derives component URLs, health checks,
+and browser origins from these values together and rejects overlapping native
+TCP listeners. Normal defaults remain 9000, 8080, and 47989. The management
+shortcut follows the selected control port. These options also allow deployment
+beside an existing development instance without stopping it.
 
 ## Build
 

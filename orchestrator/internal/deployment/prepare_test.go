@@ -24,7 +24,7 @@ func TestPreparationConnectsNativeComponentsWithoutExposingSecretsInArguments(t 
 			t.Fatal(err)
 		}
 	}
-	opts := Options{SessionID: 1, UserSID: "S-1-5-21-123-456-789-1001"}
+	opts := Options{SessionID: 1, UserSID: "S-1-5-21-123-456-789-1001", ControlPort: 19000, GatewayPort: 18080, RendererPort: 48989}
 	var operations []string
 	var credentials map[string]string
 	run := func(_ context.Context, binary, directory string, args []string, input []byte) ([]byte, error) {
@@ -73,6 +73,13 @@ func TestPreparationConnectsNativeComponentsWithoutExposingSecretsInArguments(t 
 		t.Fatal(err)
 	}
 	web := gateway["web_server"].(map[string]any)
+	if loaded.Server.BindAddress != "127.0.0.1:19000" || web["control_plane_url"] != "http://127.0.0.1:19000" || web["bind_address"] != "127.0.0.1:18080" || loaded.MoonlightWeb.BaseURL != "http://127.0.0.1:18080" || loaded.SunshineAPI.BaseURL != "https://127.0.0.1:48990" {
+		t.Fatal("custom listener ports did not propagate across components")
+	}
+	renderer, err := os.ReadFile(filepath.Join(stage, "sunshine", "sunshine.conf"))
+	if err != nil || !strings.Contains(string(renderer), "\nport = 48989\n") {
+		t.Fatal("renderer port not propagated", err)
+	}
 	if web["media_ticket_secret"] != loaded.Server.MediaTicketSecret || web["first_login_create_admin"] != false {
 		t.Fatal("gateway authority not initialized securely")
 	}

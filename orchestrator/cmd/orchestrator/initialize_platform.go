@@ -19,6 +19,9 @@ func initializePlatform(args []string) error {
 	sid := flags.String("user-sid", "", "interactive rendering user SID")
 	session := flags.Uint64("session-id", 0, "interactive rendering session")
 	adminFile := flags.String("admin-file", "", "protected JSON file containing administrator name and password")
+	controlPort := flags.Int("control-port", 9000, "control listener port")
+	gatewayPort := flags.Int("gateway-port", 8080, "gateway listener port")
+	rendererPort := flags.Int("renderer-port", 47989, "renderer base port")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -35,7 +38,7 @@ func initializePlatform(args []string) error {
 	if flags.NArg() != 0 || *root == "" || *data == "" || *sid == "" || *session == 0 || *session >= 1<<32-1 {
 		return fmt.Errorf("usage: orchestrator init-platform --root DIRECTORY --data-dir NEW_DIRECTORY --user-sid SID --session-id ID")
 	}
-	options := deployment.Options{Root: *root, Data: *data, Commit: commit, SessionID: uint32(*session), UserSID: *sid}
+	options := deployment.Options{Root: *root, Data: *data, Commit: commit, SessionID: uint32(*session), UserSID: *sid, ControlPort: *controlPort, GatewayPort: *gatewayPort, RendererPort: *rendererPort}
 	if *adminFile != "" {
 		name, password, err := readAdministrator(*adminFile)
 		if err != nil {
