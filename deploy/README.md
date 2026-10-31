@@ -1,5 +1,32 @@
 # Stream-Kit service deployment
 
+Clean revision `7c076209` passed the complete local Windows source-stack run at
+`artifacts/source-stream/2026-10-31T10-51-22-607Z/`, using the same revision's
+staged Sunshine, gateway, control bundle, example and Web assets. PATH contained
+only Windows system directories. Both outer and Chromium browser results passed:
+two viewers shared one upstream, program audio measured about -35.5 dB, and
+generated controller microphone audio measured about -27.6 dB. Viewer,
+previous-controller and released microphone measurements were below -119 dB.
+Control transfer preserved program audio; viewer departure preserved the other
+viewer's video/audio; active application deletion rejected readmission, closed
+transport and restored Sunshine idle. The microphone target was unconfigured:
+this does not prove physical microphone permission or recorder/UE5 delivery.
+
+The same revision's native Windows build and clean-source stamp passed, followed
+by 106 selected native core tests (zero failures), recorded under
+`artifacts/source-build/sunshine-7c076209/`. Its example passed default/resized/
+fullscreen window and exit checks, native probe command/EOF checks, and 33 audio
+component tests. Frozen example evidence is in
+`.local/validation/example-7c076209/acceptance-manifest.json`. These are separate
+build/runtime checks, not a signed installer or Windows SCM session acceptance.
+
+Windows CI job `124514252183` for this revision still failed the browser audio
+lifecycle check: the first click was recorded with active user activation,
+visible/focused page and no page errors, but AudioContext remained suspended.
+The media element was unpaused and unmuted. This narrows the observed failure;
+it does not establish the cause or a fix. Keep this CI issue open despite the
+successful local full-stream run.
+
 Firefox 157 passed actual Windows application streaming with the frozen clean
 `aa254605` renderer/gateway/control/example/Web artifacts at
 `artifacts/source-stream/2026-10-31T10-32-26-859Z/` (outer and browser results
