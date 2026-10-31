@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// These reviewed fields mirror src/config.cpp in the vendored encoder.
+// These reviewed fields mirror src/config.cpp and the settings UI in the vendored encoder.
 // The catalog describes editable overrides, not platform-dependent defaults.
 type encoderField struct {
 	Key     string   `json:"key"`
@@ -32,6 +32,9 @@ var encoderFields = []encoderField{
 	{Key: "minimum_fps_target", Label: "最低目标帧率（0 使用默认策略）", Type: "number", Maximum: 1000},
 	{Key: "hevc_mode", Label: "HEVC 支持模式（0 自动，1 禁用，2 主档次，3 含 Main10）", Type: "integer", Maximum: 3},
 	{Key: "av1_mode", Label: "AV1 支持模式（0 自动，1 禁用，2 8 位，3 含 10 位）", Type: "integer", Maximum: 3},
+	{Key: "min_threads", Label: "CPU 编码最少线程数", Type: "integer", Minimum: 1, Maximum: 2147483647},
+	{Key: "sw_preset", Label: "软件编码速度与压缩预设", Type: "string", Choices: []string{"ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"}},
+	{Key: "sw_tune", Label: "软件编码内容调优", Type: "string", Choices: []string{"film", "animation", "grain", "stillimage", "fastdecode", "zerolatency"}},
 	{Key: "nvenc_preset", Label: "NVIDIA 编码预设（1 最快，7 质量优先）", Type: "integer", Minimum: 1, Maximum: 7},
 	{Key: "nvenc_vbv_increase", Label: "NVIDIA VBV 缓冲增量（%）", Type: "integer", Maximum: 400},
 	{Key: "nvenc_spatial_aq", Label: "NVIDIA 空间自适应量化", Type: "boolean"},

@@ -16,6 +16,15 @@ func TestEncoderFieldValidationBeforeNativeWrite(t *testing.T) {
 		valid      bool
 	}{
 		{"stream_audio", `true`, true}, {"stream_audio", `"enabled"`, true},
+		{"min_threads", `1`, true}, {"min_threads", `"2"`, true},
+		{"min_threads", `0`, false}, {"min_threads", `-1`, false},
+		{"min_threads", `1.5`, false}, {"min_threads", `2147483648`, false},
+		{"sw_preset", `"ultrafast"`, true}, {"sw_preset", `"veryslow"`, true},
+		{"sw_preset", `"superfast"`, true}, {"sw_preset", `"fastest"`, false},
+		{"sw_preset", `7`, false}, {"sw_preset", `null`, true},
+		{"sw_tune", `"zerolatency"`, true}, {"sw_tune", `"animation"`, true},
+		{"sw_tune", `"unknown"`, false}, {"sw_tune", `true`, false},
+		{"sw_tune", `""`, true},
 		{"stream_audio", `"false"`, true}, {"stream_audio", `"treu"`, false},
 		{"stream_audio", `"TRUE"`, false}, {"stream_audio", `{}`, false},
 		{"max_bitrate", `10000`, true}, {"max_bitrate", `"0"`, true},
