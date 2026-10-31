@@ -353,6 +353,30 @@ func (z *Reader) folderReader(si *streamsInfo, f int) (*folderReadCloser, uint32
 	return si.folderReader(io.NewSectionReader(z.r, z.start, z.end-z.start), f, z.p)
 }
 
+// validatePackedRange checks the entire packed stream region before any
+// decoder is constructed. A SectionReader alone only discovers truncation
+// after the decoder has allocated its dictionary and started reading.
+func (si *streamsInfo) validatePackedRange(available int64) error {
+	if available < 0 {
+		return errFormat
+	}
+	if si == nil || si.packInfo == nil {
+		return nil
+	}
+	remaining := uint64(available)
+	if si.packInfo.position > remaining {
+		return errFormat
+	}
+	remaining -= si.packInfo.position
+	for _, size := range si.packInfo.size {
+		if size > remaining {
+			return errFormat
+		}
+		remaining -= size
+	}
+	return nil
+}
+
 const (
 	chunkSize   = 4096
 	searchLimit = 1 << 20 // 1 MiB
@@ -516,6 +540,9 @@ func (z *Reader) init(r io.ReaderAt, size int64) (err error) {
 		if headerSize > limits.HeaderBytes {
 			return limits.ErrHeader
 		}
+		if err = streamsInfo.validatePackedRange(z.end - z.start); err != nil {
+			return err
+		}
 
 		var (
 			fr        *folderReadCloser
@@ -553,6 +580,9 @@ func (z *Reader) init(r io.ReaderAt, size int64) (err error) {
 	}
 
 	z.si = header.streamsInfo
+	if err = z.si.validatePackedRange(z.end - z.start); err != nil {
+		return err
+	}
 
 	// spew.Dump(header)
 	filesPerStream := make(map[int]int, z.si.Folders())
