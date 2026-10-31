@@ -94,6 +94,51 @@
     "commit": "6b45ba8b26213d3d2a0f0ef9f0cfcd7d8711f6ac",
     "change": "Publish the unchanged ten-second test authority lease after expensive credential fixture setup; runtime authorization rules unchanged",
     "local_targeted_tests_passed": 2,
-    "linux_gateway_regression_job": "https://github.com/bei612/stream-kit/actions/runs/41238445260"
+    "linux_gateway_regression_job": "https://github.com/bei612/stream-kit/actions/runs/41238445260",
+    "ci": {
+      "run": 41238445260,
+      "status": "completed",
+      "conclusion": "failure",
+      "jobs": [
+        {
+          "name": "Source SBOM",
+          "conclusion": "success",
+          "failed_steps": []
+        },
+        {
+          "name": "Management Web",
+          "conclusion": "success",
+          "failed_steps": []
+        },
+        {
+          "name": "Orchestrator (ubuntu-latest)",
+          "conclusion": "success",
+          "failed_steps": []
+        },
+        {
+          "name": "Moonlight Web (windows-latest)",
+          "conclusion": "failure",
+          "failed_steps": [
+            "Require native Windows playback endpoint"
+          ]
+        },
+        {
+          "name": "Moonlight Web (ubuntu-latest)",
+          "conclusion": "success",
+          "failed_steps": []
+        },
+        {
+          "name": "Orchestrator (windows-latest)",
+          "conclusion": "success",
+          "failed_steps": []
+        }
+      ],
+      "windows_native_audio": {
+        "input_count": 0,
+        "output_count": 0,
+        "browser_audio_executed": false,
+        "scope": "Read-only native endpoint inventory from the completed Windows gateway job; no native audio acceptance passed"
+      }
+    }
   }
 }
