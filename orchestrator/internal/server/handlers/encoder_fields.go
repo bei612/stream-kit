@@ -47,6 +47,8 @@ var encoderFields = []encoderField{
 	{Key: "qsv_slow_hevc", Label: "Intel 启用较慢的 HEVC 编码器", Type: "boolean"},
 	{Key: "qsv_preset", Label: "Intel 编码预设", Type: "string", Choices: []string{"veryslow", "slower", "slow", "medium", "fast", "faster", "veryfast"}},
 	{Key: "qsv_coder", Label: "Intel 熵编码", Type: "string", Choices: []string{"auto", "cabac", "ac", "cavlc", "vlc"}},
+	{Key: "vk_tune", Label: "Vulkan 编码调优（0 自动，1 高质量，2 低延迟，3 超低延迟）", Type: "integer", Maximum: 3, Choices: []string{"0", "1", "2", "3"}},
+	{Key: "vk_rc_mode", Label: "Vulkan 码率控制（0 自动，1 CQP，2 CBR，4 VBR）", Type: "integer", Maximum: 4, Choices: []string{"0", "1", "2", "4"}},
 	{Key: "amd_quality", Label: "AMD 编码质量", Type: "string", Choices: []string{"balanced", "quality", "speed"}},
 	{Key: "amd_rc", Label: "AMD 码率控制", Type: "string", Choices: []string{"cbr", "cqp", "vbr_latency", "vbr_peak"}},
 	{Key: "amd_usage", Label: "AMD 编码用途", Type: "string", Choices: []string{"lowlatency", "lowlatency_high_quality", "transcoding", "ultralowlatency", "webcam"}},
@@ -137,7 +139,18 @@ func validEncoderField(key string, raw json.RawMessage) bool {
 			text = string(raw)
 		}
 		n, err := strconv.ParseInt(text, 10, 32)
-		return err == nil && float64(n) >= field.Minimum && float64(n) <= field.Maximum
+		if err != nil || float64(n) < field.Minimum || float64(n) > field.Maximum {
+			return false
+		}
+		if len(field.Choices) == 0 {
+			return true
+		}
+		for _, choice := range field.Choices {
+			if strconv.FormatInt(n, 10) == choice {
+				return true
+			}
+		}
+		return false
 	case "number":
 		if !isText {
 			text = string(raw)

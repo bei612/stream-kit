@@ -46,6 +46,9 @@ func TestEncoderFieldValidationBeforeNativeWrite(t *testing.T) {
 		{"nvenc_preset", `1`, true}, {"nvenc_preset", `7`, true},
 		{"nvenc_preset", `0`, false}, {"nvenc_preset", `8`, false},
 		{"nvenc_vbv_increase", `400`, true}, {"nvenc_vbv_increase", `401`, false},
+		{"vk_tune", `0`, true}, {"vk_tune", `"3"`, true}, {"vk_tune", `4`, false},
+		{"vk_rc_mode", `"0"`, true}, {"vk_rc_mode", `2`, true}, {"vk_rc_mode", `"4"`, true},
+		{"vk_rc_mode", `3`, false}, {"vk_rc_mode", `5`, false}, {"vk_rc_mode", `true`, false},
 		{"ping_timeout", `"-1"`, true}, {"ping_timeout", `-1`, true},
 		{"ping_timeout", `-2`, false}, {"ping_timeout", `2147483648`, false},
 		{"fec_percentage", `1`, true}, {"fec_percentage", `255`, true},
@@ -80,6 +83,22 @@ func TestEncoderFieldValidationBeforeNativeWrite(t *testing.T) {
 				t.Fatalf("status=%d writes=%d", w.Code, fake.writes)
 			}
 		})
+	}
+}
+
+func TestVulkanEncoderChoicesBeforeNativeWrite(t *testing.T) {
+	for _, tc := range []struct {
+		value string
+		valid bool
+	}{{`"4"`, true}, {`2`, true}, {`3`, false}, {`"99"`, false}} {
+		fake := &encoderConfigurationFake{}
+		router := gin.New()
+		router.PATCH("/config", EncoderConfiguration(fake))
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequest("PATCH", "/config", strings.NewReader(`{"revision":"old","changes":{"vk_rc_mode":`+tc.value+`}}`)))
+		if (response.Code == 200) != tc.valid || (fake.writes == 1) != tc.valid {
+			t.Fatalf("value=%s status=%d writes=%d", tc.value, response.Code, fake.writes)
+		}
 	}
 }
 
