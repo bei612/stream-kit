@@ -55,7 +55,19 @@ jobs:
           PY
       - name: Verify process ownership, window input, and audio isolation
         timeout-minutes: 2
-        run: STREAM_KIT_TEST_X11_CAPTURE=1 xvfb-run -a sh scripts/test-audio-target-linux.sh --application-only "$GITHUB_WORKSPACE/.local/cmake-build-linux-audio/test_sunshine"
+        run: |
+          STREAM_KIT_TEST_X11_CAPTURE=1 xvfb-run -a sh scripts/test-audio-target-linux.sh --application-only "$GITHUB_WORKSPACE/.local/cmake-build-linux-audio/test_sunshine" 2>&1 | tee artifacts/audio-target/native-runtime.log
+      - name: Attach native runtime failure to the check
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          log = Path('artifacts/audio-target/native-runtime.log')
+          if log.exists():
+              tail = '\n'.join(log.read_text(errors='replace').splitlines()[-100:])
+              escaped = tail.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              print(f'::error title=Native capture runtime failure::{escaped}')
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
