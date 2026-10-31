@@ -71,6 +71,17 @@ func TestEncoderFieldValidationBeforeNativeWrite(t *testing.T) {
 		{"ds4_back_as_touchpad_click", `false`, true}, {"ds4_back_as_touchpad_click", `[]`, false},
 		{"motion_as_ds4", `"disabled"`, true}, {"motion_as_ds4", `"invalid"`, false},
 		{"touchpad_as_ds4", `null`, true}, {"touchpad_as_ds4", `{}`, false},
+		{"dd_manual_resolution", `"1920x1080"`, true}, {"dd_manual_resolution", `" 3840x2160 "`, true},
+		{"dd_manual_resolution", `"1920X1080"`, false}, {"dd_manual_resolution", `"1920x"`, false},
+		{"dd_manual_resolution", `"4294967296x1080"`, false}, {"dd_manual_resolution", `1080`, false},
+		{"dd_manual_refresh_rate", `"59.94"`, true}, {"dd_manual_refresh_rate", `"60.000000000000"`, true},
+		{"dd_manual_refresh_rate", `"00059.9400"`, true}, {"dd_manual_refresh_rate", `"0.000000001"`, true},
+		{"dd_manual_refresh_rate", `"0.0000000001"`, false}, {"dd_manual_refresh_rate", `"429496729.6"`, false},
+		{"dd_manual_refresh_rate", `"60Hz"`, false}, {"dd_manual_refresh_rate", `"6e1"`, false},
+		{"dd_manual_refresh_rate", `"60."`, false}, {"dd_manual_refresh_rate", `59.94`, false},
+		{"dd_config_revert_delay", `0`, true}, {"dd_config_revert_delay", `-1`, false},
+		{"dd_wa_hdr_toggle_delay", `3000`, true}, {"dd_wa_hdr_toggle_delay", `3001`, false},
+		{"dd_config_revert_on_disconnect", `false`, true}, {"dd_config_revert_on_disconnect", `"bad"`, false},
 		{"extension", `{"custom":true}`, true},
 	} {
 		t.Run(tc.key+tc.value, func(t *testing.T) {
@@ -130,16 +141,20 @@ func TestEncoderCatalogUsesSameReviewedFieldsAsRedaction(t *testing.T) {
 // before writing a config that the native parser would silently ignore.
 func TestEncoderNativeEnumConfiguration(t *testing.T) {
 	cases := map[string][]string{
-		"nvenc_twopass":      {"disabled", "quarter_res", "full_res"},
-		"nvenc_split_encode": {"disabled", "driver_decides", "enabled"},
-		"qsv_preset":         {"veryslow", "slower", "slow", "medium", "fast", "faster", "veryfast"},
-		"qsv_coder":          {"auto", "cabac", "ac", "cavlc", "vlc"},
-		"amd_quality":        {"balanced", "quality", "speed"},
-		"amd_rc":             {"cbr", "cqp", "vbr_latency", "vbr_peak"},
-		"amd_usage":          {"lowlatency", "lowlatency_high_quality", "transcoding", "ultralowlatency", "webcam"},
-		"amd_coder":          {"auto", "cabac", "ac", "cavlc", "vlc"},
-		"vaapi_quality":      {"balanced", "quality", "speed"},
-		"vaapi_rc":           {"avbr", "cbr", "cqp", "icq", "qvbr", "vbr"},
+		"dd_configuration_option": {"disabled", "verify_only", "ensure_active", "ensure_primary", "ensure_only_display"},
+		"dd_resolution_option":    {"disabled", "auto", "manual"},
+		"dd_refresh_rate_option":  {"disabled", "auto", "manual"},
+		"dd_hdr_option":           {"disabled", "auto"},
+		"nvenc_twopass":           {"disabled", "quarter_res", "full_res"},
+		"nvenc_split_encode":      {"disabled", "driver_decides", "enabled"},
+		"qsv_preset":              {"veryslow", "slower", "slow", "medium", "fast", "faster", "veryfast"},
+		"qsv_coder":               {"auto", "cabac", "ac", "cavlc", "vlc"},
+		"amd_quality":             {"balanced", "quality", "speed"},
+		"amd_rc":                  {"cbr", "cqp", "vbr_latency", "vbr_peak"},
+		"amd_usage":               {"lowlatency", "lowlatency_high_quality", "transcoding", "ultralowlatency", "webcam"},
+		"amd_coder":               {"auto", "cabac", "ac", "cavlc", "vlc"},
+		"vaapi_quality":           {"balanced", "quality", "speed"},
+		"vaapi_rc":                {"avbr", "cbr", "cqp", "icq", "qvbr", "vbr"},
 	}
 	for key, choices := range cases {
 		t.Run(key, func(t *testing.T) {

@@ -25,6 +25,15 @@ var encoderFields = []encoderField{
 	{Key: "encoder", Label: "编码器", Type: "string"},
 	{Key: "adapter_name", Label: "显卡", Type: "string"},
 	{Key: "output_name", Label: "显示输出", Type: "string"},
+	{Key: "dd_configuration_option", Label: "显示设备准备策略", Type: "string", Choices: []string{"disabled", "verify_only", "ensure_active", "ensure_primary", "ensure_only_display"}},
+	{Key: "dd_resolution_option", Label: "显示分辨率策略", Type: "string", Choices: []string{"disabled", "auto", "manual"}},
+	{Key: "dd_manual_resolution", Label: "手动分辨率（例如 1920x1080）", Type: "string"},
+	{Key: "dd_refresh_rate_option", Label: "显示刷新率策略", Type: "string", Choices: []string{"disabled", "auto", "manual"}},
+	{Key: "dd_manual_refresh_rate", Label: "手动刷新率（Hz，例如 59.94）", Type: "string"},
+	{Key: "dd_hdr_option", Label: "显示 HDR 策略", Type: "string", Choices: []string{"disabled", "auto"}},
+	{Key: "dd_config_revert_delay", Label: "显示配置恢复延迟（毫秒）", Type: "integer", Maximum: 2147483647},
+	{Key: "dd_config_revert_on_disconnect", Label: "客户端断开时恢复显示配置", Type: "boolean"},
+	{Key: "dd_wa_hdr_toggle_delay", Label: "HDR 切换延迟（毫秒）", Type: "integer", Maximum: 3000},
 	{Key: "audio_sink", Label: "主机声音设备", Type: "string"},
 	{Key: "virtual_sink", Label: "虚拟声音设备", Type: "string"},
 	{Key: "stream_audio", Label: "传输主机声音", Type: "boolean"},
@@ -92,6 +101,50 @@ var encoderFieldByKey = func() map[string]encoderField {
 
 var encoderDecimal = regexp.MustCompile(`^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$`)
 
+var encoderResolution = regexp.MustCompile(`^([0-9]+)x([0-9]+)$`)
+var encoderRefreshRate = regexp.MustCompile(`^([0-9]+)(?:\.([0-9]+))?$`)
+
+// Match the native display parser's unsigned dimensions and rational refresh
+// rate. Validate the rational numerator as well as its denominator, so a finite
+// Go float cannot admit a value that the native uint32 representation loses.
+func validEncoderDisplayValue(key, value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return true
+	}
+	var parts []string
+	switch key {
+	case "dd_manual_resolution":
+		match := encoderResolution.FindStringSubmatch(value)
+		if match == nil {
+			return false
+		}
+		parts = match[1:]
+	case "dd_manual_refresh_rate":
+		match := encoderRefreshRate.FindStringSubmatch(value)
+		if match == nil {
+			return false
+		}
+		fraction := strings.TrimRight(match[2], "0")
+		if len(fraction) > 9 {
+			return false
+		}
+		parts = []string{match[1] + fraction}
+	default:
+		return true
+	}
+	for _, part := range parts {
+		part = strings.TrimLeft(part, "0")
+		if part == "" {
+			part = "0"
+		}
+		if _, err := strconv.ParseUint(part, 10, 32); err != nil {
+			return false
+		}
+	}
+	return true
+}
+
 func validEncoderField(key string, raw json.RawMessage) bool {
 	field, known := encoderFieldByKey[key]
 	if !known || string(raw) == "null" {
@@ -112,6 +165,9 @@ func validEncoderField(key string, raw json.RawMessage) bool {
 	switch field.Type {
 	case "string":
 		if !isText || strings.ContainsAny(text, "\r\n\x00") {
+			return false
+		}
+		if !validEncoderDisplayValue(key, text) {
 			return false
 		}
 		if len(field.Choices) == 0 {
