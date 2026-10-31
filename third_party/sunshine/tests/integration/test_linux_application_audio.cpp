@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cerrno>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -184,6 +185,23 @@ namespace {
       ASSERT_GT(owned_reference, 0.05) << "Owned tone was not present; capture test cannot proceed";
     }
     std::vector<float> samples(1920);
+    // A running null sink can have rendered two seconds ahead before the
+    // per-stream monitor is attached. Check bounded startup separately from
+    // continuous capture; never make silence satisfy the steady-state test.
+    const auto started = std::chrono::steady_clock::now();
+    const auto deadline = started + std::chrono::seconds(3);
+    bool started_audio = false;
+    while (std::chrono::steady_clock::now() < deadline) {
+      ASSERT_EQ(mic->sample(samples), platf::capture_e::ok);
+      ASSERT_LT(tone_amplitude(samples, 1477.0), 0.02) << "Foreign audio leaked during startup";
+      if (tone_amplitude(samples, 997.0) > 0.05) {
+        started_audio = true;
+        break;
+      }
+    }
+    const auto startup_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count();
+    RecordProperty("startup_ms", startup_ms);
+    ASSERT_TRUE(started_audio) << "No application audio within 3 seconds";
     double energy = 0;
     double owned_amplitude = 0;
     int audible_packets = 0;
