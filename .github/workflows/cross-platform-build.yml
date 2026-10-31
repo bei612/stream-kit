@@ -69,10 +69,22 @@ jobs:
         run: |
           node --input-type=module <<'JS'
           import fs from 'node:fs';
+          import {execFileSync} from 'node:child_process';
           const log = fs.readFileSync('../artifacts/ci/control-bundle-build.log', 'utf8').split(/\r?\n/).slice(-60).join('\n');
           for (let offset = 0; offset < log.length; offset += 2500) {
             const message = log.slice(offset, offset + 2500).replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
             console.log(`::error title=Control bundle build ${offset / 2500 + 1}::${message}`);
+          }
+          // Inspect a non-secret vendor manifest to distinguish source changes
+          // from checkout conversion or executable-mode changes on CI runners.
+          for (const args of [
+            ['diff', '--no-ext-diff', '--', 'vendor/modules.txt'],
+            ['ls-files', '--eol', '--', 'vendor/modules.txt'],
+            ['config', '--show-origin', '--get-regexp', 'core\\.(autocrlf|filemode|safecrlf)'],
+          ]) {
+            const detail = execFileSync('git', args, {encoding:'utf8'}).slice(0, 6000);
+            const message = detail.replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
+            console.log(`::error title=Control source ${args[0]}::${message}`);
           }
           JS
       - name: Install locked bundle acceptance browser tooling
