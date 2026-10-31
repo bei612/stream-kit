@@ -94,7 +94,7 @@ async function main() {
   const probe=spawn(process.execPath,[path.join(__dirname,'accept-managed-stream.cjs'),'--gateway',gateway,'--orchestrator',control,
     '--runtime-config',runtime,'--scratch',path.join(scratch,'media'),'--output-dir',path.join(output,'browser'),'--example',example,'--example-output',outputDevice,
     ...['--microphone-tone','--service-control','--remote-target','--target-switch','--stop-active','--delete-active','--restart-services','--expire-client-lease','--edit-gateway-configuration','--edit-encoder-configuration','--edit-vulkan','--apply-managed-gateway','--apply-managed-encoder'].filter(flag => process.argv.includes(flag)),
-    ...['--web-assets','--audio-probe','--target-render-device','--target-capture-device','--clients','--hold-seconds','--microphone-source'].flatMap(flag=>process.argv.includes(flag)?[flag,option(flag)]:[])],
+    ...['--web-assets','--audio-probe','--target-render-device','--target-capture-device','--clients','--hold-seconds','--microphone-source','--physical-device-label'].flatMap(flag=>process.argv.includes(flag)?[flag,option(flag)]:[])],
     {cwd:root,windowsHide:true,stdio:['ignore',fd2,fd2]}); fs.closeSync(fd2);
   const [code]=await once(probe,'exit');
   assert.equal(code,0,'Program browser acceptance failed; inspect acceptance.log');

@@ -11,6 +11,7 @@ const { spawn, execFileSync } = require('node:child_process');
 const { once } = require('node:events');
 const { setTimeout: delay } = require('node:timers/promises');
 const { startAudioProbe } = require('./lib/audio-probe.cjs');
+const { exercisePhysicalMicrophone } = require('./lib/physical-microphone.cjs');
 const { waitForPageCondition } = require('./lib/browser-condition.cjs');
 const { engine, launchBrowser } = require('./lib/test-browser.cjs');
 const root = path.resolve(__dirname, '..');
@@ -36,8 +37,11 @@ const expireClientLease = process.argv.includes('--expire-client-lease');
 const programToneCount = Math.max(20, Math.ceil((clientCount*60+holdSeconds+30)/3));
 const microphoneTest = process.argv.includes('--microphone-tone');
 const microphoneSource = process.argv.includes('--microphone-source') ? process.argv[process.argv.indexOf('--microphone-source')+1] : 'file';
-assert.ok(['file','generated'].includes(microphoneSource), 'Microphone source must be file or generated');
-assert.ok(!microphoneTest || microphoneSource === 'generated' || engine === 'chromium', 'File-backed microphone acceptance requires Chromium; use --microphone-source generated for other engines');
+assert.ok(['file','generated','physical'].includes(microphoneSource), 'Microphone source must be file, generated or physical');
+assert.ok(!microphoneTest || microphoneSource !== 'file' || engine === 'chromium', 'File-backed microphone acceptance requires Chromium');
+const physicalLabel = process.argv.includes('--physical-device-label') ? process.argv[process.argv.indexOf('--physical-device-label')+1] : null;
+assert.ok(microphoneSource!=='physical'||(microphoneTest&&physicalLabel&&!physicalLabel.startsWith('--')),'Physical microphone acceptance requires --microphone-tone and --physical-device-label REGEX');
+if(physicalLabel)new RegExp(physicalLabel,'i');
 const endpointOption = name => {
   if (!process.argv.includes(name)) return null;
   const value = process.argv[process.argv.indexOf(name)+1];
@@ -48,6 +52,7 @@ const targetRender = endpointOption('--target-render-device');
 const targetCapture = endpointOption('--target-capture-device');
 const targetProbe = process.argv.includes('--audio-probe') ? argument('--audio-probe') : null;
 const targetRecording = !!(targetRender || targetCapture || targetProbe);
+assert.ok(microphoneSource!=='physical'||targetRecording,'Physical microphone acceptance requires native target recording');
 const remoteTarget = process.argv.includes('--remote-target');
 assert.ok(!remoteTarget || targetRecording, 'Remote target requires explicit recording endpoints');
 assert.ok(!targetRecording || (targetRender && targetCapture && targetProbe && microphoneTest), 'Target recording requires both explicit endpoint IDs, --audio-probe and --microphone-tone');
@@ -87,6 +92,7 @@ if (applicationExample) {
   result.program_tone_count = programToneCount;
 }
 if (targetRecording) result.scope = 'Real browser test microphone uplink, shared broadcast and explicit target input recording with authorization/revocation checks requested; completion is recorded separately. No UE5, physical microphone or Linux capture claim.';
+if(microphoneSource==='physical')result.scope='Physical browser microphone uplink, native target input recording, simultaneous program/audio broadcast and authority rejection requested; completion is recorded separately. No UE5, WAN or permission-prompt claim.';
 save();
 const children = [];
 let browser;
@@ -399,12 +405,23 @@ async function main() {
   browser = await launchBrowser({ args: browserArgs, firefoxUserPrefs: { 'media.autoplay.default': 0 } });
   result.browser = browser.version();
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  if(microphoneTest&&microphoneSource!=='generated')await context.grantPermissions(['microphone'],{origin:gateway});
   const capabilityPage = await context.newPage();
+  // MediaDevices is origin-bound and absent on about:blank. Use a real local
+  // gateway document without weakening secure-context/browser permission rules.
+  if(microphoneSource==='physical')await capabilityPage.goto(`${gateway}/config.js`);
   result.browser_capabilities = await capabilityPage.evaluate(() => ({webrtc:typeof RTCPeerConnection === 'function'}));
+  let physicalDeviceId=null;
+  if(microphoneSource==='physical'){
+    const devices=await capabilityPage.evaluate(async()=> (await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='audioinput'&&d.deviceId&&!['default','communications'].includes(d.deviceId)).map(d=>({id:d.deviceId,label:d.label})));
+    const matching=devices.filter(d=>new RegExp(physicalLabel,'i').test(d.label));
+    assert.equal(matching.length,1,'Physical microphone selection must match exactly one native input');
+    assert.ok(!/cable|virtual|stereo mix|monitor|fake/i.test(matching[0].label),'Selected input identifies a virtual or test source');
+    physicalDeviceId=matching[0].id;result.physical_input_label=matching[0].label;
+  }
   await capabilityPage.close();
   assert.ok(result.browser_capabilities.webrtc, 'This browser build does not expose RTCPeerConnection; real WebRTC acceptance cannot run');
-  if (microphoneTest && microphoneSource === 'file') await context.grantPermissions(['microphone'], { origin: gateway });
-  if (microphoneTest) result.microphone_source = {kind:microphoneSource, permission_prompt_tested:false, physical_device:false};
+  if (microphoneTest) result.microphone_source = {kind:microphoneSource, permission_prompt_tested:false, physical_device:microphoneSource==='physical'};
   if (microphoneTest && microphoneSource === 'generated') {
     // Replace only capture hardware at the browser boundary. The production
     // capture owner, authorization, RTP, gateway mixer and playback stay real.
@@ -425,10 +442,10 @@ async function main() {
       }});
     }, {frequency:microphoneFrequency});
   }
-  await context.addInitScript(({ microphoneTest }) => {
+  await context.addInitScript(({ microphoneTest, physicalDeviceId }) => {
     localStorage.setItem('mlSettings', JSON.stringify({ videoSize: '720p', fps: 30, bitrate: 8000, videoCodec: 'h264',
       dataTransport: 'webrtc', forceVideoElementRenderer: true, canvasRenderer: false, playAudioLocal: false,
-      microphone: microphoneTest, enterFullscreenOnStreamStart: false, language: 'en' }));
+      microphone: microphoneTest, microphoneInput:{deviceId:physicalDeviceId??'',echoCancellation:true,noiseSuppression:true,autoGainControl:true}, enterFullscreenOnStreamStart: false, language: 'en' }));
     window.__acceptancePeers = [];
     // Playback-quality counters reset when a renderer/track is replaced.
     // Count frames actually presented across renderer lifetimes instead.
@@ -449,7 +466,7 @@ async function main() {
     watchVideos();
     const Original = window.RTCPeerConnection;
     window.RTCPeerConnection = class extends Original { constructor(...args) { super(...args); window.__acceptancePeers.push(this); } };
-  }, { microphoneTest });
+  }, { microphoneTest, physicalDeviceId });
   const pages = [];
   const pageErrors = [];
   const videoFrames = page => page.evaluate(() => window.__presentedVideoFrames);
@@ -767,7 +784,10 @@ async function main() {
     console.log('Control restart retained session and unique controller');
     }else await api(`/stream-sessions/${invite.session_id}/controller`, 'DELETE');
   }
-  if (microphoneTest) {
+  if(microphoneTest&&microphoneSource==='physical'){
+    await exercisePhysicalMicrophone({pages,api,sessionId:invite.session_id,probe:audioProbe,targetCapture,deviceId:physicalDeviceId,result,save,programLevels:()=>Promise.all(pages.map(page=>measureReceivedTone(page,997)))});
+    result.target_recording.passed=true;
+  }else if (microphoneTest) {
     const measure = page => measureReceivedTone(page, microphoneFrequency);
     const recordTarget = async phase => {
       if(!audioProbe)return null;

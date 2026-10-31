@@ -1,0 +1,94 @@
+{
+    "schema_version":  1,
+    "passed":  false,
+    "base_commit":  "6aa59b98e7b07892ea79972d8f1513622b3d7f75",
+    "source_state":  "Development viewer and probe; not a released binary set",
+    "scope":  "Physical browser microphone uplink, native target input recording, simultaneous program/audio broadcast and authority rejection requested; completion is recorded separately. No UE5, WAN or permission-prompt claim.",
+    "microphone_source":  {
+                              "kind":  "physical",
+                              "permission_prompt_tested":  false,
+                              "physical_device":  true
+                          },
+    "physical_input_label":  "麦克风 (Realtek(R) Audio)",
+    "probe_sha256":  "b29d034f0d55dc1cb0b54aae41eff38a65ae3106949852961ead1ca784949741",
+    "observations":  {
+                         "passed":  false,
+                         "cases":  {
+                                       "viewer_denied":  {
+                                                             "allowed":  false,
+                                                             "source_label":  "麦克风 (Realtek(R) Audio)",
+                                                             "target":  {
+                                                                            "correlation":  0.09394546979027316,
+                                                                            "lag_ms":  -720,
+                                                                            "overlap_windows":  328,
+                                                                            "reference_rms":  0.0008894000432027491,
+                                                                            "reference_variation":  0.25365196975294235
+                                                                        },
+                                                             "audience":  [
+                                                                              {
+                                                                                  "correlation":  0.16513739234234223,
+                                                                                  "lag_ms":  100,
+                                                                                  "overlap_windows":  370,
+                                                                                  "reference_rms":  0.0008894000432027491,
+                                                                                  "reference_variation":  0.25365196975294235
+                                                                              }
+                                                                          ],
+                                                             "native_recording":  {
+                                                                                      "captured_frames":  191520,
+                                                                                      "dropped_frames":  0,
+                                                                                      "error":  null,
+                                                                                      "input_state":  "idle",
+                                                                                      "output_state":  "idle",
+                                                                                      "peak":  0.000030517578125,
+                                                                                      "played_frames":  0,
+                                                                                      "rms":  0.000010470168482584077,
+                                                                                      "sample_rate":  48000,
+                                                                                      "state":  "idle"
+                                                                                  }
+                                                         },
+                                       "controller":  {
+                                                          "allowed":  true,
+                                                          "source_label":  "麦克风 (Realtek(R) Audio)",
+                                                          "target":  {
+                                                                         "correlation":  0.17742291751786868,
+                                                                         "lag_ms":  160,
+                                                                         "overlap_windows":  363,
+                                                                         "reference_rms":  0.0009000636325442048,
+                                                                         "reference_variation":  0.23358626559458961
+                                                                     },
+                                                          "audience":  [
+                                                                           {
+                                                                               "correlation":  0.23296342757436417,
+                                                                               "lag_ms":  120,
+                                                                               "overlap_windows":  368,
+                                                                               "reference_rms":  0.0009000636325442048,
+                                                                               "reference_variation":  0.23358626559458961
+                                                                           }
+                                                                       ],
+                                                          "native_recording":  {
+                                                                                   "captured_frames":  191520,
+                                                                                   "dropped_frames":  0,
+                                                                                   "error":  null,
+                                                                                   "input_state":  "idle",
+                                                                                   "output_state":  "idle",
+                                                                                   "peak":  0.0026397705078125,
+                                                                                   "played_frames":  0,
+                                                                                   "rms":  0.000774396448388044,
+                                                                                   "sample_rate":  48000,
+                                                                                   "state":  "idle"
+                                                                               }
+                                                      }
+                                   },
+                         "source":  "physical browser getUserMedia",
+                         "signal_comparison":  "10 ms energy envelope after 997 Hz program notch; bounded delay/gain correlation",
+                         "permission_prompt_tested":  false
+                     },
+    "error":  "Physical microphone was not correlated with target recording",
+    "renderer_restored_idle":  true,
+    "result_sha256":  "7608830ded2487f6e3015ca84bc08b77a215c72cd802ce9b8d032e02c2ff4d35",
+    "limitations":  [
+                        "Input device opened and target recording rose above its viewer-denied baseline, but the required source correlation was not established",
+                        "No claim of complete physical microphone delivery or audience acceptance; a changing native input signal and further acceptance are required",
+                        "No voice samples written to evidence files"
+                    ]
+}

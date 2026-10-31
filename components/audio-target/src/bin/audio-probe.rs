@@ -298,6 +298,15 @@ impl Probe {
                     .map_err(|e| e.to_string());
             }
             "status" => return Ok(self.status()),
+            "envelope" => {
+                if self.input.is_some() {
+                    return Err("Stop recording before analyzing recorded audio".into());
+                }
+                let recording = self.recording.lock().map_err(|_| "Recording unavailable")?;
+                return stream_kit_audio_target::analysis::analyze_envelope(&recording.samples)
+                    .map(|analysis| json!(analysis))
+                    .map_err(str::to_owned);
+            }
             "analyze" => {
                 if self.input.is_some() {
                     return Err("Stop recording before analyzing recorded audio".into());
