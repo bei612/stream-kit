@@ -2,9 +2,10 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
+import { dependencyNotices } from './build-tools/notices'
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), dependencyNotices()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

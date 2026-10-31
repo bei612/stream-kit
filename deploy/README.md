@@ -25,6 +25,16 @@ clean worktree before issuing a manifest. Existing deployment assets are untouch
 Hashes identify the packaged bytes; the manifest is not a signature, SBOM or
 proof that the complete platform has passed acceptance.
 
+Management builds emit `dist/THIRD_PARTY_NOTICES.json` from dependencies with
+rendered code in JavaScript chunks, plus Vite's browser-helper and Tailwind's CSS
+generators. It retains original license/notice text, package versions, declared
+license metadata and source-file hashes. Missing or empty license text,
+lockfile/version mismatch, linked dependencies and non-file notice entries fail
+the build. The control bundle inventories this asset with its other files;
+browsers do not download it as part of page startup. This is the management
+frontend's notice inventory, not the complete native-product SBOM or a completed
+license review for all shipped components.
+
 CI retains structured Orchestrator test events per OS and annotates failing
 test/package names without copying test output into annotations. The workflow
 cancels superseded runs in the same ref's concurrency group; this does not
