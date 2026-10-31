@@ -120,6 +120,13 @@ installation, GPU/audio hardware or physical microphone acceptance. The MSYS2
 package inventory is retained with logs; changing distribution repositories are
 not claimed to produce byte-identical binaries.
 
+The unified workflow shares a Cargo output directory across native components,
+the official binding generator and its WASM shim. Dependency cache entries are
+retained if a later step fails. Cargo still resolves the locked dependencies and
+the release builders still compile workspace binaries and verify source stamps;
+cached objects do not replace successful build or acceptance results. The cache
+policy follows [rust-cache's documented inputs](https://github.com/Swatinem/rust-cache).
+
 Use the official Inno Setup 7.1.1 distribution. Its license and commercial-use
 information are available at https://jrsoftware.org/isorder.php and in the
 compiler distribution; no compiler binary is vendored in this repository.

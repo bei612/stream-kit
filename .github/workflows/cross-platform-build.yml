@@ -228,6 +228,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: third_party/moonlight-web-stream
+          # A later hardware prerequisite failure must not discard successfully
+          # compiled dependencies. Workspace binaries remain source-built.
+          cache-on-failure: 'true'
       - run: cargo check --locked
       - name: Verify gateway source stamp validation
         run: node ../../scripts/test-gateway-build-stamp.mjs

@@ -26,6 +26,7 @@ jobs:
       GIT_CONFIG_VALUE_0: 'false'
       GOTOOLCHAIN: local
       CARGO_BUILD_JOBS: '2'
+      CARGO_TARGET_DIR: ${{ github.workspace }}/.local/targets/native
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -47,10 +48,11 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: |
-            third_party/moonlight-web-stream
-            third_party/moonlight-common-rust
-            components/audio-target
+          # Every native workspace, the official generator and the WASM shim
+          # use the same Cargo-owned output root, as in local release builds.
+          workspaces: third_party/moonlight-web-stream -> ../../.local/targets/native
+          key: ${{ hashFiles('components/audio-target/Cargo.lock', 'third_party/moonlight-common-rust/Cargo.lock', 'third_party-manifests/gateway-web/*.Cargo.lock') }}
+          cache-on-failure: 'true'
       - name: Prepare official release tools
         run: ./scripts/prepare-windows-release-tools.ps1
       - name: Install locked frontend and binding build dependencies
