@@ -3,6 +3,7 @@
 pub mod admission;
 pub mod analysis;
 mod pcm;
+pub mod remote;
 pub mod verification;
 pub mod wire;
 

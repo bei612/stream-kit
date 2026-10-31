@@ -121,7 +121,24 @@ pub struct Admissions {
     last_time: i64,
 }
 
+/// Non-cloneable proof of one consumed admission. It conveys no ongoing lease.
+pub struct Admitted {
+    pub(crate) binding: Binding,
+}
+
 impl Admissions {
+    pub fn admit(
+        &mut self,
+        token: &str,
+        node_key: &[u8],
+        expected: &Binding,
+        now: i64,
+    ) -> Result<Admitted, AdmissionError> {
+        self.consume(token, node_key, expected, now)?;
+        Ok(Admitted {
+            binding: expected.clone(),
+        })
+    }
     pub fn new(capacity: usize) -> Self {
         Self {
             used: HashMap::new(),
