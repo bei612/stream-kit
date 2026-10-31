@@ -49,24 +49,31 @@ jobs:
       - name: Install isolated audio dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libasound2-dev libpulse-dev pulseaudio pulseaudio-utils
+          sudo apt-get install -y libasound2-dev libpulse-dev pulseaudio pulseaudio-utils gdb
       - name: Build the production microphone target probe
         run: cargo build --locked --examples --manifest-path components/audio-target/Cargo.toml
       - name: Verify explicit render and capture endpoints
+        id: pair
         timeout-minutes: 2
         run: |
           mkdir -p artifacts/audio-target
           sh scripts/test-audio-target-linux.sh 2>&1 | tee artifacts/audio-target/pair-runtime.log
+      - name: Diagnose a hung endpoint in the isolated audio server
+        if: failure() && steps.pair.outcome == 'failure'
+        timeout-minutes: 2
+        run: STREAM_KIT_AUDIO_TARGET_DEBUG=1 sh scripts/test-audio-target-linux.sh 2>&1 | tee artifacts/audio-target/pair-debug.log
       - name: Attach endpoint failure location
         if: failure()
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          log = Path('artifacts/audio-target/pair-runtime.log')
-          if log.exists():
-              tail = '\n'.join(log.read_text(errors='replace').splitlines()[-20:])
-              escaped = tail.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
-              print(f'::error title=Microphone endpoint runtime failure::{escaped}')
+          for name in ('pair-runtime', 'pair-debug'):
+              log = Path(f'artifacts/audio-target/{name}.log')
+              if log.exists():
+                  tail = '\n'.join(log.read_text(errors='replace').splitlines()[-100:])
+                  for offset in range(0, len(tail), 2500):
+                      escaped = tail[offset:offset + 2500].replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                      print(f'::error title=Microphone endpoint {name} {offset // 2500 + 1}::{escaped}')
           PY
       - uses: actions/upload-artifact@v4
         if: always()

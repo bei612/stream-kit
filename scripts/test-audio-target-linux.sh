@@ -46,6 +46,15 @@ until pactl info >/dev/null 2>&1; do
 done
 mkdir -p "$repo/artifacts/audio-target"
 if [ "$application_only" -eq 0 ]; then
+    if [ "${STREAM_KIT_AUDIO_TARGET_DEBUG:-0}" = 1 ]; then
+        target_dir=$(cargo metadata --locked --no-deps --format-version 1 | python3 -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])')
+        # Diagnostic replay only: interrupt the test-owned inferior and collect
+        # all threads. A timeout remains a failed run, never a successful close.
+        timeout --signal=INT --kill-after=5s 20s gdb --batch \
+            -ex 'set pagination off' -ex run -ex 'thread apply all bt' \
+            --args "$target_dir/debug/examples/verify_pair" pulseaudio:stream_kit_acceptance pulseaudio:stream_kit_capture
+        exit 0
+    fi
     timeout --signal=TERM --kill-after=5s 30s cargo run --locked --quiet --example verify_pair -- pulseaudio:stream_kit_acceptance pulseaudio:stream_kit_capture > "$repo/artifacts/audio-target/linux-pair-result.json"
     cat "$repo/artifacts/audio-target/linux-pair-result.json"
 fi
