@@ -50,6 +50,15 @@ if(goEnvironment.GOVERSION!==buildInfo.GoVersion)throw new Error('Go toolchain n
 const goNotices=collectGoNotices(path.join(root,'orchestrator/vendor'),goEnvironment.GOROOT,buildInfo)
 fs.writeFileSync(path.join(output,'THIRD_PARTY_NOTICES.go.json'),JSON.stringify(goNotices,null,2)+'\n')
 
+// Ship the service definition from this source revision, under the same file
+// inventory as the executable. Deployment must not depend on a source checkout.
+const deploymentFiles=['CONTROL-BUNDLE.md',target.platform==='windows'?'install-windows-service.ps1':'stream-kit-orchestrator.service']
+for(const name of deploymentFiles){
+  const source=path.join(root,'deploy',name)
+  if(!fs.lstatSync(source).isFile())throw new Error(`Deployment source must be a regular file: ${name}`)
+  fs.copyFileSync(source,path.join(output,name))
+}
+
 // Inventory regular files only; linked or special entries cannot be released.
 const files=[]
 function inventory(directory){

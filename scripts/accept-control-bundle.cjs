@@ -15,6 +15,9 @@ async function main(){
   assert.ok(process.argv[2],'Pass a verified native control bundle directory');
   execFileSync(binary,['verify-bundle',bundle],{stdio:'inherit',windowsHide:true});
   const manifest=JSON.parse(fs.readFileSync(path.join(bundle,'bundle-manifest.json'),'utf8'));
+  for(const name of ['CONTROL-BUNDLE.md',process.platform==='win32'?'install-windows-service.ps1':'stream-kit-orchestrator.service']){
+    assert.ok(manifest.files.some(file=>file.path===name&&file.bytes>0),`Missing versioned deployment file: ${name}`);
+  }
   const output=path.join(root,'artifacts/control-bundle',new Date().toISOString().replace(/[:.]/g,'-'));
   fs.mkdirSync(output,{recursive:true});
   // A fresh CI checkout has no developer-local directory. Keep credentials

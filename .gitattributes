@@ -7,6 +7,7 @@
 *.md text eol=lf
 *.ps1 text eol=crlf
 *.sh text eol=lf
+*.service text eol=lf
 # Native build scripts and upstream configure inputs require LF even on Windows.
 third_party/sunshine/** text=auto eol=lf
 # Go mod vendor copies module archive bytes, including upstream CRLF files.
