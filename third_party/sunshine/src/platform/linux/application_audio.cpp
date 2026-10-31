@@ -239,24 +239,36 @@ namespace platf {
         }
       }
 
-      /** @brief Copy available PCM into a bounded queue; holes become silence. */
+      /** @brief Drain the ready PCM fragments into a bounded queue; holes become silence. */
       static void read(pa_stream *stream, std::size_t, void *userdata) {
         auto &track = *static_cast<track_t *>(userdata);
-        const void *data = nullptr;
-        std::size_t bytes = 0;
-        if (pa_stream_peek(stream, &data, &bytes) < 0 || !bytes) {
+        auto remaining = pa_stream_readable_size(stream);
+        if (remaining == static_cast<std::size_t>(-1)) {
           return;
         }
         const auto limit = static_cast<std::size_t>(track.owner->spec_.rate) * track.owner->spec_.channels * 60 / 1000;
-        const auto count = bytes / sizeof(float);
-        const auto *samples = static_cast<const float *>(data);
-        for (std::size_t i = count > limit ? count - limit : 0; i < count; ++i) {
-          if (track.samples.size() >= limit) {
-            track.samples.pop_front();
+        // peek exposes one fragment, not the whole readable buffer. Drain the
+        // current snapshot without waiting for another callback or admitting an
+        // unbounded amount of newly arriving audio into this sampling turn.
+        while (remaining) {
+          const void *data = nullptr;
+          std::size_t bytes = 0;
+          if (pa_stream_peek(stream, &data, &bytes) < 0 || !bytes) {
+            return;
           }
-          track.samples.push_back(samples && std::isfinite(samples[i]) ? samples[i] : 0.0f);
+          const auto count = bytes / sizeof(float);
+          const auto *samples = static_cast<const float *>(data);
+          for (std::size_t i = count > limit ? count - limit : 0; i < count; ++i) {
+            if (track.samples.size() >= limit) {
+              track.samples.pop_front();
+            }
+            track.samples.push_back(samples && std::isfinite(samples[i]) ? samples[i] : 0.0f);
+          }
+          if (pa_stream_drop(stream) < 0) {
+            return;
+          }
+          remaining -= std::min(remaining, bytes);
         }
-        pa_stream_drop(stream);
       }
 
       capture::target_ptr target_;  ///< Shared launch authorization, never inferred from a sink name.

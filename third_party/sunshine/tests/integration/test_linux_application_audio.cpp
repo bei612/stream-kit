@@ -186,15 +186,25 @@ namespace {
     std::vector<float> samples(1920);
     double energy = 0;
     double owned_amplitude = 0;
+    int audible_packets = 0;
+    int first_audible_packet = -1;
     for (int i = 0; i < 100; ++i) {
       ASSERT_EQ(mic->sample(samples), platf::capture_e::ok);
-      owned_amplitude = std::max(owned_amplitude, tone_amplitude(samples, 997.0));
+      const auto amplitude = tone_amplitude(samples, 997.0);
+      owned_amplitude = std::max(owned_amplitude, amplitude);
+      if (amplitude > 0.05) {
+        ++audible_packets;
+        if (first_audible_packet < 0) {
+          first_audible_packet = i;
+        }
+      }
       EXPECT_LT(tone_amplitude(samples, 1477.0), 0.02) << "Another process's tone leaked from the shared sink";
       for (float value : samples) {
         energy += value * value;
       }
     }
-    EXPECT_GT(energy / (100 * samples.size()), 0.001);
+    EXPECT_GT(energy / (100 * samples.size()), 0.001)
+      << "audible packets=" << audible_packets << ", first audible packet=" << first_audible_packet;
     EXPECT_GT(owned_amplitude, 0.05);
     target->retire();
     EXPECT_EQ(mic->sample(samples), platf::capture_e::error);

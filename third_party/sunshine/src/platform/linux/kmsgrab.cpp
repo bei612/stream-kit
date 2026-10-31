@@ -12,6 +12,9 @@
 #include <thread>
 #include <unistd.h>
 
+// third-party includes
+#include <boost/algorithm/string/join.hpp>
+
 // platform includes
 #include <drm_fourcc.h>
 #include <linux/dma-buf.h>
@@ -2286,7 +2289,7 @@ namespace platf {
 
     kms::card_descriptors = std::move(cds);
 
-    BOOST_LOG(debug) << "Final KMS display_names return list: " << (display_names | std::views::join_with(' ') | std::ranges::to<std::string>());
+    BOOST_LOG(debug) << "Final KMS display_names return list: " << boost::algorithm::join(display_names, " ");
     return display_names;
   }
 
