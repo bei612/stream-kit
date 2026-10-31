@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-31T20:50:07.934Z",
+  "source_commit": "9fe6979a63a802b31c81b8429b5317e50e3ec4c4",
+  "release": {
+    "tag": "v0.1.0-preview.20261101.3",
+    "url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261101.3",
+    "prerelease": true,
+    "assets": [
+      {
+        "name": "stream-kit-preview-9fe6979a63a8-windows-amd64-setup.exe",
+        "bytes": 98477278,
+        "sha256": "ecea964744b587fdb5bfa214371d11827c4a4ed54bc94b4a677e8e1444f550f7",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261101.3/stream-kit-preview-9fe6979a63a8-windows-amd64-setup.exe"
+      },
+      {
+        "name": "stream-kit-preview-9fe6979a63a8-ubuntu24.04-amd64-setup.run",
+        "bytes": 62297044,
+        "sha256": "9969248561facd31c443ba520fa202cc0217dd668a9d84c68a85a24db656db7f",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261101.3/stream-kit-preview-9fe6979a63a8-ubuntu24.04-amd64-setup.run"
+      },
+      {
+        "name": "stream-kit-sbom.spdx.json",
+        "bytes": 6996532,
+        "sha256": "90eaae4fe909e64043ca08daef995d00af89600934eae6a2ff4b46abe2a6c18b",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261101.3/stream-kit-sbom.spdx.json"
+      }
+    ]
+  },
+  "build": {
+    "run": 41237673903,
+    "url": "https://github.com/bei612/stream-kit/actions/runs/41237673903",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "id": 124645587380,
+        "name": "Source SBOM",
+        "conclusion": "success"
+      },
+      {
+        "id": 124645587583,
+        "name": "Source-built Windows unified installer",
+        "conclusion": "success"
+      },
+      {
+        "id": 124645587701,
+        "name": "Linux product / Source-built Linux unified installer",
+        "conclusion": "success"
+      }
+    ]
+  },
+  "promotion": {
+    "run": 41240551768,
+    "url": "https://github.com/bei612/stream-kit/actions/runs/41240551768",
+    "conclusion": "success",
+    "recipe_commit": "2d901bec30b8e2e3d6dadc0ec03c83891b7ba042",
+    "payload_rebuilt": false,
+    "version_tag_transport": "existing project-specific SSH deploy key; promotion requires an existing matching source tag"
+  },
+  "windows_application_local_runtime": [
+    {
+      "component": "media-gateway",
+      "path": "vcruntime140.dll",
+      "bytes": 124544,
+      "sha256": "d5e4d9a3e835fa679450145d6a7d94e36573a509317111904d9b3712c30d9066"
+    },
+    {
+      "component": "example",
+      "path": "vcruntime140.dll",
+      "bytes": 124544,
+      "sha256": "d5e4d9a3e835fa679450145d6a7d94e36573a509317111904d9b3712c30d9066"
+    }
+  ],
+  "scope": [
+    "Same-clean-revision native source construction, complete component inventories and installer creation for both platforms",
+    "Linux actual installer extraction, three-component native initialization, configuration validation and refusal to overwrite existing data",
+    "Windows native runtime signature and packaged process startup checks; no audio stream opened",
+    "Published GitHub asset sizes and SHA-256 digests match the downloaded CI artifacts"
+  ],
+  "not_repeated": [
+    "Previously accepted four-hour twenty-client soak",
+    "Previously recorded Windows service installation and removal"
+  ],
+  "open_acceptance": [
+    "Physical microphone speech through the complete recording/UE5 and audience route",
+    "Authorized bundled virtual-audio driver fresh installation and reboot path; the public package excludes that driver"
+  ],
+  "excluded_by_current_scope": [
+    "Commercial publisher certificate",
+    "Linux/mobile hardware acceptance",
+    "Twenty-four-hour soak"
+  ],
+  "test_only_followup": {
+    "commit": "6b45ba8b26213d3d2a0f0ef9f0cfcd7d8711f6ac",
+    "change": "Publish the unchanged ten-second test authority lease after expensive credential fixture setup; runtime authorization rules unchanged",
+    "local_targeted_tests_passed": 2,
+    "linux_gateway_regression_job": "https://github.com/bei612/stream-kit/actions/runs/41238445260"
+  }
+}

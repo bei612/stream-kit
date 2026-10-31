@@ -8,7 +8,7 @@ Stream-Kit 将管理服务、Sunshine 渲染端和 Moonlight Web 媒体网关集
 
 从 [GitHub Releases](https://github.com/bei612/stream-kit/releases) 获取当前可下载版本，查看该版本说明和 SHA-256。版本中若提供 `stream-kit-preview-<COMMIT>-windows-amd64-setup.exe`，使用这一个安装器安装三个核心组件；无需另外安装官方 Sunshine 或 Moonlight Web，也不要再注册独立 Sunshine 服务。
 
-当前统一安装候选版为 [2026-11-01.2](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261101.2)，包含音视频示例、麦克风设备选择、声音处理设置及发送绑定失败时的设备释放与主动重试。安装及运行无需在宿主机安装 Node.js/npm；源码构建和开发验收使用的工具不属于产品运行依赖。版本清单及未闭合项见 [本版交付状态](deploy/releases/20261101.2.md)。
+当前统一安装候选版为 [2026-11-01.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261101.3)，提供同一干净提交构建的 Windows 单 EXE 和 Ubuntu 24.04 单文件安装包。本版补齐 Windows 应用本地运行库、Linux 原生安装与上传 ELF/脚本入口支持。音视频示例、麦克风设备选择和声音处理设置继续提供。安装及运行无需在宿主机安装 Node.js/npm；源码构建工具不属于产品运行依赖。版本清单及未闭合项见 [本版交付状态](deploy/releases/20261101.3.md)。
 
 Windows 安装器支持向导和静默模式。以管理员终端执行，将文件名替换为实际下载的名称：
 
@@ -18,6 +18,14 @@ Windows 安装器支持向导和静默模式。以管理员终端执行，将文
 
 默认程序目录为 `C:\Program Files\StreamKit`，运行数据目录为 `C:\ProgramData\StreamKit`。静默模式自动生成独立管理员密码，管理员可从受保护的 `orchestrator.json` 中读取 `server.username` 与 `server.password`。自动化部署也可以通过 `/ADMINFILE` 提供凭据文件；密码不作为命令行参数传入。
 
+Ubuntu 24.04 amd64 使用同一版本中的 `.run` 文件，明确指定实际拥有桌面和音频会话的非 root 用户：
+
+```sh
+sudo bash stream-kit-preview-9fe6979a63a8-ubuntu24.04-amd64-setup.run --user RENDER_USER
+```
+
+数据位于该用户的 `~/.local/share/stream-kit/runtime`，管理员凭据同样保存在受保护的 `orchestrator.json` 中。没有桌面会话时可加 `--no-start`，登录桌面后再启动用户服务。系统运行库由 apt 安装；详细说明见 [Linux 部署说明](deploy/linux/README.md)。
+
 | 入口 | 初始地址 | 用途 |
 | --- | --- | --- |
 | 统一管理端 | `http://127.0.0.1:9000` | 配置组件、应用、会话、连接、控制权和音频 |
@@ -26,7 +34,7 @@ Windows 安装器支持向导和静默模式。以管理员终端执行，将文
 
 已有开发服务占用默认端口时，安装命令可以追加 `/CONTROLPORT=19000 /GATEWAYPORT=18080 /RENDERERPORT=48989`，三个组件的地址、健康检查和浏览器来源随之一起配置。初始监听仅限本机；远程使用需在管理页配置访问地址、HTTPS 和媒体网络。
 
-安装初始化检查各组件文件清单、版本及端口。服务启动命令等待控制端和自动启动的媒体组件就绪。已有程序目录、数据目录或其他 SCM 部署不会被覆盖；目前不支持安装器原位升级。卸载移除匹配的服务和程序文件，保留运行数据。
+Windows 安装初始化检查各组件文件清单、版本及端口。服务启动命令等待控制端和自动启动的媒体组件就绪。已有程序目录、数据目录或其他 SCM 部署不会被覆盖；目前不支持 Windows 安装器原位升级。卸载移除匹配的服务和程序文件，保留运行数据。
 
 安装包当前未签名，商业代码签名证书不作为本次交付要求。Windows 静默安装、管理员登录、LocalSystem 服务启动和卸载已有真实通过记录；SCM 双客户端串流的原自动化任务在最后的日志归档步骤失败，另已通过原生 Sunshine 日志和原始媒体指标补充核对核心功能，不能将原任务改写为通过。构建流程已支持在取得分发授权后将虚拟音频驱动纳入同一个 EXE；当前已发布候选版仍未包含驱动。详细参数、会话身份和部署边界见 [Windows 安装说明](deploy/windows/README.md)。仍使用便携 ZIP 的版本请按随包说明部署。
 
