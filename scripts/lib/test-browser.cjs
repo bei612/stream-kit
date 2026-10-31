@@ -6,10 +6,10 @@ const engine = process.env.BROWSER_ENGINE || 'chromium';
 if (!['chromium', 'firefox', 'webkit'].includes(engine)) throw new Error(`Unsupported BROWSER_ENGINE: ${engine}`);
 const localCache = path.join(root, '.local/playwright');
 if (!process.env.PLAYWRIGHT_BROWSERS_PATH && fs.existsSync(localCache)) process.env.PLAYWRIGHT_BROWSERS_PATH = localCache;
-const playwright = createRequire(path.join(root, 'third_party/moonlight-web-stream/package.json'))('playwright');
+const playwright = process.env.PLAYWRIGHT_MODULE ? require(process.env.PLAYWRIGHT_MODULE) : createRequire(path.join(root, 'third_party/moonlight-web-stream/package.json'))('playwright');
 
 module.exports = {
   engine,
-  launchBrowser: () => playwright[engine].launch({headless:true, ...(engine === 'chromium' ? {channel:process.env.BROWSER_CHANNEL || 'chrome'} : {})}),
+  launchBrowser: ({defaultChannel='chrome'} = {}) => playwright[engine].launch({headless:true, ...(engine === 'chromium' ? {channel:process.env.BROWSER_CHANNEL || defaultChannel} : {})}),
   evidenceDirectory: base => engine === 'chromium' ? base : path.join(base, engine),
 };

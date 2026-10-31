@@ -1,4 +1,4 @@
-// Validates real release assets and the generated Rust/WASM ABI in Chromium.
+// Validates release assets and the generated Rust/WASM ABI in the selected engine.
 // Authentication responses are fixtures; this is not a streaming E2E test.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -8,9 +8,9 @@ const { createHash } = require('node:crypto');
 const { createRequire } = require('node:module');
 const root = path.resolve(__dirname, '..');
 const gateway = path.join(root, 'third_party/moonlight-web-stream');
-const output = path.join(root, 'artifacts/gateway-browser');
+const {engine,launchBrowser,evidenceDirectory} = require('./lib/test-browser.cjs');
+const output = evidenceDirectory(path.join(root, 'artifacts/gateway-browser'));
 const gatewayRequire = createRequire(path.join(gateway, 'package.json'));
-const { chromium } = process.env.PLAYWRIGHT_MODULE ? require(process.env.PLAYWRIGHT_MODULE) : gatewayRequire('playwright');
 const webpack = gatewayRequire('webpack');
 fs.mkdirSync(output, { recursive: true });
 fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify({ passed: false, status: 'running', at: new Date().toISOString() }));
@@ -44,7 +44,11 @@ async function main() {
     });
   }));
   const missing = [];
+  let networkUnavailable = false;
   const server = http.createServer((req, res) => {
+    // Deny the fixture origin itself as well: browser offline emulation does
+    // not consistently intercept service-worker network requests in all engines.
+    if (networkUnavailable) { req.socket.destroy(); return; }
     const pathname = new URL(req.url, 'http://localhost').pathname;
     if (pathname === '/gateway/config.js') {
       res.setHeader('Content-Type', 'text/javascript');
@@ -68,17 +72,20 @@ async function main() {
       missing.push(pathname); res.writeHead(404); res.end(); return;
     }
     const type = { '.wasm': 'application/wasm', '.js': 'text/javascript', '.html': 'text/html', '.svg': 'image/svg+xml', '.png': 'image/png' }[path.extname(filename)];
+    res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Content-Type', type || 'application/octet-stream');
     fs.createReadStream(filename).pipe(res);
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   let browser;
+  const diagnostics = [];
   try {
-    browser = await chromium.launch({ headless: true, ...(process.env.BROWSER_CHANNEL ? { channel: process.env.BROWSER_CHANNEL } : {}) });
+    browser = await launchBrowser({defaultChannel:'chromium'});
     const errors = [];
     const origin = `http://127.0.0.1:${server.address().port}`;
     for (const pathname of ['index.html', 'admin.html', 'stream.html?hostId=1&appId=2']) {
       const page = await browser.newPage();
+      page.on('console', message => diagnostics.push({page: pathname, type: message.type(), text: message.text()}));
       page.on('pageerror', error => errors.push(`${pathname}: ${error.message}`));
       await page.goto(`${origin}/gateway/${pathname}`);
       await page.locator('#ml-api-name').waitFor();
@@ -96,18 +103,25 @@ async function main() {
           return entries;
         });
         assert.deepEqual(cached, ['/gateway/offline.html']);
+        await page.waitForFunction(() => !!navigator.serviceWorker.controller);
+        networkUnavailable = true;
         await page.context().setOffline(true);
         await page.goto(`${origin}/gateway/stream.html?hostId=1&appId=2`);
         await page.getByRole('heading', { name: '连接已断开' }).waitFor();
+        networkUnavailable = false;
       }
       await page.close();
     }
     // Exercise the production viewer with capability-based admission. Only the
     // HTTP peers are fixtures; WASM, RTCPeerConnection and page startup are real.
     const viewer = await browser.newPage();
+    assert.equal(await viewer.evaluate(() => typeof RTCPeerConnection), 'function',
+      `${engine} runtime has no RTCPeerConnection; real SDP acceptance cannot run in this environment`);
+    viewer.on('console', message => diagnostics.push({page: 'managed', type: message.type(), text: message.text()}));
     viewer.on('pageerror', error => errors.push(`managed viewer: ${error.message}`));
     const viewerCalls = [];
     const joined = { session_id: 'browser-session', host_id: 1, app_id: 2,
+      revision: 1, control_epoch: 0, audio: {microphone_enabled: false},
       connection_token: 'browser-connection', connection: { connection_id: 'browser-client', role: 'viewer' } };
     const profile = { permissions: { allow_transport_webrtc: true, allow_transport_websockets: false,
       allow_add_hosts: false }, default_settings: { dataTransport: 'webrtc', microphone: false,
@@ -158,11 +172,20 @@ async function main() {
     await page.waitForFunction(() => document.body.dataset.ready === 'true');
     assert.deepEqual(errors, [], 'Browser errors');
     assert.deepEqual(missing.filter(url => url !== '/favicon.ico'), [], 'Missing built resources');
-    const result = { passed: true, browser: browser.version(), at: new Date().toISOString(),
+    const result = { passed: true, engine, browser: browser.version(), at: new Date().toISOString(),
       assets: Object.fromEntries(fs.readdirSync(path.join(gateway, 'dist')).filter(name => /\.(js|wasm|html)$/.test(name)).map(name => [name, createHash('sha256').update(fs.readFileSync(path.join(gateway, 'dist', name))).digest('hex')])),
       scope: 'Three production pages at a path prefix; offline navigation and cache isolation; release WASM initialization and Rust keyboard/ICE ABI; managed viewing link reaches a real browser SDP offer without gateway login and releases the connection. HTTP authentication/media responses are fixtures, no real upstream.' };
     fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(result, null, 2));
+    fs.writeFileSync(path.join(output, 'diagnostics.json'), JSON.stringify({diagnostics, pages: []}, null, 2));
     console.log(JSON.stringify(result));
+  } catch (error) {
+    const pages = [];
+    if (browser) for (const context of browser.contexts()) for (const page of context.pages()) {
+      pages.push({url: page.url(), text: await page.locator('body').innerText().catch(() => ''),
+        capabilities: await page.evaluate(() => ({peerConnection: typeof RTCPeerConnection, serviceWorker: !!navigator.serviceWorker?.controller})).catch(() => null)});
+    }
+    fs.writeFileSync(path.join(output, 'diagnostics.json'), JSON.stringify({diagnostics, pages}, null, 2));
+    throw error;
   } finally {
     if (browser) await browser.close();
     await new Promise(resolve => server.close(resolve));
