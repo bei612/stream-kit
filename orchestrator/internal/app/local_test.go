@@ -37,6 +37,21 @@ func localFixture(t *testing.T) (*Manager, *store.Store, LocalAppRequest) {
 	}
 	return NewManager(st, cfg, nil, nil, nil, zap.NewNop()), st, LocalAppRequest{Name: "Local example", ExePath: exe}
 }
+func requireSameLocalFile(t *testing.T, actual, expected string) {
+	t.Helper()
+	a, err := os.Stat(actual)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.Stat(expected)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(a, b) {
+		t.Fatalf("different filesystem objects: %q and %q", actual, expected)
+	}
+}
+
 func TestLocalApplicationPersistsAndDeletionPreservesOriginal(t *testing.T) {
 	manager, st, req := localFixture(t)
 	req.ArgsTemplate = "windowed"
@@ -44,10 +59,12 @@ func TestLocalApplicationPersistsAndDeletionPreservesOriginal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if record.Source != model.AppSourceLocal || record.Status != model.AppStatusReady || record.WorkingDir != filepath.Dir(req.ExePath) || record.Args != "-windowed" || record.AppDir == record.WorkingDir {
+	if record.Source != model.AppSourceLocal || record.Status != model.AppStatusReady || record.Args != "-windowed" || record.AppDir == record.WorkingDir {
 		t.Fatalf("incorrect local model: %+v", record)
 	}
-	if programDirectory(record) != filepath.Dir(req.ExePath) {
+	requireSameLocalFile(t, record.ExePath, req.ExePath)
+	requireSameLocalFile(t, record.WorkingDir, filepath.Dir(req.ExePath))
+	if programDirectory(record) != filepath.Dir(record.ExePath) {
 		t.Fatal("app_dir substitution points at platform metadata")
 	}
 	_ = os.WriteFile(filepath.Join(record.AppDir, "output.log"), []byte("platform log"), 0600)
@@ -186,10 +203,12 @@ func TestLocalRegistrationProjectsProgramAndOwnedPathsToSunshine(t *testing.T) {
 	if record.CaptureMode != model.CaptureApplication || registration.CaptureMode != model.CaptureApplication || registration.AutoDetach || !registration.WaitAll {
 		t.Fatalf("capture scope not projected into tracked launch: %+v %+v", record, registration)
 	}
-	if registration.WorkingDir != filepath.Dir(req.ExePath) || registration.Output != filepath.Join(record.AppDir, "output.log") || registration.ImagePath != filepath.Join(record.AppDir, "icon.png") {
+	requireSameLocalFile(t, record.ExePath, req.ExePath)
+	requireSameLocalFile(t, record.WorkingDir, filepath.Dir(req.ExePath))
+	if registration.WorkingDir != record.WorkingDir || registration.Output != filepath.Join(record.AppDir, "output.log") || registration.ImagePath != filepath.Join(record.AppDir, "icon.png") {
 		t.Fatalf("unified path projection: %+v", registration)
 	}
-	if registration.Cmd != `"`+req.ExePath+`" --assets "`+filepath.Dir(req.ExePath)+`"` {
+	if registration.Cmd != `"`+record.ExePath+`" --assets "`+filepath.Dir(record.ExePath)+`"` {
 		t.Fatal(registration.Cmd)
 	}
 	if _, err = os.Stat(filepath.Join(filepath.Dir(req.ExePath), "icon.png")); !os.IsNotExist(err) {

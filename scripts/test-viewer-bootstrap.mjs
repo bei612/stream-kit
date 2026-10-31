@@ -10,6 +10,7 @@ const compile = file => ts.transpileModule(readFileSync(new URL(file, import.met
 const mediaCode = compile('../third_party/moonlight-web-stream/web/stream/media_access.ts')
 const apiCode = compile('../third_party/moonlight-web-stream/web/api.ts')
 const joined = { status: 'ok', data: { session_id: 'session', host_id: 1, app_id: 2,
+  revision: 1, control_epoch: 0, audio: { microphone_enabled: false },
   connection_token: 'own-connection', connection: { connection_id: 'client', role: 'viewer' } } }
 const ticket = token => ({ status: 'ok', data: { ticket: token, expires_at: new Date(Date.now() + 60000).toISOString(), role: 'viewer' } })
 const profile = { default_settings: {}, permissions: { allow_transport_webrtc: true, allow_transport_websockets: false } }
