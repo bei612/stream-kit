@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -51,6 +52,34 @@ func validPath(name string) bool {
 // Verify checks a complete, immutable package tree without executing its files.
 // The package must be stored separately from configuration and runtime data.
 func Verify(directory, platform, architecture string) (*Manifest, error) {
+	return verifyComponent(directory, "orchestrator", platform, architecture)
+}
+
+// VerifyPlatform validates every executable component before setup invokes it.
+// Metadata files outside those components are not executable inputs to setup.
+func VerifyPlatform(directory, platform, architecture string) (map[string]*Manifest, error) {
+	result := make(map[string]*Manifest, 3)
+	var commit string
+	for _, component := range []string{"orchestrator", "media-gateway", "sunshine"} {
+		folder := filepath.Join(directory, component)
+		info, err := os.Lstat(folder)
+		if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			return nil, fmt.Errorf("missing or linked component directory: %s", component)
+		}
+		manifest, err := verifyComponent(folder, component, platform, architecture)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", component, err)
+		}
+		if commit != "" && manifest.Commit != commit {
+			return nil, fmt.Errorf("platform components have different source revisions")
+		}
+		commit = manifest.Commit
+		result[component] = manifest
+	}
+	return result, nil
+}
+
+func verifyComponent(directory, component, platform, architecture string) (*Manifest, error) {
 	root, err := os.OpenRoot(directory)
 	if err != nil {
 		return nil, err
@@ -77,11 +106,19 @@ func Verify(directory, platform, architecture string) (*Manifest, error) {
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		return nil, fmt.Errorf("invalid bundle manifest: %w", err)
 	}
-	if manifest.Schema != 1 || manifest.Component != "orchestrator" || !digest(manifest.Commit, 20) || manifest.Dirty == nil || *manifest.Dirty {
-		return nil, fmt.Errorf("bundle must be a versioned clean control-plane release")
+	if manifest.Schema != 1 || manifest.Component != component || !digest(manifest.Commit, 20) || manifest.Dirty == nil || *manifest.Dirty {
+		return nil, fmt.Errorf("bundle must be a versioned clean %s release", component)
 	}
-	if manifest.Version != "git-"+manifest.Commit[:12] {
+	if component == "orchestrator" && manifest.Version != "git-"+manifest.Commit[:12] {
 		return nil, fmt.Errorf("bundle version does not match its source revision")
+	}
+	if component != "orchestrator" {
+		if manifest.Platform == "win32" {
+			manifest.Platform = "windows"
+		}
+		if manifest.Architecture == "x64" {
+			manifest.Architecture = "amd64"
+		}
 	}
 	if manifest.Platform != platform || manifest.Architecture != architecture || (platform != "windows" && platform != "linux") || (architecture != "amd64" && architecture != "arm64") {
 		return nil, fmt.Errorf("bundle target does not match %s/%s", platform, architecture)
@@ -99,11 +136,25 @@ func Verify(directory, platform, architecture string) (*Manifest, error) {
 		names[key] = true
 		entries[file.Path] = file
 	}
-	binary := "orchestrator"
+	binary := component
+	if component == "media-gateway" {
+		binary = "web-server"
+	}
 	if platform == "windows" {
 		binary += ".exe"
 	}
-	for _, required := range []string{binary, "dist/index.html", "dist/THIRD_PARTY_NOTICES.json", "THIRD_PARTY_NOTICES.go.json"} {
+	requiredFiles := []string{binary}
+	switch component {
+	case "orchestrator":
+		requiredFiles = append(requiredFiles, "dist/index.html", "dist/THIRD_PARTY_NOTICES.json", "THIRD_PARTY_NOTICES.go.json")
+	case "media-gateway":
+		requiredFiles = append(requiredFiles, "dist/index.html", "LICENSE")
+	case "sunshine":
+		requiredFiles = append(requiredFiles, "assets/web/index.html", "LICENSE")
+	default:
+		return nil, fmt.Errorf("unsupported component %q", component)
+	}
+	for _, required := range requiredFiles {
 		if file, ok := entries[required]; !ok || file.Bytes == 0 {
 			return nil, fmt.Errorf("required bundle file missing: %s", required)
 		}

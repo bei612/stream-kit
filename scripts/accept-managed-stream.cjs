@@ -61,6 +61,8 @@ assert.ok(!targetSwitch || microphoneTest, 'Target mode switching acceptance req
 const restartServices = process.argv.includes('--restart-services');
 const applyManagedGateway = process.argv.includes('--apply-managed-gateway');
 const applyManagedEncoder = process.argv.includes('--apply-managed-encoder');
+const serviceControl = process.argv.includes('--service-control');
+assert.ok(!serviceControl || (process.platform==='win32' && applicationExample && !applyManagedEncoder && !applyManagedGateway && !restartServices), 'SCM acceptance requires an isolated Windows application case');
 const editVulkan = process.argv.includes('--edit-vulkan');
 assert.ok(!editVulkan || (process.argv.includes('--edit-encoder-configuration') && !applyManagedEncoder), 'Vulkan editing requires an isolated configuration editing case');
 assert.ok(!applyManagedEncoder||(process.argv.includes('--edit-encoder-configuration')&&applicationExample&&!applyManagedGateway&&!restartServices&&!targetRecording&&!targetSwitch&&!expireClientLease),'Managed encoder apply requires an isolated program/configuration acceptance case');
@@ -92,6 +94,7 @@ let cleanupRenderer;
 let cleanupManagedGateway;
 let cleanupManagedEncoder;
 let audioProbe;
+let service;
 const sha = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 async function port() {
   const server = net.createServer();
@@ -165,7 +168,7 @@ async function main() {
     assert.match(info, /<state>SUNSHINE_SERVER_FREE<\/state>/, 'Do not interrupt an active Sunshine stream');
     assert.match(info, /<currentgame>0<\/currentgame>/, 'Do not switch an existing rendering application');
   }
-  if(!applyManagedEncoder)await checkIdleEncoder();
+  if(!applyManagedEncoder&&!serviceControl)await checkIdleEncoder();
   const sunshine = (resource, body, csrf) => new Promise((resolve, reject) => {
     const encoded = body === undefined ? null : JSON.stringify(body);
     const request = https.request(new URL(resource, sun.base_url), {
@@ -244,17 +247,31 @@ async function main() {
     controlConfig.components.sunshine={exe_path:owned.exe_path,args:`"${owned.config_file}" "sunshine_name=StreamKit startup override"`,working_dir:owned.working_dir,auto_start:true};
   }
   if(applyManagedGateway)controlConfig.components.web_server={exe_path:gatewayBinary,args:`--config-path "${gatewayConfigFile}" run`,preflight_args:`--config-path "${gatewayConfigFile}" config check`,working_dir:scratch,auto_start:true,env:{WEBRTC_ICE_SERVER_COUNT:'0'}};
+  if(serviceControl){
+    const {interactiveIdentity}=require('./lib/windows-service.cjs');
+    const identity=interactiveIdentity();
+    assert.ok(identity.session>0 && identity.sid.startsWith('S-1-5-21-'));
+    const owned=runtime.managed_encoder;
+    assert.ok(owned && path.resolve(owned.working_dir)===path.dirname(scratch),'Expected source wrapper encoder ownership');
+    const shared={windows_session_id:identity.session,windows_user_sid:identity.sid,auto_start:true};
+    controlConfig.components.sunshine={...shared,exe_path:owned.exe_path,args:`"${owned.config_file}"`,working_dir:owned.working_dir};
+    controlConfig.components.web_server={...shared,exe_path:gatewayBinary,args:`--config-path "${gatewayConfigFile}" run`,preflight_args:`--config-path "${gatewayConfigFile}" config check`,working_dir:scratch,env:{WEBRTC_ICE_SERVER_COUNT:'0'}};
+    controlConfig.log.file={enabled:true,path:path.join(scratch,'service-control.log'),max_size_mb:10,max_backups:1,max_age_days:1};
+    result.render_session=identity.session;
+  }
   fs.writeFileSync(controlConfigFile, JSON.stringify(controlConfig));
-  let gatewayProcess = applyManagedGateway?null:launch(gatewayBinary, ['--config-path', gatewayConfigFile, 'run'], 'gateway');
-  const controlProcess = launch(orchestratorBinary, ['--config', controlConfigFile], 'orchestrator');
-  if(applyManagedEncoder)cleanupManagedEncoder=async()=>{
+  let gatewayProcess = (applyManagedGateway||serviceControl)?null:launch(gatewayBinary, ['--config-path', gatewayConfigFile, 'run'], 'gateway');
+  let controlProcess;
+  if(serviceControl){service=await require('./lib/windows-service.cjs').startService(orchestratorBinary,controlConfigFile,scratch);result.service_control=service.ready;save();}
+  else controlProcess = launch(orchestratorBinary, ['--config', controlConfigFile], 'orchestrator');
+  if(applyManagedEncoder||serviceControl)cleanupManagedEncoder=async()=>{
     const login=await json(control+'/api/v1/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(credentials)});
     const headers={Authorization:'Bearer '+login.data.token};
     await json(control+'/api/v1/components/sunshine/stop',{method:'POST',headers});
     assert.equal((await json(control+'/api/v1/components/sunshine',{headers})).data.pid,0);
     result.managed_encoder_stopped=true;
   };
-  if(applyManagedGateway)cleanupManagedGateway=async()=>{
+  if(applyManagedGateway||serviceControl)cleanupManagedGateway=async()=>{
     const login=await json(control+'/api/v1/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(credentials)});
     const headers={Authorization:'Bearer '+login.data.token};
     await json(control+'/api/v1/components/web_server/stop',{method:'POST',headers});
@@ -264,7 +281,7 @@ async function main() {
   };
   await ready(gateway + '/config.js');
   await ready(control + '/api/v1/health');
-  if(applyManagedEncoder){await ready(infoURL,300);await checkIdleEncoder();}
+  if(applyManagedEncoder||serviceControl){await ready(infoURL,300);await checkIdleEncoder();}
   async function gatewayLogin() {
     const response = await fetch(gateway + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: credentials.username, password: credentials.password }) });
@@ -1125,6 +1142,7 @@ main().catch(error => { result.error = error.message; process.exitCode = 1; }).f
     try{await cleanupManagedGateway()}
     catch(error){mayStopOwner=false;result.managed_cleanup_error=error.message;result.passed=false;process.exitCode=1}
   }
+  if(service){try{result.service_cleanup=await service.close()}catch(error){result.service_cleanup_error=error.message;result.passed=false;process.exitCode=1}}
   if(mayStopOwner)for (const record of children.reverse()) await stopProcess(record);
   result.finished_at = new Date().toISOString();
   result.status = result.passed ? 'passed' : 'failed';

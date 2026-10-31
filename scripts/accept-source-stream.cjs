@@ -10,8 +10,9 @@ function option(name) { const i = process.argv.indexOf(name); assert.ok(i >= 0 &
 const encoder = path.resolve(option('--sunshine')), gateway = path.resolve(option('--gateway'));
 const control = path.resolve(option('--orchestrator')), example = path.resolve(option('--example'));
 const outputDevice = option('--example-output');
-const managedEncoder=process.argv.includes('--apply-managed-encoder');
-assert.ok(!managedEncoder||process.argv.includes('--edit-encoder-configuration'),'Managed encoder apply requires configuration editing');
+const serviceControl=process.argv.includes('--service-control');
+const managedEncoder=process.argv.includes('--apply-managed-encoder')||serviceControl;
+assert.ok(!managedEncoder||serviceControl||process.argv.includes('--edit-encoder-configuration'),'Managed encoder apply requires configuration editing');
 const scratch = fs.mkdtempSync(path.join(root, '.local/source-stream-'));
 const output = path.join(root, 'artifacts/source-stream', new Date().toISOString().replace(/[:.]/g, '-'));
 fs.mkdirSync(output, { recursive:true });
@@ -92,7 +93,7 @@ async function main() {
   const fd2=fs.openSync(path.join(output,'acceptance.log'),'w');
   const probe=spawn(process.execPath,[path.join(__dirname,'accept-managed-stream.cjs'),'--gateway',gateway,'--orchestrator',control,
     '--runtime-config',runtime,'--scratch',path.join(scratch,'media'),'--output-dir',path.join(output,'browser'),'--example',example,'--example-output',outputDevice,
-    ...['--microphone-tone','--remote-target','--target-switch','--stop-active','--delete-active','--restart-services','--expire-client-lease','--edit-gateway-configuration','--edit-encoder-configuration','--edit-vulkan','--apply-managed-gateway','--apply-managed-encoder'].filter(flag => process.argv.includes(flag)),
+    ...['--microphone-tone','--service-control','--remote-target','--target-switch','--stop-active','--delete-active','--restart-services','--expire-client-lease','--edit-gateway-configuration','--edit-encoder-configuration','--edit-vulkan','--apply-managed-gateway','--apply-managed-encoder'].filter(flag => process.argv.includes(flag)),
     ...['--web-assets','--audio-probe','--target-render-device','--target-capture-device','--clients','--hold-seconds','--microphone-source'].flatMap(flag=>process.argv.includes(flag)?[flag,option(flag)]:[])],
     {cwd:root,windowsHide:true,stdio:['ignore',fd2,fd2]}); fs.closeSync(fd2);
   const [code]=await once(probe,'exit');
@@ -102,7 +103,8 @@ async function main() {
   assert.equal(browserResult.passed,true);
   result.browser_engine=browserResult.browser_engine;
   result.browser=browserResult.browser;
-  if(managedEncoder){assert.equal(browserResult.encoder_apply?.passed,true);result.encoder_apply=browserResult.encoder_apply;}
+  if(serviceControl){assert.equal(browserResult.service_control?.identity,'LocalSystem');assert.equal(browserResult.service_cleanup?.passed,true);result.service_control=browserResult.service_control;}
+  else if(managedEncoder){assert.equal(browserResult.encoder_apply?.passed,true);result.encoder_apply=browserResult.encoder_apply;}
   if(encoderConfigurationBefore&&!managedEncoder) {
     assert.equal(browserResult.encoder_configuration?.passed,true);
     const after=await native('/api/config');
