@@ -88,6 +88,9 @@ namespace input {
 
 #ifdef SUNSHINE_TESTS
   namespace testing {
+    /** @brief Dispatch one queued packet synchronously with a fake backend installed. @param input Stream context. */
+    void process_next_packet(const std::shared_ptr<input_t> &input);
+
     /** @brief Change the capture identity without sending host input. @param input Stream context. @param target Test capture target. */
     void set_capture_target(const std::shared_ptr<input_t> &input, capture::target_ptr target);
 

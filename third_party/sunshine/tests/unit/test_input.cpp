@@ -143,6 +143,46 @@ TEST_F(InputGamepadSessionTest, ConnectingAndResumingDoesNotScheduleSyntheticInp
   EXPECT_FALSE(task_pool.next());
 }
 
+TEST_F(InputGamepadSessionTest, ApplicationDispatchRejectsMouseAndControllerAndCancelsPointers) {
+  config::input.mouse = true;
+  auto stream = input::alloc(std::make_shared<safe::mail_raw_t>(), "application-dispatch");
+  auto &devices = platf::virtualhid::get_client_context(input::testing::client_context(stream));
+  const platf::touch_port_t viewport {0, 0, 800, 600, 800, 600};
+  platf::virtualhid::touch_update(devices, viewport, {LI_TOUCH_EVENT_DOWN, 0, 7, 0.5F, 0.5F, 1.0F, 0.0F, 0.0F});
+  ASSERT_FALSE(devices.active_touches.empty());
+
+  auto relative = make_input_packet(MOUSE_MOVE_REL_MAGIC_GEN5, sizeof(NV_REL_MOUSE_MOVE_PACKET) - 4, sizeof(NV_REL_MOUSE_MOVE_PACKET));
+  reinterpret_cast<PNV_REL_MOUSE_MOVE_PACKET>(relative.data())->deltaX = util::endian::big(static_cast<short>(20));
+  const auto submitted = context().mouse->submit_count();
+  // Queue while in desktop mode, then lose eligibility before dispatch.
+  input::passthrough(stream, std::vector<std::uint8_t>(relative));
+  input::testing::set_capture_target(stream, std::make_shared<unavailable_input_target_t>());
+  input::testing::process_next_packet(stream);
+  EXPECT_EQ(context().mouse->submit_count(), submitted);
+  EXPECT_TRUE(devices.active_touches.empty());
+  EXPECT_EQ(input::testing::queued_input_packet_count(stream), 0U);
+
+  constexpr std::array rejected {
+    input_packet_spec_t {SCROLL_MAGIC_GEN5, sizeof(NV_SCROLL_PACKET)},
+    input_packet_spec_t {SS_HSCROLL_MAGIC, sizeof(SS_HSCROLL_PACKET)},
+    input_packet_spec_t {MOUSE_BUTTON_DOWN_EVENT_MAGIC_GEN5, sizeof(NV_MOUSE_BUTTON_PACKET)},
+    input_packet_spec_t {SS_CONTROLLER_ARRIVAL_MAGIC, sizeof(SS_CONTROLLER_ARRIVAL_PACKET)},
+  };
+  const auto device_count = runtime().active_device_count();
+  for (const auto &[magic, size] : rejected) {
+    input::passthrough(stream, make_input_packet(magic, static_cast<std::uint32_t>(size - 4), size));
+    input::testing::process_next_packet(stream);
+    EXPECT_EQ(context().mouse->submit_count(), submitted) << "magic=" << magic;
+    EXPECT_EQ(runtime().active_device_count(), device_count) << "magic=" << magic;
+  }
+  EXPECT_EQ(input::testing::gamepad_id(stream, 0), -1);
+
+  input::testing::set_capture_target(stream, {});
+  input::passthrough(stream, std::move(relative));
+  input::testing::process_next_packet(stream);
+  EXPECT_EQ(context().mouse->submit_count(), submitted + 1);
+}
+
 TEST_F(InputGamepadSessionTest, ApplicationMappingFailsClosedAndResumeRequiresFreshViewport) {
   auto mailbox = std::make_shared<safe::mail_raw_t>();
   auto target = std::make_shared<unavailable_input_target_t>();

@@ -1142,15 +1142,15 @@ namespace input {
     }
   }
 
-  /** @brief Release tracked keys without generating new presses. */
-  void reset_keyboard_keys();
+  /** @brief Neutralize retained input without destroying its devices. @param input Stream context. */
+  void reset_input_state(const std::shared_ptr<input_t> &input);
 
   /**
-   * @brief Admit keyboard input only while the captured application owns focus.
+   * @brief Admit input only while the captured application owns focus.
    * @param input Stream context; desktop mode retains normal system input.
-   * @return Whether a new key or text event may be emitted.
+   * @return Whether a new input event may be emitted.
    */
-  bool keyboard_admitted(const std::shared_ptr<input_t> &input) {
+  bool application_input_admitted(const std::shared_ptr<input_t> &input) {
     if (!input) {
       return false;
     }
@@ -1159,7 +1159,11 @@ namespace input {
     }
     task_pool.cancel(key_press_repeat_id);
     key_press_repeat_id = nullptr;
-    reset_keyboard_keys();
+    task_pool.cancel(input->mouse_left_button_timeout);
+    input->mouse_left_button_timeout = ENABLE_LEFT_BUTTON_DELAY;
+    reset_input_state(input);
+    input->accumulated_vscroll_delta = 0;
+    input->accumulated_hscroll_delta = 0;
     input->shortcutFlags = 0;
     input->shift_keys = {};
     input->control_keys = {};
@@ -1176,7 +1180,7 @@ namespace input {
    * @param synthetic_modifiers Synthetic modifiers.
    */
   void repeat_key(std::weak_ptr<input_t> owner, uint16_t key_code, uint8_t flags, uint8_t synthetic_modifiers) {
-    if (!keyboard_admitted(owner.lock())) {
+    if (!application_input_admitted(owner.lock())) {
       key_press_repeat_id = nullptr;
       return;
     }
@@ -1198,7 +1202,7 @@ namespace input {
    * @param packet Protocol packet being processed.
    */
   void passthrough(std::shared_ptr<input_t> &input, PNV_KEYBOARD_PACKET packet) {
-    if (!config::input.keyboard || !keyboard_admitted(input)) {
+    if (!config::input.keyboard || !application_input_admitted(input)) {
       return;
     }
 
@@ -1316,7 +1320,7 @@ namespace input {
    * @param packet Protocol packet being processed.
    */
   void passthrough(const std::shared_ptr<input_t> &input, const NV_UNICODE_PACKET *packet) {
-    if (!config::input.keyboard || !keyboard_admitted(input)) {
+    if (!config::input.keyboard || !application_input_admitted(input)) {
       return;
     }
 
@@ -1681,6 +1685,9 @@ namespace input {
         // Don't emulate home button if timeout < 0
         if (config::input.back_button_timeout >= 0ms) {
           auto f = [input, controller = packet->controllerNumber]() {
+            if (!application_input_admitted(input)) {
+              return;
+            }
             auto &gamepad = input->gamepads[controller];
 
             auto &state = gamepad.gamepad_state;
@@ -2120,6 +2127,11 @@ namespace input {
     // Print the final input packet
     input::print((void *) payload);
 
+    // Check after batching, immediately before dispatch, for every protocol input kind.
+    if (!application_input_admitted(input)) {
+      return;
+    }
+
     // Send the batched input to the OS
     switch (util::endian::little(payload->magic)) {
       case MOUSE_MOVE_REL_MAGIC_GEN5:
@@ -2391,6 +2403,10 @@ namespace input {
 
 #ifdef SUNSHINE_TESTS
   namespace testing {
+    void process_next_packet(const std::shared_ptr<input_t> &input) {
+      passthrough_next_message(input);
+    }
+
     void set_capture_target(const std::shared_ptr<input_t> &input, capture::target_ptr target) {
       input->target = std::move(target);
     }
