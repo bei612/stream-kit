@@ -49,16 +49,22 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 	return n, err
 }
 
+// DictionarySize validates properties without constructing a decoder.
+func DictionarySize(p []byte) (uint64, error) {
+	if len(p) != 5 {
+		return 0, errors.New("lzma: invalid properties length")
+	}
+	size := max(uint64(binary.LittleEndian.Uint32(p[1:])), uint64(lzma.MinDictCap))
+	return size, limits.Dictionary(size)
+}
+
 // NewReader returns a new LZMA io.ReadCloser.
 func NewReader(p []byte, s uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
 	if len(readers) != 1 {
 		return nil, errNeedOneReader
 	}
 
-	if len(p) != 5 {
-		return nil, errors.New("lzma: invalid properties length")
-	}
-	if err := limits.Dictionary(uint64(binary.LittleEndian.Uint32(p[1:]))); err != nil {
+	if _, err := DictionarySize(p); err != nil {
 		return nil, err
 	}
 	h := bytes.NewBuffer(p)

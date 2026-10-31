@@ -27,6 +27,8 @@ var ErrHeader = errors.New("sevenzip: header exceeds resource limit")
 
 var ErrDictionary = errors.New("sevenzip: decoder dictionary exceeds resource limit")
 
+var ErrDictionaryBudget = errors.New("sevenzip: folder dictionary budget exceeded")
+
 // Dictionary checks untrusted sizes before conversion to int or allocation.
 func Dictionary(size uint64) error {
 	if size > DictionaryBytes {

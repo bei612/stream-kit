@@ -49,25 +49,30 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// NewReader returns a new LZMA2 io.ReadCloser.
-func NewReader(p []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
-	if len(readers) != 1 {
-		return nil, errNeedOneReader
-	}
-
+// DictionarySize validates properties without constructing a decoder.
+func DictionarySize(p []byte) (uint64, error) {
 	if len(p) != 1 {
-		return nil, errInsufficientProperties
+		return 0, errInsufficientProperties
 	}
 
 	if p[0] > 40 {
-		return nil, errInvalidProperties
+		return 0, errInvalidProperties
 	}
 
 	dictionary := (uint64(2) | uint64(p[0]&1)) << (p[0]/2 + 11)
 	if p[0] == 40 {
 		dictionary = 1<<32 - 1
 	}
-	if err := limits.Dictionary(dictionary); err != nil {
+	return dictionary, limits.Dictionary(dictionary)
+}
+
+// NewReader returns a new LZMA2 io.ReadCloser.
+func NewReader(p []byte, _ uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
+	if len(readers) != 1 {
+		return nil, errNeedOneReader
+	}
+	dictionary, err := DictionarySize(p)
+	if err != nil {
 		return nil, err
 	}
 	config := lzma.Reader2Config{DictCap: int(dictionary)}

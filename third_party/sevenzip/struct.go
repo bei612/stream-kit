@@ -275,6 +275,9 @@ func (si *streamsInfo) folderOffset(folder int) int64 {
 //nolint:cyclop,funlen,lll
 func (si *streamsInfo) folderReader(r io.ReaderAt, folder int, password string) (*folderReadCloser, uint32, bool, error) {
 	f := si.unpackInfo.folder[folder]
+	if err := f.validateDictionaryBudget(); err != nil {
+		return nil, 0, false, err
+	}
 	in := make([]io.ReadCloser, f.in)
 	out := make([]io.ReadCloser, f.out)
 	complete := false

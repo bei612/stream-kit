@@ -49,21 +49,26 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 	return n, err
 }
 
+// DictionarySize validates properties without constructing a decoder.
+func DictionarySize(p []byte) (uint64, error) {
+	if len(p) != 5 {
+		return 0, errInsufficientProperties
+	}
+	size := uint64(binary.LittleEndian.Uint32(p[1:]))
+	return size, limits.Dictionary(size)
+}
+
 // NewReader returns a new PPMD io.ReadCloser.
 func NewReader(p []byte, uncompressedSize uint64, readers []io.ReadCloser) (io.ReadCloser, error) {
 	if len(readers) != 1 {
 		return nil, errNeedOneReader
 	}
 
-	if len(p) != 5 {
-		return nil, errInsufficientProperties
-	}
-
-	order := p[0]
-	memory := binary.LittleEndian.Uint32(p[1:])
-	if err := limits.Dictionary(uint64(memory)); err != nil {
+	memory, err := DictionarySize(p)
+	if err != nil {
 		return nil, err
 	}
+	order := p[0]
 
 	pr, err := ppmd.NewH7zReader(readers[0], int(order), int(memory), int(uncompressedSize)) //nolint:gosec
 	if err != nil {
