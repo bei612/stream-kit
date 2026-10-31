@@ -26,7 +26,12 @@ place. Failed staging directories remain protected for diagnosis.
 Existing program/data directories or service registrations are refused. This
 installer does not yet implement in-place upgrades or database rollback.
 Uninstall stops and removes only its matching native service and retains runtime
-data. A service-start failure attempts to remove the service created by setup and
+data. Native `service start` waits for SCM Running and then up to 90 seconds for
+the control health response to match the installed build, with every configured
+autostart component running and each managed process reporting a positive PID.
+The probe connects directly without proxies or redirects; HTTPS verifies the
+configured server certificate and its identity. A service-start failure attempts
+to remove the service created by setup and
 retains data/logs; cleanup failure is reported rather than force-killing processes.
 
 ## Silent installation

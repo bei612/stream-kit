@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/stream-kit/orchestrator/internal/bundle"
+	"github.com/stream-kit/orchestrator/internal/config"
+	"github.com/stream-kit/orchestrator/internal/deployment"
 	"github.com/stream-kit/orchestrator/internal/windowsservice"
 )
 
@@ -40,6 +44,17 @@ func serviceCommand(args []string) error {
 	}
 	if err := windowsservice.Apply(operation, binary, configPath); err != nil {
 		return err
+	}
+	if operation == "start" {
+		cfg, err := config.LoadExisting(configPath)
+		if err != nil {
+			return err
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		defer cancel()
+		if err := deployment.WaitReady(ctx, cfg, commit); err != nil {
+			return err
+		}
 	}
 	fmt.Printf("StreamKitOrchestrator service %s completed\n", operation)
 	return nil

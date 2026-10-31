@@ -7,7 +7,7 @@ const [binary,config,directory,ownerArgument]=process.argv.slice(2);
 const owner=Number(ownerArgument);
 if(process.platform!=='win32'||!binary||!config||!directory||!Number.isSafeInteger(owner)||owner<=0)throw Error('Expected Windows binary, configuration, state directory and owner PID');
 const result={passed:false,service_name:'StreamKitOrchestrator'};
-const execute=(file,args)=>execFileSync(file,args,{encoding:'utf8',windowsHide:true,timeout:75000});
+const execute=(file,args)=>execFileSync(file,args,{encoding:'utf8',windowsHide:true,timeout:180000});
 const powershell=command=>execute('powershell.exe',['-NoProfile','-NonInteractive','-Command',"$ErrorActionPreference='Stop'; "+command]);
 const service=()=>JSON.parse(powershell("$s=Get-CimInstance Win32_Service -Filter \"Name='StreamKitOrchestrator'\"; if($s){$s|Select-Object ProcessId,StartName,State|ConvertTo-Json -Compress}else{'null'}"));
 const ownerIdentity=()=>powershell(`(Get-Process -Id ${owner}).StartTime.ToUniversalTime().Ticks`).trim();

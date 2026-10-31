@@ -25,7 +25,8 @@ async function startService(binary,config,scratch){
     if(outcome.error||outcome.code!==0||!result?.passed||!result.removed)throw Error('Service acceptance cleanup failed: '+JSON.stringify({outcome,result}));
     return result;
   };
-  for(let attempt=0;attempt<240;attempt++){
+  // Native start bounds SCM transition and media readiness separately.
+  for(let attempt=0;attempt<360;attempt++){
     const ready=read('ready.json');if(ready)return {ready,close};
     const result=read('result.json');if(result||exit)throw Error('Service startup failed: '+JSON.stringify({result,exit}));
     await delay(500);
