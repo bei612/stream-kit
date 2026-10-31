@@ -1,0 +1,40 @@
+{
+    "schema_version":  1,
+    "payload_commit":  "c5522af93cb06530a26170d9888da51c705e1362",
+    "installer_source_commit":  "4b3b418c5f4a6a3afc340b02782c3ceeb88e81ff",
+    "installer_sha256":  "d8e709b9e48957e7819f02aeb455bc75debf0039507109fec148139a7fec376d",
+    "install_exit":  0,
+    "administrator_login":  true,
+    "service_identity":  "LocalSystem",
+    "components":  {
+                       "sunshine":  {
+                                        "crash_count":  0,
+                                        "pid":  50524,
+                                        "status":  "running"
+                                    },
+                       "web_server":  {
+                                          "crash_count":  0,
+                                          "pid":  32576,
+                                          "status":  "running"
+                                      }
+                   },
+    "uninstall_exit":  0,
+    "service_removed":  true,
+    "runtime_data_preserved":  true,
+    "installer_lifecycle_passed":  true,
+    "scm_stream_overall_passed":  false,
+    "scm_stream_error":  "ENOENT: no such file or directory, open \u0027D:\\Projects\\fuzhougulou\\stream-kit\\artifacts\\source-stream\\2026-10-31T15-37-47-225Z\\browser\\gateway.log\u0027",
+    "target_recording_checks_passed":  true,
+    "service_cleanup":  {
+                            "passed":  true,
+                            "service_name":  "StreamKitOrchestrator",
+                            "removed":  true
+                        },
+    "limits":  [
+                   "The installer lifecycle passed; the separate SCM browser run failed its final gateway log archive/count gate and is not marked passed",
+                   "Microphone recording in the SCM stream used generated browser audio, not physical speech",
+                   "Fresh bundled audio-driver install and reboot paths were not exercised"
+               ],
+    "installer_receipt_sha256":  "e0de87343177cc2ceae7649f53a2de8f90a4ed4f48b42f476ed1faf796bbbfb8",
+    "scm_stream_receipt_sha256":  "ff63fb5edbce82fb8ec7bfafb7907b4b5a6932980ff992697f34d5c63c1eddaf"
+}

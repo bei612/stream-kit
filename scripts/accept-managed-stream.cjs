@@ -1092,6 +1092,9 @@ async function main() {
   cleanupRenderer = null;
   assert.deepEqual(pageErrors, []);
   const upstreamCount = name => (fs.readFileSync(path.join(output, name), 'utf8').match(/: connected control stream\r?\n/g) || []).length;
+  // SCM owns the gateway's stdout through its bounded component log buffer;
+  // unlike a directly spawned child, it does not create our gateway.log file.
+  if(serviceControl)fs.writeFileSync(path.join(output,'gateway.log'),(await api('/components/web_server/logs?lines=2000')).join('\n')+'\n');
   if(applyManagedGateway)fs.writeFileSync(path.join(output,'gateway-restarted.log'),(await api('/components/web_server/logs?lines=2000')).join('\n')+'\n');
   result.upstream_connections = upstreamCount('gateway.log');
   assert.equal(result.upstream_connections, applyManagedEncoder?2:1, 'Each encoder generation must share exactly one Moonlight transport connection');
