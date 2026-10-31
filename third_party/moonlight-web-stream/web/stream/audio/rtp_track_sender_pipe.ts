@@ -43,6 +43,12 @@ export class RtpTrackSenderPipe implements MicrophoneSink {
         this.updateState()
     }
 
+    clearTrack(): void {
+        if (this.disposed || !this.track) return
+        this.track = null
+        this.updateState()
+    }
+
     private updateState() {
         this.dirty = true
         if (this.updating) return

@@ -14,7 +14,7 @@ function stream(audio, extra = []) {
 }
 
 function pipeFixture(request) {
-  let capture, cleanups = 0, gestures = 0
+  let capture, cleanups = 0, gestures = 0, detachments = 0
   const attached = [], notifications = []
   const exports = {}
   const source = readFileSync(new URL('../third_party/moonlight-web-stream/web/stream/audio/microphone_pipe.ts', import.meta.url), 'utf8')
@@ -28,8 +28,8 @@ function pipeFixture(request) {
       showNotification(message) { notifications.push(message) },
     }),
   })
-  const pipe = new exports.MicrophonePipe({implementationName:'test',setTrack:t=>attached.push(t),cleanup(){cleanups++},onUserInteraction(){gestures++}})
-  return {pipe, attached, notifications, capture, counts:()=>({cleanups,gestures})}
+  const pipe = new exports.MicrophonePipe({implementationName:'test',setTrack:t=>attached.push(t),clearTrack(){detachments++},cleanup(){cleanups++},onUserInteraction(){gestures++}})
+  return {pipe, attached, notifications, capture, detachments:()=>detachments, counts:()=>({cleanups,gestures})}
 }
 
 test('microphone pipe never attaches a cached track after teardown or revoke/regrant', async () => {
@@ -54,6 +54,8 @@ test('concurrent microphone gestures attach once and a new authority can attach 
   assert.equal(tracks.length, 1)
   assert.deepEqual(f.attached, [tracks[0]])
   f.pipe.setAllowed(false);f.pipe.setAllowed(true)
+  assert.equal(f.detachments(), 1)
+  assert.equal(tracks[0].readyState, 'ended')
   await f.pipe.resumeCapture()
   assert.equal(tracks.length, 2)
   assert.deepEqual(f.attached, tracks)

@@ -72,6 +72,7 @@ export class MicrophonePipe implements MicrophoneSource {
             this.attachedTrack = null
         }
         this.capture.setAllowed(allowed)
+        if (!allowed && !this.disposed) this.base.clearTrack()
     }
 
     cleanup(): void {

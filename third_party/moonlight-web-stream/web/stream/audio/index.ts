@@ -30,6 +30,8 @@ export interface TrackAudioPlayer extends Pipe {
 
 /** A microphone destination must explicitly release its sender binding. */
 export interface MicrophoneSink extends TrackAudioPlayer {
+    /** Detach capture while keeping the transport available for a later grant. */
+    clearTrack(): void
     cleanup(): void
 }
 

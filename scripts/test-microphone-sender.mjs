@@ -13,6 +13,22 @@ function fixture(){
   return {pipe,errors,async settle(){while(pipe.updating)await pipe.updating}}
 }
 const track=name=>({name,readyState:'live'})
+test('revocation detaches an in-flight track without disposing the sender',async()=>{
+  const f=fixture(),calls=[];let finish
+  const first=track('first'),next=track('next')
+  const sender={replaceTrack(value){calls.push(value);return value===first?new Promise(resolve=>{finish=resolve}):Promise.resolve()}}
+  f.pipe.setRtpSender(sender);await f.settle();calls.length=0
+  f.pipe.setTrack(first);f.pipe.clearTrack()
+  f.pipe.clearTrack()
+  finish();await f.settle()
+  assert.deepEqual(calls,[first,null]);assert.equal(f.pipe.track,null)
+  assert.equal(f.pipe.disposed,false)
+  f.pipe.setTrack(next);await f.settle()
+  assert.deepEqual(calls,[first,null,next])
+  f.pipe.cleanup();await f.settle();f.pipe.clearTrack()
+  assert.deepEqual(calls,[first,null,next,null])
+})
+
 test('cleanup waits for in-flight attachment then detaches once and clears references',async()=>{
   const f=fixture(),calls=[];let finish
   const sender={replaceTrack(value){calls.push(value);return value?new Promise(resolve=>{finish=resolve}):Promise.resolve()}}
