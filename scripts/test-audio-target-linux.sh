@@ -34,3 +34,10 @@ mkdir -p "$repo/artifacts/audio-target"
 cargo run --locked --quiet --example verify_pair -- pulseaudio:stream_kit_acceptance pulseaudio:stream_kit_capture > "$repo/artifacts/audio-target/linux-pair-result.json"
 cat "$repo/artifacts/audio-target/linux-pair-result.json"
 cp "$fixture/server.log" "$repo/artifacts/audio-target/linux-pulse.log"
+if [ "$#" -gt 0 ]; then
+    # Optional absolute path to the source-built Sunshine test executable.
+    # Reuse this hardware-free server to exercise real per-application monitors.
+    PULSE_SINK=stream_kit_acceptance STREAM_KIT_TEST_PULSE_APPLICATION_AUDIO=1 \
+        "$1" --gtest_filter='LinuxApplicationAudio.*' \
+        --gtest_output="json:$repo/artifacts/audio-target/linux-application-audio.json"
+fi

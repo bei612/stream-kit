@@ -364,7 +364,7 @@ namespace audio {
   }
 }  // namespace audio
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__linux__)
 namespace platf {
   std::unique_ptr<mic_t> application_microphone(const capture::target_ptr &, int, std::uint32_t, std::uint32_t, bool) {
     return nullptr;
