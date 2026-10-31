@@ -3,6 +3,7 @@ package workeripc
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"io"
 	"net"
@@ -12,6 +13,49 @@ import (
 )
 
 const testInstance = "0123456789abcdef0123456789abcdef"
+
+func TestChildIdentityRequiredOnlyOnStarted(t *testing.T) {
+	child := strings.Repeat("a", 32)
+	for _, tc := range []struct {
+		frame     Frame
+		direction Direction
+		valid     bool
+	}{
+		{Frame{Kind: "started", PID: 123, ProcessInstance: child}, Events, true},
+		{Frame{Kind: "started", PID: 123}, Events, false},
+		{Frame{Kind: "started", PID: 123, ProcessInstance: strings.ToUpper(child)}, Events, false},
+		{Frame{Kind: "started", PID: 123, ProcessInstance: "abc"}, Events, false},
+		{Frame{Kind: "started", PID: 0, ProcessInstance: child}, Events, false},
+		{Frame{Kind: "log", Line: "line", ProcessInstance: child}, Events, false},
+		{Frame{Kind: "exited", ExitCode: new(int), ProcessInstance: child}, Events, false},
+		{Frame{Kind: "pong", ProcessInstance: child}, Events, false},
+		{Frame{Kind: "start", ProcessInstance: child}, Commands, false},
+	} {
+		writer, _ := New(testInstance, tc.direction)
+		var encoded bytes.Buffer
+		err := writer.Write(&encoded, tc.frame)
+		if (err == nil) != tc.valid {
+			t.Fatalf("write %+v: %v", tc.frame, err)
+		}
+		// Construct the wire independently so the read-side validation is tested.
+		tc.frame.Version, tc.frame.Instance, tc.frame.Sequence = 1, testInstance, 1
+		data, err := json.Marshal(tc.frame)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var wire bytes.Buffer
+		_ = binary.Write(&wire, binary.BigEndian, uint32(len(data)))
+		wire.Write(data)
+		reader, _ := New(testInstance, tc.direction)
+		got, err := reader.Read(&wire)
+		if (err == nil) != tc.valid {
+			t.Fatalf("read %+v: %v", tc.frame, err)
+		}
+		if tc.valid && got.ProcessInstance != child {
+			t.Fatal("child identity lost")
+		}
+	}
+}
 
 func TestLifecycleFramesOverDuplexConnection(t *testing.T) {
 	left, right := net.Pipe()
@@ -128,7 +172,7 @@ func TestBoundedEventWritesAndPartialIO(t *testing.T) {
 	writer, _ := New(testInstance, Events)
 	reader, _ := New(testInstance, Events)
 	wire := &shortWriter{}
-	for _, frame := range []Frame{{Kind: "started", PID: 123}, {Kind: "log", Line: strings.Repeat("x", MaxLogBytes)}, {Kind: "exited", ExitCode: new(int)}} {
+	for _, frame := range []Frame{{Kind: "started", PID: 123, ProcessInstance: strings.Repeat("a", 32)}, {Kind: "log", Line: strings.Repeat("x", MaxLogBytes)}, {Kind: "exited", ExitCode: new(int)}} {
 		if err := writer.Write(wire, frame); err != nil {
 			t.Fatal(err)
 		}

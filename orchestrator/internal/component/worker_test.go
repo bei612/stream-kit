@@ -20,6 +20,7 @@ func TestWorkerChild(t *testing.T) {
 		return
 	}
 	fmt.Print("worker-ready\n")
+	fmt.Println("instance=" + os.Getenv("STREAM_KIT_PROCESS_INSTANCE"))
 	if mode == "exit" {
 		fmt.Print("final-partial")
 		os.Exit(7)
@@ -66,7 +67,7 @@ func TestWorkerLifecycle(t *testing.T) {
 			t.Cleanup(func() { _ = process.Kill() })
 			if mode != "launch-error" {
 				frame, err := events.Read(client)
-				if err != nil || frame.Kind != "started" || frame.PID != process.PID {
+				if err != nil || frame.Kind != "started" || frame.PID != process.PID || frame.ProcessInstance != process.InstanceID || frame.ProcessInstance == instance {
 					t.Fatalf("started: %+v %v", frame, err)
 				}
 			}
@@ -99,6 +100,9 @@ func TestWorkerLifecycle(t *testing.T) {
 						output = append(output, frame.Line)
 					}
 					if frame.Kind == "exited" {
+						if mode == "exit" && !strings.Contains(strings.Join(output, "\n"), "instance="+process.InstanceID) {
+							t.Fatal("started identity does not match child environment")
+						}
 						if mode == "exit" && (*frame.ExitCode != 7 || !strings.Contains(strings.Join(output, "\n"), "final-partial")) {
 							t.Fatalf("exit/logs: %+v %v", frame, output)
 						}

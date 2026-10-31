@@ -28,8 +28,11 @@ type Frame struct {
 	Sequence uint64 `json:"sequence"`
 	Kind     string `json:"kind"`
 	PID      int    `json:"pid,omitempty"`
-	ExitCode *int   `json:"exit_code,omitempty"`
-	Line     string `json:"line,omitempty"`
+	// ProcessInstance is the child's launch identity, distinct from the worker
+	// channel Instance. It must match the identity injected into the child.
+	ProcessInstance string `json:"process_instance,omitempty"`
+	ExitCode        *int   `json:"exit_code,omitempty"`
+	Line            string `json:"line,omitempty"`
 }
 
 type Direction uint8
@@ -50,15 +53,22 @@ type Stream struct {
 }
 
 func New(instance string, direction Direction) (*Stream, error) {
-	decoded, err := hex.DecodeString(instance)
-	if err != nil || len(decoded) != 16 || instance != strings.ToLower(instance) || direction > Events {
+	if !validInstance(instance) || direction > Events {
 		return nil, ErrProtocol
 	}
 	return &Stream{instance: instance, direction: direction}, nil
 }
 
+func validInstance(instance string) bool {
+	decoded, err := hex.DecodeString(instance)
+	return err == nil && len(decoded) == 16 && instance == strings.ToLower(instance)
+}
+
 func (s *Stream) valid(f Frame) bool {
 	if s.failed || s.sequence == math.MaxUint64 || f.Version != 1 || f.Instance != s.instance || f.Sequence != s.sequence+1 {
+		return false
+	}
+	if f.Kind != "started" && f.ProcessInstance != "" {
 		return false
 	}
 	if s.direction == Commands {
@@ -66,7 +76,7 @@ func (s *Stream) valid(f Frame) bool {
 	}
 	switch f.Kind {
 	case "started":
-		return f.PID > 0 && uint64(f.PID) <= math.MaxUint32 && f.ExitCode == nil && f.Line == ""
+		return f.PID > 0 && uint64(f.PID) <= math.MaxUint32 && validInstance(f.ProcessInstance) && f.ExitCode == nil && f.Line == ""
 	case "log":
 		return f.PID == 0 && f.ExitCode == nil && len(f.Line) <= MaxLogBytes
 	case "exited":

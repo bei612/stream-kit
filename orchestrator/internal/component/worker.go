@@ -114,7 +114,7 @@ func serveWorker(parent context.Context, connection workerConnection, instance s
 				if process == nil {
 					return workeripc.ErrProtocol
 				}
-				if err := write(workeripc.Frame{Kind: "started", PID: process.PID}); err != nil {
+				if err := write(workeripc.Frame{Kind: "started", PID: process.PID, ProcessInstance: process.InstanceID}); err != nil {
 					return err
 				}
 			case "ping":
