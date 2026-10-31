@@ -15,6 +15,12 @@ const HeaderBytes uint64 = 64 << 20
 // This is a per-collection ceiling, not a total archive memory guarantee.
 const MetadataItems uint64 = 1 << 20
 
+// MetadataBytes bounds cumulative parser reservations across nested headers.
+// It excludes decoder dictionaries and runtime allocator overhead.
+const MetadataBytes uint64 = 128 << 20
+
+var ErrMetadataBudget = errors.New("sevenzip: cumulative metadata budget exceeded")
+
 var ErrMetadata = errors.New("sevenzip: metadata count exceeds resource limit")
 
 var ErrHeader = errors.New("sevenzip: header exceeds resource limit")

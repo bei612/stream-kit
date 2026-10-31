@@ -124,6 +124,9 @@ func readBool(r io.ByteReader, count uint64) ([]bool, error) {
 	// Preallocate with a maximum initial capacity of 1024 to prevent memory DoS
 	// on invalid high counts. Growth via append has negligible performance impact
 	// because 7z decompression CPU cycles dominate total execution time.
+	if err := reserveMetadata[bool](r, count); err != nil {
+		return nil, err
+	}
 	defined := make([]bool, 0, min(count, 1024))
 
 	var b, mask byte
@@ -160,6 +163,9 @@ func readOptionalBool(r io.ByteReader, count uint64) ([]bool, error) {
 		return readBool(r, count)
 	}
 
+	if err := reserveMetadata[bool](r, count); err != nil {
+		return nil, err
+	}
 	defined := make([]bool, count)
 	for i := range defined {
 		defined[i] = true
@@ -176,6 +182,9 @@ func readSizes(r io.ByteReader, count uint64) ([]uint64, error) {
 	// Preallocate with a maximum initial capacity of 1024 to prevent memory DoS
 	// on invalid high counts. Growth via append has negligible performance impact
 	// because 7z decompression CPU cycles dominate total execution time.
+	if err := reserveMetadata[uint64](r, count); err != nil {
+		return nil, err
+	}
 	sizes := make([]uint64, 0, min(count, 1024))
 
 	for range count {
@@ -200,6 +209,9 @@ func readCRC(r util.Reader, count uint64) ([]uint32, error) {
 		return nil, err
 	}
 
+	if err := reserveMetadata[uint32](r, count); err != nil {
+		return nil, err
+	}
 	crcs := make([]uint32, count)
 
 	for i := range defined {
@@ -265,6 +277,9 @@ func readPackInfo(r util.Reader) (*packInfo, error) {
 
 //nolint:cyclop
 func readCoder(r util.Reader) (*coder, error) {
+	if err := reserveMetadata[coder](r, 1); err != nil {
+		return nil, err
+	}
 	c := new(coder)
 
 	v, err := r.ReadByte()
@@ -272,6 +287,9 @@ func readCoder(r util.Reader) (*coder, error) {
 		return nil, fmt.Errorf("readCoder: ReadByte error: %w", err)
 	}
 
+	if err := reserveMetadata[byte](r, uint64(v&0xf)); err != nil {
+		return nil, err
+	}
 	c.id = make([]byte, v&0xf)
 	if n, err := r.Read(c.id); err != nil || n != int(v&0xf) {
 		if err != nil {
@@ -301,6 +319,9 @@ func readCoder(r util.Reader) (*coder, error) {
 			return nil, err
 		}
 
+		if err := reserveMetadata[byte](r, size); err != nil {
+			return nil, err
+		}
 		c.properties = make([]byte, size)
 		if n, err := r.Read(c.properties); err != nil || uint64(n) != size { //nolint:gosec
 			if err != nil {
@@ -316,6 +337,9 @@ func readCoder(r util.Reader) (*coder, error) {
 
 //nolint:cyclop,funlen
 func readFolder(r util.Reader) (*folder, error) {
+	if err := reserveMetadata[folder](r, 1); err != nil {
+		return nil, err
+	}
 	f := new(folder)
 
 	coders, err := readUint64Bounded(r, true)
@@ -323,6 +347,9 @@ func readFolder(r util.Reader) (*folder, error) {
 		return nil, err
 	}
 
+	if err := reserveMetadata[*coder](r, coders); err != nil {
+		return nil, err
+	}
 	f.coder = make([]*coder, 0, min(coders, 16))
 
 	for range coders {
@@ -351,7 +378,14 @@ func readFolder(r util.Reader) (*folder, error) {
 
 	bindPairs := f.out - 1
 
+	if err := reserveMetadata[*bindPair](r, bindPairs); err != nil {
+		return nil, err
+	}
 	f.bindPair = make([]*bindPair, 0, min(bindPairs, 16))
+	// Reserve bind objects and both validation maps, including packed inputs.
+	if err := reserveMetadataBytes(r, f.in+f.out, 128); err != nil {
+		return nil, err
+	}
 	boundInputs := make(map[uint64]bool)
 	boundOutputs := make(map[uint64]bool)
 
@@ -377,6 +411,9 @@ func readFolder(r util.Reader) (*folder, error) {
 	}
 
 	f.packedStreams = f.in - bindPairs
+	if err := reserveMetadata[uint64](r, f.packedStreams); err != nil {
+		return nil, err
+	}
 
 	if f.packedStreams == 1 {
 		f.packed = []uint64{}
@@ -437,6 +474,9 @@ func readUnpackInfo(r util.Reader) (*unpackInfo, error) {
 		return nil, errors.New("sevenzip: TODO readUnpackInfo external") //nolint:err113
 	}
 
+	if err := reserveMetadata[*folder](r, folders); err != nil {
+		return nil, err
+	}
 	u.folder = make([]*folder, 0, min(folders, 1024))
 
 	for range folders {
@@ -466,6 +506,9 @@ func readUnpackInfo(r util.Reader) (*unpackInfo, error) {
 			return nil, err
 		}
 
+		if err := reserveMetadata[uint64](r, total); err != nil {
+			return nil, err
+		}
 		f.size = make([]uint64, total)
 		for i := range f.size {
 			if f.size[i], err = readUint64(r); err != nil {
@@ -506,6 +549,9 @@ func readSubStreamsInfo(r util.Reader, folder []*folder) (*subStreamsInfo, error
 		return nil, fmt.Errorf("readSubStreamsInfo: ReadByte error: %w", err)
 	}
 
+	if err := reserveMetadata[uint64](r, uint64(len(folder))); err != nil {
+		return nil, err
+	}
 	s.streams = make([]uint64, len(folder))
 	if id == idNumUnpackStream {
 		for i := range s.streams {
@@ -538,6 +584,9 @@ func readSubStreamsInfo(r util.Reader, folder []*folder) (*subStreamsInfo, error
 	}
 
 	if id == idSize {
+		if err := reserveMetadata[uint64](r, files); err != nil {
+			return nil, err
+		}
 		s.size = make([]uint64, files)
 		k := 0
 
@@ -714,6 +763,9 @@ func readTimes(r util.Reader, count uint64) ([]time.Time, error) {
 		return nil, errors.New("sevenzip: TODO readTimes external") //nolint:err113
 	}
 
+	if err := reserveMetadata[time.Time](r, count); err != nil {
+		return nil, err
+	}
 	times := make([]time.Time, count)
 
 	for i := range defined {
@@ -773,12 +825,22 @@ func readNames(r util.Reader, count, length uint64) ([]string, error) {
 		return nil, errors.New("sevenzip: TODO readNames external") //nolint:err113
 	}
 
+	// UTF-16 to UTF-8 may expand; reserve string storage before scanning.
+	if err := reserveMetadataBytes(r, length, 3); err != nil {
+		return nil, err
+	}
 	utf16le := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
 	scanner := bufio.NewScanner(transform.NewReader(io.LimitReader(r, int64(length-1)), utf16le.NewDecoder())) //nolint:gosec,lll
 	scanner.Split(splitNull)
 
+	if err := reserveMetadata[string](r, count); err != nil {
+		return nil, err
+	}
 	names, i := make([]string, 0, count), uint64(0)
 	for scanner.Scan() {
+		if i >= count {
+			return nil, errWrongNumberOfFilenames
+		}
 		names = append(names, scanner.Text())
 		i++
 	}
@@ -823,6 +885,9 @@ func readAttributes(r util.Reader, count uint64) ([]uint32, error) {
 		return nil, errors.New("sevenzip: TODO readAttributes external") //nolint:err113
 	}
 
+	if err := reserveMetadata[uint32](r, count); err != nil {
+		return nil, err
+	}
 	attributes := make([]uint32, count)
 
 	for i := range defined {
@@ -845,6 +910,9 @@ func readFilesInfo(r util.Reader) (*filesInfo, error) {
 		return nil, err
 	}
 
+	if err := reserveMetadata[FileHeader](r, files); err != nil {
+		return nil, err
+	}
 	f.file = make([]FileHeader, files)
 
 	var emptyStreams uint64
@@ -870,7 +938,7 @@ func readFilesInfo(r util.Reader) (*filesInfo, error) {
 		// buffering as well as decoding, then require exact payload consumption.
 		payload := &io.LimitedReader{R: r, N: int64(length)}
 		{
-			r := bufio.NewReader(payload)
+			r := inheritMetadataBudget(bufio.NewReader(payload), r)
 
 			switch property {
 			case idEmptyStream:

@@ -494,7 +494,8 @@ func (z *Reader) init(r io.ReaderAt, size int64) (err error) {
 	h.Reset()
 
 	// Bound bufio.Reader otherwise it can read trailing garbage which screws up the CRC check
-	br := bufio.NewReader(io.NewSectionReader(tra, z.end, int64(start.Size))) //nolint:gosec
+	budget := &metadataBudget{remaining: limits.MetadataBytes}
+	br := withMetadataBudget(bufio.NewReader(io.NewSectionReader(tra, z.end, int64(start.Size))), budget) //nolint:gosec
 
 	var (
 		id          byte
@@ -563,7 +564,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) (err error) {
 		}()
 
 		payload := &io.LimitedReader{R: fr, N: int64(headerSize)}
-		decoded := bufio.NewReader(payload)
+		decoded := withMetadataBudget(bufio.NewReader(payload), budget)
 		if header, err = readEncodedHeader(decoded); err != nil {
 			return &ReadError{
 				Encrypted: fr.hasEncryption,
