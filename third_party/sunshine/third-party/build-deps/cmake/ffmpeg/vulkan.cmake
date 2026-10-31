@@ -24,11 +24,10 @@ set(VULKAN_LOADER_GENERATED_SRC_PATH ${CMAKE_CURRENT_BINARY_DIR}/FFmpeg/Vulkan-L
 set(VULKAN_LOADER_CMAKE_ARGS
         -DCMAKE_INSTALL_PREFIX=${FFMPEG_INSTALL_PREFIX}
         -DCMAKE_BUILD_TYPE=Release
+        -DCMAKE_INSTALL_LIBDIR=lib
         -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
         -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
         -DVULKAN_HEADERS_INSTALL_DIR=${FFMPEG_INSTALL_PREFIX}
-        -DBUILD_STATIC_LOADER=ON
-        -DBUILD_SHARED_LIBS=OFF
         -DBUILD_TESTS=OFF
         -DENABLE_WERROR=OFF
 )
@@ -72,7 +71,8 @@ add_custom_target(vulkan-loader ALL
         COMMENT "Target: Vulkan-Loader"
         VERBATIM
         BYPRODUCTS
-            "${FFMPEG_INSTALL_PREFIX}/lib/libvulkan.a"
+            "${FFMPEG_INSTALL_PREFIX}/lib/libvulkan.so"
+            "${FFMPEG_INSTALL_PREFIX}/lib/libvulkan.so.1"
 )
 add_dependencies(vulkan-loader vulkan-headers)
 add_dependencies(${CMAKE_PROJECT_NAME} vulkan-loader)

@@ -9,6 +9,7 @@ file(WRITE "${sdk}/include/libavcodec/avcodec.h" "/* Configuration-only fixture.
 foreach(library avcodec swscale avutil cbs SvtAv1Enc x264 x265 va va-drm va-x11 vulkan osfixture)
     file(WRITE "${sdk}/lib/lib${library}.a" "")
 endforeach()
+file(WRITE "${sdk}/lib/libvulkan.so.1" "Configuration-only runtime fixture")
 foreach(module libva libva-drm libva-x11 vulkan osfixture)
     string(REGEX REPLACE "^lib" "" library "${module}")
     set(private "")
@@ -53,5 +54,13 @@ execute_process(COMMAND "${CMAKE_COMMAND}" -E env "PKG_CONFIG_PATH=${fixture}/fo
     RESULT_VARIABLE rejected OUTPUT_VARIABLE output ERROR_VARIABLE error)
 if(rejected EQUAL 0 OR NOT error MATCHES "must come from the prepared FFmpeg SDK")
     message(FATAL_ERROR "Foreign native SDK was not rejected correctly: ${output}${error}")
+endif()
+# A pkg-config entry or static archive alone cannot satisfy the deployed loader.
+file(RENAME "${sdk}/lib/libvulkan.so.1" "${sdk}/lib/runtime-held.so.1")
+execute_process(COMMAND "${CMAKE_COMMAND}" -E env "PKG_CONFIG_PATH=${sdk}/lib/pkgconfig"
+    "${CMAKE_COMMAND}" -G Ninja -S "${fixture}/project" -B "${fixture}/missing-runtime" "-DSDK=${sdk}" "-DREPO=${repo}"
+    RESULT_VARIABLE missing OUTPUT_VARIABLE output ERROR_VARIABLE error)
+if(missing EQUAL 0 OR NOT error MATCHES "missing source-built Vulkan runtime")
+    message(FATAL_ERROR "Missing Vulkan runtime was not rejected correctly: ${output}${error}")
 endif()
 message(STATUS "SDK dependency selection and static closure passed; no Linux binaries were executed")

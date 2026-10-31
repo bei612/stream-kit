@@ -142,7 +142,7 @@ if(${SUNSHINE_ENABLE_VULKAN})
         message(FATAL_ERROR "Vulkan headers not found in build-deps submodule")
     endif()
 
-    set(VULKAN_LIBRARY "${FFMPEG_PREPARED_BINARIES}/lib/libvulkan.a")
+    set(VULKAN_LIBRARY "${FFMPEG_PREPARED_BINARIES}/lib/libvulkan.so")
     if(NOT TARGET PkgConfig::FFMPEG_NATIVE OR NOT EXISTS "${VULKAN_LIBRARY}")
         message(FATAL_ERROR "Vulkan requires the source-built native FFmpeg SDK")
     endif()

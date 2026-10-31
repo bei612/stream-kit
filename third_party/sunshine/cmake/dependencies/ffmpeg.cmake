@@ -16,6 +16,12 @@ if(NOT DEFINED FFMPEG_PLATFORM_LIBRARIES)
     elseif(FREEBSD)
         set(FFMPEG_PLATFORM_LIBRARIES va va-drm va-x11 X11)
     elseif(UNIX AND NOT APPLE)
+        # The vendored Linux loader builds a shared object; BUILD_STATIC_LOADER
+        # is not an option in that source. Ship its SONAME with the application.
+        set(FFMPEG_VULKAN_RUNTIME "${FFMPEG_PREPARED_BINARIES}/lib/libvulkan.so.1")
+        if(NOT EXISTS "${FFMPEG_VULKAN_RUNTIME}")
+            message(FATAL_ERROR "Incomplete FFmpeg SDK: missing source-built Vulkan runtime ${FFMPEG_VULKAN_RUNTIME}")
+        endif()
         # FFmpeg and Sunshine must consume the same source-built native SDK.
         # --static preserves libva/Vulkan's transitive OS library requirements.
         find_package(PkgConfig REQUIRED)
