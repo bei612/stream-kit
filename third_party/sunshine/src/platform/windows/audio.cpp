@@ -919,6 +919,10 @@ namespace platf::audio {
         switch (status) {
           case S_OK:
             break;
+          case AUDCLNT_S_BUFFER_EMPTY:
+            // A packet can disappear between GetNextPacketSize and GetBuffer.
+            // No buffer was acquired: retain staged samples and retry next tick.
+            return capture_e::timeout;
           case AUDCLNT_E_DEVICE_INVALIDATED:
             return capture_e::reinit;
           default:
@@ -1616,6 +1620,23 @@ namespace platf::audio {
 
 #ifdef SUNSHINE_TESTS
   namespace tests {
+    /** @brief Build a hardware-free capture using the production packet reader.
+     * @param source Retained COM capture source supplied by the test.
+     * @return Mono capture with a two-sample staging buffer.
+     */
+    std::unique_ptr<mic_t> packet_capture(IAudioCaptureClient *source) {
+      auto mic = std::make_unique<mic_wasapi_t>();
+      source->AddRef();
+      mic->audio_capture.reset(source);
+      mic->audio_event.reset(CreateEventA(nullptr, FALSE, FALSE, nullptr));
+      mic->default_latency_ms = 0;
+      mic->channels = 1;
+      mic->continuous_audio = false;
+      mic->sample_buf = util::buffer_t<float> {2};
+      mic->sample_buf_pos = std::begin(mic->sample_buf);
+      return mic;
+    }
+
     /** @brief Read native packet timing without changing capture. @param mic WASAPI capture under test. @return Packet/frame/silence counts and first/last device/QPC timestamps. */
     std::array<std::uint64_t, 16> capture_observations(const mic_t &mic) {
       return dynamic_cast<const mic_wasapi_t &>(mic).capture_diagnostics;

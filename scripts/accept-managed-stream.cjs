@@ -35,7 +35,9 @@ const holdSeconds = numericOption('--hold-seconds', 5);
 const expireClientLease = process.argv.includes('--expire-client-lease');
 const programToneCount = Math.max(20, Math.ceil((clientCount*60+holdSeconds+30)/3));
 const microphoneTest = process.argv.includes('--microphone-tone');
-assert.ok(!microphoneTest || engine === 'chromium', 'File-backed microphone acceptance requires Chromium; other engines support program media acceptance');
+const microphoneSource = process.argv.includes('--microphone-source') ? process.argv[process.argv.indexOf('--microphone-source')+1] : 'file';
+assert.ok(['file','generated'].includes(microphoneSource), 'Microphone source must be file or generated');
+assert.ok(!microphoneTest || microphoneSource === 'generated' || engine === 'chromium', 'File-backed microphone acceptance requires Chromium; use --microphone-source generated for other engines');
 const endpointOption = name => {
   if (!process.argv.includes(name)) return null;
   const value = process.argv[process.argv.indexOf(name)+1];
@@ -70,7 +72,7 @@ fs.mkdirSync(scratch, { recursive: true });
 fs.mkdirSync(output, { recursive: true });
 const result = { passed: false, status: 'running', browser_engine: engine, clients: clientCount, hold_seconds: holdSeconds,
   started_at: new Date().toISOString(), scope: microphoneTest
-    ? 'Real browser capture of a generated 997 Hz WAV via Chromium test microphone, Opus uplink/mix/downlink and control revocation; no physical microphone or target recording.'
+    ? 'Synthetic browser audio, real Opus uplink/mix/downlink and control revocation; capture source is recorded separately. No physical microphone, permission prompt or target recording acceptance.'
     : restartServices ? 'Real browser recovery across forced termination/restart of the isolated gateway and control processes; same ports/data, no page reload or host input. Not a network partition or long outage test.'
     : 'Real browser Desktop streams through isolated control and media services; no host input or microphone capture.' };
 const save = () => fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(result, null, 2));
@@ -346,7 +348,7 @@ async function main() {
     broadcast_controller_microphone: true, controller_monitor: false,
   });
   const browserArgs = ['--autoplay-policy=no-user-gesture-required'];
-  if (microphoneTest) {
+  if (microphoneTest && microphoneSource === 'file') {
     const rate = 48000, samples = rate * 10;
     const wav = Buffer.alloc(44 + samples * 2);
     wav.write('RIFF'); wav.writeUInt32LE(wav.length - 8, 4); wav.write('WAVEfmt ', 8);
@@ -359,8 +361,34 @@ async function main() {
     browserArgs.push('--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${toneFile}`);
   }
   browser = await launchBrowser({ args: browserArgs, firefoxUserPrefs: { 'media.autoplay.default': 0 } });
+  result.browser = browser.version();
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
-  if (microphoneTest) await context.grantPermissions(['microphone'], { origin: gateway });
+  const capabilityPage = await context.newPage();
+  result.browser_capabilities = await capabilityPage.evaluate(() => ({webrtc:typeof RTCPeerConnection === 'function'}));
+  await capabilityPage.close();
+  assert.ok(result.browser_capabilities.webrtc, 'This browser build does not expose RTCPeerConnection; real WebRTC acceptance cannot run');
+  if (microphoneTest && microphoneSource === 'file') await context.grantPermissions(['microphone'], { origin: gateway });
+  if (microphoneTest) result.microphone_source = {kind:microphoneSource, permission_prompt_tested:false, physical_device:false};
+  if (microphoneTest && microphoneSource === 'generated') {
+    // Replace only capture hardware at the browser boundary. The production
+    // capture owner, authorization, RTP, gateway mixer and playback stay real.
+    await context.addInitScript(({frequency}) => {
+      let source;
+      Object.defineProperty(navigator.mediaDevices, 'getUserMedia', { value: async constraints => {
+        if (!constraints?.audio || constraints.video) throw new DOMException('Audio fixture only', 'NotSupportedError');
+        if (!source) {
+          const context = new AudioContext({sampleRate:48000});
+          const oscillator = context.createOscillator(), gain = context.createGain();
+          const destination = context.createMediaStreamDestination();
+          oscillator.frequency.value = frequency; gain.gain.value = 0.2;
+          oscillator.connect(gain); gain.connect(destination); oscillator.start();
+          source = {context, destination};
+        }
+        await source.context.resume();
+        return new MediaStream([source.destination.stream.getAudioTracks()[0].clone()]);
+      }});
+    }, {frequency:microphoneFrequency});
+  }
   await context.addInitScript(({ microphoneTest }) => {
     localStorage.setItem('mlSettings', JSON.stringify({ videoSize: '720p', fps: 30, bitrate: 8000, videoCodec: 'h264',
       dataTransport: 'webrtc', forceVideoElementRenderer: true, canvasRenderer: false, playAudioLocal: false,
@@ -396,6 +424,7 @@ async function main() {
     try {
       await page.waitForFunction(() => { const video = document.querySelector('video'); return video && video.videoWidth > 0 && window.__presentedVideoFrames > 15; }, null, { timeout: 60000 });
     } catch(error) {
+      result.page_errors = [...pageErrors];
       result.startup_failure = {client:i+1,diagnostics:await page.evaluate(async()=>{
         const video=document.querySelector('video');
         const peers=await Promise.all(window.__acceptancePeers.map(async peer=>{

@@ -9,6 +9,7 @@
 #ifdef _WIN32
   // standard includes
   #include <cstring>
+  #include <audioclient.h>
 
   // platform includes
   #include <mmdeviceapi.h>
@@ -18,6 +19,7 @@
   #include "src/platform/common.h"
 
 namespace platf::audio::tests {
+  std::unique_ptr<mic_t> packet_capture(IAudioCaptureClient *source);
   bool sink_device_available(const std::string &sink, IMMDeviceEnumerator *device_enum);
   bool microphone_available(const std::string &assigned_sink, const std::string &configured_sink, IMMDeviceEnumerator *device_enum);
   bool capture_follows_default_device(IMMDeviceEnumerator *device_enum, IMMDevice *capture_device);
@@ -25,6 +27,56 @@ namespace platf::audio::tests {
 }  // namespace platf::audio::tests
 
 namespace {
+  /** @brief Scripted WASAPI packets including a success-without-data response. */
+  class packet_capture_t final: public IAudioCaptureClient {
+  public:
+    HRESULT empty_status = AUDCLNT_S_BUFFER_EMPTY;  ///< Result of the second read.
+    int reads = 0;  ///< Read attempts.
+    int releases = 0;  ///< Buffers actually released.
+    float value = 0.25f;  ///< Next mono packet value.
+    /** @brief Reject unused interface queries. @param object Output interface. @return Unsupported interface. */
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID, void **object) override {
+      *object = nullptr;
+      return E_NOINTERFACE;
+    }
+    /** @brief Keep the stack-owned fixture alive. @return Constant reference count. */
+    ULONG STDMETHODCALLTYPE AddRef() override {
+      return 1;
+    }
+    /** @brief Keep the stack-owned fixture alive. @return Constant reference count. */
+    ULONG STDMETHODCALLTYPE Release() override {
+      return 1;
+    }
+    /** @brief Read a packet, with an empty second read that leaves other outputs untouched.
+     * @param data Packet pointer. @param frames Packet frame count. @param flags Buffer flags.
+     * @param position Device position. @param clock Clock position. @return Scripted HRESULT.
+     */
+    HRESULT STDMETHODCALLTYPE GetBuffer(BYTE **data, UINT32 *frames, DWORD *flags, UINT64 *position, UINT64 *clock) override {
+      ++reads;
+      if (reads == 2) {
+        *frames = 0;
+        return empty_status;
+      }
+      value = reads == 1 ? 0.25f : 0.75f;
+      *data = reinterpret_cast<BYTE *>(&value);
+      *frames = 1;
+      *flags = 0;
+      *position = reads;
+      *clock = reads * 100;
+      return S_OK;
+    }
+    /** @brief Count acquired buffer releases. @param frames Consumed frames. @return Validity of consumed size. */
+    HRESULT STDMETHODCALLTYPE ReleaseBuffer(UINT32 frames) override {
+      ++releases;
+      return frames == 1 ? S_OK : E_INVALIDARG;
+    }
+    /** @brief Advertise one frame before each read. @param frames Available frame count. @return Success. */
+    HRESULT STDMETHODCALLTYPE GetNextPacketSize(UINT32 *frames) override {
+      *frames = 1;
+      return S_OK;
+    }
+  };
+
   class fake_property_store_t final: public IPropertyStore {
   public:
     explicit fake_property_store_t(std::wstring friendly_name):
@@ -336,6 +388,33 @@ TEST(WindowsAudioTest, DefaultFollowingCaptureReinitializesAfterRenderEndpointCh
     platf::capture_e::reinit
   );
   EXPECT_EQ(callback_count, 1);
+}
+
+TEST(WindowsAudioTest, EmptyPacketPreservesPartialSamplesAndCaptureContinues) {
+  packet_capture_t source;
+  auto capture = platf::audio::tests::packet_capture(&source);
+  std::vector<float> samples(2, -1.0f);
+  EXPECT_EQ(capture->sample(samples), platf::capture_e::timeout);
+  EXPECT_EQ(source.reads, 2);
+  EXPECT_EQ(source.releases, 1);
+  EXPECT_EQ(samples, (std::vector<float> {-1.0f, -1.0f}));
+  EXPECT_EQ(capture->sample(samples), platf::capture_e::ok);
+  EXPECT_EQ(source.reads, 3);
+  EXPECT_EQ(source.releases, 2);
+  EXPECT_EQ(samples, (std::vector<float> {0.25f, 0.75f}));
+}
+
+TEST(WindowsAudioTest, EmptyPacketHandlingDoesNotSuppressRealFailures) {
+  for (const auto &[status, expected] : std::array {
+         std::pair {AUDCLNT_E_DEVICE_INVALIDATED, platf::capture_e::reinit},
+         std::pair {E_FAIL, platf::capture_e::error}}) {
+    packet_capture_t source;
+    source.empty_status = status;
+    auto capture = platf::audio::tests::packet_capture(&source);
+    std::vector<float> samples(2);
+    EXPECT_EQ(capture->sample(samples), expected);
+    EXPECT_EQ(source.releases, 1);
+  }
 }
 
 TEST(WindowsAudioTest, PinnedCaptureContinuesAfterRenderEndpointChange) {
