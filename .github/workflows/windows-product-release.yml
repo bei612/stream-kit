@@ -113,12 +113,14 @@ jobs:
             mingw-w64-ucrt-x86_64-opus
             mingw-w64-ucrt-x86_64-qt6-static
             mingw-w64-ucrt-x86_64-libtiff
+            mingw-w64-ucrt-x86_64-harfbuzz
+            mingw-w64-ucrt-x86_64-freetype
             mingw-w64-ucrt-x86_64-MinHook
       - name: Verify native dependencies before codec compilation
         shell: msys2 {0}
         run: |
           set -euo pipefail
-          pkg-config --exists libtiff-4 libcurl miniupnpc opus
+          pkg-config --static --exists libtiff-4 harfbuzz freetype2 libcurl miniupnpc opus
           mkdir -p artifacts/windows-product/logs
           pacman -Q > artifacts/windows-product/logs/ucrt-packages.txt
       - uses: actions/cache/restore@v4
