@@ -17,7 +17,7 @@ Linux 的 `capture::bind_application` 已接进程组身份、X11 窗口选择�
 焦点校验。`application_frame.cpp` 使用 XComposite 窗口 backing pixmap 与私有
 MIT-SHM 缓冲采集客户区，接入现有软件、VAAPI、CUDA 编码适配器；不会转为桌面裁剪。
 `process.cpp` 已接通启用 X11 的 Linux 启动路径，其他 Linux 图形后端仍拒绝 application 模式。
-独立采集后端的历史 CI 成功状态不足以证明 Linux 编译及运行通过：日志管道曾掩盖失败，需以修正错误传播后的新运行重新确认。完整 Sunshine 构建和串流验收仍未完成，不能描述为已经交付。
+独立采集后端的早期 CI 成功状态不足以证明 Linux 编译及运行通过：日志管道曾掩盖失败。修正错误传播后的完整构建及集成采集测试现已通过，证据见下节；完整浏览器串流验收仍未完成，不能描述为已经交付。
 仍需从统一管理端启动应用，验证画面、音频和控制权。
 
 当前窗口像素支持 X11 本地服务、32 位 BGRX 布局和 TrueColor 视觉；依赖 Composite、
@@ -25,6 +25,8 @@ MIT-SHM、X-Resource，光标叠加使用 XFixes。窗口改变尺寸时重建�
 纯 Wayland 应用、非上述像素格式和 PipeWire 兼容行为未获验收。
 
 ## 验证
+
+2026-10-31 完整源码 CI [41184176937 / 124487568406](https://github.com/bei612/stream-kit/actions/runs/41184176937/job/124487568406) 在提交 `ea64b8c59ee984a54bd05f7c5a94c2da87d2e773` 上通过：vendored 编解码依赖和 Sunshine 完整构建、集成测试可执行文件中的程序音频隔离与 X11 窗口/身份/输入测试、管理采集能力与应用持久化测试、两项 EGL 属性测试，以及 staged 安装的私有 Vulkan loader 解析与 `--version` 执行。测试报告校验要求指定用例实际运行且没有跳过；流水线启用 Bash pipefail。公开 job 步骤结果保存在 `artifacts/audio-target/linux-full-source-ci-ea64b8c5.json`。此配置关闭 CUDA，不能证明 CUDA 编译、真实 GPU 编码、PipeWire/Wayland 或完整浏览器媒体链路通过。
 
 本次在 Windows 原生 UCRT 编译器下，使用真实项目头文件及 PulseAudio 上游
 头文件对后端和测试体执行 C++23 语法/API 检查，通过；这不是 Linux 编译、链接
@@ -104,5 +106,5 @@ X11 窗口选择使用 X-Resource 扩展查询服务器报告的本地客户端 
 须以其实际运行结果验收。输入沿用统一 `capture::input_origin/input_focused`
 接口；过期的窗口/画面尺寸不接受输入坐标，焦点必须位于所选窗口或其子控件。
 该测试同时将目标窗口涂红并用绿色外部窗口遮挡，检查根画面确实为绿色、采集输出仍为红色，
-以及尺寸变化、退休后的输出行为；该用例的实际通过状态需在修正日志管道后重新确认。
+以及尺寸变化、退休后的输出行为；该用例已在上述修正日志管道后的完整构建测试中通过。
 Linux X11 构建增加 `xcb-res`、`xcb-composite`、`xcb-shm`、`xcb-xfixes` 开发依赖。
