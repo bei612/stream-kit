@@ -73,6 +73,7 @@ windows-sys = { version = "0.61.2", features = ["Win32_System_Console"] }
 
 [dev-dependencies]
 tokio = { version = "1.47.1", features = ["macros", "rt-multi-thread", "test-util"] }
+sans-io-time = "0.2"
 
 [lints.clippy]
 too_many_arguments = "allow"

@@ -26,7 +26,7 @@ pub struct StreamDriver<Stream> {
     pub(crate) inner: Stream,
     pub(crate) socket: UdpSocket,
     pub(crate) transmit: Option<Transmit>,
-    pub(crate) transmit_since: Option<Instant>,
+    pub(crate) transmit_deadline: Option<Instant>,
     pub(crate) recv_buffer: Vec<u8>,
 }
 
@@ -45,7 +45,7 @@ where
             inner: stream,
             socket,
             transmit: None,
-            transmit_since: None,
+            transmit_deadline: None,
             recv_buffer: vec![0; 4096],
         })
     }
@@ -92,13 +92,10 @@ where
 
         loop {
             // -- Write
-            if let (Some(since), Some(max_hold)) = (
-                this.driver.transmit_since,
-                this.driver.inner.transmit_max_hold(),
-            ) {
-                if since.elapsed() >= max_hold {
+            if let Some(deadline) = this.driver.transmit_deadline {
+                if Instant::now() >= deadline {
                     this.driver.transmit = None;
-                    this.driver.transmit_since = None;
+                    this.driver.transmit_deadline = None;
                 }
             }
             // Try to get next packet and write
@@ -106,7 +103,21 @@ where
                 && let Some(new_transmit) = this.driver.inner.poll_transmit()
             {
                 this.driver.transmit = Some(new_transmit);
-                this.driver.transmit_since = Some(Instant::now());
+                this.driver.transmit_deadline = this
+                    .driver
+                    .inner
+                    .transmit_max_hold()
+                    .map(|hold| Instant::now() + hold);
+            }
+
+            if this
+                .driver
+                .transmit_deadline
+                .is_some_and(|deadline| Instant::now() >= deadline)
+            {
+                this.driver.transmit = None;
+                this.driver.transmit_deadline = None;
+                continue;
             }
 
             // Try to write the available packet
@@ -133,11 +144,22 @@ where
                         if let Some(new_transmit) = this.driver.inner.poll_transmit() {
                             // Try to get next packet and write
                             *transmit = new_transmit;
-                            this.driver.transmit_since = Some(Instant::now());
+                            this.driver.transmit_deadline = this
+                                .driver
+                                .inner
+                                .transmit_max_hold()
+                                .map(|hold| Instant::now() + hold);
+                            if this
+                                .driver
+                                .transmit_deadline
+                                .is_some_and(|deadline| Instant::now() >= deadline)
+                            {
+                                break;
+                            }
                         } else {
                             // No next packet, remove it
                             this.driver.transmit.take();
-                            this.driver.transmit_since = None;
+                            this.driver.transmit_deadline = None;
                             break;
                         }
                     }
@@ -250,7 +272,7 @@ mod transmit_tests {
                 destination,
                 data: Bytes::from_static(b"audio"),
             });
-            driver.transmit_since = Some(Instant::now() - age);
+            driver.transmit_deadline = limit.map(|hold| Instant::now() + hold.saturating_sub(age));
             let _ = tokio::time::timeout(Duration::from_millis(10), driver.drive()).await;
             let mut buffer = [0u8; 16];
             let received =

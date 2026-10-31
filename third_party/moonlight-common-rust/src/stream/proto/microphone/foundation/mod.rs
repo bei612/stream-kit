@@ -44,6 +44,7 @@ pub struct FoundationMicStreamConfig {
 pub struct FoundationMicStream {
     addr: SocketAddr,
     payloader: FoundationMicPayloader,
+    dequeued_at: Option<std::time::Instant>,
 }
 
 impl FoundationMicStream {
@@ -55,6 +56,7 @@ impl FoundationMicStream {
     ) -> Self {
         Self {
             addr: config.addr,
+            dequeued_at: None,
             payloader: FoundationMicPayloader::new(
                 FoundationMicPayloaderConfig {
                     encryption: config.encryption,
@@ -84,7 +86,8 @@ impl UdpStream for FoundationMicStream {
     type Event = Infallible;
 
     fn poll_transmit(&mut self) -> Option<Transmit> {
-        if let Some(data) = self.payloader.poll_packet() {
+        if let Some((queued_at, data)) = self.payloader.poll_timed_packet() {
+            self.dequeued_at = Some(queued_at);
             Some(Transmit {
                 destination: self.addr,
                 data,
@@ -95,7 +98,8 @@ impl UdpStream for FoundationMicStream {
     }
 
     fn transmit_max_hold(&self) -> Option<Duration> {
-        Some(Duration::from_millis(60))
+        self.dequeued_at
+            .map(|queued| payloader::MAX_PACKET_AGE.saturating_sub(queued.elapsed()))
     }
 
     fn poll_timeout(&self) -> Option<Instant> {

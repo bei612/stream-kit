@@ -53,6 +53,7 @@ pub struct FoundationMicPayloader {
 
 // Bound network backpressure to 60 ms for the gateway's 20 ms microphone frames.
 const MAX_PENDING_PACKETS: usize = 3;
+pub(super) const MAX_PACKET_AGE: Duration = Duration::from_millis(60);
 
 impl FoundationMicPayloader {
     pub fn new(config: FoundationMicPayloaderConfig, crypto_backend: DynCryptoBackend) -> Self {
@@ -129,9 +130,13 @@ impl FoundationMicPayloader {
     }
 
     pub fn poll_packet(&mut self) -> Option<Bytes> {
+        self.poll_timed_packet().map(|(_, packet)| packet)
+    }
+
+    pub(super) fn poll_timed_packet(&mut self) -> Option<(Instant, Bytes)> {
         while let Some((queued, packet)) = self.packets.pop_front() {
-            if queued.elapsed() < Duration::from_millis(60) {
-                return Some(packet);
+            if queued.elapsed() < MAX_PACKET_AGE {
+                return Some((queued, packet));
             }
         }
         None

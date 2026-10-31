@@ -553,6 +553,31 @@ mod tests {
         assert!(sender.poll_packet().is_none());
     }
 
+    #[test]
+    fn upstream_socket_deadline_includes_time_in_microphone_queue() {
+        use moonlight_common::{
+            crypto::disabled::DisabledCryptoBackend,
+            stream::proto::{
+                microphone::foundation::{FoundationMicStream, FoundationMicStreamConfig},
+                runtime::UdpStream,
+            },
+        };
+        let mut stream = FoundationMicStream::new(
+            sans_io_time::Instant::ZERO,
+            FoundationMicStreamConfig {
+                addr: "127.0.0.1:47996".parse().unwrap(),
+                encryption: None,
+            },
+            Arc::new(DisabledCryptoBackend),
+        );
+        stream
+            .send_microphone_opus_data(Duration::ZERO, &[1])
+            .unwrap();
+        std::thread::sleep(Duration::from_millis(20));
+        assert!(stream.poll_transmit().is_some());
+        assert!(stream.transmit_max_hold().unwrap() <= Duration::from_millis(40));
+    }
+
     struct LiveResource(Arc<AtomicBool>);
     impl Drop for LiveResource {
         fn drop(&mut self) {
