@@ -64,6 +64,7 @@ async function main() {
     evidence.passed = true;
   } catch (error) {
     evidence.error = error.message;
+    console.error(JSON.stringify(evidence));
     throw error;
   } finally {
     const closed = await Promise.allSettled([source.close(), recorder.close()]);

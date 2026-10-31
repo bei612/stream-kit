@@ -203,6 +203,37 @@ enum Playback {
     Tone,
     Recorded(Vec<f32>),
 }
+
+#[derive(Default)]
+struct PlaybackProgress {
+    submitted: usize,
+    ends_at: Option<cpal::StreamInstant>,
+}
+
+impl PlaybackProgress {
+    // A full output buffer is only submitted to the device, not yet played.
+    // Keep the stream alive until its clock reaches the final sample's predicted
+    // playback time; subsequent callbacks supply silence while the queue drains.
+    fn advance(
+        &mut self,
+        frames: usize,
+        total: usize,
+        timestamp: cpal::OutputStreamTimestamp,
+    ) -> Result<bool, &'static str> {
+        let remaining = total.saturating_sub(self.submitted);
+        self.submitted += frames.min(remaining);
+        if remaining > 0 && self.submitted == total {
+            self.ends_at = Some(
+                timestamp
+                    .playback
+                    .checked_add(Duration::from_secs_f64(remaining as f64 / RATE as f64))
+                    .ok_or("Playback timestamp overflow")?,
+            );
+        }
+        Ok(self.ends_at.is_some_and(|end| timestamp.callback >= end))
+    }
+}
+
 impl Playback {
     fn len(&self) -> usize {
         match self {
@@ -234,18 +265,19 @@ fn output<T: cpal::SizedSample + cpal::FromSample<f32>>(
     complete: Arc<AtomicBool>,
 ) -> Result<cpal::Stream, cpal::Error> {
     let channels = config.channels as usize;
-    let mut index = 0;
+    let mut progress = PlaybackProgress::default();
+    let callback_failed = failed.clone();
     device.build_output_stream(
         config,
-        move |samples: &mut [T], _| {
-            for frame in samples.chunks_exact_mut(channels) {
-                frame.fill(T::from_sample_(source.sample(index)));
-                index += 1;
+        move |samples: &mut [T], info| {
+            for (offset, frame) in samples.chunks_exact_mut(channels).enumerate() {
+                frame.fill(T::from_sample_(source.sample(progress.submitted + offset)));
             }
-            frames.store(index.min(source.len()) as u64, Ordering::Relaxed);
-            if index >= source.len() {
-                complete.store(true, Ordering::Release);
+            match progress.advance(samples.len() / channels, source.len(), info.timestamp()) {
+                Ok(done) => complete.store(done, Ordering::Release),
+                Err(_) => callback_failed.store(true, Ordering::Release),
             }
+            frames.store(progress.submitted as u64, Ordering::Relaxed);
         },
         move |_| {
             failed.store(true, Ordering::Release);
@@ -453,6 +485,66 @@ fn main() -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn queued_output_is_not_complete_until_the_device_playback_deadline() {
+        let instant = |seconds| {
+            cpal::StreamInstant::ZERO
+                .checked_add(Duration::from_secs(seconds))
+                .unwrap()
+        };
+        let mut progress = PlaybackProgress::default();
+        let timestamp = |callback, playback| cpal::OutputStreamTimestamp {
+            callback: instant(callback),
+            playback: instant(playback),
+        };
+        // A backend may request the whole three-second tone in one callback
+        // while already holding two seconds of queued audio.
+        assert!(
+            !progress
+                .advance(RATE * 4, RATE * 3, timestamp(0, 2))
+                .unwrap()
+        );
+        assert_eq!(progress.submitted, RATE * 3);
+        assert!(!progress.advance(RATE, RATE * 3, timestamp(4, 6)).unwrap());
+        assert!(progress.advance(RATE, RATE * 3, timestamp(5, 7)).unwrap());
+        assert_eq!(progress.ends_at, Some(instant(5)));
+    }
+
+    #[test]
+    fn final_partial_buffer_uses_only_remaining_audio_duration() {
+        let mut progress = PlaybackProgress::default();
+        let at = |seconds| {
+            cpal::StreamInstant::ZERO
+                .checked_add(Duration::from_secs(seconds))
+                .unwrap()
+        };
+        assert!(
+            !progress
+                .advance(
+                    RATE * 2,
+                    RATE * 3,
+                    cpal::OutputStreamTimestamp {
+                        callback: at(0),
+                        playback: at(1),
+                    }
+                )
+                .unwrap()
+        );
+        assert!(
+            !progress
+                .advance(
+                    RATE * 2,
+                    RATE * 3,
+                    cpal::OutputStreamTimestamp {
+                        callback: at(2),
+                        playback: at(3),
+                    }
+                )
+                .unwrap()
+        );
+        assert_eq!(progress.ends_at, Some(at(4)));
+    }
+
     #[test]
     fn duplex_admission_keeps_directions_independent() {
         assert!(validate_start("capture", false, true).is_ok());
