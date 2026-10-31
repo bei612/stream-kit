@@ -15,7 +15,10 @@ for name in windows-product-installer linux-product-installer windows-product-sb
   gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$name-$source_commit" --dir "artifacts/promotion/$name"
 done
 windows=artifacts/promotion/windows-product-installer
-linux=artifacts/promotion/linux-product-installer
+# The Linux artifact has a common parent containing installer/ and the native
+# acceptance log. Preserve that producer layout when locating the signed-off
+# payload instead of assuming upload-artifact flattened both directories.
+linux=artifacts/promotion/linux-product-installer/installer
 sbom=artifacts/promotion/windows-product-sbom/stream-kit-sbom.spdx.json
 jq -e --arg commit "$source_commit" '
   .commit == $commit and .installer_source_commit == $commit and

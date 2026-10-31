@@ -236,7 +236,7 @@ jobs:
           set -euo pipefail
           cd artifacts/publish
           sha256sum -c SHA256SUMS.txt
-          (cd linux && sha256sum -c SHA256SUMS)
-          mv linux/installer-manifest.json linux/linux-installer-manifest.json
-          mv linux/SHA256SUMS linux/Linux-SHA256SUMS.txt
-          gh release create "$RELEASE_TAG" ./*.exe installer-manifest.json SHA256SUMS.txt stream-kit-sbom.spdx.json linux/*-setup.run linux/linux-installer-manifest.json linux/Linux-SHA256SUMS.txt --verify-tag --prerelease --title "$RELEASE_TAG" --notes-file "$GITHUB_WORKSPACE/deploy/windows/CI-RELEASE.md"
+          (cd linux/installer && sha256sum -c SHA256SUMS)
+          mv linux/installer/installer-manifest.json linux/linux-installer-manifest.json
+          mv linux/installer/SHA256SUMS linux/Linux-SHA256SUMS.txt
+          gh release create "$RELEASE_TAG" ./*.exe installer-manifest.json SHA256SUMS.txt stream-kit-sbom.spdx.json linux/installer/*-setup.run linux/linux-installer-manifest.json linux/Linux-SHA256SUMS.txt --verify-tag --prerelease --title "$RELEASE_TAG" --notes-file "$GITHUB_WORKSPACE/deploy/windows/CI-RELEASE.md"
