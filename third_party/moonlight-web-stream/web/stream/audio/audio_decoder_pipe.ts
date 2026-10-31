@@ -39,6 +39,8 @@ export class AudioDecoderPipe implements DataAudioPlayer {
     private base: SampleAudioPlayer
 
     private errored = false
+    private disposed = false
+    private maxQueuedPackets = 12
     private decoder: AudioDecoder
 
     constructor(base: SampleAudioPlayer, logger?: Logger) {
@@ -56,17 +58,27 @@ export class AudioDecoderPipe implements DataAudioPlayer {
     }
 
     private onError(error: any) {
+        if (this.disposed || this.errored) return
         this.errored = true
 
-        this.logger?.debug(`AudioDecoder has an error ${"toString" in error ? error.toString() : `${error}`}`, { type: "fatal" })
-        console.error(error)
+        this.logger?.debug(`AudioDecoder has an error ${String(error)}`, { type: "fatal" })
     }
 
     private onOutput(sample: AudioData) {
-        this.base.submitSample(sample)
+        if (this.disposed || this.errored) { sample.close(); return }
+        try { this.base.submitSample(sample) }
+        catch (error) { sample.close(); this.onError(error) }
     }
 
     setup(setup: AudioPlayerSetup): void {
+        if (this.disposed) return
+        if (!Number.isInteger(setup.samplesPerFrame) || setup.samplesPerFrame <= 0 ||
+            !Number.isInteger(setup.sampleRate) || setup.sampleRate <= 0 ||
+            setup.samplesPerFrame > setup.sampleRate * 0.12) throw new Error("Invalid audio frame timing")
+        // Bound the requested decode queue to roughly 250 ms, with a hard
+        // packet cap for unusually small frames. Do not allocate another queue.
+        this.maxQueuedPackets = Math.max(1, Math.min(64, Math.floor(0.25 * setup.sampleRate / setup.samplesPerFrame)))
+        this.isFirstPacket = true
         if ("setup" in this.base && typeof this.base.setup == "function") {
             this.base.setup(setup)
         }
@@ -81,28 +93,30 @@ export class AudioDecoderPipe implements DataAudioPlayer {
     private isFirstPacket = true
 
     decodeAndPlay(unit: AudioDecodeUnit): void {
-        if (this.errored) {
-            console.debug("Cannot submit audio decode unit because the stream errored")
+        if (this.disposed || this.errored || this.decoder.state !== "configured" || this.decoder.decodeQueueSize >= this.maxQueuedPackets) {
             return
         }
 
-        const chunk = new EncodedAudioChunk({
-            type: this.isFirstPacket ? "key" : "delta",
-            data: unit.data,
-            timestamp: unit.timestampMicroseconds,
-            duration: unit.durationMicroseconds,
-        })
-        this.isFirstPacket = false
-
-        this.decoder.decode(chunk)
+        try {
+            const chunk = new EncodedAudioChunk({
+                type: this.isFirstPacket ? "key" : "delta",
+                data: unit.data,
+                timestamp: unit.timestampMicroseconds,
+                duration: unit.durationMicroseconds,
+            })
+            this.decoder.decode(chunk)
+            this.isFirstPacket = false
+        } catch (error) { this.onError(error) }
     }
 
     cleanup(): void {
-        if ("cleanup" in this.base && typeof this.base.cleanup == "function") {
-            this.base.cleanup()
+        if (this.disposed) return
+        this.disposed = true
+        try {
+            if (this.decoder.state !== "closed") this.decoder.close()
+        } finally {
+            if ("cleanup" in this.base && typeof this.base.cleanup == "function") this.base.cleanup()
         }
-
-        this.decoder.close()
     }
 
     getBase(): Pipe | null {

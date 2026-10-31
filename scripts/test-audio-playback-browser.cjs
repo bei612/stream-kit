@@ -17,6 +17,7 @@ import {AudioElementPlayer} from ${source('audio_element')};
 import {ContextDestinationNodeAudioPlayer} from ${source('audio_context_destination')};
 import {AudioBufferPipe} from ${source('audio_buffer_pipe')};
 import {AudioMediaStreamTrackGeneratorPipe} from ${source('media_stream_track_generator_pipe')};
+import {AudioDecoderPipe} from ${source('audio_decoder_pipe')};
 const contextPlayer=new ContextDestinationNodeAudioPlayer();
 const pcm=new AudioBufferPipe(contextPlayer);
 pcm.setup({sampleRate:48000,channels:2,streams:1,coupledStreams:1,samplesPerFrame:960,mapping:[]});
@@ -28,7 +29,22 @@ const player=new AudioElementPlayer();player.setTrack(destination.stream.getAudi
 const button=document.createElement('button');button.textContent='Enable audio';document.body.appendChild(button);
 button.onclick=()=>{pcm.onUserInteraction();player.onUserInteraction()};
 context.suspend().then(()=>{document.body.dataset.ready='true'});
-(window as any).probe={context,pcm,async generated(){
+(window as any).probe={context,pcm,async codec(){
+  if(typeof AudioEncoder!=='function'||typeof AudioDecoder!=='function')return {supported:false};
+  let decodedFrames=0,cleanups=0;const errors:string[]=[];
+  const decoder=new AudioDecoderPipe({implementationName:'acceptance',submitSample(sample:AudioData){decodedFrames+=sample.numberOfFrames;sample.close()},getBase(){return null},cleanup(){cleanups++}} as any,{debug(message:string){errors.push(message)}} as any);
+  decoder.setup({sampleRate:48000,channels:2,streams:1,coupledStreams:1,samplesPerFrame:960,mapping:[]});
+  const encoder=new AudioEncoder({error:error=>errors.push(String(error)),output:chunk=>{
+    const data=new Uint8Array(chunk.byteLength);chunk.copyTo(data);
+    decoder.decodeAndPlay({data,timestampMicroseconds:chunk.timestamp,durationMicroseconds:chunk.duration??20000});
+  }});
+  try {
+    encoder.configure({codec:'opus',sampleRate:48000,numberOfChannels:2,bitrate:64000});
+    const input=new AudioData({format:'f32-planar',sampleRate:48000,numberOfFrames:960,numberOfChannels:2,timestamp:0,data:new Float32Array(1920)});
+    encoder.encode(input);input.close();await encoder.flush();await (decoder as any).decoder.flush();
+  } finally {encoder.close();decoder.cleanup()}
+  return {supported:true,decodedFrames,cleanups,errors};
+},async generated(){
   if(typeof MediaStreamTrackGenerator!=='function'||typeof AudioData!=='function')return {supported:false};
   const element=new AudioElementPlayer(),generator=new AudioMediaStreamTrackGeneratorPipe(element);
   const sample=new AudioData({format:'f32-planar',sampleRate:48000,numberOfFrames:960,numberOfChannels:2,timestamp:0,data:new Float32Array(1920)});
@@ -66,10 +82,13 @@ context.suspend().then(()=>{document.body.dataset.ready='true'});
     const generatedTrack=await page.evaluate(()=>window.probe.generated());
     if(engine==='chromium')assert.equal(generatedTrack.supported,true,'Chromium must exercise the generated audio path');
     if(generatedTrack.supported)assert.deepEqual(generatedTrack,{supported:true,written:true,wasLive:true,stopped:true,sampleClosed:true});
+    const codec=await page.evaluate(()=>window.probe.codec());
+    if(engine==='chromium')assert.equal(codec.supported,true,'Chromium must exercise real WebCodecs Opus');
+    if(codec.supported){assert.ok(codec.decodedFrames>=960);assert.equal(codec.cleanups,1);assert.deepEqual(codec.errors,[])}
     await page.evaluate(()=>window.probe.cleanup());
     await page.waitForFunction(()=>window.probe.context.state==='closed'&&document.querySelector('audio').srcObject===null&&document.querySelector('audio').paused);
     assert.deepEqual(errors,[]);
-    fs.writeFileSync(path.join(output,'result.json'),JSON.stringify({passed:true,engine,browser:browser.version(),generatedTrack,scope:'Production players resume a suspended AudioContext and play a generated silent track on a real click; PCM bursts remain bounded, suspension clears queued audio, and cleanup releases playback. Generated AudioData writes and track release are checked where supported. No upstream media or physical audio quality acceptance.',errors},null,2));
+    fs.writeFileSync(path.join(output,'result.json'),JSON.stringify({passed:true,engine,browser:browser.version(),generatedTrack,codec,scope:'Production players resume a suspended AudioContext and play a generated silent track on a real click; PCM bursts remain bounded, suspension clears queued audio, and cleanup releases playback. Generated AudioData and real WebCodecs Opus round-trip are checked where supported. No upstream media or physical audio quality acceptance.',errors},null,2));
     console.log(`${engine}: audio playback gesture and cleanup passed`);
   }catch(error){
     const state=await page?.evaluate(()=>({ready:document.body.dataset.ready,context:window.probe?.context.state,audioContext:typeof AudioContext,track:typeof MediaStreamTrack,media:document.querySelector('audio')?{paused:document.querySelector('audio').paused,muted:document.querySelector('audio').muted,error:document.querySelector('audio').error?.message}:null})).catch(()=>null);

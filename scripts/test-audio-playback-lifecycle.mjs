@@ -34,6 +34,46 @@ function pcmFixture() {
   return {pipe,context,sources,gain,unit,buffers:()=>buffers,cleanups:()=>cleanups}
 }
 
+function decoderFixture({cleanupThrows=false}={}) {
+  const chunks=[],delivered=[],logs=[];let callbacks,closes=0,cleanups=0
+  class Decoder {
+    state='unconfigured';decodeQueueSize=0
+    constructor(options){callbacks=options}
+    configure(){this.state='configured'}
+    decode(chunk){chunks.push(chunk);this.decodeQueueSize++}
+    close(){closes++;this.state='closed'}
+  }
+  const {AudioDecoderPipe}=load('audio_decoder_pipe',{AudioDecoder:Decoder,EncodedAudioChunk:class{constructor(value){Object.assign(this,value)}}})
+  const pipe=new AudioDecoderPipe({implementationName:'fixture',setup(){},submitSample:sample=>delivered.push(sample),cleanup(){cleanups++;if(cleanupThrows)throw new Error('downstream failed')}},{debug:message=>logs.push(message)})
+  const setup={sampleRate:48000,samplesPerFrame:960,channels:2};pipe.setup(setup)
+  return {pipe,setup,chunks,delivered,logs,callbacks,counts:()=>({closes,cleanups}),unit:{data:new Uint8Array(1),timestampMicroseconds:0,durationMicroseconds:20000}}
+}
+
+test('WebCodecs audio decode queue has a time-derived bound and accepts data after draining',()=>{
+  const f=decoderFixture();for(let i=0;i<1000;i++)f.pipe.decodeAndPlay(f.unit)
+  assert.equal(f.chunks.length,12);assert.equal(f.chunks[0].type,'key')
+  f.pipe.decoder.decodeQueueSize=0;f.pipe.decodeAndPlay(f.unit);assert.equal(f.chunks.length,13)
+  f.pipe.cleanup();f.pipe.decodeAndPlay(f.unit);assert.equal(f.chunks.length,13)
+  const tiny=decoderFixture();tiny.pipe.setup({...tiny.setup,samplesPerFrame:1})
+  for(let i=0;i<1000;i++)tiny.pipe.decodeAndPlay(tiny.unit)
+  assert.equal(tiny.chunks.length,64);tiny.pipe.cleanup()
+})
+
+test('WebCodecs cleanup closes decoder even if downstream cleanup throws; late output is released',()=>{
+  const f=decoderFixture({cleanupThrows:true});assert.throws(()=>f.pipe.cleanup(),/downstream failed/);f.pipe.cleanup()
+  let closed=0;f.callbacks.output({close(){closed++}});f.callbacks.error(new Error('late error'))
+  assert.equal(closed,1);assert.equal(f.delivered.length,0);assert.equal(f.logs.length,0)
+  assert.deepEqual(f.counts(),{closes:1,cleanups:1})
+})
+
+test('WebCodecs decode rejection stops submissions and malformed frame timing is rejected',()=>{
+  const f=decoderFixture();f.pipe.decoder.decode=()=>{throw new Error('codec failed')}
+  f.pipe.decodeAndPlay(f.unit);f.pipe.decodeAndPlay(f.unit);assert.equal(f.logs.length,1)
+  let closed=0;f.callbacks.output({close(){closed++}});assert.equal(closed,1)
+  for(const frames of [0,-1,NaN,Infinity,5761])assert.throws(()=>f.pipe.setup({...f.setup,samplesPerFrame:frames}),/Invalid audio/)
+  f.pipe.cleanup()
+})
+
 test('PCM pause discards queued speech and no buffers accumulate against a frozen clock',()=>{
   const f=pcmFixture();f.pipe.playPcm(f.unit());const first=f.sources[0]
   f.context.state='suspended'
