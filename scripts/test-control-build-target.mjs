@@ -13,10 +13,15 @@ test('bundle names follow targets and foreign targets are not executed',()=>{
 
 test('compiled target and embedded source identity are verified before manifest creation',()=>{
   const target={platform:'linux',architecture:'amd64'},flags='a'.repeat(40)
-  const info={Path:'github.com/stream-kit/orchestrator/cmd/orchestrator',Settings:[{Key:'GOOS',Value:'linux'},{Key:'GOARCH',Value:'amd64'},{Key:'vcs.revision',Value:flags},{Key:'-trimpath',Value:'true'}]}
+  const info={Path:'github.com/stream-kit/orchestrator/cmd/orchestrator',Settings:[{Key:'GOOS',Value:'linux'},{Key:'GOARCH',Value:'amd64'},{Key:'vcs.revision',Value:flags},{Key:'vcs.modified',Value:'false'},{Key:'-trimpath',Value:'true'}]}
   verifyControlBuildInfo(info,target,flags)
   assert.throws(()=>verifyControlBuildInfo(info,{...target,platform:'windows'},flags),/target/)
   assert.throws(()=>verifyControlBuildInfo(info,target,flags+' changed'),/source identity/)
   assert.throws(()=>verifyControlBuildInfo({...info,Path:'other'},target,flags),/command/)
   assert.throws(()=>verifyControlBuildInfo({...info,Settings:[]},target,flags),/target/)
+  assert.throws(()=>verifyControlBuildInfo(info,target,flags,true),/modification state/)
+  const dirtyInfo={...info,Settings:info.Settings.map(setting=>setting.Key==='vcs.modified'?{...setting,Value:'true'}:setting)}
+  verifyControlBuildInfo(dirtyInfo,target,flags,true)
+  assert.throws(()=>verifyControlBuildInfo(dirtyInfo,target,flags,false),/modification state/)
+  assert.throws(()=>verifyControlBuildInfo({...info,Settings:info.Settings.filter(setting=>setting.Key!=='vcs.modified')},target,flags),/modification state/)
 })

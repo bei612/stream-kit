@@ -29,6 +29,10 @@ never copies a potentially stale `web/dist`. The manifest also records Node,
 TypeScript and Vite versions and the frontend lockfile hash. Installed TypeScript
 and Vite must match the lockfile. Release builds recheck the source revision and
 clean worktree before issuing a manifest. Existing deployment assets are untouched.
+The binary's Go build metadata must also agree on `vcs.modified`; a clean-tree
+manifest cannot be issued for a binary that records modified sources, and missing
+modification metadata is rejected. Explicit development builds retain `-dirty`
+and cannot pass installation verification.
 Hashes identify the packaged bytes; the manifest is not a signature, SBOM or
 proof that the complete platform has passed acceptance.
 

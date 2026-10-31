@@ -44,7 +44,7 @@ const binary=path.join(output,target.binary)
 const linkerFlags=`-s -w -X main.version=${version} -X main.commit=${commit} -X main.buildTime=${sourceTime}`
 execFileSync(go,['build','-trimpath','-ldflags',linkerFlags,'-o',binary,'./cmd/orchestrator'],{cwd:path.join(root,'orchestrator'),stdio:'inherit',windowsHide:true})
 const buildInfo=JSON.parse(execFileSync(go,['version','-m','-json',binary],{encoding:'utf8',windowsHide:true}))
-verifyControlBuildInfo(buildInfo,target,commit)
+verifyControlBuildInfo(buildInfo,target,commit,dirty)
 if(goEnvironment.GOVERSION!==buildInfo.GoVersion)throw new Error('Go toolchain notices do not match compiled runtime version')
 const goNotices=collectGoNotices(path.join(root,'orchestrator/vendor'),goEnvironment.GOROOT,buildInfo)
 fs.writeFileSync(path.join(output,'THIRD_PARTY_NOTICES.go.json'),JSON.stringify(goNotices,null,2)+'\n')
