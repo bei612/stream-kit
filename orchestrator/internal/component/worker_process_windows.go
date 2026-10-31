@@ -24,16 +24,12 @@ type nativeWorker struct {
 // startNativeWorker requires a primary token selected by trusted service policy.
 // It never substitutes SYSTEM or another session when the requested user fails.
 // The process remains suspended until the caller explicitly resumes it.
-func startNativeWorker(token windows.Token, exe string, args []string, dir string) (*nativeWorker, error) {
-	if token == 0 {
-		return nil, errors.New("worker requires an explicit user token")
-	}
-	var session, returned uint32
-	if err := windows.GetTokenInformation(token, windows.TokenSessionId, (*byte)(unsafe.Pointer(&session)), uint32(unsafe.Sizeof(session)), &returned); err != nil {
+func startNativeWorker(token windows.Token, session uint32, sid string, exe string, args []string, dir string) (*nativeWorker, error) {
+	if err := validateWorkerUser(token, session, sid); err != nil {
 		return nil, err
 	}
-	if returned != 4 || session == 0 {
-		return nil, errors.New("worker requires an interactive user session")
+	if err := activeWorkerSession(session); err != nil {
+		return nil, err
 	}
 	var environment *uint16
 	if err := windows.CreateEnvironmentBlock(&environment, token, false); err != nil {

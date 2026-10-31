@@ -148,7 +148,7 @@ func TestNativeWorkerOwnerCrashKillsTree(t *testing.T) {
 }
 
 func TestNativeWorkerRequiresExplicitUserAndPaths(t *testing.T) {
-	if _, err := startNativeWorker(0, os.Args[0], nil, t.TempDir()); err == nil {
+	if _, err := startNativeWorker(0, 1, "S-1-5-18", os.Args[0], nil, t.TempDir()); err == nil {
 		t.Fatal("implicit user accepted")
 	}
 	called := false
