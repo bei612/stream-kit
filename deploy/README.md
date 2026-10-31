@@ -6,6 +6,18 @@ on Linux, both belong under `/opt/stream-kit/orchestrator/`; on Windows, both
 belong under the install root passed to the service installer. Configuration can
 remain in `/etc/stream-kit/` or `C:\ProgramData\StreamKit\` independently.
 
+Without an explicit template, first run creates a random administrator credential,
+loopback-only listener configuration, and disabled `sunshine` / `web_server`
+entries, then exits for review. Their executable paths are empty; the generated
+management form can configure both components without selecting an installed
+upstream binary. Automatic startup requires a nonempty executable path. Component
+paths and activation remain explicit deployment choices, and changes require a
+control-service restart. Existing configuration and explicit templates are retained.
+The clean Windows `35498585` bundle passed first-run generation, actual browser
+login, component path editing, user-session settings and isolated control restart
+at `artifacts/control-bundle/2026-10-31T08-50-11-441Z/`. Neither media component was
+launched by that acceptance; this is not full platform installation acceptance.
+
 After installing locked dependencies with `npm ci` in `orchestrator/web`, use `node scripts/build-control-plane.mjs`
 from the repository root to build the control-plane bundle. `--go` selects the
 Go executable and `--output` selects a new output directory. Existing output is
