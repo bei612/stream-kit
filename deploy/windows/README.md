@@ -61,6 +61,14 @@ TCP listeners. Normal defaults remain 9000, 8080, and 47989. The management
 shortcut follows the selected control port. These options also allow deployment
 beside an existing development instance without stopping it.
 
+Initialization probes the control/gateway TCP listeners and Sunshine's native
+TCP (-5, 0, +1, +21) and UDP (+9, +10, +11) offsets before creating runtime data
+or credentials. A busy listener reports its component, protocol and port. The
+temporary probes close on success and failure; they are not persistent port
+reservations. Later startup races remain covered by service readiness. Setup
+surfaces bounded listener/readiness diagnostics in its error and installation
+log without copying general child configuration output or credentials.
+
 ## Build
 
 Use the official Inno Setup 7.1.1 distribution. Its license and commercial-use

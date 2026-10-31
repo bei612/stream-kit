@@ -59,6 +59,7 @@ const
 var
   DataPage: TInputDirWizardPage;
   AdminPage: TInputQueryWizardPage;
+  LastNativeError: String;
 
 function ControlURL(Param: String): String;
 begin
@@ -134,15 +135,31 @@ begin
 end;
 
 function NativeCommand(Arguments: String): Boolean;
-var ExitCode: Integer;
+var ExitCode, I: Integer; Output: TExecOutput; Line: String;
 begin
-  Result := Exec(ExpandConstant('{app}\orchestrator\orchestrator.exe'), Arguments,
-    ExpandConstant('{app}\orchestrator'), SW_HIDE, ewWaitUntilTerminated, ExitCode);
+  LastNativeError := '';
+  Result := ExecAndCaptureOutput(ExpandConstant('{app}\orchestrator\orchestrator.exe'), Arguments,
+    ExpandConstant('{app}\orchestrator'), SW_HIDE, ewWaitUntilTerminated, ExitCode, Output);
   Result := Result and (ExitCode = 0);
+  if not Result then begin
+    Log('Native setup command failed with exit code ' + IntToStr(ExitCode));
+    { Surface bounded listener/readiness diagnostics only. Do not log general
+      configuration output or credentials from native child programs. }
+    for I := 0 to GetArrayLength(Output.StdErr) - 1 do begin
+      Line := Output.StdErr[I];
+      if (Length(Line) <= 1024) and
+        (((Pos('platform initialization failed: ', Line) = 1) and
+          (Pos(' listener ', Line) > 0) and (Pos(' unavailable;', Line) > 0)) or
+         (Pos('service operation failed: platform not ready:', Line) = 1)) then begin
+        LastNativeError := #13#10 + Line;
+        Log(Line);
+      end;
+    end;
+  end;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
-var AdminFile, Arguments, ConfigFile: String;
+var AdminFile, Arguments, ConfigFile, FailureReason: String;
 begin
   if CurStep <> ssPostInstall then Exit;
   AdminFile := ExpandConstant('{param:ADMINFILE|}');
@@ -163,7 +180,7 @@ begin
       Arguments := Arguments + ' --session-id ' + Quoted(ExpandConstant('{param:SESSIONID|}'));
     if ExpandConstant('{param:USERSID|}') <> '' then
       Arguments := Arguments + ' --user-sid ' + Quoted(ExpandConstant('{param:USERSID|}'));
-    if not NativeCommand(Arguments) then RaiseException('平台初始化失败，未启动服务。请检查安装目录、数据目录、登录会话和组件版本。');
+    if not NativeCommand(Arguments) then RaiseException('平台初始化失败，未启动服务。请检查安装目录、数据目录、登录会话和组件版本。' + LastNativeError);
   finally
     if not WizardSilent then DeleteFile(AdminFile);
   end;
@@ -171,9 +188,10 @@ begin
   if not NativeCommand('service install --config ' + ConfigFile) then
     RaiseException('服务注册失败，配置已保留。');
   if not NativeCommand('service start --config ' + ConfigFile) then begin
+    FailureReason := LastNativeError;
     if not NativeCommand('service remove --config ' + ConfigFile) then
       RaiseException('服务启动和清理均失败，请查看数据目录中的日志。');
-    RaiseException('服务启动失败，已移除本次注册的服务，数据及日志已保留。');
+    RaiseException('服务启动失败，已移除本次注册的服务，数据及日志已保留。' + FailureReason);
   end;
 end;
 

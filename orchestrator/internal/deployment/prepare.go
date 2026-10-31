@@ -90,6 +90,9 @@ func Initialize(ctx context.Context, options Options) (string, error) {
 	if _, err := os.Lstat(data); !os.IsNotExist(err) {
 		return "", fmt.Errorf("deployment data directory must not already exist")
 	}
+	if err := checkListeners(options); err != nil {
+		return "", err
+	}
 	if err := os.MkdirAll(filepath.Dir(data), 0700); err != nil {
 		return "", err
 	}
