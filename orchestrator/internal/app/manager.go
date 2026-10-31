@@ -126,6 +126,11 @@ func (m *Manager) updateStatus(appID string, status model.AppStatus, errMsg stri
 
 // CreateApp creates a new app record for an upload.
 func (m *Manager) CreateApp(name, argsTemplate, args, exePath string, fileSize int64, captureMode model.CaptureMode) (*model.App, error) {
+	resolvedArgs, err := m.resolveArguments(args, argsTemplate)
+	if err != nil {
+		return nil, err
+	}
+	args = resolvedArgs
 	if err := m.validateCaptureMode(captureMode); err != nil {
 		return nil, err
 	}
@@ -144,9 +149,6 @@ func (m *Manager) CreateApp(name, argsTemplate, args, exePath string, fileSize i
 	var tmpl *string
 	if argsTemplate != "" {
 		tmpl = &argsTemplate
-		if templateArgs, ok := m.config.Templates[argsTemplate]; ok {
-			args = templateArgs
-		}
 	}
 
 	app := &model.App{
@@ -791,15 +793,21 @@ func (m *Manager) UpdateApp(appID string, name, args, argsTemplate *string, capt
 		needsReRegister = true
 	}
 
-	if args != nil && *args != app.Args {
-		fields["args"] = *args
-		needsReRegister = true
-	}
-
-	if argsTemplate != nil {
-		fields["args_template"] = *argsTemplate
-		if templateArgs, ok := m.config.Templates[*argsTemplate]; ok {
-			fields["args"] = templateArgs
+	if args != nil || argsTemplate != nil {
+		nextArgs, template := app.Args, ""
+		if args != nil {
+			nextArgs = *args
+		}
+		if argsTemplate != nil {
+			template = *argsTemplate
+			fields["args_template"] = template
+		}
+		nextArgs, err = m.resolveArguments(nextArgs, template)
+		if err != nil {
+			return err
+		}
+		if nextArgs != app.Args {
+			fields["args"] = nextArgs
 			needsReRegister = true
 		}
 	}

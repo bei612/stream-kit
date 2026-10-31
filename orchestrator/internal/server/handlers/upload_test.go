@@ -35,7 +35,7 @@ func TestUploadPreservesCompoundArchiveAndCleansTemporaryFiles(t *testing.T) {
 	for _, test := range []struct {
 		name    string
 		corrupt bool
-	}{{"valid", false}, {"corrupt", true}} {
+	}{{"valid", false}, {"corrupt", true}, {"missing-template", false}} {
 		t.Run(test.name, func(t *testing.T) {
 			var archive bytes.Buffer
 			gz := gzip.NewWriter(&archive)
@@ -51,6 +51,9 @@ func TestUploadPreservesCompoundArchiveAndCleansTemporaryFiles(t *testing.T) {
 			var body bytes.Buffer
 			form := multipart.NewWriter(&body)
 			_ = form.WriteField("name", test.name)
+			if test.name == "missing-template" {
+				_ = form.WriteField("args_template", "not-configured")
+			}
 			file, _ := form.CreateFormFile("file", "Application.TAR.GZ")
 			_, _ = file.Write(data)
 			_ = form.Close()
@@ -58,6 +61,18 @@ func TestUploadPreservesCompoundArchiveAndCleansTemporaryFiles(t *testing.T) {
 			request.Header.Set("Content-Type", form.FormDataContentType())
 			response := httptest.NewRecorder()
 			router.ServeHTTP(response, request)
+			if test.name == "missing-template" {
+				if response.Code != 400 {
+					t.Fatalf("invalid template status: %d %s", response.Code, response.Body.String())
+				}
+				files, readErr := os.ReadDir(cfg.Storage.TempDir)
+				archives, archiveErr := st.ListUploadArchives()
+				record, recordErr := st.GetAppByName(test.name)
+				if readErr != nil || archiveErr != nil || recordErr != nil || len(files) != 0 || len(archives) != 0 || record != nil || manager.IsUploading() {
+					t.Fatal("rejected template leaked upload ownership or persisted an application")
+				}
+				return
+			}
 			if response.Code != 200 {
 				t.Fatalf("upload: %d %s", response.Code, response.Body.String())
 			}

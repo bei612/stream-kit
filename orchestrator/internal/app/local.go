@@ -65,9 +65,14 @@ func (m *Manager) RegisterLocal(req LocalAppRequest) (*model.App, error) {
 		return nil, fmt.Errorf("%w：%s", ErrInvalidLocalApp, err)
 	}
 	req.Name = strings.TrimSpace(req.Name)
-	if req.Name == "" || len(req.Name) > 255 || strings.ContainsAny(req.Name+req.Args, "\x00\r\n") || len(req.Args) > 4096 {
-		return nil, fmt.Errorf("%w：名称或参数无效", ErrInvalidLocalApp)
+	if req.Name == "" || len(req.Name) > 255 || strings.ContainsAny(req.Name, "\x00\r\n") {
+		return nil, fmt.Errorf("%w：名称无效", ErrInvalidLocalApp)
 	}
+	resolvedArgs, err := m.resolveArguments(req.Args, req.ArgsTemplate)
+	if err != nil {
+		return nil, fmt.Errorf("%w：%w", ErrInvalidLocalApp, err)
+	}
+	req.Args = resolvedArgs
 	exe, err := canonicalLocalPath(req.ExePath, false)
 	if err != nil {
 		return nil, err
@@ -98,11 +103,6 @@ func (m *Manager) RegisterLocal(req LocalAppRequest) (*model.App, error) {
 	}
 	var template *string
 	if req.ArgsTemplate != "" {
-		args, ok := m.config.Templates[req.ArgsTemplate]
-		if !ok {
-			return nil, fmt.Errorf("%w：启动模板不存在", ErrInvalidLocalApp)
-		}
-		req.Args = args
 		template = &req.ArgsTemplate
 	}
 	existing, err := m.store.GetAppByName(req.Name)

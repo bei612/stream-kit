@@ -130,6 +130,8 @@ func (h *UploadHandler) Upload(c *gin.Context) {
 			errResponse(c, http.StatusConflict, "APP_ALREADY_EXISTS", err.Error())
 		} else if errors.Is(err, app.ErrCaptureModeUnavailable) {
 			errResponse(c, http.StatusBadRequest, "CAPTURE_UNAVAILABLE", err.Error())
+		} else if errors.Is(err, app.ErrInvalidLaunchArguments) {
+			errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", err.Error())
 		} else {
 			errResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 		}
