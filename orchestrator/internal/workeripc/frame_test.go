@@ -14,6 +14,36 @@ import (
 
 const testInstance = "0123456789abcdef0123456789abcdef"
 
+func TestMaximumEscapedLogsRemainValidAcrossWire(t *testing.T) {
+	for _, char := range []string{"\x00", "<", "&", "\"", "\\", "界", "\u2028"} {
+		line := strings.Repeat(char, MaxLogBytes/len(char))
+		writer, _ := New(testInstance, Events)
+		reader, _ := New(testInstance, Events)
+		var wire bytes.Buffer
+		if err := writer.Write(&wire, Frame{Kind: "log", Line: line}); err != nil {
+			t.Fatalf("%q write: %v", char, err)
+		}
+		frame, err := reader.Read(&wire)
+		if err != nil || frame.Line != line {
+			t.Fatalf("%q round trip: %v", char, err)
+		}
+		if err := writer.Write(&wire, Frame{Kind: "pong"}); err != nil {
+			t.Fatal(err)
+		}
+		if frame, err := reader.Read(&wire); err != nil || frame.Kind != "pong" {
+			t.Fatalf("heartbeat after log: %v", err)
+		}
+	}
+}
+
+func TestInvalidUTF8LogIsRejectedBeforeWriting(t *testing.T) {
+	writer, _ := New(testInstance, Events)
+	var wire bytes.Buffer
+	if err := writer.Write(&wire, Frame{Kind: "log", Line: "\xff"}); !errors.Is(err, ErrProtocol) || wire.Len() != 0 {
+		t.Fatalf("invalid UTF-8 reached the wire: %v", err)
+	}
+}
+
 func TestChildIdentityRequiredOnlyOnStarted(t *testing.T) {
 	child := strings.Repeat("a", 32)
 	for _, tc := range []struct {

@@ -12,10 +12,15 @@ import (
 	"io"
 	"math"
 	"strings"
+	"unicode/utf8"
 )
 
-const MaxFrameBytes = 128 << 10
 const MaxLogBytes = 64 << 10
+
+// JSON can expand one log byte into a six-byte escape (for example NUL or '<').
+// Reserve bounded space for the fixed lifecycle fields and maximum sequence.
+// Keep the decoded log limit independent from the encoded frame limit.
+const MaxFrameBytes = 6*MaxLogBytes + 512
 
 var ErrProtocol = errors.New("render worker protocol violation")
 
@@ -78,7 +83,7 @@ func (s *Stream) valid(f Frame) bool {
 	case "started":
 		return f.PID > 0 && uint64(f.PID) <= math.MaxUint32 && validInstance(f.ProcessInstance) && f.ExitCode == nil && f.Line == ""
 	case "log":
-		return f.PID == 0 && f.ExitCode == nil && len(f.Line) <= MaxLogBytes
+		return f.PID == 0 && f.ExitCode == nil && len(f.Line) <= MaxLogBytes && utf8.ValidString(f.Line)
 	case "exited":
 		return f.PID == 0 && f.ExitCode != nil && f.Line == ""
 	case "pong":

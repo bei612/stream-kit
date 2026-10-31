@@ -1,11 +1,42 @@
 package component
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
+
+	"github.com/stream-kit/orchestrator/internal/workeripc"
 )
+
+func TestRingBufferPublishesBoundedUTF8ToWorkerProtocol(t *testing.T) {
+	for _, source := range []string{
+		strings.Repeat("界", maxComponentLogLine/3+1),
+		strings.Repeat("\xffx", maxComponentLogLine/2),
+		strings.Repeat("\x00", maxComponentLogLine),
+	} {
+		rb := NewRingBuffer(1)
+		ch := rb.Subscribe()
+		rb.Write(source)
+		line := <-ch
+		if !utf8.ValidString(line) || len(line) > maxComponentLogLine || line != rb.GetLast(1)[0] {
+			t.Fatal("stored and published logs must be identical bounded UTF-8")
+		}
+		const instance = "0123456789abcdef0123456789abcdef"
+		writer, _ := workeripc.New(instance, workeripc.Events)
+		reader, _ := workeripc.New(instance, workeripc.Events)
+		var wire bytes.Buffer
+		if err := writer.Write(&wire, workeripc.Frame{Kind: "log", Line: line}); err != nil {
+			t.Fatal(err)
+		}
+		frame, err := reader.Read(&wire)
+		if err != nil || frame.Line != line {
+			t.Fatalf("worker log round trip: %v", err)
+		}
+	}
+}
 
 func TestRingBufferByteBudgetEvictsOldestWithoutLeavingReferences(t *testing.T) {
 	rb := NewRingBuffer(1000)

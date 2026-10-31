@@ -1,7 +1,9 @@
 package component
 
 import (
+	"strings"
 	"sync"
+	"unicode/utf8"
 )
 
 const maxComponentLogBytes = 4 * 1024 * 1024
@@ -28,9 +30,16 @@ func NewRingBuffer(size int) *RingBuffer {
 }
 
 func (rb *RingBuffer) Write(line string) {
+	// Native process output may contain arbitrary bytes. Normalize once before
+	// storage and fan-out so JSON consumers see the same bounded UTF-8 record.
+	line = strings.ToValidUTF8(line, "\uFFFD")
 	if len(line) > maxComponentLogLine {
 		const suffix = " [line truncated]"
-		line = line[:maxComponentLogLine-len(suffix)] + suffix
+		end := maxComponentLogLine - len(suffix)
+		for end > 0 && !utf8.RuneStart(line[end]) {
+			end--
+		}
+		line = line[:end] + suffix
 	}
 	rb.mu.Lock()
 	for rb.count > 0 && (rb.count == rb.size || rb.bytes+len(line) > maxComponentLogBytes) {

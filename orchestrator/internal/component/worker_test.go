@@ -21,7 +21,11 @@ func TestWorkerChild(t *testing.T) {
 	}
 	fmt.Print("worker-ready\n")
 	fmt.Println("instance=" + os.Getenv("STREAM_KIT_PROCESS_INSTANCE"))
-	if mode == "exit" {
+	if mode == "escaped-log" {
+		fmt.Println(strings.Repeat("\x00", workeripc.MaxLogBytes))
+		fmt.Println(strings.Repeat("\xffx", workeripc.MaxLogBytes/2))
+	}
+	if mode == "exit" || mode == "escaped-log" {
 		fmt.Print("final-partial")
 		os.Exit(7)
 	}
@@ -31,7 +35,7 @@ func TestWorkerChild(t *testing.T) {
 }
 
 func TestWorkerLifecycle(t *testing.T) {
-	for _, mode := range []string{"exit", "stop", "kill", "disconnect", "cancel", "duplicate", "launch-error"} {
+	for _, mode := range []string{"exit", "escaped-log", "stop", "kill", "disconnect", "cancel", "duplicate", "launch-error"} {
 		t.Run(mode, func(t *testing.T) {
 			server, client := net.Pipe()
 			defer client.Close()
@@ -89,7 +93,7 @@ func TestWorkerLifecycle(t *testing.T) {
 				// Drain output while sending commands: both directions may be active.
 				go func() { _ = commands.Write(client, workeripc.Frame{Kind: mode}) }()
 			}
-			if mode == "exit" || mode == "stop" || mode == "kill" {
+			if mode == "exit" || mode == "escaped-log" || mode == "stop" || mode == "kill" {
 				var output []string
 				for {
 					frame, err := events.Read(client)
@@ -103,8 +107,11 @@ func TestWorkerLifecycle(t *testing.T) {
 						if mode == "exit" && !strings.Contains(strings.Join(output, "\n"), "instance="+process.InstanceID) {
 							t.Fatal("started identity does not match child environment")
 						}
-						if mode == "exit" && (*frame.ExitCode != 7 || !strings.Contains(strings.Join(output, "\n"), "final-partial")) {
+						if (mode == "exit" || mode == "escaped-log") && (*frame.ExitCode != 7 || !strings.Contains(strings.Join(output, "\n"), "final-partial")) {
 							t.Fatalf("exit/logs: %+v %v", frame, output)
+						}
+						if mode == "escaped-log" && !strings.Contains(strings.Join(output, "\n"), strings.Repeat("\x00", workeripc.MaxLogBytes)) {
+							t.Fatal("escaped log was lost or truncated during forwarding")
 						}
 						break
 					}
@@ -112,7 +119,7 @@ func TestWorkerLifecycle(t *testing.T) {
 			}
 			select {
 			case err := <-finished:
-				if (mode == "exit" || mode == "stop" || mode == "kill") && err != nil {
+				if (mode == "exit" || mode == "escaped-log" || mode == "stop" || mode == "kill") && err != nil {
 					t.Fatal(err)
 				}
 				if mode == "duplicate" && !errors.Is(err, workeripc.ErrProtocol) {
