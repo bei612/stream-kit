@@ -34,8 +34,18 @@ jobs:
     name: Full Linux Sunshine (software and VAAPI)
     runs-on: ubuntu-24.04
     timeout-minutes: 180
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.local/ccache
+      CCACHE_MAXSIZE: 2G
+      CCACHE_COMPILERCHECK: content
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/cache/restore@v4
+        id: compiler-cache
+        with:
+          path: .local/ccache
+          key: sunshine-ccache-ubuntu24-${{ runner.arch }}-v1-${{ github.sha }}-${{ github.run_attempt }}
+          restore-keys: sunshine-ccache-ubuntu24-${{ runner.arch }}-v1-
       - uses: actions/setup-node@v4
         with:
           node-version: '26.4.0'
@@ -44,7 +54,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            cmake ninja-build build-essential clang autoconf automake libtool meson nasm \
+            cmake ninja-build build-essential clang ccache autoconf automake libtool meson nasm \
             pkg-config patch texinfo python3-jinja2 zlib1g-dev libass-dev libfreetype6-dev \
             libgnutls28-dev libmp3lame-dev libopus-dev libsdl2-dev libvorbis-dev libnuma-dev \
             libcap-dev libcurl4-openssl-dev libdrm-dev libevdev-dev libgbm-dev libgl-dev \
@@ -61,7 +71,14 @@ jobs:
           echo '::add-matcher::third_party/sunshine/.github/matchers/gcc.json'
           # This profile validates the complete application with software/VAAPI encoding.
           # CUDA-specific compilation and GPU runtime acceptance remain separate requirements.
-          bash scripts/build-sunshine.sh -DSUNSHINE_ENABLE_CUDA=OFF -DBUILD_DOCS=OFF 2>&1 | tee artifacts/linux-sunshine/build.log
+          bash scripts/build-sunshine.sh -DSUNSHINE_ENABLE_CUDA=OFF -DBUILD_DOCS=OFF -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache 2>&1 | tee artifacts/linux-sunshine/build.log
+      # Retain valid object compilations even if a later source file fails.
+      # Executables and acceptance results are always rebuilt/rechecked.
+      - uses: actions/cache/save@v4
+        if: always() && steps.compiler-cache.outputs.cache-hit != 'true'
+        with:
+          path: .local/ccache
+          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}
       - name: Verify capture in the integrated test executable
         timeout-minutes: 2
         run: |
