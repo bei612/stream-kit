@@ -83,7 +83,7 @@ namespace args {
   }
 
   int version() {
-    // version was already logged at startup
+    std::cout << PROJECT_NAME << " version: " << PROJECT_VERSION << " commit: " << PROJECT_VERSION_COMMIT << std::endl;
     return 0;
   }
 

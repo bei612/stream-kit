@@ -97,6 +97,13 @@ jobs:
             libxfixes-dev libxrandr-dev libxtst-dev libvulkan-dev glslang-tools \
             qt6-base-dev qt6-svg-dev pulseaudio pulseaudio-utils xvfb xauth x11-utils \
             libasound2-dev libclang-dev dpkg-dev
+          mkdir -p artifacts/linux-sunshine
+          dpkg-query -W > artifacts/linux-sunshine/distribution-packages.txt
+      - uses: actions/cache/restore@v4
+        id: codec-cache
+        with:
+          path: .local/cmake-build-sunshine-deps
+          key: linux-codec-sdk-v1-${{ hashFiles('artifacts/linux-sunshine/distribution-packages.txt', 'third_party/sunshine/third-party/build-deps/**', 'tools/sunshine-codec-probe/**', 'third_party-manifests/sunshine-dependencies.json') }}
       - name: Build vendored codecs and integrated Sunshine
         env:
           BUILD_JOBS: '2'
@@ -115,6 +122,11 @@ jobs:
         with:
           path: .local/ccache
           key: ${{ steps.compiler-cache.outputs.cache-primary-key }}
+      - uses: actions/cache/save@v4
+        if: always() && steps.codec-cache.outputs.cache-primary-key != '' && steps.codec-cache.outputs.cache-hit != 'true'
+        with:
+          path: .local/cmake-build-sunshine-deps
+          key: ${{ steps.codec-cache.outputs.cache-primary-key }}
       - name: Verify capture in the integrated test executable
         timeout-minutes: 2
         run: |

@@ -185,6 +185,11 @@ void mainThreadLoop(const std::shared_ptr<safe::event_t<bool>> &shutdown_event) 
  * @return Process or platform callback exit code.
  */
 int main(int argc, char *argv[]) {
+  // Build identity is a pure CLI query. It must work before installation and
+  // without creating configuration, looking up assets or starting GPU workers.
+  if (argc == 2 && std::strcmp(argv[1], "--version") == 0) {
+    return args::version();
+  }
 #ifdef __linux__
   const bool privileged_execution = getauxval(AT_SECURE) != 0 || platf::has_elevated_privileges(true);
   if (privileged_execution && !platf::sanitize_process_environment()) {

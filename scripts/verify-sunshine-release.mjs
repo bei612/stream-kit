@@ -25,14 +25,11 @@ verifySource()
 const binary = path.join(path.resolve(directory), process.platform === 'win32' ? 'sunshine.exe' : 'sunshine')
 const stat = fs.lstatSync(binary)
 if (!stat.isFile()) throw new Error('Sunshine release must be a regular executable file')
-// Sunshine parses configuration even for its version command. Keep that
-// configuration and any resulting files separate from installed services.
+// Native --version is independent of configuration/resources/devices. Check it
+// from an empty unrelated directory, both before and after native installation.
 const scratch = fs.mkdtempSync(path.join(path.resolve(directory), 'version-check-'))
-const config = path.join(scratch, 'sunshine.conf')
-const settings = {log_path:'sunshine.log',file_apps:'apps.json',file_state:'state.json',
-  credentials_file:'credentials.json',pkey:'key.pem',cert:'cert.pem'}
-fs.writeFileSync(config, Object.entries(settings).map(([key, name]) => `${key} = ${path.join(scratch,name).replaceAll('\\','/')}`).join('\n'))
-const version = execFileSync(binary, [config, '--version'], {cwd:scratch, encoding:'utf8', windowsHide:true, timeout:30000}).trim()
+const version = execFileSync(binary, ['--version'], {cwd:scratch, encoding:'utf8', windowsHide:true, timeout:30000}).trim()
+if(fs.readdirSync(scratch).length)throw Error('Version query created unexpected runtime files')
 if (!version.includes(`commit: ${commit}`) || version.includes('-dirty')) {
   throw new Error('Sunshine executable does not report the requested release revision')
 }
@@ -74,7 +71,8 @@ if (output) {
     if(linkage.includes('not found')||dynamic.includes('.local/cmake-build'))throw Error('Installed Linux renderer retains missing or build-tree dependencies')
     const loader=linkage.split('\n').find(line=>line.includes('libvulkan.so.1 =>'))?.split('=>')[1].trim().split(/\s+/)[0]
     if(loader&&fs.realpathSync(loader)!==fs.realpathSync(path.join(output,'lib/stream-kit/libvulkan.so.1')))throw Error('Installed Linux renderer does not resolve its private Vulkan loader')
-    const installedVersion=execFileSync(packagedBinary,[config,'--version'],{cwd:scratch,env:nativeEnvironment,encoding:'utf8',timeout:30000}).trim()
+    const installedVersion=execFileSync(packagedBinary,['--version'],{cwd:scratch,env:nativeEnvironment,encoding:'utf8',timeout:30000}).trim()
+    if(fs.readdirSync(scratch).length)throw Error('Installed version query created unexpected runtime files')
     if(!installedVersion.includes(`commit: ${commit}`)||installedVersion.includes('-dirty'))throw Error('Installed Linux renderer source stamp mismatch')
   }
   fs.copyFileSync(path.join(root, 'third_party/sunshine/LICENSE'), path.join(output, 'LICENSE'))

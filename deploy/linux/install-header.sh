@@ -22,6 +22,10 @@ entry=$(getent passwd "$render_user") || fail 'Rendering user does not exist'
 IFS=: read -r account _ uid gid _ home login_shell <<< "$entry"
 [[ $uid -ge 1000 && $uid -lt 65534 && $home == /* && -d $home && ! -L $home ]] || fail 'Select a regular rendering user with an existing real home directory'
 [[ $(stat -c %u "$home") == "$uid" ]] || fail 'Rendering home has a different owner'
+if [[ -e /opt/stream-kit || -L /opt/stream-kit ]]; then
+  [[ -d /opt/stream-kit && ! -L /opt/stream-kit ]] || fail 'Existing program path is not a real directory'
+  [[ $(dpkg-query -W -f='${Status}' stream-kit 2>/dev/null) == 'install ok installed' && -f /var/lib/stream-kit/render-user ]] || fail 'Existing program directory is not a configured Stream-Kit package; it will not be overwritten'
+fi
 if [[ -e /var/lib/stream-kit/render-user ]]; then
   [[ $(cat /var/lib/stream-kit/render-user) == "$render_user" ]] || fail 'Existing installation belongs to another rendering user'
 fi
@@ -56,12 +60,14 @@ else
   as_user install -d -m 700 "$home/.local/share/stream-kit"
   as_user "$binary" init-platform --root /opt/stream-kit --data-dir "$data"
 fi
+# Prepare input devices even when startup is deferred; desktop login alone
+# does not run modules-load again after a package has been installed.
+modprobe uinput
+modprobe uhid
+udevadm control --reload-rules
+udevadm trigger --property-match=DEVNAME=/dev/uinput
+udevadm trigger --property-match=DEVNAME=/dev/uhid
 if ((start)); then
-  modprobe uinput
-  modprobe uhid
-  udevadm control --reload-rules
-  udevadm trigger --property-match=DEVNAME=/dev/uinput
-  udevadm trigger --property-match=DEVNAME=/dev/uhid
   as_user systemctl --user daemon-reload
   as_user systemctl --user enable stream-kit.service
   as_user systemctl --user restart stream-kit.service
