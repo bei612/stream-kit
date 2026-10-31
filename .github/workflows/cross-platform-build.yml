@@ -237,13 +237,49 @@ jobs:
       - run: cargo install wasm-bindgen-cli --version 0.2.128 --locked
       - run: npm ci
       - run: node ../../scripts/build-gateway-release.mjs --output ../../artifacts/release/gateway
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --locked --all-targets -- -D warnings
+      - run: node ../../scripts/test-gateway-config.cjs ../../artifacts/release/gateway/web-server${{ runner.os == 'Windows' && '.exe' || '' }}
+      - run: node ../../scripts/smoke-media-contract.cjs ../../artifacts/release/gateway/web-server${{ runner.os == 'Windows' && '.exe' || '' }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: media-contract-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            artifacts/media-contract/**/result.json
+            artifacts/media-contract/**/gateway.log
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moonlight-web-${{ runner.os }}-${{ runner.arch }}
+          path: artifacts/release/gateway
+          if-no-files-found: error
       - run: npx --no-install playwright install --with-deps chromium firefox
       - name: Install WebKit media test runtime on Linux
         if: runner.os == 'Linux'
         run: npx --no-install playwright install --with-deps webkit
+      - run: node ../../scripts/smoke-gateway-browser.cjs ../../artifacts/release/gateway/dist
+      - run: node ../../scripts/smoke-gateway-browser.cjs ../../artifacts/release/gateway/dist
+        env:
+          BROWSER_ENGINE: firefox
+      - name: Verify WebKit viewer assets and WASM protocol bindings
+        if: runner.os == 'Linux'
+        run: node ../../scripts/smoke-gateway-browser.cjs ../../artifacts/release/gateway/dist
+        env:
+          BROWSER_ENGINE: webkit
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: viewer-browser-evidence-${{ runner.os }}-${{ runner.arch }}
+          path: artifacts/gateway-browser
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moonlight-browser-${{ runner.os }}-${{ runner.arch }}
+          path: artifacts/release/gateway/dist
+          if-no-files-found: error
       # The production audio pipe type graph imports generated protocol bindings.
       # Run after the complete gateway build, not in the management-only job.
-      - name: Record native Windows audio environment
+      - name: Require native Windows playback endpoint
         if: runner.os == 'Windows'
         shell: pwsh
         working-directory: .
@@ -251,7 +287,7 @@ jobs:
           New-Item -ItemType Directory -Force artifacts/audio-playback | Out-Null
           cargo build --locked --manifest-path components/audio-target/Cargo.toml --bin audio-probe 2>&1 | Tee-Object -FilePath artifacts/audio-playback/native-probe-build.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node scripts/record-windows-audio-environment.cjs components/audio-target/target/debug/audio-probe.exe
+          node scripts/record-windows-audio-environment.cjs components/audio-target/target/debug/audio-probe.exe --require-output
       - name: Verify browser audio and microphone RTP lifecycle
         shell: bash
         working-directory: .
@@ -280,42 +316,6 @@ jobs:
           name: browser-audio-${{ runner.os }}-${{ runner.arch }}
           path: artifacts/audio-playback/
           if-no-files-found: warn
-      - run: node ../../scripts/smoke-gateway-browser.cjs ../../artifacts/release/gateway/dist
-      - run: node ../../scripts/smoke-gateway-browser.cjs ../../artifacts/release/gateway/dist
-        env:
-          BROWSER_ENGINE: firefox
-      - name: Verify WebKit viewer assets and WASM protocol bindings
-        if: runner.os == 'Linux'
-        run: node ../../scripts/smoke-gateway-browser.cjs ../../artifacts/release/gateway/dist
-        env:
-          BROWSER_ENGINE: webkit
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: viewer-browser-evidence-${{ runner.os }}-${{ runner.arch }}
-          path: artifacts/gateway-browser
-          if-no-files-found: warn
-      - uses: actions/upload-artifact@v4
-        with:
-          name: moonlight-browser-${{ runner.os }}-${{ runner.arch }}
-          path: artifacts/release/gateway/dist
-          if-no-files-found: error
-      - run: cargo fmt --all -- --check
-      - run: cargo clippy --locked --all-targets -- -D warnings
-      - run: node ../../scripts/test-gateway-config.cjs ../../artifacts/release/gateway/web-server${{ runner.os == 'Windows' && '.exe' || '' }}
-      - run: node ../../scripts/smoke-media-contract.cjs ../../artifacts/release/gateway/web-server${{ runner.os == 'Windows' && '.exe' || '' }}
-      - uses: actions/upload-artifact@v4
-        with:
-          name: media-contract-${{ runner.os }}-${{ runner.arch }}
-          path: |
-            artifacts/media-contract/**/result.json
-            artifacts/media-contract/**/gateway.log
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        with:
-          name: moonlight-web-${{ runner.os }}-${{ runner.arch }}
-          path: artifacts/release/gateway
-          if-no-files-found: error
 
   sbom:
     name: Source SBOM

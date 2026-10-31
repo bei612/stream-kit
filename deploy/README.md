@@ -1,5 +1,18 @@
 # Stream-Kit service deployment
 
+The Windows gateway CI failure at revision `91842833` now has native environment
+evidence: job `124530698696` reported running AudioEndpointBuilder/Audiosrv but
+zero input and zero output endpoints. Firefox's gesture was active and its
+native resume promise did not settle. This is an unmet playback environment
+prerequisite; it does not prove a production player defect or a successful fix.
+Windows CI now requires an output endpoint before the playback probe and reports
+failure explicitly when none exists. Native builds, configuration/contract
+checks, viewer checks and bundle publication precede that hardware-dependent
+gate, so its failure no longer prevents obtaining the compiled release for
+deployment. The overall job remains failed until playback acceptance succeeds
+on an audio-capable Windows runner. No fake output backend or relaxed running
+state assertion is used.
+
 Clean revision `7c076209` passed the complete local Windows source-stack run at
 `artifacts/source-stream/2026-10-31T10-51-22-607Z/`, using the same revision's
 staged Sunshine, gateway, control bundle, example and Web assets. PATH contained
