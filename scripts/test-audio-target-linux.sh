@@ -48,6 +48,6 @@ if [ "$#" -gt 0 ]; then
     # Optional absolute path to the source-built Sunshine test executable.
     # Reuse this hardware-free server to exercise real per-application monitors.
     PULSE_SINK=stream_kit_acceptance STREAM_KIT_TEST_PULSE_APPLICATION_AUDIO=1 \
-        "$1" --gtest_filter='LinuxApplicationAudio.*' \
+        "$1" --gtest_filter='LinuxApplicationAudio.*:LinuxCaptureTargetTest.*' \
         --gtest_output="json:$repo/artifacts/audio-target/linux-application-audio.json"
 fi

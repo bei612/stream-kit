@@ -287,9 +287,11 @@ namespace capture {
     return std::nullopt;
   }
 
+  #if !defined(__linux__)
   target_ptr bind_application(std::uint32_t, std::uintptr_t, std::uintptr_t) {
     // An unsupported backend must reject application scope, never capture desktop.
     return nullptr;
   }
+  #endif
 }  // namespace capture
 #endif

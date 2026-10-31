@@ -18,17 +18,16 @@
 #include <string>
 #include <string_view>
 #include <sys/wait.h>
-#include <thread>
 #include <unistd.h>
 
 extern char **environ;  ///< Inherited environment containing the isolated PulseAudio socket.
 
 namespace {
   /** @brief Separate playback process used to detect accidental whole-sink capture. */
-  class foreign_tone_t {
+  class playback_process_t {
   public:
     /** @brief Stop and reap only the test-owned child. */
-    ~foreign_tone_t() {
+    ~playback_process_t() {
       if (pid_ <= 0) {
         return;
       }
@@ -42,14 +41,19 @@ namespace {
       }
     }
 
-    /** @brief Play a distinct tone into the explicit fixture sink. @param sink Isolated test sink. @return True on launch. */
-    bool start(const char *sink) {
+    /** @brief Read the unreaped child identity. @return PID of the test-owned playback process. */
+    pid_t pid() const {
+      return pid_;
+    }
+
+    /** @brief Play a tone in its own launch group. @param sink Isolated test sink. @param hz Test frequency. @return True on launch. */
+    bool start(const char *sink, double hz) {
       auto file = std::unique_ptr<FILE, decltype(&fclose)>(std::tmpfile(), fclose);
       if (!file) {
         return false;
       }
-      for (int frame = 0; frame < 48000 * 5; ++frame) {
-        const float value = 0.1f * std::sin(frame * 6.283185307179586 * 1477.0 / 48000.0);
+      for (int frame = 0; frame < 48000 * 10; ++frame) {
+        const float value = 0.1f * std::sin(frame * 6.283185307179586 * hz / 48000.0);
         const float samples[] {value, value};
         if (std::fwrite(samples, sizeof(float), 2, file.get()) != 2) {
           return false;
@@ -72,8 +76,16 @@ namespace {
       if (redirected == 0 && fileno(file.get()) != STDIN_FILENO) {
         redirected = posix_spawn_file_actions_addclose(&actions, fileno(file.get()));
       }
+      posix_spawnattr_t attributes;
+      if (posix_spawnattr_init(&attributes) != 0) {
+        posix_spawn_file_actions_destroy(&actions);
+        return false;
+      }
+      const auto group = posix_spawnattr_setpgroup(&attributes, 0);
+      const auto flags = posix_spawnattr_setflags(&attributes, POSIX_SPAWN_SETPGROUP);
       pid_t child = -1;
-      const auto result = redirected == 0 ? posix_spawnp(&child, "pacat", &actions, nullptr, argv.data(), environ) : redirected;
+      const auto result = redirected == 0 && group == 0 && flags == 0 ? posix_spawnp(&child, "pacat", &actions, &attributes, argv.data(), environ) : EINVAL;
+      posix_spawnattr_destroy(&attributes);
       posix_spawn_file_actions_destroy(&actions);
       if (result == 0) {
         pid_ = child;
@@ -132,11 +144,16 @@ namespace {
     if (!enabled || std::string_view(enabled) != "1" || !sink || !*sink) {
       GTEST_SKIP() << "Requires explicit opt-in and an isolated test PULSE_SINK";
     }
-    auto target = std::make_shared<audio_test_target_t>();
+    playback_process_t owned;
+    playback_process_t foreign;
+    ASSERT_TRUE(owned.start(sink, 997.0));
+    ASSERT_TRUE(foreign.start(sink, 1477.0));
+    auto target = capture::bind_application(owned.pid(), owned.pid(), owned.pid());
+    ASSERT_NE(target, nullptr);
+    ASSERT_TRUE(target->contains(owned.pid()));
+    ASSERT_FALSE(target->contains(foreign.pid()));
     auto mic = platf::application_microphone(target, 2, 48000, 960, true);
     ASSERT_NE(mic, nullptr);
-    foreign_tone_t foreign;
-    ASSERT_TRUE(foreign.start(sink));
     // Prove the competing process really produced its tone before checking isolation.
     {
       const pa_sample_spec spec {PA_SAMPLE_FLOAT32NE, 48000, 2};
@@ -149,42 +166,16 @@ namespace {
       ASSERT_NE(monitor, nullptr);
       std::vector<float> reference(1920);
       double amplitude = 0;
+      double owned_reference = 0;
       for (int i = 0; i < 30; ++i) {
         ASSERT_EQ(pa_simple_read(monitor.get(), reference.data(), reference.size() * sizeof(float), &error), 0);
         amplitude = std::max(amplitude, tone_amplitude(reference, 1477.0));
+        owned_reference = std::max(owned_reference, tone_amplitude(reference, 997.0));
       }
       ASSERT_GT(amplitude, 0.05) << "Foreign tone was not present; isolation test cannot proceed";
+      ASSERT_GT(owned_reference, 0.05) << "Owned tone was not present; capture test cannot proceed";
     }
-    std::atomic_bool failed {false};
-    std::jthread tone([&](std::stop_token stop) {
-      const pa_sample_spec spec {PA_SAMPLE_FLOAT32NE, 48000, 2};
-      int error = 0;
-      auto playback = pa_simple_new(nullptr, "stream-kit-isolation-test", PA_STREAM_PLAYBACK, sink, "test-tone", &spec, nullptr, nullptr, &error);
-      if (!playback) {
-        failed = true;
-        return;
-      }
-      std::vector<float> samples(1920);
-      std::uint64_t frame = 0;
-      while (!stop.stop_requested()) {
-        for (std::size_t i = 0; i < samples.size(); i += 2, ++frame) {
-          samples[i] = samples[i + 1] = 0.1f * std::sin(frame * 6.283185307179586 * 997.0 / 48000.0);
-        }
-        if (pa_simple_write(playback, samples.data(), samples.size() * sizeof(float), &error) < 0) {
-          failed = true;
-          break;
-        }
-      }
-      pa_simple_free(playback);
-    });
     std::vector<float> samples(1920);
-    for (int i = 0; i < 50; ++i) {
-      ASSERT_EQ(mic->sample(samples), platf::capture_e::ok);
-      for (float value : samples) {
-        ASSERT_EQ(value, 0.0f) << "Unowned playback leaked into application capture";
-      }
-    }
-    target->admit = true;
     double energy = 0;
     double owned_amplitude = 0;
     for (int i = 0; i < 100; ++i) {
@@ -195,7 +186,6 @@ namespace {
         energy += value * value;
       }
     }
-    EXPECT_FALSE(failed.load());
     EXPECT_GT(energy / (100 * samples.size()), 0.001);
     EXPECT_GT(owned_amplitude, 0.05);
     target->retire();

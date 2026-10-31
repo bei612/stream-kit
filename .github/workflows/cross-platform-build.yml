@@ -223,8 +223,21 @@ jobs:
           sudo apt-get install -y cmake ninja-build g++ libpulse-dev pulseaudio pulseaudio-utils
       - name: Build the production application capture backend
         run: |
-          cmake -S tools/sunshine-audio-tests -B .local/cmake-build-linux-audio -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build .local/cmake-build-linux-audio --parallel 2
+          mkdir -p artifacts/audio-target
+          echo '::add-matcher::third_party/sunshine/.github/matchers/gcc.json'
+          cmake -S tools/sunshine-audio-tests -B .local/cmake-build-linux-audio -G Ninja -DCMAKE_BUILD_TYPE=Release 2>&1 | tee artifacts/audio-target/native-build.log
+          cmake --build .local/cmake-build-linux-audio --parallel 2 2>&1 | tee -a artifacts/audio-target/native-build.log
+      - name: Attach native build diagnostics to the check
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          log = Path('artifacts/audio-target/native-build.log')
+          if log.exists():
+              tail = '\n'.join(log.read_text(errors='replace').splitlines()[-60:])
+              escaped = tail.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              print(f'::error title=Native capture build diagnostics::{escaped}')
+          PY
       - name: Verify audio isolation and target retirement on Linux
         timeout-minutes: 2
         run: sh scripts/test-audio-target-linux.sh --application-only "$GITHUB_WORKSPACE/.local/cmake-build-linux-audio/test_sunshine"

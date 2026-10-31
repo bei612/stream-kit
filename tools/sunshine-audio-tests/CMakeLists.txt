@@ -17,7 +17,9 @@ pkg_check_modules(PULSE REQUIRED IMPORTED_TARGET libpulse libpulse-simple)
 # This target needs no GPU, video encoder, display server, or alternative implementation.
 add_executable(test_sunshine
     "${SUNSHINE_SOURCE}/src/platform/linux/application_audio.cpp"
-    "${SUNSHINE_SOURCE}/tests/integration/test_linux_application_audio.cpp")
+    "${SUNSHINE_SOURCE}/src/platform/linux/application_target.cpp"
+    "${SUNSHINE_SOURCE}/tests/integration/test_linux_application_audio.cpp"
+    "${SUNSHINE_SOURCE}/tests/unit/test_linux_capture_target.cpp")
 target_include_directories(test_sunshine PRIVATE "${SUNSHINE_SOURCE}")
 target_compile_options(test_sunshine PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(test_sunshine PRIVATE PkgConfig::PULSE GTest::gtest_main)
