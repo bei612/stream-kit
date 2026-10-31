@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"os"
 	"path/filepath"
 
 	"github.com/stream-kit/orchestrator/internal/commandline"
@@ -23,12 +22,14 @@ type workerLaunch struct {
 
 var errWorkerLaunch = errors.New("invalid render worker launch snapshot")
 
+const maxWorkerLaunchBytes = 1 << 20
+
 func readWorkerLaunch(path, digest, instance string) (config.ComponentConfig, error) {
 	var empty config.ComponentConfig
 	if !filepath.IsAbs(path) || len(digest) != sha256.Size*2 {
 		return empty, errWorkerLaunch
 	}
-	file, err := os.Open(path)
+	file, err := openWorkerLaunch(path)
 	if err != nil {
 		return empty, errWorkerLaunch
 	}
@@ -37,9 +38,8 @@ func readWorkerLaunch(path, digest, instance string) (config.ComponentConfig, er
 	if err != nil || !info.Mode().IsRegular() {
 		return empty, errWorkerLaunch
 	}
-	const limit = 1 << 20
-	data, err := io.ReadAll(io.LimitReader(file, limit+1))
-	if err != nil || len(data) > limit {
+	data, err := io.ReadAll(io.LimitReader(file, maxWorkerLaunchBytes+1))
+	if err != nil || len(data) > maxWorkerLaunchBytes {
 		return empty, errWorkerLaunch
 	}
 	actual := sha256.Sum256(data)

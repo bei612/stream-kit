@@ -5,9 +5,7 @@ package component
 import (
 	"context"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -64,17 +62,16 @@ func TestNativeWorkerAuthenticatedLifecycle(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer listener.Close()
-			snapshot := workerLaunch{Instance: instance, Component: config.ComponentConfig{ExePath: os.Args[0], Args: "-test.run=^TestWorkerChild$", WorkingDir: filepath.Dir(os.Args[0]), Env: map[string]string{"STREAM_KIT_WORKER_TEST": "exit"}}}
-			data, err := json.Marshal(snapshot)
+			snapshot, err := writeWorkerLaunch(t.TempDir(), instance, user.User.Sid.String(), config.ComponentConfig{ExePath: os.Args[0], Args: "-test.run=^TestWorkerChild$", WorkingDir: filepath.Dir(os.Args[0]), Env: map[string]string{"STREAM_KIT_WORKER_TEST": "exit"}})
 			if err != nil {
 				t.Fatal(err)
 			}
-			launchPath := filepath.Join(t.TempDir(), "launch.json")
-			if err := os.WriteFile(launchPath, data, 0600); err != nil {
-				t.Fatal(err)
-			}
-			digest := sha256.Sum256(data)
-			args := []string{"-test.run=^TestNativePipeWorkerHelper$", "--", "--pipe", listener.Name(), "--instance", instance, "--controller-pid", strconv.Itoa(os.Getpid()), "--controller-created", strconv.FormatUint(creation, 10), "--controller-sid", user.User.Sid.String(), "--controller-session", strconv.FormatUint(uint64(session), 10), "--launch-file", launchPath, "--launch-sha256", hex.EncodeToString(digest[:])}
+			defer func() {
+				if err := snapshot.Close(); err != nil {
+					t.Error(err)
+				}
+			}()
+			args := []string{"-test.run=^TestNativePipeWorkerHelper$", "--", "--pipe", listener.Name(), "--instance", instance, "--controller-pid", strconv.Itoa(os.Getpid()), "--controller-created", strconv.FormatUint(creation, 10), "--controller-sid", user.User.Sid.String(), "--controller-session", strconv.FormatUint(uint64(session), 10), "--launch-file", snapshot.path, "--launch-sha256", snapshot.digest}
 			workerExe := os.Args[0]
 			// Optional built-artifact acceptance exercises main's real dispatch.
 			if binary := os.Getenv("STREAM_KIT_TEST_WORKER_BINARY"); binary != "" {
