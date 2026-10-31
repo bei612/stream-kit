@@ -59,6 +59,8 @@ assert.ok(!targetSwitch || microphoneTest, 'Target mode switching acceptance req
 const restartServices = process.argv.includes('--restart-services');
 const applyManagedGateway = process.argv.includes('--apply-managed-gateway');
 const applyManagedEncoder = process.argv.includes('--apply-managed-encoder');
+const editVulkan = process.argv.includes('--edit-vulkan');
+assert.ok(!editVulkan || (process.argv.includes('--edit-encoder-configuration') && !applyManagedEncoder), 'Vulkan editing requires an isolated configuration editing case');
 assert.ok(!applyManagedEncoder||(process.argv.includes('--edit-encoder-configuration')&&applicationExample&&!applyManagedGateway&&!restartServices&&!targetRecording&&!targetSwitch&&!expireClientLease),'Managed encoder apply requires an isolated program/configuration acceptance case');
 assert.ok(!applyManagedGateway || (process.argv.includes('--edit-gateway-configuration')&&!restartServices&&!microphoneTest&&!expireClientLease), 'Managed apply requires configuration editing and a separate recovery case');
 assert.ok(!restartServices || !microphoneTest, 'Run recovery and microphone isolation as separate acceptance cases');
@@ -512,11 +514,19 @@ async function main() {
     await adminPage.getByRole('heading',{name:'工作台',exact:true}).waitFor();
     await adminPage.locator('nav a[href="/settings"]').click();
     await adminPage.locator('#encoder-setting-sunshine_name').fill('Stream Kit encoder acceptance');
+    if(editVulkan) {
+      await adminPage.getByLabel('选择常用编码参数').selectOption('vk_rc_mode');
+      await adminPage.locator('#encoder-setting-vk_rc_mode').selectOption('4');
+    }
     await adminPage.getByRole('button',{name:'保存编码器配置',exact:true}).click();
     await adminPage.getByRole('status').filter({hasText:'配置已保存，需重启编码器后生效'}).waitFor();
     const saved=await api('/encoder-configuration');
     assert.notEqual(saved.revision,before.revision);
     assert.equal(saved.values.sunshine_name,'Stream Kit encoder acceptance');
+    if(editVulkan) {
+      assert.equal(String(saved.values.vk_rc_mode),'4');
+      result.vulkan_configuration={value:'4',saved:true,apply_policy:saved.apply_policy,runtime_verified:saved.runtime_verified};
+    }
     assert.equal(saved.values.pkey,null);
     assert.equal(saved.loaded_revision,before.loaded_revision);
     assert.equal(saved.instance_id,before.instance_id);
