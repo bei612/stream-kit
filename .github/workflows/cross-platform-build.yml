@@ -79,6 +79,7 @@ jobs:
       - run: npm run build
       - run: node --test ../../scripts/test-go-test-failures.mjs ../../scripts/test-go-notices.mjs ../../scripts/test-control-build-target.mjs
       - run: node --experimental-strip-types --test ../../scripts/test-frontend-notices.mjs
+      - run: node --test ../../scripts/test-audio-playback-lifecycle.mjs
       - run: node --experimental-strip-types --test ../../scripts/test-microphone-capture.mjs ../../scripts/test-microphone-sender.mjs ../../scripts/test-media-access.mjs ../../scripts/test-media-observation.mjs ../../scripts/test-viewer-bootstrap.mjs ../../scripts/test-webrtc-lifecycle.mjs ../../scripts/test-management-websocket.mjs ../../scripts/test-canvas-lifecycle.mjs ../../scripts/test-stream-pipelines.mjs ../../scripts/test-decoder-lifecycle.mjs ../../scripts/test-browser-condition.cjs
       - name: Install locked browser test tooling
         run: npm ci --ignore-scripts
@@ -95,6 +96,14 @@ jobs:
             BROWSER_ENGINE="$engine" node scripts/test-admin-session-audio.cjs
             BROWSER_ENGINE="$engine" node scripts/test-admin-encoder-configuration.cjs
           done
+      - name: Verify audio playback activation in Chromium and Firefox
+        working-directory: .
+        env:
+          BROWSER_CHANNEL: chromium
+        run: |
+          for engine in chromium firefox; do
+            BROWSER_ENGINE="$engine" node scripts/test-audio-playback-browser.cjs
+          done
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -102,6 +111,7 @@ jobs:
           path: |
             artifacts/session-audio/
             artifacts/encoder-configuration/
+            artifacts/audio-playback/
           if-no-files-found: warn
 
   moonlight-web:

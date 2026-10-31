@@ -45,10 +45,25 @@ export abstract class AudioContextBasePipe implements NodeAudioPlayer {
         }
     }
     cleanup(): void {
-        this.audioContext?.close()
+        const context = this.audioContext
+        this.audioContext = null
+        if (context && context.state !== "closed") {
+            void context.close().catch(error => this.logger?.debug(`Failed to close audio context: ${error}`))
+        }
+        if (this.base && "cleanup" in this.base && typeof this.base.cleanup === "function") {
+            this.base.cleanup()
+        }
     }
 
     onUserInteraction(): void {
+        const context = this.audioContext
+        if (context && context.state !== "running" && context.state !== "closed") {
+            // Keep resume and the downstream media element play in this same
+            // user gesture; awaiting one first can lose transient activation.
+            void context.resume().catch(error => {
+                if (this.audioContext === context) this.logger?.debug(`Audio context resume failed: ${error}`)
+            })
+        }
         if (this.base && "onUserInteraction" in this.base && typeof this.base.onUserInteraction == "function") {
             return this.base.onUserInteraction(...arguments)
         }
@@ -59,12 +74,12 @@ export abstract class AudioContextBasePipe implements NodeAudioPlayer {
     async reportStats(statsObject: Record<string, StatValue>): Promise<void> {
         // Both values are in secs -> we convert into ms
         if (this.audioContext?.baseLatency) {
-            statsObject.audioContextBaseLatencyMs = this.audioContext.baseLatency * 100
+            statsObject.audioContextBaseLatencyMs = this.audioContext.baseLatency * 1000
         } else {
             statsObject.audioContextBaseLatencyMs = "null"
         }
         if (this.audioContext?.outputLatency) {
-            statsObject.audioContextOutputLatencyMs = this.audioContext.outputLatency * 100
+            statsObject.audioContextOutputLatencyMs = this.audioContext.outputLatency * 1000
         } else {
             statsObject.audioContextOutputLatencyMs = "null"
         }
