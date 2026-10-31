@@ -137,27 +137,33 @@ func (p *workerProcess) wait() (code int, result error) {
 	}
 	// Never publish Done while the job still contains processes. If a native
 	// termination/query fails, retain ownership; a subsequent Kill can retry.
-	warned := false
-	for {
-		err := p.kill()
-		var accounting struct {
-			TotalUserTime, TotalKernelTime, ThisPeriodTotalUserTime, ThisPeriodTotalKernelTime int64
-			TotalPageFaultCount, TotalProcesses, ActiveProcesses, TotalTerminatedProcesses     uint32
-		}
-		queryErr := windows.QueryInformationJobObject(p.worker.job, windows.JobObjectBasicAccountingInformation, uintptr(unsafe.Pointer(&accounting)), uint32(unsafe.Sizeof(accounting)), nil)
-		if queryErr == nil && accounting.ActiveProcesses == 0 {
-			break
-		}
-		if (err != nil || queryErr != nil) && !warned {
-			p.logs.Write("[worker cleanup pending: native process ownership retained]")
-			warned = true
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
+	waitWorkerTree(p.worker, p.kill, p.logs)
 	p.ownerMu.Lock()
 	result = errors.Join(result, p.worker.Close())
 	p.closed = true
 	p.ownerMu.Unlock()
 	result = errors.Join(result, p.snapshot.Close())
 	return code, result
+}
+
+func waitWorkerTree(worker *nativeWorker, terminate func() error, logs *RingBuffer) {
+	warned := false
+	for {
+		err := terminate()
+		var accounting struct {
+			TotalUserTime, TotalKernelTime, ThisPeriodTotalUserTime, ThisPeriodTotalKernelTime int64
+			TotalPageFaultCount, TotalProcesses, ActiveProcesses, TotalTerminatedProcesses     uint32
+		}
+		queryErr := windows.QueryInformationJobObject(worker.job, windows.JobObjectBasicAccountingInformation, uintptr(unsafe.Pointer(&accounting)), uint32(unsafe.Sizeof(accounting)), nil)
+		if queryErr == nil && accounting.ActiveProcesses == 0 {
+			break
+		}
+		if (err != nil || queryErr != nil) && !warned {
+			if logs != nil {
+				logs.Write("[worker cleanup pending: native process ownership retained]")
+			}
+			warned = true
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
 }

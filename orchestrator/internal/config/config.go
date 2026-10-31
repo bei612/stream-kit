@@ -40,6 +40,8 @@ type ServerConfig struct {
 }
 
 type ComponentConfig struct {
+	WindowsSessionID   uint32            `json:"windows_session_id" mapstructure:"windows_session_id"`
+	WindowsUserSID     string            `json:"windows_user_sid" mapstructure:"windows_user_sid"`
 	ExePath            string            `json:"exe_path" mapstructure:"exe_path"`
 	Args               string            `json:"args" mapstructure:"args"`
 	PreflightArgs      string            `json:"preflight_args" mapstructure:"preflight_args"`
@@ -223,6 +225,9 @@ func validate(cfg *Config) []string {
 	check(cfg.Process.GracefulShutdownTimeout < 0, "process.graceful_shutdown_timeout_seconds 不能为负数")
 	for name, component := range cfg.Components {
 		prefix := "components." + name
+		if err := ValidateWindowsSession(name, component); err != nil {
+			errs = append(errs, err.Error())
+		}
 		if _, err := commandline.Parse(component.Args); err != nil {
 			errs = append(errs, prefix+".args: "+err.Error())
 		}

@@ -196,9 +196,9 @@ func (m *Manager) start(name string, cs *ComponentState, retry bool) error {
 		return nil
 	}
 
-	// Direct process launch
+	// The platform selects direct or interactive-session ownership.
 	logBuf := NewRingBuffer(2000)
-	proc, err := StartProcess(cfg.ExePath, cfg.Args, cfg.WorkingDir, cfg.Env, logBuf, m.logger)
+	proc, err := launchComponent(m.ctx, cfg, m.dataDir, logBuf, m.logger)
 	if err != nil {
 		cs.mu.Lock()
 		cs.Status = StatusError
@@ -310,7 +310,7 @@ func (m *Manager) preflight(ctx context.Context, name string) error {
 	if err := checkLaunchContext(name, cfg); err != nil {
 		return err
 	}
-	return preflight(ctx, cfg)
+	return preflightComponent(ctx, cfg, m.dataDir)
 }
 
 func (m *Manager) StartAll() {

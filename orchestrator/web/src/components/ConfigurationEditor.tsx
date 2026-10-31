@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
 
 const labels:Record<string,string> = {
+	windows_session_id:'Windows 渲染会话 ID',windows_user_sid:'Windows 渲染用户 SID',
   server:'管理服务与登录',components:'服务组件',sunshine_api:'串流编码器连接',moonlight_web:'媒体网关连接',storage:'应用与存储',process:'进程管理',notifications:'通知',log:'日志',templates:'启动参数模板',
   bind_address:'监听地址',username:'用户名',password:'密码',jwt_secret:'管理签名密钥',media_ticket_secret:'媒体签名密钥',cors_origins:'允许访问的来源',tls_cert:'TLS 证书路径',tls_key:'TLS 私钥路径',
   exe_path:'可执行程序路径',args:'启动参数',preflight_args:'原生配置预检参数',working_dir:'工作目录',env:'环境变量',auto_start:'自动启动',restart_on_crash:'崩溃后重启',restart_delay_seconds:'重启等待（秒）',max_restart_attempts:'最大重启次数',health_check:'健康检查',
@@ -64,6 +65,7 @@ export function ConfigurationEditor() {
     finally { setBusy(false) }
   }
   function fields(value:ConfigValue,path:string,key:string):React.ReactNode {
+	if(['windows_session_id','windows_user_sid'].includes(key)&&!path.startsWith('/components/sunshine/'))return null
     const dictionary=key==='env'||key==='templates'
     if(value && typeof value==='object' && !Array.isArray(value) || dictionary) {
       const entries=value && typeof value==='object' && !Array.isArray(value)?value:{}
@@ -84,6 +86,7 @@ export function ConfigurationEditor() {
     const title=labels[key]||key
     return <div key={path} className="space-y-1">
       <Label htmlFor={id}>{title}</Label>
+	  {key==='windows_session_id'&&<p className="text-xs text-muted-foreground">仅 Windows 服务部署使用。会话 ID 与用户 SID 必须匹配已登录的活动会话；控制服务需以 LocalSystem 运行。ID 设为 0 且清空 SID 时使用直接启动。修改后需重启控制服务。</p>}
       {key==='preflight_args'&&<p className="text-xs text-muted-foreground">使用同一程序、工作目录和环境执行，最长等待 15 秒。媒体网关可填 config check；自定义配置路径需与启动参数一致。重启预检失败会保留当前进程。留空则不执行预检。</p>}
       {typeof value==='boolean'||key==='verify_ssl'?<Select id={id} value={drafts[path]??(value===null?'default':String(value))} onChange={e=>edit(path,e.target.value)}>
         {key==='verify_ssl'&&<option value="default">使用默认策略</option>}<option value="true">启用</option><option value="false">禁用</option>

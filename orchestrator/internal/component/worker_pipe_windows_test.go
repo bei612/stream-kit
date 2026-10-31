@@ -286,7 +286,9 @@ func TestNativeControllerRejectsWrongPeer(t *testing.T) {
 			if server.file != nil {
 				defer server.file.Close()
 			}
-			if server.err != nil {
+			// Rejection closes the client immediately. Depending on scheduling,
+			// server-side IOCP setup may observe that closure before Accept returns.
+			if server.err != nil && !errors.Is(server.err, windows.ERROR_NO_DATA) && !errors.Is(server.err, windows.ERROR_BROKEN_PIPE) && !errors.Is(server.err, windows.ERROR_PIPE_NOT_CONNECTED) {
 				t.Fatal(server.err)
 			}
 			if connection != nil || !errors.Is(dialErr, workeripc.ErrPeerIdentity) {

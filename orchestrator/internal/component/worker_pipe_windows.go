@@ -46,6 +46,7 @@ func acceptNativeWorker(parent context.Context, listener *workeripc.Listener, wo
 	defer listener.Close()
 	defer func() {
 		if result != nil {
+			waitWorkerTree(worker, func() error { return windows.TerminateJobObject(worker.job, 1) }, nil)
 			result = errors.Join(result, worker.Close())
 		}
 	}()

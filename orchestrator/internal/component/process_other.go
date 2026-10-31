@@ -3,6 +3,7 @@
 package component
 
 import (
+	"fmt"
 	"github.com/stream-kit/orchestrator/internal/config"
 	"os"
 	"os/exec"
@@ -10,7 +11,12 @@ import (
 	"time"
 )
 
-func checkLaunchContext(_ string, _ config.ComponentConfig) error { return nil }
+func checkLaunchContext(_ string, cfg config.ComponentConfig) error {
+	if cfg.WindowsSessionID != 0 || cfg.WindowsUserSID != "" {
+		return fmt.Errorf("Windows 用户会话配置不能用于当前服务端平台")
+	}
+	return nil
+}
 
 func setPlatformAttrs(cmd *exec.Cmd) {}
 

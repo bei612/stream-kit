@@ -95,6 +95,7 @@ jobs:
           for engine in chromium firefox webkit; do
             BROWSER_ENGINE="$engine" node scripts/test-admin-session-audio.cjs
             BROWSER_ENGINE="$engine" node scripts/test-admin-encoder-configuration.cjs
+            BROWSER_ENGINE="$engine" node scripts/test-admin-worker-configuration.cjs
           done
       - uses: actions/upload-artifact@v4
         if: always()

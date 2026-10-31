@@ -133,9 +133,28 @@ native preflight or stopping an existing process for restart. Failure to query
 the current session also rejects the launch. The headless gateway and externally
 managed Sunshine remain available to the service control plane. Nonzero session
 IDs pass this prerequisite only; they are not proof of an unlocked desktop or
-working capture. The current Go child-process API does not expose an explicit
-desktop selector. Full service-owned interactive rendering still needs a user
-session worker with authenticated local control, explicit process ownership and
-session-change cleanup; this guard does not implement that worker.
+working capture.
+
+Managed Sunshine can now select the native Windows user-session worker through
+`components.sunshine.windows_session_id` and `windows_user_sid`. Set both for an
+active logged-on user; set the ID to `0` and clear the SID to retain direct
+launch. The management configuration page exposes both fields and marks them
+as requiring a control-service restart. They are rejected for other components,
+external-monitor mode, system service accounts, or Linux deployments.
+
+The control service must run as LocalSystem to acquire the selected user's WTS
+token. The user identity and session are checked before native launch; there is
+no fallback to another desktop. The worker uses `winsta0\default`, a contained
+process tree, mutually authenticated local pipes, and an immutable per-launch
+snapshot. Native preflight runs in that same user context before an existing
+renderer is stopped. Logs, heartbeats, stop, kill and exit ownership use the
+same component manager as direct processes. Worker logon/session changes are
+not yet an accepted recovery scenario.
+
+The launch transaction, failure cleanup, preflight failure, process lifecycle
+and 35-second idle heartbeat have native tests, including a built worker binary.
+Cross-session LocalSystem/SCM acceptance remains outstanding: the development
+shell used for these checks is not elevated. These tests do not establish that
+an installed service can capture or inject audio in the selected desktop.
 
 TLS termination should be provided by the deployment ingress; the Orchestrator bind address must remain private when TLS is terminated outside the process.

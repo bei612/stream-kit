@@ -17,6 +17,16 @@ import (
 // interactive desktop required by our Sunshine capture backend. External
 // renderers and the headless gateway are deliberately outside this check.
 func checkLaunchContext(name string, cfg config.ComponentConfig) error {
+	if err := config.ValidateWindowsSession(name, cfg); err != nil {
+		return err
+	}
+	if cfg.WindowsUserSID != "" {
+		token, err := openWorkerUser(cfg.WindowsSessionID, cfg.WindowsUserSID)
+		if err != nil {
+			return fmt.Errorf("无法获取指定 Windows 渲染会话（控制服务需要 LocalSystem 权限）: %w", err)
+		}
+		return token.Close()
+	}
 	if name != "sunshine" || cfg.ExePath == "" {
 		return nil
 	}

@@ -63,7 +63,8 @@ func writeWorkerLaunch(root, instance, userSID string, cfg config.ComponentConfi
 	if err != nil {
 		return nil, err
 	}
-	data, err := json.Marshal(workerLaunch{Instance: instance, Component: cfg})
+	launchConfig := config.ComponentConfig{ExePath: cfg.ExePath, Args: cfg.Args, PreflightArgs: cfg.PreflightArgs, WorkingDir: cfg.WorkingDir, Env: cfg.Env}
+	data, err := json.Marshal(workerLaunch{Instance: instance, Component: launchConfig})
 	if err != nil || len(data) > maxWorkerLaunchBytes {
 		return nil, errWorkerLaunch
 	}
