@@ -53,6 +53,10 @@ export function EncoderConfigurationEditor() {
             const text=String(value),number=Number(text)
             if((typeof value!=='string'&&typeof value!=='number')||!/^[+-]?\d+$/.test(text)||!Number.isSafeInteger(number)||number<(field.minimum??0)||(field.maximum!==undefined&&number>field.maximum))throw new Error(`${field.label}必须为 ${field.minimum??0} 至 ${field.maximum??'允许上限'} 范围内的整数。`)
           }
+          if(field.type==='number') {
+            const text=String(value),number=Number(text)
+            if((typeof value!=='string'&&typeof value!=='number')||!/^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$/.test(text)||!Number.isFinite(number)||number<(field.minimum??0)||(field.maximum!==undefined&&number>field.maximum))throw new Error(`${field.label}必须为 ${field.minimum??0} 至 ${field.maximum??'允许上限'} 范围内的数值。`)
+          }
         }
       }
     }catch(e){setError(e instanceof SyntaxError?'结构化参数必须使用有效 JSON。':e instanceof Error?e.message:'配置格式无效');return}
@@ -102,7 +106,7 @@ export function EncoderConfigurationEditor() {
               {!['true','false'].includes(text)&&<option value={text}>{text||'未设置'}</option>}<option value="true">开启</option><option value="false">关闭</option>
             </Select>:field?.choices?.length?<Select id={id} value={text} onChange={e=>edit(key,{mode:'text',text:e.target.value})}>
               {!field.choices.includes(text)&&<option value={text}>{text||'未设置'}</option>}{field.choices.map(value=><option key={value} value={value}>{value}</option>)}
-            </Select>:<Input id={id} type={hidden?'password':field?.type==='integer'?'number':'text'} min={field?.type==='integer'?(field.minimum??0):undefined} max={field?.maximum} step={field?.type==='integer'?1:undefined} autoComplete="off" value={text} placeholder={hidden?'值已隐藏，未编辑则保留':''} onChange={e=>edit(key,{mode,text:e.target.value})}/>}
+            </Select>:<Input id={id} type={hidden?'password':field?.type==='integer'||field?.type==='number'?'number':'text'} min={field?.type==='integer'||field?.type==='number'?(field.minimum??0):undefined} max={field?.maximum} step={field?.type==='integer'?1:field?.type==='number'?'any':undefined} autoComplete="off" value={text} placeholder={hidden?'值已隐藏，未编辑则保留':''} onChange={e=>edit(key,{mode,text:e.target.value})}/>}
             {draft&&<Button size="sm" variant="ghost" onClick={()=>setDrafts(current=>Object.fromEntries(Object.entries(current).filter(([name])=>name!==key)))}>撤销此项修改</Button>}
           </div>
         })}

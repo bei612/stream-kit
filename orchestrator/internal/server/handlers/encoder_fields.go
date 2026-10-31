@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
+	"math"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -12,8 +14,8 @@ type encoderField struct {
 	Key     string   `json:"key"`
 	Label   string   `json:"label"`
 	Type    string   `json:"type"`
-	Minimum int64    `json:"minimum,omitempty"`
-	Maximum int64    `json:"maximum,omitempty"`
+	Minimum float64  `json:"minimum,omitempty"`
+	Maximum float64  `json:"maximum,omitempty"`
 	Choices []string `json:"choices,omitempty"`
 }
 
@@ -27,16 +29,23 @@ var encoderFields = []encoderField{
 	{Key: "virtual_sink", Label: "虚拟声音设备", Type: "string"},
 	{Key: "stream_audio", Label: "传输主机声音", Type: "boolean"},
 	{Key: "max_bitrate", Label: "最大码率（kbps，0 为不限制）", Type: "integer", Maximum: 2147483647},
+	{Key: "minimum_fps_target", Label: "最低目标帧率（0 使用默认策略）", Type: "number", Maximum: 1000},
 	{Key: "hevc_mode", Label: "HEVC 支持模式（0 自动，1 禁用，2 主档次，3 含 Main10）", Type: "integer", Maximum: 3},
 	{Key: "av1_mode", Label: "AV1 支持模式（0 自动，1 禁用，2 8 位，3 含 10 位）", Type: "integer", Maximum: 3},
 	{Key: "nvenc_preset", Label: "NVIDIA 编码预设（1 最快，7 质量优先）", Type: "integer", Minimum: 1, Maximum: 7},
 	{Key: "nvenc_vbv_increase", Label: "NVIDIA VBV 缓冲增量（%）", Type: "integer", Maximum: 400},
 	{Key: "nvenc_spatial_aq", Label: "NVIDIA 空间自适应量化", Type: "boolean"},
 	{Key: "nvenc_h264_cavlc", Label: "NVIDIA H.264 使用 CAVLC", Type: "boolean"},
+	{Key: "nvenc_realtime_hags", Label: "NVIDIA HAGS 实时优先级", Type: "boolean"},
+	{Key: "nvenc_opengl_vulkan_on_dxgi", Label: "NVIDIA DXGI 采集 OpenGL/Vulkan", Type: "boolean"},
+	{Key: "nvenc_latency_over_power", Label: "NVIDIA 优先低延迟而非节能", Type: "boolean"},
 	{Key: "qsv_slow_hevc", Label: "Intel 启用较慢的 HEVC 编码器", Type: "boolean"},
 	{Key: "amd_preanalysis", Label: "AMD 编码预分析", Type: "boolean"},
 	{Key: "amd_vbaq", Label: "AMD 方差自适应量化", Type: "boolean"},
 	{Key: "amd_enforce_hrd", Label: "AMD 强制 HRD 缓冲约束", Type: "boolean"},
+	{Key: "amd_max_au_size", Label: "AMD 最大访问单元大小（bit，-1 使用编码器默认值）", Type: "integer", Minimum: -1, Maximum: 2147483647},
+	{Key: "vaapi_blbrc", Label: "VAAPI 块级码率控制", Type: "boolean"},
+	{Key: "vaapi_strict_rc_buffer", Label: "VAAPI 严格码率缓冲", Type: "boolean"},
 	{Key: "ping_timeout", Label: "客户端心跳超时（毫秒，-1 使用默认值）", Type: "integer", Minimum: -1, Maximum: 2147483647},
 	{Key: "fec_percentage", Label: "前向纠错冗余（%）", Type: "integer", Minimum: 1, Maximum: 255},
 	{Key: "lan_encryption_mode", Label: "局域网加密（0 禁用，1 可选，2 强制）", Type: "integer", Maximum: 2},
@@ -58,6 +67,8 @@ var encoderFieldByKey = func() map[string]encoderField {
 	}
 	return fields
 }()
+
+var encoderDecimal = regexp.MustCompile(`^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$`)
 
 func validEncoderField(key string, raw json.RawMessage) bool {
 	field, known := encoderFieldByKey[key]
@@ -106,7 +117,13 @@ func validEncoderField(key string, raw json.RawMessage) bool {
 			text = string(raw)
 		}
 		n, err := strconv.ParseInt(text, 10, 32)
-		return err == nil && n >= field.Minimum && n <= field.Maximum
+		return err == nil && float64(n) >= field.Minimum && float64(n) <= field.Maximum
+	case "number":
+		if !isText {
+			text = string(raw)
+		}
+		n, err := strconv.ParseFloat(text, 64)
+		return encoderDecimal.MatchString(text) && err == nil && !math.IsNaN(n) && !math.IsInf(n, 0) && n >= field.Minimum && n <= field.Maximum
 	}
 	return false
 }

@@ -29,7 +29,7 @@ const {engine,launchBrowser,evidenceDirectory}=require('./lib/test-browser.cjs')
             if(!failure)desiredRevision='"'+'b'.repeat(64)+'"';
             return route.fulfill({status:failure?409:200,json:failure?{status:'error',message:'配置已变化，请重新读取'}:{status:'ok',data:{revision:'"'+'b'.repeat(64)+'"',apply_policy:'encoder_restart',runtime_verified:false}}});
           }
-          return route.fulfill({status:readFailure?503:200,json:readFailure?{status:'error',message:'编码器读取失败'}:{status:'ok',data:{revision:desiredRevision,loaded_revision:loadedRevision,instance_id:instance,process_id:700,managed_instance_id:'d'.repeat(32),restart_required:desiredRevision!==loadedRevision,overridden_keys:['sunshine_name'],apply_policy:'encoder_restart',runtime_verified:false,fields:[{key:'ping_timeout',label:'心跳超时',type:'integer',minimum:-1,maximum:2147483647},{key:'min_log_level',label:'日志级别',type:'string',choices:['debug','info','warning']},{key:'sunshine_name',label:'渲染节点名称',type:'string'},{key:'stream_audio',label:'传输主机声音',type:'boolean'},{key:'max_bitrate',label:'最大码率',type:'integer',minimum:0,maximum:2147483647}],values:{sunshine_name:'Renderer',pkey:null},redacted_keys:['pkey']}}});
+          return route.fulfill({status:readFailure?503:200,json:readFailure?{status:'error',message:'编码器读取失败'}:{status:'ok',data:{revision:desiredRevision,loaded_revision:loadedRevision,instance_id:instance,process_id:700,managed_instance_id:'d'.repeat(32),restart_required:desiredRevision!==loadedRevision,overridden_keys:['sunshine_name'],apply_policy:'encoder_restart',runtime_verified:false,fields:[{key:'minimum_fps_target',label:'Minimum FPS',type:'number',minimum:0,maximum:1000},{key:'ping_timeout',label:'心跳超时',type:'integer',minimum:-1,maximum:2147483647},{key:'min_log_level',label:'日志级别',type:'string',choices:['debug','info','warning']},{key:'sunshine_name',label:'渲染节点名称',type:'string'},{key:'stream_audio',label:'传输主机声音',type:'boolean'},{key:'max_bitrate',label:'最大码率',type:'integer',minimum:0,maximum:2147483647}],values:{sunshine_name:'Renderer',pkey:null},redacted_keys:['pkey']}}});
         }
         return route.fulfill({status:503,json:{status:'error',message:'测试中未连接此服务'}});
       }
@@ -82,11 +82,23 @@ const {engine,launchBrowser,evidenceDirectory}=require('./lib/test-browser.cjs')
     await page.getByRole('alert').filter({hasText:'心跳超时必须为'}).waitFor();
     assert.equal(writes.length,2,'Out-of-range negative must not reach the API');
     await timeout.fill('-1');
+    const fpsKey='minimum_fps_target';
+    await page.locator('select').filter({has:page.locator('option[value="minimum_fps_target"]')}).selectOption(fpsKey);
+    const fps=page.locator('#encoder-setting-minimum_fps_target');
+    assert.equal(await fps.getAttribute('type'),'number');
+    assert.equal(await fps.getAttribute('step'),'any');
+    for(const invalid of ['-0.01','1000.01']) {
+      await fps.fill(invalid);await save.click();
+      await page.getByRole('alert').filter({hasText:'Minimum FPS'}).waitFor();
+      assert.equal(writes.length,2,'Invalid decimal must not reach the API');
+      assert.equal(await fps.inputValue(),invalid);
+    }
+    await fps.fill('59.94');
     await page.getByRole('combobox',{name:'选择常用编码参数',exact:true}).selectOption('min_log_level');
     await page.locator('#encoder-setting-min_log_level').selectOption('warning');
     await save.click();
     await page.getByRole('status').filter({hasText:'配置已保存'}).waitFor();
-    assert.deepEqual(writes[2],{revision:desiredRevision,changes:{stream_audio:true,max_bitrate:'20000',ping_timeout:'-1',min_log_level:'warning'}});
+    assert.deepEqual(writes[2],{revision:desiredRevision,changes:{stream_audio:true,max_bitrate:'20000',ping_timeout:'-1',minimum_fps_target:'59.94',min_log_level:'warning'}});
     readFailure=true;
     await page.getByRole('button',{name:'重新读取编码器配置',exact:true}).click();
     await page.getByRole('alert').filter({hasText:'编码器读取失败'}).waitFor();
@@ -94,7 +106,7 @@ const {engine,launchBrowser,evidenceDirectory}=require('./lib/test-browser.cjs')
     assert.deepEqual(errors,[]);
     const out=path.resolve(evidenceDirectory('artifacts/encoder-configuration'));fs.mkdirSync(out,{recursive:true});
     await page.screenshot({path:path.join(out,'admin-configuration.png'),fullPage:true});
-    fs.writeFileSync(path.join(out,'admin-browser-result.json'),JSON.stringify({passed:true,engine,browser_version:browser.version(),patches:writes.length,cases:['preserve-hidden','conflict-preserves-draft','explicit-reset','save-not-runtime','read-failure-locks-editor','catalog-selection','boolean-typed-value','integer-input','invalid-range-preserves-edit','signed-integer-sentinel'],errors},null,2));
+    fs.writeFileSync(path.join(out,'admin-browser-result.json'),JSON.stringify({passed:true,engine,browser_version:browser.version(),patches:writes.length,cases:['preserve-hidden','conflict-preserves-draft','explicit-reset','save-not-runtime','read-failure-locks-editor','catalog-selection','boolean-typed-value','integer-input','invalid-range-preserves-edit','signed-integer-sentinel','decimal-range-and-fraction'],errors},null,2));
     console.log('Admin encoder configuration browser checks passed');
   }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});
