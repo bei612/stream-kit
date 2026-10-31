@@ -36,6 +36,37 @@ func TestObservationContractAuthenticationAndBinding(t *testing.T) {
 	if !bytes.Equal(body, encoded) {
 		t.Fatal("Go observation differs from Rust fixture")
 	}
+	for _, name := range []string{"closed without error", "missing local device", "native error during status read"} {
+		t.Run(name, func(t *testing.T) {
+			var changed Acknowledgement
+			if err := json.Unmarshal(body, &changed); err != nil {
+				t.Fatal(err)
+			}
+			target := &changed.Sessions[0].MicrophoneTarget
+			target.State = "device_failed"
+			switch name {
+			case "closed without error":
+				target.Device.DeviceOpen = false
+			case "missing local device":
+				target.Device = nil
+				message := "configured local audio target is unavailable"
+				target.Error = &message
+			default:
+				message := "native failure"
+				target.Device.Error, target.Error = &message, &message
+			}
+			data, err := json.Marshal(changed)
+			if err != nil {
+				t.Fatal(err)
+			}
+			mac := hmac.New(sha256.New, secret)
+			mac.Write([]byte(ObservationSigningContext))
+			mac.Write(data)
+			if _, err := decodeAcknowledgement(secret, hex.EncodeToString(mac.Sum(nil)), data, request, now); err != nil {
+				t.Fatalf("valid device failure must remain observable: %v", err)
+			}
+		})
+	}
 	for _, test := range []struct {
 		name      string
 		key       []byte

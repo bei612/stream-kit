@@ -113,12 +113,53 @@ impl MicrophoneSender {
     }
 }
 
+// Desired configuration and runtime resources are distinct. In particular,
+// absence of an error string is never evidence that a device remains open.
+fn observe_target(
+    target: &super::control_state::AudioTarget,
+    active: bool,
+    remote_microphone: bool,
+    snapshot: Option<&target::Snapshot>,
+) -> super::media_observation::TargetObservation {
+    use super::{
+        control_state::TargetMode,
+        media_observation::{TargetObservation, TargetState},
+    };
+    let matching = snapshot.filter(|s| active && s.epoch == target.epoch && !s.pending);
+    let device = matching.and_then(|s| s.device.clone());
+    let mut error = matching
+        .and_then(|s| s.error.clone())
+        .or_else(|| device.as_ref().and_then(|s| s.error.clone()));
+    if matching.is_some() && target.mode == TargetMode::Local && device.is_none() && error.is_none()
+    {
+        error = Some("configured local audio target is unavailable".into());
+    }
+    let state = match &device {
+        _ if !active => TargetState::Idle,
+        _ if matching.is_none() => TargetState::Pending,
+        _ if error.is_some() => TargetState::DeviceFailed,
+        Some(status) if !status.device_open => TargetState::DeviceFailed,
+        Some(_) => TargetState::DeviceOpen,
+        _ if target.mode == TargetMode::Disabled => TargetState::Disabled,
+        _ if target.mode == TargetMode::Upstream && remote_microphone => {
+            TargetState::UpstreamTransport
+        }
+        _ => TargetState::Unconfigured,
+    };
+    TargetObservation {
+        epoch: target.epoch,
+        state,
+        device,
+        error,
+    }
+}
+
 impl UpstreamPool {
     pub async fn observe(
         &self,
         sessions: &[super::control_state::SessionAuthority],
     ) -> Vec<super::media_observation::SessionObservation> {
-        use super::media_observation::{SessionObservation, TargetObservation, TargetState};
+        use super::media_observation::SessionObservation;
         let index = self.sessions.lock().await;
         sessions
             .iter()
@@ -138,40 +179,17 @@ impl UpstreamPool {
                 let snapshot = shared
                     .as_ref()
                     .and_then(|s| s.target.as_ref().map(|t| t.snapshot()));
-                let matching = snapshot
-                    .as_ref()
-                    .filter(|s| active && s.epoch == target.epoch && !s.pending);
-                let device = matching.and_then(|s| s.device.clone());
-                let error = matching.and_then(|s| s.error.clone());
-                let state = match &device {
-                    _ if !active => TargetState::Idle,
-                    _ if matching.is_none() => TargetState::Pending,
-                    _ if error.is_some() => TargetState::DeviceFailed,
-                    Some(status) if !status.device_open && status.error.is_some() => {
-                        TargetState::DeviceFailed
-                    }
-                    Some(_) if active => TargetState::DeviceOpen,
-                    _ if target.mode == super::control_state::TargetMode::Disabled => {
-                        TargetState::Disabled
-                    }
-                    _ if target.mode == super::control_state::TargetMode::Upstream
-                        && shared.as_ref().is_some_and(|s| s.remote_microphone) =>
-                    {
-                        TargetState::UpstreamTransport
-                    }
-                    _ => TargetState::Unconfigured,
-                };
                 SessionObservation {
                     session_id: session.session_id.clone(),
                     revision: session.revision,
                     upstream_active: active,
                     subscribers: shared.as_ref().map_or(0, |s| s.events.receiver_count()),
-                    microphone_target: TargetObservation {
-                        epoch: target.epoch,
-                        state,
-                        device,
-                        error,
-                    },
+                    microphone_target: observe_target(
+                        target,
+                        active,
+                        shared.as_ref().is_some_and(|s| s.remote_microphone),
+                        snapshot.as_ref(),
+                    ),
                 }
             })
             .collect()
@@ -594,6 +612,76 @@ mod tests {
         session.host_id = 1;
         session.app_id = 2;
         session
+    }
+
+    #[test]
+    fn target_observation_requires_current_open_device_not_just_absent_error() {
+        use super::super::{control_state::TargetMode, media_observation::TargetState};
+        let mut desired = observed_session().audio.target;
+        desired.mode = TargetMode::Local;
+        let mut snapshot = target::Snapshot {
+            epoch: desired.epoch,
+            ..Default::default()
+        };
+        let missing = observe_target(&desired, true, false, Some(&snapshot));
+        assert_eq!(missing.state, TargetState::DeviceFailed);
+        assert!(missing.error.is_some());
+        snapshot.device = Some(stream_kit_audio_target::TargetStatus {
+            device_open: false,
+            device_sample_frames: 48000,
+            dropped_frames: 0,
+            xruns: 0,
+            realtime_denied: false,
+            error: None,
+        });
+        let closed = observe_target(&desired, true, false, Some(&snapshot));
+        assert_eq!(closed.state, TargetState::DeviceFailed);
+        assert!(
+            !closed
+                .device
+                .expect("closed device observation")
+                .device_open
+        );
+        snapshot
+            .device
+            .as_mut()
+            .expect("fixture device")
+            .device_open = true;
+        assert_eq!(
+            observe_target(&desired, true, false, Some(&snapshot)).state,
+            TargetState::DeviceOpen
+        );
+        snapshot.device.as_mut().expect("fixture device").error = Some("native failure".into());
+        let failed = observe_target(&desired, true, false, Some(&snapshot));
+        assert_eq!(failed.state, TargetState::DeviceFailed);
+        assert_eq!(failed.error.as_deref(), Some("native failure"));
+        for (active, pending, epoch, expected) in [
+            (false, false, desired.epoch, TargetState::Idle),
+            (true, true, desired.epoch, TargetState::Pending),
+            (true, false, desired.epoch + 1, TargetState::Pending),
+        ] {
+            snapshot.pending = pending;
+            snapshot.epoch = epoch;
+            let observation = observe_target(&desired, active, true, Some(&snapshot));
+            assert_eq!(observation.state, expected);
+            assert!(observation.device.is_none());
+            assert!(observation.error.is_none());
+        }
+        snapshot = target::Snapshot {
+            epoch: desired.epoch,
+            ..Default::default()
+        };
+        for (mode, remote, expected) in [
+            (TargetMode::Disabled, true, TargetState::Disabled),
+            (TargetMode::Upstream, false, TargetState::Unconfigured),
+            (TargetMode::Upstream, true, TargetState::UpstreamTransport),
+        ] {
+            desired.mode = mode;
+            assert_eq!(
+                observe_target(&desired, true, remote, Some(&snapshot)).state,
+                expected
+            );
+        }
     }
 
     #[tokio::test]
