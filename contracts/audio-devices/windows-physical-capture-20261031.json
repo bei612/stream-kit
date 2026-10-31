@@ -23,5 +23,26 @@
                         "Physical capture preflight only; no gateway uplink, target recording, audience audio or UE5 claim",
                         "Browser permission was granted by automation under task authorization; no permission dialog acceptance"
                     ],
-    "capture_source_sha256":  "8f66be549f9383d0a8e32d6cf169a971b099632db42254f322de0944709d11fd"
+    "capture_source_sha256":  "8f66be549f9383d0a8e32d6cf169a971b099632db42254f322de0944709d11fd",
+    "configured_input_run":  {
+                                 "source_commit":  "1817e8ae81cba36efe430ab77c35100c8201c4a3",
+                                 "passed":  true,
+                                 "capture":  {
+                                                 "label":  "麦克风 (Realtek(R) Audio)",
+                                                 "sample_rate":  48000,
+                                                 "channels":  1,
+                                                 "echo_cancellation":  true,
+                                                 "noise_suppression":  true,
+                                                 "auto_gain_control":  true,
+                                                 "sampled_frames":  61440,
+                                                 "peak":  0.009666459634900093,
+                                                 "rms":  0.001306714838843689,
+                                                 "stopped_after_revocation":  true,
+                                                 "regrant_stays_idle":  true
+                                             },
+                                 "result_sha256":  "103885ee9493eb3627540a878a36163150af6a8c222e94b1468294b10b64ff1c",
+                                 "capture_source_sha256":  "6736d581ad313920adcb17517e2e563ed29c6a6b1cd80cd7ee9b323d0c0b199f",
+                                 "settings_browser_result_sha256":  "e3c49323875e0dcd70029df9f89b0759336b76ee60cbea16678a5a5fac86fdc3",
+                                 "scope":  "Configured production microphone owner with exact Realtek input and existing processing defaults; settings UI metadata is a browser fixture. No full target/broadcast acceptance claim."
+                             }
 }
