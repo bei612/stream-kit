@@ -851,6 +851,29 @@ TEST_F(ManagedAppsHttpTest, LegacyIndexApiCannotRewriteOrDeleteOwnedApp) {
   EXPECT_EQ(tree["apps"][0]["cmd"], "unrelated");
 }
 
+TEST_F(ManagedAppsHttpTest, ApplicationModeSaveMatchesAdvertisedCapabilityAndLaunchRules) {
+  const auto capabilities = client->request("GET", "/capture-capabilities-test", "", headers());
+  ASSERT_EQ(capabilities->status_code, "200 OK");
+  const auto modes = nlohmann::json::parse(capabilities->content.string()).at("capture_modes").get<std::vector<std::string>>();
+  const bool available = std::find(modes.begin(), modes.end(), "application") != modes.end();
+  const nlohmann::json app {{"name", "Application"}, {"cmd", "owned"}, {"capture-mode", "application"}, {"auto-detach", false}, {"wait-all", true}};
+  const auto saved = client->request("PUT", route, app.dump(), headers());
+  ASSERT_EQ(saved->status_code, available ? "200 OK" : "400 Bad Request");
+  const auto before = app_registry::read(config::stream.file_apps);
+  if (available) {
+    const auto read = client->request("GET", route, "", headers());
+    ASSERT_EQ(read->status_code, "200 OK");
+    EXPECT_EQ(nlohmann::json::parse(read->content.string())["app"]["capture-mode"], "application");
+  }
+  for (const auto &invalid : {nlohmann::json {{"cmd", ""}}, nlohmann::json {{"auto-detach", true}},
+                            nlohmann::json {{"wait-all", false}}, nlohmann::json {{"detached", {"untracked"}}}}) {
+    auto changed = app;
+    changed.update(invalid);
+    EXPECT_EQ(client->request("PUT", route, changed.dump(), headers())->status_code, "400 Bad Request");
+    EXPECT_EQ(app_registry::read(config::stream.file_apps), before);
+  }
+}
+
 TEST_F(ManagedAppsHttpTest, RejectsMalformedOrOversizedUpdatesWithoutMutation) {
   for (const auto body : {R"({"name":"Bad","capture-mode":"window"})", R"({"name":"Bad","stream-kit-id":"22222222-2222-4222-8222-222222222222"})", R"({"cmd":"missing-name"})"}) {
     EXPECT_EQ(client->request("PUT", route, body, headers())->status_code, "400 Bad Request");
@@ -912,7 +935,9 @@ TEST_F(ConfigHttpTest, CaptureCapabilitiesExposeVersionedApplyPolicy) {
   EXPECT_EQ(body.at("managed_runtime_version"), 1);
   const auto modes = body.at("capture_modes").get<std::vector<std::string>>();
   EXPECT_NE(std::find(modes.begin(), modes.end(), "desktop"), modes.end());
-#ifndef _WIN32
+#if defined(__linux__) && defined(SUNSHINE_BUILD_X11)
+  EXPECT_NE(std::find(modes.begin(), modes.end(), "application"), modes.end());
+#elif !defined(_WIN32)
   EXPECT_EQ(modes.size(), 1U);
 #endif
 }

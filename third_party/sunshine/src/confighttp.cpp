@@ -1022,7 +1022,7 @@ namespace confighttp {
 
   /**
    * @brief Check OS prerequisites for the compiled window and process-audio backend.
-   * @return True on Windows builds supporting process loopback; runtime devices are checked at capture start.
+   * @return True when the OS/build includes application video and audio; runtime devices are checked at capture start.
    */
   bool application_capture_available() {
 #ifdef _WIN32
@@ -1036,6 +1036,10 @@ namespace confighttp {
     version.dwOSVersionInfoSize = sizeof(version);
     return std::bit_cast<version_query_t>(address)(&version) == 0 &&
            (version.dwMajorVersion > 10 || (version.dwMajorVersion == 10 && version.dwBuildNumber >= 20348));
+#elif defined(__linux__) && defined(SUNSHINE_BUILD_X11)
+    // Match the launch path: XComposite video and per-stream PulseAudio capture.
+    // Display extensions, process ownership, and audio availability are checked at start.
+    return true;
 #else
     return false;
 #endif

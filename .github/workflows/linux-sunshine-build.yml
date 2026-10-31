@@ -58,6 +58,10 @@ jobs:
         timeout-minutes: 2
         run: |
           STREAM_KIT_TEST_X11_CAPTURE=1 xvfb-run -a sh scripts/test-audio-target-linux.sh --application-only "$GITHUB_WORKSPACE/.local/cmake-build-sunshine/tests/test_sunshine" 2>&1 | tee artifacts/linux-sunshine/runtime.log
+      - name: Verify management capture capabilities and application persistence
+        timeout-minutes: 2
+        run: |
+          .local/cmake-build-sunshine/tests/test_sunshine --gtest_filter='ConfigHttpTest.CaptureCapabilities*:ManagedAppsHttpTest.ApplicationModeSaveMatchesAdvertisedCapabilityAndLaunchRules' --gtest_output=json:artifacts/linux-sunshine/management.json 2>&1 | tee -a artifacts/linux-sunshine/runtime.log
       - name: Publish failure details to the check
         if: failure()
         run: |
