@@ -283,6 +283,13 @@ namespace capture {
           if (!extension || !extension->present) {
             return nullptr;
           }
+          // Local client PID queries were introduced in X-Resource 1.2.
+          reply_ptr<xcb_res_query_version_reply_t> version(xcb_res_query_version_reply(
+            connection_.get(), xcb_res_query_version(connection_.get(), 1, 2), nullptr
+          ));
+          if (!version || version->server_major < 1 || (version->server_major == 1 && version->server_minor < 2)) {
+            return nullptr;
+          }
           auto roots = xcb_setup_roots_iterator(xcb_get_setup(connection_.get()));
           for (; screen > 0 && roots.rem; --screen) {
             xcb_screen_next(&roots);
