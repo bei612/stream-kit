@@ -184,9 +184,10 @@ if(BUILD_FFMPEG_X265)
     add_dependencies(ffmpeg x265)
 endif()
 add_dependencies(${CMAKE_PROJECT_NAME} ffmpeg)
-install(DIRECTORY "${FFMPEG_SOURCE_ROOT}/include/"
+# These are make-install outputs (--prefix above), not the prepared source tree.
+install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/FFmpeg/include/"
         DESTINATION ${FFMPEG_INSTALL_PREFIX}/include)
-install(DIRECTORY "${FFMPEG_SOURCE_ROOT}/lib/"
+install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/FFmpeg/lib/"
         DESTINATION ${FFMPEG_INSTALL_PREFIX}/lib)
 
 

@@ -148,4 +148,17 @@ context.suspend().then(()=>{document.body.dataset.ready='true'});
     throw error;
   }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve))}
 }
-main().catch(error=>{fs.mkdirSync(output,{recursive:true});fs.writeFileSync(path.join(output,'result.json'),JSON.stringify({passed:false,engine,error:error.message},null,2));console.error(error);process.exitCode=1});
+main().catch(error=>{
+  fs.mkdirSync(output,{recursive:true});
+  fs.writeFileSync(path.join(output,'result.json'),JSON.stringify({passed:false,engine,error:error.message},null,2));
+  console.error(error);
+  if(process.env.GITHUB_ACTIONS==='true'){
+    // Publish only this isolated probe's error and audio state, so a failed
+    // media check can be diagnosed without private artifact/log access.
+    const diagnostics=path.join(output,'diagnostics.json');
+    const detail=[error.stack||error.message,fs.existsSync(diagnostics)?fs.readFileSync(diagnostics,'utf8'):''].join('\n').slice(0,6000);
+    const escaped=detail.replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A');
+    console.log(`::error title=${engine} audio lifecycle::${escaped}`);
+  }
+  process.exitCode=1;
+});
