@@ -61,6 +61,23 @@ jobs:
         working-directory: orchestrator/web
       - name: Build versioned control-plane bundle
         run: node ../scripts/build-control-plane.mjs --require-clean
+      - name: Install locked bundle acceptance browser tooling
+        run: npm ci --ignore-scripts
+        working-directory: third_party/moonlight-web-stream
+      - name: Install bundle acceptance browser
+        run: npx --no-install playwright install --with-deps chromium
+        working-directory: third_party/moonlight-web-stream
+      - name: Verify the native control bundle with external configuration
+        working-directory: .
+        env:
+          BROWSER_CHANNEL: chromium
+        run: node scripts/accept-control-bundle.cjs orchestrator/bundle
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: control-bundle-acceptance-${{ runner.os }}-${{ runner.arch }}
+          path: artifacts/control-bundle/
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         with:
           name: orchestrator-${{ runner.os }}-${{ runner.arch }}

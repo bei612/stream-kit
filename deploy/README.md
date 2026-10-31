@@ -36,6 +36,17 @@ and cannot pass installation verification.
 Hashes identify the packaged bytes; the manifest is not a signature, SBOM or
 proof that the complete platform has passed acceptance.
 
+`node scripts/accept-control-bundle.cjs BUNDLE_DIRECTORY` runs the native bundle
+with an isolated external configuration, database, random administrator credential
+and loopback port. A real browser checks login and the packaged sibling management
+assets, saves both renderer and gateway user-session settings, verifies rejection
+of incomplete/stale writes, then restores direct launch and restarts only its own
+control process. It verifies the immutable package before and after the run and
+requires both media components to remain unstarted. It neither installs a service
+nor validates audio/capture. Windows execution of the clean `ba07b312` bundle passed
+at `artifacts/control-bundle/2026-10-31T07-30-29-029Z/`; the Linux bundle was only
+cross-compiled locally. Both native CI jobs now run this package acceptance.
+
 Run `orchestrator verify-bundle DIRECTORY` (or `orchestrator.exe` on Windows)
 before installation. The command is read-only and starts no server. It requires
 a clean release manifest matching the verifier's platform/architecture, checks
