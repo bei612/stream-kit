@@ -36,9 +36,24 @@ function MediaRuntime({ observation }: { observation?: MediaObservation }) {
 
 function AudioSettings({ session, busy, action }: { session: RenderSession; busy: boolean; action: Action }) {
   const [audio, setAudio] = useState<SessionAudio>(session.audio)
+  const [baseline, setBaseline] = useState<SessionAudio>(session.audio)
+  const sameAudio = (a: SessionAudio, b: SessionAudio) => a.program_gain_db === b.program_gain_db && a.microphone_gain_db === b.microphone_gain_db && a.microphone_enabled === b.microphone_enabled && a.broadcast_controller_microphone === b.broadcast_controller_microphone && a.controller_monitor === b.controller_monitor
+  const dirty = !sameAudio(audio, baseline)
+  const stale = !sameAudio(baseline, session.audio)
+  useEffect(() => {
+    if (!dirty) { setAudio(session.audio); setBaseline(session.audio) }
+  }, [session.audio, dirty])
   const [capacity, setCapacity] = useState(session.policy.max_viewers)
+  const [capacityBase, setCapacityBase] = useState(session.policy.max_viewers)
+  useEffect(() => {
+    if (capacity === capacityBase) { setCapacity(session.policy.max_viewers); setCapacityBase(session.policy.max_viewers) }
+  }, [session.policy.max_viewers, capacity, capacityBase])
   return <div className="border-t border-border mt-4 pt-4 grid gap-6 lg:grid-cols-2">
-    <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void action(() => api.updateStreamAudio(session.session_id, audio)) }}>
+    <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); if (stale) return; void action(async () => {
+      const result = await api.updateStreamAudio(session.session_id, audio, baseline)
+      if (result.data) { setAudio(result.data.audio); setBaseline(result.data.audio) }
+      return result
+    }) }}>
       <fieldset disabled={busy} className="space-y-3">
         <legend className="font-medium mb-2">音频设置</legend>
         <div className="flex flex-wrap gap-4 text-sm">
@@ -49,10 +64,18 @@ function AudioSettings({ session, busy, action }: { session: RenderSession; busy
           <label className="flex items-center gap-2">程序音量（dB）<input className="w-20 rounded border border-border bg-background px-2 py-1" type="number" required min={-60} max={12} step={1} value={audio.program_gain_db} onChange={(e) => setAudio({ ...audio, program_gain_db: e.target.valueAsNumber })} /></label>
           <label className="flex items-center gap-2">麦克风音量（dB）<input className="w-20 rounded border border-border bg-background px-2 py-1" type="number" required min={-60} max={12} step={1} value={audio.microphone_gain_db} onChange={(e) => setAudio({ ...audio, microphone_gain_db: e.target.valueAsNumber })} /></label>
         </div>
-        <Button size="sm" type="submit">应用音频设置</Button>
+        {stale && <p role="alert" className="text-sm text-amber-400">音频配置已更新，当前草稿未覆盖服务器设置。请载入最新配置后重新编辑。</p>}
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" type="submit" disabled={stale}>应用音频设置</Button>
+          {(dirty || stale) && <Button size="sm" type="button" variant="outline" onClick={() => {setAudio(session.audio);setBaseline(session.audio)}}>载入最新音频配置</Button>}
+        </div>
       </fieldset>
     </form>
-    <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void action(() => api.updateStreamPolicy(session.session_id, { ...session.policy, max_viewers: capacity })) }}>
+    <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void action(async () => {
+      const result = await api.updateStreamPolicy(session.session_id, { ...session.policy, max_viewers: capacity })
+      if (result.data) { setCapacity(result.data.policy.max_viewers); setCapacityBase(result.data.policy.max_viewers) }
+      return result
+    }) }}>
       <fieldset disabled={busy} className="space-y-3">
         <legend className="font-medium mb-2">连接容量</legend>
         <label className="flex items-center gap-2 text-sm">最大客户端数<input className="w-20 rounded border border-border bg-background px-2 py-1" type="number" required min={0} step={1} value={capacity} onChange={(e) => setCapacity(e.target.valueAsNumber)} /></label>
@@ -132,7 +155,7 @@ export default function StreamSessions() {
             })}
           </div>
           {connections.length === 0 && <div className="text-sm text-muted-foreground py-4 text-center">当前没有客户端连接</div>}
-          <AudioSettings key={`${JSON.stringify(session.audio)}:${JSON.stringify(session.policy)}`} session={session} busy={busy} action={action} />
+          <AudioSettings session={session} busy={busy} action={action} />
           <AudioTargetSettings session={session} busy={busy} action={action} />
         </Card>
       })}

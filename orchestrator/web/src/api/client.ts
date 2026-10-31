@@ -126,8 +126,8 @@ export const api = {
     request<RenderSession>(`/stream-sessions/${sessionId}/controller/${connectionId}`, {
       method: 'PUT', body: JSON.stringify({ expected_controller_connection_id: expectedControllerId, expected_control_epoch: expectedControlEpoch }),
     }),
-  updateStreamAudio: (sessionId: string, audio: SessionAudio) =>
-    request<RenderSession>(`/stream-sessions/${sessionId}/audio`, { method: 'PATCH', body: JSON.stringify(audio) }),
+  updateStreamAudio: (sessionId: string, audio: SessionAudio, expected: SessionAudio) =>
+    request<RenderSession>(`/stream-sessions/${sessionId}/audio`, { method: 'PATCH', body: JSON.stringify({...audio, expected_audio: expected}) }),
   updateStreamPolicy: (sessionId: string, policy: SessionPolicy) =>
     request<RenderSession>(`/stream-sessions/${sessionId}/policy`, { method: 'PATCH', body: JSON.stringify(policy) }),
   claimStreamController: (sessionId: string, connectionId: string) =>

@@ -22,6 +22,7 @@ var ErrCapacity = errors.New("viewer limit reached")
 var ErrNotFound = errors.New("stream session or connection not found")
 var ErrControllerExists = errors.New("stream session already has a controller")
 var ErrControllerChanged = errors.New("controller changed since the command was prepared")
+var ErrAudioChanged = errors.New("audio settings changed since the command was prepared")
 var ErrInvalidState = errors.New("invalid stream session state")
 
 const (
@@ -282,10 +283,26 @@ func (m *Manager) Transfer(id, connectionID, expectedControllerID string, expect
 	})
 }
 func (m *Manager) UpdateAudio(id string, cfg AudioConfig) error {
+	return m.updateAudio(id, cfg, nil)
+}
+
+// CompareAndSetAudio protects administrator edits from stale page snapshots.
+// Endpoint routing has an independent epoch and is excluded from this compare.
+func (m *Manager) CompareAndSetAudio(id string, cfg, expected AudioConfig) error {
+	expected.Target = AudioTarget{}
+	return m.updateAudio(id, cfg, &expected)
+}
+
+func (m *Manager) updateAudio(id string, cfg AudioConfig, expected *AudioConfig) error {
 	if math.IsNaN(cfg.ProgramGainDB) || math.IsNaN(cfg.MicrophoneGainDB) || cfg.ProgramGainDB < -60 || cfg.ProgramGainDB > 12 || cfg.MicrophoneGainDB < -60 || cfg.MicrophoneGainDB > 12 {
 		return ErrInvalidState
 	}
 	return m.mutate(id, "stream_audio_changed", func(s *RenderSession) error {
+		current := s.Audio
+		current.Target = AudioTarget{}
+		if expected != nil && current != *expected {
+			return ErrAudioChanged
+		}
 		// Routing has its own compare-and-set command; gain/mute updates cannot
 		// overwrite endpoint selection from an older page snapshot.
 		cfg.Target = s.Audio.Target

@@ -335,6 +335,7 @@ async function main() {
     result.target_recording={render_device_id:targetRender,capture_device_id:targetCapture,probe_sha256:sha(targetProbe),measurements:{},passed:false};
   }
   if (microphoneTest) await api(`/stream-sessions/${invite.session_id}/audio`, 'PATCH', {
+    expected_audio: (await api(`/stream-sessions/${invite.session_id}`)).audio,
     program_gain_db: applicationExample ? 0 : -60, microphone_gain_db: 0, microphone_enabled: true,
     broadcast_controller_microphone: true, controller_monitor: false,
   });

@@ -232,12 +232,19 @@ func (h *SessionHandler) Transfer(c *gin.Context) {
 	okResponse(c, s)
 }
 func (h *SessionHandler) Audio(c *gin.Context) {
-	var cfg session.AudioConfig
-	if c.ShouldBindJSON(&cfg) != nil {
+	var req struct {
+		session.AudioConfig
+		Expected *session.AudioConfig `json:"expected_audio"`
+	}
+	if c.ShouldBindJSON(&req) != nil || req.Expected == nil {
 		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", "invalid audio config")
 		return
 	}
-	if err := h.Manager.UpdateAudio(c.Param("session_id"), cfg); err != nil {
+	if err := h.Manager.CompareAndSetAudio(c.Param("session_id"), req.AudioConfig, *req.Expected); err != nil {
+		if errors.Is(err, session.ErrAudioChanged) {
+			errResponse(c, http.StatusConflict, "AUDIO_CONFIGURATION_CONFLICT", "音频配置已变化，请载入最新配置后重新编辑")
+			return
+		}
 		respondSessionError(c, err)
 		return
 	}
