@@ -1,0 +1,591 @@
+{
+  "schema_version": 1,
+  "scope": "Supplemental upstream license files omitted by published Cargo source packages; fetched from each package cargo_vcs_info revision",
+  "packages": [
+    {
+      "name": "alloc-stdlib",
+      "version": "0.2.2",
+      "license": "BSD-3-Clause",
+      "repository": "https://github.com/dropbox/rust-alloc-no-stdlib",
+      "revision": "6032b6a9b20e03737135c55a0270ccffcc1438ef",
+      "path_in_vcs": "alloc-stdlib",
+      "notices": [
+        {
+          "file": "dropbox--rust-alloc-no-stdlib/6032b6a9b20e03737135c55a0270ccffcc1438ef/LICENSE",
+          "sha256": "c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae",
+          "source": "https://raw.githubusercontent.com/dropbox/rust-alloc-no-stdlib/6032b6a9b20e03737135c55a0270ccffcc1438ef/LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "asn1-rs-impl",
+      "version": "0.2.0",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/rusticata/asn1-rs.git",
+      "revision": "a20e5f7319c896737ad0f2557037817b91ad854f",
+      "path_in_vcs": "impl",
+      "notices": [
+        {
+          "file": "rusticata--asn1-rs/a20e5f7319c896737ad0f2557037817b91ad854f/LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "source": "https://raw.githubusercontent.com/rusticata/asn1-rs/a20e5f7319c896737ad0f2557037817b91ad854f/LICENSE-APACHE"
+        },
+        {
+          "file": "rusticata--asn1-rs/a20e5f7319c896737ad0f2557037817b91ad854f/LICENSE-MIT",
+          "sha256": "a5c61b93b6ee1d104af9920cf020ff3c7efe818e31fe562c72261847a728f513",
+          "source": "https://raw.githubusercontent.com/rusticata/asn1-rs/a20e5f7319c896737ad0f2557037817b91ad854f/LICENSE-MIT"
+        }
+      ]
+    },
+    {
+      "name": "crc-catalog",
+      "version": "2.4.0",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/akhilles/crc-catalog.git",
+      "revision": "b500ea693c552f8d946e290722a7b3ee8b9a7ee2",
+      "path_in_vcs": "",
+      "notices": [
+        {
+          "file": "akhilles--crc-catalog/b500ea693c552f8d946e290722a7b3ee8b9a7ee2/LICENSE-Apache-2.0",
+          "sha256": "d3cdb764b98283ee7c3a3cea8d374e2a2957322374378d1f3263f4d512741fc3",
+          "source": "https://raw.githubusercontent.com/akhilles/crc-catalog/b500ea693c552f8d946e290722a7b3ee8b9a7ee2/LICENSES/Apache-2.0.txt"
+        },
+        {
+          "file": "akhilles--crc-catalog/b500ea693c552f8d946e290722a7b3ee8b9a7ee2/LICENSE-MIT",
+          "sha256": "5ef8fcfb6cccec8fcae043c834099a60c8b7406408db576e026d2b7e67dc5cf5",
+          "source": "https://raw.githubusercontent.com/akhilles/crc-catalog/b500ea693c552f8d946e290722a7b3ee8b9a7ee2/LICENSES/MIT.txt"
+        }
+      ]
+    },
+    {
+      "name": "crc32c",
+      "version": "0.6.8",
+      "license": "Apache-2.0/MIT",
+      "repository": "https://github.com/zowens/crc32c",
+      "revision": "254a861f7cc71bfe455e86f0e1d86e3c83c33390",
+      "path_in_vcs": "",
+      "notices": [
+        {
+          "file": "zowens--crc32c/254a861f7cc71bfe455e86f0e1d86e3c83c33390/NOTICE",
+          "sha256": "cdacc34974a954ea9ddb5da1a2ad19bcefaead7dfa9df6fd9421671ea5d19300",
+          "source": "https://raw.githubusercontent.com/zowens/crc32c/254a861f7cc71bfe455e86f0e1d86e3c83c33390/README.md"
+        },
+        {
+          "file": "standard/LICENSE-APACHE-2.0",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "source": "https://www.apache.org/licenses/LICENSE-2.0.txt"
+        }
+      ]
+    },
+    {
+      "name": "dasp_sample",
+      "version": "0.11.0",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rustaudio/sample.git",
+      "revision": "97c3bb9b2363c0b46ac1633858bf1054fd02a980",
+      "path_in_vcs": "",
+      "notices": [
+        {
+          "file": "rustaudio--sample/97c3bb9b2363c0b46ac1633858bf1054fd02a980/LICENSE-APACHE",
+          "sha256": "756c8d2ab2dc24f256e1455b5f03937f4933d83d7bc9f2d55009fc962377d512",
+          "source": "https://raw.githubusercontent.com/rustaudio/sample/97c3bb9b2363c0b46ac1633858bf1054fd02a980/LICENSE-APACHE"
+        },
+        {
+          "file": "rustaudio--sample/97c3bb9b2363c0b46ac1633858bf1054fd02a980/LICENSE-MIT",
+          "sha256": "b1d6df41ed3aa96806e74c729444d7c121d90e6660a6aed01d298e03fde475a0",
+          "source": "https://raw.githubusercontent.com/rustaudio/sample/97c3bb9b2363c0b46ac1633858bf1054fd02a980/LICENSE-MIT"
+        }
+      ]
+    },
+    {
+      "name": "rtc-crypto",
+      "version": "0.21.1",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/webrtc-rs/rtc",
+      "revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+      "path_in_vcs": "rtc-crypto",
+      "notices": [
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+        },
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT",
+          "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
+        }
+      ]
+    },
+    {
+      "name": "rtc-datachannel",
+      "version": "0.21.1",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/webrtc-rs/rtc",
+      "revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+      "path_in_vcs": "rtc-datachannel",
+      "notices": [
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+        },
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT",
+          "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
+        }
+      ]
+    },
+    {
+      "name": "rtc-dtls",
+      "version": "0.21.1",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/webrtc-rs/rtc",
+      "revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+      "path_in_vcs": "rtc-dtls",
+      "notices": [
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+        },
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT",
+          "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
+        }
+      ]
+    },
+    {
+      "name": "rtc-ice",
+      "version": "0.21.1",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/webrtc-rs/rtc",
+      "revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+      "path_in_vcs": "rtc-ice",
+      "notices": [
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+        },
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT",
+          "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
+        }
+      ]
+    },
+    {
+      "name": "rtc-interceptor",
+      "version": "0.21.1",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/webrtc-rs/rtc",
+      "revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+      "path_in_vcs": "rtc-interceptor",
+      "notices": [
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+        },
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT",
+          "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
+        }
+      ]
+    },
+    {
+      "name": "rtc-mdns",
+      "version": "0.21.1",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/webrtc-rs/rtc",
+      "revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+      "path_in_vcs": "rtc-mdns",
+      "notices": [
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+        },
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT",
+          "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
+        }
+      ]
+    },
+    {
+      "name": "rtc-media",
+      "version": "0.21.1",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/webrtc-rs/rtc",
+      "revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+      "path_in_vcs": "rtc-media",
+      "notices": [
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+        },
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT",
+          "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
+        }
+      ]
+    },
+    {
+      "name": "rtc-rtcp",
+      "version": "0.21.1",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/webrtc-rs/rtc",
+      "revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+      "path_in_vcs": "rtc-rtcp",
+      "notices": [
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+        },
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT",
+          "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
+        }
+      ]
+    },
+    {
+      "name": "rtc-rtp",
+      "version": "0.21.1",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/webrtc-rs/rtc",
+      "revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+      "path_in_vcs": "rtc-rtp",
+      "notices": [
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+        },
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT",
+          "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
+        }
+      ]
+    },
+    {
+      "name": "rtc-sctp",
+      "version": "0.21.1",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/webrtc-rs/rtc",
+      "revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+      "path_in_vcs": "rtc-sctp",
+      "notices": [
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+        },
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT",
+          "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
+        }
+      ]
+    },
+    {
+      "name": "rtc-sdp",
+      "version": "0.21.1",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/webrtc-rs/rtc",
+      "revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+      "path_in_vcs": "rtc-sdp",
+      "notices": [
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+        },
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT",
+          "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
+        }
+      ]
+    },
+    {
+      "name": "rtc-shared",
+      "version": "0.21.1",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/webrtc-rs/rtc",
+      "revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+      "path_in_vcs": "rtc-shared",
+      "notices": [
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+        },
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT",
+          "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
+        }
+      ]
+    },
+    {
+      "name": "rtc-srtp",
+      "version": "0.21.1",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/webrtc-rs/rtc",
+      "revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+      "path_in_vcs": "rtc-srtp",
+      "notices": [
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+        },
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT",
+          "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
+        }
+      ]
+    },
+    {
+      "name": "rtc-stun",
+      "version": "0.21.1",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/webrtc-rs/rtc",
+      "revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+      "path_in_vcs": "rtc-stun",
+      "notices": [
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+        },
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT",
+          "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
+        }
+      ]
+    },
+    {
+      "name": "rtc-turn",
+      "version": "0.21.1",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/webrtc-rs/rtc",
+      "revision": "2a732df55ca4bcf26b80914fa0f570cfaf74cfcb",
+      "path_in_vcs": "rtc-turn",
+      "notices": [
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-APACHE"
+        },
+        {
+          "file": "webrtc-rs--rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT",
+          "sha256": "56cc6c08157f4faf70d351b3a7ceac143399d5359a78c180e06dcd0390784f4d",
+          "source": "https://raw.githubusercontent.com/webrtc-rs/rtc/2a732df55ca4bcf26b80914fa0f570cfaf74cfcb/LICENSE-MIT"
+        }
+      ]
+    },
+    {
+      "name": "ts-rs",
+      "version": "11.1.0",
+      "license": "MIT",
+      "repository": "https://github.com/Aleph-Alpha/ts-rs",
+      "revision": "1dce5297090804082e9639d2b7d851ba815aa359",
+      "path_in_vcs": "ts-rs",
+      "notices": [
+        {
+          "file": "Aleph-Alpha--ts-rs/1dce5297090804082e9639d2b7d851ba815aa359/LICENSE",
+          "sha256": "db7f7f8e7236a2d0b41b855b2501b7b913caebbcda6ce498637a304ad1706ce1",
+          "source": "https://raw.githubusercontent.com/Aleph-Alpha/ts-rs/1dce5297090804082e9639d2b7d851ba815aa359/LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "ts-rs-macros",
+      "version": "11.1.0",
+      "license": "MIT",
+      "repository": "https://github.com/Aleph-Alpha/ts-rs",
+      "revision": "1dce5297090804082e9639d2b7d851ba815aa359",
+      "path_in_vcs": "macros",
+      "notices": [
+        {
+          "file": "Aleph-Alpha--ts-rs/1dce5297090804082e9639d2b7d851ba815aa359/LICENSE",
+          "sha256": "db7f7f8e7236a2d0b41b855b2501b7b913caebbcda6ce498637a304ad1706ce1",
+          "source": "https://raw.githubusercontent.com/Aleph-Alpha/ts-rs/1dce5297090804082e9639d2b7d851ba815aa359/LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "venator",
+      "version": "1.1.0",
+      "license": "MIT",
+      "repository": "https://github.com/kmdreko/venator",
+      "revision": "457f5346a3372b8807eef4025aec909ffbd5c95f",
+      "path_in_vcs": "venator",
+      "notices": [
+        {
+          "file": "kmdreko--venator/457f5346a3372b8807eef4025aec909ffbd5c95f/LICENSE",
+          "sha256": "e563e251e0d3889bfe3cecaf077b3a90cf653b6dcded241a6392a5badfc9a783",
+          "source": "https://raw.githubusercontent.com/kmdreko/venator/457f5346a3372b8807eef4025aec909ffbd5c95f/LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "uniffi",
+      "version": "0.31.2",
+      "license": "MPL-2.0",
+      "repository": "https://github.com/mozilla/uniffi-rs",
+      "revision": "05b45b110f652d58d94c653992aeb3adc3a094f4",
+      "path_in_vcs": "uniffi",
+      "notices": [
+        {
+          "file": "mozilla--uniffi-rs/05b45b110f652d58d94c653992aeb3adc3a094f4/LICENSE",
+          "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+          "source": "https://raw.githubusercontent.com/mozilla/uniffi-rs/05b45b110f652d58d94c653992aeb3adc3a094f4/LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "uniffi_bindgen",
+      "version": "0.31.2",
+      "license": "MPL-2.0",
+      "repository": "https://github.com/mozilla/uniffi-rs",
+      "revision": "05b45b110f652d58d94c653992aeb3adc3a094f4",
+      "path_in_vcs": "uniffi_bindgen",
+      "notices": [
+        {
+          "file": "mozilla--uniffi-rs/05b45b110f652d58d94c653992aeb3adc3a094f4/LICENSE",
+          "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+          "source": "https://raw.githubusercontent.com/mozilla/uniffi-rs/05b45b110f652d58d94c653992aeb3adc3a094f4/LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "uniffi_core",
+      "version": "0.31.2",
+      "license": "MPL-2.0",
+      "repository": "https://github.com/mozilla/uniffi-rs",
+      "revision": "05b45b110f652d58d94c653992aeb3adc3a094f4",
+      "path_in_vcs": "uniffi_core",
+      "notices": [
+        {
+          "file": "mozilla--uniffi-rs/05b45b110f652d58d94c653992aeb3adc3a094f4/LICENSE",
+          "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+          "source": "https://raw.githubusercontent.com/mozilla/uniffi-rs/05b45b110f652d58d94c653992aeb3adc3a094f4/LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "uniffi_internal_macros",
+      "version": "0.31.2",
+      "license": "MPL-2.0",
+      "repository": "https://github.com/mozilla/uniffi-rs",
+      "revision": "05b45b110f652d58d94c653992aeb3adc3a094f4",
+      "path_in_vcs": "uniffi_internal_macros",
+      "notices": [
+        {
+          "file": "mozilla--uniffi-rs/05b45b110f652d58d94c653992aeb3adc3a094f4/LICENSE",
+          "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+          "source": "https://raw.githubusercontent.com/mozilla/uniffi-rs/05b45b110f652d58d94c653992aeb3adc3a094f4/LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "uniffi_macros",
+      "version": "0.31.2",
+      "license": "MPL-2.0",
+      "repository": "https://github.com/mozilla/uniffi-rs",
+      "revision": "05b45b110f652d58d94c653992aeb3adc3a094f4",
+      "path_in_vcs": "uniffi_macros",
+      "notices": [
+        {
+          "file": "mozilla--uniffi-rs/05b45b110f652d58d94c653992aeb3adc3a094f4/LICENSE",
+          "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+          "source": "https://raw.githubusercontent.com/mozilla/uniffi-rs/05b45b110f652d58d94c653992aeb3adc3a094f4/LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "uniffi_meta",
+      "version": "0.31.2",
+      "license": "MPL-2.0",
+      "repository": "https://github.com/mozilla/uniffi-rs",
+      "revision": "05b45b110f652d58d94c653992aeb3adc3a094f4",
+      "path_in_vcs": "uniffi_meta",
+      "notices": [
+        {
+          "file": "mozilla--uniffi-rs/05b45b110f652d58d94c653992aeb3adc3a094f4/LICENSE",
+          "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+          "source": "https://raw.githubusercontent.com/mozilla/uniffi-rs/05b45b110f652d58d94c653992aeb3adc3a094f4/LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "uniffi_pipeline",
+      "version": "0.31.2",
+      "license": "MPL-2.0",
+      "repository": "https://github.com/mozilla/uniffi-rs",
+      "revision": "05b45b110f652d58d94c653992aeb3adc3a094f4",
+      "path_in_vcs": "uniffi_pipeline",
+      "notices": [
+        {
+          "file": "mozilla--uniffi-rs/05b45b110f652d58d94c653992aeb3adc3a094f4/LICENSE",
+          "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+          "source": "https://raw.githubusercontent.com/mozilla/uniffi-rs/05b45b110f652d58d94c653992aeb3adc3a094f4/LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "uniffi_udl",
+      "version": "0.31.2",
+      "license": "MPL-2.0",
+      "repository": "https://github.com/mozilla/uniffi-rs",
+      "revision": "05b45b110f652d58d94c653992aeb3adc3a094f4",
+      "path_in_vcs": "uniffi_udl",
+      "notices": [
+        {
+          "file": "mozilla--uniffi-rs/05b45b110f652d58d94c653992aeb3adc3a094f4/LICENSE",
+          "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+          "source": "https://raw.githubusercontent.com/mozilla/uniffi-rs/05b45b110f652d58d94c653992aeb3adc3a094f4/LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "uniffi-runtime-javascript",
+      "version": "0.31.0-6",
+      "license": "MPL-2.0",
+      "repository": "https://github.com/jhugman/uniffi-bindgen-react-native",
+      "manifest_sha256": "e0b59835ea4b96de8f2152cebb4ceca266da36c7104c0f5fc3f4b9f9c10d42e4",
+      "npm": {
+        "name": "uniffi-bindgen-react-native",
+        "version": "0.31.0-6",
+        "integrity": "sha512-4SfjPl8b9oQQcLJRH7INa+DdWV2FKu9HAVOjHL0+rT8EniTG4qoxOdmDBw8Novq7vSqEFmiXbHaoArLFqWWEhg==",
+        "git_head": "3dd1cd1353750dc3bfbbf4bb4d4ccde26b0fbd2e"
+      },
+      "notices": [
+        {
+          "file": "jhugman--uniffi-bindgen-react-native/3dd1cd1353750dc3bfbbf4bb4d4ccde26b0fbd2e/LICENSE",
+          "sha256": "d1cc4c0ada218e8a336dc8c3d8bb7d5b1c8dedfa31f5b25c9ea1759d21b8b62d",
+          "source": "https://raw.githubusercontent.com/jhugman/uniffi-bindgen-react-native/3dd1cd1353750dc3bfbbf4bb4d4ccde26b0fbd2e/LICENSE"
+        },
+        {
+          "file": "jhugman--uniffi-bindgen-react-native/3dd1cd1353750dc3bfbbf4bb4d4ccde26b0fbd2e/LICENSE-MPL-2.0",
+          "sha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04",
+          "source": "https://www.mozilla.org/media/MPL/2.0/index.txt"
+        }
+      ]
+    }
+  ]
+}

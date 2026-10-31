@@ -51,3 +51,25 @@ test('an explicit license-file is collected and content must not be empty',t=>{
   metadata.packages.find(pkg=>pkg.id==='missing').license_file='../root/LICENSE'
   assert.throws(()=>cargoMetadataNotices(metadata,'target'),/outside its package/)
 })
+
+test('supplemental upstream licenses require matching source revision and content hash',t=>{
+  const {root,metadata}=fixture(t),directory=path.join(root,'supplement')
+  fs.mkdirSync(directory)
+  const text='exact upstream license text',file=path.join(directory,'LICENSE')
+  fs.writeFileSync(file,text)
+  const revision='a'.repeat(40),vcsFile=path.join(root,'missing','.cargo_vcs_info.json')
+  fs.writeFileSync(vcsFile,JSON.stringify({git:{sha1:revision},path_in_vcs:'crate'}))
+  const entry={name:'missing',version:'1.0.0',license:'MIT',repository:null,revision,path_in_vcs:'crate',notices:[{file:'LICENSE',sha256:createHash('sha256').update(text).digest('hex'),source:'https://example.invalid/pinned/LICENSE'}]}
+  const options={supplements:[entry],supplementDirectory:directory}
+  assert.deepEqual(cargoMetadataNotices(metadata,'target',options).missing_notice_packages,[])
+  fs.writeFileSync(file,'changed license text')
+  assert.throws(()=>cargoMetadataNotices(metadata,'target',options),/hash mismatch/)
+  fs.writeFileSync(file,text)
+  fs.writeFileSync(vcsFile,JSON.stringify({git:{sha1:'b'.repeat(40)},path_in_vcs:'crate'}))
+  assert.throws(()=>cargoMetadataNotices(metadata,'target',options),/source revision mismatch/)
+  fs.writeFileSync(vcsFile,JSON.stringify({git:{sha1:revision},path_in_vcs:'crate'}))
+  entry.notices[0].file='../outside/LICENSE'
+  assert.throws(()=>cargoMetadataNotices(metadata,'target',options),/Unsafe Cargo/)
+  entry.license='Apache-2.0'
+  assert.throws(()=>cargoMetadataNotices(metadata,'target',options),/provenance mismatch/)
+})
