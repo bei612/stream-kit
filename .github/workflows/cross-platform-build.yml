@@ -96,14 +96,6 @@ jobs:
             BROWSER_ENGINE="$engine" node scripts/test-admin-session-audio.cjs
             BROWSER_ENGINE="$engine" node scripts/test-admin-encoder-configuration.cjs
           done
-      - name: Verify audio playback activation in Chromium and Firefox
-        working-directory: .
-        env:
-          BROWSER_CHANNEL: chromium
-        run: |
-          for engine in chromium firefox; do
-            BROWSER_ENGINE="$engine" node scripts/test-audio-playback-browser.cjs
-          done
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -111,7 +103,6 @@ jobs:
           path: |
             artifacts/session-audio/
             artifacts/encoder-configuration/
-            artifacts/audio-playback/
           if-no-files-found: warn
 
   moonlight-web:
@@ -164,6 +155,23 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npx --no-install playwright install --with-deps chromium firefox
+      # The production audio pipe type graph imports generated protocol bindings.
+      # Run after the complete gateway build, not in the management-only job.
+      - name: Verify browser audio and microphone RTP lifecycle
+        shell: bash
+        working-directory: .
+        env:
+          BROWSER_CHANNEL: chromium
+        run: |
+          for engine in chromium firefox; do
+            BROWSER_ENGINE="$engine" node scripts/test-audio-playback-browser.cjs
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-audio-${{ runner.os }}-${{ runner.arch }}
+          path: artifacts/audio-playback/
+          if-no-files-found: warn
       - run: node ../../scripts/smoke-gateway-browser.cjs
       - run: node ../../scripts/smoke-gateway-browser.cjs
         env:
