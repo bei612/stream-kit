@@ -53,6 +53,12 @@ func TestEncoderFieldValidationBeforeNativeWrite(t *testing.T) {
 		{"ping_timeout", `-2`, false}, {"ping_timeout", `2147483648`, false},
 		{"fec_percentage", `1`, true}, {"fec_percentage", `255`, true},
 		{"fec_percentage", `0`, false}, {"fec_percentage", `256`, false},
+		{"packetsize", `0`, true}, {"packetsize", `"200"`, true},
+		{"packetsize", `1456`, true}, {"packetsize", `65535`, true},
+		{"packetsize", `1`, false}, {"packetsize", `199`, false},
+		{"packetsize", `65536`, false}, {"packetsize", `-1`, false},
+		{"packetsize", `200.5`, false}, {"packetsize", `true`, false},
+		{"virtualhid_randomize_mac", `false`, true}, {"virtualhid_randomize_mac", `1`, false},
 		{"lan_encryption_mode", `2`, true}, {"lan_encryption_mode", `3`, false},
 		{"wan_encryption_mode", `0`, true}, {"wan_encryption_mode", `-1`, false},
 		{"amd_preanalysis", `false`, true}, {"amd_preanalysis", `"unknown"`, false},
@@ -141,6 +147,7 @@ func TestEncoderCatalogUsesSameReviewedFieldsAsRedaction(t *testing.T) {
 // before writing a config that the native parser would silently ignore.
 func TestEncoderNativeEnumConfiguration(t *testing.T) {
 	cases := map[string][]string{
+		"gamepad_driver":          {"all", "virtualhid", "vigembus"},
 		"dd_configuration_option": {"disabled", "verify_only", "ensure_active", "ensure_primary", "ensure_only_display"},
 		"dd_resolution_option":    {"disabled", "auto", "manual"},
 		"dd_refresh_rate_option":  {"disabled", "auto", "manual"},

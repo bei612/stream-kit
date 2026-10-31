@@ -29,7 +29,7 @@ const {engine,launchBrowser,evidenceDirectory}=require('./lib/test-browser.cjs')
             if(!failure)desiredRevision='"'+'b'.repeat(64)+'"';
             return route.fulfill({status:failure?409:200,json:failure?{status:'error',message:'配置已变化，请重新读取'}:{status:'ok',data:{revision:'"'+'b'.repeat(64)+'"',apply_policy:'encoder_restart',runtime_verified:false}}});
           }
-          return route.fulfill({status:readFailure?503:200,json:readFailure?{status:'error',message:'编码器读取失败'}:{status:'ok',data:{revision:desiredRevision,loaded_revision:loadedRevision,instance_id:instance,process_id:700,managed_instance_id:'d'.repeat(32),restart_required:desiredRevision!==loadedRevision,overridden_keys:['sunshine_name'],apply_policy:'encoder_restart',runtime_verified:false,fields:[{key:'min_threads',label:'CPU 编码最少线程数',type:'integer',minimum:1,maximum:2147483647},{key:'sw_preset',label:'软件编码预设',type:'string',choices:['ultrafast','superfast','veryslow']},{key:'sw_tune',label:'软件编码调优',type:'string',choices:['film','zerolatency']},{key:'nvenc_twopass',label:'NVIDIA multipass',type:'string',choices:['disabled','quarter_res','full_res']},{key:'minimum_fps_target',label:'Minimum FPS',type:'number',minimum:0,maximum:1000},{key:'ping_timeout',label:'心跳超时',type:'integer',minimum:-1,maximum:2147483647},{key:'min_log_level',label:'日志级别',type:'string',choices:['debug','info','warning']},{key:'sunshine_name',label:'渲染节点名称',type:'string'},{key:'stream_audio',label:'传输主机声音',type:'boolean'},{key:'max_bitrate',label:'最大码率',type:'integer',minimum:0,maximum:2147483647}],values:{sunshine_name:'Renderer',pkey:null},redacted_keys:['pkey']}}});
+          return route.fulfill({status:readFailure?503:200,json:readFailure?{status:'error',message:'编码器读取失败'}:{status:'ok',data:{revision:desiredRevision,loaded_revision:loadedRevision,instance_id:instance,process_id:700,managed_instance_id:'d'.repeat(32),restart_required:desiredRevision!==loadedRevision,overridden_keys:['sunshine_name'],apply_policy:'encoder_restart',runtime_verified:false,fields:[{key:'packetsize',label:'Packet size (0 or 200-65535)',type:'integer',minimum:0,maximum:65535},{key:'gamepad_driver',label:'Windows gamepad driver',type:'string',choices:['all','virtualhid','vigembus']},{key:'virtualhid_randomize_mac',label:'Randomize virtual gamepad MAC',type:'boolean'},{key:'min_threads',label:'CPU 编码最少线程数',type:'integer',minimum:1,maximum:2147483647},{key:'sw_preset',label:'软件编码预设',type:'string',choices:['ultrafast','superfast','veryslow']},{key:'sw_tune',label:'软件编码调优',type:'string',choices:['film','zerolatency']},{key:'nvenc_twopass',label:'NVIDIA multipass',type:'string',choices:['disabled','quarter_res','full_res']},{key:'minimum_fps_target',label:'Minimum FPS',type:'number',minimum:0,maximum:1000},{key:'ping_timeout',label:'心跳超时',type:'integer',minimum:-1,maximum:2147483647},{key:'min_log_level',label:'日志级别',type:'string',choices:['debug','info','warning']},{key:'sunshine_name',label:'渲染节点名称',type:'string'},{key:'stream_audio',label:'传输主机声音',type:'boolean'},{key:'max_bitrate',label:'最大码率',type:'integer',minimum:0,maximum:2147483647}],values:{sunshine_name:'Renderer',pkey:null},redacted_keys:['pkey']}}});
         }
         return route.fulfill({status:503,json:{status:'error',message:'测试中未连接此服务'}});
       }
@@ -118,9 +118,17 @@ const {engine,launchBrowser,evidenceDirectory}=require('./lib/test-browser.cjs')
       await page.getByRole('combobox',{name:'选择常用编码参数',exact:true}).selectOption(key);
       await page.locator('#encoder-setting-'+key).selectOption(value);
     }
+    await page.getByRole('combobox',{name:'选择常用编码参数',exact:true}).selectOption('packetsize');
+    const packetSize=page.locator('#encoder-setting-packetsize');
+    assert.equal(await packetSize.getAttribute('max'),'65535');
+    await packetSize.fill('1200');
+    for(const [key,value] of [['gamepad_driver','virtualhid'],['virtualhid_randomize_mac','false']]) {
+      await page.getByRole('combobox',{name:'选择常用编码参数',exact:true}).selectOption(key);
+      await page.locator('#encoder-setting-'+key).selectOption(value);
+    }
     await save.click();
     await page.getByRole('status').filter({hasText:'配置已保存'}).waitFor();
-    assert.deepEqual(writes[2],{revision:desiredRevision,changes:{nvenc_twopass:'full_res',stream_audio:true,max_bitrate:'20000',ping_timeout:'-1',minimum_fps_target:'59.94',min_log_level:'warning',min_threads:'4',sw_preset:'superfast',sw_tune:'zerolatency'}});
+    assert.deepEqual(writes[2],{revision:desiredRevision,changes:{packetsize:'1200',gamepad_driver:'virtualhid',virtualhid_randomize_mac:false,nvenc_twopass:'full_res',stream_audio:true,max_bitrate:'20000',ping_timeout:'-1',minimum_fps_target:'59.94',min_log_level:'warning',min_threads:'4',sw_preset:'superfast',sw_tune:'zerolatency'}});
     readFailure=true;
     await page.getByRole('button',{name:'重新读取编码器配置',exact:true}).click();
     await page.getByRole('alert').filter({hasText:'编码器读取失败'}).waitFor();

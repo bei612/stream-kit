@@ -72,6 +72,7 @@ var encoderFields = []encoderField{
 	{Key: "vaapi_strict_rc_buffer", Label: "VAAPI 严格码率缓冲", Type: "boolean"},
 	{Key: "ping_timeout", Label: "客户端心跳超时（毫秒，-1 使用默认值）", Type: "integer", Minimum: -1, Maximum: 2147483647},
 	{Key: "fec_percentage", Label: "前向纠错冗余（%）", Type: "integer", Minimum: 1, Maximum: 255},
+	{Key: "packetsize", Label: "视频分包上限（字节，0 使用协商值，或 200–65535）", Type: "integer", Maximum: 65535},
 	{Key: "lan_encryption_mode", Label: "局域网加密（0 禁用，1 可选，2 强制）", Type: "integer", Maximum: 2},
 	{Key: "wan_encryption_mode", Label: "广域网加密（0 禁用，1 可选，2 强制）", Type: "integer", Maximum: 2},
 	{Key: "mouse", Label: "鼠标输入", Type: "boolean"},
@@ -80,6 +81,8 @@ var encoderFields = []encoderField{
 	{Key: "key_repeat_frequency", Label: "键盘重复频率（Hz，0 使用默认值）", Type: "number", Maximum: math.MaxFloat64},
 	{Key: "key_rightalt_to_key_win", Label: "将右 Alt 映射为 Windows 键", Type: "boolean"},
 	{Key: "controller", Label: "手柄输入", Type: "boolean"},
+	{Key: "gamepad_driver", Label: "Windows 虚拟手柄驱动（all 使用可用驱动）", Type: "string", Choices: []string{"all", "virtualhid", "vigembus"}},
+	{Key: "virtualhid_randomize_mac", Label: "Windows Virtual HID 手柄随机 MAC 地址", Type: "boolean"},
 	{Key: "back_button_timeout", Label: "手柄返回键模拟主页键（毫秒，-1 禁用）", Type: "integer", Minimum: -1, Maximum: 2147483647},
 	{Key: "ds4_back_as_touchpad_click", Label: "PlayStation 手柄返回键模拟触摸板点击", Type: "boolean"},
 	{Key: "motion_as_ds4", Label: "运动传感器手柄采用 PlayStation 模拟", Type: "boolean"},
@@ -196,6 +199,11 @@ func validEncoderField(key string, raw json.RawMessage) bool {
 		}
 		n, err := strconv.ParseInt(text, 10, 32)
 		if err != nil || float64(n) < field.Minimum || float64(n) > field.Maximum {
+			return false
+		}
+		// config.cpp accepts zero to retain client negotiation. rtsp.cpp rejects
+		// positive limits below PACKETSIZE_MIN; reject them before persistence.
+		if key == "packetsize" && n != 0 && n < 200 {
 			return false
 		}
 		if len(field.Choices) == 0 {
