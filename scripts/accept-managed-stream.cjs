@@ -954,13 +954,13 @@ async function main() {
     result.continuous_media.samples++;
     result.continuous_media.elapsed_ms=record.elapsed_ms;
     save();
-    if(record.program_audio_db)assert.ok(record.program_audio_db.every(level=>Number.isFinite(level)&&level>-65),'Program tone missing during sustained playback despite audio packet progress');
     assert.ok(status.observations_valid && shared?.subscribers===clientCount && shared.upstream_active,'Shared session changed during sustained playback');
     for(let i=0;i<samples.length;i++) {
       assert.equal(samples[i].state,'connected',`Viewer ${i+1} disconnected during sustained playback`);
       assert.ok(samples[i].frames>previousMedia[i].frames,`Viewer ${i+1} stopped decoding during sustained playback`);
       assert.ok(samples[i].audio_packets>previousMedia[i].audio_packets,`Viewer ${i+1} audio transport stalled during sustained playback`);
     }
+    if(record.program_audio_db)assert.ok(record.program_audio_db.every(level=>Number.isFinite(level)&&level>-65),'Program tone missing during sustained playback despite audio packet progress');
     previousMedia=samples;previousSampleAt=sampledAt;
     if(result.continuous_media.samples%3===0)console.log(`Sustained playback: ${clientCount} viewers, ${Math.round(record.elapsed_ms/1000)} seconds`);
   }
