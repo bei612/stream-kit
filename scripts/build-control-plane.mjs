@@ -67,5 +67,7 @@ if(target.canExecute){
 }
 if(git('rev-parse','HEAD')!==commit||((requireClean||!dirty)&&git('status','--porcelain','--untracked-files=normal')!==''))throw new Error('Source changed during release build; no bundle manifest was issued')
 const manifest={schema_version:1,component:'orchestrator',version,commit,source_commit_time:sourceTime,source_dirty:dirty,platform:target.platform,architecture:target.architecture,runtime_version_check:{executed:target.canExecute,output:reported,reason:target.canExecute?null:'cross_compiled_requires_target_runtime'},go_version:execFileSync(go,['version'],{encoding:'utf8',windowsHide:true}).trim(),frontend:{node_version:process.version,...frontendTools,package_lock_sha256:createHash('sha256').update(fs.readFileSync(path.join(web,'package-lock.json'))).digest('hex')},files}
+manifest.verification_version=1
 fs.writeFileSync(path.join(output,'bundle-manifest.json'),JSON.stringify(manifest,null,2)+'\n')
+if(target.canExecute&&!dirty)execFileSync(binary,['verify-bundle',output],{stdio:'inherit',windowsHide:true})
 console.log(JSON.stringify({output,version,source_dirty:dirty,files:files.length}))

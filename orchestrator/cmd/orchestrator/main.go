@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/stream-kit/orchestrator/internal/app"
+	"github.com/stream-kit/orchestrator/internal/bundle"
 	"github.com/stream-kit/orchestrator/internal/component"
 	"github.com/stream-kit/orchestrator/internal/config"
 	"github.com/stream-kit/orchestrator/internal/model"
@@ -25,6 +26,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"syscall"
 	"time"
 )
@@ -38,6 +40,18 @@ var (
 func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
+		case "verify-bundle":
+			if len(os.Args) != 3 {
+				fmt.Fprintln(os.Stderr, "usage: orchestrator verify-bundle DIRECTORY")
+				os.Exit(1)
+			}
+			manifest, err := bundle.Verify(os.Args[2], runtime.GOOS, runtime.GOARCH)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "bundle verification failed:", err)
+				os.Exit(1)
+			}
+			fmt.Printf("Verified control-plane bundle %s (%s), %d files; publisher signature not verified\n", manifest.Version, manifest.Commit, len(manifest.Files))
+			return
 		case "render-worker":
 			if err := component.RunWorker(context.Background(), os.Args[2:]); err != nil {
 				fmt.Fprintln(os.Stderr, "render worker failed:", err)

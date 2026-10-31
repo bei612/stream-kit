@@ -32,6 +32,30 @@ clean worktree before issuing a manifest. Existing deployment assets are untouch
 Hashes identify the packaged bytes; the manifest is not a signature, SBOM or
 proof that the complete platform has passed acceptance.
 
+Run `orchestrator verify-bundle DIRECTORY` (or `orchestrator.exe` on Windows)
+before installation. The command is read-only and starts no server. It requires
+a clean release manifest matching the verifier's platform/architecture, checks
+every listed file's size and SHA-256, rejects missing or extra files and linked
+or special entries, and requires the executable, management entry page and both
+Go/frontend notice inventories. Relative paths cannot escape the package root;
+case-colliding entries are rejected on both platforms. Keep configuration,
+databases and logs outside this immutable package directory. Verification assumes
+the package is not being concurrently modified during installation.
+
+Current manifests declare `verification_version: 1`. Native clean builds run
+their own verification command before reporting success; cross-compiled bundles
+require verification on the target platform. The Windows installer checks this
+capability and verifies the package before creating, reconfiguring or starting
+the service. Older bundles must be rebuilt before using the current installer.
+The verifier and installer must themselves come from a trusted distribution;
+an unsigned manifest and its hashes do not establish publisher identity.
+
+2026-10-31 local checks cover changed bytes, changed sizes, missing/extra files,
+target mismatch, dirty builds, path escape and duplicate entries. A compiled
+Windows verifier also checked the existing clean `b75c6fe9d368` bundle (8 files).
+The symbolic-link test was skipped locally because this account cannot create
+symlinks; it remains enabled for Linux CI. No SCM installation was performed.
+
 Management builds emit `dist/THIRD_PARTY_NOTICES.json` from dependencies with
 rendered code in JavaScript chunks, plus Vite's browser-helper and Tailwind's CSS
 generators. It retains original license/notice text, package versions, declared
