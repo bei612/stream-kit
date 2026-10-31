@@ -56,7 +56,8 @@ export class OpusMultistreamDecoder {
     private outputBuffer: Buffer
 
     constructor(module: MainModule, sampleRate: number, channels: number, streams: number, coupled_channels: number, mappings: Array<number>) {
-        if (mappings.length < channels) {
+        if (!Number.isInteger(channels) || channels < 1 || channels > 255 || mappings.length < channels ||
+            mappings.slice(0, channels).some(mapping => !Number.isInteger(mapping) || mapping < 0 || mapping > 255)) {
             throw new OpusError(OPUS_BAD_ARG)
         }
 
@@ -65,26 +66,22 @@ export class OpusMultistreamDecoder {
 
         const stackTop = module.stackSave()
 
-        const mappingPtr = module.stackAlloc(mappings.length)
-        for (let index = 0; index < channels; index++) {
-            const mapping = mappings[index]
-
-            if (mapping < 0 || mapping > 255) {
-                throw new OpusError(OPUS_BAD_ARG)
+        let error = OPUS_OK
+        try {
+            const mappingPtr = module.stackAlloc(channels)
+            for (let index = 0; index < channels; index++) {
+                module.HEAPU8[mappingPtr + index] = mappings[index]
             }
-            module.HEAPU8[mappingPtr + index] = mapping
+            const errorPtr = module.stackAlloc(4)
+            this.ptr = module._opus_multistream_decoder_create(sampleRate, channels, streams, coupled_channels, mappingPtr, errorPtr)
+            error = module.getValue(errorPtr, "i32")
+        } finally {
+            module.stackRestore(stackTop)
         }
-
-        const errorPtr = module.stackAlloc(4)
-
-        this.ptr = module._opus_multistream_decoder_create(sampleRate, channels, coupled_channels, streams, mappingPtr, errorPtr)
-
-        module.stackRestore(stackTop)
-
-        const error = this.module.getValue(errorPtr, "i32")
         if (error != OPUS_OK) {
             throw new OpusError(error)
         }
+        if (!this.ptr) throw new OpusError(OPUS_ALLOC_FAIL)
 
         this.inputBuffer = new Buffer(this.module)
         this.outputBuffer = new Buffer(this.module)
@@ -105,6 +102,7 @@ export class OpusMultistreamDecoder {
      * @returns Number of samples decoded
      */
     decodeFloat(input: Uint8Array | null, output: Float32Array, frameSize: number, decodeFec: boolean): number {
+        if (!Number.isInteger(frameSize) || frameSize <= 0 || frameSize > 5760) throw new OpusError(OPUS_BAD_ARG)
         const outputSize = this.channels * frameSize * 4
         // 4 bytes per float
         if (output.byteLength < outputSize) {
@@ -120,20 +118,21 @@ export class OpusMultistreamDecoder {
 
         this.outputBuffer.ensureSize(outputSize)
 
-        const result = this.module._opus_multistream_decode_float(this.ptr, this.inputBuffer.getPtr(), input?.byteLength ?? 0, this.outputBuffer.getPtr(), frameSize, decodeFec ? 1 : 0)
+        const result = this.module._opus_multistream_decode_float(this.ptr, input ? this.inputBuffer.getPtr() : 0, input?.byteLength ?? 0, this.outputBuffer.getPtr(), frameSize, decodeFec ? 1 : 0)
 
         if (result < 0) {
             throw new OpusError(result)
         }
 
-        const outputBuffer = this.outputBuffer.asBufferF32(0, this.channels * frameSize)
+        if (result > frameSize) throw new OpusError(OPUS_INTERNAL_ERROR)
+        const outputBuffer = this.outputBuffer.asBufferF32(0, this.channels * result)
         output.set(outputBuffer)
 
         return result
     }
 
     destroy() {
-        this.checkPtr()
+        if (!this.ptr) return
 
         this.inputBuffer.free()
         this.outputBuffer.free()
@@ -162,11 +161,13 @@ class Buffer {
 
         if (!this.ptr) {
             this.ptr = this.module._malloc(length)
+            if (!this.ptr) throw new OpusError(OPUS_ALLOC_FAIL)
             this.length = length
         } else if (this.length < length) {
             this.free()
 
             this.ptr = this.module._malloc(length)
+            if (!this.ptr) throw new OpusError(OPUS_ALLOC_FAIL)
             this.length = length
         }
     }
@@ -197,7 +198,7 @@ class Buffer {
         }
 
         this.checkPtr()
-        if ((offsetF32 + lengthF32) * 4 < this.length || offsetF32 < 0 || lengthF32 < 0) {
+        if ((offsetF32 + lengthF32) * 4 > this.length || offsetF32 < 0 || lengthF32 < 0) {
             throw "BufferOutOfBounds"
         }
 

@@ -27,6 +27,7 @@ export class OpusAudioDecoderPipe implements DataAudioPlayer {
     private base: PcmAudioPlayer
 
     private errored: boolean = false
+    private disposed = false
 
     private decoder: OpusMultistreamDecoder | null = null
 
@@ -37,7 +38,13 @@ export class OpusAudioDecoderPipe implements DataAudioPlayer {
     private channelBuffers: Array<Float32Array<ArrayBuffer>> = []
 
     constructor(base: PcmAudioPlayer, logger?: Logger) {
-        loadOpus().then(module => this.opusModule = module)
+        loadOpus().then(module => {
+            if (!this.disposed) this.opusModule = module
+        }).catch(error => {
+            if (this.disposed) return
+            this.errored = true
+            this.logger?.debug(`Failed to load Opus: ${error}`, { type: "informError" })
+        })
 
         this.logger = logger ?? null
 
@@ -48,6 +55,7 @@ export class OpusAudioDecoderPipe implements DataAudioPlayer {
     }
 
     setup(setup: AudioPlayerSetup) {
+        if (this.disposed) return
         this.setupData = setup
 
         if ("setup" in this.base && typeof this.base.setup == "function") {
@@ -56,7 +64,7 @@ export class OpusAudioDecoderPipe implements DataAudioPlayer {
     }
 
     decodeAndPlay(unit: AudioDecodeUnit): void {
-        if (this.errored) {
+        if (this.disposed || this.errored) {
             return
         }
 
@@ -111,7 +119,7 @@ export class OpusAudioDecoderPipe implements DataAudioPlayer {
         }
 
         for (let channelIndex = 0; channelIndex < channels; channelIndex++) {
-            if (this.channelBuffers[channelIndex].byteLength < samplesDecoded) {
+            if (this.channelBuffers[channelIndex].length < samplesDecoded) {
                 this.channelBuffers[channelIndex] = new Float32Array(samplesDecoded)
             }
 
@@ -124,12 +132,19 @@ export class OpusAudioDecoderPipe implements DataAudioPlayer {
         this.base.playPcm({
             durationMicroseconds: unit.durationMicroseconds,
             timestampMicroseconds: unit.timestampMicroseconds,
-            channelData: this.channelBuffers
+            channelData: this.channelBuffers.map(channel => channel.subarray(0, samplesDecoded))
         })
     }
 
     cleanup() {
+        if (this.disposed) return
+        this.disposed = true
         this.decoder?.destroy()
+        this.decoder = null
+        this.opusModule = null
+        this.setupData = null
+        this.buffer = new Float32Array(0)
+        this.channelBuffers = []
 
         if ("cleanup" in this.base && typeof this.base.cleanup == "function") {
             return this.base.cleanup(...arguments)
