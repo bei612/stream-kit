@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "source_commit": "6c98ccb0d6aaae2e42c6256245ee51ff9d063e3a",
+  "workflow_run": 41220044437,
+  "job": "Moonlight Web (ubuntu-latest)",
+  "job_conclusion": "success",
+  "artifact": "browser-audio-Linux-X64",
+  "scope": "Linux CI browser playback and production microphone source/sender pipes using generated silent audio and local native WebRTC peers with an isolated PulseAudio fixture. No physical microphone, mobile hardware, UE5 or end-to-end Sunshine target recording acceptance.",
+  "engines": [
+    {
+      "engine": "chromium",
+      "browser": "156.0.8078.4",
+      "passed": true,
+      "normal_microphone": {
+        "requests": 2,
+        "packets": 4,
+        "resumedPackets": 7,
+        "revoked": true,
+        "revokedDetached": true,
+        "grantDidNotCapture": true,
+        "allStopped": true,
+        "detached": true,
+        "sourceLive": true,
+        "errors": []
+      },
+      "binding_failure": {
+        "rejected": true,
+        "noAutomaticCapture": true,
+        "explicitRetry": true,
+        "allStopped": true,
+        "detached": true,
+        "senderErrors": [
+          "Microphone sender update failed: InvalidStateError: Failed to execute 'replaceTrack' on 'RTCRtpSender': The peer connection is closed.",
+          "Microphone sender update failed: InvalidStateError: Failed to execute 'replaceTrack' on 'RTCRtpSender': The peer connection is closed.",
+          "Microphone sender update failed: InvalidStateError: Failed to execute 'replaceTrack' on 'RTCRtpSender': The peer connection is closed."
+        ]
+      },
+      "result_sha256": "3ef1e8c5c4a70d3011de916acde006371cd7926e07d25c2d4e1f907f84e15655",
+      "binding_result_sha256": "cddda91b284903ccf6acdaff6925167d1d428b2352925bb4a7856259fc472115",
+      "probe_bundle_sha256": "792a99d96faf75f5771ad8a7b694b615a33f8a5a91d4b5001f286370f02a2e0b"
+    },
+    {
+      "engine": "firefox",
+      "browser": "157.0",
+      "passed": true,
+      "normal_microphone": {
+        "requests": 2,
+        "packets": 3,
+        "resumedPackets": 6,
+        "revoked": true,
+        "revokedDetached": true,
+        "grantDidNotCapture": true,
+        "allStopped": true,
+        "detached": true,
+        "sourceLive": true,
+        "errors": []
+      },
+      "binding_failure": {
+        "rejected": true,
+        "noAutomaticCapture": true,
+        "explicitRetry": true,
+        "allStopped": true,
+        "detached": true,
+        "senderErrors": [
+          "Microphone sender update failed: InvalidStateError: Peer connection is closed",
+          "Microphone sender update failed: InvalidStateError: Peer connection is closed",
+          "Microphone sender update failed: InvalidStateError: Peer connection is closed"
+        ]
+      },
+      "result_sha256": "4288c60a66956fcd70c9a1476efbb6a26adebb784a22b54ee52711a4921092f7",
+      "binding_result_sha256": "a1c540996ad562e2682ca9ac5c6962831f836820993e367ce5b67fe7b3c16a87",
+      "probe_bundle_sha256": "792a99d96faf75f5771ad8a7b694b615a33f8a5a91d4b5001f286370f02a2e0b"
+    },
+    {
+      "engine": "webkit",
+      "browser": "27.2",
+      "passed": true,
+      "normal_microphone": {
+        "requests": 2,
+        "packets": 3,
+        "resumedPackets": 8,
+        "revoked": true,
+        "revokedDetached": true,
+        "grantDidNotCapture": true,
+        "allStopped": true,
+        "detached": true,
+        "sourceLive": true,
+        "errors": []
+      },
+      "binding_failure": {
+        "rejected": true,
+        "noAutomaticCapture": true,
+        "explicitRetry": true,
+        "allStopped": true,
+        "detached": true,
+        "senderErrors": [
+          "Microphone sender update failed: InvalidStateError: RTCPeerConnection is closed",
+          "Microphone sender update failed: InvalidStateError: RTCPeerConnection is closed",
+          "Microphone sender update failed: InvalidStateError: RTCPeerConnection is closed"
+        ]
+      },
+      "result_sha256": "b5a88d6959b4c7cd28424d32758427cac8b7c6e0e9f848e829a9da7ff7d41cab",
+      "binding_result_sha256": "00b7dbb4e8a4040bd6ad886859ec4e3b5173739a5d528590473b9729ef52991e",
+      "probe_bundle_sha256": "792a99d96faf75f5771ad8a7b694b615a33f8a5a91d4b5001f286370f02a2e0b"
+    }
+  ]
+}
