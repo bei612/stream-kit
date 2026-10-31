@@ -8,6 +8,7 @@ const { createHash } = require('node:crypto');
 const { createRequire } = require('node:module');
 const root = path.resolve(__dirname, '..');
 const gateway = path.join(root, 'third_party/moonlight-web-stream');
+const viewerAssets = process.argv[2] ? path.resolve(process.argv[2]) : path.join(gateway, 'dist');
 const {engine,launchBrowser,evidenceDirectory} = require('./lib/test-browser.cjs');
 const output = evidenceDirectory(path.join(root, 'artifacts/gateway-browser'));
 const gatewayRequire = createRequire(path.join(gateway, 'package.json'));
@@ -65,7 +66,7 @@ async function main() {
       res.end('<!doctype html><html><body><script src="probe.js"></script></body></html>');
       return;
     }
-    const base = pathname.startsWith('/gateway/') ? path.join(gateway, 'dist') : path.join(output, 'probe');
+    const base = pathname.startsWith('/gateway/') ? viewerAssets : path.join(output, 'probe');
     const filename = path.resolve(base, '.' + pathname.replace(/^\/(gateway|bindings)/, '') + (pathname.endsWith('/') ? 'index.html' : ''));
     const relative = path.relative(base, filename);
     if (relative.startsWith('..') || path.isAbsolute(relative) || !fs.existsSync(filename) || !fs.statSync(filename).isFile()) {
@@ -173,7 +174,7 @@ async function main() {
     assert.deepEqual(errors, [], 'Browser errors');
     assert.deepEqual(missing.filter(url => url !== '/favicon.ico'), [], 'Missing built resources');
     const result = { passed: true, engine, browser: browser.version(), at: new Date().toISOString(),
-      assets: Object.fromEntries(fs.readdirSync(path.join(gateway, 'dist')).filter(name => /\.(js|wasm|html)$/.test(name)).map(name => [name, createHash('sha256').update(fs.readFileSync(path.join(gateway, 'dist', name))).digest('hex')])),
+      assets: Object.fromEntries(fs.readdirSync(viewerAssets).filter(name => /\.(js|wasm|html)$/.test(name)).map(name => [name, createHash('sha256').update(fs.readFileSync(path.join(viewerAssets, name))).digest('hex')])),
       scope: 'Three production pages at a path prefix; offline navigation and cache isolation; release WASM initialization and Rust keyboard/ICE ABI; managed viewing link reaches a real browser SDP offer without gateway login and releases the connection. HTTP authentication/media responses are fixtures, no real upstream.' };
     fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(result, null, 2));
     fs.writeFileSync(path.join(output, 'diagnostics.json'), JSON.stringify({diagnostics, pages: []}, null, 2));
