@@ -1,3 +1,5 @@
+import { RealtimeTrackWriter } from "../pipeline/realtime_track_writer"
+import { Logger } from "../log"
 import { globalObject } from "../../util"
 import { Pipe, PipeInfo } from "../pipeline/index"
 import { addPipePassthrough } from "../pipeline/pipes"
@@ -23,14 +25,15 @@ export class VideoMediaStreamTrackGeneratorPipe implements FrameVideoRenderer {
     private base: TrackVideoRenderer
 
     private trackGenerator: MediaStreamTrackGenerator
-    private writer: WritableStreamDefaultWriter<VideoFrame>
+    private output: RealtimeTrackWriter<VideoFrame>
+    private disposed = false
 
-    constructor(base: TrackVideoRenderer) {
+    constructor(base: TrackVideoRenderer, logger?: Logger) {
         this.implementationName = `video_media_stream_track_generator -> ${base.implementationName}`
         this.base = base
 
         this.trackGenerator = new MediaStreamTrackGenerator({ kind: "video" })
-        this.writer = this.trackGenerator.writable.getWriter()
+        this.output = new RealtimeTrackWriter<VideoFrame>(this.trackGenerator.writable.getWriter(), this.trackGenerator, error => logger?.debug(`Generated video track failed: ${error}`))
 
         addPipePassthrough(this)
     }
@@ -38,12 +41,20 @@ export class VideoMediaStreamTrackGeneratorPipe implements FrameVideoRenderer {
     private isFirstSample = true
 
     submitFrame(frame: VideoFrame): void {
+        if (this.disposed) { frame.close(); return }
         if (this.isFirstSample) {
             this.isFirstSample = false
 
             this.base.setTrack(this.trackGenerator)
         }
-        this.writer.write(frame)
+        this.output.submit(frame)
+    }
+
+    cleanup(): void {
+        if (this.disposed) return
+        this.disposed = true
+        this.output.close()
+        if ("cleanup" in this.base && typeof this.base.cleanup === "function") this.base.cleanup()
     }
 
     getBase(): Pipe | null {
