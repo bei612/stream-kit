@@ -45,6 +45,9 @@ jobs:
           path: artifacts/ci/orchestrator-tests.jsonl
           if-no-files-found: warn
       - run: go -C ../third_party/sevenzip test ./...
+      - name: Test Windows example audio protocol handling
+        if: runner.os == 'Windows'
+        run: go -C ../example test ./...
       - if: runner.os == 'Linux'
         run: go test -race ./cmd/orchestrator ./internal/util ./internal/app ./internal/session ./internal/ws ./internal/server/...
       - uses: actions/setup-node@v4

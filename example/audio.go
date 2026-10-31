@@ -47,10 +47,18 @@ type probeMessage struct {
 	Data    json.RawMessage `json:"data"`
 }
 type probeCommand struct {
-	Version  int    `json:"schema_version"`
-	ID       uint64 `json:"id"`
-	Op       string `json:"op"`
-	DeviceID string `json:"device_id,omitempty"`
+	Version   int     `json:"schema_version"`
+	ID        uint64  `json:"id"`
+	Op        string  `json:"op"`
+	DeviceID  string  `json:"device_id,omitempty"`
+	Frequency float64 `json:"frequency_hz,omitempty"`
+}
+type audioAnalysis struct {
+	Frequency float64 `json:"frequency_hz"`
+	Rate      uint64  `json:"sample_rate"`
+	Frames    uint64  `json:"analyzed_frames"`
+	Peak      float64 `json:"peak_amplitude"`
+	Mean      float64 `json:"mean_amplitude"`
 }
 type audioProbe struct {
 	mu             sync.Mutex
@@ -58,6 +66,8 @@ type audioProbe struct {
 	devices        []audioDevice
 	devicesChanged bool
 	errorText      string
+	analysis       *audioAnalysis
+	lastCaptureID  uint64
 	commands       chan probeCommand
 	done           chan struct{}
 	stdin          io.WriteCloser
@@ -101,29 +111,7 @@ func startAudio(hwnd uintptr) *audioProbe {
 				p.setError("Invalid audio component response")
 				break
 			}
-			p.mu.Lock()
-			if message.Error != "" {
-				p.errorText = message.Error
-			} else {
-				var catalog struct {
-					Devices []audioDevice `json:"devices"`
-				}
-				if json.Unmarshal(message.Data, &catalog) == nil && catalog.Devices != nil {
-					p.devices = catalog.Devices
-					p.devicesChanged = true
-					p.errorText = ""
-				} else {
-					var state audioState
-					if json.Unmarshal(message.Data, &state) == nil && state.State != "" {
-						p.state = state
-						p.errorText = ""
-						if state.Error != nil {
-							p.errorText = *state.Error
-						}
-					}
-				}
-			}
-			p.mu.Unlock()
+			p.applyResponse(message)
 			pPostMessage.Call(hwnd, audioMessage, 0, 0)
 		}
 		if err := scanner.Err(); err != nil {
@@ -154,6 +142,37 @@ func startAudio(hwnd uintptr) *audioProbe {
 	p.send("devices", "")
 	return p
 }
+func (p *audioProbe) applyResponse(message probeMessage) {
+	p.mu.Lock()
+	if message.Error != "" {
+		p.errorText = message.Error
+	} else {
+		var analysis audioAnalysis
+		var catalog struct {
+			Devices []audioDevice `json:"devices"`
+		}
+		if json.Unmarshal(message.Data, &analysis) == nil && analysis.Frequency > 0 && analysis.Rate > 0 {
+			if message.ID > p.lastCaptureID {
+				p.analysis = &analysis
+				p.errorText = ""
+			}
+		} else if json.Unmarshal(message.Data, &catalog) == nil && catalog.Devices != nil {
+			p.devices = catalog.Devices
+			p.devicesChanged = true
+			p.errorText = ""
+		} else {
+			var state audioState
+			if json.Unmarshal(message.Data, &state) == nil && state.State != "" {
+				p.state = state
+				p.errorText = ""
+				if state.Error != nil {
+					p.errorText = *state.Error
+				}
+			}
+		}
+	}
+	p.mu.Unlock()
+}
 func (p *audioProbe) setError(message string) {
 	p.mu.Lock()
 	p.errorText = message
@@ -161,14 +180,27 @@ func (p *audioProbe) setError(message string) {
 	pPostMessage.Call(p.hwnd, audioMessage, 0, 0)
 }
 func (p *audioProbe) send(op, id string) {
+	p.sendCommand(probeCommand{Op: op, DeviceID: id})
+}
+func (p *audioProbe) analyze(frequency float64) {
+	p.sendCommand(probeCommand{Op: "analyze", Frequency: frequency})
+}
+func (p *audioProbe) sendCommand(command probeCommand) {
 	if p.cmd == nil || p.cmd.Process == nil {
 		return
 	}
 	p.sequence++ // Only the UI thread sends commands.
+	command.Version, command.ID = 1, p.sequence
 	select {
 	case <-p.done:
 		p.setError("Audio component stopped; reopen the example")
-	case p.commands <- probeCommand{Version: 1, ID: p.sequence, Op: op, DeviceID: id}:
+	case p.commands <- command:
+		if command.Op == "capture" {
+			p.mu.Lock()
+			p.analysis = nil
+			p.lastCaptureID = command.ID
+			p.mu.Unlock()
+		}
 	default:
 		p.setError("Audio component busy; wait for the current operation")
 	}
@@ -197,7 +229,8 @@ var (
 	pKillTimer                                                                  = user32.NewProc("KillTimer")
 	probe                                                                       *audioProbe
 	inputCombo, outputCombo, audioStatus, audioHeading, inputLabel, outputLabel uintptr
-	audioButtons                                                                [7]uintptr
+	audioButtons                                                                [len(audioButtonLabels)]uintptr
+	audioAnalysisStatus                                                         uintptr
 	inputDevices, outputDevices                                                 []audioDevice
 	inputCount, pointerCount, frameCount                                        uint64
 	audioBackground, audioFont                                                  uintptr
@@ -225,6 +258,7 @@ func setupAudio(hwnd uintptr) {
 		audioButtons[i] = control(hwnd, "BUTTON", label, 0x00010000|0x0000000b, 210+i)
 	}
 	audioStatus = control(hwnd, "STATIC", "Audio initialization...", 0, 220)
+	audioAnalysisStatus = control(hwnd, "STATIC", "", 0, 221)
 	probe = startAudio(hwnd)
 	refreshAudio()
 	layoutAudio(hwnd)
@@ -258,6 +292,7 @@ func layoutAudio(hwnd uintptr) {
 		pMoveWindow.Call(h, uintptr(x+(i%3)*(buttonW+8)), uintptr(y+164+(i/3)*38), uintptr(buttonW), 30, 1)
 	}
 	move(audioStatus, y+286, 76)
+	move(audioAnalysisStatus, y+364, 54)
 }
 func selected(combo uintptr, devices []audioDevice) string {
 	i, _, _ := pSendMessage.Call(combo, 0x0147, 0, 0)
@@ -282,6 +317,7 @@ func refreshAudio() {
 	}
 	probe.mu.Lock()
 	state, errText := probe.state, probe.errorText
+	analysis := probe.analysis
 	changed := probe.devicesChanged
 	devices := append([]audioDevice(nil), probe.devices...)
 	probe.devicesChanged = false
@@ -345,6 +381,12 @@ func refreshAudio() {
 	}
 	t, _ := syscall.UTF16PtrFromString(text)
 	pSetWindowText.Call(audioStatus, uintptr(unsafe.Pointer(t)))
+	analysisText := "Record and stop input, then analyze a test frequency. Measurements are not an acceptance result."
+	if analysis != nil {
+		analysisText = fmt.Sprintf("Recorded input: %.0f Hz | Mean: %.5f | Peak: %.5f | Analyzed: %.2f s\r\n1499 Hz: client test microphone. 997 Hz: program tone / possible return audio.", analysis.Frequency, analysis.Mean, analysis.Peak, float64(analysis.Frames)/float64(analysis.Rate))
+	}
+	a, _ := syscall.UTF16PtrFromString(analysisText)
+	pSetWindowText.Call(audioAnalysisStatus, uintptr(unsafe.Pointer(a)))
 }
 
 type drawItem struct {
@@ -399,7 +441,11 @@ func audioCommand(id uintptr) {
 		probe.send("stop_capture", "")
 	case 216:
 		probe.send("stop_playback", "")
+	case 217:
+		probe.analyze(1499)
+	case 218:
+		probe.analyze(997)
 	}
 }
 
-var audioButtonLabels = [...]string{"Refresh devices", "Record input", "Stop all", "Play test tone", "Play recording", "Stop recording", "Stop playback"}
+var audioButtonLabels = [...]string{"Refresh devices", "Record input", "Stop all", "Play test tone", "Play recording", "Stop recording", "Stop playback", "Analyze client tone", "Analyze program tone"}
