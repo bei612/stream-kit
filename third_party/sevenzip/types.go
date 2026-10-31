@@ -352,6 +352,8 @@ func readFolder(r util.Reader) (*folder, error) {
 	bindPairs := f.out - 1
 
 	f.bindPair = make([]*bindPair, 0, min(bindPairs, 16))
+	boundInputs := make(map[uint64]bool)
+	boundOutputs := make(map[uint64]bool)
 
 	for range bindPairs {
 		in, err := readUint64Bounded(r, false)
@@ -363,6 +365,10 @@ func readFolder(r util.Reader) (*folder, error) {
 		if err != nil {
 			return nil, err
 		}
+		if in >= f.in || out >= f.out || boundInputs[in] || boundOutputs[out] {
+			return nil, errInvalidBindPair
+		}
+		boundInputs[in], boundOutputs[out] = true, true
 
 		f.bindPair = append(f.bindPair, &bindPair{
 			in:  in,
@@ -375,7 +381,7 @@ func readFolder(r util.Reader) (*folder, error) {
 	if f.packedStreams == 1 {
 		f.packed = []uint64{}
 		for i := range f.in {
-			if f.findInBindPair(i) == nil {
+			if !boundInputs[i] {
 				f.packed = append(f.packed, i)
 			}
 		}
@@ -385,6 +391,10 @@ func readFolder(r util.Reader) (*folder, error) {
 			if f.packed[i], err = readUint64(r); err != nil {
 				return nil, err
 			}
+			if f.packed[i] >= f.in || boundInputs[f.packed[i]] {
+				return nil, errInvalidBindPair
+			}
+			boundInputs[f.packed[i]] = true
 		}
 	}
 
