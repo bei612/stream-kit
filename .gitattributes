@@ -12,3 +12,5 @@ third_party/sunshine/** text=auto eol=lf
 # Go mod vendor copies module archive bytes, including upstream CRLF files.
 # Preserve those bytes across checkouts so regeneration is identical on both OSes.
 orchestrator/vendor/** -text
+# This locally replaced module is copied into vendor by the same command.
+third_party/sevenzip/** -text

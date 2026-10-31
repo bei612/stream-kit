@@ -33,7 +33,19 @@ jobs:
           go-version: '1.27.3'
           cache-dependency-path: orchestrator/go.sum
       - run: go mod vendor
-      - run: git diff --exit-code -- vendor
+      - name: Verify regenerated vendor source
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          import {spawnSync} from 'node:child_process';
+          const result = spawnSync('git', ['diff', '--no-ext-diff', '--exit-code', '--', 'vendor'], {encoding:'utf8', maxBuffer:8*1024*1024});
+          if (result.status !== 0) {
+            const detail = (result.stdout || result.stderr || String(result.error)).slice(0, 6000);
+            const escaped = detail.replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
+            console.log(`::error title=Regenerated vendor source differs::${escaped}`);
+            process.exit(1);
+          }
+          JS
       - name: Test Orchestrator
         shell: bash
         run: mkdir -p ../artifacts/ci && go test -json ./... | tee ../artifacts/ci/orchestrator-tests.jsonl
