@@ -5,6 +5,20 @@ use std::{
 };
 
 type Log = Arc<Mutex<Vec<String>>>;
+
+#[test]
+fn verification_cannot_open_endpoints_reserved_by_live_session() {
+    let registry = EndpointRegistry::default();
+    let pair = EndpointPair {
+        render_device_id: "test-output".into(),
+        capture_device_id: "test-input".into(),
+    };
+    let _live = registry.reserve(&pair).expect("reserve active pair");
+    let error = registry
+        .verify_pair(&pair)
+        .expect_err("active pair must not be opened");
+    assert!(error.contains("still owned"));
+}
 struct Fake {
     name: String,
     log: Log,

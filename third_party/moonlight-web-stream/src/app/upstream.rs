@@ -155,6 +155,22 @@ fn observe_target(
 }
 
 impl UpstreamPool {
+    /// Run an explicit endpoint-pair check while holding the same ownership
+    /// reservation used by live output. Blocking audio work stays off the executor.
+    pub async fn verify_audio_pair(
+        &self,
+        pair: stream_kit_audio_target::EndpointPair,
+        permit: tokio::sync::SemaphorePermit<'static>,
+    ) -> Result<serde_json::Value, String> {
+        let registry = self.endpoints.clone();
+        tokio::task::spawn_blocking(move || {
+            let _permit = permit;
+            registry.verify_pair(&pair)
+        })
+        .await
+        .map_err(|_| "audio verification task failed".to_string())?
+    }
+
     pub async fn observe(
         &self,
         sessions: &[super::control_state::SessionAuthority],
@@ -542,13 +558,15 @@ mod tests {
         for value in 0..5u8 {
             sender
                 .push_frame(Duration::from_millis(value as u64 * 20), &[value])
-                .unwrap();
+                .expect("valid test frame");
         }
         for value in 2..5u8 {
-            assert_eq!(sender.poll_packet().unwrap()[12], value);
+            assert_eq!(sender.poll_packet().expect("queued test frame")[12], value);
         }
         assert!(sender.poll_packet().is_none());
-        sender.push_frame(Duration::ZERO, &[9]).unwrap();
+        sender
+            .push_frame(Duration::ZERO, &[9])
+            .expect("valid test frame");
         sender.clear();
         assert!(sender.poll_packet().is_none());
     }
@@ -565,19 +583,19 @@ mod tests {
         let mut stream = FoundationMicStream::new(
             sans_io_time::Instant::ZERO,
             FoundationMicStreamConfig {
-                addr: "127.0.0.1:47996".parse().unwrap(),
+                addr: "127.0.0.1:47996".parse().expect("valid loopback address"),
                 encryption: None,
             },
             Arc::new(DisabledCryptoBackend),
         );
         stream
             .send_microphone_opus_data(Duration::ZERO, &[1])
-            .unwrap();
+            .expect("valid test frame");
         std::thread::sleep(Duration::from_millis(20));
         // A heavily loaded runner may wake after the whole deadline. In that
         // case the packet must already have expired rather than being sent.
         if stream.poll_transmit().is_some() {
-            assert!(stream.transmit_max_hold().unwrap() <= Duration::from_millis(40));
+            assert!(stream.transmit_max_hold().expect("mic deadline") <= Duration::from_millis(40));
         } else {
             assert!(stream.transmit_max_hold().is_none());
         }

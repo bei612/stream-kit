@@ -31,6 +31,7 @@ pub(super) mod bindings_ext;
 
 pub mod app;
 pub mod audio_devices;
+pub mod audio_pair_check;
 pub mod auth;
 pub mod configuration;
 pub mod control_state;

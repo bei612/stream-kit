@@ -35,6 +35,11 @@ struct Reservation {
     pair: EndpointPair,
 }
 impl EndpointRegistry {
+    pub(super) fn verify_pair(&self, pair: &EndpointPair) -> Result<serde_json::Value, String> {
+        let _reservation = self.reserve(pair)?;
+        stream_kit_audio_target::verification::verify_pair(pair).map_err(|error| error.to_string())
+    }
+
     fn reserve(&self, pair: &EndpointPair) -> Result<Reservation, String> {
         let mut used = self.0.lock().expect("endpoint registry poisoned");
         if pair.render_device_id == pair.capture_device_id

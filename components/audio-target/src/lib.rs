@@ -2,6 +2,7 @@
 //! provisioned virtual device; opening it never changes system default devices.
 pub mod analysis;
 mod pcm;
+pub mod verification;
 
 use cpal::{
     DeviceId, SampleFormat,
