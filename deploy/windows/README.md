@@ -81,6 +81,13 @@ node scripts/build-windows-installer.mjs PLATFORM_BUNDLE NEW_OUTPUT OFFICIAL_ISC
 
 The platform must be assembled from clean, matching source-built components at
 the current commit. The control manifest must declare initialization version 1.
+The installer also requires the matching Windows example bundle, including both
+`checkerboard.exe` and its native `audio-probe.exe` helper. Build it with
+`node scripts/build-example-release.mjs NEW_EXAMPLE_DIRECTORY`, then provide that
+bundle as the fourth component before the output argument to
+`scripts/package-platform-release.mjs`. A Start menu entry opens the example;
+it is not launched automatically during installation. This keeps the complete
+audio/video test application in the same installer and source inventory.
 The builder verifies payload hashes and records the resulting installer hash,
 compiler hash and source revision. The executable is currently unsigned and the
 channel remains preview. Compilation/unit tests are not installation acceptance;

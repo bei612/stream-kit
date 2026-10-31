@@ -17,6 +17,7 @@ func TestPlatformRequiresMatchingCompleteComponents(t *testing.T) {
 	for component, names := range map[string][]string{
 		"media-gateway": {"web-server.exe", "dist/index.html", "LICENSE"},
 		"sunshine":      {"sunshine.exe", "assets/web/index.html", "LICENSE"},
+		"example":       {"checkerboard.exe", "audio-probe.exe", "THIRD_PARTY_NOTICES.go.json", "THIRD_PARTY_NOTICES.rust.json"},
 	} {
 		folder := filepath.Join(root, component)
 		m := manifest
@@ -39,8 +40,20 @@ func TestPlatformRequiresMatchingCompleteComponents(t *testing.T) {
 		save(t, folder, m)
 	}
 	got, err := VerifyPlatform(root, "windows", "amd64")
-	if err != nil || len(got) != 3 {
+	if err != nil || len(got) != 4 {
 		t.Fatalf("valid platform: %v", err)
+	}
+	if err := os.Remove(filepath.Join(root, "example", "audio-probe.exe")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := VerifyPlatform(root, "windows", "amd64"); err == nil {
+		t.Fatal("example without its native audio helper accepted")
+	}
+	if err := os.RemoveAll(filepath.Join(root, "example")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := VerifyPlatform(root, "windows", "amd64"); err != nil {
+		t.Fatal("legacy three-component platform rejected", err)
 	}
 	changed := *got["sunshine"]
 	changed.Commit = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"

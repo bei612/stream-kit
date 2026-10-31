@@ -104,7 +104,7 @@ mod tests {
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+                .expect("test clock must be after Unix epoch")
                 .as_nanos()
         ));
         let mut config = Config::default();
@@ -114,15 +114,18 @@ mod tests {
         } = &mut config.data_storage;
         *configured = path.to_string_lossy().into_owned();
         let input = br#"{"name":"admin","password":"test-only-password"}"#.as_slice();
-        initialize_admin(&config, input).unwrap();
-        let original = std::fs::read(&path).unwrap();
+        initialize_admin(&config, input).expect("initialize fresh test storage");
+        let original = std::fs::read(&path).expect("read persisted administrator storage");
         assert!(matches!(
-            serde_json::from_slice::<Json>(&original).unwrap(),
+            serde_json::from_slice::<Json>(&original).expect("decode persisted storage"),
             Json::V3(_)
         ));
         assert!(initialize_admin(&config, input).is_err());
-        assert_eq!(original, std::fs::read(&path).unwrap());
-        std::fs::remove_file(&path).unwrap();
+        assert_eq!(
+            original,
+            std::fs::read(&path).expect("read unchanged storage")
+        );
+        std::fs::remove_file(&path).expect("remove test storage");
         config.web_server.first_login_create_admin = true;
         assert!(initialize_admin(&config, input).is_err());
         assert!(!path.exists());
@@ -131,9 +134,10 @@ mod tests {
     #[test]
     fn offline_admin_uses_runtime_password_format_without_anonymous_defaults() {
         let raw = initial_data(br#"{"name":"admin","password":"test-only-password"}"#.as_slice())
-            .unwrap();
+            .expect("encode test administrator in runtime storage format");
         assert!(!String::from_utf8_lossy(&raw).contains("test-only-password"));
-        let Json::V3(data) = serde_json::from_slice(&raw).unwrap() else {
+        let Json::V3(data) = serde_json::from_slice(&raw).expect("decode initial runtime storage")
+        else {
             panic!("wrong storage version")
         };
         assert_eq!(data.users.len(), 1);
@@ -144,14 +148,25 @@ mod tests {
                 && data.default_role_id.is_none()
         );
         assert!(matches!(data.roles[&0].ty, V3RoleType::Admin));
-        let password = data.users[&0].password.as_ref().unwrap();
+        let password = data.users[&0]
+            .password
+            .as_ref()
+            .expect("administrator has a password hash");
         let password = StoragePassword {
             salt: password.salt,
             hash: password.hash,
             iterations: password.iterations,
         };
-        assert!(password.verify("test-only-password").unwrap());
-        assert!(!password.verify("wrong-password").unwrap());
+        assert!(
+            password
+                .verify("test-only-password")
+                .expect("verify test credential")
+        );
+        assert!(
+            !password
+                .verify("wrong-password")
+                .expect("verify wrong credential")
+        );
     }
 
     #[test]
@@ -161,7 +176,9 @@ mod tests {
             br#"{"name":"admin","password":"short"}"#.as_slice(),
             &[b'x'; 16385],
         ] {
-            let message = initial_data(input).unwrap_err().to_string();
+            let message = initial_data(input)
+                .expect_err("reject malformed credential input")
+                .to_string();
             assert!(!message.contains("sensitive-secret"));
         }
     }

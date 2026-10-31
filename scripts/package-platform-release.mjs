@@ -5,8 +5,8 @@ import {fileURLToPath} from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const args = process.argv.slice(2)
-if (args.length !== 4) throw new Error('Expected CONTROL_BUNDLE GATEWAY_BUNDLE RENDERER_BUNDLE NEW_OUTPUT')
-const output = path.resolve(args[3])
+if (![4,5].includes(args.length)) throw new Error('Expected CONTROL_BUNDLE GATEWAY_BUNDLE RENDERER_BUNDLE [EXAMPLE_BUNDLE] NEW_OUTPUT')
+const output = path.resolve(args.at(-1))
 if (fs.existsSync(output)) throw new Error('Output already exists; releases are never overwritten')
 const hash = file => createHash('sha256').update(fs.readFileSync(file)).digest('hex')
 function inventory(directory) {
@@ -23,7 +23,8 @@ function inventory(directory) {
   visit(directory)
   return files
 }
-const components = ['orchestrator','media-gateway','sunshine'].map((component,index) => {
+const names=['orchestrator','media-gateway','sunshine',...(args.length===5?['example']:[])]
+const components = names.map((component,index) => {
   const directory = fs.realpathSync(path.resolve(args[index]))
   if (output === directory || output.startsWith(directory + path.sep)) throw new Error('Output must be outside input bundles')
   const manifest = JSON.parse(fs.readFileSync(path.join(directory,'bundle-manifest.json'),'utf8'))

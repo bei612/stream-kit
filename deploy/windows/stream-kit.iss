@@ -49,6 +49,7 @@ Root: HKLM; Subkey: "Software\StreamKit"; ValueType: string; ValueName: "DataDir
 
 [Icons]
 Name: "{group}\Stream-Kit 管理控制台"; Filename: "{code:ControlURL}"
+Name: "{group}\Stream-Kit 音视频示例"; Filename: "{app}\example\checkerboard.exe"
 
 [Run]
 Filename: "{code:ControlURL}"; Description: "打开 Stream-Kit 管理控制台"; Flags: postinstall shellexec skipifsilent unchecked

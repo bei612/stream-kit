@@ -60,7 +60,13 @@ func Verify(directory, platform, architecture string) (*Manifest, error) {
 func VerifyPlatform(directory, platform, architecture string) (map[string]*Manifest, error) {
 	result := make(map[string]*Manifest, 3)
 	var commit string
-	for _, component := range []string{"orchestrator", "media-gateway", "sunshine"} {
+	components := []string{"orchestrator", "media-gateway", "sunshine"}
+	if _, err := os.Lstat(filepath.Join(directory, "example")); err == nil {
+		components = append(components, "example")
+	} else if !os.IsNotExist(err) {
+		return nil, err
+	}
+	for _, component := range components {
 		folder := filepath.Join(directory, component)
 		info, err := os.Lstat(folder)
 		if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
@@ -140,6 +146,9 @@ func verifyComponent(directory, component, platform, architecture string) (*Mani
 	if component == "media-gateway" {
 		binary = "web-server"
 	}
+	if component == "example" {
+		binary = "checkerboard"
+	}
 	if platform == "windows" {
 		binary += ".exe"
 	}
@@ -151,6 +160,8 @@ func verifyComponent(directory, component, platform, architecture string) (*Mani
 		requiredFiles = append(requiredFiles, "dist/index.html", "LICENSE")
 	case "sunshine":
 		requiredFiles = append(requiredFiles, "assets/web/index.html", "LICENSE")
+	case "example":
+		requiredFiles = append(requiredFiles, "audio-probe.exe", "THIRD_PARTY_NOTICES.go.json", "THIRD_PARTY_NOTICES.rust.json")
 	default:
 		return nil, fmt.Errorf("unsupported component %q", component)
 	}

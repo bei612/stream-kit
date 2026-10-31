@@ -16,6 +16,9 @@ const manifest=JSON.parse(fs.readFileSync(path.join(payload,'platform-manifest.j
 if(manifest.commit!==commit||manifest.platform!=='windows'||manifest.architecture!=='amd64'||manifest.release_channel!=='preview'||manifest.schema_version!==1)throw Error('Expected matching Windows amd64 preview platform')
 const control=JSON.parse(fs.readFileSync(path.join(payload,'orchestrator','bundle-manifest.json'),'utf8'))
 if(control.platform_initialization_version!==1)throw Error('Payload does not declare unified native initialization support')
+const example=JSON.parse(fs.readFileSync(path.join(payload,'example','bundle-manifest.json'),'utf8'))
+if(example.component!=='example'||example.commit!==commit||example.source_dirty!==false||example.platform!=='windows'||example.architecture!=='amd64')throw Error('Installer requires a matching native example bundle')
+for(const name of ['checkerboard.exe','audio-probe.exe'])if(!example.files.some(file=>file.path===name))throw Error(`Missing example runtime: ${name}`)
 const hash=file=>createHash('sha256').update(fs.readFileSync(file)).digest('hex')
 const expected=new Map()
 for(const file of manifest.files){
