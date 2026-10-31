@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -60,11 +59,9 @@ type Envelope struct {
 	Sessions      []Session `json:"sessions"`
 }
 type Publisher struct {
+	*NodeClient
 	mu         sync.Mutex
 	manager    *session.Manager
-	baseURL    string
-	secret     []byte
-	client     *http.Client
 	lastIssued int64
 	status     Status
 }
@@ -104,7 +101,7 @@ func New(manager *session.Manager, baseURL, secret string) *Publisher {
 	if manager == nil || baseURL == "" || secret == "" {
 		return nil
 	}
-	return &Publisher{manager: manager, baseURL: strings.TrimRight(baseURL, "/"), secret: []byte(secret), client: &http.Client{Timeout: 2 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
+	return &Publisher{manager: manager, NodeClient: NewNodeClient(baseURL, secret)}
 }
 func (p *Publisher) Sync(ctx context.Context) (err error) {
 	p.mu.Lock()

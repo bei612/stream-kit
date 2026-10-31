@@ -40,7 +40,7 @@ type GatewayRuntimeIdentity struct {
 
 // GatewayConfiguration uses the native owner's versioned file operation. It
 // neither parses native fields nor holds the media lease publisher mutex.
-func (p *Publisher) GatewayConfiguration(ctx context.Context, revision string, changes map[string]json.RawMessage) (*GatewayConfiguration, error) {
+func (p *NodeClient) GatewayConfiguration(ctx context.Context, revision string, changes map[string]json.RawMessage) (*GatewayConfiguration, error) {
 	nonce := make([]byte, 16)
 	if _, err := rand.Read(nonce); err != nil {
 		return nil, ErrConfigurationUnavailable

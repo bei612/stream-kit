@@ -90,7 +90,7 @@ func TestGatewayConfigurationSignedBoundary(t *testing.T) {
 				_, _ = w.Write(body)
 			}))
 			defer server.Close()
-			p := Publisher{baseURL: server.URL, secret: secret, client: server.Client()}
+			p := NodeClient{baseURL: server.URL, secret: secret, client: server.Client()}
 			var changes map[string]json.RawMessage
 			revision := ""
 			if mode == "save" {

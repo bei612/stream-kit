@@ -52,7 +52,7 @@ type pairCheckResponse struct {
 
 // CheckAudioPair is an explicit active test. It never retries a request which
 // may already have opened devices; the native gateway owns cancellation cleanup.
-func (p *Publisher) CheckAudioPair(ctx context.Context, pair AudioEndpointPair) (PairCheckResult, error) {
+func (p *NodeClient) CheckAudioPair(ctx context.Context, pair AudioEndpointPair) (PairCheckResult, error) {
 	var empty PairCheckResult
 	inventory, err := p.AudioDevices(ctx)
 	if err != nil {

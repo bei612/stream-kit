@@ -82,7 +82,7 @@ type AudioInventory struct {
 
 // AudioDevices enumerates in the gateway's OS user context, on explicit demand.
 // It must not hold the state publisher mutex or delay control-lease renewal.
-func (p *Publisher) AudioDevices(ctx context.Context) (AudioInventory, error) {
+func (p *NodeClient) AudioDevices(ctx context.Context) (AudioInventory, error) {
 	var empty AudioInventory
 	var nonce [16]byte
 	if _, err := rand.Read(nonce[:]); err != nil {
