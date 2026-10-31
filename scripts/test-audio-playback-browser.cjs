@@ -27,6 +27,9 @@ const contextPlayer=new ContextDestinationNodeAudioPlayer({debug:(message:unknow
 const pcm=new AudioBufferPipe(contextPlayer);
 pcm.setup({sampleRate:48000,channels:2,streams:1,coupledStreams:1,samplesPerFrame:960,mapping:[]});
 const context=contextPlayer.getAudioContext();
+// Observe the real native operation without replacing its promise or behavior.
+const nativeResume=context.resume.bind(context);
+context.resume=()=>{record('resume-call',{state:context.state,active:navigator.userActivation?.isActive});const pending=nativeResume();void pending.then(()=>record('resume-resolved',context.state),error=>record('resume-rejected',String(error)));return pending};
 context.addEventListener('statechange',()=>record('context-state',context.state));
 const oscillator=context.createOscillator(),gain=context.createGain();
 gain.gain.value=0; oscillator.connect(gain);

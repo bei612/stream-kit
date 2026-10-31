@@ -26,6 +26,12 @@ visible/focused page and no page errors, but AudioContext remained suspended.
 The media element was unpaused and unmuted. This narrows the observed failure;
 it does not establish the cause or a fix. Keep this CI issue open despite the
 successful local full-stream run.
+The CI audio artifact now also records Windows audio-service state and native
+endpoint enumeration using `scripts/record-windows-audio-environment.cjs`, plus
+actual browser resume call/promise outcomes. Inventory does not open streams,
+start services, install drivers or change defaults. Local inventory found two
+inputs/two outputs and running audio services; the Firefox lifecycle probe still
+passed. Await CI evidence before attributing its failure to absent endpoints.
 
 Firefox 157 passed actual Windows application streaming with the frozen clean
 `aa254605` renderer/gateway/control/example/Web artifacts at

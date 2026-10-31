@@ -241,6 +241,13 @@ jobs:
         run: npx --no-install playwright install --with-deps webkit
       # The production audio pipe type graph imports generated protocol bindings.
       # Run after the complete gateway build, not in the management-only job.
+      - name: Record native Windows audio environment
+        if: runner.os == 'Windows'
+        shell: bash
+        working-directory: .
+        run: |
+          cargo build --locked --manifest-path components/audio-target/Cargo.toml --bin audio-probe
+          node scripts/record-windows-audio-environment.cjs components/audio-target/target/debug/audio-probe.exe
       - name: Verify browser audio and microphone RTP lifecycle
         shell: bash
         working-directory: .
