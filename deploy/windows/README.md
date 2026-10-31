@@ -181,3 +181,16 @@ installer manifest records `commit` for that payload, `installer_source_commit`
 for its clean setup recipe, and `reused_payload`; the EXE filename gains the
 recipe revision suffix. Reuse does not claim that older binaries contain newer
 runtime changes. It is for explicitly reviewed installer-only releases.
+
+## Promote an existing CI product build
+
+Dispatch `windows-product-release.yml` with `promote_run_id` and a new
+`release_tag`. Promotion requires a completed successful manual product run on
+main, checks its repository/workflow/source revision, both native installer
+manifests/checksums and source SBOM, then publishes those existing artifacts.
+It does not rebuild executables or repeat acceptance. The tag identifies the
+payload's commit, even if the promotion workflow was subsequently improved.
+Failed/cancelled runs and mixed revisions are rejected. Existing releases are
+not overwritten; an existing tag is reusable only for the exact same commit.
+Using the repository token prevents recursive tag builds, as described in
+[GitHub's triggering documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow).

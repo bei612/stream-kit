@@ -2,6 +2,15 @@ name: windows-product-release
 
 on:
   workflow_dispatch:
+    inputs:
+      promote_run_id:
+        description: 'Completed successful product run to publish without rebuilding (blank builds only)'
+        type: string
+        required: false
+      release_tag:
+        description: 'New preview tag for promotion, e.g. v0.1.0-preview.20261101.3'
+        type: string
+        required: false
   push:
     tags: ['v*-preview.*']
 
@@ -15,10 +24,12 @@ concurrency:
 jobs:
   linux:
     name: Linux product
+    if: inputs.promote_run_id == ''
     uses: ./.github/workflows/linux-sunshine-build.yml
 
   build:
     name: Source-built Windows unified installer
+    if: inputs.promote_run_id == ''
     runs-on: windows-2022
     timeout-minutes: 180
     defaults:
@@ -159,6 +170,7 @@ jobs:
 
   sbom:
     name: Source SBOM
+    if: inputs.promote_run_id == ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -172,6 +184,22 @@ jobs:
           name: windows-product-sbom-${{ github.sha }}
           path: stream-kit-sbom.spdx.json
           if-no-files-found: error
+
+  promote:
+    name: Promote verified product artifacts
+    if: github.event_name == 'workflow_dispatch' && inputs.promote_run_id != ''
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify successful source run and publish immutable artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.promote_run_id }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: bash .github/scripts/promote-product-release.sh
 
   publish:
     name: Publish tagged preview
