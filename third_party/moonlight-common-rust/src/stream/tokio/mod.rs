@@ -300,6 +300,14 @@ impl MoonlightStream {
         }
     }
 
+    /// Discard both queued and socket-backpressured microphone packets.
+    pub fn clear_pending_microphone(&mut self) {
+        if let Some(stream) = self.foundation_mic_stream.as_mut() {
+            stream.transmit = None;
+            stream.stream_mut().clear_pending();
+        }
+    }
+
     pub async fn drive(&mut self) -> Result<MoonlightStreamEvent, Error> {
         select! {
             result = self.audio_stream.drive() => result.map(MoonlightStreamEvent::from),

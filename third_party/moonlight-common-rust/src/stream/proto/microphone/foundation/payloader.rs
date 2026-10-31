@@ -1,4 +1,7 @@
-use std::{collections::VecDeque, time::Duration};
+use std::{
+    collections::VecDeque,
+    time::{Duration, Instant},
+};
 
 use bytes::{Bytes, BytesMut};
 use thiserror::Error;
@@ -44,9 +47,12 @@ pub struct FoundationMicPayloaderConfig {
 pub struct FoundationMicPayloader {
     crypto_backend: DynCryptoBackend,
     config: FoundationMicPayloaderConfig,
-    packets: VecDeque<Bytes>,
+    packets: VecDeque<(Instant, Bytes)>,
     sequence_number: u16,
 }
+
+// Bound network backpressure to 60 ms for the gateway's 20 ms microphone frames.
+const MAX_PENDING_PACKETS: usize = 3;
 
 impl FoundationMicPayloader {
     pub fn new(config: FoundationMicPayloaderConfig, crypto_backend: DynCryptoBackend) -> Self {
@@ -114,12 +120,25 @@ impl FoundationMicPayloader {
 
         self.sequence_number = self.sequence_number.wrapping_add(1);
 
-        self.packets.push_back(packet.freeze());
+        if self.packets.len() == MAX_PENDING_PACKETS {
+            self.packets.pop_front();
+        }
+        self.packets.push_back((Instant::now(), packet.freeze()));
 
         Ok(())
     }
 
     pub fn poll_packet(&mut self) -> Option<Bytes> {
-        self.packets.pop_front()
+        while let Some((queued, packet)) = self.packets.pop_front() {
+            if queued.elapsed() < Duration::from_millis(60) {
+                return Some(packet);
+            }
+        }
+        None
+    }
+
+    /// Discard queued microphone data when authority or routing changes.
+    pub fn clear(&mut self) {
+        self.packets.clear();
     }
 }

@@ -67,6 +67,26 @@ fn foundation_mic_header_serialization() {
 }
 
 #[test]
+fn backpressure_keeps_recent_packets_and_clear_discards_them() {
+    let mut payloader = FoundationMicPayloader::new(
+        FoundationMicPayloaderConfig { encryption: None },
+        Arc::new(DisabledCryptoBackend) as _,
+    );
+    for value in 0..5u8 {
+        payloader
+            .push_frame(Duration::from_millis(value as u64 * 20), &[value])
+            .unwrap();
+    }
+    for value in 2..5u8 {
+        assert_eq!(payloader.poll_packet().unwrap()[12], value);
+    }
+    assert!(payloader.poll_packet().is_none());
+    payloader.push_frame(Duration::ZERO, &[9]).unwrap();
+    payloader.clear();
+    assert!(payloader.poll_packet().is_none());
+}
+
+#[test]
 fn payloader() {
     let mut payloader = FoundationMicPayloader::new(
         FoundationMicPayloaderConfig { encryption: None },

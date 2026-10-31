@@ -73,6 +73,11 @@ impl FoundationMicStream {
 
         Ok(())
     }
+
+    /// Discard microphone packets that have not reached the socket.
+    pub fn clear_pending(&mut self) {
+        self.payloader.clear();
+    }
 }
 
 impl UdpStream for FoundationMicStream {

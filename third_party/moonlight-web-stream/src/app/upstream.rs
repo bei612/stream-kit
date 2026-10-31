@@ -348,11 +348,15 @@ impl UpstreamPool {
                             mixer.configure(policy).map_err(|e| e.to_string())?;
                             if microphone_peer != controller {
                                 mixer.clear_microphone().map_err(|e| e.to_string())?;
+                                resources.stream.clear_pending_microphone();
                                 if let Some(target) = &resources.target { target.clear(); }
                                 microphone_peer = controller;
                             }
                             if !policy.microphone_enabled && let Some(target) = &resources.target {
                                 target.clear();
+                            }
+                            if !policy.microphone_enabled || route.mode != super::control_state::TargetMode::Upstream {
+                                resources.stream.clear_pending_microphone();
                             }
                             let buffer = mixer.render(timestamp, Instant::now()).map_err(|e| e.to_string())?.into();
                             if let Some(target) = &resources.target {
@@ -366,6 +370,7 @@ impl UpstreamPool {
                             Some(Err(error)) => { tracing::warn!(%error, "session audio rendering failed"); break; },
                             None => {
                                 if input.reconcile(None).into_iter().any(|p| resources.stream.send_raw(p).is_err()) { break; }
+                                resources.stream.clear_pending_microphone();
                                 let _ = mixer.clear_microphone(); microphone_peer = None;
                                 if let Some(target) = resources.target.as_mut() { target.reconcile(0, None); }
                             },
@@ -398,6 +403,7 @@ impl UpstreamPool {
                                         tracing::warn!(%error, "cannot clear previous microphone");
                                         return;
                                     }
+                                    resources.stream.clear_pending_microphone();
                                     if let Some(target) = &resources.target { target.clear(); }
                                     microphone_peer = Some(current);
                                 }
@@ -520,6 +526,32 @@ mod tests {
     use crate::app::host::{AppId, HostId};
     use moonlight_common::stream::video::VideoFormat;
     use std::sync::atomic::{AtomicBool, Ordering};
+
+    #[test]
+    fn upstream_microphone_queue_is_bounded_and_revocable() {
+        use moonlight_common::{
+            crypto::disabled::DisabledCryptoBackend,
+            stream::proto::microphone::foundation::payloader::{
+                FoundationMicPayloader, FoundationMicPayloaderConfig,
+            },
+        };
+        let mut sender = FoundationMicPayloader::new(
+            FoundationMicPayloaderConfig { encryption: None },
+            Arc::new(DisabledCryptoBackend),
+        );
+        for value in 0..5u8 {
+            sender
+                .push_frame(Duration::from_millis(value as u64 * 20), &[value])
+                .unwrap();
+        }
+        for value in 2..5u8 {
+            assert_eq!(sender.poll_packet().unwrap()[12], value);
+        }
+        assert!(sender.poll_packet().is_none());
+        sender.push_frame(Duration::ZERO, &[9]).unwrap();
+        sender.clear();
+        assert!(sender.poll_packet().is_none());
+    }
 
     struct LiveResource(Arc<AtomicBool>);
     impl Drop for LiveResource {
