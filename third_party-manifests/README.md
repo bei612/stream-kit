@@ -1,5 +1,7 @@
 # 纳管源码与原生构建
 
+`pulseaudio-rs.json` 记录 Linux 音频协议依赖 `pulseaudio 0.3.2` 的 crates.io 归档 SHA-256 和上游提交，MIT 许可证保留在 `third_party/pulseaudio-rs/LICENSE.md`。独立音频组件和媒体网关的 Cargo 根清单均将该依赖指向同一份仓库源码；两个生产锁文件与依赖自身的回归测试锁文件分别纳管。二开限制每轮接收批次并保留未读状态，使连续录音时仍能调度时延、暂停和删除命令；不通过遗留后台线程或强杀设备进程宣称释放成功。持续可读与分片回归测试、Linux 独立设备对检查由 `linux-native-capture` 执行，实际通过状态以对应提交的运行结果为准。
+
 `webrtc-rs.json` 记录 WebRTC 异步层 0.21.1 的 crates.io 归档来源与摘要，源码位于 `third_party/webrtc-rs`，由网关通过 Cargo 路径依赖编译。保留 MIT/Apache-2.0 许可证；移除归档中的未使用 submodule 声明，rtc 仍使用 Cargo 锁定依赖。二开把 UDP 范围选端口放到实际套接字绑定层，避免并发连接在探测后释放端口产生竞争；ICE 重绑复用同一策略。生产依赖锁定见网关 Cargo.lock，源码单元测试依赖单独锁定在该目录 Cargo.lock。
 
 `upstream-lock.json` 锁定主组件，`sunshine-dependencies.json` 锁定 Sunshine 原有嵌套依赖及 NVENC 头文件。依赖是本仓库普通文件，不需要 `git submodule update`。清单保留上游仓库、提交、下载归档摘要以及可执行文件/符号链接模式。AMF 仅纳入构建使用的公开头文件、README 和许可证，不纳入无关示例二进制、PDB 与预编译 FFmpeg。
