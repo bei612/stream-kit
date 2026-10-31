@@ -1,5 +1,15 @@
 # Stream-Kit service deployment
 
+On 2026-10-31 the required stability duration was explicitly reduced from 24 to
+4 hours. The 20-client run completed 16,280.012 seconds (about 4.52 hours), with
+1,603 periodic samples verifying all connections, decoded-frame and audio-packet
+progress, and the shared upstream. This stability requirement is complete.
+Evidence is in `artifacts/source-stream/2026-10-31T05-01-53-785Z/four-hour-acceptance/`.
+The original 24-hour harness was deliberately interrupted after the requirement
+change; its later disconnect checks and graceful teardown are not claimed.
+Only its 36 owned processes were stopped, with none remaining. This result does
+not certify microphone delivery to a target application or audible audio quality.
+
 The native gateway release entry point is `node scripts/build-gateway-release.mjs`.
 It requires a clean commit, builds with the locked Cargo dependency graph, embeds
 the full source revision and explicit dirty state, executes `--version`, and

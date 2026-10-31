@@ -4,7 +4,13 @@
 set -eu
 repo=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 application_only=0
-if [ "${1:-}" = --application-only ]; then
+command_only=0
+if [ "${1:-}" = --command ]; then
+    command_only=1
+    application_only=1
+    shift
+    [ "$#" -gt 0 ] || { echo 'Pass a command to run inside the isolated audio server' >&2; exit 2; }
+elif [ "${1:-}" = --application-only ]; then
     application_only=1
     shift
     [ "$#" -eq 1 ] && [ -x "$1" ] || { echo 'Pass an absolute path to test_sunshine' >&2; exit 2; }
@@ -45,6 +51,12 @@ until pactl info >/dev/null 2>&1; do
     sleep 0.1
 done
 mkdir -p "$repo/artifacts/audio-target"
+if [ "$command_only" -eq 1 ]; then
+    # Browsers need a working audio backend even for generated silent tracks.
+    # Reuse the same isolated real server as native endpoint acceptance.
+    (cd "$repo" && PULSE_SINK=stream_kit_acceptance PULSE_SOURCE=stream_kit_capture "$@")
+    exit 0
+fi
 if [ "$application_only" -eq 0 ]; then
     if [ "${STREAM_KIT_AUDIO_TARGET_DEBUG:-0}" = 1 ]; then
         target_dir=$(cargo metadata --locked --no-deps --format-version 1 | python3 -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])')

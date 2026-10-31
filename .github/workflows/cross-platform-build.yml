@@ -216,11 +216,7 @@ jobs:
           workspaces: third_party/moonlight-web-stream
       - run: cargo check --locked
       - name: Verify gateway source stamp validation
-        shell: bash
-        run: |
-          mkdir -p ../../artifacts/ci
-          rustc --edition 2024 --test build.rs -o ../../artifacts/ci/gateway-stamp-tests${{ runner.os == 'Windows' && '.exe' || '' }}
-          ../../artifacts/ci/gateway-stamp-tests${{ runner.os == 'Windows' && '.exe' || '' }}
+        run: node ../../scripts/test-gateway-build-stamp.mjs
       - run: cargo test --locked --all-targets --manifest-path ../../components/audio-target/Cargo.toml
       - run: cargo clippy --locked --manifest-path ../../components/audio-target/Cargo.toml --all-targets -- -D warnings
       - name: Verify isolated Linux microphone endpoint pair
@@ -252,7 +248,11 @@ jobs:
           BROWSER_CHANNEL: chromium
         run: |
           for engine in chromium firefox; do
-            BROWSER_ENGINE="$engine" node scripts/test-audio-playback-browser.cjs
+            if [[ "$RUNNER_OS" == Linux ]]; then
+              BROWSER_ENGINE="$engine" sh scripts/test-audio-target-linux.sh --command node scripts/test-audio-playback-browser.cjs
+            else
+              BROWSER_ENGINE="$engine" node scripts/test-audio-playback-browser.cjs
+            fi
           done
       # The Windows Playwright WebKit build lacks Web Audio and media tracks.
       # Exercise the actual media APIs on Linux instead of counting that engine
@@ -262,7 +262,7 @@ jobs:
         working-directory: .
         env:
           BROWSER_ENGINE: webkit
-        run: node scripts/test-audio-playback-browser.cjs
+        run: sh scripts/test-audio-target-linux.sh --command node scripts/test-audio-playback-browser.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
