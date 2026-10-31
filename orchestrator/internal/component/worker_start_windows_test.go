@@ -7,6 +7,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -28,7 +30,7 @@ func TestSessionWorkerLaunchTransaction(t *testing.T) {
 	if err := windows.ProcessIdToSessionId(uint32(os.Getpid()), &session); err != nil {
 		t.Fatal(err)
 	}
-	for _, mode := range []string{"exit", "hold-stop", "spawn-error", "cancelled", "preflight-failure", "foreign-session"} {
+	for _, mode := range []string{"exit", "hold-stop", "session-lost", "spawn-error", "cancelled", "preflight-failure", "foreign-session"} {
 		t.Run(mode, func(t *testing.T) {
 			root := t.TempDir()
 			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
@@ -37,7 +39,7 @@ func TestSessionWorkerLaunchTransaction(t *testing.T) {
 				cancel()
 			}
 			cfg := config.ComponentConfig{ExePath: os.Args[0], Args: "-test.run=^TestWorkerChild$", Env: map[string]string{"STREAM_KIT_WORKER_TEST": "exit"}}
-			if mode == "hold-stop" {
+			if mode == "hold-stop" || mode == "session-lost" {
 				cfg.Env["STREAM_KIT_WORKER_TEST"] = "hold"
 			}
 			if mode == "preflight-failure" {
@@ -48,8 +50,19 @@ func TestSessionWorkerLaunchTransaction(t *testing.T) {
 				expectedSession++
 			}
 			spawned := 0
+			var guardCalls atomic.Int32
+			var guard func() error
+			if mode == "session-lost" {
+				guard = func() error {
+					if guardCalls.Add(1) == 1 {
+						return nil
+					}
+					return errors.New("test session no longer matches")
+				}
+			}
+			logs := NewRingBuffer(2000)
 			var retained windows.Handle
-			process, err := launchSessionWorker(ctx, cfg, root, expectedSession, user.User.Sid.String(), NewRingBuffer(2000), func(args []string) (*nativeWorker, error) {
+			process, err := launchSessionWorker(ctx, cfg, root, expectedSession, user.User.Sid.String(), logs, func(args []string) (*nativeWorker, error) {
 				spawned++
 				if mode == "spawn-error" {
 					return nil, errors.New("test native launch failure")
@@ -67,10 +80,14 @@ func TestSessionWorkerLaunchTransaction(t *testing.T) {
 					retained = retainNativeProcess(t, worker.pid)
 				}
 				return worker, err
-			})
-			if mode == "exit" || mode == "hold-stop" {
+			}, guard)
+			if mode == "exit" || mode == "hold-stop" || mode == "session-lost" {
 				if err != nil {
 					t.Fatal(err)
+				}
+				var child windows.Handle
+				if mode == "session-lost" {
+					child = retainNativeProcess(t, uint32(process.PID))
 				}
 				go process.RunWait()
 				if mode == "hold-stop" {
@@ -85,6 +102,12 @@ func TestSessionWorkerLaunchTransaction(t *testing.T) {
 				}
 				if mode == "exit" && process.ExitCode != 7 {
 					t.Fatalf("exit: %d", process.ExitCode)
+				}
+				if mode == "session-lost" && (guardCalls.Load() != 2 || process.ExitCode == 0 || !strings.Contains(strings.Join(logs.GetLast(2000), "\n"), "session unavailable")) {
+					t.Fatal("session loss did not stop the owned renderer")
+				}
+				if child != 0 {
+					assertNativeExited(t, child)
 				}
 			} else if err == nil || process != nil {
 				t.Fatal("failed launch returned ownership as successful")

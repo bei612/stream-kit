@@ -28,6 +28,12 @@ func startSessionWorker(ctx context.Context, cfg config.ComponentConfig, root st
 	}
 	return launchSessionWorker(ctx, cfg, root, session, sid, logs, func(args []string) (*nativeWorker, error) {
 		return startNativeWorker(token, session, sid, exe, args, filepath.Dir(exe))
+	}, func() error {
+		current, err := openWorkerUser(session, sid)
+		if err != nil {
+			return err
+		}
+		return current.Close()
 	})
 }
 
@@ -36,6 +42,7 @@ func startSessionWorker(ctx context.Context, cfg config.ComponentConfig, root st
 // token above. Once attached, ManagedProcess owns every resource until Done.
 func launchSessionWorker(ctx context.Context, cfg config.ComponentConfig, root string, session uint32, sid string, logs *RingBuffer,
 	spawn func([]string) (*nativeWorker, error),
+	sessionGuard func() error,
 ) (_ *ManagedProcess, result error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -103,5 +110,5 @@ func launchSessionWorker(ctx context.Context, cfg config.ComponentConfig, root s
 		worker = nil
 		return nil, err
 	}
-	return attachWorkerProcess(ctx, connection, instance, worker, snapshot, logs)
+	return attachWorkerProcess(ctx, connection, instance, worker, snapshot, logs, sessionGuard)
 }

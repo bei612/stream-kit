@@ -148,8 +148,12 @@ no fallback to another desktop. The worker uses `winsta0\default`, a contained
 process tree, mutually authenticated local pipes, and an immutable per-launch
 snapshot. Native preflight runs in that same user context before an existing
 renderer is stopped. Logs, heartbeats, stop, kill and exit ownership use the
-same component manager as direct processes. Worker logon/session changes are
-not yet an accepted recovery scenario.
+same component manager as direct processes. The controller revalidates the
+selected active session and SID immediately and on each 10-second heartbeat.
+Loss or mismatch terminates the owned job and records the reason in component
+logs. It never moves the renderer into another session automatically; a later
+restart must pass the same user/session checks. Recovery across actual Windows
+logon/session changes remains unaccepted until the SCM test is performed.
 
 The launch transaction, failure cleanup, preflight failure, process lifecycle
 and 35-second idle heartbeat have native tests, including a built worker binary.

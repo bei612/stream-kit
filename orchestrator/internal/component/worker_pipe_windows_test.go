@@ -128,7 +128,7 @@ func TestNativeWorkerAuthenticatedLifecycle(t *testing.T) {
 			defer connection.Close()
 			if strings.HasPrefix(mode, "managed-") {
 				logs := NewRingBuffer(2000)
-				process, err := attachWorkerProcess(ctx, connection, instance, worker, snapshot, logs)
+				process, err := attachWorkerProcess(ctx, connection, instance, worker, snapshot, logs, nil)
 				if err != nil {
 					t.Fatal(err)
 				}

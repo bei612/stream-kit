@@ -14,22 +14,23 @@ import (
 )
 
 type workerProcess struct {
-	ctx        context.Context
-	connection *workeripc.Conn
-	commands   *workeripc.Stream
-	events     *workeripc.Stream
-	worker     *nativeWorker
-	snapshot   *workerSnapshot
-	logs       *RingBuffer
-	writeMu    sync.Mutex
-	ownerMu    sync.Mutex
-	closed     bool
+	ctx          context.Context
+	connection   *workeripc.Conn
+	commands     *workeripc.Stream
+	events       *workeripc.Stream
+	worker       *nativeWorker
+	snapshot     *workerSnapshot
+	logs         *RingBuffer
+	sessionGuard func() error
+	writeMu      sync.Mutex
+	ownerMu      sync.Mutex
+	closed       bool
 }
 
 // attachWorkerProcess transfers ownership only on success. On failure the
 // launcher still owns the connection, native job and snapshot and must clean up.
 // The caller runs ManagedProcess.RunWait exactly once, like a direct process.
-func attachWorkerProcess(ctx context.Context, connection *workeripc.Conn, instance string, worker *nativeWorker, snapshot *workerSnapshot, logs *RingBuffer) (*ManagedProcess, error) {
+func attachWorkerProcess(ctx context.Context, connection *workeripc.Conn, instance string, worker *nativeWorker, snapshot *workerSnapshot, logs *RingBuffer, sessionGuard func() error) (*ManagedProcess, error) {
 	commands, err := workeripc.New(instance, workeripc.Commands)
 	if err != nil {
 		return nil, err
@@ -38,7 +39,7 @@ func attachWorkerProcess(ctx context.Context, connection *workeripc.Conn, instan
 	if err != nil {
 		return nil, err
 	}
-	process := &workerProcess{ctx: ctx, connection: connection, commands: commands, events: events, worker: worker, snapshot: snapshot, logs: logs}
+	process := &workerProcess{ctx: ctx, connection: connection, commands: commands, events: events, worker: worker, snapshot: snapshot, logs: logs, sessionGuard: sessionGuard}
 	stop := context.AfterFunc(ctx, func() { _ = connection.Close() })
 	defer stop()
 	if err = ctx.Err(); err != nil {
@@ -87,6 +88,21 @@ func (p *workerProcess) wait() (code int, result error) {
 	heartbeatDone := make(chan struct{})
 	go func() {
 		defer close(heartbeatDone)
+		checkSession := func() bool {
+			if p.sessionGuard == nil {
+				return true
+			}
+			if p.sessionGuard() == nil {
+				return true
+			}
+			p.logs.Write("[Windows render session unavailable or identity changed; stopping owned process]")
+			_ = p.kill()
+			_ = p.connection.Close()
+			return false
+		}
+		if !checkSession() {
+			return
+		}
 		ticker := time.NewTicker(10 * time.Second)
 		defer ticker.Stop()
 		for {
@@ -94,6 +110,9 @@ func (p *workerProcess) wait() (code int, result error) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
+				if !checkSession() {
+					return
+				}
 				if p.send("ping") != nil {
 					_ = p.connection.Close()
 					return
