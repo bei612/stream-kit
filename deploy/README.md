@@ -17,6 +17,9 @@ https://github.com/bei612/stream-kit/actions/runs/41188846438/job/124501261048.
 This is native Linux CI runtime evidence, not physical-device or full media
 installation acceptance. The same revision's local Windows control bundle also
 passed at `artifacts/control-bundle/2026-10-31T09-31-15-394Z/`.
+The same revision's Windows CI job subsequently passed too, including the
+native control-bundle browser acceptance:
+https://github.com/bei612/stream-kit/actions/runs/41188846438/job/124501260959.
 
 The native gateway release entry point is `node scripts/build-gateway-release.mjs`.
 It requires a clean commit, builds with the locked Cargo dependency graph, embeds
