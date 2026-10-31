@@ -8,5 +8,5 @@
   "path": "third_party/pulseaudio-rs",
   "license": "MIT",
   "changes": ["Bound receive batches and preserve edge-triggered socket readiness so continuous recording cannot starve control commands."],
-  "validation": "Linux isolated endpoint-pair acceptance; the registry backend hung during both capture pause and destruction. Patched runtime acceptance remains required."
+  "validation": "Commit 8d08feca: Linux CI run 41183336192, job 124485111356 passed protocol receive fairness/fragmentation and actual isolated endpoint tone, silence, and normal close checks. This is not browser-to-UE5 acceptance."
 }

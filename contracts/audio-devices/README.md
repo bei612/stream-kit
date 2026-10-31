@@ -53,6 +53,8 @@ node scripts/smoke-media-contract.cjs GATEWAY_EXECUTABLE [ORCHESTRATOR_EXECUTABL
 
 专用 Windows 虚拟设备部署及浏览器→UE5/录音机实际录音仍待验收。
 
+2026-10-31，`8d08feca` 的 [Linux 设备对验收 41183336192](https://github.com/bei612/stream-kit/actions/runs/41183336192/job/124485111356) 已实际执行并通过。隔离 PulseAudio 服务中的明确播放/录音端点完成基线静音、997Hz 测试音传递、清空后静音和正常设备释放，超时堆栈诊断步骤未触发。此前注册表版 `pulseaudio 0.3.2` 在暂停及关闭采集时挂起；现纳管源码对连续接收实施有界批次调度，并通过持续可读及分片回归测试。独立音频组件与网关均解析到同一份修正后的依赖。此结果不包含浏览器上行、真实渲染程序录音、Windows 虚拟驱动或跨节点传输。
+
 ## 端点对显式检查（网关内部接口）
 
 网关提供 `POST /internal/v1/audio-pair-check`，请求必须使用 `stream-kit/audio-pair-check/request/v1\n` 签名域，响应使用独立的 `stream-kit/audio-pair-check/response/v1\n` 签名域。请求包含 `schema_version`、32 位十六进制随机 `request_id`、`issued_at_ms` 和 `endpoint` 的明确输出/输入 ID；服务端校验签名、时效、方向格式与不同 ID，并在本进程内拒绝重复 nonce。nonce 缓存随进程结束而清空，不能视为跨重启的持久防重放机制。
