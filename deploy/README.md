@@ -6,7 +6,7 @@ on Linux, both belong under `/opt/stream-kit/orchestrator/`; on Windows, both
 belong under the install root passed to the service installer. Configuration can
 remain in `/etc/stream-kit/` or `C:\ProgramData\StreamKit\` independently.
 
-After building `orchestrator/web`, use `node scripts/build-control-plane.mjs`
+After installing locked dependencies with `npm ci` in `orchestrator/web`, use `node scripts/build-control-plane.mjs`
 from the repository root to build the control-plane bundle. `--go` selects the
 Go executable and `--output` selects a new output directory. Existing output is
 never overwritten. CI uses `--require-clean`, Go 1.25.0 and Node 26.4.0; a dirty
@@ -16,8 +16,12 @@ that flag are explicitly marked `-dirty` when appropriate.
 The executable reports its source commit and version. The embedded build stamp
 is the source commit timestamp for reproducibility, not wall-clock packaging
 time. `bundle-manifest.json` records the commit, dirty state, target, Go version,
-and SHA-256/size of every executable and page asset. The page must be rebuilt
-from the same source first; CI does this before invoking the bundle script.
+and SHA-256/size of every executable and page asset. The builder type-checks and
+builds the page directly into the new bundle, then builds the executable; it
+never copies a potentially stale `web/dist`. The manifest also records Node,
+TypeScript and Vite versions and the frontend lockfile hash. Installed TypeScript
+and Vite must match the lockfile. Release builds recheck the source revision and
+clean worktree before issuing a manifest. Existing deployment assets are untouched.
 Hashes identify the packaged bytes; the manifest is not a signature, SBOM or
 proof that the complete platform has passed acceptance.
 

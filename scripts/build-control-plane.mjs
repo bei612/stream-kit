@@ -22,25 +22,24 @@ const sourceTime=new Date(git('show','-s','--format=%cI','HEAD')).toISOString()
 const dirty=git('status','--porcelain','--untracked-files=normal')!==''
 if(requireClean&&dirty)throw new Error('Release bundle requires a clean source tree')
 const version=`git-${commit.slice(0,12)}${dirty?'-dirty':''}`
-const web=path.join(root,'orchestrator/web/dist')
-if(!fs.statSync(path.join(web,'index.html')).isFile())throw new Error('Build the management page first')
+const web=path.join(root,'orchestrator/web')
+const toolPackage=name=>JSON.parse(fs.readFileSync(path.join(web,'node_modules',name,'package.json'),'utf8'))
+const lock=JSON.parse(fs.readFileSync(path.join(web,'package-lock.json'),'utf8'))
+const frontendTools={typescript:toolPackage('typescript').version,vite:toolPackage('vite').version}
+for(const [name,version] of Object.entries(frontendTools)){
+  if(lock.packages?.[`node_modules/${name}`]?.version!==version)throw new Error(`Installed ${name} does not match package-lock.json; run npm ci in orchestrator/web`)
+}
 if(fs.existsSync(output))throw new Error('Output must be a new directory; existing bundles are never overwritten')
 fs.mkdirSync(output,{recursive:true})
+// Build directly into this new bundle. Never reuse web/dist from a prior source
+// revision or empty a directory belonging to an existing deployment.
+execFileSync(process.execPath,[path.join(web,'node_modules/typescript/bin/tsc'),'-b','--force'],{cwd:web,stdio:'inherit',windowsHide:true})
+execFileSync(process.execPath,[path.join(web,'node_modules/vite/bin/vite.js'),'build','--outDir',path.join(output,'dist')],{cwd:web,stdio:'inherit',windowsHide:true})
+if(!fs.lstatSync(path.join(output,'dist/index.html')).isFile())throw new Error('Management page build did not produce index.html')
 const binary=path.join(output,process.platform==='win32'?'orchestrator.exe':'orchestrator')
 execFileSync(go,['build','-trimpath','-ldflags',`-s -w -X main.version=${version} -X main.commit=${commit} -X main.buildTime=${sourceTime}`,'-o',binary,'./cmd/orchestrator'],{cwd:path.join(root,'orchestrator'),stdio:'inherit',windowsHide:true})
 
-// Enumerate regular files only: a build output must not drag linked private
-// configuration or external directories into a distribution.
-function copyTree(source,destination){
-  fs.mkdirSync(destination)
-  for(const name of fs.readdirSync(source).sort()){
-    const from=path.join(source,name),to=path.join(destination,name),stat=fs.lstatSync(from)
-    if(stat.isDirectory())copyTree(from,to)
-    else if(stat.isFile())fs.copyFileSync(from,to)
-    else throw new Error(`Unsupported linked or special asset: ${name}`)
-  }
-}
-copyTree(web,path.join(output,'dist'))
+// Inventory regular files only; linked or special entries cannot be released.
 const files=[]
 function inventory(directory){
   for(const name of fs.readdirSync(directory).sort()){
@@ -54,6 +53,7 @@ inventory(output)
 const reported=execFileSync(binary,['version'],{encoding:'utf8',windowsHide:true}).trim()
 if(!reported.includes(`(commit: ${commit},`)||!reported.includes(version))throw new Error('Compiled version does not match source')
 const target=JSON.parse(execFileSync(go,['env','-json','GOOS','GOARCH'],{encoding:'utf8',windowsHide:true}))
-const manifest={schema_version:1,component:'orchestrator',version,commit,source_commit_time:sourceTime,source_dirty:dirty,platform:target.GOOS,architecture:target.GOARCH,go_version:execFileSync(go,['version'],{encoding:'utf8',windowsHide:true}).trim(),files}
+if(git('rev-parse','HEAD')!==commit||((requireClean||!dirty)&&git('status','--porcelain','--untracked-files=normal')!==''))throw new Error('Source changed during release build; no bundle manifest was issued')
+const manifest={schema_version:1,component:'orchestrator',version,commit,source_commit_time:sourceTime,source_dirty:dirty,platform:target.GOOS,architecture:target.GOARCH,go_version:execFileSync(go,['version'],{encoding:'utf8',windowsHide:true}).trim(),frontend:{node_version:process.version,...frontendTools,package_lock_sha256:createHash('sha256').update(fs.readFileSync(path.join(web,'package-lock.json'))).digest('hex')},files}
 fs.writeFileSync(path.join(output,'bundle-manifest.json'),JSON.stringify(manifest,null,2)+'\n')
 console.log(JSON.stringify({output,version,source_dirty:dirty,files:files.length}))

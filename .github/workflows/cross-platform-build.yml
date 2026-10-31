@@ -54,8 +54,6 @@ jobs:
           cache-dependency-path: orchestrator/web/package-lock.json
       - run: npm ci
         working-directory: orchestrator/web
-      - run: npm run build
-        working-directory: orchestrator/web
       - name: Build versioned control-plane bundle
         run: node ../scripts/build-control-plane.mjs --require-clean
       - uses: actions/upload-artifact@v4
