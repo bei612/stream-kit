@@ -89,7 +89,7 @@ func (rb *RingBuffer) Subscribe() <-chan string {
 	return ch
 }
 
-func (rb *RingBuffer) Unsubscribe(ch chan string) {
+func (rb *RingBuffer) Unsubscribe(ch <-chan string) {
 	rb.subMu.Lock()
 	defer rb.subMu.Unlock()
 	for i, sub := range rb.subs {
