@@ -109,8 +109,13 @@ log without copying general child configuration output or credentials.
 
 `windows-product-release` is the unified GitHub Actions build entry point. Manual
 dispatch builds the four source components and one installer as downloadable
-artifacts; pushing a `v*-preview.*` tag also publishes that installer and its
-source SBOM as a prerelease without replacing existing release assets. The
+artifacts. After a successful run, push a new `v*-preview.*` tag at that run's
+source commit through the project's authorized Git transport, then dispatch the
+workflow with `promote_run_id` and `release_tag`. Promotion verifies both native
+installers and the source SBOM, and publishes those exact files without building
+again or replacing release assets. Tag pushes do not start new builds in the
+current workflow. The default Actions token uploads the release; it does not
+need a deploy key or an additional workflow-writing OAuth grant. The
 workflow uses the same checked-in builders as local packaging. CMake 3.31.8 and
 Inno Setup 7.1.1 come from their official releases with locked SHA-256; Inno's
 publisher signature is checked before running the build-tool installer. Node,

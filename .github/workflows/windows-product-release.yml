@@ -11,8 +11,6 @@ on:
         description: 'New preview tag for promotion, e.g. v0.1.0-preview.20261101.3'
         type: string
         required: false
-  push:
-    tags: ['v*-preview.*']
 
 permissions:
   contents: read
@@ -206,37 +204,3 @@ jobs:
           SOURCE_RUN_ID: ${{ inputs.promote_run_id }}
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: bash .github/scripts/promote-product-release.sh
-
-  publish:
-    name: Publish tagged preview
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: [build, linux, sbom]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: windows-product-installer-${{ github.sha }}
-          path: artifacts/publish
-      - uses: actions/download-artifact@v4
-        with:
-          name: windows-product-sbom-${{ github.sha }}
-          path: artifacts/publish
-      - uses: actions/download-artifact@v4
-        with:
-          name: linux-product-installer-${{ github.sha }}
-          path: artifacts/publish/linux
-      - name: Publish without replacing existing assets
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: |
-          set -euo pipefail
-          cd artifacts/publish
-          sha256sum -c SHA256SUMS.txt
-          (cd linux/installer && sha256sum -c SHA256SUMS)
-          mv linux/installer/installer-manifest.json linux/linux-installer-manifest.json
-          mv linux/installer/SHA256SUMS linux/Linux-SHA256SUMS.txt
-          gh release create "$RELEASE_TAG" ./*.exe installer-manifest.json SHA256SUMS.txt stream-kit-sbom.spdx.json linux/installer/*-setup.run linux/linux-installer-manifest.json linux/Linux-SHA256SUMS.txt --verify-tag --prerelease --title "$RELEASE_TAG" --notes-file "$GITHUB_WORKSPACE/deploy/windows/CI-RELEASE.md"

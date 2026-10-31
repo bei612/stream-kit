@@ -41,17 +41,14 @@ linux_file=$(jq -r .installer.file "$linux/installer-manifest.json")
 jq -e '.spdxVersion | startswith("SPDX-")' "$sbom" > /dev/null
 git fetch --no-tags origin "$source_commit"
 git show "$source_commit:deploy/windows/CI-RELEASE.md" > artifacts/promotion/release-notes.md
-if git ls-remote --exit-code origin "refs/tags/$RELEASE_TAG" > /dev/null; then
-  git fetch --no-tags origin "refs/tags/$RELEASE_TAG"
-  [[ $(git rev-parse 'FETCH_HEAD^{commit}') == "$source_commit" ]] || { echo 'Release tag points to another revision' >&2; exit 1; }
-else
-  git config user.name 'github-actions[bot]'
-  git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-  git tag -a "$RELEASE_TAG" "$source_commit" -m "Verified product run $SOURCE_RUN_ID"
-  # The repository GITHUB_TOKEN creates this ref without recursively triggering
-  # another build. No PAT, deploy key change or extra OAuth authorization is needed.
-  git push origin "refs/tags/$RELEASE_TAG"
-fi
+# Version refs are created through the release operator's existing Git write
+# transport. GITHUB_TOKEN can upload releases but cannot tag an older revision
+# whose workflow files differ from main without a separate workflows grant.
+# Keep that credential boundary explicit; promotion never widens permissions,
+# stores a deploy key, changes the target revision, or starts another build.
+git ls-remote --exit-code origin "refs/tags/$RELEASE_TAG" > /dev/null || { echo 'Push the release tag at the verified source revision before promotion' >&2; exit 1; }
+git fetch --no-tags origin "refs/tags/$RELEASE_TAG"
+[[ $(git rev-parse 'FETCH_HEAD^{commit}') == "$source_commit" ]] || { echo 'Release tag points to another revision' >&2; exit 1; }
 mv "$linux/installer-manifest.json" "$linux/linux-installer-manifest.json"
 mv "$linux/SHA256SUMS" "$linux/Linux-SHA256SUMS.txt"
 gh release create "$RELEASE_TAG" "$windows/$win_file" "$windows/installer-manifest.json" "$windows/SHA256SUMS.txt" "$linux/$linux_file" "$linux/linux-installer-manifest.json" "$linux/Linux-SHA256SUMS.txt" "$sbom" --repo "$GITHUB_REPOSITORY" --verify-tag --prerelease --title "$RELEASE_TAG" --notes-file artifacts/promotion/release-notes.md
