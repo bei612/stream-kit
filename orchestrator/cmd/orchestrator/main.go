@@ -38,6 +38,12 @@ var (
 func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
+		case "render-worker":
+			if err := component.RunWorker(context.Background(), os.Args[2:]); err != nil {
+				fmt.Fprintln(os.Stderr, "render worker failed:", err)
+				os.Exit(1)
+			}
+			return
 		case "version":
 			fmt.Printf("stream-kit orchestrator %s (commit: %s, built: %s)\n", version, commit, buildTime)
 			os.Exit(0)

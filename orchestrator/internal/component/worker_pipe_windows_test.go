@@ -5,7 +5,9 @@ package component
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -14,56 +16,22 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stream-kit/orchestrator/internal/config"
 	"github.com/stream-kit/orchestrator/internal/workeripc"
-	"go.uber.org/zap"
 	"golang.org/x/sys/windows"
 )
 
 func TestNativePipeWorkerHelper(t *testing.T) {
-	var pipe, instance string
-	var parentPID, creation, session uint64
-	var sid string
 	for i, arg := range os.Args {
-		if arg == "--" && i+6 < len(os.Args) {
-			pipe, instance = os.Args[i+1], os.Args[i+2]
-			var err error
-			parentPID, err = strconv.ParseUint(os.Args[i+3], 10, 32)
-			if err != nil {
-				os.Exit(33)
+		if arg == "--" {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			if err := RunWorker(ctx, os.Args[i+1:]); err != nil {
+				os.Exit(32)
 			}
-			creation, err = strconv.ParseUint(os.Args[i+4], 10, 64)
-			if err != nil {
-				os.Exit(33)
-			}
-			sid = os.Args[i+5]
-			session, err = strconv.ParseUint(os.Args[i+6], 10, 32)
-			if err != nil {
-				os.Exit(33)
-			}
-			break
+			os.Exit(0)
 		}
 	}
-	if pipe == "" {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	controller, err := workeripc.RetainPeerProcess(uint32(parentPID), creation)
-	if err != nil {
-		os.Exit(34)
-	}
-	defer windows.CloseHandle(controller)
-	connection, err := dialNativeController(ctx, pipe, controller, sid, uint32(session))
-	if err != nil {
-		os.Exit(31)
-	}
-	err = serveWorker(ctx, connection, instance, func(logs *RingBuffer) (*ManagedProcess, error) {
-		return StartProcess(os.Args[0], "-test.run=^TestWorkerChild$", "", map[string]string{"STREAM_KIT_WORKER_TEST": "exit"}, logs, zap.NewNop())
-	})
-	if err != nil {
-		os.Exit(32)
-	}
-	os.Exit(0)
 }
 
 func TestNativeWorkerAuthenticatedLifecycle(t *testing.T) {
@@ -96,7 +64,24 @@ func TestNativeWorkerAuthenticatedLifecycle(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer listener.Close()
-			worker, err := createSuspendedWorker(os.Args[0], []string{"-test.run=^TestNativePipeWorkerHelper$", "--", listener.Name(), instance, strconv.Itoa(os.Getpid()), strconv.FormatUint(creation, 10), user.User.Sid.String(), strconv.FormatUint(uint64(session), 10)}, filepath.Dir(os.Args[0]),
+			snapshot := workerLaunch{Instance: instance, Component: config.ComponentConfig{ExePath: os.Args[0], Args: "-test.run=^TestWorkerChild$", WorkingDir: filepath.Dir(os.Args[0]), Env: map[string]string{"STREAM_KIT_WORKER_TEST": "exit"}}}
+			data, err := json.Marshal(snapshot)
+			if err != nil {
+				t.Fatal(err)
+			}
+			launchPath := filepath.Join(t.TempDir(), "launch.json")
+			if err := os.WriteFile(launchPath, data, 0600); err != nil {
+				t.Fatal(err)
+			}
+			digest := sha256.Sum256(data)
+			args := []string{"-test.run=^TestNativePipeWorkerHelper$", "--", "--pipe", listener.Name(), "--instance", instance, "--controller-pid", strconv.Itoa(os.Getpid()), "--controller-created", strconv.FormatUint(creation, 10), "--controller-sid", user.User.Sid.String(), "--controller-session", strconv.FormatUint(uint64(session), 10), "--launch-file", launchPath, "--launch-sha256", hex.EncodeToString(digest[:])}
+			workerExe := os.Args[0]
+			// Optional built-artifact acceptance exercises main's real dispatch.
+			if binary := os.Getenv("STREAM_KIT_TEST_WORKER_BINARY"); binary != "" {
+				workerExe = binary
+				args = append([]string{"render-worker"}, args[2:]...)
+			}
+			worker, err := createSuspendedWorker(workerExe, args, filepath.Dir(workerExe),
 				func(app, command, directory *uint16, startup *windows.StartupInfo, process *windows.ProcessInformation) error {
 					return windows.CreateProcess(app, command, nil, nil, false, windows.CREATE_SUSPENDED|windows.CREATE_NO_WINDOW, nil, directory, startup, process)
 				})
