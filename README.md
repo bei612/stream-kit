@@ -8,6 +8,8 @@ Stream-Kit 将管理服务、Sunshine 渲染端和 Moonlight Web 媒体网关集
 
 从 [GitHub Releases](https://github.com/bei612/stream-kit/releases) 获取当前可下载版本，查看该版本说明和 SHA-256。版本中若提供 `stream-kit-preview-<COMMIT>-windows-amd64-setup.exe`，使用这一个安装器安装三个核心组件；无需另外安装官方 Sunshine 或 Moonlight Web，也不要再注册独立 Sunshine 服务。
 
+当前统一安装候选版为 [2026-11-01](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261101)，包含音视频示例、麦克风设备选择和声音处理设置。安装及运行无需在宿主机安装 Node.js/npm；源码构建和开发验收使用的工具不属于产品运行依赖。版本清单及未闭合项见 [本版交付状态](deploy/releases/20261101.md)。
+
 Windows 安装器支持向导和静默模式。以管理员终端执行，将文件名替换为实际下载的名称：
 
 ```powershell
