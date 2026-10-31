@@ -1,0 +1,38 @@
+name: inspect-linux-renderer
+on:
+  workflow_dispatch:
+    inputs:
+      source_run:
+        description: 'Product run containing the Linux source-build diagnostic artifact'
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_RUN: ${{ inputs.source_run }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect native CLI from the existing artifact without rebuilding
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_RUN" =~ ^[1-9][0-9]*$ ]]
+          gh run download "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" --name linux-sunshine-source-build --dir artifacts/inspect
+          sudo apt-get update -qq
+          sudo apt-get install -y libcap-dev libcurl4-openssl-dev libminiupnpc-dev libpulse-dev libpipewire-0.3-dev libva-dev libvulkan-dev libnuma-dev qt6-base-dev qt6-svg-dev
+          binary="$GITHUB_WORKSPACE/artifacts/inspect/.local/cmake-build-sunshine/sunshine"
+          chmod +x "$binary"
+          ldd "$binary"
+          temporary=$(mktemp -d)
+          cd "$temporary"
+          printf 'log_path = %s/sunshine.log\n' "$temporary" > sunshine.conf
+          "$binary" "$temporary/sunshine.conf" --version > stdout.log 2> stderr.log
+          printf '=== stdout ===\n'; cat stdout.log
+          printf '=== stderr ===\n'; cat stderr.log
+          printf '=== byte representation ===\n'; od -c stdout.log
+          if [ -f sunshine.log ]; then printf '=== native log ===\n'; cat sunshine.log; fi
