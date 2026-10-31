@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stream-kit/orchestrator/internal/commandline"
 	"github.com/stream-kit/orchestrator/internal/config"
 	"go.uber.org/zap"
 )
@@ -26,13 +27,13 @@ func TestArgumentGrammarPreservesValues(t *testing.T) {
 		{`'say "hello"' "it's fine"`, []string{`say "hello"`, "it's fine"}},
 		{`$HOME $(program) *.txt`, []string{"$HOME", "$(program)", "*.txt"}},
 	} {
-		got, err := splitArgs(tc.input)
+		got, err := commandline.Parse(tc.input)
 		if err != nil || !reflect.DeepEqual(got, tc.want) {
 			t.Fatalf("input=%q got=%q err=%v", tc.input, got, err)
 		}
 	}
 	for _, input := range []string{`"private-value`, `'private-value`, "private\x00value"} {
-		if _, err := splitArgs(input); err == nil || strings.Contains(err.Error(), "private") {
+		if _, err := commandline.Parse(input); err == nil || strings.Contains(err.Error(), "private") {
 			t.Fatalf("invalid arguments accepted or echoed: %v", err)
 		}
 	}

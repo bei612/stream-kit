@@ -8,11 +8,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 	"sync/atomic"
 	"time"
-	"unicode"
 
+	"github.com/stream-kit/orchestrator/internal/commandline"
 	"github.com/stream-kit/orchestrator/internal/config"
 
 	"go.uber.org/zap"
@@ -32,7 +31,7 @@ type ManagedProcess struct {
 
 // StartProcess launches a process with stdout/stderr capture.
 func StartProcess(exePath, args, workingDir string, env map[string]string, logBuf *RingBuffer, logger *zap.Logger) (*ManagedProcess, error) {
-	cmdArgs, err := splitArgs(args)
+	cmdArgs, err := commandline.Parse(args)
 	if err != nil {
 		return nil, err
 	}
@@ -126,10 +125,10 @@ func preflight(parent context.Context, cfg config.ComponentConfig) error {
 	if parent.Err() != nil {
 		return fmt.Errorf("组件原生配置预检已取消")
 	}
-	if _, err := splitArgs(cfg.Args); err != nil {
+	if _, err := commandline.Parse(cfg.Args); err != nil {
 		return err
 	}
-	preflightArgs, err := splitArgs(cfg.PreflightArgs)
+	preflightArgs, err := commandline.Parse(cfg.PreflightArgs)
 	if err != nil {
 		return fmt.Errorf("组件预检参数无效: %w", err)
 	}
@@ -157,44 +156,6 @@ func preflight(parent context.Context, cfg config.ComponentConfig) error {
 		return fmt.Errorf("组件原生配置预检失败，请检查配置及运行环境")
 	}
 	return nil
-}
-
-// splitArgs parses the same shell-free argument grammar on every platform.
-// Quotes group text (including empty values); backslashes stay literal so
-// Windows paths survive unchanged. No environment or shell expansion occurs.
-func splitArgs(s string) ([]string, error) {
-	var args []string
-	var cur strings.Builder
-	inSingle, inDouble := false, false
-	started := false
-	for _, r := range s {
-		switch {
-		case r == 0:
-			return nil, fmt.Errorf("组件参数不能包含空字符")
-		case r == '\'' && !inDouble:
-			inSingle = !inSingle
-			started = true
-		case r == '"' && !inSingle:
-			inDouble = !inDouble
-			started = true
-		case unicode.IsSpace(r) && !inSingle && !inDouble:
-			if started {
-				args = append(args, cur.String())
-				cur.Reset()
-				started = false
-			}
-		default:
-			cur.WriteRune(r)
-			started = true
-		}
-	}
-	if inSingle || inDouble {
-		return nil, fmt.Errorf("组件参数引号未闭合")
-	}
-	if started {
-		args = append(args, cur.String())
-	}
-	return args, nil
 }
 
 func mapToEnvSlice(env map[string]string) []string {

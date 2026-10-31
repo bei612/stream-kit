@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/stream-kit/orchestrator/internal/commandline"
 )
 
 type Config struct {
@@ -221,6 +223,12 @@ func validate(cfg *Config) []string {
 	check(cfg.Process.GracefulShutdownTimeout < 0, "process.graceful_shutdown_timeout_seconds 不能为负数")
 	for name, component := range cfg.Components {
 		prefix := "components." + name
+		if _, err := commandline.Parse(component.Args); err != nil {
+			errs = append(errs, prefix+".args: "+err.Error())
+		}
+		if _, err := commandline.Parse(component.PreflightArgs); err != nil {
+			errs = append(errs, prefix+".preflight_args: "+err.Error())
+		}
 		check(component.PreflightArgs != "" && component.ExePath == "", prefix+" 预检需要配置可执行程序路径")
 		check(component.RestartDelay < 0 || component.MaxRestartAttempts < 0, prefix+" 重启等待与次数不能为负数")
 		health := component.HealthCheck

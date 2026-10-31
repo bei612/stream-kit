@@ -17,6 +17,12 @@ import (
 func TestConfigurationAPIWritesOnlyDesiredConfig(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
 	data := []byte(`{"server":{"bind_address":"127.0.0.1:9000","username":"admin","password":"private-password"},"storage":{"apps_dir":"apps","temp_dir":"temp","db_path":"state.db","max_upload_size_bytes":1024,"max_extract_size_bytes":2048,"max_file_count":10},"process":{"monitor_interval_seconds":5}}`)
+	var document map[string]any
+	if err := json.Unmarshal(data, &document); err != nil {
+		t.Fatal(err)
+	}
+	document["components"] = map[string]any{"gateway": map[string]any{"exe_path": "gateway.exe", "args": ""}}
+	data, _ = json.Marshal(document)
 	if err := os.WriteFile(path, data, 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -46,6 +52,17 @@ func TestConfigurationAPIWritesOnlyDesiredConfig(t *testing.T) {
 	}
 	if err := json.Unmarshal(initial.Body.Bytes(), &snapshot); err != nil {
 		t.Fatal(err)
+	}
+	for _, field := range []string{"args", "preflight_args"} {
+		badRequest, _ := json.Marshal(map[string]any{"revision": snapshot.Data.Revision, "changes": map[string]any{"/components/gateway/" + field: `"private-unclosed`}})
+		bad := call("PATCH", string(badRequest))
+		if bad.Code != 400 || strings.Contains(bad.Body.String(), "private-unclosed") || !strings.Contains(bad.Body.String(), "components.gateway."+field) {
+			t.Fatalf("invalid or unsafe response: %d %s", bad.Code, bad.Body.String())
+		}
+		disk, err := os.ReadFile(path)
+		if err != nil || !bytes.Equal(disk, data) {
+			t.Fatal("invalid arguments changed persisted configuration", err)
+		}
 	}
 	request, _ := json.Marshal(map[string]any{"revision": snapshot.Data.Revision, "changes": map[string]any{"/storage/max_file_count": 20}})
 	saved := call("PATCH", string(request))

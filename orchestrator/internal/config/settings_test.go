@@ -81,6 +81,9 @@ func TestSettingsRejectsInvalidChangesWithoutWriting(t *testing.T) {
 		{"/server/unknown": json.RawMessage(`true`)},
 		{"/process/monitor_interval_seconds": json.RawMessage(`"bad"`)},
 		{"/components/gateway/unknown": json.RawMessage(`1`)},
+		{"/components/gateway/args": json.RawMessage(`"\"private-unclosed"`)},
+		{"/components/gateway/args": json.RawMessage(`"private\u0000value"`)},
+		{"/components/gateway/exe_path": json.RawMessage(`"gateway.exe"`), "/components/gateway/preflight_args": json.RawMessage(`"'private-unclosed"`)},
 		{"/server": json.RawMessage(`{}`), "/server/username": json.RawMessage(`"other"`)},
 		{"/server/~invalid": json.RawMessage(`"value"`)},
 	} {

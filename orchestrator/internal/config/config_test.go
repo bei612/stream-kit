@@ -25,6 +25,22 @@ func TestManagedServiceURLValidation(t *testing.T) {
 	}
 }
 
+func TestConfigurationRejectsMalformedArgumentsWithoutEcho(t *testing.T) {
+	for _, field := range []string{"args", "preflight_args"} {
+		component := ComponentConfig{ExePath: "gateway.exe"}
+		if field == "args" {
+			component.Args = `"private-argument`
+		} else {
+			component.PreflightArgs = `"private-argument`
+		}
+		cfg := Config{Components: map[string]ComponentConfig{"gateway": component}}
+		issues := strings.Join(validate(&cfg), "\n")
+		if !strings.Contains(issues, "components.gateway."+field) || strings.Contains(issues, "private-argument") {
+			t.Fatalf("missing or unsafe validation: %s", issues)
+		}
+	}
+}
+
 func TestSanitizedOmitsOpaqueCredentialsWithoutMutatingConfiguration(t *testing.T) {
 	cfg := Config{
 		Server:      ServerConfig{Password: "abcd-private", JWTSecret: "efgh-private", MediaTicketSecret: "ijkl-private"},
