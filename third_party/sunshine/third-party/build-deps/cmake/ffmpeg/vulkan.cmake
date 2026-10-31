@@ -66,7 +66,7 @@ add_custom_target(vulkan-loader ALL
             --build ${CMAKE_CURRENT_BINARY_DIR}/vulkan-loader-build
             --config Release
             --target install
-            -- --jobs=${N_PROC}
+            --parallel ${N_PROC}
         WORKING_DIRECTORY ${VULKAN_LOADER_GENERATED_SRC_PATH}
         COMMENT "Target: Vulkan-Loader"
         VERBATIM

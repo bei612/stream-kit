@@ -17,7 +17,7 @@ Linux 的 `capture::bind_application` 已接进程组身份、X11 窗口选择�
 焦点校验。`application_frame.cpp` 使用 XComposite 窗口 backing pixmap 与私有
 MIT-SHM 缓冲采集客户区，接入现有软件、VAAPI、CUDA 编码适配器；不会转为桌面裁剪。
 `process.cpp` 已接通启用 X11 的 Linux 启动路径，其他 Linux 图形后端仍拒绝 application 模式。
-独立采集后端已通过 Linux 编译及运行测试，完整 Sunshine 构建和串流验收仍未完成，不能描述为已经交付。
+独立采集后端的历史 CI 成功状态不足以证明 Linux 编译及运行通过：日志管道曾掩盖失败，需以修正错误传播后的新运行重新确认。完整 Sunshine 构建和串流验收仍未完成，不能描述为已经交付。
 仍需从统一管理端启动应用，验证画面、音频和控制权。
 
 当前窗口像素支持 X11 本地服务、32 位 BGRX 布局和 TrueColor 视觉；依赖 Composite、
@@ -59,13 +59,15 @@ STREAM_KIT_TEST_X11_CAPTURE=1 xvfb-run -a sh scripts/test-audio-target-linux.sh 
 `9aa4cfd2` 已改用显式 FILE 释放器，未关闭编译警告。
 2026-10-31，`29d0e9ed833d9ab019d80c48fa78d5d4c4d534f3` 的
 [原生采集 CI 41177005671](https://github.com/bei612/stream-kit/actions/runs/41177005671)
-编译和运行步骤均通过。该任务启用独立 PulseAudio 与 Xvfb，执行实际音频隔离、
+曾显示编译和运行步骤均通过，但后续发现工作流未启用管道失败传播，因此撤回将此状态作为通过证据的结论。该任务设计为启用独立 PulseAudio 与 Xvfb，执行实际音频隔离、
 进程组归属、窗口遮挡像素、输入坐标与焦点、尺寸变化和退休后的清空检查。
 此前 `1f4fd654`、`8e85f2fe` 的运行步骤失败但未保留可公开读取的断言详情，
-原因仍未确定；本次成功不代表已解释或修复此前失败，后续提交须继续验证。
+原因仍未确定；历史绿色状态不能解释或排除此前失败，后续提交须重新验证。
 这项测试不能替代整个 Sunshine 的 Linux 构建和程序串流端到端验收。
 `linux-sunshine-build` 已接入同一源码构建脚本，独立验证软件/VAAPI 配置的完整构建、
 集成采集用例及管理端能力和应用持久化；CUDA 专项编译和 GPU 运行验收仍需补齐。
+
+`479e4359` 的完整构建运行 `41179791336` 在新增安装检查中失败。公开日志确认此前构建实际因 Ninja 不支持 `--jobs=2` 而失败；`tee` 使构建及缺失测试程序的运行步骤仍显示成功。修正采用 CMake 的 `--parallel`，两个 Linux 工作流均显式使用 Bash 的 `-e -o pipefail` 执行方式。`a4de059e` 等旧运行的成功状态不作为完整构建证据，必须等待新执行结果。
 
 `3a158bb1` 修正统一管理接口对 Linux X11 程序采集的声明与保存校验。
 Windows 原生 `test_sunshine` 重建成功，9 项管理接口测试通过（零失败、零跳过），
@@ -96,5 +98,5 @@ X11 窗口选择使用 X-Resource 扩展查询服务器报告的本地客户端 
 须以其实际运行结果验收。输入沿用统一 `capture::input_origin/input_focused`
 接口；过期的窗口/画面尺寸不接受输入坐标，焦点必须位于所选窗口或其子控件。
 该测试同时将目标窗口涂红并用绿色外部窗口遮挡，检查根画面确实为绿色、采集输出仍为红色，
-以及尺寸变化、退休后的输出行为；该用例已在上述原生 CI 中通过。
+以及尺寸变化、退休后的输出行为；该用例的实际通过状态需在修正日志管道后重新确认。
 Linux X11 构建增加 `xcb-res`、`xcb-composite`、`xcb-shm`、`xcb-xfixes` 开发依赖。

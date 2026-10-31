@@ -20,6 +20,10 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash
+
 # Preserve evidence from a running native build while newer changes are queued.
 concurrency:
   group: linux-native-capture-${{ github.ref }}
