@@ -73,13 +73,17 @@ tests pass with the Windows race detector.
 
 Managed component stdout/stderr are drained by `exec.Cmd`'s owned copy workers.
 Process completion is published only after those workers finish and final
-unterminated lines are retained. A line retains at most 1 MiB; excess bytes are
+unterminated lines are retained. A published line retains at most 64 KiB; excess bytes are
 discarded until the next newline with an explicit truncation marker, while the
 pipe continues to drain. This prevents an oversized diagnostic line from
 blocking the child process. A two-second post-exit pipe wait bounds descendants
 holding inherited pipe handles. Tests use a real child emitting a 3 MiB line and
 final stdout/stderr fragments, plus Windows race checks. This change does not
 provide interactive-session launch or validate capture from a Windows service.
+Each component's log history also has a 4 MiB text budget in addition to its
+configured line count. Oldest entries are evicted and their references cleared
+when either limit is reached. Subscriber lines share the same length bound;
+subscriber queues and other runtime allocations are separate from this budget.
 
 The Windows installer requires an existing configuration and management page,
 rejects an existing same-named service with different launch paths, and configures

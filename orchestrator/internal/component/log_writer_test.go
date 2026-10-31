@@ -25,7 +25,7 @@ func TestLogWriterDrainsLongLinesAndKeepsFollowingOutput(t *testing.T) {
 	}
 	w.flush()
 	w.flush()
-	want := []string{"err: first", "err: ", "err: " + strings.Repeat("x", maxComponentLogLine) + " [line truncated]", "err: last"}
+	want := []string{"err: first", "err: ", "err: " + strings.Repeat("x", maxComponentLogLine-len("err: ")-len(" [line truncated]")) + " [line truncated]", "err: last"}
 	if got := buffer.GetLast(10); !reflect.DeepEqual(got, want) {
 		t.Fatalf("line boundaries or truncation incorrect: lines=%d", len(got))
 	}
@@ -35,7 +35,7 @@ func TestComponentOutputChild(t *testing.T) {
 	if os.Getenv("STREAM_KIT_OUTPUT_TEST_CHILD") != "1" {
 		return
 	}
-	_, _ = os.Stdout.Write(bytes.Repeat([]byte("x"), maxComponentLogLine*3))
+	_, _ = os.Stdout.Write(bytes.Repeat([]byte("x"), 3*1024*1024))
 	fmt.Fprint(os.Stdout, "\nstdout-final")
 	fmt.Fprint(os.Stderr, "stderr-final")
 	os.Exit(0)
@@ -74,7 +74,7 @@ func TestManagedProcessJoinsOutputBeforeDone(t *testing.T) {
 	if !contains("stdout-final") || !contains("[STDERR] stderr-final") {
 		t.Fatal("Done closed before final logs were captured")
 	}
-	if len(lines) != 3 || !contains(strings.Repeat("x", maxComponentLogLine)+" [line truncated]") {
+	if len(lines) != 3 || !contains(strings.Repeat("x", maxComponentLogLine-len(" [line truncated]"))+" [line truncated]") {
 		t.Fatal("oversized line was not bounded")
 	}
 }

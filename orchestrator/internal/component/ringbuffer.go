@@ -4,17 +4,23 @@ import (
 	"sync"
 )
 
+const maxComponentLogBytes = 4 * 1024 * 1024
+
 type RingBuffer struct {
 	lines []string
 	size  int
 	head  int
 	count int
+	bytes int
 	mu    sync.RWMutex
 	subs  []chan string
 	subMu sync.Mutex
 }
 
 func NewRingBuffer(size int) *RingBuffer {
+	if size < 1 {
+		size = 1
+	}
 	return &RingBuffer{
 		lines: make([]string, size),
 		size:  size,
@@ -22,8 +28,19 @@ func NewRingBuffer(size int) *RingBuffer {
 }
 
 func (rb *RingBuffer) Write(line string) {
+	if len(line) > maxComponentLogLine {
+		const suffix = " [line truncated]"
+		line = line[:maxComponentLogLine-len(suffix)] + suffix
+	}
 	rb.mu.Lock()
+	for rb.count > 0 && (rb.count == rb.size || rb.bytes+len(line) > maxComponentLogBytes) {
+		oldest := (rb.head - rb.count + rb.size) % rb.size
+		rb.bytes -= len(rb.lines[oldest])
+		rb.lines[oldest] = ""
+		rb.count--
+	}
 	rb.lines[rb.head] = line
+	rb.bytes += len(line)
 	rb.head = (rb.head + 1) % rb.size
 	if rb.count < rb.size {
 		rb.count++
@@ -49,6 +66,9 @@ func (rb *RingBuffer) Write(line string) {
 func (rb *RingBuffer) GetLast(n int) []string {
 	rb.mu.RLock()
 	defer rb.mu.RUnlock()
+	if n <= 0 {
+		return []string{}
+	}
 
 	if n > rb.count {
 		n = rb.count

@@ -1,9 +1,53 @@
 package component
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
+
+func TestRingBufferByteBudgetEvictsOldestWithoutLeavingReferences(t *testing.T) {
+	rb := NewRingBuffer(1000)
+	for i := 0; i < 200; i++ {
+		rb.Write(fmt.Sprintf("%03d", i) + strings.Repeat("x", maxComponentLogLine-3))
+	}
+	lines := rb.GetLast(1000)
+	if len(lines) != maxComponentLogBytes/maxComponentLogLine || rb.bytes > maxComponentLogBytes {
+		t.Fatalf("lines=%d bytes=%d", len(lines), rb.bytes)
+	}
+	if !strings.HasPrefix(lines[0], "136") || !strings.HasPrefix(lines[len(lines)-1], "199") {
+		t.Fatal("wrong eviction order")
+	}
+	retained := 0
+	for _, line := range rb.lines {
+		retained += len(line)
+	}
+	if retained != rb.bytes {
+		t.Fatal("evicted strings still retained")
+	}
+	rb.Write("tail")
+	if got := rb.GetLast(1); len(got) != 1 || got[0] != "tail" {
+		t.Fatal("tail missing")
+	}
+}
+
+func TestRingBufferBoundsPublishedLinesAndInvalidReadCounts(t *testing.T) {
+	rb := NewRingBuffer(0)
+	ch := rb.Subscribe()
+	rb.Write(strings.Repeat("x", maxComponentLogLine*2))
+	line := <-ch
+	if len(line) != maxComponentLogLine || !strings.HasSuffix(line, " [line truncated]") {
+		t.Fatal("subscriber received unbounded line")
+	}
+	if got := rb.GetLast(-1); len(got) != 0 {
+		t.Fatal("negative count was not empty")
+	}
+	rb.Write("next")
+	if got := rb.GetLast(10); len(got) != 1 || got[0] != "next" {
+		t.Fatal("minimum capacity incorrect")
+	}
+}
 
 func TestRingBuffer_Empty(t *testing.T) {
 	rb := NewRingBuffer(5)

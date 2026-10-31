@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-const maxComponentLogLine = 1024 * 1024
+const maxComponentLogLine = 64 * 1024
 
 // lineLogWriter is owned by one exec copy worker. It always drains input, even
 // after a line exceeds the retained size. flush runs only after Cmd.Wait joins
