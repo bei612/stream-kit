@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "cmake": {
+    "version": "3.31.8",
+    "file": "cmake-3.31.8-windows-x86_64.zip",
+    "url": "https://github.com/Kitware/CMake/releases/download/v3.31.8/cmake-3.31.8-windows-x86_64.zip",
+    "sha256": "81aa9964dbabd71fe02e7ec50472fd3ad56138c49944515ece9001efbff8d719"
+  },
+  "inno": {
+    "version": "7.1.1",
+    "file": "innosetup-7.1.1-x64.exe",
+    "url": "https://github.com/jrsoftware/issrc/releases/download/is-7_1_1/innosetup-7.1.1-x64.exe",
+    "sha256": "8a5a6711c3766a6e5fb74f280ba0e3551e719ce94538d901fdbd1f8f9920b3f0"
+  }
+}

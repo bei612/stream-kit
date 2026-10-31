@@ -1,0 +1,7 @@
+Windows x64 source-built unified installer candidate. One EXE contains the control service, management Web UI, Sunshine, Web/PWA media gateway and audio/video example. Node.js/npm and compiler toolchains are build dependencies only; they are not required on the deployment host.
+
+Run the downloaded setup EXE with `/VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART` for silent installation. Windows UAC still applies. See the source archive's `deploy/windows/README.md` for credentials, listener configuration, data retention and deployment boundaries.
+
+The workflow builds all four components and the installer from the same clean source revision, verifies component inventories and publishes SHA-256 plus the source SBOM. This proves source construction and package integrity; it does not perform host installation, physical microphone, UE5, native audio-device, GPU or production deployment acceptance. MSYS2 package versions are retained in the build logs; byte-for-byte reproducibility across changing distribution repositories is not claimed.
+
+This is a prerelease. It does not bundle a virtual audio driver or claim professional driver redistribution rights. A compatible endpoint pair must already exist on the server for microphone delivery to a generic recording application. Physical microphone acceptance, authorized bundled-driver installation and remaining release conditions are described in the repository's current delivery records. Publisher signing is excluded from the current delivery scope.

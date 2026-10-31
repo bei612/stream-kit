@@ -107,6 +107,19 @@ log without copying general child configuration output or credentials.
 
 ## Build
 
+`windows-product-release` is the unified GitHub Actions build entry point. Manual
+dispatch builds the four source components and one installer as downloadable
+artifacts; pushing a `v*-preview.*` tag also publishes that installer and its
+source SBOM as a prerelease without replacing existing release assets. The
+workflow uses the same checked-in builders as local packaging. CMake 3.31.8 and
+Inno Setup 7.1.1 come from their official releases with locked SHA-256; Inno's
+publisher signature is checked before running the build-tool installer. Node,
+Go, Rust, MSVC and MSYS2 are installed on the temporary CI build host, never by
+the product setup on the deployment host. Build success does not certify host
+installation, GPU/audio hardware or physical microphone acceptance. The MSYS2
+package inventory is retained with logs; changing distribution repositories are
+not claimed to produce byte-identical binaries.
+
 Use the official Inno Setup 7.1.1 distribution. Its license and commercial-use
 information are available at https://jrsoftware.org/isorder.php and in the
 compiler distribution; no compiler binary is vendored in this repository.

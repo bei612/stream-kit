@@ -1,0 +1,177 @@
+name: windows-product-release
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*-preview.*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-product-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Source-built Windows unified installer
+    runs-on: windows-2022
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: core.autocrlf
+      GIT_CONFIG_VALUE_0: 'false'
+      GOTOOLCHAIN: local
+      CARGO_BUILD_JOBS: '2'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.4.0'
+          cache: npm
+          cache-dependency-path: |
+            orchestrator/web/package-lock.json
+            third_party/moonlight-web-stream/package-lock.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.3'
+          cache-dependency-path: |
+            orchestrator/go.sum
+            example/go.sum
+      - uses: dtolnay/rust-toolchain@1.99.0
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: ilammy/msvc-dev-cmd@v1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            third_party/moonlight-web-stream
+            third_party/moonlight-common-rust
+            components/audio-target
+      - name: Prepare official release tools
+        run: ./scripts/prepare-windows-release-tools.ps1
+      - name: Install locked frontend and binding build dependencies
+        run: |
+          Push-Location orchestrator/web
+          try { npm ci; if ($LASTEXITCODE -ne 0) { throw 'Management dependency installation failed' } }
+          finally { Pop-Location }
+          Push-Location third_party/moonlight-web-stream
+          try { npm ci; if ($LASTEXITCODE -ne 0) { throw 'Gateway dependency installation failed' } }
+          finally { Pop-Location }
+          cargo install wasm-bindgen-cli --version 0.2.128 --locked
+          if ($LASTEXITCODE -ne 0) { throw 'Locked wasm-bindgen installation failed' }
+      - name: Build control, native gateway, Web and audio example
+        env:
+          CMAKE_GENERATOR: NMake Makefiles
+        run: |
+          node scripts/build-control-plane.mjs --require-clean --output artifacts/windows-product/control
+          if ($LASTEXITCODE -ne 0) { throw 'Control bundle failed' }
+          node scripts/build-gateway-release.mjs --output artifacts/windows-product/gateway
+          if ($LASTEXITCODE -ne 0) { throw 'Gateway bundle failed' }
+          node scripts/build-example-release.mjs artifacts/windows-product/example
+          if ($LASTEXITCODE -ne 0) { throw 'Example bundle failed' }
+      - uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884
+        id: msys2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            git make patch diffutils autoconf automake libtool texinfo
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-clang
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-nasm
+            mingw-w64-ucrt-x86_64-meson
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-boost
+            mingw-w64-ucrt-x86_64-cppwinrt
+            mingw-w64-ucrt-x86_64-curl-winssl
+            mingw-w64-ucrt-x86_64-miniupnpc
+            mingw-w64-ucrt-x86_64-nlohmann-json
+            mingw-w64-ucrt-x86_64-onevpl
+            mingw-w64-ucrt-x86_64-openssl
+            mingw-w64-ucrt-x86_64-opus
+            mingw-w64-ucrt-x86_64-qt6-static
+            mingw-w64-ucrt-x86_64-MinHook
+      - name: Build integrated Sunshine and vendored codecs
+        shell: msys2 {0}
+        env:
+          MSYS2_PATH_TYPE: inherit
+          MSYS2_ROOT: ${{ steps.msys2.outputs.msys2-location }}
+          BUILD_JOBS: '2'
+          SUNSHINE_REQUIRE_CLEAN: '1'
+        run: |
+          set -euo pipefail
+          export PATH="$(cygpath -u "$KITWARE_BIN"):$PATH"
+          export CC="$(cygpath -m "$MSYS2_ROOT")/ucrt64/bin/gcc.exe"
+          export CXX="$(cygpath -m "$MSYS2_ROOT")/ucrt64/bin/g++.exe"
+          mkdir -p artifacts/windows-product/logs
+          pacman -Q > artifacts/windows-product/logs/msys2-packages.txt
+          cmake --version > artifacts/windows-product/logs/cmake-version.txt
+          bash scripts/build-sunshine.sh -DBUILD_DOCS=OFF -DSUNSHINE_USE_STATIC_QT=ON 2>&1 | tee artifacts/windows-product/logs/sunshine-build.log
+          node scripts/verify-sunshine-release.mjs "$(cygpath -m "$PWD/.local/cmake-build-sunshine")" "$GITHUB_SHA" --output "$(cygpath -m "$PWD/artifacts/windows-product/renderer")"
+      - name: Package verified components into one installer
+        run: |
+          node scripts/package-platform-release.mjs artifacts/windows-product/control artifacts/windows-product/gateway artifacts/windows-product/renderer artifacts/windows-product/example artifacts/windows-product/platform
+          if ($LASTEXITCODE -ne 0) { throw 'Platform inventory verification failed' }
+          node scripts/build-windows-installer.mjs artifacts/windows-product/platform artifacts/windows-product/installer "$env:INNO_ISCC"
+          if ($LASTEXITCODE -ne 0) { throw 'Unified installer compilation failed' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-product-installer-${{ github.sha }}
+          path: artifacts/windows-product/installer/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-product-build-logs-${{ github.sha }}
+          path: |
+            artifacts/windows-product/logs/
+            artifacts/windows-product/*/bundle-manifest.json
+          if-no-files-found: warn
+
+  sbom:
+    name: Source SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: anchore/sbom-action@v0
+        with:
+          path: .
+          artifact-name: windows-product-source-sbom
+          output-file: stream-kit-sbom.spdx.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-product-sbom-${{ github.sha }}
+          path: stream-kit-sbom.spdx.json
+          if-no-files-found: error
+
+  publish:
+    name: Publish tagged preview
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build, sbom]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-product-installer-${{ github.sha }}
+          path: artifacts/publish
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-product-sbom-${{ github.sha }}
+          path: artifacts/publish
+      - name: Publish without replacing existing assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          cd artifacts/publish
+          sha256sum -c SHA256SUMS.txt
+          gh release create "$RELEASE_TAG" ./*.exe installer-manifest.json SHA256SUMS.txt stream-kit-sbom.spdx.json --verify-tag --prerelease --title "$RELEASE_TAG" --notes-file "$GITHUB_WORKSPACE/deploy/windows/CI-RELEASE.md"
