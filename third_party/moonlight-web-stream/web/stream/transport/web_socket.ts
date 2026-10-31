@@ -21,6 +21,8 @@ export class WebSocketTransport implements Transport {
     onclose: ((shutdown: TransportShutdown) => void) | null = null
 
     private onOpen: Promise<void>
+    private resolveOpen: () => void = () => { }
+    private closed = false
     private wasConnected: boolean = false
 
     private internalOnConnect: () => void = () => { }
@@ -39,8 +41,8 @@ export class WebSocketTransport implements Transport {
 
         // Add Event Listeners
         this.ws.addEventListener("error", this.onError.bind(this))
-        this.onOpen = new Promise((resolve, reject) => {
-            this.ws.addEventListener("error", reject)
+        this.onOpen = new Promise(resolve => {
+            this.resolveOpen = resolve
             this.ws.addEventListener("open", () => resolve())
         })
         this.ws.addEventListener("close", this.onClose.bind(this))
@@ -61,6 +63,7 @@ export class WebSocketTransport implements Transport {
         this.ws.send(JSON.stringify(message))
     }
     private onMessage(event: MessageEvent) {
+        if (this.closed) return
         const data = event.data
 
         if (typeof data == "string") {
@@ -136,6 +139,7 @@ export class WebSocketTransport implements Transport {
         this.logger?.debug("Waiting for Web Socket to open")
 
         await this.onOpen
+        if (this.closed) return
         this.options = options
 
         this.logger?.debug(`Web Socket opened, sending stream request: ${JSON.stringify(options)}`)
@@ -229,6 +233,7 @@ export class WebSocketTransport implements Transport {
     private async doPing(): Promise<number> {
         // Make sure that the socket is open and we're connected
         await this.onConnected
+        if (this.closed) return 0
 
         // Check if we've already send a ping
         if (this.onPongPromise) {
@@ -258,10 +263,15 @@ export class WebSocketTransport implements Transport {
         return await this.onPongPromise
     }
 
-    private dispatchedClosed: boolean = false
     async close(): Promise<void> {
+        if (this.closed) return
+        this.closed = true
+        this.resolveOpen()
+        this.internalOnConnect()
+        this.pongReceiveResolve?.()
+        this.controlStream.close()
         this.ws.close()
-        if (!this.dispatchedClosed && this.onclose) {
+        if (this.onclose) {
             if (this.wasConnected) {
                 this.onclose("failed")
             } else {
@@ -280,6 +290,7 @@ class WebSocketControlStream implements IControlStream {
 
     private batcher: InputBatcher = new InputBatcher()
     private batchSendTimeout: number | null = null
+    private closed = false
 
     constructor(ws: WebSocket, config: ControlPacketConfig) {
         this.ws = ws
@@ -287,13 +298,14 @@ class WebSocketControlStream implements IControlStream {
     }
 
     send(input: ClientInputEvent): void {
+        if (this.closed) return
         const sendNow = this.batcher.batchInput(input)
         for (const packet of sendNow) {
             this.sendRaw(packet)
         }
 
         if (this.batchSendTimeout == null) {
-            globalObject().setTimeout(this.boundSendBatchedInputs, 1)
+            this.batchSendTimeout = globalObject().setTimeout(this.boundSendBatchedInputs, 1)
         }
     }
 
@@ -309,6 +321,7 @@ class WebSocketControlStream implements IControlStream {
 
     private packetBuffer: Array<ControlPacket> = []
     sendRaw(packet: ControlPacket): void {
+        if (this.closed) return
         if (this.ws.readyState != WebSocket.OPEN) {
             this.packetBuffer.push(packet)
             return
@@ -338,7 +351,18 @@ class WebSocketControlStream implements IControlStream {
     }
 
     private boundSendBatchedInputs = this.sendBatchedInputs.bind(this)
+    close(): void {
+        if (this.closed) return
+        this.closed = true
+        if (this.batchSendTimeout != null) globalObject().clearTimeout(this.batchSendTimeout)
+        this.batchSendTimeout = null
+        this.packetBuffer = []
+        this.batcher.removeBatchedInputs()
+        this.onreceive = null
+    }
+
     private sendBatchedInputs() {
+        if (this.closed) return
         if (this.batchSendTimeout != null) {
             globalObject().clearTimeout(this.batchSendTimeout)
         }

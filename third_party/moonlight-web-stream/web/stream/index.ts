@@ -513,6 +513,8 @@ export class Stream implements Component {
             transport.onclose = resolve
         })
 
+        // Own the socket while it is still opening so stop can cancel the handshake.
+        this.setTransport(transport)
         // Start stream
         await transport.startStream(options)
 
@@ -520,8 +522,6 @@ export class Stream implements Component {
             await transport.close()
             return "disconnect"
         }
-
-        this.setTransport(transport)
 
         const connectData = await Promise.race([
             onConnect,

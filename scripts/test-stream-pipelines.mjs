@@ -8,6 +8,37 @@ const source = readFileSync(new URL('../third_party/moonlight-web-stream/web/str
 const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
 function deferred() { let resolve; const promise = new Promise(r => { resolve = r }); return { promise, resolve } }
 
+test('stop owns the WebSocket during opening and managed admission never falls back to it', async () => {
+  const exports = {}, opening = deferred(), entered = deferred()
+  let socket, managed = false, constructions = 0
+  class Transport {
+    controlStream = {}; closed = false
+    constructor() { socket = this; constructions++ }
+    async startStream() { entered.resolve(); await opening.promise }
+    async close() { if (this.closed) return; this.closed = true; opening.resolve(); this.onclose?.('failednoconnect') }
+  }
+  vm.runInNewContext(compiled, { exports, URLSearchParams, window: { location: { search: '' } }, require(name) {
+    if (name === './transport/web_socket') return { WebSocketTransport: Transport }
+    if (name === '../api') return { managedStreaming: () => managed }
+    return {}
+  } })
+  const stream = Object.create(exports.Stream.prototype)
+  Object.assign(stream, { api: {}, permissions: { allow_transport_websockets: true }, stopped: false, transport: null,
+    debugLog() {}, cleanupPipelines() {}, cleanupMicrophone() {}, releaseMediaAccess: async () => {},
+    input: { setControlStream() {} }, stats: { setTransport() {} }, createTransportOptions: async () => ({}),
+  })
+  const connecting = stream.tryWebSocketTransport()
+  await entered.promise
+  assert.equal(stream.transport, socket)
+  await stream.stop()
+  assert.equal(await connecting, 'disconnect')
+  assert.equal(socket.closed, true)
+  assert.equal(stream.transport, null)
+  managed = true
+  assert.equal(await stream.tryWebSocketTransport(), 'failednoconnect')
+  assert.equal(constructions, 1)
+})
+
 test('automatic transport selection falls back when native WebRTC initialization throws', async () => {
   const exports={};let websocket=0,releases=0,attempts=0
   vm.runInNewContext(compiled,{exports,require(name){
