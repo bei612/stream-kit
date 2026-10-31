@@ -45,6 +45,13 @@ The binary's Go build metadata must also agree on `vcs.modified`; a clean-tree
 manifest cannot be issued for a binary that records modified sources, and missing
 modification metadata is rejected. Explicit development builds retain `-dirty`
 and cannot pass installation verification.
+
+Native Sunshine builds support `SUNSHINE_BUILD_NAME=cmake-build-sunshine-release`
+with `scripts/build-sunshine.sh`. The named directory stays under `.local/` and
+must begin with `cmake-build-`; the default remains `cmake-build-sunshine`.
+Use a separate directory when an existing binary is serving acceptance traffic.
+Dependency builds still use the common source dependency directory. This option
+does not stop, replace or install an existing service.
 Hashes identify the packaged bytes; the manifest is not a signature, SBOM or
 proof that the complete platform has passed acceptance.
 

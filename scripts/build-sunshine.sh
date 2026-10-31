@@ -6,6 +6,8 @@ root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$root"
 jobs=${BUILD_JOBS:-2}
 [[ "$jobs" =~ ^[1-9][0-9]*$ ]] || { echo 'BUILD_JOBS must be a positive integer' >&2; exit 1; }
+build_name=${SUNSHINE_BUILD_NAME:-cmake-build-sunshine}
+[[ "$build_name" =~ ^cmake-build-[A-Za-z0-9_-]+$ ]] || { echo 'SUNSHINE_BUILD_NAME must be a cmake-build- directory name' >&2; exit 1; }
 case "$(uname -s)" in
   MINGW*|MSYS*)
     [[ "${MSYSTEM:-}" == UCRT64 ]] || { echo 'Use the native MSYS2 UCRT64 environment' >&2; exit 1; }
@@ -22,7 +24,7 @@ cmake -P tools/test-source-patching.cmake
 cmake -P tools/test-sunshine-sdk.cmake
 
 deps="$root/.local/cmake-build-sunshine-deps"
-build="$root/.local/cmake-build-sunshine"
+build="$root/.local/$build_name"
 cmake -S third_party/sunshine/third-party/build-deps -B "$deps" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$(native_path "$deps/install")" \
   -DPARALLEL_BUILDS="$jobs"
