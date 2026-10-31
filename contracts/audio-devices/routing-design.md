@@ -41,3 +41,5 @@ Go 测试覆盖真实 SQLite 重开、代次防覆盖、并发争用、失败写
 双真实浏览器串流中，disabled/upstream 实时切换保留视频和控制者 997Hz 测试麦克风广播；旧控制者与释放后的输入被拒绝，结束恢复 Sunshine 空闲。证据为 `artifacts/managed-acceptance/2026-10-30T09-20-27-120Z/result.json`。未使用物理麦克风，未证明本机虚拟端点或 UE5 实录。Windows 网关 SHA-256：`eb92d5de31c0427c0fcfb69f7019d04ec347c070f0f75f07c02228bc277c8790`；控制面：`6d2670c8e0f4d59217851e5b624b710e3fa06a929eef603ec27e935a9dcad830`。未更新现有常驻服务或更改默认音频。
 
 后续仍需原生设备层的切换/占用竞争、租约失效和实际浏览器→目标输入端录音验收。Windows 专用虚拟音频设备仍需部署，不得占用现场 ToDesk 设备或更改系统默认音频。当前轮次不要求 Linux/手机真机验收，源码兼容与自动化验证继续保留。
+
+2026-10-31 调查候选设备实现：Foundation Sunshine `bcbb5ec76afc27964b04142eeded465bf61d6a49` 的 Windows 接收端使用 HIDMaestro 复合 USB 麦克风，Foundation 本身仍未实现 Linux 主机麦克风输出。HIDMaestro `77c4ddbad6cff428e79bc5f76d84eeef85cc8c7f` 的麦克风需要 USB/IP 传输及系统级设备安装；其普通用户态 HID 能力不等同于无需驱动的虚拟音频。该方案会引入控制器设备和驱动生命周期，尚未决定作为项目依赖，也未安装或改变本机设备。必须进一步核验许可证、签名、设备隔离和部署权限，不能以源码存在视为目标程序已接收到音频。
