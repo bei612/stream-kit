@@ -78,8 +78,11 @@ jobs:
           log = Path('artifacts/audio-target/native-runtime.log')
           if log.exists():
               tail = '\n'.join(log.read_text(errors='replace').splitlines()[-100:])
-              escaped = tail.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
-              print(f'::error title=Native capture runtime failure::{escaped}')
+              # Check annotations truncate long messages. Preserve the server's
+              # negotiated latency as well as the failed assertion.
+              for offset in range(0, len(tail), 2500):
+                  escaped = tail[offset:offset + 2500].replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                  print(f'::error title=Native capture runtime failure {offset // 2500 + 1}::{escaped}')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
