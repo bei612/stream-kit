@@ -10,6 +10,7 @@ on:
       - 'scripts/test-native-test-report.cjs'
       - 'scripts/test-audio-target-linux.sh'
       - 'components/audio-target/**'
+      - 'third_party/pulseaudio-rs/**'
       - '.github/workflows/linux-native-capture.yml'
   pull_request:
     branches: [main]
@@ -20,6 +21,7 @@ on:
       - 'scripts/test-native-test-report.cjs'
       - 'scripts/test-audio-target-linux.sh'
       - 'components/audio-target/**'
+      - 'third_party/pulseaudio-rs/**'
       - '.github/workflows/linux-native-capture.yml'
   workflow_dispatch:
 
@@ -52,6 +54,9 @@ jobs:
           sudo apt-get install -y libasound2-dev libpulse-dev pulseaudio pulseaudio-utils gdb
       - name: Build the production microphone target probe
         run: cargo build --locked --examples --manifest-path components/audio-target/Cargo.toml
+      - name: Verify audio protocol receive fairness and fragmentation
+        timeout-minutes: 5
+        run: cargo test --locked --manifest-path third_party/pulseaudio-rs/Cargo.toml --lib client::reactor::tests
       - name: Verify explicit render and capture endpoints
         id: pair
         timeout-minutes: 2

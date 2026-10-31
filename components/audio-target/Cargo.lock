@@ -580,8 +580,6 @@ dependencies = [
 [[package]]
 name = "pulseaudio"
 version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ba79a4c6904c987cc31fa50e9b750539404511c2dbd9ce95e5e58444177a21e"
 dependencies = [
  "bitflags",
  "byteorder",

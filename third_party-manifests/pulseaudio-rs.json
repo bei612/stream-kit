@@ -1,0 +1,12 @@
+{
+  "name": "pulseaudio",
+  "version": "0.3.2",
+  "repository": "https://github.com/colinmarc/pulseaudio-rs",
+  "commit": "dc9c95f3d5f9c05fd962e7d0a028233ab42d8abc",
+  "registry_archive_sha256": "9ba79a4c6904c987cc31fa50e9b750539404511c2dbd9ce95e5e58444177a21e",
+  "source": "crates.io release archive verified by Cargo",
+  "path": "third_party/pulseaudio-rs",
+  "license": "MIT",
+  "changes": ["Bound receive batches and preserve edge-triggered socket readiness so continuous recording cannot starve control commands."],
+  "validation": "Linux isolated endpoint-pair acceptance; the registry backend hung during both capture pause and destruction. Patched runtime acceptance remains required."
+}

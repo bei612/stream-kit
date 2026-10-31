@@ -4,6 +4,9 @@ version = "3.0.1"
 edition = "2024"
 license = "GPL-3.0-or-later"
 
+[patch.crates-io]
+pulseaudio = { path = "../pulseaudio-rs" }
+
 [dependencies]
 # Cli
 clap = { version = "4.5.53", features = ["derive", "env"] }
