@@ -14,6 +14,13 @@ jobs:
     name: Orchestrator (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
+    # Nested upstream .gitattributes files can override the vendor byte policy.
+    # Apply the same checkout policy from the first checkout through Go's VCS
+    # inspection, without changing global Git configuration on the runner.
+    env:
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: core.autocrlf
+      GIT_CONFIG_VALUE_0: 'false'
     # Preserve each component's running acceptance without letting another
     # component or operating system block its next revision.
     concurrency:
