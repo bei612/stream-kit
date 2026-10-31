@@ -1053,6 +1053,21 @@ main().catch(error => { result.error = error.message; process.exitCode = 1; }).f
     try { await cleanupRenderer(); }
     catch (error) { result.cleanup_error = error.message; result.passed = false; process.exitCode = 1; }
   }
+  if (applicationExample && result.application?.id) {
+    // Preserve only this run's example output, bounded to the last 64 KiB.
+    // Lifecycle evidence must survive later scratch-directory maintenance.
+    const logPath=path.join(scratch,'control','apps',result.application.id,'output.log');
+    try {
+      if(fs.existsSync(logPath)) {
+        const fd=fs.openSync(logPath,'r');
+        try {
+          const size=fs.fstatSync(fd).size,tail=Buffer.alloc(Math.min(size,65536));
+          const bytes=fs.readSync(fd,tail,0,tail.length,size-tail.length);
+          fs.writeFileSync(path.join(output,'example.log'),tail.subarray(0,bytes));
+        } finally {fs.closeSync(fd)}
+      }
+    } catch(error) {result.example_log_error=error.message}
+  }
   let mayStopOwner=true;
   if(cleanupManagedEncoder){
     try{await cleanupManagedEncoder()}

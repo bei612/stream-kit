@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -240,10 +241,14 @@ func wndProc(hwnd syscall.Handle, msg uint32, wParam uintptr, lParam unsafe.Poin
 
 	case WM_KEYDOWN:
 		if wParam == VK_ESCAPE {
+			lifecycle("escape", nil)
 			pDestroyWindow.Call(uintptr(hwnd))
 			return 0
 		}
+	case 0x0010: // WM_CLOSE; preserve normal system close handling below.
+		lifecycle("window_close", nil)
 	case WM_DESTROY:
+		lifecycle("window_destroyed", nil)
 		pKillTimer.Call(uintptr(hwnd), 1)
 		pPostQuitMessage.Call(0)
 		return 0
@@ -253,7 +258,18 @@ func wndProc(hwnd syscall.Handle, msg uint32, wParam uintptr, lParam unsafe.Poin
 	return ret
 }
 
+func lifecycle(event string, err error) {
+	fmt.Fprintf(os.Stderr, "%s example pid=%d event=%s error=%v\n", time.Now().UTC().Format(time.RFC3339Nano), os.Getpid(), event, err)
+}
+
 func main() {
+	if err := runExample(); err != nil {
+		lifecycle("failed", err)
+		os.Exit(1)
+	}
+}
+
+func runExample() error {
 	// A Win32 window and its message pump must stay on the same OS thread.
 	// Go may otherwise move this goroutine after a blocking syscall, leaving
 	// the window unable to repaint or receive streamed keyboard/mouse input.
@@ -311,7 +327,9 @@ func main() {
 		Background: syscall.Handle(bgBrush),
 	}
 
-	pRegisterClassEx.Call(uintptr(unsafe.Pointer(&wc)))
+	if registered, _, err := pRegisterClassEx.Call(uintptr(unsafe.Pointer(&wc))); registered == 0 {
+		return fmt.Errorf("register window class: %w", err)
+	}
 
 	var style uintptr = WS_OVERLAPPEDWINDOW | WS_VISIBLE | 0x02000000 // WS_CLIPCHILDREN
 	var extendedStyle uintptr
@@ -324,7 +342,7 @@ func main() {
 		winW, winH = uintptr(screenW), uintptr(screenH)
 	}
 
-	hwnd, _, _ := pCreateWindowEx.Call(
+	hwnd, _, windowErr := pCreateWindowEx.Call(
 		extendedStyle,
 		uintptr(unsafe.Pointer(className)),
 		uintptr(unsafe.Pointer(windowTitle)),
@@ -333,6 +351,10 @@ func main() {
 		winW, winH,
 		0, 0, hInstance, 0,
 	)
+	if hwnd == 0 {
+		return fmt.Errorf("create window: %w", windowErr)
+	}
+	lifecycle("window_created", nil)
 
 	pShowWindow.Call(hwnd, SW_SHOW)
 	setupAudio(hwnd)
@@ -343,12 +365,18 @@ func main() {
 
 	var msg MSG
 	for {
-		ret, _, _ := pGetMessage.Call(uintptr(unsafe.Pointer(&msg)), 0, 0, 0)
-		if ret == 0 || int32(ret) == -1 {
+		ret, _, err := pGetMessage.Call(uintptr(unsafe.Pointer(&msg)), 0, 0, 0)
+		if int32(ret) == -1 {
+			pDestroyWindow.Call(hwnd)
+			return fmt.Errorf("window message loop: %w", err)
+		}
+		if ret == 0 {
+			lifecycle("message_loop_quit", nil)
 			break
 		}
 		// Escape closes the owning example even while a child control has focus.
 		if msg.Message == WM_KEYDOWN && msg.WParam == VK_ESCAPE {
+			lifecycle("escape", nil)
 			pDestroyWindow.Call(hwnd)
 			continue
 		}
@@ -361,4 +389,5 @@ func main() {
 		pTranslateMessage.Call(uintptr(unsafe.Pointer(&msg)))
 		pDispatchMessage.Call(uintptr(unsafe.Pointer(&msg)))
 	}
+	return nil
 }
