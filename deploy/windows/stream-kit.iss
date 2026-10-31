@@ -43,6 +43,9 @@ Name: "en"; MessagesFile: "compiler:Default.isl"
 
 [Files]
 Source: "{#PayloadRoot}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+#ifdef AudioDriverRoot
+Source: "{#AudioDriverRoot}\*"; DestDir: "{app}\drivers\VB-CABLE"; Flags: ignoreversion
+#endif
 
 [Registry]
 Root: HKLM; Subkey: "Software\StreamKit"; ValueType: string; ValueName: "DataDirectory"; ValueData: "{code:DataDirectory}"; Flags: uninsdeletevalue
@@ -50,6 +53,9 @@ Root: HKLM; Subkey: "Software\StreamKit"; ValueType: string; ValueName: "DataDir
 [Icons]
 Name: "{group}\Stream-Kit 管理控制台"; Filename: "{code:ControlURL}"
 Name: "{group}\Stream-Kit 音视频示例"; Filename: "{app}\example\checkerboard.exe"
+#ifdef AudioDriverRoot
+Name: "{group}\VB-CABLE 控制面板"; Filename: "{app}\drivers\VB-CABLE\VBCABLE_ControlPanel.exe"
+#endif
 
 [Run]
 Filename: "{code:ControlURL}"; Description: "打开 Stream-Kit 管理控制台"; Flags: postinstall shellexec skipifsilent unchecked
@@ -61,6 +67,8 @@ var
   DataPage: TInputDirWizardPage;
   AdminPage: TInputQueryWizardPage;
   LastNativeError: String;
+  AudioDriverRestartRequired: Boolean;
+  PlatformSetupCompleted: Boolean;
 
 function ControlURL(Param: String): String;
 begin
@@ -120,6 +128,8 @@ begin
   end;
 end;
 
+#include "audio-driver.iss"
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   Result := '';
@@ -133,6 +143,15 @@ begin
     Result := '数据父目录不存在。'
   else if WizardSilent and (ExpandConstant('{param:ADMINFILE|}') <> '') and not FileExists(ExpandConstant('{param:ADMINFILE|}')) then
     Result := '/ADMINFILE 指定的管理员 JSON 文件不存在。';
+#ifdef AudioDriverRoot
+  if Result = '' then begin
+    try
+      if ExistingAudioDriver then Log('Existing healthy VB-CABLE detected during preflight.');
+    except
+      Result := GetExceptionMessage;
+    end;
+  end;
+#endif
 end;
 
 function NativeCommand(Arguments: String): Boolean;
@@ -186,14 +205,32 @@ begin
     if not WizardSilent then DeleteFile(AdminFile);
   end;
   ConfigFile := Quoted(AddBackslash(DataDirectory('')) + 'orchestrator.json');
+#ifdef AudioDriverRoot
+  InstallBundledAudioDriver;
+#endif
   if not NativeCommand('service install --config ' + ConfigFile) then
     RaiseException('服务注册失败，配置已保留。');
+#ifdef AudioDriverRoot
+  if AudioDriverRestartRequired then begin
+    Log('Audio driver installed; platform service startup deferred until manual restart.');
+    WizardForm.FinishedLabel.Caption := '安装已完成。新音频驱动需要手动重启电脑；重启后登录配置的 Windows 用户，再检查管理页面中的服务与音频设备。安装程序不会自动重启。VB-CABLE 由 VB-Audio 提供：https://vb-audio.com/Cable/';
+    PlatformSetupCompleted := True;
+    Exit;
+  end;
+#endif
   if not NativeCommand('service start --config ' + ConfigFile) then begin
     FailureReason := LastNativeError;
     if not NativeCommand('service remove --config ' + ConfigFile) then
       RaiseException('服务启动和清理均失败，请查看数据目录中的日志。');
     RaiseException('服务启动失败，已移除本次注册的服务，数据及日志已保留。' + FailureReason);
   end;
+  PlatformSetupCompleted := True;
+end;
+
+function GetCustomSetupExitCode: Integer;
+begin
+  Result := 0;
+  if PlatformSetupCompleted and AudioDriverRestartRequired then Result := 3010;
 end;
 
 function InitializeUninstall: Boolean;

@@ -3,10 +3,12 @@ import path from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {execFileSync} from 'node:child_process'
 import {createHash} from 'node:crypto'
+import {prepareAudioDriver} from './lib/windows-audio-driver.mjs'
 
-if(process.platform!=='win32'||process.argv.length!==5)throw Error('Expected Windows: node build-windows-installer.mjs PLATFORM_BUNDLE NEW_OUTPUT OFFICIAL_ISCC_EXE')
+const args=process.argv.slice(2)
+if(process.platform!=='win32'||![3,7].includes(args.length)||(args.length===7&&(args[3]!=='--audio-driver'||args[5]!=='--audio-driver-authorization')))throw Error('Expected Windows: node build-windows-installer.mjs PLATFORM_BUNDLE NEW_OUTPUT OFFICIAL_ISCC_EXE [--audio-driver PACKAGE_DIR --audio-driver-authorization PRIVATE_RECORD_JSON]')
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..')
-const [payload,output,compiler]=process.argv.slice(2).map(value=>path.resolve(value))
+const [payload,output,compiler]=args.slice(0,3).map(value=>path.resolve(value))
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',windowsHide:true}).trim()
 const commit=git('rev-parse','HEAD')
 if(git('status','--porcelain'))throw Error('Installer requires clean committed source')
@@ -42,11 +44,19 @@ if(expected.size)throw Error('Missing payload files')
 const info=execFileSync(compiler,['--version'],{encoding:'utf8',windowsHide:true})
 if(!info.includes('7.1.1'))throw Error('Expected pinned official Inno Setup 7.1.1 compiler')
 fs.mkdirSync(output,{recursive:true})
-execFileSync(compiler,['/Qp',`/DPayloadRoot=${payload}`,`/DArtifactDir=${output}`,`/DSourceCommit=${commit}`,path.join(root,'deploy/windows/stream-kit.iss')],{stdio:'inherit',windowsHide:true})
+const driver=args.length===7?prepareAudioDriver(path.resolve(args[4]),path.resolve(args[6]),output):null
+execFileSync(compiler,['/Qp',`/DPayloadRoot=${payload}`,`/DArtifactDir=${output}`,`/DSourceCommit=${commit}`,...(driver?[`/DAudioDriverRoot=${driver.stage}`]:[]),path.join(root,'deploy/windows/stream-kit.iss')],{stdio:'inherit',windowsHide:true})
+if(driver){
+  if(path.dirname(path.resolve(driver.stage))!==output)throw Error('Audio staging directory escaped installer output')
+  // Remove only the exact vendor files this build staged, never recursively
+  // delete an input package or unknown contents left by another process.
+  for(const file of driver.files)fs.unlinkSync(path.join(driver.stage,file.path))
+  fs.rmdirSync(driver.stage)
+}
 if(git('rev-parse','HEAD')!==commit||git('status','--porcelain'))throw Error('Source changed while building installer')
 const name=`stream-kit-preview-${commit.slice(0,12)}-windows-amd64-setup.exe`
 const executable=path.join(output,name)
 const sha256=hash(executable)
 fs.writeFileSync(path.join(output,'SHA256SUMS.txt'),`${sha256}  ${name}\n`)
-fs.writeFileSync(path.join(output,'installer-manifest.json'),JSON.stringify({schema_version:1,commit,release_channel:'preview',platform:'windows',architecture:'amd64',publisher_signed:false,payload_manifest_sha256:hash(path.join(payload,'platform-manifest.json')),compiler:{version:'7.1.1',sha256:hash(compiler)},file:{name,bytes:fs.statSync(executable).size,sha256}},null,2)+'\n')
+fs.writeFileSync(path.join(output,'installer-manifest.json'),JSON.stringify({schema_version:1,commit,release_channel:'preview',platform:'windows',architecture:'amd64',publisher_signed:false,audio_driver:driver?{...driver,stage:undefined}:null,payload_manifest_sha256:hash(path.join(payload,'platform-manifest.json')),compiler:{version:'7.1.1',sha256:hash(compiler)},file:{name,bytes:fs.statSync(executable).size,sha256}},null,2)+'\n')
 console.log(JSON.stringify({output,commit,executable,sha256}))
