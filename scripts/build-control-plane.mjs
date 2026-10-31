@@ -23,8 +23,9 @@ const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',windowsHi
 const commit=git('rev-parse','HEAD')
 if(!/^[a-f0-9]{40}$/.test(commit))throw new Error('Invalid source revision')
 const sourceTime=new Date(git('show','-s','--format=%cI','HEAD')).toISOString()
-const dirty=git('status','--porcelain','--untracked-files=normal')!==''
-if(requireClean&&dirty)throw new Error('Release bundle requires a clean source tree')
+const sourceStatus=git('status','--porcelain','--untracked-files=normal')
+const dirty=sourceStatus!==''
+if(requireClean&&dirty)throw new Error(`Release bundle requires a clean source tree:\n${sourceStatus}`)
 const version=`git-${commit.slice(0,12)}${dirty?'-dirty':''}`
 const web=path.join(root,'orchestrator/web')
 const toolPackage=name=>JSON.parse(fs.readFileSync(path.join(web,'node_modules',name,'package.json'),'utf8'))
