@@ -19,6 +19,7 @@ for tool in cmake ninja git patch make pkg-config node npm; do
 done
 node tools/check-sunshine-vendor.cjs
 cmake -P tools/test-source-patching.cmake
+cmake -P tools/test-sunshine-sdk.cmake
 
 deps="$root/.local/cmake-build-sunshine-deps"
 build="$root/.local/cmake-build-sunshine"
@@ -42,6 +43,7 @@ cmake -S third_party/sunshine -B "$build" -G Ninja \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTS=ON -DBUILD_DOCS=ON -DBUILD_WERROR=ON \
   -DSUNSHINE_BUILD_WINDOWS_INSTALLERS=OFF \
   -DFFMPEG_PREPARED_BINARIES="$(native_path "$deps/install/ffmpeg")" \
+  -DCMAKE_PREFIX_PATH="$(native_path "$deps/install/ffmpeg")" \
   -DSUNSHINE_ASSETS_DIR=assets -DSUNSHINE_PUBLISHER_NAME=Stream-Kit \
   -DSUNSHINE_PUBLISHER_WEBSITE=https://github.com/bei612/stream-kit \
   -DSUNSHINE_PUBLISHER_ISSUE_URL=https://github.com/bei612/stream-kit/issues "$@"

@@ -12,6 +12,7 @@ on:
       - 'tools/sunshine-codec-probe/**'
       - 'tools/check-sunshine-vendor.cjs'
       - 'tools/test-source-patching.cmake'
+      - 'tools/test-sunshine-sdk.cmake'
       - '.github/workflows/linux-sunshine-build.yml'
   workflow_dispatch:
 

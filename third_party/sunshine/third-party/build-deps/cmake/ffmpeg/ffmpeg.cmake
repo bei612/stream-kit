@@ -30,12 +30,10 @@ list(APPEND FFMPEG_EXTRA_CONFIGURE
         --pkg-config-flags='--static'
         --extra-cflags='-I${CMAKE_CURRENT_BINARY_DIR_UNIX}/usr/local/include'
         --extra-cflags='-I${CMAKE_CURRENT_BINARY_DIR_UNIX}/x264/include'
-        --extra-cflags='-I${CMAKE_CURRENT_BINARY_DIR_UNIX}/libva/include'
-        --extra-cflags='-I${CMAKE_CURRENT_BINARY_DIR_UNIX}/vulkan/include'
+        --extra-cflags='-I${FFMPEG_INSTALL_PREFIX_UNIX}/include'
         --extra-ldflags='-L${CMAKE_CURRENT_BINARY_DIR_UNIX}/usr/local/lib'
         --extra-ldflags='-L${CMAKE_CURRENT_BINARY_DIR_UNIX}/x264/lib'
-        --extra-ldflags='-L${CMAKE_CURRENT_BINARY_DIR_UNIX}/libva/lib'
-        --extra-ldflags='-L${CMAKE_CURRENT_BINARY_DIR_UNIX}/vulkan/lib'
+        --extra-ldflags='-L${FFMPEG_INSTALL_PREFIX_UNIX}/lib'
         --extra-libs='-lpthread -lm'
         --disable-all
         --disable-autodetect

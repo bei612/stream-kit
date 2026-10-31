@@ -6,7 +6,7 @@ add_custom_target(vulkan-headers ALL
             -S ${VULKAN_HEADERS_GENERATED_SRC_PATH}
             -B ${CMAKE_CURRENT_BINARY_DIR}/vulkan-headers-build
             -G "${CMAKE_GENERATOR}"
-            -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/vulkan
+            -DCMAKE_INSTALL_PREFIX=${FFMPEG_INSTALL_PREFIX}
             -DCMAKE_BUILD_TYPE=Release
         COMMAND ${CMAKE_COMMAND}
             --build ${CMAKE_CURRENT_BINARY_DIR}/vulkan-headers-build
@@ -22,11 +22,11 @@ set(VULKAN_LOADER_GENERATED_SRC_PATH ${CMAKE_CURRENT_BINARY_DIR}/FFmpeg/Vulkan-L
 
 # Configure options for Vulkan-Loader
 set(VULKAN_LOADER_CMAKE_ARGS
-        -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/vulkan
+        -DCMAKE_INSTALL_PREFIX=${FFMPEG_INSTALL_PREFIX}
         -DCMAKE_BUILD_TYPE=Release
         -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
         -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
-        -DVULKAN_HEADERS_INSTALL_DIR=${CMAKE_CURRENT_BINARY_DIR}/vulkan
+        -DVULKAN_HEADERS_INSTALL_DIR=${FFMPEG_INSTALL_PREFIX}
         -DBUILD_STATIC_LOADER=ON
         -DBUILD_SHARED_LIBS=OFF
         -DBUILD_TESTS=OFF
@@ -72,13 +72,13 @@ add_custom_target(vulkan-loader ALL
         COMMENT "Target: Vulkan-Loader"
         VERBATIM
         BYPRODUCTS
-            "${CMAKE_CURRENT_BINARY_DIR}/vulkan/lib/libvulkan.a"
+            "${FFMPEG_INSTALL_PREFIX}/lib/libvulkan.a"
 )
 add_dependencies(vulkan-loader vulkan-headers)
 add_dependencies(${CMAKE_PROJECT_NAME} vulkan-loader)
 
 # Add to PKG_CONFIG_PATH for FFmpeg to find
-set(PKG_CONFIG_PATH "${CMAKE_CURRENT_BINARY_DIR_UNIX}/vulkan/lib/pkgconfig:${PKG_CONFIG_PATH}")
+set(PKG_CONFIG_PATH "${FFMPEG_INSTALL_PREFIX_UNIX}/lib/pkgconfig:${PKG_CONFIG_PATH}")
 
 # Apply Vulkan patches to FFmpeg source
 if(BUILD_FFMPEG_ALL_PATCHES OR BUILD_FFMPEG_VULKAN_PATCHES)

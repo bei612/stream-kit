@@ -111,14 +111,18 @@ include(dependencies/libevdev_Sunshine)
 
 # vaapi
 if(${SUNSHINE_ENABLE_VAAPI})
-    find_package(Libva REQUIRED)
+    set(LIBVA_INCLUDE_DIR "${FFMPEG_PREPARED_BINARIES}/include")
+    if(NOT TARGET PkgConfig::FFMPEG_NATIVE OR NOT EXISTS "${LIBVA_INCLUDE_DIR}/va/va.h")
+        message(FATAL_ERROR "VAAPI requires the source-built native FFmpeg SDK")
+    endif()
+    set(LIBVA_FOUND ON)
 else()
     set(LIBVA_FOUND OFF)
 endif()
 if(LIBVA_FOUND)
     add_compile_definitions(SUNSHINE_BUILD_VAAPI)
     include_directories(SYSTEM ${LIBVA_INCLUDE_DIR})
-    list(APPEND PLATFORM_LIBRARIES ${LIBVA_LIBRARIES} ${LIBVA_DRM_LIBRARIES})
+    list(APPEND PLATFORM_LIBRARIES PkgConfig::FFMPEG_NATIVE)
     list(APPEND PLATFORM_TARGET_FILES
             "${CMAKE_SOURCE_DIR}/src/platform/linux/vaapi.h"
             "${CMAKE_SOURCE_DIR}/src/platform/linux/vaapi.cpp")
@@ -138,9 +142,9 @@ if(${SUNSHINE_ENABLE_VULKAN})
         message(FATAL_ERROR "Vulkan headers not found in build-deps submodule")
     endif()
 
-    find_library(VULKAN_LIBRARY NAMES vulkan vulkan-1)
-    if(NOT VULKAN_LIBRARY)
-        message(FATAL_ERROR "libvulkan not found")
+    set(VULKAN_LIBRARY "${FFMPEG_PREPARED_BINARIES}/lib/libvulkan.a")
+    if(NOT TARGET PkgConfig::FFMPEG_NATIVE OR NOT EXISTS "${VULKAN_LIBRARY}")
+        message(FATAL_ERROR "Vulkan requires the source-built native FFmpeg SDK")
     endif()
 
     # prefer glslc, fall back to glslangValidator
@@ -154,7 +158,7 @@ if(${SUNSHINE_ENABLE_VULKAN})
 
     list(APPEND SUNSHINE_DEFINITIONS SUNSHINE_BUILD_VULKAN=1)
     include_directories(SYSTEM ${VULKAN_HEADERS_DIR})
-    list(APPEND PLATFORM_LIBRARIES ${VULKAN_LIBRARY})
+    list(APPEND PLATFORM_LIBRARIES PkgConfig::FFMPEG_NATIVE)
     list(APPEND PLATFORM_TARGET_FILES
             "${CMAKE_SOURCE_DIR}/src/platform/linux/vulkan_encode.h"
             "${CMAKE_SOURCE_DIR}/src/platform/linux/vulkan_encode.cpp")

@@ -16,7 +16,7 @@ UNIX_PATH(WORKING_DIR_UNIX ${WORKING_DIR})
 
 # Configure options for libva
 list(APPEND LIBVA_EXTRA_CONFIGURE
-        --prefix=${CMAKE_CURRENT_BINARY_DIR_UNIX}/libva
+        --prefix=${FFMPEG_INSTALL_PREFIX_UNIX}
         --enable-static
         --disable-shared
         --enable-drm
@@ -52,13 +52,13 @@ add_custom_target(libva ALL
         USES_TERMINAL
         VERBATIM
         BYPRODUCTS
-            "${CMAKE_CURRENT_BINARY_DIR}/libva/lib/libva.a"
-            "${CMAKE_CURRENT_BINARY_DIR}/libva/lib/libva-drm.a"
-            "${CMAKE_CURRENT_BINARY_DIR}/libva/lib/libva-x11.a"
-            "${CMAKE_CURRENT_BINARY_DIR}/libva/lib/libva-glx.a"
-            "${CMAKE_CURRENT_BINARY_DIR}/libva/lib/libva-wayland.a"
+            "${FFMPEG_INSTALL_PREFIX}/lib/libva.a"
+            "${FFMPEG_INSTALL_PREFIX}/lib/libva-drm.a"
+            "${FFMPEG_INSTALL_PREFIX}/lib/libva-x11.a"
+            "${FFMPEG_INSTALL_PREFIX}/lib/libva-glx.a"
+            "${FFMPEG_INSTALL_PREFIX}/lib/libva-wayland.a"
 )
 add_dependencies(${CMAKE_PROJECT_NAME} libva)
 
 # Add to PKG_CONFIG_PATH for FFmpeg to find
-set(PKG_CONFIG_PATH "${CMAKE_CURRENT_BINARY_DIR_UNIX}/libva/lib/pkgconfig:${PKG_CONFIG_PATH}")
+set(PKG_CONFIG_PATH "${FFMPEG_INSTALL_PREFIX_UNIX}/lib/pkgconfig:${PKG_CONFIG_PATH}")
