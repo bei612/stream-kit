@@ -38,6 +38,7 @@ pub mod control_state;
 pub mod host;
 pub mod media_auth;
 pub mod node_audio;
+pub mod node_microphone;
 pub mod role;
 pub mod settings;
 mod signed;

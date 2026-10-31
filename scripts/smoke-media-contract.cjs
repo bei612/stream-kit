@@ -153,6 +153,23 @@ async function main() {
       assert.equal(await applyGrant({...grant,instance_id:'wrong-instance'}),400);
       assert.equal(await applyGrant(grant),200);
       assert.equal(await applyGrant(grant),400,'Node authority accepted replay');
+      const microphoneKey=crypto.createHmac('sha256',secret).update('stream-kit/credential-key/v1\nstream-kit/remote-microphone/v1\n'+grant.node_id).digest();
+      const microphoneTicket=(overrides={})=>{
+        const now=Math.floor(Date.now()/1000);
+        const input=Buffer.from(JSON.stringify({alg:'HS256',typ:'STREAM-MICROPHONE'})).toString('base64url')+'.'+Buffer.from(JSON.stringify({...grant.bindings[0],purpose:'stream-kit/remote-microphone/v1',jti:crypto.randomBytes(16).toString('hex'),iat:now,exp:now+5,...overrides})).toString('base64url');
+        return input+'.'+crypto.createHmac('sha256',microphoneKey).update(input).digest('base64url');
+      };
+      const connectMicrophone=token=>new Promise((resolve,reject)=>{
+        const request=require('node:http').request(inventoryURL.replace('v2/audio-devices','v1/node-microphone/'+grant.bindings[0].session_id),{agent:false,headers:{Authorization:'Bearer '+token,Connection:'Upgrade',Upgrade:'websocket','Sec-WebSocket-Version':'13','Sec-WebSocket-Key':crypto.randomBytes(16).toString('base64')}},response=>{response.resume();resolve(response.statusCode)});
+        request.setTimeout(5000,()=>request.destroy(new Error('Microphone handshake timeout')));
+        request.on('error',reject);request.on('upgrade',(_response,socket)=>{socket.destroy();reject(new Error('Missing endpoint unexpectedly opened'))});request.end();
+      });
+      assert.equal(await connectMicrophone('invalid'),401);
+      assert.equal(await connectMicrophone(microphoneTicket({connection_id:'client-b'})),401);
+      assert.equal(await connectMicrophone(microphoneTicket({target_instance_id:'previous-boot'})),401);
+      const singleUse=microphoneTicket();
+      assert.equal(await connectMicrophone(singleUse),503,'Missing native endpoint must fail closed');
+      assert.equal(await connectMicrophone(singleUse),401,'Failed native open must not make ticket reusable');
       const invalid=structuredClone(grant);invalid.state.issued_at_ms++;invalid.bindings[0].connection_id='client-b';
       assert.equal(await applyGrant(invalid),400,'Viewer was granted target audio authority');
       grant.state.issued_at_ms++;grant.bindings=[];grant.state.sessions=[];
@@ -290,6 +307,7 @@ async function main() {
         'account-free viewer profile and WHEP configuration', 'media capability cannot authenticate gateway account', 'anonymous denial', 'session/connection/application/expiry admission scope', 'revocation invalidates unexpired admission',
         'signed native configuration read/save with redaction and request binding', 'configuration rejects unsigned/wrong-domain/stale requests', 'configuration version conflict and invalid edit preserve file', 'pending native trust configuration does not alter runtime'],
       node_audio_authority: nodeAuthorityVerified,
+      node_microphone_admission: nodeAuthorityVerified,
       management_inventory: managementInventory,
       scope: 'Isolated real gateway HTTP contract; no active media or target recording.' };
     child.kill();

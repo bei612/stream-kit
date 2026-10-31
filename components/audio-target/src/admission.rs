@@ -53,6 +53,18 @@ fn valid_id(value: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
 }
 
+/// Same domain-separated derivation as the control plane. The root here is
+/// this node's dedicated management key, never a credential from the sender.
+pub fn node_key(root: &[u8], target_node_id: &str) -> Result<Vec<u8>, AdmissionError> {
+    if root.len() < 32 || !valid_id(target_node_id) {
+        return Err(AdmissionError::Credential);
+    }
+    let mut mac = Hmac::<Sha256>::new_from_slice(root).map_err(|_| AdmissionError::Credential)?;
+    mac.update(b"stream-kit/credential-key/v1\nstream-kit/remote-microphone/v1\n");
+    mac.update(target_node_id.as_bytes());
+    Ok(mac.finalize().into_bytes().to_vec())
+}
+
 impl Binding {
     fn valid(&self) -> bool {
         [
@@ -177,6 +189,23 @@ impl Admissions {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn node_key_matches_control_plane_fixture() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../contracts/audio-devices/remote-microphone-v1.fixture.json"
+        ))
+        .unwrap();
+        let derived = node_key(
+            fixture["root_secret"].as_str().unwrap().as_bytes(),
+            "renderer-b",
+        )
+        .unwrap();
+        let encoded: String = derived.iter().map(|byte| format!("{byte:02x}")).collect();
+        assert_eq!(encoded, fixture["node_key_hex"].as_str().unwrap());
+        assert!(node_key(b"short", "renderer-b").is_err());
+        assert!(node_key(&[0; 32], "../other").is_err());
+    }
     fn fixture() -> (String, Vec<u8>, Binding, i64) {
         let value: serde_json::Value = serde_json::from_str(include_str!(
             "../../../contracts/audio-devices/remote-microphone-v1.fixture.json"

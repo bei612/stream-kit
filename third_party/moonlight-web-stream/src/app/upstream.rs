@@ -155,6 +155,15 @@ fn observe_target(
 }
 
 impl UpstreamPool {
+    /// Must run on a blocking audio worker. Shares endpoint reservations with
+    /// local microphone targets and explicit device-pair verification.
+    pub fn open_remote_audio(
+        &self,
+        pair: &stream_kit_audio_target::EndpointPair,
+    ) -> Result<impl stream_kit_audio_target::remote::Output + Send + 'static, String> {
+        self.endpoints.open(pair)
+    }
+
     /// Run an explicit endpoint-pair check while holding the same ownership
     /// reservation used by live output. Blocking audio work stays off the executor.
     pub async fn verify_audio_pair(

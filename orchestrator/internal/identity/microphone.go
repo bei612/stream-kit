@@ -51,8 +51,8 @@ func (binding MicrophoneBinding) valid() bool {
 		validMicrophoneID(binding.ConnectionID) && binding.TargetEpoch != 0 && binding.ControlEpoch != 0
 }
 
-// MicrophoneNodeKey derives the target node's verification key. Provision only
-// this derived key to that node, never the control plane's root secret.
+// MicrophoneNodeKey derives admission trust from the target node's dedicated
+// management secret. Never pass a platform-wide administrator/JWT root here.
 func MicrophoneNodeKey(root []byte, targetNodeID string) ([]byte, error) {
 	if len(root) < 32 || !validMicrophoneID(targetNodeID) {
 		return nil, ErrCredential

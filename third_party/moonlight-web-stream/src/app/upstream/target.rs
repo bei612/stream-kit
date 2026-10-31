@@ -36,6 +36,15 @@ struct Reservation {
     pair: EndpointPair,
 }
 impl EndpointRegistry {
+    pub(super) fn open(&self, pair: &EndpointPair) -> Result<NativeOutput, String> {
+        let reservation = self.reserve(pair)?;
+        let device = AudioTarget::open(pair).map_err(|e| e.to_string())?;
+        Ok(NativeOutput {
+            device,
+            _reservation: reservation,
+        })
+    }
+
     pub(super) fn verify_pair(&self, pair: &EndpointPair) -> Result<serde_json::Value, String> {
         let _reservation = self.reserve(pair)?;
         stream_kit_audio_target::verification::verify_pair(pair).map_err(|error| error.to_string())
@@ -67,6 +76,14 @@ impl Drop for Reservation {
 pub(super) struct NativeOutput {
     device: AudioTarget,
     _reservation: Reservation,
+}
+impl stream_kit_audio_target::remote::Output for NativeOutput {
+    fn clear(&self) {
+        self.device.clear();
+    }
+    fn submit_captured(&self, samples: &[f32], captured: Instant) -> bool {
+        self.device.submit_captured(samples, captured)
+    }
 }
 impl OutputDevice for NativeOutput {
     fn clear(&self) {
@@ -160,12 +177,7 @@ impl Runtime<NativeOutput> {
                         "native audio target requires a loopback render host on this node".into(),
                     );
                 }
-                let reservation = registry.reserve(pair)?;
-                let device = AudioTarget::open(pair).map_err(|e| e.to_string())?;
-                Ok(NativeOutput {
-                    device,
-                    _reservation: reservation,
-                })
+                registry.open(pair)
             }),
         )
         .await
