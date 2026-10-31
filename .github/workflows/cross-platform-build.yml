@@ -141,7 +141,7 @@ jobs:
         with:
           workspaces: third_party/moonlight-web-stream
       - run: cargo check --locked
-      - run: cargo test --locked --manifest-path ../../components/audio-target/Cargo.toml
+      - run: cargo test --locked --all-targets --manifest-path ../../components/audio-target/Cargo.toml
       - run: cargo clippy --locked --manifest-path ../../components/audio-target/Cargo.toml --all-targets -- -D warnings
       - name: Verify isolated Linux microphone endpoint pair
         if: runner.os == 'Linux'

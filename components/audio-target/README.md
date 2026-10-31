@@ -57,4 +57,8 @@ cargo run --locked --example verify_pair -- RENDER_DEVICE_ID CAPTURE_DEVICE_ID
 
 Linux 安装 Ubuntu 官方 `build-essential pkg-config libasound2-dev libpulse-dev pulseaudio pulseaudio-utils` 后，在仓库根目录运行 `sh scripts/test-audio-target-linux.sh`。脚本启动独立用户 PulseAudio 实例，只加载虚拟 sink/source 和限定在私有目录内的 Unix socket，不加载硬件模块或 TCP listener，不更改现有服务及系统默认设备。结束时停止自己创建的进程，结果保存到 `artifacts/audio-target/`。PulseAudio 虚拟端点机制参见[官方模块文档](https://wiki.freedesktop.org/www/Software/PulseAudio/Documentation/User/Modules/)。
 
+`verify_pair` 现在分别记录播放前静音、997 Hz 测试音和清空目标队列后的静音。静音窗口为 500 ms，要求至少收到 12000 个采样帧、RMS 小于 0.001 且峰值小于 0.003；未收到采集回调不能视为静音。清空后先留出 300 ms 排空操作系统已提交缓冲，再测量残留，因此此结果不代表撤权延迟小于 300 ms。输出的 `baseline` 和 `after_clear` 保留独立数值；已有 `captured_frames` 和 `tone_amplitude` 继续表示播放窗口。测试音连通和前后静音均满足才通过，避免持续背景音或残留被单次频率测量掩盖。
+
+2026-10-31 此静音检查的 Windows 全目标测试共 18 项及严格 Clippy 通过，包含缺少采集回调、短时脉冲、持续背景音、无效采样和测量窗口重置。CI 改为执行全目标测试，以包含验收示例。没有在本轮执行 Linux 或 Windows 虚拟端点实录，以下历史 Linux 成功记录不包含新增静音判据。
+
 2026-10-30 本机证据：Windows 与 Ubuntu 26.04/WSL 的组件测试和严格 Clippy 检查通过；Linux 隔离虚拟端点录到了 150 包发送的 997Hz 测试信号。WSLg 现有 Pulse 服务枚举返回协议错误，不能把隔离测试当作该服务已兼容的证据。Windows 当前仅枚举到 Realtek/ToDesk，未配置项目专用虚拟录音设备，也没有据此改动现有设备或驱动。浏览器→网关→目标录音端点、Windows 实录、UE5 实录与生产音频质量验收尚未完成。
