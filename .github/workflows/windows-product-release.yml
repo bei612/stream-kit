@@ -61,6 +61,8 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       - uses: ilammy/msvc-dev-cmd@v1
+      - name: Verify native Windows signature tooling
+        run: node --test scripts/test-windows-powershell.mjs scripts/test-windows-audio-driver.mjs
       - uses: Swatinem/rust-cache@v2
         with:
           # Every native workspace, the official generator and the WASM shim

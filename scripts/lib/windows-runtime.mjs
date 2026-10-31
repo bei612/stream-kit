@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import {execFileSync} from 'node:child_process'
 import {createHash} from 'node:crypto'
+import {runWindowsPowerShell} from './windows-powershell.mjs'
 
 // Application-local deployment of the official toolchain's release CRT.
 // Never copy System32, install a host-wide runtime, or include debug binaries.
@@ -36,7 +37,7 @@ export function bundleWindowsRuntime(directory, executables, env=process.env){
         continue
       }
       const script="$ErrorActionPreference='Stop'; [Console]::OutputEncoding=[Text.UTF8Encoding]::new(); $file=[Environment]::GetEnvironmentVariable('STREAM_KIT_RUNTIME_FILE'); $signature=Get-AuthenticodeSignature -LiteralPath $file; if($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch '(^|, )O=Microsoft Corporation(,|$)'){throw 'Expected valid Microsoft runtime signature'}; [pscustomobject]@{publisher=$signature.SignerCertificate.Subject;version=(Get-Item -LiteralPath $file).VersionInfo.FileVersion} | ConvertTo-Json -Compress"
-      const signature=JSON.parse(execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',script],{env:{...env,STREAM_KIT_RUNTIME_FILE:original},encoding:'utf8',windowsHide:true,timeout:30000}))
+      const signature=JSON.parse(runWindowsPowerShell(script,{env:{...env,STREAM_KIT_RUNTIME_FILE:original}}))
       fs.copyFileSync(original,destination,fs.constants.COPYFILE_EXCL)
       files.push({file:name,bytes:bytes.length,sha256:hash(destination),version:signature.version,publisher:signature.publisher})
       pending.push(destination)

@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import {createHash} from 'node:crypto'
-import {execFileSync} from 'node:child_process'
+import {runWindowsPowerShell} from './windows-powershell.mjs'
 import {fileURLToPath} from 'node:url'
 
 // The operator supplies the vendor's unmodified package and a private rights
@@ -25,7 +25,7 @@ export function verifyAudioDriverPackage(directory){
   })
   validateAudioDriverFiles(files,profile)
   const executable=path.join(directory,'VBCABLE_Setup_x64.exe').replaceAll("'","''")
-  const certificate=JSON.parse(execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',`$s=Get-AuthenticodeSignature -LiteralPath '${executable}';@{status=$s.Status.ToString();thumbprint=$s.SignerCertificate.Thumbprint}|ConvertTo-Json -Compress`],{encoding:'utf8',windowsHide:true}))
+  const certificate=JSON.parse(runWindowsPowerShell(`$ErrorActionPreference='Stop';$s=Get-AuthenticodeSignature -LiteralPath '${executable}';@{status=$s.Status.ToString();thumbprint=$s.SignerCertificate.Thumbprint}|ConvertTo-Json -Compress`))
   if(certificate.status!=='Valid'||certificate.thumbprint!==profile.publisher_certificate)throw Error('VB-CABLE installer publisher validation failed')
   return {product:profile.product,package:profile.package,publisher_certificate:certificate.thumbprint,files}
 }
