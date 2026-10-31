@@ -3,8 +3,20 @@ name: cross-platform-build
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'contracts/windows-installation/**'
+      - 'contracts/audio-devices/windows-physical-*.json'
+      - 'contracts/audio-devices/windows-recording-*.json'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'contracts/windows-installation/**'
+      - 'contracts/audio-devices/windows-physical-*.json'
+      - 'contracts/audio-devices/windows-recording-*.json'
 
 permissions:
   contents: read
