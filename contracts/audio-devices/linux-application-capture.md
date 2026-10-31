@@ -17,7 +17,7 @@ Linux 的 `capture::bind_application` 已接进程组身份、X11 窗口选择�
 焦点校验。`application_frame.cpp` 使用 XComposite 窗口 backing pixmap 与私有
 MIT-SHM 缓冲采集客户区，接入现有软件、VAAPI、CUDA 编码适配器；不会转为桌面裁剪。
 `process.cpp` 已接通启用 X11 的 Linux 启动路径，其他 Linux 图形后端仍拒绝 application 模式。
-这属于源码实现，尚未通过 Linux 构建及完整串流验收，不能描述为已经交付。
+独立采集后端已通过 Linux 编译及运行测试，完整 Sunshine 构建和串流验收仍未完成，不能描述为已经交付。
 仍需从统一管理端启动应用，验证画面、音频和控制权。
 
 当前窗口像素支持 X11 本地服务、32 位 BGRX 布局和 TrueColor 视觉；依赖 Composite、
@@ -57,8 +57,21 @@ STREAM_KIT_TEST_X11_CAPTURE=1 xvfb-run -a sh scripts/test-audio-target-linux.sh 
 `bdbfd689` 和 `f159ddac` 的 Linux CI 已执行，原生编译步骤失败，音频运行步骤
 未执行。`f159ddac` 的诊断确认 `fclose` 的函数属性触发 GCC 严格编译错误，
 `9aa4cfd2` 已改用显式 FILE 释放器，未关闭编译警告。
-后续版本尚须通过编译及运行测试，不能记为通过。
-这项原生音频测试也不能替代整个 Sunshine 的 Linux 构建和程序串流端到端验收。
+2026-10-31，`29d0e9ed833d9ab019d80c48fa78d5d4c4d534f3` 的
+[原生采集 CI 41177005671](https://github.com/bei612/stream-kit/actions/runs/41177005671)
+编译和运行步骤均通过。该任务启用独立 PulseAudio 与 Xvfb，执行实际音频隔离、
+进程组归属、窗口遮挡像素、输入坐标与焦点、尺寸变化和退休后的清空检查。
+此前 `1f4fd654`、`8e85f2fe` 的运行步骤失败但未保留可公开读取的断言详情，
+原因仍未确定；本次成功不代表已解释或修复此前失败，后续提交须继续验证。
+这项测试不能替代整个 Sunshine 的 Linux 构建和程序串流端到端验收。
+`linux-sunshine-build` 已接入同一源码构建脚本，独立验证软件/VAAPI 配置的完整构建、
+集成采集用例及管理端能力和应用持久化；CUDA 专项编译和 GPU 运行验收仍需补齐。
+
+`3a158bb1` 修正统一管理接口对 Linux X11 程序采集的声明与保存校验。
+Windows 原生 `test_sunshine` 重建成功，9 项管理接口测试通过（零失败、零跳过），
+包括程序采集配置保存、启动约束和既有目录身份/权限校验。
+结果为 `artifacts/native-capture/windows-management-tests.json`；这不能替代 Linux 管理接口运行验证。
+此次测试的旧 gcov 覆盖率缓存出现校验和冲突，因此不据此报告代码覆盖率。
 
 ## 启动身份
 
@@ -83,5 +96,5 @@ X11 窗口选择使用 X-Resource 扩展查询服务器报告的本地客户端 
 须以其实际运行结果验收。输入沿用统一 `capture::input_origin/input_focused`
 接口；过期的窗口/画面尺寸不接受输入坐标，焦点必须位于所选窗口或其子控件。
 该测试同时将目标窗口涂红并用绿色外部窗口遮挡，检查根画面确实为绿色、采集输出仍为红色，
-以及尺寸变化、退休后的输出行为；测试已加入 CI，须等待实际运行结果。
+以及尺寸变化、退休后的输出行为；该用例已在上述原生 CI 中通过。
 Linux X11 构建增加 `xcb-res`、`xcb-composite`、`xcb-shm`、`xcb-xfixes` 开发依赖。

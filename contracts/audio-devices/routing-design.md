@@ -43,3 +43,7 @@ Go 测试覆盖真实 SQLite 重开、代次防覆盖、并发争用、失败写
 后续仍需原生设备层的切换/占用竞争、租约失效和实际浏览器→目标输入端录音验收。Windows 专用虚拟音频设备仍需部署，不得占用现场 ToDesk 设备或更改系统默认音频。当前轮次不要求 Linux/手机真机验收，源码兼容与自动化验证继续保留。
 
 2026-10-31 调查候选设备实现：Foundation Sunshine `bcbb5ec76afc27964b04142eeded465bf61d6a49` 的 Windows 接收端使用 HIDMaestro 复合 USB 麦克风，Foundation 本身仍未实现 Linux 主机麦克风输出。HIDMaestro `77c4ddbad6cff428e79bc5f76d84eeef85cc8c7f` 的麦克风需要 USB/IP 传输及系统级设备安装；其普通用户态 HID 能力不等同于无需驱动的虚拟音频。该方案会引入控制器设备和驱动生命周期，尚未决定作为项目依赖，也未安装或改变本机设备。必须进一步核验许可证、签名、设备隔离和部署权限，不能以源码存在视为目标程序已接收到音频。
+
+同日从 [VB-Audio 官方页面](https://vb-audio.com/Cable/) 下载候选 `VBCABLE_Driver_Pack45.zip` 至本机 `.local/downloads/`，未安装、未纳入发行依赖。包 SHA-256 为 `b950e39f01af1d04ea623c8f6d8eb9b6ea5c477c637295fabf20631c85116bfb`。x64 安装程序签名有效；Windows SDK `signtool verify /kp /c` 验证 Windows 10/11 SYS 和 INF 均匹配 Microsoft Windows Hardware Compatibility Publisher 签名目录，零错误。核验记录为 `artifacts/audio-target/vbcable-package-review.json`，不等于内核加载或实际音频验收通过。
+
+当前执行身份没有管理员权限。[官方手册](https://vb-audio.com/Cable/VBCABLE_ReferenceManual.pdf) 说明安装可能使新设备成为系统默认音频，官方安装说明要求管理员执行并重启；现有长测期间未执行安装。生产分发和许可仍须按 [供应商授权条款](https://vb-audio.com/Services/licensing.htm) 确认，不能将其作为已纳管开源源码或已授权交付组件。
