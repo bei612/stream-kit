@@ -129,7 +129,7 @@ func TestEncoderApplyWithOwnedNativeProcess(t *testing.T) {
 			t.Fatal("credential initialization failed")
 		}
 	case <-time.After(30 * time.Second):
-		_ = credentials.Cmd.Process.Kill()
+		_ = credentials.Kill()
 		<-credentials.Done
 		t.Fatal("credential initialization timed out")
 	}

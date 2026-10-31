@@ -40,16 +40,4 @@ func killOrphanProcess(pid int, timeoutSec int) {
 	}
 }
 
-// stopProcess sends interrupt, waits for Done (set by RunWait), then force kills on timeout.
-func stopProcess(mp *ManagedProcess, timeoutSec int) error {
-	if mp.Cmd.Process != nil {
-		mp.Cmd.Process.Signal(os.Interrupt)
-	}
-
-	select {
-	case <-mp.Done:
-		return nil
-	case <-time.After(time.Duration(timeoutSec) * time.Second):
-		return forceStop(mp)
-	}
-}
+func (p *execProcess) interrupt() error { return p.cmd.Process.Signal(os.Interrupt) }

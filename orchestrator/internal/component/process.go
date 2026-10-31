@@ -17,9 +17,29 @@ import (
 	"go.uber.org/zap"
 )
 
-// ManagedProcess represents a running child process.
+// ownedProcessBackend must retain the actual process ownership until Wait
+// completes. Implementations must never reacquire ownership from a bare PID.
+type ownedProcessBackend interface {
+	wait() (int, error)
+	kill() error
+	interrupt() error
+}
+
+type execProcess struct{ cmd *exec.Cmd }
+
+func (p *execProcess) wait() (int, error) {
+	err := p.cmd.Wait()
+	if p.cmd.ProcessState != nil {
+		return p.cmd.ProcessState.ExitCode(), err
+	}
+	return -1, err
+}
+
+func (p *execProcess) kill() error { return p.cmd.Process.Kill() }
+
+// ManagedProcess represents an owned execution independently of its launcher.
 type ManagedProcess struct {
-	Cmd        *exec.Cmd
+	backend    ownedProcessBackend
 	PID        int
 	InstanceID string
 	Stopping   atomic.Bool
@@ -61,7 +81,7 @@ func StartProcess(exePath, args, workingDir string, env map[string]string, logBu
 	}
 
 	mp := &ManagedProcess{
-		Cmd:        cmd,
+		backend:    &execProcess{cmd: cmd},
 		PID:        cmd.Process.Pid,
 		InstanceID: instanceID,
 		LogBuf:     logBuf,
@@ -75,18 +95,42 @@ func StartProcess(exePath, args, workingDir string, env map[string]string, logBu
 // RunWait calls cmd.Wait() exactly once, stores exit code, and closes Done channel.
 // Must be called by exactly one goroutine (waitForExit in manager).
 func (mp *ManagedProcess) RunWait() {
-	err := mp.Cmd.Wait()
+	exitCode, err := mp.backend.wait()
 	for _, output := range mp.outputs {
 		output.flush()
 	}
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			mp.ExitCode = exitErr.ExitCode()
-		} else {
-			mp.ExitCode = -1
-		}
+	mp.ExitCode = exitCode
+	if err != nil && exitCode == 0 {
+		mp.ExitCode = -1
 	}
 	close(mp.Done)
+}
+
+// Kill terminates only the owned execution. RunWait still joins its output and
+// publishes Done; callers needing that completion must wait for Done separately.
+func (mp *ManagedProcess) Kill() error {
+	select {
+	case <-mp.Done:
+		return nil
+	default:
+		return mp.backend.kill()
+	}
+}
+
+// stopProcess keeps graceful stop and force-stop escalation launcher-independent.
+func stopProcess(mp *ManagedProcess, timeoutSec int) error {
+	select {
+	case <-mp.Done:
+		return nil
+	default:
+	}
+	_ = mp.backend.interrupt()
+	select {
+	case <-mp.Done:
+		return nil
+	case <-time.After(time.Duration(timeoutSec) * time.Second):
+		return forceStop(mp)
+	}
 }
 
 // WaitDone blocks until the process exits. Safe to call from multiple goroutines.
@@ -103,7 +147,7 @@ func forceStop(mp *ManagedProcess) error {
 		return nil
 	default:
 	}
-	if err := mp.Cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+	if err := mp.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
 		select {
 		case <-mp.Done:
 			return nil

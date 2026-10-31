@@ -55,7 +55,7 @@ func TestManagedProcessJoinsOutputBeforeDone(t *testing.T) {
 	select {
 	case <-process.Done:
 	case <-time.After(15 * time.Second):
-		_ = process.Cmd.Process.Kill()
+		_ = process.Kill()
 		<-process.Done
 		t.Fatal("oversized output blocked child exit")
 	}

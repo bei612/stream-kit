@@ -63,23 +63,12 @@ func setPlatformAttrs(cmd *exec.Cmd) {
 	}
 }
 
-// stopProcess sends CTRL_BREAK, waits for Done, then TerminateProcess on timeout.
-func stopProcess(mp *ManagedProcess, timeoutSec int) error {
-	select {
-	case <-mp.Done:
-		return nil
-	default:
-	}
-	pid := uint32(mp.PID)
-
+func (p *execProcess) interrupt() error {
 	dll := windows.NewLazySystemDLL("kernel32.dll")
 	proc := dll.NewProc("GenerateConsoleCtrlEvent")
-	proc.Call(uintptr(windows.CTRL_BREAK_EVENT), uintptr(pid))
-
-	select {
-	case <-mp.Done:
-		return nil
-	case <-time.After(time.Duration(timeoutSec) * time.Second):
-		return forceStop(mp)
+	result, _, err := proc.Call(uintptr(windows.CTRL_BREAK_EVENT), uintptr(p.cmd.Process.Pid))
+	if result == 0 {
+		return err
 	}
+	return nil
 }
