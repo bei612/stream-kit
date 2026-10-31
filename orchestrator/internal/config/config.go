@@ -147,7 +147,7 @@ func Load(configPath string) (*Config, error) {
 		return nil, fmt.Errorf("首次运行，已生成默认配置：%s\n请检查配置后重新启动", absPath)
 	}
 
-	source, err := os.ReadFile(absPath)
+	source, err := readConfigSource(absPath)
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
@@ -262,7 +262,11 @@ func validServiceURL(raw string) bool {
 
 func generateDefaultConfig(path string) error {
 	examplePath := filepath.Join(filepath.Dir(path), "config.example.json")
-	data, err := os.ReadFile(examplePath)
+	var data []byte
+	_, err := os.Lstat(examplePath)
+	if err == nil {
+		data, err = readConfigSource(examplePath)
+	}
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("read example configuration: %w", err)
 	}

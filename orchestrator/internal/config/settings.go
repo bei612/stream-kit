@@ -57,22 +57,9 @@ func (s *Settings) read() ([]byte, *Config, error) {
 	if s.path == "" {
 		return nil, nil, ErrSettingsUnavailable
 	}
-	info, err := os.Lstat(s.path)
-	if err != nil || !info.Mode().IsRegular() {
-		return nil, nil, ErrSettingsUnavailable
-	}
-	f, err := os.Open(s.path)
+	data, err := readConfigSource(s.path)
 	if err != nil {
-		return nil, nil, ErrSettingsUnavailable
-	}
-	defer f.Close()
-	info, err = f.Stat()
-	if err != nil || !info.Mode().IsRegular() || info.Size() > 1<<20 {
-		return nil, nil, ErrSettingsUnavailable
-	}
-	data, err := io.ReadAll(io.LimitReader(f, (1<<20)+1))
-	if err != nil || len(data) > 1<<20 {
-		return nil, nil, ErrSettingsUnavailable
+		return nil, nil, err
 	}
 	cfg, err := decodeSettings(data)
 	return data, cfg, err
@@ -182,7 +169,7 @@ func (s *Settings) Save(expected string, changes map[string]json.RawMessage) (*S
 			return nil, err
 		}
 	}
-	if len(base) > 1<<20 {
+	if len(base) > maxConfigBytes {
 		return nil, errors.New("configuration exceeds size limit")
 	}
 	next, err := decodeSettings(base)
@@ -197,6 +184,9 @@ func (s *Settings) Save(expected string, changes map[string]json.RawMessage) (*S
 		return nil, err
 	}
 	output = append(output, '\n')
+	if len(output) > maxConfigBytes {
+		return nil, errors.New("configuration exceeds size limit")
+	}
 	// Detect edits by another writer since the snapshot before replacing it.
 	latest, _, err := s.read()
 	if err != nil {
