@@ -8,6 +8,13 @@ jobs=${BUILD_JOBS:-2}
 [[ "$jobs" =~ ^[1-9][0-9]*$ ]] || { echo 'BUILD_JOBS must be a positive integer' >&2; exit 1; }
 build_name=${SUNSHINE_BUILD_NAME:-cmake-build-sunshine}
 [[ "$build_name" =~ ^cmake-build-[A-Za-z0-9_-]+$ ]] || { echo 'SUNSHINE_BUILD_NAME must be a cmake-build- directory name' >&2; exit 1; }
+require_clean=${SUNSHINE_REQUIRE_CLEAN:-0}
+[[ "$require_clean" == 0 || "$require_clean" == 1 ]] || { echo 'SUNSHINE_REQUIRE_CLEAN must be 0 or 1' >&2; exit 1; }
+source_commit=$(git rev-parse HEAD)
+if [[ "$require_clean" == 1 && -n "$(git status --porcelain --untracked-files=normal)" ]]; then
+  echo 'Sunshine release requires a clean, committed source tree' >&2
+  exit 1
+fi
 case "$(uname -s)" in
   MINGW*|MSYS*)
     [[ "${MSYSTEM:-}" == UCRT64 ]] || { echo 'Use the native MSYS2 UCRT64 environment' >&2; exit 1; }
@@ -21,6 +28,7 @@ for tool in cmake ninja git patch make pkg-config node npm; do
 done
 node tools/check-sunshine-vendor.cjs
 cmake -P tools/test-source-patching.cmake
+cmake -P tools/test-directory-link.cmake
 cmake -P tools/test-sunshine-sdk.cmake
 
 deps="$root/.local/cmake-build-sunshine-deps"
@@ -38,7 +46,7 @@ cmake --build "$deps/cmake-build-codec-probe" --parallel "$jobs"
 export BRANCH
 BRANCH=$(git branch --show-current)
 export COMMIT
-COMMIT=$(git rev-parse HEAD)
+COMMIT=$source_commit
 export BUILD_VERSION
 BUILD_VERSION=$(node -p "require('./third_party-manifests/upstream-lock.json').components.sunshine.version.replace(/^v/, '')")
 cmake -S third_party/sunshine -B "$build" -G Ninja \
@@ -50,4 +58,11 @@ cmake -S third_party/sunshine -B "$build" -G Ninja \
   -DSUNSHINE_PUBLISHER_WEBSITE=https://github.com/bei612/stream-kit \
   -DSUNSHINE_PUBLISHER_ISSUE_URL=https://github.com/bei612/stream-kit/issues "$@"
 cmake --build "$build" --parallel "$jobs"
+if [[ "$require_clean" == 1 ]]; then
+  if [[ "$(git rev-parse HEAD)" != "$source_commit" || -n "$(git status --porcelain --untracked-files=normal)" ]]; then
+    echo 'Source changed during Sunshine release build; output is not a release' >&2
+    exit 1
+  fi
+  node scripts/verify-sunshine-release.mjs "$(native_path "$build")" "$source_commit"
+fi
 echo "Source build completed: $build"

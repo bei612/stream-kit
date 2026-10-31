@@ -62,6 +62,13 @@ must begin with `cmake-build-`; the default remains `cmake-build-sunshine`.
 Use a separate directory when an existing binary is serving acceptance traffic.
 Dependency builds still use the common source dependency directory. This option
 does not stop, replace or install an existing service.
+Set `SUNSHINE_REQUIRE_CLEAN=1` for a release build. This rejects dirty sources
+before dependency compilation, retains the initial commit throughout the build,
+and rejects a changed commit or worktree at completion. It then executes the
+native binary's version command and reports its matching revision and SHA-256.
+Without this flag the script remains a development build entry point; successful
+compilation alone does not qualify its output as a release. Runtime version and
+hash checks are not installer, dependency-closure or publisher-signature checks.
 Hashes identify the packaged bytes; the manifest is not a signature, SBOM or
 proof that the complete platform has passed acceptance.
 
