@@ -13,8 +13,8 @@ PulseAudio 播放流必须属于目标进程；每个播放流单独设置 monit
 
 ## 尚未打通的产品路径
 
-Linux 的 `capture::bind_application` 已有进程组身份后端及 X11 窗口选择，窗口像素
-捕获和程序输入坐标尚未实现，程序启动路径尚未开放。因此保留 `process.cpp`
+Linux 的 `capture::bind_application` 已有进程组身份后端、X11 窗口选择及输入坐标/
+焦点校验，窗口像素捕获尚未实现，程序启动路径尚未开放。因此保留 `process.cpp`
 对 Linux application 模式的拒绝，不能将此后端提交
 描述为 Linux 程序级串流已交付。下一步必须接通这些接口，再从统一管理端启动
 应用并验证画面、音频和控制权，不能只以构造成功作为验收结果。
@@ -40,8 +40,8 @@ sh scripts/test-audio-target-linux.sh /absolute/path/to/cmake-build-sunshine/tes
 
 音频 PCM 接口位于 `src/platform/audio_capture.h`，不依赖图形窗口、视频编码器
 或全局服务配置。`tools/sunshine-audio-tests` 直接编译生产后端和同一个测试源文件，
-不使用替代实现。仓库工作流中的 `Linux application audio (native PulseAudio)`
-任务在 Ubuntu 24.04 上构建并执行此测试；独立入口为：
+不使用替代实现。独立的 `linux-native-capture` 工作流在 Ubuntu 24.04 上构建
+并执行此测试，运行中的验证不因后续 push 被取消；独立入口为：
 
 ```sh
 cmake -S tools/sunshine-audio-tests -B .local/cmake-build-linux-audio -G Ninja
@@ -74,5 +74,7 @@ X11 窗口选择使用 X-Resource 扩展查询服务器报告的本地客户端 
 进程身份。窗口标题及应用自行设置的 `_NET_WM_PID` 不作为归属证明；只选本次
 启动组中的可见应用窗口，保持选择直到窗口或原进程失效，不选桌面根窗口。
 新增 `SelectsOnlyTheOwnedX11WindowAndInvalidatesItAfterExit` 使用 Xvfb 和两个
-独立进程组的同标题窗口验证选择、身份稳定与退出失效，须以其实际运行结果验收。
+独立进程组的同标题窗口验证选择、身份稳定、输入坐标、焦点切换与退出失效，
+须以其实际运行结果验收。输入沿用统一 `capture::input_origin/input_focused`
+接口；过期的窗口/画面尺寸不接受输入坐标，焦点必须位于所选窗口或其子控件。
 Linux X11 构建增加 `xcb-res` 开发依赖，Debian/Ubuntu 安装项为 `libxcb-res0-dev`。

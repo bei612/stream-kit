@@ -2,7 +2,7 @@
  * @file src/platform/linux/application_target.cpp
  * @brief Retained Linux launch identities shared by application audio and video.
  */
-#include "src/capture_target.h"
+#include "src/capture_input.h"
 
 #include <algorithm>
 #include <array>
@@ -162,6 +162,50 @@ namespace capture {
         ));
         return attributes && attributes->map_state == XCB_MAP_STATE_VIEWABLE &&
                window_pid(connection_.get(), window_) == pid_ && process_->group() == group_;
+      }
+
+      /** @brief Resolve the client-area input origin for the exact captured dimensions.
+       * @param viewport Optional video snapshot to compare. @return Root-relative coordinates, or no value for a stale/hidden window.
+       */
+      std::optional<std::pair<int, int>> origin(const input_viewport_t *viewport) const {
+        if (!alive()) {
+          return std::nullopt;
+        }
+        reply_ptr<xcb_get_geometry_reply_t> geometry(xcb_get_geometry_reply(connection_.get(), xcb_get_geometry(connection_.get(), window_), nullptr));
+        if (!geometry || !geometry->width || !geometry->height ||
+            (viewport && (viewport->width != geometry->width || viewport->height != geometry->height))) {
+          return std::nullopt;
+        }
+        reply_ptr<xcb_translate_coordinates_reply_t> coordinates(xcb_translate_coordinates_reply(connection_.get(), xcb_translate_coordinates(
+          connection_.get(), window_, geometry->root, 0, 0
+        ), nullptr));
+        if (!coordinates || !coordinates->same_screen || !alive()) {
+          return std::nullopt;
+        }
+        return std::pair<int, int> {coordinates->dst_x, coordinates->dst_y};
+      }
+
+      /** @brief Check keyboard focus on the selected window or one of its child widgets. @return True for an owned focused window. */
+      bool focused() const {
+        if (!alive()) {
+          return false;
+        }
+        reply_ptr<xcb_get_input_focus_reply_t> focus(xcb_get_input_focus_reply(connection_.get(), xcb_get_input_focus(connection_.get()), nullptr));
+        if (!focus) {
+          return false;
+        }
+        auto window = focus->focus;
+        for (int depth = 0; window > XCB_INPUT_FOCUS_POINTER_ROOT && depth < 64; ++depth) {
+          if (window == window_) {
+            return alive();
+          }
+          reply_ptr<xcb_query_tree_reply_t> tree(xcb_query_tree_reply(connection_.get(), xcb_query_tree(connection_.get(), window), nullptr));
+          if (!tree || tree->parent == window) {
+            return false;
+          }
+          window = tree->parent;
+        }
+        return false;
       }
 
     private:
@@ -388,5 +432,34 @@ namespace capture {
     }
     auto target = std::make_shared<linux_target_t>(pid, std::move(root));
     return target->alive() ? target : nullptr;
+  }
+
+  std::optional<std::pair<int, int>> input_origin([[maybe_unused]] const target_ptr &target, [[maybe_unused]] const input_viewport_t *viewport) {
+#ifdef SUNSHINE_BUILD_X11
+    if (!target || !target->alive()) {
+      return std::nullopt;
+    }
+    const auto renderer = target->renderer();
+    const auto window = std::dynamic_pointer_cast<linux_renderer_t>(renderer);
+    if (!window || (viewport && viewport->renderer != renderer) || !target->contains(window->process_id())) {
+      return std::nullopt;
+    }
+    const auto origin = window->origin(viewport);
+    return target->alive() && target->contains(window->process_id()) ? origin : std::nullopt;
+#else
+    return std::nullopt;
+#endif
+  }
+
+  bool input_focused([[maybe_unused]] const target_ptr &target) {
+#ifdef SUNSHINE_BUILD_X11
+    if (!target || !target->alive()) {
+      return false;
+    }
+    const auto window = std::dynamic_pointer_cast<linux_renderer_t>(target->renderer());
+    return window && target->contains(window->process_id()) && window->focused() && target->alive();
+#else
+    return false;
+#endif
   }
 }  // namespace capture

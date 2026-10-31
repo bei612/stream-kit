@@ -3,7 +3,7 @@
  * @brief Linux launch ownership tested against real isolated process groups.
  */
 #if defined(__linux__)
-#include "src/capture_target.h"
+#include "src/capture_input.h"
 
 #include <cerrno>
 #include <chrono>
@@ -16,6 +16,10 @@
 #include <thread>
 #include <unistd.h>
 #include <vector>
+
+#ifdef SUNSHINE_BUILD_X11
+  #include <xcb/xcb.h>
+#endif
 
 extern char **environ;  ///< Test environment containing the isolated DISPLAY.
 
@@ -207,8 +211,33 @@ namespace {
     EXPECT_NE(selected->window_handle(), unrelated->window_handle());
     EXPECT_TRUE(selected->alive());
     EXPECT_EQ(target->renderer(), selected);
+    capture::input_viewport_t viewport {selected, 240, 100};
+    EXPECT_TRUE(capture::input_origin(target, &viewport).has_value());
+    ++viewport.width;
+    EXPECT_FALSE(capture::input_origin(target, &viewport).has_value());
+    viewport = {unrelated, 640, 480};
+    EXPECT_FALSE(capture::input_origin(target, &viewport).has_value());
+    const auto disconnect = [](xcb_connection_t *connection) { xcb_disconnect(connection); };
+    std::unique_ptr<xcb_connection_t, decltype(disconnect)> connection(xcb_connect(nullptr, nullptr), disconnect);
+    ASSERT_EQ(xcb_connection_has_error(connection.get()), 0);
+    const auto set_focus = [&](std::uintptr_t window) {
+      auto error = xcb_request_check(connection.get(), xcb_set_input_focus_checked(
+        connection.get(), XCB_INPUT_FOCUS_POINTER_ROOT, static_cast<xcb_window_t>(window), XCB_CURRENT_TIME
+      ));
+      const bool success = error == nullptr;
+      std::free(error);
+      return success;
+    };
+    ASSERT_TRUE(set_focus(selected->window_handle()));
+    EXPECT_TRUE(capture::input_focused(target));
+    EXPECT_FALSE(capture::input_focused(foreign));
+    ASSERT_TRUE(set_focus(unrelated->window_handle()));
+    EXPECT_FALSE(capture::input_focused(target));
+    EXPECT_TRUE(capture::input_focused(foreign));
     target->retire();
     EXPECT_EQ(target->renderer(), nullptr);
+    EXPECT_FALSE(capture::input_origin(target).has_value());
+    EXPECT_FALSE(capture::input_focused(target));
     EXPECT_TRUE(foreign->alive());
     stop_child(root);
     EXPECT_FALSE(selected->alive());

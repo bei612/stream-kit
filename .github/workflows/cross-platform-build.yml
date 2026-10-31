@@ -211,43 +211,6 @@ jobs:
             third_party/moonlight-web-stream/target/release/web-server
           if-no-files-found: error
 
-  linux-application-audio:
-    name: Linux application audio (native PulseAudio)
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install native build and isolated audio dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake ninja-build g++ libpulse-dev pulseaudio pulseaudio-utils libxcb-res0-dev xvfb xauth x11-utils
-      - name: Build the production application capture backend
-        run: |
-          mkdir -p artifacts/audio-target
-          echo '::add-matcher::third_party/sunshine/.github/matchers/gcc.json'
-          cmake -S tools/sunshine-audio-tests -B .local/cmake-build-linux-audio -G Ninja -DCMAKE_BUILD_TYPE=Release 2>&1 | tee artifacts/audio-target/native-build.log
-          cmake --build .local/cmake-build-linux-audio --parallel 2 2>&1 | tee -a artifacts/audio-target/native-build.log
-      - name: Attach native build diagnostics to the check
-        if: failure()
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          log = Path('artifacts/audio-target/native-build.log')
-          if log.exists():
-              tail = '\n'.join(log.read_text(errors='replace').splitlines()[-60:])
-              escaped = tail.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
-              print(f'::error title=Native capture build diagnostics::{escaped}')
-          PY
-      - name: Verify audio isolation and target retirement on Linux
-        timeout-minutes: 2
-        run: STREAM_KIT_TEST_X11_CAPTURE=1 xvfb-run -a sh scripts/test-audio-target-linux.sh --application-only "$GITHUB_WORKSPACE/.local/cmake-build-linux-audio/test_sunshine"
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: linux-application-audio
-          path: artifacts/audio-target/
-          if-no-files-found: error
-
   sbom:
     name: Source SBOM
     runs-on: ubuntu-latest
