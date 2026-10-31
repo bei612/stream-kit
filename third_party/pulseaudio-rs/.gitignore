@@ -1,2 +1,3 @@
 target
-Cargo.lock
+# Keep Cargo.lock: the integrated repository runs this dependency's regression
+# tests with --locked, separately from the production application lockfiles.
