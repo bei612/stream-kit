@@ -56,6 +56,17 @@ Windows verifier also checked the existing clean `b75c6fe9d368` bundle (8 files)
 The symbolic-link test was skipped locally because this account cannot create
 symlinks; it remains enabled for Linux CI. No SCM installation was performed.
 
+The Linux systemd unit now runs the same verifier through `ExecStartPre` on
+every start, before opening the control-plane listener. Three starts within
+60 seconds trigger the unit's start limit, preventing a damaged package from
+entering a tight restart loop. Deploy this unit with a current bundle declaring
+`verification_version: 1`; do not pair it with an older executable that lacks
+the command. Source cleanliness must be explicitly `false` for `source_dirty`
+(missing or null is rejected), and the version must match the recorded commit.
+Tests cover both supported architectures for Windows/Linux manifest selection
+and a real isolated Windows directory junction, which is rejected. These are
+package-validation tests, not a Linux systemd installation acceptance result.
+
 Management builds emit `dist/THIRD_PARTY_NOTICES.json` from dependencies with
 rendered code in JavaScript chunks, plus Vite's browser-helper and Tailwind's CSS
 generators. It retains original license/notice text, package versions, declared

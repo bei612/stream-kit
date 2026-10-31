@@ -25,7 +25,7 @@ type Manifest struct {
 	Component    string `json:"component"`
 	Version      string `json:"version"`
 	Commit       string `json:"commit"`
-	Dirty        bool   `json:"source_dirty"`
+	Dirty        *bool  `json:"source_dirty"`
 	Platform     string `json:"platform"`
 	Architecture string `json:"architecture"`
 	Files        []File `json:"files"`
@@ -77,8 +77,11 @@ func Verify(directory, platform, architecture string) (*Manifest, error) {
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		return nil, fmt.Errorf("invalid bundle manifest: %w", err)
 	}
-	if manifest.Schema != 1 || manifest.Component != "orchestrator" || !digest(manifest.Commit, 20) || manifest.Version == "" || manifest.Dirty {
+	if manifest.Schema != 1 || manifest.Component != "orchestrator" || !digest(manifest.Commit, 20) || manifest.Dirty == nil || *manifest.Dirty {
 		return nil, fmt.Errorf("bundle must be a versioned clean control-plane release")
+	}
+	if manifest.Version != "git-"+manifest.Commit[:12] {
+		return nil, fmt.Errorf("bundle version does not match its source revision")
 	}
 	if manifest.Platform != platform || manifest.Architecture != architecture || (platform != "windows" && platform != "linux") || (architecture != "amd64" && architecture != "arm64") {
 		return nil, fmt.Errorf("bundle target does not match %s/%s", platform, architecture)
@@ -116,7 +119,7 @@ func Verify(directory, platform, architecture string) (*Manifest, error) {
 		if err != nil {
 			return err
 		}
-		if !validPath(name) || (!info.Mode().IsRegular() && !info.IsDir()) {
+		if !validPath(name) || info.Mode()&os.ModeSymlink != 0 || (!info.Mode().IsRegular() && !info.IsDir()) {
 			return fmt.Errorf("non-regular bundle entry: %s", name)
 		}
 		if info.IsDir() {

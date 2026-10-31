@@ -13,7 +13,7 @@ import (
 func fixture(t *testing.T) (string, Manifest) {
 	t.Helper()
 	dir := t.TempDir()
-	manifest := Manifest{Schema: 1, Component: "orchestrator", Commit: strings.Repeat("a", 40), Version: "git-aaaaaaaaaaaa", Platform: "windows", Architecture: "amd64"}
+	manifest := Manifest{Schema: 1, Component: "orchestrator", Commit: strings.Repeat("a", 40), Version: "git-aaaaaaaaaaaa", Dirty: new(bool), Platform: "windows", Architecture: "amd64"}
 	for _, name := range []string{"orchestrator.exe", "dist/index.html", "dist/THIRD_PARTY_NOTICES.json", "THIRD_PARTY_NOTICES.go.json"} {
 		file := filepath.Join(dir, filepath.FromSlash(name))
 		if err := os.MkdirAll(filepath.Dir(file), 0700); err != nil {
@@ -86,7 +86,8 @@ func TestVerifyBundleIntegrityAndTarget(t *testing.T) {
 
 func TestInvalidBundleManifestNeverPasses(t *testing.T) {
 	for _, mutate := range []func(*Manifest){
-		func(m *Manifest) { m.Dirty = true }, func(m *Manifest) { m.Schema = 2 },
+		func(m *Manifest) { *m.Dirty = true }, func(m *Manifest) { m.Schema = 2 },
+		func(m *Manifest) { m.Dirty = nil }, func(m *Manifest) { m.Version = "git-bbbbbbbbbbbb" },
 		func(m *Manifest) { m.Commit = "unknown" }, func(m *Manifest) { m.Files = nil },
 		func(m *Manifest) { m.Files[0].Bytes = -1 }, func(m *Manifest) { m.Files[0].SHA256 = "bad" },
 		func(m *Manifest) { m.Files[0].Path = "../outside" }, func(m *Manifest) { m.Files[0].Path = "C:/outside" },
@@ -100,6 +101,27 @@ func TestInvalidBundleManifestNeverPasses(t *testing.T) {
 		save(t, dir, manifest)
 		if _, err := Verify(dir, "windows", "amd64"); err == nil {
 			t.Fatal("invalid manifest accepted")
+		}
+	}
+}
+
+func TestSupportedBundleTargets(t *testing.T) {
+	for _, platform := range []string{"windows", "linux"} {
+		for _, architecture := range []string{"amd64", "arm64"} {
+			t.Run(platform+"-"+architecture, func(t *testing.T) {
+				dir, manifest := fixture(t)
+				manifest.Platform, manifest.Architecture = platform, architecture
+				if platform == "linux" {
+					if err := os.Rename(filepath.Join(dir, "orchestrator.exe"), filepath.Join(dir, "orchestrator")); err != nil {
+						t.Fatal(err)
+					}
+					manifest.Files[0].Path = "orchestrator"
+				}
+				save(t, dir, manifest)
+				if _, err := Verify(dir, platform, architecture); err != nil {
+					t.Fatal(err)
+				}
+			})
 		}
 	}
 }

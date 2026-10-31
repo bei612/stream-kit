@@ -2,10 +2,13 @@
 Description=Stream-Kit Orchestrator
 After=network-online.target
 Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
 
 [Service]
 Type=simple
 WorkingDirectory=/opt/stream-kit/orchestrator
+ExecStartPre=/opt/stream-kit/orchestrator/orchestrator verify-bundle /opt/stream-kit/orchestrator
 ExecStart=/opt/stream-kit/orchestrator/orchestrator --config /etc/stream-kit/orchestrator.json
 Restart=always
 RestartSec=3
