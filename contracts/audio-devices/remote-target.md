@@ -22,7 +22,9 @@
 
 控制端 `internal/identity/microphone.go` 已提供独立用途 `STREAM-MICROPHONE` 的 HS256 签发/静态校验，复用现有凭据编码器。目标节点密钥使用现有 `DeriveKey`，purpose 为 `stream-kit/remote-microphone/v1\n<target_node_id>`；只向目标节点下发派生密钥，不下发根密钥。票据绑定源/目标节点、会话、控制连接、host/app、目标 epoch、控制代次，随机 128 位小写十六进制 `jti`，有效期 5 秒，不接受未来签发时间。固定公开测试样例位于 `remote-microphone-v1.fixture.json`，由 Go 签名和验证测试校验；其中密钥仅为公开测试数据，不得用于部署。
 
-此签发器尚未连接 HTTP 路由或节点注册。静态校验不消费 `jti`，不替代实时权威快照；Rust 接收端、原子单次消费、节点配置及两端联调仍未实现，不得据此宣称节点间授权链路可用。
+票据同时绑定 `target_instance_id`，由接收进程每次启动生成新随机标识并通过受信节点状态发布。Go/Rust 的同一固定样例测试已通过。`components/audio-target/src/admission.rs` 已实现签名/用途/精确绑定/时效校验，以及有容量上限的 `Admissions` 消费记录：已使用票据拒绝，满额不驱逐有效记录，过期记录回收，时钟回退拒绝。该记录需由接收进程所有连接共用并以互斥锁保护；新启动实例 ID 必须来自本机受信状态，不得直接采用票据中的声明。
+
+此签发器尚未连接 HTTP 路由或节点注册。Go 静态校验不消费 `jti`；Rust 消费记录不替代实时权威快照。网络接收端、受信节点配置、进程实例发布、TLS 对端验证及两端联调仍未实现，不得据此宣称节点间授权链路可用。
 
 `components/audio-target/src/wire.rs` 提供 Windows/Linux 共用的 `SKM1` 帧编解码器，未新增监听端口或远端设备选项。每帧固定 7716 字节：4 字节 magic、4 个 little-endian uint64（目标 epoch、控制代次、递增序号、原始音频接收时间 Unix 毫秒），随后为 1920 个 little-endian float32，即 48kHz 双声道交错 20ms PCM。不得在网络重试时重写音频时间。序号从 1 开始，允许丢帧但拒绝重复与乱序；新认证连接须创建新的接收状态。
 

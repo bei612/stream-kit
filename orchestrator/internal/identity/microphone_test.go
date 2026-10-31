@@ -40,7 +40,7 @@ func TestMicrophoneProtocolFixture(t *testing.T) {
 func TestMicrophoneAdmissionBindingAndAudience(t *testing.T) {
 	now := time.Unix(1700000000, 0)
 	root := []byte(strings.Repeat("r", 32))
-	binding := MicrophoneBinding{"gateway-a", "renderer-b", "session-a", "controller-a", 10, 20, 3, 4}
+	binding := MicrophoneBinding{"gateway-a", "renderer-b", "boot-b", "session-a", "controller-a", 10, 20, 3, 4}
 	key, err := MicrophoneNodeKey(root, binding.TargetNodeID)
 	if err != nil {
 		t.Fatal(err)
@@ -60,6 +60,7 @@ func TestMicrophoneAdmissionBindingAndAudience(t *testing.T) {
 	for _, mutate := range []func(*MicrophoneBinding){
 		func(b *MicrophoneBinding) { b.SourceNodeID = "gateway-c" },
 		func(b *MicrophoneBinding) { b.TargetNodeID = "renderer-c" },
+		func(b *MicrophoneBinding) { b.TargetInstanceID = "boot-c" },
 		func(b *MicrophoneBinding) { b.SessionID = "session-c" },
 		func(b *MicrophoneBinding) { b.ConnectionID = "controller-c" },
 		func(b *MicrophoneBinding) { b.HostID++ },

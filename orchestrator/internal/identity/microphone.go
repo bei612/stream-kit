@@ -13,14 +13,15 @@ const MicrophoneLifetime = 5 * time.Second
 // MicrophoneBinding must originate from a current authoritative session and
 // registered node identities. A browser request must never populate this value.
 type MicrophoneBinding struct {
-	SourceNodeID string `json:"source_node_id"`
-	TargetNodeID string `json:"target_node_id"`
-	SessionID    string `json:"session_id"`
-	ConnectionID string `json:"connection_id"`
-	HostID       uint32 `json:"host_id"`
-	AppID        uint32 `json:"app_id"`
-	TargetEpoch  uint64 `json:"target_epoch"`
-	ControlEpoch uint64 `json:"control_epoch"`
+	SourceNodeID     string `json:"source_node_id"`
+	TargetNodeID     string `json:"target_node_id"`
+	TargetInstanceID string `json:"target_instance_id"`
+	SessionID        string `json:"session_id"`
+	ConnectionID     string `json:"connection_id"`
+	HostID           uint32 `json:"host_id"`
+	AppID            uint32 `json:"app_id"`
+	TargetEpoch      uint64 `json:"target_epoch"`
+	ControlEpoch     uint64 `json:"control_epoch"`
 }
 
 type MicrophoneClaims struct {
@@ -45,6 +46,7 @@ func validMicrophoneID(value string) bool {
 
 func (binding MicrophoneBinding) valid() bool {
 	return validMicrophoneID(binding.SourceNodeID) && validMicrophoneID(binding.TargetNodeID) &&
+		validMicrophoneID(binding.TargetInstanceID) &&
 		binding.SourceNodeID != binding.TargetNodeID && validMicrophoneID(binding.SessionID) &&
 		validMicrophoneID(binding.ConnectionID) && binding.TargetEpoch != 0 && binding.ControlEpoch != 0
 }
