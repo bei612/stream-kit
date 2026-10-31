@@ -74,8 +74,9 @@ pub struct TargetStatus {
     // Callback consumption is not proof that the target application recorded it.
 }
 
-#[derive(Default)]
 struct Shared {
+    clock: Instant,
+    last_callback_ms: AtomicU64,
     queue: Mutex<pcm::PcmQueue>,
     open: AtomicBool,
     failed: AtomicBool,
@@ -84,6 +85,27 @@ struct Shared {
     xruns: AtomicU64,
     realtime_denied: AtomicBool,
     error: Mutex<Option<String>>,
+}
+
+// This detects a silent native backend stall, not individual audio underruns.
+// It is evaluated only when existing status consumers request a snapshot.
+const CALLBACK_TIMEOUT_MS: u64 = 2_000;
+
+impl Default for Shared {
+    fn default() -> Self {
+        Self {
+            clock: Instant::now(),
+            last_callback_ms: AtomicU64::new(0),
+            queue: Mutex::default(),
+            open: AtomicBool::new(false),
+            failed: AtomicBool::new(false),
+            consumed: AtomicU64::new(0),
+            dropped: AtomicU64::new(0),
+            xruns: AtomicU64::new(0),
+            realtime_denied: AtomicBool::new(false),
+            error: Mutex::default(),
+        }
+    }
 }
 
 pub struct AudioTarget {
@@ -130,6 +152,7 @@ impl AudioTarget {
             _ => return Err(Error::UnsupportedFormat),
         };
         stream.play()?;
+        shared.record_callback(); // Start the first-callback grace period at play.
         shared.open.store(true, Ordering::Release);
         Ok(Self {
             _stream: stream,
@@ -201,14 +224,28 @@ fn select_output_config(
 }
 
 impl Shared {
+    fn record_callback(&self) {
+        self.last_callback_ms
+            .store(self.clock.elapsed().as_millis() as u64, Ordering::Release);
+    }
+
     fn status(&self) -> TargetStatus {
+        self.status_at(self.clock.elapsed().as_millis() as u64)
+    }
+
+    fn status_at(&self, now_ms: u64) -> TargetStatus {
+        let open = self.open.load(Ordering::Acquire);
+        let error = self.error.lock().ok().and_then(|error| error.clone());
+        let stalled = open
+            && now_ms.saturating_sub(self.last_callback_ms.load(Ordering::Acquire))
+                > CALLBACK_TIMEOUT_MS;
         TargetStatus {
             device_open: self.open.load(Ordering::Acquire) && !self.failed.load(Ordering::Acquire),
             device_sample_frames: self.consumed.load(Ordering::Relaxed),
             dropped_frames: self.dropped.load(Ordering::Relaxed),
             xruns: self.xruns.load(Ordering::Relaxed),
             realtime_denied: self.realtime_denied.load(Ordering::Relaxed),
-            error: self.error.lock().ok().and_then(|error| error.clone()),
+            error: error.or_else(|| stalled.then(|| "audio output callback stalled".to_owned())),
         }
     }
 }
@@ -230,6 +267,7 @@ fn build<T: cpal::SizedSample + cpal::FromSample<f32>>(
         config,
         move |data: &mut [T], _| {
             // Real-time callbacks must never block, allocate, or log.
+            shared.record_callback();
             data.fill(T::from_sample(0.0));
             if shared.failed.load(Ordering::Acquire) {
                 return;
@@ -278,6 +316,43 @@ fn record_error(shared: &Shared, error: cpal::Error) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn callback_liveness_reports_silent_stalls_and_recovery() {
+        let shared = Shared::default();
+        assert!(shared.status_at(10_000).error.is_none());
+        shared.open.store(true, Ordering::Release);
+        shared.last_callback_ms.store(100, Ordering::Release);
+        assert!(shared.status_at(2_100).error.is_none());
+        let stalled = shared.status_at(2_101);
+        assert!(stalled.device_open); // Ownership is distinct from liveness.
+        assert_eq!(
+            stalled.error.as_deref(),
+            Some("audio output callback stalled")
+        );
+        shared.last_callback_ms.store(2_101, Ordering::Release);
+        assert!(shared.status_at(2_102).error.is_none());
+        // A callback may advance after the status reader samples its clock.
+        assert!(shared.status_at(2_100).error.is_none());
+        shared.open.store(false, Ordering::Release);
+        let closed = shared.status_at(20_000);
+        assert!(!closed.device_open);
+        assert!(closed.error.is_none());
+    }
+
+    #[test]
+    fn native_failure_takes_precedence_over_stalled_callback() {
+        let shared = Shared::default();
+        shared.open.store(true, Ordering::Release);
+        record_error(&shared, cpal::ErrorKind::StreamInvalidated.into());
+        let original = shared.status_at(0).error.expect("native error");
+        let stalled = shared.status_at(10_000);
+        assert!(!stalled.device_open);
+        assert_eq!(stalled.error.as_deref(), Some(original.as_str()));
+        shared.record_callback();
+        assert!(!shared.status().device_open);
+        assert_eq!(shared.status().error.as_deref(), Some(original.as_str()));
+    }
+
     #[test]
     fn later_usable_device_configuration_is_not_hidden_by_large_first_buffer() {
         let configurations = [
