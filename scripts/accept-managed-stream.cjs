@@ -442,6 +442,23 @@ async function main() {
   }
   if (applicationExample) {
     result.program_audio_db = await Promise.all(pages.map(page => measureReceivedTone(page)));
+    result.program_audio_diagnostics = await Promise.all(pages.map(page => page.evaluate(async () => {
+      const peer = window.__acceptancePeers.at(-1);
+      const stats = peer ? [...(await peer.getStats()).values()] : [];
+      const track = peer?.getReceivers().find(receiver => receiver.track.kind === 'audio')?.track;
+      return {
+        peer_state: peer?.connectionState,
+        probe_state: window.__toneProbe?.context.state,
+        track: track ? { enabled: track.enabled, muted: track.muted, state: track.readyState } : null,
+        inbound: stats.filter(stat => stat.type === 'inbound-rtp' && stat.kind === 'audio').map(stat => ({
+          packetsReceived: stat.packetsReceived, packetsLost: stat.packetsLost,
+          bytesReceived: stat.bytesReceived, jitter: stat.jitter,
+          totalAudioEnergy: stat.totalAudioEnergy, totalSamplesDuration: stat.totalSamplesDuration,
+          concealedSamples: stat.concealedSamples, silentConcealedSamples: stat.silentConcealedSamples,
+          totalSamplesReceived: stat.totalSamplesReceived,
+        })),
+      };
+    })));
     const picture = await pages[0].evaluate(() => {
       const video = document.querySelector('video'), canvas = document.createElement('canvas');
       canvas.width = video.videoWidth; canvas.height = video.videoHeight;
@@ -903,7 +920,11 @@ async function main() {
     const audio = stats.find(s => s.type === 'inbound-rtp' && s.kind === 'audio');
     return { state:peer.connectionState, frames:video?.framesDecoded || 0, audio_packets:audio?.packetsReceived || 0,
       video_packets_lost:video?.packetsLost || 0, audio_packets_lost:audio?.packetsLost || 0,
-      video_jitter:video?.jitter || 0, audio_jitter:audio?.jitter || 0 };
+      video_jitter:video?.jitter || 0, audio_jitter:audio?.jitter || 0,
+      audio_energy:audio?.totalAudioEnergy ?? null,
+      audio_samples:audio?.totalSamplesReceived ?? null,
+      audio_concealed_samples:audio?.concealedSamples ?? null,
+      audio_silent_concealed_samples:audio?.silentConcealedSamples ?? null };
   })));
   let previousMedia = await mediaSnapshot();
   const holdStart = performance.now();
