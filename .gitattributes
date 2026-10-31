@@ -18,3 +18,5 @@ orchestrator/vendor/** -text eol=lf
 # This locally replaced module is copied into vendor by the same command.
 third_party/sevenzip/** -text
 scripts/licenses/**/LICENSE* -text
+# Pinned upstream notice hashes cover original bytes, including NOTICE files.
+scripts/licenses/cargo/** -text
