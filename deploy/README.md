@@ -1,5 +1,21 @@
 # Stream-Kit service deployment
 
+Windows source revision `aa254605` completed the native Sunshine release build
+with official CMake 3.31.8, clean-source verification and matching executable
+revision. Its 71 selected core native tests passed without skips (capture target,
+application management, configuration persistence and Windows audio behavior).
+Build/test evidence: `artifacts/source-build/sunshine-aa254605/`.
+
+The same revision's renderer, gateway, control bundle, example and rebuilt Web
+assets passed Chromium application-stream acceptance at
+`artifacts/source-stream/2026-10-31T09-50-06-672Z/`: two viewers, one upstream,
+program tone, controller microphone-tone broadcast alongside program audio,
+viewer/previous-controller rejection, control transfer, viewer departure,
+application deletion and return to idle. The microphone source was a generated
+test file and the target recording device was unconfigured. This does not prove
+physical microphone permission, delivery to UE5/recorder, full audio quality,
+installed-service operation or a signed platform installer.
+
 On 2026-10-31 the required stability duration was explicitly reduced from 24 to
 4 hours. The 20-client run completed 16,280.012 seconds (about 4.52 hours), with
 1,603 periodic samples verifying all connections, decoded-frame and audio-packet
