@@ -21,6 +21,52 @@ function elementFixture() {
   return {player,element,pending,tracks,logs,pauses:()=>pauses}
 }
 
+function pcmFixture() {
+  const sources=[],gain={disconnects:0,disconnect(){this.disconnects++}}
+  let buffers=0,cleanups=0
+  const context={state:'running',currentTime:0,createGain:()=>gain,
+    createBuffer(channels,length,rate){buffers++;return {duration:length/rate,copyToChannel(){}}},
+    createBufferSource(){const source={stopped:0,disconnected:0,connect(){},start(time){this.time=time},stop(){this.stopped++},disconnect(){this.disconnected++}};sources.push(source);return source}}
+  const {AudioBufferPipe}=load('audio_buffer_pipe')
+  const pipe=new AudioBufferPipe({implementationName:'fixture',setup(){},setSource(){},getAudioContext:()=>context,cleanup(){cleanups++}})
+  pipe.setup({channels:2,sampleRate:48000});pipe.onUserInteraction()
+  const unit=(samples=960)=>({channelData:[new Float32Array(samples),new Float32Array(samples)]})
+  return {pipe,context,sources,gain,unit,buffers:()=>buffers,cleanups:()=>cleanups}
+}
+
+test('PCM pause discards queued speech and no buffers accumulate against a frozen clock',()=>{
+  const f=pcmFixture();f.pipe.playPcm(f.unit());const first=f.sources[0]
+  f.context.state='suspended'
+  for(let i=0;i<1000;i++)f.pipe.playPcm(f.unit())
+  assert.equal(f.buffers(),1);assert.equal(first.stopped,1);assert.equal(first.disconnected,1)
+  f.context.state='running';f.context.currentTime=10;f.pipe.playPcm(f.unit())
+  assert.equal(f.sources[1].time,10.12)
+  f.pipe.cleanup();assert.equal(f.sources[1].stopped,1);assert.equal(f.cleanups(),1)
+  f.pipe.playPcm(f.unit());assert.equal(f.buffers(),2)
+})
+
+test('PCM latency reset cancels old schedules and tiny units cannot create unbounded nodes',()=>{
+  const f=pcmFixture()
+  for(let i=0;i<1000;i++)f.pipe.playPcm(f.unit())
+  assert.ok(f.sources[0].stopped>0)
+  let live=f.sources.filter(source=>!source.stopped)
+  assert.ok(live.length<=7)
+  assert.ok(live.every(source=>source.time+source.buffer.duration<=0.250001))
+  f.pipe.cleanup()
+  const tiny=pcmFixture();for(let i=0;i<1000;i++)tiny.pipe.playPcm(tiny.unit(1))
+  live=tiny.sources.filter(source=>!source.stopped);assert.ok(live.length<=128)
+  live[0].onended();assert.equal(live[0].disconnected,1)
+  tiny.pipe.cleanup()
+})
+
+test('PCM rejects malformed or oversized frames before creating audio buffers',()=>{
+  const f=pcmFixture()
+  for(const unit of [f.unit(0),f.unit(12001),{channelData:[new Float32Array(1)]},{channelData:[new Float32Array(1),new Float32Array(2)]}])f.pipe.playPcm(unit)
+  assert.equal(f.buffers(),0)
+  f.pipe.playPcm(f.unit(12000));assert.equal(f.sources[0].time,0)
+  f.pipe.cleanup()
+})
+
 test('gesture starts playback; denied autoplay is handled and the next gesture retries',async()=>{
   const f=elementFixture()
   f.player.onUserInteraction();assert.equal(f.element.muted,false);assert.equal(f.pending.length,1)

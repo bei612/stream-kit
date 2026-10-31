@@ -3,6 +3,10 @@ import { Pipe, PipeInfo } from "../pipeline/index"
 import { addPipePassthrough } from "../pipeline/pipes"
 import { AudioPcmUnit, AudioPlayerSetup, NodeAudioPlayer, PcmAudioPlayer } from "./index"
 
+const TARGET_LATENCY_SECS = 0.12
+const MAX_LATENCY_SECS = 0.25
+const MAX_QUEUED_SOURCES = 128
+
 export class AudioBufferPipe implements PcmAudioPlayer {
     static readonly pipeName = "AudioBufferPipe"
 
@@ -30,6 +34,25 @@ export class AudioBufferPipe implements PcmAudioPlayer {
     private sampleRate: number = -1
 
     private node: AudioNode | null = null
+    private sources = new Set<AudioBufferSourceNode>()
+
+    private clearScheduled(): void {
+        for (const source of this.sources) {
+            source.onended = null
+            try { source.stop() } catch { /* Already ended. */ }
+            source.disconnect()
+        }
+        this.sources.clear()
+        this.nextAudioPlayTime = null
+    }
+
+    cleanup(): void {
+        this.clearScheduled()
+        this.node?.disconnect()
+        this.node = null
+        this.hadUserInteraction = false
+        if ("cleanup" in this.base && typeof this.base.cleanup === "function") this.base.cleanup()
+    }
 
     setup(setup: AudioPlayerSetup) {
         this.channels = setup.channels
@@ -67,22 +90,32 @@ export class AudioBufferPipe implements PcmAudioPlayer {
             return
         }
 
-        const TARGET_LATENCY_SECS = 0.12
-        const MAX_LATENCY_SECS = 0.25
+        const context = this.base.getAudioContext()
+        if (context.state !== "running") {
+            // A suspended context has a frozen clock. Never accumulate media
+            // against that clock or replay stale speech after activation.
+            this.clearScheduled()
+            return
+        }
+        const samples = unit.channelData[0]?.length ?? 0
+        if (samples === 0 || this.sampleRate <= 0 || samples / this.sampleRate > MAX_LATENCY_SECS ||
+            unit.channelData.length !== this.channels || unit.channelData.some(channel => channel.length !== samples)) return
 
-        const now = this.base.getAudioContext().currentTime
+        const now = context.currentTime
+        const initialDelay = Math.min(TARGET_LATENCY_SECS, MAX_LATENCY_SECS - samples / this.sampleRate)
 
         if (this.nextAudioPlayTime == null) {
-            this.nextAudioPlayTime = now + TARGET_LATENCY_SECS
+            this.nextAudioPlayTime = now + initialDelay
         }
 
-        let ahead = this.nextAudioPlayTime - this.base.getAudioContext().currentTime
+        let ahead = this.nextAudioPlayTime - now
 
-        // Too far ahead -> gently pull back audio
-        if (ahead > MAX_LATENCY_SECS) {
-            console.debug("Audio too far ahead, trimming latency");
-            this.nextAudioPlayTime = now + TARGET_LATENCY_SECS;
-            ahead = TARGET_LATENCY_SECS;
+        // Remove scheduled audio before resetting the clock, otherwise old
+        // and new buffers overlap. Bound node count even for tiny PCM units.
+        if (ahead + samples / this.sampleRate > MAX_LATENCY_SECS || this.sources.size >= MAX_QUEUED_SOURCES) {
+            this.clearScheduled()
+            this.nextAudioPlayTime = now + initialDelay;
+            ahead = initialDelay;
         }
 
         // Underrun -> jump forward
@@ -90,10 +123,8 @@ export class AudioBufferPipe implements PcmAudioPlayer {
             console.debug("Audio underrun")
 
             // We are behind (underrun), jump to current time + small buffer
-            this.nextAudioPlayTime = now + TARGET_LATENCY_SECS;
+            this.nextAudioPlayTime = now + initialDelay;
         }
-
-        const context = this.base.getAudioContext()
 
         const buffer = context.createBuffer(this.channels, unit.channelData[0].length, this.sampleRate)
 
@@ -107,10 +138,10 @@ export class AudioBufferPipe implements PcmAudioPlayer {
         source.buffer = buffer
         source.connect(this.node)
 
+        this.sources.add(source)
+        source.onended = () => { this.sources.delete(source); source.disconnect() }
         source.start(this.nextAudioPlayTime)
         this.nextAudioPlayTime += buffer.duration
-
-        source.onended = () => source.disconnect()
     }
 
     getBase(): Pipe | null {
