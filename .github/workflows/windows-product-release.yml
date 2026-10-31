@@ -13,6 +13,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  linux:
+    name: Linux product
+    uses: ./.github/workflows/linux-sunshine-build.yml
+
   build:
     name: Source-built Windows unified installer
     runs-on: windows-2022
@@ -97,7 +101,20 @@ jobs:
             mingw-w64-ucrt-x86_64-openssl
             mingw-w64-ucrt-x86_64-opus
             mingw-w64-ucrt-x86_64-qt6-static
+            mingw-w64-ucrt-x86_64-libtiff
             mingw-w64-ucrt-x86_64-MinHook
+      - name: Verify native dependencies before codec compilation
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          pkg-config --exists libtiff-4 libcurl miniupnpc opus
+          mkdir -p artifacts/windows-product/logs
+          pacman -Q > artifacts/windows-product/logs/ucrt-packages.txt
+      - uses: actions/cache/restore@v4
+        id: codec-cache
+        with:
+          path: .local/cmake-build-sunshine-deps
+          key: windows-codec-sdk-v1-${{ hashFiles('artifacts/windows-product/logs/ucrt-packages.txt', 'third_party/sunshine/third-party/build-deps/**', 'tools/sunshine-codec-probe/**', 'third_party-manifests/sunshine-dependencies.json', 'third_party-manifests/windows-release-tools.json') }}
       - name: Build integrated Sunshine and vendored codecs
         shell: msys2 {0}
         env:
@@ -115,6 +132,11 @@ jobs:
           cmake --version > artifacts/windows-product/logs/cmake-version.txt
           bash scripts/build-sunshine.sh -DBUILD_DOCS=OFF -DSUNSHINE_USE_STATIC_QT=ON 2>&1 | tee artifacts/windows-product/logs/sunshine-build.log
           node scripts/verify-sunshine-release.mjs "$(cygpath -m "$PWD/.local/cmake-build-sunshine")" "$GITHUB_SHA" --output "$(cygpath -m "$PWD/artifacts/windows-product/renderer")"
+      - uses: actions/cache/save@v4
+        if: always() && steps.codec-cache.outputs.cache-primary-key != '' && steps.codec-cache.outputs.cache-hit != 'true'
+        with:
+          path: .local/cmake-build-sunshine-deps
+          key: ${{ steps.codec-cache.outputs.cache-primary-key }}
       - name: Package verified components into one installer
         run: |
           node scripts/package-platform-release.mjs artifacts/windows-product/control artifacts/windows-product/gateway artifacts/windows-product/renderer artifacts/windows-product/example artifacts/windows-product/platform
@@ -154,7 +176,7 @@ jobs:
   publish:
     name: Publish tagged preview
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [build, sbom]
+    needs: [build, linux, sbom]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -168,6 +190,10 @@ jobs:
         with:
           name: windows-product-sbom-${{ github.sha }}
           path: artifacts/publish
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-product-installer-${{ github.sha }}
+          path: artifacts/publish/linux
       - name: Publish without replacing existing assets
         env:
           GH_TOKEN: ${{ github.token }}
@@ -176,4 +202,7 @@ jobs:
           set -euo pipefail
           cd artifacts/publish
           sha256sum -c SHA256SUMS.txt
-          gh release create "$RELEASE_TAG" ./*.exe installer-manifest.json SHA256SUMS.txt stream-kit-sbom.spdx.json --verify-tag --prerelease --title "$RELEASE_TAG" --notes-file "$GITHUB_WORKSPACE/deploy/windows/CI-RELEASE.md"
+          (cd linux && sha256sum -c SHA256SUMS)
+          mv linux/installer-manifest.json linux/linux-installer-manifest.json
+          mv linux/SHA256SUMS linux/Linux-SHA256SUMS.txt
+          gh release create "$RELEASE_TAG" ./*.exe installer-manifest.json SHA256SUMS.txt stream-kit-sbom.spdx.json linux/*-setup.run linux/linux-installer-manifest.json linux/Linux-SHA256SUMS.txt --verify-tag --prerelease --title "$RELEASE_TAG" --notes-file "$GITHUB_WORKSPACE/deploy/windows/CI-RELEASE.md"

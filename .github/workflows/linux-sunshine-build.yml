@@ -12,6 +12,19 @@ on:
       - 'orchestrator/internal/bundle/layouts.json'
       - 'scripts/renderer-build-profile.mjs'
       - 'scripts/verify-sunshine-release.mjs'
+      - 'orchestrator/**'
+      - 'components/**'
+      - 'third_party/moonlight-web-stream/**'
+      - 'third_party/moonlight-common-rust/**'
+      - 'third_party/webrtc-rs/**'
+      - 'scripts/build-control-plane.mjs'
+      - 'scripts/build-gateway*.mjs'
+      - 'scripts/build-linux-installer.mjs'
+      - 'scripts/package-platform-release.mjs'
+      - 'scripts/accept-linux-installer.sh'
+      - 'scripts/lib/**'
+      - 'deploy/linux/**'
+      - 'deploy/stream-kit-orchestrator.service'
       - 'scripts/test-audio-target-linux.sh'
       - 'tools/sunshine-codec-probe/**'
       - 'tools/check-sunshine-vendor.cjs'
@@ -21,6 +34,7 @@ on:
       - 'scripts/test-native-test-report.cjs'
       - '.github/workflows/linux-sunshine-build.yml'
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -35,13 +49,16 @@ concurrency:
 
 jobs:
   sunshine:
-    name: Full Linux Sunshine (software and VAAPI)
+    name: Source-built Linux unified installer
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
       CCACHE_DIR: ${{ github.workspace }}/.local/ccache
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
+      GOTOOLCHAIN: local
+      CARGO_BUILD_JOBS: '2'
+      CARGO_TARGET_DIR: ${{ github.workspace }}/.local/targets/native
     steps:
       - uses: actions/checkout@v4
       - uses: actions/cache/restore@v4
@@ -53,6 +70,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '26.4.0'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.3'
+          cache-dependency-path: orchestrator/go.sum
+      - uses: dtolnay/rust-toolchain@1.99.0
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: third_party/moonlight-web-stream -> ../../.local/targets/native
+          key: linux-product-${{ hashFiles('components/audio-target/Cargo.lock', 'third_party/moonlight-common-rust/Cargo.lock', 'third_party-manifests/gateway-web/*.Cargo.lock') }}
+          cache-on-failure: 'true'
       - run: node --test scripts/test-native-test-report.cjs
       - name: Install distribution build dependencies
         run: |
@@ -66,7 +95,8 @@ jobs:
             libudev-dev libva-dev libwayland-dev libx11-dev libx11-xcb-dev libxcb-dri3-dev \
             libxcb-res0-dev libxcb-composite0-dev libxcb-shm0-dev libxcb-xfixes0-dev \
             libxfixes-dev libxrandr-dev libxtst-dev libvulkan-dev glslang-tools \
-            qt6-base-dev qt6-svg-dev pulseaudio pulseaudio-utils xvfb xauth x11-utils
+            qt6-base-dev qt6-svg-dev pulseaudio pulseaudio-utils xvfb xauth x11-utils \
+            libasound2-dev libclang-dev dpkg-dev
       - name: Build vendored codecs and integrated Sunshine
         env:
           BUILD_JOBS: '2'
@@ -100,6 +130,27 @@ jobs:
       - name: Verify staged installation resolves its private Vulkan loader
         run: |
           node scripts/verify-sunshine-release.mjs .local/cmake-build-sunshine "$GITHUB_SHA" --output artifacts/linux-sunshine/renderer 2>&1 | tee artifacts/linux-sunshine/installed-runtime.log
+      - name: Build control, native gateway and browser assets
+        run: |
+          npm ci --prefix orchestrator/web
+          npm ci --prefix third_party/moonlight-web-stream
+          cargo install wasm-bindgen-cli --version 0.2.128 --locked
+          node scripts/build-control-plane.mjs --require-clean --output artifacts/linux-product/control
+          node scripts/build-gateway-release.mjs --output artifacts/linux-product/gateway
+      - name: Package and check native Linux initialization
+        run: |
+          node scripts/package-platform-release.mjs artifacts/linux-product/control artifacts/linux-product/gateway artifacts/linux-sunshine/renderer artifacts/linux-product/platform
+          node scripts/build-linux-installer.mjs artifacts/linux-product/platform artifacts/linux-product/installer
+          bash scripts/accept-linux-installer.sh artifacts/linux-product/installer 2>&1 | tee artifacts/linux-product/installer-acceptance.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-product-installer-${{ github.sha }}
+          path: |
+            artifacts/linux-product/installer/*-setup.run
+            artifacts/linux-product/installer/installer-manifest.json
+            artifacts/linux-product/installer/SHA256SUMS
+            artifacts/linux-product/installer-acceptance.log
+          if-no-files-found: error
       - name: Publish failure details to the check
         if: failure()
         run: |

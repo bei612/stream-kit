@@ -2,9 +2,47 @@
 
 The native `init-platform` command now shares credential generation, listener
 validation, component verification and configuration preparation with Windows.
-The Linux product installer and a renderer bundle using the following layout
-are still in development; this interface is not a claim that a complete Linux
-installation package has been delivered or accepted.
+The source pipeline assembles those native components into one silent-first
+Ubuntu 24.04 amd64 installer. A candidate is delivered only after its workflow
+has completed; source changes alone do not establish a downloadable or accepted
+package. Linux hardware acceptance is excluded from the current scope.
+
+## Single installer
+
+```sh
+sudo bash stream-kit-preview-COMMIT-ubuntu24.04-amd64-setup.run --user RENDER_USER
+```
+
+Select the existing non-root desktop/audio session owner explicitly. The file
+contains a hash-verified Debian payload with all three native components and
+Web assets. Apt resolves distribution runtime libraries without confirmation;
+Node.js, npm, Go, Rust and CMake are not runtime prerequisites. Distribution
+package repositories must be available if required native libraries are absent.
+The installer checks the target distribution, user and session before package
+installation, then initializes private data and enables a single systemd user
+service. It prints the protected credential file location, never its contents.
+
+Use `--no-start` when installing without an active desktop session. This prepares
+data but does not claim service/media readiness; after logging into the desktop,
+run `systemctl --user enable --now stream-kit.service`. The systemd user manager
+must have the desktop's DISPLAY/WAYLAND environment and access to the selected
+PulseAudio/PipeWire devices. Initialization needs no GPU or open audio stream.
+
+Program files are under `/opt/stream-kit`; data is under the rendering user's
+`$HOME/.local/share/stream-kit/runtime`. Upgrades validate and retain existing
+configuration instead of regenerating administrator credentials. Back up this
+data before updating. `sudo apt-get remove stream-kit` stops/disables the recorded
+owner's service when its user manager is available and preserves data. No other
+user is auto-selected. Package files include Sunshine's input-device uaccess
+rules and uinput/uhid module configuration; active installation reloads only
+those factory device rules. KMS CAP_SYS_ADMIN is not granted automatically.
+
+Windows keeps its single setup EXE; each server OS has one native installer.
+The unified release workflow requires both package builds and source SBOM before
+publishing a tagged preview. The Linux package check extracts the actual payload,
+executes all three components through initialization, validates its private
+configuration and checks refusal to replace existing data. It neither installs
+onto the CI host nor claims hardware streaming acceptance.
 
 ## Runtime layout
 

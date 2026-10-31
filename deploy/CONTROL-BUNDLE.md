@@ -62,20 +62,18 @@ alone does not establish desktop capture, target microphone routing or drivers.
 
 ## Linux
 
-Place the complete bundle at `/opt/stream-kit/orchestrator`. Prepare the
-`streamkit` service account and `/etc/stream-kit/orchestrator.json`. Configure
-absolute writable storage/log paths under `/var/lib/stream-kit` and
-`/var/log/stream-kit`, create those directories, and grant that service identity
-the required access. Keep the package directory read-only to the service.
+Use the unified Ubuntu 24.04 installer with `--user RENDER_USER`. All three
+native components run as that non-root desktop/audio session owner. The package
+is read-only under `/opt/stream-kit`; private configuration, applications and
+database live in `$HOME/.local/share/stream-kit/runtime`.
 
-The included `stream-kit-orchestrator.service` uses those paths and account.
-Install the unit into `/etc/systemd/system/`, then reload systemd and enable/start
-`stream-kit-orchestrator.service` using the deployment administrator. The unit
-checks bundle integrity and configuration on each start. Customize an installed
-unit or systemd override for nonstandard paths, leaving the packaged copy intact.
-The control service's filesystem sandbox does not provide access to a graphical
-session or PulseAudio/PipeWire; verify the selected media process environment
-and native devices separately before accepting streaming.
+The included `stream-kit-orchestrator.service` is a **user** unit. The unified
+installer registers it as `stream-kit.service` under `/usr/lib/systemd/user`.
+It validates the control bundle and configuration at startup; it is not a root
+system service. An active graphical session supplies DISPLAY/WAYLAND and audio
+access. Use `--no-start` to install and initialize without a session, then run
+`systemctl --user enable --now stream-kit.service` after desktop login. This
+does not change default audio devices or grant broad system capabilities.
 
 ## Updates and recovery
 
