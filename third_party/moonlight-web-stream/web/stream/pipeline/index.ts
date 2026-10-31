@@ -140,18 +140,17 @@ export async function buildPipeline(pipeline: Pipeline, logger?: Logger, rendere
         }
     }
 
+    if (pipeline.output && !(await queryPipeInfo(pipeline.output)).environmentSupported) {
+        logger?.debug(`Output ${pipeName(pipeline.output)} is not supported`)
+        return null
+    }
     return buildPipelineNoCheck(pipeline, logger, rendererOptions)
 }
 
 export function buildPipelineNoCheck(pipeline: Pipeline, logger?: Logger, rendererOptions?: unknown): Pipe | null {
-    let previousPipeStatic: OutputPipeStatic | PipeStatic | null = null
-    let pipe = null
-    if (pipeline.output) {
-        const base = pipeline.output
-
-        previousPipeStatic = base
-        pipe = new base(logger, rendererOptions)
-    }
+    // Resolve and validate the entire chain before acquiring any native resource.
+    let previousPipeStatic: OutputPipeStatic | PipeStatic | null = pipeline.output ?? null
+    const resolved: PipeStatic[] = []
 
     for (let index = pipeline.pipes.length - 1; index >= 0; index--) {
         const currentPipeValue = pipeline.pipes[index]
@@ -168,10 +167,23 @@ export function buildPipelineNoCheck(pipeline: Pipeline, logger?: Logger, render
         }
 
         previousPipeStatic = currentPipe
-        pipe = new currentPipe(pipe, logger)
+        resolved.push(currentPipe)
     }
-
-    return pipe
+    let pipe: Pipe | null = null
+    try {
+        if (pipeline.output) pipe = new pipeline.output(logger, rendererOptions)
+        for (const current of resolved) pipe = new current(pipe, logger)
+        return pipe
+    } catch (error) {
+        // The successfully built prefix owns its downstream chain. Release it
+        // once; a failing constructor must release its own partial resources.
+        try {
+            if (pipe && "cleanup" in pipe && typeof pipe.cleanup === "function") pipe.cleanup()
+        } catch (cleanupError) {
+            logger?.debug(`Failed to release partially constructed pipeline: ${String(cleanupError)}`)
+        }
+        throw error
+    }
 }
 
 export function getRootPipe(pipe: Pipe): Pipe {

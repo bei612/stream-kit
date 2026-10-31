@@ -7,6 +7,83 @@ import ts from '../orchestrator/web/node_modules/typescript/lib/typescript.js'
 const source = readFileSync(new URL('../third_party/moonlight-web-stream/web/stream/index.ts', import.meta.url), 'utf8')
 const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
 function deferred() { let resolve; const promise = new Promise(r => { resolve = r }); return { promise, resolve } }
+
+function builderFixture() {
+  const source=readFileSync(new URL('../third_party/moonlight-web-stream/web/stream/pipeline/index.ts',import.meta.url),'utf8')
+  const exports={}
+  const stub=class { static pipeName='fixture'; static getInfo(){return Promise.resolve({environmentSupported:true})} }
+  vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,
+    {exports,require:()=>new Proxy({}, {get:()=>stub}),console:{warn(){}}})
+  return exports
+}
+
+test('pipeline shape errors are rejected before constructing any output resources', () => {
+  const builder=builderFixture();let created=0
+  class Output {static type='sample';static pipeName='output';constructor(){created++}}
+  class Bad {static baseType='frame';static type='data';static pipeName='bad';constructor(){created++}}
+  for(const pipes of [[Bad],['unregistered']]) {
+    assert.equal(builder.buildPipelineNoCheck({pipes,output:Output}),null)
+    assert.equal(created,0)
+  }
+})
+
+test('construction failure releases the owned chain once and preserves the original error', () => {
+  const builder=builderFixture(),failure=new Error('native decoder unavailable')
+  for(const cleanupThrows of [false,true]) {
+    const events=[]
+    class Output {
+      static type='sample';static pipeName='output'
+      constructor(){events.push('output-open')}
+      cleanup(){events.push('output-close');if(cleanupThrows)throw new Error('cleanup failed')}
+    }
+    class Adapter {
+      static type='decoded';static baseType='sample';static pipeName='adapter'
+      constructor(base){this.base=base;events.push('adapter-open')}
+      cleanup(){events.push('adapter-close');this.base.cleanup()}
+    }
+    class Broken {
+      static type='data';static baseType='decoded';static pipeName='broken'
+      constructor(){throw failure}
+    }
+    assert.throws(()=>builder.buildPipelineNoCheck({pipes:[Broken,Adapter],output:Output}),error=>error===failure)
+    assert.deepEqual(events,['output-open','adapter-open','adapter-close','output-close'])
+  }
+})
+
+test('unsupported or failed output capability cannot construct a pipeline', async () => {
+  for(const mode of ['unsupported','rejected']) {
+    const builder=builderFixture();let created=0
+    class Output {
+      static type='sample';static pipeName='output'
+      static async getInfo(){if(mode==='rejected')throw new Error('not available');return {environmentSupported:false}}
+      constructor(){created++}
+    }
+    assert.equal(await builder.buildPipeline({pipes:[],output:Output}),null)
+    assert.equal(created,0)
+  }
+})
+
+test('valid pipeline retains ownership and forwards output options until explicit cleanup', () => {
+  const builder=builderFixture(),events=[],options={width:1280},logger={debug(){}}
+  class Output {
+    static type='sample';static pipeName='output'
+    constructor(receivedLogger,receivedOptions){assert.equal(receivedLogger,logger);assert.equal(receivedOptions,options);events.push('output-open')}
+    getBase(){return null}
+    cleanup(){events.push('output-close')}
+  }
+  class Input {
+    static type='data';static baseType='sample';static pipeName='input'
+    constructor(base,receivedLogger){this.base=base;assert.equal(receivedLogger,logger);events.push('input-open')}
+    getBase(){return this.base}
+    cleanup(){events.push('input-close');this.base.cleanup()}
+  }
+  const pipe=builder.buildPipelineNoCheck({pipes:[Input],output:Output},logger,options)
+  assert.ok(pipe instanceof Input)
+  assert.ok(builder.getRootPipe(pipe) instanceof Output)
+  assert.deepEqual(events,['output-open','input-open'])
+  pipe.cleanup()
+  assert.deepEqual(events,['output-open','input-open','input-close','output-close'])
+})
 function fixture(heartbeat = async () => {}) {
   const exports = {}, selection = deferred(), construction = deferred(), setup = deferred(), building = deferred(), mounting = deferred()
   let builds = 0, mounts = 0, unmounts = 0, cleanups = 0, closes = 0, releases = 0
