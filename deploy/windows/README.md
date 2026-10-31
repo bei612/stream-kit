@@ -182,6 +182,18 @@ for its clean setup recipe, and `reused_payload`; the EXE filename gains the
 recipe revision suffix. Reuse does not claim that older binaries contain newer
 runtime changes. It is for explicitly reviewed installer-only releases.
 
+## Native Windows runtime dependencies
+
+Native Windows source bundles package their imported Microsoft release CRT
+beside the gateway and audio probe. The shared packager reads dependencies with
+the initialized MSVC toolchain, checks architecture and Microsoft's valid
+Authenticode signature, and includes the unmodified redistributable files,
+copyright notice and `WINDOWS-RUNTIME.json` in each component's hash inventory.
+It uses the toolchain's release redist directory, never System32/debug files.
+The packaged gateway's version and probe's idle startup are checked afterward.
+No host-wide Visual C++ installer or Node.js installation is invoked. This is
+[Microsoft's application-local redistribution model](https://learn.microsoft.com/en-us/cpp/windows/redistributing-visual-cpp-files).
+
 ## Promote an existing CI product build
 
 Dispatch `windows-product-release.yml` with `promote_run_id` and a new

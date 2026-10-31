@@ -1,9 +1,9 @@
 {
   "windows": {
     "orchestrator": {"executable": "orchestrator.exe", "required_files": ["dist/index.html", "dist/THIRD_PARTY_NOTICES.json", "THIRD_PARTY_NOTICES.go.json"]},
-    "media-gateway": {"executable": "web-server.exe", "required_files": ["dist/index.html", "LICENSE"]},
+    "media-gateway": {"executable": "web-server.exe", "required_files": ["dist/index.html", "LICENSE", "WINDOWS-RUNTIME.json"]},
     "sunshine": {"executable": "sunshine.exe", "resources": "assets", "required_files": ["assets/web/index.html", "LICENSE"]},
-    "example": {"executable": "checkerboard.exe", "required_files": ["audio-probe.exe", "THIRD_PARTY_NOTICES.go.json", "THIRD_PARTY_NOTICES.rust.json"]}
+    "example": {"executable": "checkerboard.exe", "required_files": ["audio-probe.exe", "THIRD_PARTY_NOTICES.go.json", "THIRD_PARTY_NOTICES.rust.json", "WINDOWS-RUNTIME.json"]}
   },
   "linux": {
     "orchestrator": {"executable": "orchestrator", "required_files": ["dist/index.html", "dist/THIRD_PARTY_NOTICES.json", "THIRD_PARTY_NOTICES.go.json"]},

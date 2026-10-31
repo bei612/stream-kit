@@ -15,9 +15,9 @@ func TestPlatformRequiresMatchingCompleteComponents(t *testing.T) {
 		t.Fatal(err)
 	}
 	for component, names := range map[string][]string{
-		"media-gateway": {"web-server.exe", "dist/index.html", "LICENSE"},
+		"media-gateway": {"web-server.exe", "dist/index.html", "LICENSE", "WINDOWS-RUNTIME.json"},
 		"sunshine":      {"sunshine.exe", "assets/web/index.html", "LICENSE"},
-		"example":       {"checkerboard.exe", "audio-probe.exe", "THIRD_PARTY_NOTICES.go.json", "THIRD_PARTY_NOTICES.rust.json"},
+		"example":       {"checkerboard.exe", "audio-probe.exe", "THIRD_PARTY_NOTICES.go.json", "THIRD_PARTY_NOTICES.rust.json", "WINDOWS-RUNTIME.json"},
 	} {
 		folder := filepath.Join(root, component)
 		m := manifest

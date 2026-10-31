@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import { createHash } from 'node:crypto'
+import {bundleWindowsRuntime} from './lib/windows-runtime.mjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { collectCargoNotices } from './lib/cargo-notices.mjs'
@@ -39,6 +40,8 @@ if (output) {
     if (!fs.lstatSync(path.join(output, 'dist', required)).isFile()) throw new Error(`Missing viewer asset: ${required}`)
   }
   fs.copyFileSync(binary, path.join(output, path.basename(binary)))
+  bundleWindowsRuntime(output,[path.basename(binary)],env)
+  if(execFileSync(path.join(output,path.basename(binary)),['--version'],{env,encoding:'utf8',windowsHide:true}).trim()!==version)throw Error('Packaged gateway runtime/version verification failed')
   fs.copyFileSync(path.join(gateway, 'LICENSE'), path.join(output, 'LICENSE'))
   fs.copyFileSync(path.join(gateway, 'Cargo.lock'), path.join(output, 'Cargo.lock'))
   fs.copyFileSync(path.join(gateway, 'package-lock.json'), path.join(output, 'package-lock.json'))

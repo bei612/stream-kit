@@ -23,7 +23,7 @@ function fixture(t,platform,wrongAssets=false){
     sunshine:['bin/sunshine',wrongAssets?'assets/web/index.html':'share/sunshine/web/index.html','LICENSE'],
   }:{
     orchestrator:['orchestrator.exe','dist/index.html','dist/THIRD_PARTY_NOTICES.json','THIRD_PARTY_NOTICES.go.json'],
-    'media-gateway':['web-server.exe','dist/index.html','LICENSE'],
+    'media-gateway':['web-server.exe','dist/index.html','LICENSE','WINDOWS-RUNTIME.json'],
     sunshine:['sunshine.exe','assets/web/index.html','LICENSE'],
   }
   const inputs=[]
