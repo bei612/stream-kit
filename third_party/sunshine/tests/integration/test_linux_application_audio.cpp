@@ -23,6 +23,14 @@
 extern char **environ;  ///< Inherited environment containing the isolated PulseAudio socket.
 
 namespace {
+  /** @brief Portable FILE owner, without libc function attributes in a template argument. */
+  struct file_deleter_t {
+    /** @brief Close a test-owned temporary file. @param file Open temporary PCM file. */
+    void operator()(FILE *file) const {
+      std::fclose(file);
+    }
+  };
+
   /** @brief Separate playback process used to detect accidental whole-sink capture. */
   class playback_process_t {
   public:
@@ -48,7 +56,7 @@ namespace {
 
     /** @brief Play a tone in its own launch group. @param sink Isolated test sink. @param hz Test frequency. @return True on launch. */
     bool start(const char *sink, double hz) {
-      auto file = std::unique_ptr<FILE, decltype(&fclose)>(std::tmpfile(), fclose);
+      auto file = std::unique_ptr<FILE, file_deleter_t>(std::tmpfile());
       if (!file) {
         return false;
       }
