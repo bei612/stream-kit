@@ -219,8 +219,8 @@ jobs:
       - run: cargo check --locked
       - name: Verify gateway source stamp validation
         run: node ../../scripts/test-gateway-build-stamp.mjs
-      - run: cargo test --locked --all-targets --manifest-path ../../components/audio-target/Cargo.toml
-      - run: cargo clippy --locked --manifest-path ../../components/audio-target/Cargo.toml --all-targets -- -D warnings
+      - run: cargo test --locked --features network --all-targets --manifest-path ../../components/audio-target/Cargo.toml
+      - run: cargo clippy --locked --features network --manifest-path ../../components/audio-target/Cargo.toml --all-targets -- -D warnings
       - name: Verify isolated Linux microphone endpoint pair
         if: runner.os == 'Linux'
         timeout-minutes: 5

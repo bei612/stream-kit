@@ -4,6 +4,8 @@ pub mod admission;
 pub mod analysis;
 mod pcm;
 pub mod remote;
+#[cfg(feature = "network")]
+pub mod sender;
 pub mod verification;
 pub mod wire;
 
