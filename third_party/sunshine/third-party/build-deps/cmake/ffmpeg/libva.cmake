@@ -1,6 +1,13 @@
 CPMGetPackage(libva)
 
-set(LIBVA_GENERATED_SRC_PATH ${libva_SOURCE_DIR})
+# Autotools generates Wayland protocol C/headers beside these sources. Build
+# the same immutable snapshot in the shared fingerprinted preparation area,
+# as for FFmpeg, rather than writing generated files into the tracked vendor.
+PREPARE_SOURCE_TREE("${libva_SOURCE_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/patches/FFmpeg/libva"
+        "${CMAKE_CURRENT_BINARY_DIR}/prepared-sources"
+        "BUILD_FFMPEG_ALL_PATCHES=${BUILD_FFMPEG_ALL_PATCHES};BUILD_FFMPEG_LIBVA_PATCHES=${BUILD_FFMPEG_LIBVA_PATCHES}"
+        LIBVA_GENERATED_SRC_PATH)
 
 if(BUILD_FFMPEG_ALL_PATCHES OR BUILD_FFMPEG_LIBVA_PATCHES)
     file(GLOB FFMPEG_LIBVA_PATCH_FILES ${CMAKE_CURRENT_SOURCE_DIR}/patches/FFmpeg/libva/*.patch)
