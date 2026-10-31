@@ -31,7 +31,13 @@ impl Default for PcmQueue {
     }
 }
 impl PcmQueue {
-    pub fn push(&mut self, samples: &[f32], now: Instant) -> Option<bool> {
+    pub fn push(&mut self, samples: &[f32], captured: Instant, now: Instant) -> Option<bool> {
+        if now
+            .checked_duration_since(captured)
+            .is_none_or(|age| age >= MAX_AGE)
+        {
+            return None;
+        }
         if samples.len() != FRAME_SAMPLES || samples.iter().any(|sample| !sample.is_finite()) {
             return None;
         }
@@ -41,7 +47,7 @@ impl PcmQueue {
         }
         let frame = &mut self.frames[(self.head + self.len) % MAX_FRAMES];
         frame.samples.copy_from_slice(samples);
-        frame.queued = now;
+        frame.queued = captured;
         frame.offset = 0;
         self.len += 1;
         Some(dropped)
@@ -83,7 +89,11 @@ mod tests {
         let mut queue = PcmQueue::default();
         let now = Instant::now();
         for i in 0..10 {
-            assert!(queue.push(&[i as f32 / 10.0; FRAME_SAMPLES], now).is_some());
+            assert!(
+                queue
+                    .push(&[i as f32 / 10.0; FRAME_SAMPLES], now, now)
+                    .is_some()
+            );
         }
         assert_eq!(queue.len, 3);
         assert_eq!(queue.stereo(now), [0.7, 0.7]);
@@ -93,7 +103,7 @@ mod tests {
     fn revoke_clears_partial_callback_frame() {
         let mut queue = PcmQueue::default();
         let now = Instant::now();
-        queue.push(&[0.5; FRAME_SAMPLES], now);
+        queue.push(&[0.5; FRAME_SAMPLES], now, now);
         assert_eq!(queue.stereo(now), [0.5, 0.5]);
         queue.clear();
         assert_eq!(queue.stereo(now), [0.0, 0.0]);
@@ -102,8 +112,49 @@ mod tests {
     fn malformed_or_nonfinite_pcm_never_reaches_device() {
         let mut queue = PcmQueue::default();
         let now = Instant::now();
-        assert!(queue.push(&[1.0], now).is_none());
-        assert!(queue.push(&[f32::NAN; FRAME_SAMPLES], now).is_none());
+        assert!(queue.push(&[1.0], now, now).is_none());
+        assert!(queue.push(&[f32::NAN; FRAME_SAMPLES], now, now).is_none());
         assert_eq!(queue.stereo(now), [0.0, 0.0]);
+    }
+
+    #[test]
+    fn transport_and_dispatch_time_do_not_refresh_source_lifetime() {
+        let generation = crate::wire::Generation {
+            target: 1,
+            controller: 2,
+        };
+        let mut bytes = [0; crate::wire::FRAME_BYTES];
+        crate::wire::encode(generation, 1, 1000, &[0.5; FRAME_SAMPLES], &mut bytes).unwrap();
+        let mut receiver = crate::wire::Receiver::new(generation).unwrap();
+        let mut samples = [0.; FRAME_SAMPLES];
+        let received = Instant::now();
+        let age = receiver.decode(&bytes, 1050, &mut samples).unwrap();
+        let captured = received.checked_sub(Duration::from_millis(age)).unwrap();
+        let dispatched = received + Duration::from_millis(5);
+        let mut queue = PcmQueue::default();
+        assert_eq!(queue.push(&samples, captured, dispatched), Some(false));
+        assert_eq!(queue.stereo(dispatched), [0.5, 0.5]);
+        assert_eq!(queue.stereo(received + Duration::from_millis(10)), [0., 0.]);
+        assert_eq!(
+            queue.push(&samples, captured, received + Duration::from_millis(10)),
+            None
+        );
+    }
+
+    #[test]
+    fn stale_or_future_frames_do_not_evict_valid_audio() {
+        let mut queue = PcmQueue::default();
+        let now = Instant::now();
+        for _ in 0..MAX_FRAMES {
+            queue.push(&[0.5; FRAME_SAMPLES], now, now).unwrap();
+        }
+        for captured in [
+            now.checked_sub(MAX_AGE).unwrap(),
+            now + Duration::from_millis(1),
+        ] {
+            assert_eq!(queue.push(&[0.9; FRAME_SAMPLES], captured, now), None);
+            assert_eq!(queue.len, MAX_FRAMES);
+        }
+        assert_eq!(queue.stereo(now), [0.5, 0.5]);
     }
 }

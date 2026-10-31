@@ -164,6 +164,14 @@ impl AudioTarget {
 
     /// One 20 ms, 48 kHz interleaved stereo frame from the authorized session bus.
     pub fn submit(&self, samples: &[f32]) -> bool {
+        self.submit_captured(samples, Instant::now())
+    }
+
+    /// Submit with the original capture/ingress instant. Remote receivers must
+    /// subtract the verified source age from their receipt instant, including
+    /// decode/dispatch time in the remaining lifetime. Never refresh on retry.
+    /// Reject expired/future timestamps without evicting valid queued audio.
+    pub fn submit_captured(&self, samples: &[f32], captured: Instant) -> bool {
         if self.shared.failed.load(Ordering::Acquire) {
             return false;
         }
@@ -172,7 +180,7 @@ impl AudioTarget {
             .queue
             .try_lock()
             .ok()
-            .and_then(|mut queue| queue.push(samples, Instant::now()));
+            .and_then(|mut queue| queue.push(samples, captured, Instant::now()));
         if result != Some(false) {
             self.shared.dropped.fetch_add(1, Ordering::Relaxed);
         }
