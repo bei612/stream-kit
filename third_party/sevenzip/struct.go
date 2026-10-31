@@ -9,6 +9,7 @@ import (
 	"io"
 	iofs "io/fs"
 	"path"
+	"sync"
 	"time"
 
 	"github.com/bodgit/plumbing"
@@ -104,11 +105,25 @@ func (f *folder) coderReader(readers []io.ReadCloser, coder uint64, password str
 	crc, ok := cr.(CryptoReadCloser)
 	if ok {
 		if err = crc.Password(password); err != nil {
-			return nil, true, fmt.Errorf("sevenzip: error setting password: %w", err)
+			return nil, true, errors.Join(fmt.Errorf("sevenzip: error setting password: %w", err), cr.Close())
 		}
 	}
 
 	return plumbing.LimitReadCloser(cr, int64(f.size[coder])), ok, nil //nolint:gosec
+}
+
+// Decoder chains recursively own their input readers. Guard each constructed
+// node so failure cleanup can release a partially connected graph without
+// closing an upstream decoder twice through different references.
+type ownedDecoder struct {
+	io.ReadCloser
+	once sync.Once
+	err  error
+}
+
+func (r *ownedDecoder) Close() error {
+	r.once.Do(func() { r.err = r.ReadCloser.Close() })
+	return r.err
 }
 
 type folderReadCloser struct {
@@ -262,6 +277,16 @@ func (si *streamsInfo) folderReader(r io.ReaderAt, folder int, password string) 
 	f := si.unpackInfo.folder[folder]
 	in := make([]io.ReadCloser, f.in)
 	out := make([]io.ReadCloser, f.out)
+	complete := false
+	defer func() {
+		if !complete {
+			for _, reader := range out {
+				if reader != nil {
+					_ = reader.Close()
+				}
+			}
+		}
+	}()
 
 	packedOffset := 0
 	for i := range folder {
@@ -308,6 +333,7 @@ func (si *streamsInfo) folderReader(r io.ReaderAt, folder int, password string) 
 		if err != nil {
 			return nil, 0, hasEncryption, err
 		}
+		out[output] = &ownedDecoder{ReadCloser: out[output]}
 
 		if isEncrypted {
 			hasEncryption = true
@@ -330,6 +356,7 @@ func (si *streamsInfo) folderReader(r io.ReaderAt, folder int, password string) 
 	}
 
 	fr := newFolderReadCloser(out[unbound[0]], int64(f.unpackSize()), hasEncryption) //nolint:gosec
+	complete = true
 
 	if si.unpackInfo.digest != nil {
 		return fr, si.unpackInfo.digest[folder], hasEncryption, nil
