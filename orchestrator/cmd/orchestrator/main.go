@@ -40,6 +40,17 @@ var (
 func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
+		case "check-config":
+			path, err := configArgument(os.Args[2:])
+			if err != nil {
+				argumentError(err)
+			}
+			if err := checkConfig(path); err != nil {
+				fmt.Fprintln(os.Stderr, "configuration check failed:", err)
+				os.Exit(1)
+			}
+			fmt.Println("Configuration and configured TLS key pair validated; no services started or files created")
+			return
 		case "verify-bundle":
 			if len(os.Args) != 3 {
 				fmt.Fprintln(os.Stderr, "usage: orchestrator verify-bundle DIRECTORY")

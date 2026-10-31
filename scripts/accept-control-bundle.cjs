@@ -27,6 +27,9 @@ async function main(){
   await new Promise(resolve=>reservation.close(resolve));
   const origin=`http://127.0.0.1:${port}`;
   const configFile=path.join(scratch,'config.json');
+  const missing=spawnSync(binary,['check-config','--config',configFile],{cwd:scratch,windowsHide:true,encoding:'utf8',timeout:10000});
+  assert.equal(missing.status,1,'Preflight must reject missing configuration');
+  assert.equal(fs.existsSync(configFile),false,'Preflight must not bootstrap configuration');
   const bootstrap=spawnSync(binary,['--config',configFile],{cwd:scratch,windowsHide:true,encoding:'utf8',timeout:10000});
   assert.equal(bootstrap.status,1,'First run must create configuration and exit for review');
   const config=JSON.parse(fs.readFileSync(configFile,'utf8'));
@@ -39,6 +42,11 @@ async function main(){
   config.server.bind_address=`127.0.0.1:${port}`;
   config.log.level='warning';config.log.file.enabled=false;
   fs.writeFileSync(configFile,JSON.stringify(config));
+  const beforePreflight=fs.readFileSync(configFile);
+  const filesBeforePreflight=fs.readdirSync(scratch).sort();
+  execFileSync(binary,['check-config','--config',configFile],{cwd:scratch,windowsHide:true,timeout:10000});
+  assert.deepEqual(fs.readFileSync(configFile),beforePreflight,'Preflight must preserve configuration');
+  assert.deepEqual(fs.readdirSync(scratch).sort(),filesBeforePreflight,'Preflight must not initialize storage');
   let child,exited,browser;
   async function stop(){
     if(!child)return;

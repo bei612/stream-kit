@@ -129,6 +129,16 @@ type OpLogConfig struct {
 var BaseDir string
 
 func Load(configPath string) (*Config, error) {
+	return load(configPath, true)
+}
+
+// LoadExisting validates the deployment configuration without generating files.
+// It uses the same environment overlay and validation as service startup.
+func LoadExisting(configPath string) (*Config, error) {
+	return load(configPath, false)
+}
+
+func load(configPath string, generateMissing bool) (*Config, error) {
 	if configPath == "" {
 		configPath = "config.json"
 	}
@@ -140,7 +150,7 @@ func Load(configPath string) (*Config, error) {
 	BaseDir = filepath.Dir(absPath)
 
 	// First-run: generate default config if missing
-	if _, err := os.Stat(absPath); os.IsNotExist(err) {
+	if _, err := os.Stat(absPath); generateMissing && os.IsNotExist(err) {
 		if err := generateDefaultConfig(absPath); err != nil {
 			return nil, err
 		}

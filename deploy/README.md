@@ -1,5 +1,14 @@
 # Stream-Kit service deployment
 
+Before registering a Windows service, or on each systemd start, deployment runs
+`orchestrator check-config --config PATH`. This validates the existing file with
+the same environment overlay as startup and loads any configured TLS key pair.
+It does not generate configuration, create storage, bind ports or start media
+components. It does not test component availability or service-account access;
+run it under the deployment identity/environment and verify actual service startup
+separately. Windows installer preflight runs under the invoking account; SCM may
+use a different account/environment.
+
 Windows source revision `aa254605` completed the native Sunshine release build
 with official CMake 3.31.8, clean-source verification and matching executable
 revision. Its 71 selected core native tests passed without skips (capture target,
