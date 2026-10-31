@@ -1,5 +1,18 @@
 # Stream-Kit service deployment
 
+Firefox 157 passed actual Windows application streaming with the frozen clean
+`aa254605` renderer/gateway/control/example/Web artifacts at
+`artifacts/source-stream/2026-10-31T10-32-26-859Z/` (outer and browser results
+both passed). Two viewers shared one upstream; program audio measured about
+-35.5 dB. Generated 1499 Hz controller audio reached the other viewer at -27.6 dB,
+while viewer/previous-controller/released microphone measurements were below
+-127 dB. Control transfer retained program audio and the new controller's tone
+was -27.5 dB. Viewer departure kept the remaining video/audio active; deleting
+the active application rejected old admission, closed the transport and restored
+Sunshine idle. This is Firefox source-stack integration evidence, not physical
+microphone permission, target recorder/UE5 delivery, current HEAD binary release,
+or proof that the separate Windows CI AudioContext-resume failure is resolved.
+
 Gateway revision `aa4f4574` passed the Linux CI browser audio checks in
 [job 124507123027](https://github.com/bei612/stream-kit/actions/runs/41190831790/job/124507123027):
 Chromium/Firefox and WebKit playback plus microphone RTP lifecycle, including
