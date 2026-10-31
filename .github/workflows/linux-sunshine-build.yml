@@ -134,11 +134,12 @@ jobs:
           node tools/verify-native-tests.cjs artifacts/audio-target/linux-application-audio.json capture
       - name: Verify management capture capabilities and application persistence
         timeout-minutes: 2
+        working-directory: artifacts/linux-sunshine
         run: |
-          .local/cmake-build-sunshine/tests/test_sunshine --gtest_filter='ConfigHttpTest.CaptureCapabilities*:ManagedAppsHttpTest.ApplicationModeSaveMatchesAdvertisedCapabilityAndLaunchRules:GraphicsAttributes.*:ResourcePathTest.*' --gtest_output=json:artifacts/linux-sunshine/management.json 2>&1 | tee -a artifacts/linux-sunshine/runtime.log
-          node tools/verify-native-tests.cjs artifacts/linux-sunshine/management.json management
-          node tools/verify-native-tests.cjs artifacts/linux-sunshine/management.json graphics
-          node tools/verify-native-tests.cjs artifacts/linux-sunshine/management.json resources
+          "$GITHUB_WORKSPACE/.local/cmake-build-sunshine/tests/test_sunshine" --gtest_filter='ConfigHttpTest.CaptureCapabilities*:ManagedAppsHttpTest.ApplicationModeSaveMatchesAdvertisedCapabilityAndLaunchRules:GraphicsAttributes.*:ResourcePathTest.*' --gtest_output=json:management.json 2>&1 | tee -a runtime.log
+          node "$GITHUB_WORKSPACE/tools/verify-native-tests.cjs" management.json management
+          node "$GITHUB_WORKSPACE/tools/verify-native-tests.cjs" management.json graphics
+          node "$GITHUB_WORKSPACE/tools/verify-native-tests.cjs" management.json resources
       - name: Verify staged installation resolves its private Vulkan loader
         run: |
           node scripts/verify-sunshine-release.mjs .local/cmake-build-sunshine "$GITHUB_SHA" --output artifacts/linux-sunshine/renderer 2>&1 | tee artifacts/linux-sunshine/installed-runtime.log

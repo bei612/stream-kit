@@ -17,8 +17,9 @@ if (output && fs.existsSync(output)) throw new Error('Release output must be a n
 if (output && !['win32','linux'].includes(process.platform)) throw new Error('Native renderer staging supports Windows and Linux')
 const git = (...args) => execFileSync('git', args, {cwd:root, encoding:'utf8', windowsHide:true}).trim()
 function verifySource() {
-  if (git('rev-parse', 'HEAD') !== commit || git('status', '--porcelain', '--untracked-files=normal')) {
-    throw new Error('Sunshine release source must remain clean and match the build revision')
+  const status=git('status', '--porcelain', '--untracked-files=normal')
+  if (git('rev-parse', 'HEAD') !== commit || status) {
+    throw new Error(`Sunshine release source must remain clean and match the build revision: ${status}`)
   }
 }
 verifySource()

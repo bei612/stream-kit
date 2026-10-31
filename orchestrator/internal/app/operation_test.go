@@ -61,7 +61,7 @@ func TestSelectEntryReportsRegistrationFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	entry := filepath.Join(a.AppDir, "entry.exe")
-	if err := os.WriteFile(entry, []byte{'M', 'Z', 0, 0}, 0700); err != nil {
+	if err := os.WriteFile(entry, nativeTestProgram(), 0700); err != nil {
 		t.Fatal(err)
 	}
 	if err := st.UpdateAppFields(a.ID, map[string]interface{}{"source": model.AppSourceArchive, "status": model.AppStatusDetecting}); err != nil {

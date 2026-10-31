@@ -65,11 +65,11 @@ func TestValidatePEHeader(t *testing.T) {
 	})
 }
 
-func TestDetectEntryExe(t *testing.T) {
+func TestDetectWindowsEntryExe(t *testing.T) {
 	t.Run("root exe", func(t *testing.T) {
 		dir := t.TempDir()
 		writeTestExe(t, filepath.Join(dir, "game.exe"))
-		candidates, err := DetectEntryExe(dir)
+		candidates, err := detectEntryPrograms(dir, "windows")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -83,7 +83,7 @@ func TestDetectEntryExe(t *testing.T) {
 		sub := filepath.Join(dir, "bin")
 		os.MkdirAll(sub, 0755)
 		writeTestExe(t, filepath.Join(sub, "app.exe"))
-		candidates, _ := DetectEntryExe(dir)
+		candidates, _ := detectEntryPrograms(dir, "windows")
 		if len(candidates) != 1 {
 			t.Errorf("expected 1 candidate, got %d", len(candidates))
 		}
@@ -95,7 +95,7 @@ func TestDetectEntryExe(t *testing.T) {
 		os.MkdirAll(eng, 0755)
 		writeTestExe(t, filepath.Join(eng, "ue.exe"))
 		writeTestExe(t, filepath.Join(dir, "game.exe"))
-		candidates, _ := DetectEntryExe(dir)
+		candidates, _ := detectEntryPrograms(dir, "windows")
 		if len(candidates) != 1 || candidates[0].RelativePath != "game.exe" {
 			t.Errorf("Engine/ exe should be skipped, got %v", candidates)
 		}
@@ -105,7 +105,7 @@ func TestDetectEntryExe(t *testing.T) {
 		dir := t.TempDir()
 		writeTestExe(t, filepath.Join(dir, "CrashReportClient.exe"))
 		writeTestExe(t, filepath.Join(dir, "game.exe"))
-		candidates, _ := DetectEntryExe(dir)
+		candidates, _ := detectEntryPrograms(dir, "windows")
 		if len(candidates) != 1 || candidates[0].RelativePath != "game.exe" {
 			t.Errorf("excluded exe should be skipped, got %v", candidates)
 		}
@@ -113,7 +113,7 @@ func TestDetectEntryExe(t *testing.T) {
 
 	t.Run("empty directory", func(t *testing.T) {
 		dir := t.TempDir()
-		candidates, _ := DetectEntryExe(dir)
+		candidates, _ := detectEntryPrograms(dir, "windows")
 		if len(candidates) != 0 {
 			t.Errorf("expected 0 candidates, got %d", len(candidates))
 		}

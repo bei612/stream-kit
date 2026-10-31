@@ -159,7 +159,7 @@ export default function UploadPage() {
           <p className="text-sm text-muted-foreground">填写当前服务器的绝对路径。程序文件保留在原位置，平台注册不会启动程序；移除注册仅清理平台日志和配置。</p>
           <div><Label htmlFor="local-executable">程序绝对路径</Label><Input id="local-executable" value={exePath} onChange={e=>setExePath(e.target.value)} placeholder="D:\Apps\MyApp\MyApp.exe 或 /opt/myapp/myapp" required autoComplete="off" /></div>
           <div><Label htmlFor="local-working-dir">工作目录（可选）</Label><Input id="local-working-dir" value={workingDir} onChange={e=>setWorkingDir(e.target.value)} placeholder="留空时使用程序所在目录" autoComplete="off" /></div>
-          <p className="text-xs text-muted-foreground">Windows 使用 EXE；Linux 文件须具备执行权限。启动参数在下方配置，下次启动时生效。</p>
+          <p className="text-xs text-muted-foreground">Windows 使用 EXE；Linux 支持 ELF 程序或启动脚本，已有文件须具备执行权限。启动参数在下方配置，下次启动时生效。</p>
         </Card>}
 
         {/* App name */}

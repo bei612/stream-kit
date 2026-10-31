@@ -253,14 +253,15 @@ func (m *Manager) runPipeline(appID, archivePath string, unlockUpload func()) {
 
 	if app.ExeRelativePath != "" {
 		// User specified exe path
-		if err := ValidateExePath(app.AppDir, app.ExeRelativePath); err != nil {
+		exeFullPath, exeRelPath, err := resolveUploadedProgram(app.AppDir, app.ExeRelativePath, true)
+		if err != nil {
 			m.updateStatus(appID, model.AppStatusError, "指定的入口文件无效: "+err.Error())
 			return
 		}
-		exeFullPath := filepath.Join(app.AppDir, app.ExeRelativePath)
 		m.store.UpdateAppFields(appID, map[string]interface{}{
-			"exe_path":    exeFullPath,
-			"working_dir": filepath.Dir(exeFullPath),
+			"exe_relative_path": exeRelPath,
+			"exe_path":          exeFullPath,
+			"working_dir":       filepath.Dir(exeFullPath),
 		})
 	} else {
 		// Auto-detect
@@ -276,10 +277,15 @@ func (m *Manager) runPipeline(appID, archivePath string, unlockUpload func()) {
 		}
 
 		if len(candidates) == 1 {
+			exeFullPath, exeRelPath, err := resolveUploadedProgram(app.AppDir, candidates[0].RelativePath, true)
+			if err != nil {
+				m.updateStatus(appID, model.AppStatusError, "入口准备失败: "+err.Error())
+				return
+			}
 			m.store.UpdateAppFields(appID, map[string]interface{}{
-				"exe_relative_path": candidates[0].RelativePath,
-				"exe_path":          candidates[0].FullPath,
-				"working_dir":       filepath.Dir(candidates[0].FullPath),
+				"exe_relative_path": exeRelPath,
+				"exe_path":          exeFullPath,
+				"working_dir":       filepath.Dir(exeFullPath),
 			})
 		} else {
 			// Multiple candidates - stay in detecting, wait for user to choose
@@ -635,13 +641,13 @@ func (m *Manager) SelectExe(appID, exeRelPath string) error {
 		return fmt.Errorf("本机程序入口已明确指定")
 	}
 
-	if err := ValidateExePath(app.AppDir, exeRelPath); err != nil {
+	exeFullPath, canonicalRelative, err := resolveUploadedProgram(app.AppDir, exeRelPath, true)
+	if err != nil {
 		return err
 	}
 
-	exeFullPath := filepath.Join(app.AppDir, exeRelPath)
 	if err := m.store.UpdateAppFields(appID, map[string]interface{}{
-		"exe_relative_path": exeRelPath,
+		"exe_relative_path": canonicalRelative,
 		"exe_path":          exeFullPath,
 		"working_dir":       filepath.Dir(exeFullPath),
 	}); err != nil {

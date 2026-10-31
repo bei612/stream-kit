@@ -2,16 +2,18 @@ package app
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
 // Known non-entry executables to exclude
 var excludedExeNames = map[string]bool{
-	"crashreportclient.exe":     true,
-	"ue4prereqsetup_x64.exe":   true,
-	"unrealcefsubprocess.exe":   true,
+	"crashreportclient.exe":                true,
+	"ue4prereqsetup_x64.exe":               true,
+	"unrealcefsubprocess.exe":              true,
 	"crashreportclient-win64-shipping.exe": true,
 }
 
@@ -25,60 +27,53 @@ type ExeCandidate struct {
 // DetectEntryExe scans the extracted directory for UE5 entry executables.
 // Returns all candidates, excluding known non-entry files.
 func DetectEntryExe(appDir string) ([]ExeCandidate, error) {
-	var candidates []ExeCandidate
+	return detectEntryPrograms(appDir, runtime.GOOS)
+}
 
-	// Scan root and one level of subdirectories
-	entries, err := os.ReadDir(appDir)
+func detectEntryPrograms(appDir, platform string) ([]ExeCandidate, error) {
+	var candidates []ExeCandidate
+	root, err := os.OpenRoot(appDir)
 	if err != nil {
 		return nil, fmt.Errorf("读取应用目录失败: %w", err)
 	}
-
-	// Check root level
-	for _, entry := range entries {
-		if !entry.IsDir() && isExeCandidate(entry.Name()) {
-			info, err := entry.Info()
-			if err != nil {
-				continue
+	defer root.Close()
+	err = filepath.WalkDir(appDir, func(full string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if full == appDir {
+			return nil
+		}
+		if entry.IsDir() {
+			if strings.EqualFold(entry.Name(), "Engine") || (platform == "windows" && filepath.Dir(full) != appDir) {
+				return filepath.SkipDir
 			}
-			candidates = append(candidates, ExeCandidate{
-				RelativePath: entry.Name(),
-				FullPath:     filepath.Join(appDir, entry.Name()),
-				SizeBytes:    info.Size(),
-			})
+			return nil
 		}
-	}
-
-	// Check one level of subdirectories (skip Engine/)
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
+		name := strings.ToLower(entry.Name())
+		if !entry.Type().IsRegular() || excludedExeNames[name] || excludedExeNames[name+".exe"] || (platform == "windows" && !isExeCandidate(name)) || (platform == "linux" && (strings.HasSuffix(name, ".so") || strings.Contains(name, ".so."))) {
+			return nil
 		}
-		dirName := strings.ToLower(entry.Name())
-		if dirName == "engine" {
-			continue // Skip Engine/ directory entirely
-		}
-
-		subEntries, err := os.ReadDir(filepath.Join(appDir, entry.Name()))
+		relative, err := filepath.Rel(appDir, full)
 		if err != nil {
-			continue
+			return err
 		}
-		for _, subEntry := range subEntries {
-			if !subEntry.IsDir() && isExeCandidate(subEntry.Name()) {
-				relPath := filepath.Join(entry.Name(), subEntry.Name())
-				info, err := subEntry.Info()
-				if err != nil {
-					continue
-				}
-				candidates = append(candidates, ExeCandidate{
-					RelativePath: relPath,
-					FullPath:     filepath.Join(appDir, relPath),
-					SizeBytes:    info.Size(),
-				})
-			}
+		file, err := root.Open(relative)
+		if err != nil {
+			return err
 		}
-	}
-
-	return candidates, nil
+		defer file.Close()
+		if err := inspectProgram(file, platform); err != nil {
+			return nil
+		}
+		info, err := file.Stat()
+		if err != nil {
+			return err
+		}
+		candidates = append(candidates, ExeCandidate{RelativePath: relative, FullPath: full, SizeBytes: info.Size()})
+		return nil
+	})
+	return candidates, err
 }
 
 func isExeCandidate(name string) bool {
@@ -111,18 +106,8 @@ func ValidatePEHeader(path string) error {
 	return nil
 }
 
-// ValidateExePath checks if the specified exe path exists and is a valid PE.
+// ValidateExePath validates a native entry confined to an extracted directory.
 func ValidateExePath(appDir, exeRelPath string) error {
-	fullPath := filepath.Join(appDir, exeRelPath)
-	info, err := os.Stat(fullPath)
-	if err != nil {
-		return fmt.Errorf("文件不存在: %s", exeRelPath)
-	}
-	if info.IsDir() {
-		return fmt.Errorf("路径指向目录，不是文件: %s", exeRelPath)
-	}
-	if !strings.HasSuffix(strings.ToLower(exeRelPath), ".exe") {
-		return fmt.Errorf("文件不是 .exe: %s", exeRelPath)
-	}
-	return ValidatePEHeader(fullPath)
+	_, _, err := resolveUploadedProgram(appDir, exeRelPath, false)
+	return err
 }

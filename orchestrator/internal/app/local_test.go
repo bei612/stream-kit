@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -32,7 +33,7 @@ func localFixture(t *testing.T) (*Manager, *store.Store, LocalAppRequest) {
 		t.Fatal(err)
 	}
 	exe := filepath.Join(folder, "Example app.exe")
-	if err = os.WriteFile(exe, []byte("original program bytes"), 0755); err != nil {
+	if err = os.WriteFile(exe, nativeTestProgram(), 0755); err != nil {
 		t.Fatal(err)
 	}
 	return NewManager(st, cfg, nil, nil, nil, zap.NewNop()), st, LocalAppRequest{Name: "Local example", ExePath: exe}
@@ -76,7 +77,7 @@ func TestLocalApplicationPersistsAndDeletionPreservesOriginal(t *testing.T) {
 		t.Fatal(err)
 	}
 	content, err := os.ReadFile(req.ExePath)
-	if err != nil || string(content) != "original program bytes" {
+	if err != nil || !bytes.Equal(content, nativeTestProgram()) {
 		t.Fatal("deleted or modified external program")
 	}
 	if _, err = os.Stat(record.AppDir); !os.IsNotExist(err) {
@@ -85,6 +86,13 @@ func TestLocalApplicationPersistsAndDeletionPreservesOriginal(t *testing.T) {
 	if _, err = st.GetApp(record.ID); err == nil {
 		t.Fatal("registration retained")
 	}
+}
+
+func nativeTestProgram() []byte {
+	if runtime.GOOS == "linux" {
+		return []byte("#!/bin/sh\n# original program bytes\nexit 0\n")
+	}
+	return []byte("MZoriginal program bytes")
 }
 func TestLocalApplicationRejectsInvalidReferencesAndOwnedStorage(t *testing.T) {
 	manager, st, req := localFixture(t)

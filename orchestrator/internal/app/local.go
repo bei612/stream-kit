@@ -56,6 +56,15 @@ func canonicalLocalPath(name string, directory bool) (string, error) {
 		} else if info.Mode().Perm()&0111 == 0 {
 			return "", fmt.Errorf("%w：入口没有执行权限", ErrInvalidLocalApp)
 		}
+		file, err := os.Open(resolved)
+		if err != nil {
+			return "", fmt.Errorf("%w：入口无法读取", ErrInvalidLocalApp)
+		}
+		err = inspectProgram(file, runtime.GOOS)
+		file.Close()
+		if err != nil {
+			return "", fmt.Errorf("%w：%v", ErrInvalidLocalApp, err)
+		}
 	}
 	return resolved, nil
 }
