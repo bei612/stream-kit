@@ -504,6 +504,13 @@ namespace egl {
   };
 
   /**
+   * @brief Serialize DMA-BUF planes and modifiers into a terminated EGL attribute list.
+   * @param surface Surface dimensions, format, and optional planes.
+   * @return Attributes suitable for eglCreateImage().
+   */
+  std::vector<EGLAttrib> surface_descriptor_to_egl_attribs(const surface_descriptor_t &surface);
+
+  /**
    * @brief Open and initialize the display connection used for capture.
    *
    * @param native_display Native display.

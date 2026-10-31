@@ -17,6 +17,10 @@ const profiles = {
     'ConfigHttpTest.CaptureCapabilitiesExposeVersionedApplyPolicy',
     'ManagedAppsHttpTest.ApplicationModeSaveMatchesAdvertisedCapabilityAndLaunchRules',
   ],
+  graphics: [
+    'GraphicsAttributes.FourPlanesPreserveModifierBitsAndTermination',
+    'GraphicsAttributes.MissingPlanesAndInvalidModifierAreOmitted',
+  ],
 };
 
 function verify(report, profile) {

@@ -591,17 +591,14 @@ namespace egl {
 
     const char *extension_st = eglQueryString(display, EGL_EXTENSIONS);
 
-    std::vector<EGLint> attr;
-    attr.push_back(EGL_CONTEXT_CLIENT_VERSION);
-    attr.push_back(3);
+    std::array<EGLint, 5> attr {EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE, EGL_NONE, EGL_NONE};
 
     // Only add the high priority attribute if the driver explicitly supports it
     if (extension_st && std::string_view(extension_st).contains("EGL_IMG_context_priority"sv)) {
       BOOST_LOG(debug) << "EGL: High priority context supported"sv;
-      attr.push_back(EGL_CONTEXT_PRIORITY_LEVEL_IMG);
-      attr.push_back(EGL_CONTEXT_PRIORITY_HIGH_IMG);
+      attr[2] = EGL_CONTEXT_PRIORITY_LEVEL_IMG;
+      attr[3] = EGL_CONTEXT_PRIORITY_HIGH_IMG;
     }
-    attr.push_back(EGL_NONE);
 
     EGLContext raw_ctx = egl::privileged_egl_worker::eglCreateContext_privileged(display, conf, EGL_NO_CONTEXT, attr.data(), nice_warning);
     if (raw_ctx == EGL_NO_CONTEXT) {
@@ -725,6 +722,9 @@ namespace egl {
    */
   std::vector<EGLAttrib> surface_descriptor_to_egl_attribs(const surface_descriptor_t &surface) {
     std::vector<EGLAttrib> attribs;
+    // Three surface pairs, at most five pairs per plane, and the terminator.
+    // Reserve the bounded descriptor once rather than reallocating each pair.
+    attribs.reserve(6 + std::size(surface.fds) * 10 + 1);
 
     attribs.emplace_back(EGL_WIDTH);
     attribs.emplace_back(surface.width);

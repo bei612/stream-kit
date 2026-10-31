@@ -70,8 +70,9 @@ jobs:
       - name: Verify management capture capabilities and application persistence
         timeout-minutes: 2
         run: |
-          .local/cmake-build-sunshine/tests/test_sunshine --gtest_filter='ConfigHttpTest.CaptureCapabilities*:ManagedAppsHttpTest.ApplicationModeSaveMatchesAdvertisedCapabilityAndLaunchRules' --gtest_output=json:artifacts/linux-sunshine/management.json 2>&1 | tee -a artifacts/linux-sunshine/runtime.log
+          .local/cmake-build-sunshine/tests/test_sunshine --gtest_filter='ConfigHttpTest.CaptureCapabilities*:ManagedAppsHttpTest.ApplicationModeSaveMatchesAdvertisedCapabilityAndLaunchRules:GraphicsAttributes.*' --gtest_output=json:artifacts/linux-sunshine/management.json 2>&1 | tee -a artifacts/linux-sunshine/runtime.log
           node tools/verify-native-tests.cjs artifacts/linux-sunshine/management.json management
+          node tools/verify-native-tests.cjs artifacts/linux-sunshine/management.json graphics
       - name: Verify staged installation resolves its private Vulkan loader
         run: |
           DESTDIR="$GITHUB_WORKSPACE/artifacts/linux-sunshine/staged" cmake --install .local/cmake-build-sunshine --prefix /usr
@@ -103,8 +104,9 @@ jobs:
               path = Path(f'artifacts/linux-sunshine/{name}.log')
               if path.exists():
                   tail = '\n'.join(path.read_text(errors='replace').splitlines()[-60:])
-                  escaped = tail.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
-                  print(f'::error title=Linux Sunshine {name}::{escaped}')
+                  for offset in range(0, len(tail), 2500):
+                      escaped = tail[offset:offset + 2500].replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                      print(f'::error title=Linux Sunshine {name} {offset // 2500 + 1}::{escaped}')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
