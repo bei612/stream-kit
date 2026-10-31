@@ -89,6 +89,14 @@ process arguments. Default listeners are loopback-only and use ports 9000/8080/
 one deployment. Remote browser microphone capture requires HTTPS and browser
 permission.
 
+`orchestrator verify-platform DIRECTORY` performs read-only native verification
+of the complete platform: component identity, required runtime files, hashes and
+matching source revisions. Packaging and installation use the same verifier.
+The private Vulkan loader's license accompanies its binary in the renderer
+component inventory. Archive applications accept native ELF programs and Unix
+launch scripts; selection grants owner execution only to the chosen uploaded
+entry. Existing local programs must already be executable and are not changed.
+
 Staging and media directories are private to the rendering user. Failed staging
 is retained privately for diagnosis. Successful initialization uses Linux
 `RENAME_NOREPLACE`, including refusal to replace an empty existing directory,

@@ -14,7 +14,7 @@ func TestLinuxPlatformRequiresNativeExecutableAndAssetLayout(t *testing.T) {
 	for component, files := range map[string][]string{
 		"orchestrator":  {"orchestrator", "dist/index.html", "dist/THIRD_PARTY_NOTICES.json", "THIRD_PARTY_NOTICES.go.json"},
 		"media-gateway": {"web-server", "dist/index.html", "LICENSE"},
-		"sunshine":      {"bin/sunshine", "share/sunshine/web/index.html", "LICENSE"},
+		"sunshine":      {"bin/sunshine", "share/sunshine/web/index.html", "LICENSE", "licenses/Vulkan-Loader.txt"},
 	} {
 		folder := filepath.Join(root, component)
 		manifest := Manifest{Schema: 1, Component: component, Commit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Version: "git-aaaaaaaaaaaa", Dirty: &clean, Platform: "linux", Architecture: "amd64"}

@@ -8,6 +8,6 @@
   "linux": {
     "orchestrator": {"executable": "orchestrator", "required_files": ["dist/index.html", "dist/THIRD_PARTY_NOTICES.json", "THIRD_PARTY_NOTICES.go.json"]},
     "media-gateway": {"executable": "web-server", "required_files": ["dist/index.html", "LICENSE"]},
-    "sunshine": {"executable": "bin/sunshine", "resources": "share/sunshine", "required_files": ["share/sunshine/web/index.html", "LICENSE"]}
+    "sunshine": {"executable": "bin/sunshine", "resources": "share/sunshine", "required_files": ["share/sunshine/web/index.html", "LICENSE", "licenses/Vulkan-Loader.txt"]}
   }
 }

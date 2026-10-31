@@ -20,7 +20,7 @@ function fixture(t,platform,wrongAssets=false){
   const names=platform==='linux'?{
     orchestrator:['orchestrator','dist/index.html','dist/THIRD_PARTY_NOTICES.json','THIRD_PARTY_NOTICES.go.json'],
     'media-gateway':['web-server','dist/index.html','LICENSE'],
-    sunshine:['bin/sunshine',wrongAssets?'assets/web/index.html':'share/sunshine/web/index.html','LICENSE'],
+    sunshine:['bin/sunshine',wrongAssets?'assets/web/index.html':'share/sunshine/web/index.html','LICENSE','licenses/Vulkan-Loader.txt'],
   }:{
     orchestrator:['orchestrator.exe','dist/index.html','dist/THIRD_PARTY_NOTICES.json','THIRD_PARTY_NOTICES.go.json'],
     'media-gateway':['web-server.exe','dist/index.html','LICENSE','WINDOWS-RUNTIME.json'],

@@ -77,6 +77,10 @@ if (output) {
     if(!installedVersion.includes(`commit: ${commit}`)||installedVersion.includes('-dirty'))throw Error('Installed Linux renderer source stamp mismatch')
   }
   fs.copyFileSync(path.join(root, 'third_party/sunshine/LICENSE'), path.join(output, 'LICENSE'))
+  if(process.platform==='linux'){
+    fs.mkdirSync(path.join(output,'licenses'),{recursive:true})
+    fs.copyFileSync(path.join(root,'third_party/sunshine/third-party/build-deps/third-party/FFmpeg/Vulkan-Loader/LICENSE.txt'),path.join(output,'licenses/Vulkan-Loader.txt'))
+  }
   fs.copyFileSync(path.join(root, 'deploy/RENDERER-BUNDLE.md'), path.join(output, 'RENDERER-BUNDLE.md'))
   for(const required of [layout.executable,...layout.required_files]){
     const stat=fs.lstatSync(path.join(output,required))
