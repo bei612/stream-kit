@@ -55,3 +55,5 @@ Windows 原生窗口保留棋盘格、分辨率与全屏测试，并增加实时
 2026-10-31 目标录音流程接入共享浏览器验收脚本，原生管道冒烟改用同一子进程通信模块并通过。普通源码串流、程序音、麦克风广播及删除撤权回归通过，记录为 `artifacts/source-stream/2026-10-30T16-47-16-443Z/`（目录为 UTC 时间）。缺失端点用例在 `2026-10-30T16-48-25-196Z/` 按预期以 `Explicit target capture endpoint is unavailable` 失败，确认没有默认设备回退、编码器恢复空闲且无测试进程遗留。目标录音成功分支尚无真实专用设备验证，不能将这两个结果计为目标录音通过。
 
 2026-10-31 录音频率分析已接入 example 窗口，使用同一探针协议。独立构建 `.local/validation/example-analysis-20261031/checkerboard.exe` 的三个真实窗口冒烟通过，包含两个分析按钮的空录音错误、停止恢复、缩放及退出；结果与截图位于 `artifacts/example/smoke-results.json` 和同目录 PNG。两个 Go 回归及 vet 通过，默认窗口截图已检查布局。此构建没有覆盖 24 小时运行中的 example；成功分析的数据处理由模拟响应验证，尚无专用虚拟输入上的窗口实录分析证据。
+
+`scripts/accept-example-audio.cjs AUDIO_PROBE RENDER_DEVICE CAPTURE_DEVICE` 使用两个独立原生探针进程验证静音基线、997 Hz 发声录音、1499 Hz 排除、录音回放后的再次录音，以及 EOF 正常退出。必须指定专用端点，不回退默认设备。Linux 隔离 PulseAudio 验收脚本已接入该检查，结果写入 `artifacts/audio-target/example-pair-result.json`；只有实际运行结果中的 `passed` 和 `clean_exit` 同时为 true 才算通过。此检查不覆盖 Windows 窗口、浏览器麦克风、网关混音或 UE5，不能替代完整端到端验收。

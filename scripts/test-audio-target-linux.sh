@@ -11,7 +11,7 @@ if [ "${1:-}" = --application-only ]; then
 fi
 cd "$repo/components/audio-target"
 if [ "$application_only" -eq 0 ]; then
-    cargo build --locked --examples
+    cargo build --locked --examples --bin audio-probe
 fi
 fixture=$(mktemp -d "${XDG_RUNTIME_DIR:-/tmp}/stream-kit-audio.XXXXXX")
 mkdir "$fixture/runtime" "$fixture/state"
@@ -57,6 +57,8 @@ if [ "$application_only" -eq 0 ]; then
     fi
     timeout --signal=TERM --kill-after=5s 30s cargo run --locked --quiet --example verify_pair -- pulseaudio:stream_kit_acceptance pulseaudio:stream_kit_capture > "$repo/artifacts/audio-target/linux-pair-result.json"
     cat "$repo/artifacts/audio-target/linux-pair-result.json"
+    target_dir=$(cargo metadata --locked --no-deps --format-version 1 | python3 -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])')
+    (cd "$repo" && node scripts/accept-example-audio.cjs "$target_dir/debug/audio-probe" pulseaudio:stream_kit_acceptance pulseaudio:stream_kit_capture)
 fi
 cp "$fixture/server.log" "$repo/artifacts/audio-target/linux-pulse.log"
 if [ "$#" -gt 0 ]; then
