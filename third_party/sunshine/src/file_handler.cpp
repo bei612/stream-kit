@@ -40,6 +40,10 @@ namespace file_handler {
       }
       resolved = std::filesystem::path(std::wstring(executable.data(), length)).parent_path() / resolved;
     }
+#elif defined(__linux__)
+    if (resolved.is_relative()) {
+      resolved = std::filesystem::read_symlink("/proc/self/exe").parent_path() / resolved;
+    }
 #endif
     return resolved.lexically_normal();
   }

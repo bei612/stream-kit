@@ -101,13 +101,13 @@ jobs:
       - name: Build integrated Sunshine and vendored codecs
         shell: msys2 {0}
         env:
-          MSYS2_PATH_TYPE: inherit
+          MSYS2_PATH_TYPE: minimal
           MSYS2_ROOT: ${{ steps.msys2.outputs.msys2-location }}
           BUILD_JOBS: '2'
           SUNSHINE_REQUIRE_CLEAN: '1'
         run: |
           set -euo pipefail
-          export PATH="$(cygpath -u "$KITWARE_BIN"):$PATH"
+          export PATH="$(cygpath -u "$KITWARE_BIN"):$(cygpath -u "$RELEASE_NODE_BIN"):$PATH"
           export CC="$(cygpath -m "$MSYS2_ROOT")/ucrt64/bin/gcc.exe"
           export CXX="$(cygpath -m "$MSYS2_ROOT")/ucrt64/bin/g++.exe"
           mkdir -p artifacts/windows-product/logs

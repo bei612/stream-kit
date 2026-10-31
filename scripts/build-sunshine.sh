@@ -10,6 +10,8 @@ build_name=${SUNSHINE_BUILD_NAME:-cmake-build-sunshine}
 [[ "$build_name" =~ ^cmake-build-[A-Za-z0-9_-]+$ ]] || { echo 'SUNSHINE_BUILD_NAME must be a cmake-build- directory name' >&2; exit 1; }
 require_clean=${SUNSHINE_REQUIRE_CLEAN:-0}
 [[ "$require_clean" == 0 || "$require_clean" == 1 ]] || { echo 'SUNSHINE_REQUIRE_CLEAN must be 0 or 1' >&2; exit 1; }
+package_layout=${SUNSHINE_PACKAGE_LAYOUT:-native}
+[[ "$package_layout" == native || "$package_layout" == platform ]] || { echo 'SUNSHINE_PACKAGE_LAYOUT must be native or platform' >&2; exit 1; }
 source_commit=$(git rev-parse HEAD)
 if [[ "$require_clean" == 1 && -n "$(git status --porcelain --untracked-files=normal)" ]]; then
   echo 'Sunshine release requires a clean, committed source tree' >&2
@@ -17,7 +19,8 @@ if [[ "$require_clean" == 1 && -n "$(git status --porcelain --untracked-files=no
 fi
 case "$(uname -s)" in
   MINGW*|MSYS*)
-    [[ "${MSYSTEM:-}" == UCRT64 ]] || { echo 'Use the native MSYS2 UCRT64 environment' >&2; exit 1; }
+    source scripts/lib/sunshine-ucrt-environment.sh
+    sunshine_ucrt_environment
     native_path() { cygpath -m "$1"; }
     ;;
   Linux*) native_path() { printf '%s\n' "$1"; } ;;
@@ -49,6 +52,11 @@ export COMMIT
 COMMIT=$source_commit
 export BUILD_VERSION
 BUILD_VERSION=$(node -p "require('./third_party-manifests/upstream-lock.json').components.sunshine.version.replace(/^v/, '')")
+layout_options=()
+if [[ "$package_layout" == platform && "$(uname -s)" == Linux ]]; then
+  profile_text=$(node scripts/renderer-build-profile.mjs linux)
+  mapfile -t layout_options <<< "$profile_text"
+fi
 cmake -S third_party/sunshine -B "$build" -G Ninja \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTS=ON -DBUILD_DOCS=ON -DBUILD_WERROR=ON \
   -DSUNSHINE_BUILD_WINDOWS_INSTALLERS=OFF \
@@ -56,7 +64,7 @@ cmake -S third_party/sunshine -B "$build" -G Ninja \
   -DCMAKE_PREFIX_PATH="$(native_path "$deps/install/ffmpeg")" \
   -DSUNSHINE_ASSETS_DIR=assets -DSUNSHINE_PUBLISHER_NAME=Stream-Kit \
   -DSUNSHINE_PUBLISHER_WEBSITE=https://github.com/bei612/stream-kit \
-  -DSUNSHINE_PUBLISHER_ISSUE_URL=https://github.com/bei612/stream-kit/issues "$@"
+  -DSUNSHINE_PUBLISHER_ISSUE_URL=https://github.com/bei612/stream-kit/issues "$@" "${layout_options[@]}"
 cmake --build "$build" --parallel "$jobs"
 if [[ "$require_clean" == 1 ]]; then
   if [[ "$(git rev-parse HEAD)" != "$source_commit" || -n "$(git status --porcelain --untracked-files=normal)" ]]; then

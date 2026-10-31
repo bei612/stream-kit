@@ -49,6 +49,7 @@ if ($LASTEXITCODE -ne 0 -or -not ($version -match [Regex]::Escape($profile.inno.
 if ($env:GITHUB_ENV) {
     "KITWARE_BIN=$(Join-Path $cmakeRoot 'bin')" | Out-File -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Append
     "INNO_ISCC=$iscc" | Out-File -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Append
+    "RELEASE_NODE_BIN=$(Split-Path -Parent (Get-Command node -ErrorAction Stop).Source)" | Out-File -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Append
 }
 if ($env:GITHUB_PATH) {
     (Join-Path $cmakeRoot 'bin') | Out-File -LiteralPath $env:GITHUB_PATH -Encoding utf8 -Append

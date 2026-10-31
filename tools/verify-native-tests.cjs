@@ -21,6 +21,10 @@ const profiles = {
     'GraphicsAttributes.FourPlanesPreserveModifierBitsAndTermination',
     'GraphicsAttributes.MissingPlanesAndInvalidModifierAreOmitted',
   ],
+  resources: [
+    'ResourcePathTest.AbsoluteInstallPathsAndUtf8ArePreserved',
+    'ResourcePathTest.PackagedResourcesDoNotFollowCurrentWorkingDirectory',
+  ],
 };
 
 function verify(report, profile) {

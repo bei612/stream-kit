@@ -3,6 +3,7 @@ import {createHash} from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import {fileURLToPath} from 'node:url'
+import {platformLayout,linuxRendererProfile} from './lib/platform-layout.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const [directory, commit, outputFlag, outputDirectory] = process.argv.slice(2)
@@ -13,7 +14,7 @@ const output = outputDirectory ? path.resolve(outputDirectory) : null
 if (output && fs.existsSync(output)) throw new Error('Release output must be a new directory')
 // Linux distribution packaging has different filesystem and service rules;
 // never apply the relocatable Windows installation layout to that platform.
-if (output && process.platform !== 'win32') throw new Error('Use the native CPack distribution for Linux; this staging layout requires Windows')
+if (output && !['win32','linux'].includes(process.platform)) throw new Error('Native renderer staging supports Windows and Linux')
 const git = (...args) => execFileSync('git', args, {cwd:root, encoding:'utf8', windowsHide:true}).trim()
 function verifySource() {
   if (git('rev-parse', 'HEAD') !== commit || git('status', '--porcelain', '--untracked-files=normal')) {
@@ -42,19 +43,46 @@ if (output) {
   const cache = fs.readFileSync(path.join(build, 'CMakeCache.txt'), 'utf8')
   const cmake = cache.match(/^CMAKE_COMMAND:INTERNAL=(.+)$/m)?.[1].trim()
   const assets = cache.match(/^SUNSHINE_ASSETS_DIR:(?:PATH|STRING|UNINITIALIZED)=(.+)$/m)?.[1].trim()
-  if (!cmake || assets !== 'assets') throw new Error('Expected configured CMake and relocatable assets directory')
-  fs.mkdirSync(output, {recursive:true})
+  if (!cmake) throw new Error('Missing configured native CMake')
+  const layout=platformLayout(process.platform,'sunshine')
+  const hash = file => createHash('sha256').update(fs.readFileSync(file)).digest('hex')
   // CMake's own top-level install rules stage the renderer, DLLs, shaders,
   // Web assets and tools. Local-only excludes dependency development installs.
-  execFileSync(cmake, ['-DCMAKE_INSTALL_LOCAL_ONLY=TRUE', `-DCMAKE_INSTALL_PREFIX=${output.replaceAll('\\','/')}`, '-DCMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION=TRUE', '-P', path.join(build, 'cmake_install.cmake')], {cwd:build, stdio:'inherit', windowsHide:true})
-  packagedBinary = path.join(output, 'sunshine.exe')
-  const hash = file => createHash('sha256').update(fs.readFileSync(file)).digest('hex')
-  if (hash(binary) !== hash(packagedBinary)) throw new Error('Installed renderer differs from verified executable')
-  for (const required of ['zlib1.dll', 'assets/web/index.html']) {
-    if (!fs.lstatSync(path.join(output, required)).isFile()) throw new Error(`Missing renderer runtime file: ${required}`)
+  if(process.platform==='win32'){
+    if(assets!=='assets')throw Error('Expected relocatable Windows assets directory')
+    fs.mkdirSync(output,{recursive:true})
+    execFileSync(cmake, ['-DCMAKE_INSTALL_LOCAL_ONLY=TRUE', `-DCMAKE_INSTALL_PREFIX=${output.replaceAll('\\','/')}`, '-DCMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION=TRUE', '-P', path.join(build, 'cmake_install.cmake')], {cwd:build, stdio:'inherit', windowsHide:true})
+    packagedBinary=path.join(output,layout.executable)
+    if(hash(binary)!==hash(packagedBinary))throw Error('Installed renderer differs from verified executable')
+    if(!fs.lstatSync(path.join(output,'zlib1.dll')).isFile())throw Error('Missing Windows zlib runtime')
+  }else{
+    const profile=linuxRendererProfile()
+    const prefix=cache.match(/^CMAKE_INSTALL_PREFIX:(?:PATH|STRING|UNINITIALIZED)=(.+)$/m)?.[1].trim()
+    const definition=cache.match(/^SUNSHINE_ASSETS_DIR_DEF:(?:PATH|STRING|UNINITIALIZED)=(.+)$/m)?.[1].trim()
+    const bindir=cache.match(/^CMAKE_INSTALL_BINDIR:(?:PATH|STRING|UNINITIALIZED)=(.+)$/m)?.[1].trim()
+    if(prefix!==profile.prefix||assets!==profile.assets||definition!==profile.definition||bindir!==path.posix.dirname(layout.executable))throw Error('Linux renderer staging requires SUNSHINE_PACKAGE_LAYOUT=platform')
+    fs.mkdirSync(path.dirname(output),{recursive:true})
+    const stage=fs.mkdtempSync(path.join(path.dirname(output),'.renderer-stage-'))
+    execFileSync(cmake,['-DCMAKE_INSTALL_LOCAL_ONLY=TRUE',`-DCMAKE_INSTALL_PREFIX=${prefix}`,'-P',path.join(build,'cmake_install.cmake')],{cwd:build,env:{...process.env,DESTDIR:stage},stdio:'inherit',windowsHide:true})
+    // Preserve native bin/lib/share and installed ELF RPATH; never flatten the
+    // Linux tree or install its standalone services onto the build host.
+    fs.cpSync(path.join(stage,prefix.slice(1)),output,{recursive:true,errorOnExist:true,force:false})
+    packagedBinary=path.join(output,layout.executable)
+    const nativeEnvironment={...process.env};delete nativeEnvironment.LD_LIBRARY_PATH;delete nativeEnvironment.LD_PRELOAD
+    const linkage=execFileSync('ldd',[packagedBinary],{env:nativeEnvironment,encoding:'utf8',timeout:30000})
+    const dynamic=execFileSync('readelf',['-d',packagedBinary],{env:nativeEnvironment,encoding:'utf8',timeout:30000})
+    if(linkage.includes('not found')||dynamic.includes('.local/cmake-build'))throw Error('Installed Linux renderer retains missing or build-tree dependencies')
+    const loader=linkage.split('\n').find(line=>line.includes('libvulkan.so.1 =>'))?.split('=>')[1].trim().split(/\s+/)[0]
+    if(loader&&fs.realpathSync(loader)!==fs.realpathSync(path.join(output,'lib/stream-kit/libvulkan.so.1')))throw Error('Installed Linux renderer does not resolve its private Vulkan loader')
+    const installedVersion=execFileSync(packagedBinary,[config,'--version'],{cwd:scratch,env:nativeEnvironment,encoding:'utf8',timeout:30000}).trim()
+    if(!installedVersion.includes(`commit: ${commit}`)||installedVersion.includes('-dirty'))throw Error('Installed Linux renderer source stamp mismatch')
   }
   fs.copyFileSync(path.join(root, 'third_party/sunshine/LICENSE'), path.join(output, 'LICENSE'))
   fs.copyFileSync(path.join(root, 'deploy/RENDERER-BUNDLE.md'), path.join(output, 'RENDERER-BUNDLE.md'))
+  for(const required of [layout.executable,...layout.required_files]){
+    const stat=fs.lstatSync(path.join(output,required))
+    if(!stat.isFile()||stat.size===0)throw Error(`Missing renderer runtime file: ${required}`)
+  }
   const files = []
   function inventory(folder) {
     for (const name of fs.readdirSync(folder).sort()) {

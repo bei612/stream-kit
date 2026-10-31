@@ -66,6 +66,8 @@ jobs:
       - name: Build vendored codecs and integrated Sunshine
         env:
           BUILD_JOBS: '2'
+          SUNSHINE_PACKAGE_LAYOUT: platform
+          SUNSHINE_REQUIRE_CLEAN: '1'
         run: |
           mkdir -p artifacts/linux-sunshine
           echo '::add-matcher::third_party/sunshine/.github/matchers/gcc.json'
@@ -87,31 +89,13 @@ jobs:
       - name: Verify management capture capabilities and application persistence
         timeout-minutes: 2
         run: |
-          .local/cmake-build-sunshine/tests/test_sunshine --gtest_filter='ConfigHttpTest.CaptureCapabilities*:ManagedAppsHttpTest.ApplicationModeSaveMatchesAdvertisedCapabilityAndLaunchRules:GraphicsAttributes.*' --gtest_output=json:artifacts/linux-sunshine/management.json 2>&1 | tee -a artifacts/linux-sunshine/runtime.log
+          .local/cmake-build-sunshine/tests/test_sunshine --gtest_filter='ConfigHttpTest.CaptureCapabilities*:ManagedAppsHttpTest.ApplicationModeSaveMatchesAdvertisedCapabilityAndLaunchRules:GraphicsAttributes.*:ResourcePathTest.*' --gtest_output=json:artifacts/linux-sunshine/management.json 2>&1 | tee -a artifacts/linux-sunshine/runtime.log
           node tools/verify-native-tests.cjs artifacts/linux-sunshine/management.json management
           node tools/verify-native-tests.cjs artifacts/linux-sunshine/management.json graphics
+          node tools/verify-native-tests.cjs artifacts/linux-sunshine/management.json resources
       - name: Verify staged installation resolves its private Vulkan loader
         run: |
-          DESTDIR="$GITHUB_WORKSPACE/artifacts/linux-sunshine/staged" cmake --install .local/cmake-build-sunshine --prefix /usr
-          python3 - <<'PY'
-          import json, os, pathlib, subprocess
-          stage = pathlib.Path('artifacts/linux-sunshine/staged').resolve()
-          binary = stage / 'usr/bin/sunshine'
-          env = dict(os.environ)
-          env.pop('LD_LIBRARY_PATH', None)
-          env.pop('LD_PRELOAD', None)
-          linkage = subprocess.check_output(['ldd', str(binary)], env=env, text=True)
-          assert 'not found' not in linkage, linkage
-          loader = next(line.split('=>', 1)[1].split()[0] for line in linkage.splitlines() if 'libvulkan.so.1 =>' in line)
-          assert pathlib.Path(loader).resolve().is_relative_to(stage), linkage
-          dynamic = subprocess.check_output(['readelf', '-d', str(binary)], text=True)
-          assert '.local/cmake-build' not in dynamic, dynamic
-          version = subprocess.check_output([str(binary), '--version'], env=env, text=True)
-          pathlib.Path('artifacts/linux-sunshine/installed-runtime.json').write_text(json.dumps({
-              'binary': str(binary), 'vulkan_loader': loader, 'linkage': linkage,
-              'version': version, 'passed': True,
-          }, indent=2))
-          PY
+          node scripts/verify-sunshine-release.mjs .local/cmake-build-sunshine "$GITHUB_SHA" --output artifacts/linux-sunshine/renderer 2>&1 | tee artifacts/linux-sunshine/installed-runtime.log
       - name: Publish failure details to the check
         if: failure()
         run: |

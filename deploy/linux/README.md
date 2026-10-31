@@ -17,6 +17,13 @@ private loader libraries in the renderer's native library tree. The gateway is
 `orchestrator/`. The packager and initializer use the same catalog. Windows
 retains its existing flat executable layout.
 
+`SUNSHINE_PACKAGE_LAYOUT=platform` selects the source build profile consumed by
+the same renderer verifier. It stages through native CMake `DESTDIR`, preserving
+bin/lib/share and checking installed source identity, dependencies and the
+private Vulkan loader. The full Linux source CI now exercises this layout and
+the executable-relative resource resolver. Its result must be confirmed before
+claiming that this renderer bundle is accepted.
+
 ## Native initialization
 
 Run as the non-root user that owns the rendering and audio session. A package

@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "failed_ci": {
+    "run": 41221130893,
+    "source_commit": "1e9b81d5470fc6856eb206a364eb28ee4ea64484",
+    "conclusion": "failure",
+    "operation": "codec-probe.exe linkage after codec SDK build",
+    "sdk_version": "10.0.26100.0",
+    "cause": "MSVC LIB context caused MinGW pkg-config imports to resolve Microsoft SDK .lib files; GUID multiple definitions"
+  },
+  "local_reproduction": {
+    "inherited_sdk_link_failed": true,
+    "isolated_ucrt_link_passed": true,
+    "codec_registration_passed": true,
+    "scope": "Injected Microsoft SDK LIB vs production UCRT environment normalization, using existing source-built codec SDK; no GPU/audio stream or installation",
+    "inherited_libraries": [
+      {
+        "name": "mfuuid",
+        "path": "$PROGRAMFILES_X86/Windows Kits/10/Lib/10.0.22621.0/um/x64/mfuuid.lib"
+      },
+      {
+        "name": "strmiids",
+        "path": "$PROGRAMFILES_X86/Windows Kits/10/Lib/10.0.22621.0/um/x64/strmiids.lib"
+      }
+    ],
+    "isolated_libraries": [
+      {
+        "name": "mfuuid",
+        "path": "$UCRT/lib/libmfuuid.a"
+      },
+      {
+        "name": "strmiids",
+        "path": "$UCRT/lib/libstrmiids.a"
+      }
+    ],
+    "registered_encoders": [
+      "libx264",
+      "libx265",
+      "libsvtav1",
+      "h264_nvenc",
+      "hevc_nvenc",
+      "av1_nvenc",
+      "h264_amf",
+      "h264_mf",
+      "h264_qsv"
+    ],
+    "adapter_sha256": "5d94b95cb78788c711bb269579c4696bf61817b642af59b8493bb2ebe510debd",
+    "inherited_link_log_sha256": "0e8d5c003015528725d06daa50902ef4ed1f625964911fe3b3ec68a241e063eb",
+    "isolated_link_log_sha256": "ab392f4d4e536d641a63a42cf4ddcb525219679d440e175336b13d4cfaf73cde"
+  },
+  "source_state": "Development adapter after 0895ee14; exact source hash recorded. Not a platform release or a successful rerun of the complete CI workflow."
+}

@@ -127,6 +127,18 @@ the release builders still compile workspace binaries and verify source stamps;
 cached objects do not replace successful build or acceptance results. The cache
 policy follows [rust-cache's documented inputs](https://github.com/Swatinem/rust-cache).
 
+MSVC (Rust dependencies) and UCRT/MinGW (Sunshine/codecs) use separate compiler
+search environments. The renderer build clears inherited MSVC SDK library and
+include variables in its child shell; its CI step inherits minimal Windows paths
+and adds only the official CMake and selected Node build-tool directories.
+The first full CI reached codec-probe linkage but selected Microsoft SDK import
+libraries through MSVC's `LIB`, producing GUID multiple definitions. An isolated
+local reproduction failed under the inherited context and passed with the
+production UCRT adapter, retaining all nine codec registrations. Evidence:
+`docs/evidence/windows-ucrt-library-context-20261101.json`. This does not mark
+the failed full CI run as successful; the corrected workflow still needs its
+own complete result.
+
 Use the official Inno Setup 7.1.1 distribution. Its license and commercial-use
 information are available at https://jrsoftware.org/isorder.php and in the
 compiler distribution; no compiler binary is vendored in this repository.

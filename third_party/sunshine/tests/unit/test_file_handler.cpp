@@ -24,7 +24,7 @@ TEST(ResourcePathTest, AbsoluteInstallPathsAndUtf8ArePreserved) {
   EXPECT_EQ(file_handler::resource_string(path), path);
 }
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__linux__)
 TEST(ResourcePathTest, PackagedResourcesDoNotFollowCurrentWorkingDirectory) {
   const auto original = std::filesystem::current_path();
   auto restore = util::fail_guard([&]() {
@@ -34,10 +34,17 @@ TEST(ResourcePathTest, PackagedResourcesDoNotFollowCurrentWorkingDirectory) {
   std::filesystem::current_path(std::filesystem::temp_directory_path());
   EXPECT_EQ(file_handler::resource_path("assets/shaders/test.hlsl"), before);
   EXPECT_TRUE(before.is_absolute());
+#ifdef _WIN32
   std::vector<wchar_t> executable(32768);
   const auto length = GetModuleFileNameW(nullptr, executable.data(), static_cast<DWORD>(executable.size()));
   ASSERT_GT(length, 0U);
   EXPECT_EQ(before, std::filesystem::path(std::wstring(executable.data(), length)).parent_path() / "assets/shaders/test.hlsl");
+#else
+  const auto executable = std::filesystem::read_symlink("/proc/self/exe");
+  EXPECT_EQ(before, executable.parent_path() / "assets/shaders/test.hlsl");
+  EXPECT_EQ(file_handler::resource_path("../share/sunshine/web/index.html"),
+            (executable.parent_path() / "../share/sunshine/web/index.html").lexically_normal());
+#endif
 }
 #endif
 

@@ -1174,7 +1174,7 @@ namespace egl {
       for (size_t x = 0; x < count; ++x) {
         auto &compiled_source = compiled_sources[x];
 
-        compiled_source = gl::shader_t::compile(file_handler::read_file(sources[x]), shader_type[x % 2]);
+        compiled_source = gl::shader_t::compile(file_handler::read_file(file_handler::resource_string(sources[x]).c_str()), shader_type[x % 2]);
         gl_drain_errors;
 
         if (compiled_source.has_right()) {
@@ -1279,7 +1279,7 @@ namespace egl {
         auto &compiled_source = compiled_sources[x];
 
         int num = x == 0 ? 1 : 0;
-        compiled_source = gl::shader_t::compile(file_handler::read_file(sources[x]), shader_type[num]);
+        compiled_source = gl::shader_t::compile(file_handler::read_file(file_handler::resource_string(sources[x]).c_str()), shader_type[num]);
         gl_drain_errors;
 
         if (compiled_source.has_right()) {

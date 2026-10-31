@@ -1,7 +1,7 @@
 # Managed renderer bundle
 
 This directory is staged from the source-built Sunshine renderer using its
-configured CMake installation rules. It includes the executable, runtime DLLs,
+configured CMake installation rules. It includes the executable, runtime libraries,
 shaders, renderer Web assets and native tools. No driver, firewall rule or
 Windows service is installed by the staging command.
 
@@ -33,9 +33,20 @@ Build and stage from a clean committed checkout:
 node scripts/verify-sunshine-release.mjs BUILD_DIRECTORY FULL_COMMIT --output NEW_DIRECTORY
 ```
 
-The build must report the same commit and use the relative `assets` directory.
+The build must report the same commit. Windows uses the relative `assets`
+directory. For a Linux unified platform bundle, build using
+`SUNSHINE_PACKAGE_LAYOUT=platform SUNSHINE_REQUIRE_CLEAN=1` with
+`scripts/build-sunshine.sh`. The shared layout catalog supplies its native
+`bin/sunshine` and `share/sunshine` resource paths. The Linux stager uses CMake's
+`DESTDIR` installation, retains native bin/lib/share and ELF RPATH, verifies the
+installed source stamp and dependency resolution, and checks that Vulkan resolves
+to the private source-built loader. It does not install standalone service units
+or udev rules onto the build host. Relative resources and OpenGL shaders resolve
+from the executable directory; absolute native package paths retain their meaning.
+
 The manifest inventories regular files by SHA-256; it is not a publisher
 signature or complete third-party license clearance. Keep the old release for
 rollback and switch the executable and working directory together while stopped.
-Linux packages continue to use native CPack distribution rules rather than the
-Windows directory layout.
+Ordinary Linux distribution packages can still use the default native CPack
+profile. The unified platform profile preserves its own native Linux layout
+rather than flattening an installed ELF tree into the Windows layout.
