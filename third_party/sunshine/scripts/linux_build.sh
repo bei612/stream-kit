@@ -361,6 +361,7 @@ function add_debian_based_deps() {
     "libwayland-dev"  # Wayland
     "libx11-dev"  # X11
     "libxcb-shm0-dev"  # X11
+    "libxcb-res0-dev"  # X11 application window ownership
     "libxcb-xfixes0-dev"  # X11
     "libxcb1-dev"  # X11
     "libxfixes-dev"  # X11

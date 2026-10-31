@@ -4,6 +4,7 @@
  */
 #include "src/capture_target.h"
 
+#include <algorithm>
 #include <array>
 #include <charconv>
 #include <cerrno>
@@ -17,6 +18,13 @@
 #include <string>
 #include <string_view>
 #include <unistd.h>
+#include <vector>
+
+#ifdef SUNSHINE_BUILD_X11
+  #include <cstdlib>
+  #include <xcb/res.h>
+  #include <xcb/xcb.h>
+#endif
 
 namespace capture {
   namespace {
@@ -89,6 +97,82 @@ namespace capture {
       int fd_;  ///< Owned procfs file; never reopened by numeric PID.
     };
 
+#ifdef SUNSHINE_BUILD_X11
+    /** @brief Release replies allocated by libxcb. */
+    struct reply_deleter_t {
+      /** @brief Release a protocol reply. @param reply XCB-owned allocation transferred to the caller. */
+      void operator()(void *reply) const {
+        std::free(reply);
+      }
+    };
+
+    /** @brief Owned XCB response; protocol errors yield a null response. */
+    template<class T>
+    using reply_ptr = std::unique_ptr<T, reply_deleter_t>;
+    using connection_ptr = std::shared_ptr<xcb_connection_t>;  ///< Thread-safe XCB connection retained by selected renderers.
+
+    /** @brief Query the X server's actual local client PID, never the client-written _NET_WM_PID property.
+     * @param connection Local X11 connection. @param window Window to validate. @return OS PID, or zero when unavailable.
+     */
+    std::uint32_t window_pid(xcb_connection_t *connection, xcb_window_t window) {
+      const xcb_res_client_id_spec_t specification {window, XCB_RES_CLIENT_ID_MASK_LOCAL_CLIENT_PID};
+      reply_ptr<xcb_res_query_client_ids_reply_t> reply(xcb_res_query_client_ids_reply(
+        connection, xcb_res_query_client_ids(connection, 1, &specification), nullptr
+      ));
+      if (!reply) {
+        return 0;
+      }
+      auto values = xcb_res_query_client_ids_ids_iterator(reply.get());
+      while (values.rem) {
+        if ((values.data->spec.mask & XCB_RES_CLIENT_ID_MASK_LOCAL_CLIENT_PID) && xcb_res_client_id_value_value_length(values.data) == 1) {
+          return *xcb_res_client_id_value_value(values.data);
+        }
+        xcb_res_client_id_value_next(&values);
+      }
+      return 0;
+    }
+
+    /** @brief X11 renderer retained together with its original process record and connection. */
+    class linux_renderer_t final: public renderer_t {
+    public:
+      /** @brief Retain a verified window. @param connection X11 connection. @param window Client window.
+       * @param pid Owning process. @param group Authorized launch group. @param process Retained OS identity.
+       */
+      linux_renderer_t(connection_ptr connection, xcb_window_t window, std::uint32_t pid, std::uint32_t group, std::shared_ptr<process_identity_t> process):
+          connection_(std::move(connection)),
+          window_(window),
+          pid_(pid),
+          group_(group),
+          process_(std::move(process)) {}
+
+      std::uint32_t process_id() const override {
+        return pid_;
+      }
+
+      std::uintptr_t window_handle() const override {
+        return window_;
+      }
+
+      bool alive() const override {
+        if (xcb_connection_has_error(connection_.get()) || process_->group() != group_) {
+          return false;
+        }
+        reply_ptr<xcb_get_window_attributes_reply_t> attributes(xcb_get_window_attributes_reply(
+          connection_.get(), xcb_get_window_attributes(connection_.get(), window_), nullptr
+        ));
+        return attributes && attributes->map_state == XCB_MAP_STATE_VIEWABLE &&
+               window_pid(connection_.get(), window_) == pid_ && process_->group() == group_;
+      }
+
+    private:
+      connection_ptr connection_;  ///< Renderer keeps the connection alive across backend reinitialization.
+      xcb_window_t window_;  ///< Client window, never the desktop root.
+      std::uint32_t pid_;  ///< Process verified by the X-Resource extension.
+      std::uint32_t group_;  ///< Owning launch group.
+      std::shared_ptr<process_identity_t> process_;  ///< Rejects exited/reused process identities.
+    };
+#endif
+
     /** @brief Launch group authorized by retained live members, never by a recycled group number alone. */
     class linux_target_t final: public target_t {
     public:
@@ -130,9 +214,100 @@ namespace capture {
       }
 
       renderer_ptr renderer() const override {
-        // Window selection is supplied by the Linux window-capture backend.
-        // Until that backend is connected, never substitute the desktop.
+#ifdef SUNSHINE_BUILD_X11
+        std::lock_guard lock(renderer_mutex_);
+        if (retired()) {
+          return nullptr;
+        }
+        if (renderer_ && renderer_->alive() && contains(renderer_->process_id())) {
+          return renderer_;
+        }
+        renderer_.reset();
+        const auto now = std::chrono::steady_clock::now();
+        if (now < next_window_scan_) {
+          return nullptr;
+        }
+        next_window_scan_ = now + std::chrono::milliseconds(250);
+        if (!connection_ || xcb_connection_has_error(connection_.get())) {
+          root_window_ = XCB_WINDOW_NONE;
+          int screen = 0;
+          connection_.reset(xcb_connect(nullptr, &screen), xcb_disconnect);
+          if (!connection_ || xcb_connection_has_error(connection_.get())) {
+            return nullptr;
+          }
+          const auto extension = xcb_get_extension_data(connection_.get(), &xcb_res_id);
+          if (!extension || !extension->present) {
+            return nullptr;
+          }
+          auto roots = xcb_setup_roots_iterator(xcb_get_setup(connection_.get()));
+          for (; screen > 0 && roots.rem; --screen) {
+            xcb_screen_next(&roots);
+          }
+          if (!roots.rem) {
+            return nullptr;
+          }
+          root_window_ = roots.data->root;
+        }
+        if (root_window_ == XCB_WINDOW_NONE) {
+          return nullptr;
+        }
+        std::vector<xcb_window_t> windows;
+        constexpr std::string_view property_name = "_NET_CLIENT_LIST";
+        reply_ptr<xcb_intern_atom_reply_t> property(xcb_intern_atom_reply(connection_.get(), xcb_intern_atom(
+          connection_.get(), 1, property_name.size(), property_name.data()
+        ), nullptr));
+        if (property && property->atom != XCB_ATOM_NONE) {
+          reply_ptr<xcb_get_property_reply_t> clients(xcb_get_property_reply(connection_.get(), xcb_get_property(
+            connection_.get(), 0, root_window_, property->atom, XCB_ATOM_WINDOW, 0, 4096
+          ), nullptr));
+          if (clients && clients->format == 32 && clients->type == XCB_ATOM_WINDOW) {
+            const auto count = xcb_get_property_value_length(clients.get()) / sizeof(xcb_window_t);
+            const auto *data = static_cast<const xcb_window_t *>(xcb_get_property_value(clients.get()));
+            if (count) {
+              windows.assign(data, data + count);
+            }
+          }
+        }
+        if (windows.empty()) {
+          // A headless X server may have no window manager publishing EWMH state.
+          reply_ptr<xcb_query_tree_reply_t> tree(xcb_query_tree_reply(connection_.get(), xcb_query_tree(connection_.get(), root_window_), nullptr));
+          if (tree) {
+            const auto count = std::min(xcb_query_tree_children_length(tree.get()), 4096);
+            const auto *data = xcb_query_tree_children(tree.get());
+            if (count > 0) {
+              windows.assign(data, data + count);
+            }
+          }
+        }
+        std::uint64_t largest = 0;
+        for (const auto window : windows) {
+          if (window == root_window_) {
+            continue;
+          }
+          const auto pid = window_pid(connection_.get(), window);
+          if (!contains(pid)) {
+            continue;
+          }
+          reply_ptr<xcb_get_window_attributes_reply_t> attributes(xcb_get_window_attributes_reply(connection_.get(), xcb_get_window_attributes(connection_.get(), window), nullptr));
+          reply_ptr<xcb_get_geometry_reply_t> geometry(xcb_get_geometry_reply(connection_.get(), xcb_get_geometry(connection_.get(), window), nullptr));
+          if (!attributes || !geometry || attributes->override_redirect || attributes->_class != XCB_WINDOW_CLASS_INPUT_OUTPUT || attributes->map_state != XCB_MAP_STATE_VIEWABLE) {
+            continue;
+          }
+          const auto area = static_cast<std::uint64_t>(geometry->width) * geometry->height;
+          if (area <= largest) {
+            continue;
+          }
+          auto process = std::make_shared<process_identity_t>(pid);
+          auto candidate = std::make_shared<linux_renderer_t>(connection_, window, pid, pid_, std::move(process));
+          if (candidate->alive() && contains(pid) && !retired()) {
+            renderer_ = std::move(candidate);
+            largest = area;
+          }
+        }
+        return !retired() ? renderer_ : nullptr;
+#else
         return nullptr;
+#endif
       }
 
     private:
@@ -190,6 +365,13 @@ namespace capture {
       mutable std::mutex mutex_;  ///< Serializes membership discovery and authorization.
       mutable std::map<std::uint32_t, std::shared_ptr<process_identity_t>> members_;  ///< Retained tasks; bounded to 4096.
       mutable std::chrono::steady_clock::time_point next_scan_ {};  ///< Limits procfs enumeration to four scans per second.
+#ifdef SUNSHINE_BUILD_X11
+      mutable std::mutex renderer_mutex_;  ///< Serializes stable renderer selection independently of process membership.
+      mutable connection_ptr connection_;  ///< Local X server connection, never selected by a web client.
+      mutable xcb_window_t root_window_ {};  ///< Root used only for enumerating client windows.
+      mutable renderer_ptr renderer_;  ///< Stable renderer until its window or owning task becomes invalid.
+      mutable std::chrono::steady_clock::time_point next_window_scan_ {};  ///< Bounds discovery while the application starts.
+#endif
     };
   }  // namespace
 

@@ -12,9 +12,10 @@ set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
 add_subdirectory("${SUNSHINE_SOURCE}/third-party/lizardbyte-common/third-party/googletest" googletest)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(PULSE REQUIRED IMPORTED_TARGET libpulse libpulse-simple)
+pkg_check_modules(XCB_RES REQUIRED IMPORTED_TARGET xcb xcb-res)
 
 # Compile the production backend and its normal Sunshine integration test unchanged.
-# This target needs no GPU, video encoder, display server, or alternative implementation.
+# No GPU or video encoder is needed. Window ownership runs against an isolated Xvfb server.
 add_executable(test_sunshine
     "${SUNSHINE_SOURCE}/src/platform/linux/application_audio.cpp"
     "${SUNSHINE_SOURCE}/src/platform/linux/application_target.cpp"
@@ -22,7 +23,8 @@ add_executable(test_sunshine
     "${SUNSHINE_SOURCE}/tests/unit/test_linux_capture_target.cpp")
 target_include_directories(test_sunshine PRIVATE "${SUNSHINE_SOURCE}")
 target_compile_options(test_sunshine PRIVATE -Wall -Wextra -Werror)
-target_link_libraries(test_sunshine PRIVATE PkgConfig::PULSE GTest::gtest_main)
+target_compile_definitions(test_sunshine PRIVATE SUNSHINE_BUILD_X11)
+target_link_libraries(test_sunshine PRIVATE PkgConfig::PULSE PkgConfig::XCB_RES GTest::gtest_main)
 enable_testing()
 add_test(NAME native_audio COMMAND test_sunshine)
 set_tests_properties(native_audio PROPERTIES TIMEOUT 30)

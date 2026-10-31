@@ -6,16 +6,49 @@
 #include "src/capture_target.h"
 
 #include <cerrno>
+#include <chrono>
+#include <cstdlib>
 #include <gtest/gtest.h>
 #include <signal.h>
+#include <spawn.h>
+#include <string>
 #include <sys/wait.h>
+#include <thread>
 #include <unistd.h>
 #include <vector>
+
+extern char **environ;  ///< Test environment containing the isolated DISPLAY.
 
 namespace {
   /** @brief Creates only test-owned children; never signals a shared process group. */
   class LinuxCaptureTargetTest: public ::testing::Test {
   protected:
+#ifdef SUNSHINE_BUILD_X11
+    /** @brief Start an isolated application with a real X11 window. @param geometry Window dimensions. @return Owned PID, or -1. */
+    pid_t spawn_window(const std::string &geometry) {
+      std::vector<std::string> arguments {"xmessage", "-title", "StreamKitCaptureOwner", "-geometry", geometry, "-timeout", "30", "Owned capture window"};
+      std::vector<char *> argv;
+      for (auto &argument : arguments) {
+        argv.push_back(argument.data());
+      }
+      argv.push_back(nullptr);
+      posix_spawnattr_t attributes;
+      if (posix_spawnattr_init(&attributes) != 0) {
+        return -1;
+      }
+      const auto group = posix_spawnattr_setpgroup(&attributes, 0);
+      const auto flags = posix_spawnattr_setflags(&attributes, POSIX_SPAWN_SETPGROUP);
+      pid_t child = -1;
+      const auto result = group == 0 && flags == 0 ? posix_spawnp(&child, "xmessage", nullptr, &attributes, argv.data(), environ) : EINVAL;
+      posix_spawnattr_destroy(&attributes);
+      if (result != 0) {
+        return -1;
+      }
+      children_.push_back(child);
+      return child;
+    }
+#endif
+
     /** @brief Start a stopped-in-place child in an explicit group. @param group Zero for a new group. @return Child PID or -1. */
     pid_t spawn(pid_t group = 0) {
       int ready[2];
@@ -145,5 +178,42 @@ namespace {
     EXPECT_FALSE(target->contains(replacement));
     EXPECT_FALSE(target->alive());
   }
+
+#ifdef SUNSHINE_BUILD_X11
+  TEST_F(LinuxCaptureTargetTest, SelectsOnlyTheOwnedX11WindowAndInvalidatesItAfterExit) {
+    const auto enabled = std::getenv("STREAM_KIT_TEST_X11_CAPTURE");
+    if (!enabled || std::string(enabled) != "1") {
+      GTEST_SKIP() << "Requires an explicit isolated X11 test server";
+    }
+    const auto root = spawn_window("240x100+10+10");
+    const auto other = spawn_window("640x480+300+10");
+    ASSERT_GT(root, 1);
+    ASSERT_GT(other, 1);
+    auto target = capture::bind_application(root, root, root);
+    auto foreign = capture::bind_application(other, other, other);
+    ASSERT_NE(target, nullptr);
+    ASSERT_NE(foreign, nullptr);
+    capture::renderer_ptr selected;
+    capture::renderer_ptr unrelated;
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while ((!selected || !unrelated) && std::chrono::steady_clock::now() < deadline) {
+      selected = target->renderer();
+      unrelated = foreign->renderer();
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+    ASSERT_NE(selected, nullptr);
+    ASSERT_NE(unrelated, nullptr);
+    EXPECT_EQ(selected->process_id(), static_cast<std::uint32_t>(root));
+    EXPECT_NE(selected->window_handle(), unrelated->window_handle());
+    EXPECT_TRUE(selected->alive());
+    EXPECT_EQ(target->renderer(), selected);
+    target->retire();
+    EXPECT_EQ(target->renderer(), nullptr);
+    EXPECT_TRUE(foreign->alive());
+    stop_child(root);
+    EXPECT_FALSE(selected->alive());
+    EXPECT_TRUE(unrelated->alive());
+  }
+#endif
 }  // namespace
 #endif

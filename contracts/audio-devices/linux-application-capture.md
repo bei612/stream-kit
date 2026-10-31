@@ -13,8 +13,9 @@ PulseAudio 播放流必须属于目标进程；每个播放流单独设置 monit
 
 ## 尚未打通的产品路径
 
-Linux 的 `capture::bind_application` 已有进程组身份后端，窗口视频捕获和程序输入
-坐标尚未实现，程序启动路径尚未开放。因此保留 `process.cpp` 对 Linux application 模式的拒绝，不能将此后端提交
+Linux 的 `capture::bind_application` 已有进程组身份后端及 X11 窗口选择，窗口像素
+捕获和程序输入坐标尚未实现，程序启动路径尚未开放。因此保留 `process.cpp`
+对 Linux application 模式的拒绝，不能将此后端提交
 描述为 Linux 程序级串流已交付。下一步必须接通这些接口，再从统一管理端启动
 应用并验证画面、音频和控制权，不能只以构造成功作为验收结果。
 
@@ -45,10 +46,12 @@ sh scripts/test-audio-target-linux.sh /absolute/path/to/cmake-build-sunshine/tes
 ```sh
 cmake -S tools/sunshine-audio-tests -B .local/cmake-build-linux-audio -G Ninja
 cmake --build .local/cmake-build-linux-audio --parallel 2
-sh scripts/test-audio-target-linux.sh --application-only "$PWD/.local/cmake-build-linux-audio/test_sunshine"
+STREAM_KIT_TEST_X11_CAPTURE=1 xvfb-run -a sh scripts/test-audio-target-linux.sh --application-only "$PWD/.local/cmake-build-linux-audio/test_sunshine"
 ```
 
-`bdbfd689` 的 Linux CI 已执行，原生编译步骤失败，音频运行步骤未执行；
+`bdbfd689` 和 `f159ddac` 的 Linux CI 已执行，原生编译步骤失败，音频运行步骤
+未执行。`f159ddac` 的诊断确认 `fclose` 的函数属性触发 GCC 严格编译错误，
+`9aa4cfd2` 已改用显式 FILE 释放器，未关闭编译警告。
 后续版本尚须通过编译及运行测试，不能记为通过。
 这项原生音频测试也不能替代整个 Sunshine 的 Linux 构建和程序串流端到端验收。
 
@@ -66,3 +69,10 @@ Linux 后端保留 `/proc/<pid>/stat` 文件描述符，读取原任务的存活
 后端会拒绝继续授权，不通过裸进程组数字恢复身份。这一限制尚须结合实际
 Linux 渲染程序的启动方式验证。四项 `LinuxCaptureTargetTest` 使用真实子进程
 覆盖进程组隔离、启动器退出、成员离组与身份失效，已接入同一个原生 CI 目标。
+
+X11 窗口选择使用 X-Resource 扩展查询服务器报告的本地客户端 PID，再校验上述
+进程身份。窗口标题及应用自行设置的 `_NET_WM_PID` 不作为归属证明；只选本次
+启动组中的可见应用窗口，保持选择直到窗口或原进程失效，不选桌面根窗口。
+新增 `SelectsOnlyTheOwnedX11WindowAndInvalidatesItAfterExit` 使用 Xvfb 和两个
+独立进程组的同标题窗口验证选择、身份稳定与退出失效，须以其实际运行结果验收。
+Linux X11 构建增加 `xcb-res` 开发依赖，Debian/Ubuntu 安装项为 `libxcb-res0-dev`。
