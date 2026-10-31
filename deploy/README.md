@@ -10,6 +10,14 @@ change; its later disconnect checks and graceful teardown are not claimed.
 Only its 36 owned processes were stopped, with none remaining. This result does
 not certify microphone delivery to a target application or audible audio quality.
 
+The Linux native control bundle at `aa254605` passed the complete CI job,
+including Go unit tests, race checks, clean release construction and real-browser
+external-configuration/restart acceptance:
+https://github.com/bei612/stream-kit/actions/runs/41188846438/job/124501261048.
+This is native Linux CI runtime evidence, not physical-device or full media
+installation acceptance. The same revision's local Windows control bundle also
+passed at `artifacts/control-bundle/2026-10-31T09-31-15-394Z/`.
+
 The native gateway release entry point is `node scripts/build-gateway-release.mjs`.
 It requires a clean commit, builds with the locked Cargo dependency graph, embeds
 the full source revision and explicit dirty state, executes `--version`, and
