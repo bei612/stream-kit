@@ -37,6 +37,7 @@ pub mod configuration;
 pub mod control_state;
 pub mod host;
 pub mod media_auth;
+pub mod node_audio;
 pub mod role;
 pub mod settings;
 mod signed;

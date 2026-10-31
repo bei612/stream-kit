@@ -42,6 +42,7 @@ pub mod input;
 pub mod media;
 pub mod media_observation;
 pub mod mixer;
+pub mod node_audio;
 pub mod password;
 pub mod role;
 pub mod storage;
@@ -192,6 +193,7 @@ struct AppInner {
     app_image_cache: RwLock<HashMap<(UserId, HostId, AppId), Bytes>>,
     streams: RwLock<HashMap<StreamId, Stream>>,
     media_sessions: media::MediaSessionRegistry,
+    node_audio: RwLock<node_audio::Authority>,
     upstreams: upstream::UpstreamPool,
 }
 
@@ -214,6 +216,7 @@ impl App {
             app_image_cache: Default::default(),
             streams: Default::default(),
             media_sessions,
+            node_audio: Default::default(),
         };
         let inner = Arc::new(app);
 
@@ -257,6 +260,9 @@ impl App {
 
     pub fn media_sessions(&self) -> &media::MediaSessionRegistry {
         &self.inner.media_sessions
+    }
+    pub fn node_audio(&self) -> &RwLock<node_audio::Authority> {
+        &self.inner.node_audio
     }
     pub fn upstreams(&self) -> &upstream::UpstreamPool {
         &self.inner.upstreams

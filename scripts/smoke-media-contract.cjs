@@ -128,6 +128,37 @@ async function main() {
     assert.equal((await inventoryPost({...inventoryRequest,schema_version:1})).status,400);
     assert.equal((await inventoryPost(inventoryRequest,'stream-kit/audio-devices/request/v1\n')).status,401);
     if(initialAudioInstance) assert.equal(await readAudioInstance(),initialAudioInstance,'Boot identity changed in the same process');
+    let nodeAuthorityVerified = false;
+    if(initialAudioInstance) {
+      const grant=JSON.parse(fs.readFileSync(path.join(root,'contracts/audio-devices/node-state-v1.fixture.json'),'utf8'));
+      grant.instance_id=initialAudioInstance;
+      grant.bindings[0].target_instance_id=initialAudioInstance;
+      grant.state.issued_at_ms=Date.now();grant.state.expires_at_ms=grant.state.issued_at_ms+10000;
+      for(const connection of grant.state.sessions[0].connections) connection.expires_at_ms=grant.state.expires_at_ms;
+      const applyGrant=async(value,domain='stream-kit/node-audio-state/request/v1\n')=>{
+        const body=JSON.stringify(value);
+        const response=await fetch(inventoryURL.replace('v2/audio-devices','v1/node-audio-state'),{method:'POST',body,headers:{'Content-Type':'application/json','x-stream-control-signature':sign(domain,body)},signal:AbortSignal.timeout(2000)});
+        const raw=await response.text();
+        if(response.ok) {
+          assert.equal(response.headers.get('cache-control'),'no-store');
+          assert.equal(response.headers.get('x-stream-control-signature'),sign('stream-kit/node-audio-state/response/v1\n',raw));
+          const ack=JSON.parse(raw);
+          assert.equal(ack.instance_id,initialAudioInstance);assert.equal(ack.node_id,value.node_id);
+          assert.equal(ack.state_issued_at_ms,value.state.issued_at_ms);
+          assert.equal(ack.authorized_sessions,value.bindings.length);
+        }
+        return response.status;
+      };
+      assert.equal(await applyGrant(grant,'stream-kit/audio-devices/request/v2\n'),401);
+      assert.equal(await applyGrant({...grant,instance_id:'wrong-instance'}),400);
+      assert.equal(await applyGrant(grant),200);
+      assert.equal(await applyGrant(grant),400,'Node authority accepted replay');
+      const invalid=structuredClone(grant);invalid.state.issued_at_ms++;invalid.bindings[0].connection_id='client-b';
+      assert.equal(await applyGrant(invalid),400,'Viewer was granted target audio authority');
+      grant.state.issued_at_ms++;grant.bindings=[];grant.state.sessions=[];
+      assert.equal(await applyGrant(grant),200,'Empty snapshot must revoke all remote audio authority');
+      nodeAuthorityVerified=true;
+    }
     const configurationURL = `http://127.0.0.1:${port}/gateway/internal/v1/configuration`;
     const configurationRequest = async (operation, extra = {}, domain = 'stream-kit/gateway-configuration/request/v1\n') => {
       const request = {schema_version:1,request_id:crypto.randomBytes(16).toString('hex'),issued_at_ms:Date.now(),operation,...extra};
@@ -258,6 +289,7 @@ async function main() {
       checks: [inventoryResponse.ok ? 'signed audio inventory with nonce and configured routes' : 'native audio backend unavailable reported as HTTP 503', 'inventory rejects unsigned/wrong-domain/stale requests', 'signed HTTP acknowledgement', 'request/revision binding', 'unsigned rejection', 'replay rejection', 'configured idle target', 'v1 rejection', 'invalid/rollback epoch rejection', 'coalesced ownership transfer', 'revocation',
         'account-free viewer profile and WHEP configuration', 'media capability cannot authenticate gateway account', 'anonymous denial', 'session/connection/application/expiry admission scope', 'revocation invalidates unexpired admission',
         'signed native configuration read/save with redaction and request binding', 'configuration rejects unsigned/wrong-domain/stale requests', 'configuration version conflict and invalid edit preserve file', 'pending native trust configuration does not alter runtime'],
+      node_audio_authority: nodeAuthorityVerified,
       management_inventory: managementInventory,
       scope: 'Isolated real gateway HTTP contract; no active media or target recording.' };
     child.kill();

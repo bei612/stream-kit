@@ -345,6 +345,7 @@ async fn start(
                         .service(api_service())
                         .service(api::control_state::apply)
                         .service(api::audio_devices::list)
+                        .service(api::node_audio::apply)
                         .service(api::audio_pair_check::verify)
                         .service(api::configuration::manage)
                         .service(web_config_js_service())
