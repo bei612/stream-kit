@@ -22,6 +22,10 @@ const argument = name => {
 const gatewayBinary = argument('--gateway');
 const orchestratorBinary = argument('--orchestrator');
 const runtimeConfig = argument('--runtime-config');
+const webAssets = process.argv.includes('--web-assets') ? argument('--web-assets') : path.join(root, 'third_party/moonlight-web-stream/dist');
+for (const file of ['stream.html', 'stream.js', 'index.html']) {
+  assert.ok(fs.statSync(path.join(webAssets, file)).isFile(), `Missing built viewer asset: ${file}`);
+}
 const applicationExample = process.argv.includes('--example') ? argument('--example') : null;
 const exampleOutput = process.argv.includes('--example-output') ? process.argv[process.argv.indexOf('--example-output') + 1] : null;
 assert.ok(!applicationExample || exampleOutput, 'Application acceptance requires an explicit example output device');
@@ -190,8 +194,9 @@ async function main() {
   config.webrtc.ice_servers = [];
   config.local_audio_targets = [];
   fs.writeFileSync(gatewayConfigFile, JSON.stringify(config));
-  fs.cpSync(path.join(root, 'third_party/moonlight-web-stream/dist'), path.join(scratch, 'dist'), { recursive: true });
-  fs.cpSync(path.join(root, 'third_party/moonlight-web-stream/dist'), path.join(scratch, 'static'), { recursive: true });
+  fs.cpSync(webAssets, path.join(scratch, 'dist'), { recursive: true });
+  fs.cpSync(path.join(scratch, 'dist'), path.join(scratch, 'static'), { recursive: true });
+  result.web_assets_source = webAssets;
   result.web_assets_sha256 = Object.fromEntries(fs.readdirSync(path.join(scratch, 'dist'))
     .filter(name => /\.(js|wasm|html)$/.test(name)).map(name => [name, sha(path.join(scratch, 'dist', name))]));
   const controlConfig = { server: { bind_address: `127.0.0.1:${controlPort}`, ...credentials,
