@@ -14,7 +14,7 @@ export interface EncoderStartupState {
   overridden_keys:string[]
 }
 export interface EncoderConfigurationView extends EncoderConfigurationAcknowledgement {
-  fields?:{key:string;label:string;type:'string'|'boolean'|'integer'|'number';minimum?:number;maximum?:number;choices?:string[]}[]
+  fields?:{key:string;label:string;description?:string;type:'string'|'boolean'|'integer'|'number';minimum?:number;maximum?:number;choices?:string[]}[]
   values:Record<string,ConfigValue>
   redacted_keys:string[]
   loaded_revision?:string

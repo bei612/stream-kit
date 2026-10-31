@@ -89,6 +89,16 @@ func TestEncoderFieldValidationBeforeNativeWrite(t *testing.T) {
 		{"dd_wa_hdr_toggle_delay", `3000`, true}, {"dd_wa_hdr_toggle_delay", `3001`, false},
 		{"dd_config_revert_on_disconnect", `false`, true}, {"dd_config_revert_on_disconnect", `"bad"`, false},
 		{"extension", `{"custom":true}`, true},
+		{"port", `1019`, true}, {"port", `"65514"`, true},
+		{"port", `1018`, false}, {"port", `65515`, false}, {"port", `47989.5`, false},
+		{"address_family", `"ipv4"`, true}, {"address_family", `"both"`, true}, {"address_family", `"ipv6"`, false},
+		{"origin_web_ui_allowed", `"pc"`, true}, {"origin_web_ui_allowed", `"lan"`, true},
+		{"origin_web_ui_allowed", `"wan"`, true}, {"origin_web_ui_allowed", `"*"`, false},
+		{"upnp", `false`, true}, {"upnp", `1`, false},
+		{"bind_address", `"127.0.0.1"`, true}, {"bind_address", `"::1"`, true},
+		{"bind_address", `"127.0.0.1\nupnp=true"`, false},
+		{"external_ip", `"203.0.113.1"`, true}, {"external_ip", `[]`, false},
+		{"notify_pre_releases", `true`, true}, {"notify_pre_releases", `"bad"`, false},
 	} {
 		t.Run(tc.key+tc.value, func(t *testing.T) {
 			fake := &encoderConfigurationFake{}

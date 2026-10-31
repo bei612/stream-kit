@@ -7,6 +7,7 @@ const {engine,launchBrowser,evidenceDirectory}=require('./lib/test-browser.cjs')
   const root=path.resolve('orchestrator/web/dist');
   const browser=await launchBrowser();
   const revision='"'+'a'.repeat(64)+'"';
+  const networkField={key:'port',label:'Renderer base port',description:'Related listeners use fixed offsets; update gateway connections after restart.',type:'integer',minimum:1019,maximum:65514};
   let desiredRevision=revision,loadedRevision=revision,instance='c'.repeat(64),applyCalls=0;
   let failure=true,readFailure=false;const writes=[],errors=[];
   try {
@@ -29,7 +30,7 @@ const {engine,launchBrowser,evidenceDirectory}=require('./lib/test-browser.cjs')
             if(!failure)desiredRevision='"'+'b'.repeat(64)+'"';
             return route.fulfill({status:failure?409:200,json:failure?{status:'error',message:'配置已变化，请重新读取'}:{status:'ok',data:{revision:'"'+'b'.repeat(64)+'"',apply_policy:'encoder_restart',runtime_verified:false}}});
           }
-          return route.fulfill({status:readFailure?503:200,json:readFailure?{status:'error',message:'编码器读取失败'}:{status:'ok',data:{revision:desiredRevision,loaded_revision:loadedRevision,instance_id:instance,process_id:700,managed_instance_id:'d'.repeat(32),restart_required:desiredRevision!==loadedRevision,overridden_keys:['sunshine_name'],apply_policy:'encoder_restart',runtime_verified:false,fields:[{key:'packetsize',label:'Packet size (0 or 200-65535)',type:'integer',minimum:0,maximum:65535},{key:'gamepad_driver',label:'Windows gamepad driver',type:'string',choices:['all','virtualhid','vigembus']},{key:'virtualhid_randomize_mac',label:'Randomize virtual gamepad MAC',type:'boolean'},{key:'min_threads',label:'CPU 编码最少线程数',type:'integer',minimum:1,maximum:2147483647},{key:'sw_preset',label:'软件编码预设',type:'string',choices:['ultrafast','superfast','veryslow']},{key:'sw_tune',label:'软件编码调优',type:'string',choices:['film','zerolatency']},{key:'nvenc_twopass',label:'NVIDIA multipass',type:'string',choices:['disabled','quarter_res','full_res']},{key:'minimum_fps_target',label:'Minimum FPS',type:'number',minimum:0,maximum:1000},{key:'ping_timeout',label:'心跳超时',type:'integer',minimum:-1,maximum:2147483647},{key:'min_log_level',label:'日志级别',type:'string',choices:['debug','info','warning']},{key:'sunshine_name',label:'渲染节点名称',type:'string'},{key:'stream_audio',label:'传输主机声音',type:'boolean'},{key:'max_bitrate',label:'最大码率',type:'integer',minimum:0,maximum:2147483647}],values:{sunshine_name:'Renderer',pkey:null},redacted_keys:['pkey']}}});
+          return route.fulfill({status:readFailure?503:200,json:readFailure?{status:'error',message:'编码器读取失败'}:{status:'ok',data:{revision:desiredRevision,loaded_revision:loadedRevision,instance_id:instance,process_id:700,managed_instance_id:'d'.repeat(32),restart_required:desiredRevision!==loadedRevision,overridden_keys:['sunshine_name'],apply_policy:'encoder_restart',runtime_verified:false,fields:[networkField,{key:'packetsize',label:'Packet size (0 or 200-65535)',type:'integer',minimum:0,maximum:65535},{key:'gamepad_driver',label:'Windows gamepad driver',type:'string',choices:['all','virtualhid','vigembus']},{key:'virtualhid_randomize_mac',label:'Randomize virtual gamepad MAC',type:'boolean'},{key:'min_threads',label:'CPU 编码最少线程数',type:'integer',minimum:1,maximum:2147483647},{key:'sw_preset',label:'软件编码预设',type:'string',choices:['ultrafast','superfast','veryslow']},{key:'sw_tune',label:'软件编码调优',type:'string',choices:['film','zerolatency']},{key:'nvenc_twopass',label:'NVIDIA multipass',type:'string',choices:['disabled','quarter_res','full_res']},{key:'minimum_fps_target',label:'Minimum FPS',type:'number',minimum:0,maximum:1000},{key:'ping_timeout',label:'心跳超时',type:'integer',minimum:-1,maximum:2147483647},{key:'min_log_level',label:'日志级别',type:'string',choices:['debug','info','warning']},{key:'sunshine_name',label:'渲染节点名称',type:'string'},{key:'stream_audio',label:'传输主机声音',type:'boolean'},{key:'max_bitrate',label:'最大码率',type:'integer',minimum:0,maximum:2147483647}],values:{sunshine_name:'Renderer',pkey:null},redacted_keys:['pkey']}}});
         }
         return route.fulfill({status:503,json:{status:'error',message:'测试中未连接此服务'}});
       }
@@ -43,6 +44,14 @@ const {engine,launchBrowser,evidenceDirectory}=require('./lib/test-browser.cjs')
     await page.getByRole('status').filter({hasText:'当前进程启动时已读取此配置文件版本'}).waitFor();
     assert.equal(await page.locator('#encoder-setting-pkey').inputValue(),'');
     const save=page.getByRole('button',{name:'保存编码器配置',exact:true});
+    await page.getByLabel('搜索编码器参数',{exact:true}).fill('fixed offsets');
+    await page.getByRole('combobox',{name:'选择常用编码参数',exact:true}).selectOption('port');
+    const port=page.locator('#encoder-setting-port');
+    assert.equal(await port.getAttribute('min'),'1019');
+    assert.equal(await port.getAttribute('max'),'65514');
+    await page.getByText(networkField.description,{exact:true}).waitFor();
+    await port.locator('..').getByRole('button',{name:'撤销此项修改',exact:true}).click();
+    await page.getByLabel('搜索编码器参数',{exact:true}).fill('');
     await name.fill('Draft');
     const search=page.getByLabel('搜索编码器参数',{exact:true});
     await search.fill('pkey');

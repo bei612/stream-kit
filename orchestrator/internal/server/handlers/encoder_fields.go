@@ -11,16 +11,24 @@ import (
 // These reviewed fields mirror src/config.cpp and the settings UI in the vendored encoder.
 // The catalog describes editable overrides, not platform-dependent defaults.
 type encoderField struct {
-	Key     string   `json:"key"`
-	Label   string   `json:"label"`
-	Type    string   `json:"type"`
-	Minimum float64  `json:"minimum,omitempty"`
-	Maximum float64  `json:"maximum,omitempty"`
-	Choices []string `json:"choices,omitempty"`
+	Key         string   `json:"key"`
+	Label       string   `json:"label"`
+	Description string   `json:"description,omitempty"`
+	Type        string   `json:"type"`
+	Minimum     float64  `json:"minimum,omitempty"`
+	Maximum     float64  `json:"maximum,omitempty"`
+	Choices     []string `json:"choices,omitempty"`
 }
 
 var encoderFields = []encoderField{
 	{Key: "sunshine_name", Label: "渲染节点名称", Type: "string"},
+	{Key: "port", Label: "渲染服务基础端口", Description: "重启生效。同步调整网关的主机端口、控制端编码器地址和防火墙规则；相关服务使用该端口的固定偏移。", Type: "integer", Minimum: 1019, Maximum: 65514},
+	{Key: "address_family", Label: "渲染服务地址族", Type: "string", Choices: []string{"ipv4", "both"}},
+	{Key: "bind_address", Label: "渲染服务监听 IP", Description: "填写服务器本机 IP；留空使用默认监听。IPv6 需要地址族为 both。更改后需同步调整控制端和网关连接地址。", Type: "string"},
+	{Key: "external_ip", Label: "对客户端公布的外部 IP", Type: "string"},
+	{Key: "origin_web_ui_allowed", Label: "编码器原生管理接口访问范围", Description: "pc 仅本机，lan 局域网，wan 广域网。跨节点控制端必须位于允许范围内；此项不替代统一管理端身份认证。", Type: "string", Choices: []string{"pc", "lan", "wan"}},
+	{Key: "upnp", Label: "自动申请路由器端口映射", Description: "启用后编码器会通过 UPnP 请求路由器开放端口；按实际网络部署需求配置。", Type: "boolean"},
+	{Key: "notify_pre_releases", Label: "编码器预发布版本通知", Type: "boolean"},
 	{Key: "capture", Label: "画面采集方式", Type: "string"},
 	{Key: "encoder", Label: "编码器", Type: "string"},
 	{Key: "adapter_name", Label: "显卡", Type: "string"},

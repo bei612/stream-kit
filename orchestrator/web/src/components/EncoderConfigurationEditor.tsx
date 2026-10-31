@@ -75,7 +75,7 @@ export function EncoderConfigurationEditor() {
   const keys=[...new Set([...Object.keys(view?.values||{}),...Object.keys(drafts)])].sort()
   const fields=new Map((view?.fields||[]).map(field=>[field.key,field]))
   const query=search.trim().toLocaleLowerCase()
-  const matches=(key:string)=>!query||`${key} ${fields.get(key)?.label||''}`.toLocaleLowerCase().includes(query)
+  const matches=(key:string)=>!query||`${key} ${fields.get(key)?.label||''} ${fields.get(key)?.description||''}`.toLocaleLowerCase().includes(query)
   const visibleKeys=keys.filter(matches)
   const availableFields=(view?.fields||[]).filter(field=>!keys.includes(field.key)&&matches(field.key))
   return <Card>
@@ -111,6 +111,7 @@ export function EncoderConfigurationEditor() {
           return <div key={key} className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
             <Label htmlFor={id}>{field?.label||key}<span className="ml-2 text-xs text-muted-foreground">重启生效</span></Label>
             <p className="text-xs text-muted-foreground break-all">{key}</p>
+            {field?.description&&<p className="text-xs text-muted-foreground">{field.description}</p>}
             <Select aria-label={`${key} 编辑方式`} value={mode} onChange={e=>edit(key,{mode:e.target.value as Draft['mode'],text})}><option value="text">文本值</option><option value="json">结构化 JSON 值</option><option value="reset">恢复默认（删除覆盖）</option></Select>
             {mode==='reset'?<p className="text-sm text-amber-400">保存后删除此项配置覆盖。</p>:field?.type==='boolean'?<Select id={id} value={text} onChange={e=>edit(key,{mode:'json',text:e.target.value})}>
               {!['true','false'].includes(text)&&<option value={text}>{text||'未设置'}</option>}<option value="true">开启</option><option value="false">关闭</option>
