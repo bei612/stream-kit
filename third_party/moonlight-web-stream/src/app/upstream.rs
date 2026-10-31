@@ -376,8 +376,8 @@ impl UpstreamPool {
                                 resources.stream.clear_pending_microphone();
                             }
                             let buffer = mixer.render(timestamp, Instant::now()).map_err(|e| e.to_string())?.into();
-                            if let Some(target) = &resources.target {
-                                target.submit(mixer.target_pcm());
+                            if let Some(target) = &resources.target && let Some((samples, captured)) = mixer.target_frame() {
+                                target.submit(samples, captured);
                             }
                             let _ = events.send(Arc::new(MoonlightStreamEvent::Audio(AudioStreamEvent::OnFrame(AudioFrame { timestamp, buffer }))));
                             Ok::<_, String>(())

@@ -34,13 +34,17 @@ impl AudioClock {
 struct AudioInput {
     decoder: Decoder,
     pending: VecDeque<f32>,
+    arrivals: VecDeque<(usize, Instant)>,
+    max_age: Duration,
     last_packet: Option<Instant>,
 }
 impl AudioInput {
-    fn new() -> Result<Self, opus::Error> {
+    fn new(max_age: Duration) -> Result<Self, opus::Error> {
         Ok(Self {
             decoder: Decoder::new(48_000, Channels::Stereo)?,
             pending: VecDeque::with_capacity(MAX_PENDING),
+            arrivals: VecDeque::new(),
+            max_age,
             last_packet: None,
         })
     }
@@ -50,27 +54,68 @@ impl AudioInput {
         scratch: &mut [f32],
         now: Instant,
     ) -> Result<(), opus::Error> {
+        if self.last_packet.is_some_and(|previous| now < previous) {
+            return Ok(());
+        }
         self.expire(now)?;
         let count = self.decoder.decode_float(packet, scratch, false)? * 2;
         self.pending.extend(&scratch[..count]);
+        if count > 0 {
+            self.arrivals.push_back((count, now));
+        }
         self.discard(self.pending.len().saturating_sub(MAX_PENDING));
         self.last_packet = Some(now);
         Ok(())
     }
     fn discard(&mut self, count: usize) {
-        self.pending.drain(..count.min(self.pending.len()));
+        let count = count.min(self.pending.len());
+        self.pending.drain(..count);
+        let mut remaining = count;
+        while remaining > 0 {
+            let (samples, _) = self
+                .arrivals
+                .front_mut()
+                .expect("queued samples have arrival metadata");
+            let consumed = remaining.min(*samples);
+            *samples -= consumed;
+            remaining -= consumed;
+            if *samples == 0 {
+                self.arrivals.pop_front();
+            }
+        }
+    }
+    fn pop(&mut self) -> Option<(f32, Instant)> {
+        let value = self.pending.pop_front()?;
+        let (samples, arrived) = self
+            .arrivals
+            .front_mut()
+            .expect("queued samples have arrival metadata");
+        let arrived = *arrived;
+        *samples -= 1;
+        if *samples == 0 {
+            self.arrivals.pop_front();
+        }
+        Some((value, arrived))
     }
     fn clear(&mut self) -> Result<(), opus::Error> {
         self.pending.clear();
+        self.arrivals.clear();
         self.last_packet = None;
         self.decoder.reset_state()
     }
     fn expire(&mut self, now: Instant) -> Result<(), opus::Error> {
         if self
             .last_packet
-            .is_some_and(|time| now.saturating_duration_since(time) >= MAX_AGE)
+            .is_some_and(|time| now.saturating_duration_since(time) >= self.max_age)
         {
             self.clear()?;
+        }
+        // A new packet must not renew the lifetime of older decoded samples.
+        while let Some(&(samples, arrived)) = self.arrivals.front() {
+            if now.saturating_duration_since(arrived) < self.max_age {
+                break;
+            }
+            self.discard(samples);
         }
         Ok(())
     }
@@ -85,6 +130,7 @@ pub struct AudioMixer {
     scratch: Vec<f32>,
     output: Vec<f32>,
     target_output: Vec<f32>,
+    target_captured: Option<Instant>,
     program_gain: f32,
     microphone_gain: f32,
     broadcast_microphone: bool,
@@ -94,12 +140,15 @@ pub struct AudioMixer {
 impl AudioMixer {
     pub fn new() -> Result<Self, opus::Error> {
         Ok(Self {
-            program: AudioInput::new()?,
-            microphone: AudioInput::new()?,
+            program: AudioInput::new(MAX_AGE)?,
+            microphone: AudioInput::new(Duration::from_millis(
+                stream_kit_audio_target::wire::MAX_AGE_MS,
+            ))?,
             encoder: Encoder::new(48_000, Channels::Stereo, Application::Audio)?,
             scratch: vec![0.0; 5760 * 2],
             output: vec![0.0; FRAME_SAMPLES],
             target_output: vec![0.0; FRAME_SAMPLES],
+            target_captured: None,
             program_gain: 1.0,
             microphone_gain: 1.0,
             broadcast_microphone: true,
@@ -134,6 +183,7 @@ impl AudioMixer {
     pub fn clear_microphone(&mut self) -> Result<(), opus::Error> {
         self.microphone.clear()?;
         self.target_output.fill(0.0);
+        self.target_captured = None;
         // Remove microphone history in the output codec as well.
         self.encoder.reset_state()
     }
@@ -148,6 +198,10 @@ impl AudioMixer {
     }
     pub fn target_pcm(&self) -> &[f32] {
         &self.target_output
+    }
+    pub fn target_frame(&self) -> Option<(&[f32], Instant)> {
+        self.target_captured
+            .map(|captured| (self.target_pcm(), captured))
     }
     pub fn render(&mut self, timestamp: Duration, now: Instant) -> Result<Vec<u8>, opus::Error> {
         self.program.expire(now)?;
@@ -164,10 +218,19 @@ impl AudioMixer {
             self.microphone.discard(discard);
         }
         self.last_output = Some(timestamp);
+        let mut captured = now;
         for (sample, target) in self.output.iter_mut().zip(&mut self.target_output) {
-            *target = (self.microphone.pending.pop_front().unwrap_or(0.0) * self.microphone_gain)
-                .clamp(-1.0, 1.0);
-            *sample = (self.program.pending.pop_front().unwrap_or(0.0) * self.program_gain
+            let microphone = self
+                .microphone
+                .pop()
+                .map(|(value, arrived)| {
+                    captured = captured.min(arrived);
+                    value
+                })
+                .unwrap_or(0.0);
+            *target = (microphone * self.microphone_gain).clamp(-1.0, 1.0);
+            *sample = (self.program.pop().map(|(value, _)| value).unwrap_or(0.0)
+                * self.program_gain
                 + if self.broadcast_microphone {
                     *target
                 } else {
@@ -175,6 +238,7 @@ impl AudioMixer {
                 })
             .clamp(-1.0, 1.0);
         }
+        self.target_captured = Some(captured);
         let mut packet = vec![0; 4000];
         let len = self.encoder.encode_float(&self.output, &mut packet)?;
         packet.truncate(len);
@@ -233,6 +297,66 @@ mod tests {
         assert_eq!(pcm.len(), FRAME_SAMPLES);
         assert!(pcm.iter().any(|sample| sample.abs() > 0.01));
     }
+    #[test]
+    fn fresh_packet_does_not_renew_old_microphone_audio() {
+        let arrived = Instant::now();
+        let mut mixer = AudioMixer::new().expect("create mixer");
+        mixer
+            .microphone(&tone(FRAME_SAMPLES), arrived)
+            .expect("old microphone packet");
+        mixer
+            .program(&tone(FRAME_SAMPLES), arrived)
+            .expect("program packet");
+        let fresh = arrived + Duration::from_millis(55);
+        mixer
+            .microphone(&tone(FRAME_SAMPLES), fresh)
+            .expect("fresh microphone packet");
+        mixer
+            .render(Duration::ZERO, arrived + Duration::from_millis(60))
+            .expect("render frame");
+        let (samples, captured) = mixer.target_frame().expect("rendered microphone frame");
+        assert_eq!(
+            captured, fresh,
+            "expired speech must not precede the fresh packet"
+        );
+        assert!(samples.iter().any(|sample| sample.abs() > 0.01));
+        assert!(mixer.microphone.pending.is_empty());
+        assert!(mixer.microphone.arrivals.is_empty());
+        assert!(
+            mixer.program.pending.is_empty(),
+            "program uses its own longer jitter budget"
+        );
+    }
+
+    #[test]
+    fn mixed_packet_frame_retains_oldest_arrival_and_rejects_reordered_ingress() {
+        let arrived = Instant::now();
+        let mut mixer = AudioMixer::new().expect("create mixer");
+        for offset in [0, 10, 20, 30] {
+            mixer
+                .microphone(
+                    &tone(FRAME_SAMPLES / 4),
+                    arrived + Duration::from_millis(offset),
+                )
+                .expect("partial packet");
+        }
+        mixer
+            .microphone(&tone(FRAME_SAMPLES), arrived + Duration::from_millis(5))
+            .expect("late packet is ignored");
+        assert_eq!(mixer.microphone.pending.len(), FRAME_SAMPLES);
+        mixer
+            .render(Duration::ZERO, arrived + Duration::from_millis(50))
+            .expect("render frame");
+        assert_eq!(
+            mixer.target_frame().expect("target frame").1,
+            arrived,
+            "mixing must not give speech a new 60ms lifetime"
+        );
+        assert!(mixer.microphone.arrivals.is_empty());
+        mixer.clear_microphone().expect("clear microphone");
+        assert!(mixer.target_frame().is_none());
+    }
+
     #[test]
     fn both_inputs_are_bounded_and_stale_audio_is_not_replayed() {
         let now = Instant::now();

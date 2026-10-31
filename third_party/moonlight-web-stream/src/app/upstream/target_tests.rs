@@ -44,11 +44,10 @@ impl OutputDevice for Fake {
             .expect("log")
             .push(format!("clear:{}", self.name));
     }
-    fn submit(&self, _: &[f32]) {
-        self.log
-            .lock()
-            .expect("log")
-            .push(format!("submit:{}", self.name));
+    fn submit(&self, _: &[f32], captured: Instant) {
+        let mut log = self.log.lock().expect("log");
+        log.push(format!("submit:{}", self.name));
+        log.push(format!("captured:{captured:?}"));
     }
     fn status(&self) -> TargetStatus {
         TargetStatus {
@@ -133,13 +132,18 @@ async fn replacement_coalesces_and_never_feeds_obsolete_or_pending_devices() {
     let monitor = runtime.monitor();
     runtime.reconcile(2, Some(pair("b")));
     entered_rx.await.expect("replacement started");
-    runtime.submit(&[1.0]);
+    runtime.submit(&[1.0], Instant::now());
     runtime.reconcile(3, Some(pair("c")));
-    runtime.submit(&[1.0]);
+    runtime.submit(&[1.0], Instant::now());
     release.send(()).expect("release");
     settle(&mut runtime, 3, Some(pair("c"))).await;
-    runtime.submit(&[1.0]);
+    let captured = Instant::now() - Duration::from_millis(50);
+    runtime.submit(&[1.0], captured);
     let first = log.lock().expect("log").clone();
+    assert!(
+        first.contains(&format!("captured:{captured:?}")),
+        "native target must retain the original arrival time"
+    );
     assert!(!first.iter().any(|e| e == "submit:a" || e == "submit:b"));
     assert!(first.iter().any(|e| e == "submit:c"));
     let index = |s: &str| first.iter().position(|e| e == s).expect("lifecycle event");
@@ -192,7 +196,7 @@ async fn failed_selection_stays_failed_until_explicit_retry() {
     settle(&mut runtime, 2, Some(pair("device"))).await;
     for _ in 0..10 {
         runtime.reconcile(2, Some(pair("device")));
-        runtime.submit(&[1.0]);
+        runtime.submit(&[1.0], Instant::now());
     }
     assert_eq!(
         runtime.monitor().snapshot().error.as_deref(),

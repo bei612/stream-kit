@@ -4,6 +4,7 @@ use super::SessionSlot;
 use std::{
     collections::HashSet,
     sync::{Arc, Mutex},
+    time::Instant,
 };
 use stream_kit_audio_target::{AudioTarget, EndpointPair, TargetStatus};
 use tokio::sync::{OwnedMutexGuard, oneshot};
@@ -13,15 +14,15 @@ mod tests;
 
 pub(super) trait OutputDevice: Send + 'static {
     fn clear(&self);
-    fn submit(&self, samples: &[f32]);
+    fn submit(&self, samples: &[f32], captured: Instant);
     fn status(&self) -> TargetStatus;
 }
 impl OutputDevice for AudioTarget {
     fn clear(&self) {
         self.clear();
     }
-    fn submit(&self, samples: &[f32]) {
-        self.submit(samples);
+    fn submit(&self, samples: &[f32], captured: Instant) {
+        self.submit_captured(samples, captured);
     }
     fn status(&self) -> TargetStatus {
         self.status()
@@ -71,8 +72,8 @@ impl OutputDevice for NativeOutput {
     fn clear(&self) {
         self.device.clear();
     }
-    fn submit(&self, samples: &[f32]) {
-        self.device.submit(samples);
+    fn submit(&self, samples: &[f32], captured: Instant) {
+        self.device.submit_captured(samples, captured);
     }
     fn status(&self) -> TargetStatus {
         self.device.status()
@@ -348,12 +349,12 @@ impl<D: OutputDevice> Runtime<D> {
             resource.device.clear();
         }
     }
-    pub fn submit(&self, samples: &[f32]) {
+    pub fn submit(&self, samples: &[f32], captured: Instant) {
         if self.settled
             && self.applied == self.desired
             && let Some(resource) = &self.resource
         {
-            resource.device.submit(samples);
+            resource.device.submit(samples, captured);
         }
     }
     fn publish(&self) {
