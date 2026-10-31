@@ -51,7 +51,7 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$temp
 install -d -m 700 /var/lib/stream-kit
 printf '%s\n' "$render_user" > /var/lib/stream-kit/render-user
 binary=/opt/stream-kit/orchestrator/orchestrator
-for component in orchestrator media-gateway sunshine; do as_user "$binary" verify-bundle "/opt/stream-kit/$component"; done
+as_user "$binary" verify-platform /opt/stream-kit
 data="$home/.local/share/stream-kit/runtime"
 if [[ -e $data || -L $data ]]; then
   [[ -d $data && ! -L $data && $(stat -c %u "$data") == "$uid" ]] || fail 'Existing runtime data has an invalid type or owner'

@@ -47,6 +47,8 @@ func TestCommandArgumentExit(t *testing.T) {
 		{[]string{"print-config", "--config"}, 2},
 		{[]string{"version", "extra"}, 2},
 		{[]string{"unknown-command"}, 2},
+		{[]string{"verify-platform"}, 2},
+		{[]string{"verify-platform", "missing-platform"}, 1},
 		{[]string{"--help"}, 0},
 		{[]string{"version"}, 0},
 	} {

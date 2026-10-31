@@ -85,6 +85,17 @@ func main() {
 			}
 			fmt.Printf("Verified control-plane bundle %s (%s), %d files; publisher signature not verified\n", manifest.Version, manifest.Commit, len(manifest.Files))
 			return
+		case "verify-platform":
+			if len(os.Args) != 3 {
+				argumentError(fmt.Errorf("usage: orchestrator verify-platform DIRECTORY"))
+			}
+			manifests, err := bundle.VerifyPlatform(os.Args[2], runtime.GOOS, runtime.GOARCH)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "platform verification failed:", err)
+				os.Exit(1)
+			}
+			fmt.Printf("Verified native platform %s (%s/%s), %d components\n", manifests["orchestrator"].Commit, runtime.GOOS, runtime.GOARCH, len(manifests))
+			return
 		case "render-worker":
 			if err := component.RunWorker(context.Background(), os.Args[2:]); err != nil {
 				fmt.Fprintln(os.Stderr, "render worker failed:", err)

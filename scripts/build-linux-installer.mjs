@@ -37,7 +37,7 @@ for(const file of files){const item=expected.get(file.path);if(!item||item.bytes
 const names=['orchestrator','media-gateway','sunshine']
 if(manifest.components?.length!==names.length||names.some(name=>!manifest.components.some(item=>item.component===name&&item.commit===commit&&item.manifest_path===`${name}/bundle-manifest.json`)))throw Error('Linux installer requires exactly the three integrated native components')
 const control=path.join(source,'orchestrator/orchestrator')
-for(const name of names)run(control,['verify-bundle',path.join(source,name)])
+run(control,['verify-platform',source])
 fs.mkdirSync(output,{recursive:true})
 const stage=path.join(output,'package'), installed=path.join(stage,'opt/stream-kit')
 fs.mkdirSync(path.dirname(installed),{recursive:true})
