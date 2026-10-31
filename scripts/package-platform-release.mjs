@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import {createHash} from 'node:crypto'
 import {fileURLToPath} from 'node:url'
+import {platformLayout} from './lib/platform-layout.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const args = process.argv.slice(2)
@@ -39,6 +40,11 @@ const components = names.map((component,index) => {
   for (const file of actual) {
     const declared = expected.get(file.path.toLowerCase())
     if (!declared || declared.path !== file.path || declared.bytes !== file.bytes || declared.sha256 !== file.sha256) throw new Error(`Integrity mismatch: ${component}/${file.path}`)
+  }
+  const layout=platformLayout(manifest.platform,component)
+  for(const required of [layout.executable,...layout.required_files]){
+    const file=expected.get(required.toLowerCase())
+    if(!file||file.path!==required||file.bytes<=0)throw Error(`Required runtime file missing: ${component}/${required}`)
   }
   return {component,directory,manifest}
 })

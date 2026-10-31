@@ -42,9 +42,6 @@ func Initialize(ctx context.Context, options Options) (string, error) {
 	if err := ValidateAdministrator(options.AdminName, options.AdminPassword); err != nil {
 		return "", err
 	}
-	if runtime.GOOS != "windows" {
-		return "", fmt.Errorf("automatic platform setup currently requires Windows; use the Linux deployment units")
-	}
 	root, err := filepath.Abs(options.Root)
 	if err != nil {
 		return "", err
@@ -68,16 +65,10 @@ func Initialize(ctx context.Context, options Options) (string, error) {
 	if err := validateLocation(root, data); err != nil {
 		return "", err
 	}
-	if err := config.ValidateWindowsSession("sunshine", config.ComponentConfig{ExePath: "sunshine.exe", WindowsSessionID: options.SessionID, WindowsUserSID: options.UserSID}); err != nil {
+	if err := validateSetupIdentity(options); err != nil {
 		return "", err
 	}
-	if options.SessionID == 0 || options.UserSID == "" {
-		return "", fmt.Errorf("an explicit interactive Windows session and user SID are required")
-	}
-	if err := requireAdministrator(); err != nil {
-		return "", err
-	}
-	if err := validateRenderUser(options.SessionID, options.UserSID); err != nil {
+	if err := validateSetupParent(parent); err != nil {
 		return "", err
 	}
 	manifests, err := bundle.VerifyPlatform(root, runtime.GOOS, runtime.GOARCH)
@@ -106,9 +97,8 @@ func Initialize(ctx context.Context, options Options) (string, error) {
 	if err := prepare(ctx, options, root, data, stage); err != nil {
 		return "", fmt.Errorf("setup incomplete; protected staging directory %s: %w", stage, err)
 	}
-	// Windows rename refuses an existing destination. No existing deployment,
-	// database or configuration is merged or overwritten.
-	if err := os.Rename(stage, data); err != nil {
+	// Each OS publishes without replacing even an empty existing directory.
+	if err := publishDirectory(stage, data); err != nil {
 		return "", fmt.Errorf("publish prepared deployment (staging %s): %w", stage, err)
 	}
 	return filepath.Join(data, "orchestrator.json"), nil
@@ -189,12 +179,20 @@ func prepareFiles(ctx context.Context, options Options, root, data, stage string
 		component.WindowsSessionID, component.WindowsUserSID = options.SessionID, options.UserSID
 		if name == "sunshine" {
 			component.WorkingDir = filepath.Join(root, "sunshine")
-			component.ExePath = filepath.Join(component.WorkingDir, "sunshine.exe")
+			layout, err := bundle.Layout(runtime.GOOS, "sunshine")
+			if err != nil {
+				return err
+			}
+			component.ExePath = filepath.Join(component.WorkingDir, filepath.FromSlash(layout.Executable))
 			component.Args = quote(filepath.Join(data, "sunshine", "sunshine.conf"))
 			component.HealthCheck.URL = control.SunshineAPI.ServerInfoURL
 		} else {
 			component.WorkingDir = filepath.Join(root, "media-gateway")
-			component.ExePath = filepath.Join(component.WorkingDir, "web-server.exe")
+			layout, err := bundle.Layout(runtime.GOOS, "media-gateway")
+			if err != nil {
+				return err
+			}
+			component.ExePath = filepath.Join(component.WorkingDir, filepath.FromSlash(layout.Executable))
 			prefix := "--config-path " + quote(filepath.Join(data, "gateway", "config.json"))
 			component.Args, component.PreflightArgs = prefix+" run", prefix+" config check"
 			component.HealthCheck.URL = gatewayURL + "/config.js"

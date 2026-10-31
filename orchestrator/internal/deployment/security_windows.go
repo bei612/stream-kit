@@ -7,6 +7,8 @@ import (
 	"golang.org/x/sys/windows"
 	"os"
 	"unsafe"
+
+	"github.com/stream-kit/orchestrator/internal/config"
 )
 
 var querySessionInformation = windows.NewLazySystemDLL("wtsapi32.dll").NewProc("WTSQuerySessionInformationW")
@@ -103,6 +105,23 @@ func requireAdministrator() error {
 	}
 	return nil
 }
+
+func validateSetupIdentity(options Options) error {
+	if err := config.ValidateWindowsSession("sunshine", config.ComponentConfig{ExePath: "sunshine.exe", WindowsSessionID: options.SessionID, WindowsUserSID: options.UserSID}); err != nil {
+		return err
+	}
+	if options.SessionID == 0 || options.UserSID == "" {
+		return fmt.Errorf("an explicit interactive Windows session and user SID are required")
+	}
+	if err := requireAdministrator(); err != nil {
+		return err
+	}
+	return validateRenderUser(options.SessionID, options.UserSID)
+}
+
+func publishDirectory(stage, data string) error { return os.Rename(stage, data) }
+
+func validateSetupParent(string) error { return nil }
 
 func protectDirectory(directory, sid string, media bool) error {
 	user, err := windows.StringToSid(sid)

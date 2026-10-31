@@ -142,29 +142,11 @@ func verifyComponent(directory, component, platform, architecture string) (*Mani
 		names[key] = true
 		entries[file.Path] = file
 	}
-	binary := component
-	if component == "media-gateway" {
-		binary = "web-server"
+	layout, err := Layout(platform, component)
+	if err != nil {
+		return nil, err
 	}
-	if component == "example" {
-		binary = "checkerboard"
-	}
-	if platform == "windows" {
-		binary += ".exe"
-	}
-	requiredFiles := []string{binary}
-	switch component {
-	case "orchestrator":
-		requiredFiles = append(requiredFiles, "dist/index.html", "dist/THIRD_PARTY_NOTICES.json", "THIRD_PARTY_NOTICES.go.json")
-	case "media-gateway":
-		requiredFiles = append(requiredFiles, "dist/index.html", "LICENSE")
-	case "sunshine":
-		requiredFiles = append(requiredFiles, "assets/web/index.html", "LICENSE")
-	case "example":
-		requiredFiles = append(requiredFiles, "audio-probe.exe", "THIRD_PARTY_NOTICES.go.json", "THIRD_PARTY_NOTICES.rust.json")
-	default:
-		return nil, fmt.Errorf("unsupported component %q", component)
-	}
+	requiredFiles := append([]string{layout.Executable}, layout.RequiredFiles...)
 	for _, required := range requiredFiles {
 		if file, ok := entries[required]; !ok || file.Bytes == 0 {
 			return nil, fmt.Errorf("required bundle file missing: %s", required)

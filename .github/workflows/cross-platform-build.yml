@@ -162,7 +162,7 @@ jobs:
           cache-dependency-path: orchestrator/web/package-lock.json
       - run: npm ci
       - run: npm run build
-      - run: node --test ../../scripts/test-go-test-failures.mjs ../../scripts/test-go-notices.mjs ../../scripts/test-cargo-notices.mjs ../../scripts/test-windows-audio-driver.mjs ../../scripts/test-control-build-target.mjs
+      - run: node --test ../../scripts/test-go-test-failures.mjs ../../scripts/test-go-notices.mjs ../../scripts/test-cargo-notices.mjs ../../scripts/test-windows-audio-driver.mjs ../../scripts/test-control-build-target.mjs ../../scripts/test-platform-packaging.mjs
       - run: node --experimental-strip-types --test ../../scripts/test-frontend-notices.mjs
       - run: node --test ../../scripts/test-audio-playback-lifecycle.mjs ../../scripts/test-realtime-track-writer.mjs ../../scripts/test-opus-audio.mjs ../../scripts/test-audio-envelope.cjs
       - run: node --experimental-strip-types --test ../../scripts/test-microphone-capture.mjs ../../scripts/test-microphone-sender.mjs ../../scripts/test-media-access.mjs ../../scripts/test-media-observation.mjs ../../scripts/test-viewer-bootstrap.mjs ../../scripts/test-webrtc-lifecycle.mjs ../../scripts/test-websocket-lifecycle.mjs ../../scripts/test-management-websocket.mjs ../../scripts/test-canvas-lifecycle.mjs ../../scripts/test-stream-pipelines.mjs ../../scripts/test-decoder-lifecycle.mjs ../../scripts/test-browser-condition.cjs

@@ -35,8 +35,8 @@ func initializePlatform(args []string) error {
 		}
 		*sid, *session = user, uint64(current)
 	}
-	if flags.NArg() != 0 || *root == "" || *data == "" || *sid == "" || *session == 0 || *session >= 1<<32-1 {
-		return fmt.Errorf("usage: orchestrator init-platform --root DIRECTORY --data-dir NEW_DIRECTORY --user-sid SID --session-id ID")
+	if *session >= 1<<32-1 {
+		return fmt.Errorf("invalid Windows session ID")
 	}
 	options := deployment.Options{Root: *root, Data: *data, Commit: commit, SessionID: uint32(*session), UserSID: *sid, ControlPort: *controlPort, GatewayPort: *gatewayPort, RendererPort: *rendererPort}
 	if *adminFile != "" {

@@ -1,0 +1,13 @@
+{
+  "windows": {
+    "orchestrator": {"executable": "orchestrator.exe", "required_files": ["dist/index.html", "dist/THIRD_PARTY_NOTICES.json", "THIRD_PARTY_NOTICES.go.json"]},
+    "media-gateway": {"executable": "web-server.exe", "required_files": ["dist/index.html", "LICENSE"]},
+    "sunshine": {"executable": "sunshine.exe", "required_files": ["assets/web/index.html", "LICENSE"]},
+    "example": {"executable": "checkerboard.exe", "required_files": ["audio-probe.exe", "THIRD_PARTY_NOTICES.go.json", "THIRD_PARTY_NOTICES.rust.json"]}
+  },
+  "linux": {
+    "orchestrator": {"executable": "orchestrator", "required_files": ["dist/index.html", "dist/THIRD_PARTY_NOTICES.json", "THIRD_PARTY_NOTICES.go.json"]},
+    "media-gateway": {"executable": "web-server", "required_files": ["dist/index.html", "LICENSE"]},
+    "sunshine": {"executable": "bin/sunshine", "required_files": ["share/sunshine/web/index.html", "LICENSE"]}
+  }
+}

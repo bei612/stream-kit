@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -25,6 +26,9 @@ func TestPreparationConnectsNativeComponentsWithoutExposingSecretsInArguments(t 
 		}
 	}
 	opts := Options{SessionID: 1, UserSID: "S-1-5-21-123-456-789-1001", ControlPort: 19000, GatewayPort: 18080, RendererPort: 48989}
+	if runtime.GOOS == "linux" {
+		opts.SessionID, opts.UserSID = 0, ""
+	}
 	var operations []string
 	var credentials map[string]string
 	run := func(_ context.Context, binary, directory string, args []string, input []byte) ([]byte, error) {
@@ -90,6 +94,15 @@ func TestPreparationConnectsNativeComponentsWithoutExposingSecretsInArguments(t 
 		}
 		if len(args) == 0 || !component.AutoStart || component.WindowsUserSID != opts.UserSID || component.WindowsSessionID != opts.SessionID {
 			t.Fatal("component not prepared", name)
+		}
+		if runtime.GOOS == "linux" {
+			expected := filepath.Join(root, "media-gateway", "web-server")
+			if name == "sunshine" {
+				expected = filepath.Join(root, "sunshine", "bin", "sunshine")
+			}
+			if component.ExePath != expected {
+				t.Fatalf("Linux executable layout not applied for %s", name)
+			}
 		}
 	}
 	for _, file := range []string{"orchestrator.json", filepath.Join("gateway", "config.json"), filepath.Join("sunshine", "sunshine.conf")} {
