@@ -88,6 +88,7 @@ pub struct AudioMixer {
     program_gain: f32,
     microphone_gain: f32,
     broadcast_microphone: bool,
+    target_epoch: u64,
     last_output: Option<Duration>,
 }
 impl AudioMixer {
@@ -102,6 +103,7 @@ impl AudioMixer {
             program_gain: 1.0,
             microphone_gain: 1.0,
             broadcast_microphone: true,
+            target_epoch: 0,
             last_output: None,
         })
     }
@@ -109,6 +111,10 @@ impl AudioMixer {
         &mut self,
         policy: &super::control_state::AudioPolicy,
     ) -> Result<(), opus::Error> {
+        if self.target_epoch != policy.target.epoch {
+            self.clear_microphone()?;
+            self.target_epoch = policy.target.epoch;
+        }
         self.program_gain = 10.0f32.powf(policy.program_gain_db / 20.0);
         let microphone_gain = if policy.microphone_enabled {
             10.0f32.powf(policy.microphone_gain_db / 20.0)
@@ -343,6 +349,52 @@ mod tests {
         );
         assert!(pcm.iter().all(|sample| sample.abs() < 0.0001));
     }
+    #[test]
+    fn target_switch_discards_queued_speech_and_keeps_program_audio() {
+        let now = Instant::now();
+        let mut mixer =
+            AudioMixer::new().expect("target switch regression setup or operation must succeed");
+        let mut policy = super::super::control_state::AudioPolicy::default();
+        policy.target.epoch = 1;
+        mixer
+            .configure(&policy)
+            .expect("target switch regression setup or operation must succeed");
+        mixer
+            .program(&tone(FRAME_SAMPLES * 2), now)
+            .expect("target switch regression setup or operation must succeed");
+        mixer
+            .microphone(&tone(FRAME_SAMPLES * 2), now)
+            .expect("target switch regression setup or operation must succeed");
+        mixer
+            .render(Duration::ZERO, now)
+            .expect("target switch regression setup or operation must succeed");
+        assert!(mixer.target_pcm().iter().any(|value| value.abs() > 0.01));
+        policy.target.epoch = 2;
+        mixer
+            .configure(&policy)
+            .expect("target switch regression setup or operation must succeed");
+        let program = decoded(
+            &mixer
+                .render(FRAME_DURATION, now + FRAME_DURATION)
+                .expect("target switch regression setup or operation must succeed"),
+        );
+        assert!(program.iter().any(|value| value.abs() > 0.01));
+        assert!(mixer.target_pcm().iter().all(|value| *value == 0.0));
+        mixer
+            .microphone(&tone(FRAME_SAMPLES), now + FRAME_DURATION * 2)
+            .expect("target switch regression setup or operation must succeed");
+        mixer
+            .configure(&policy)
+            .expect("target switch regression setup or operation must succeed");
+        mixer
+            .render(FRAME_DURATION * 2, now + FRAME_DURATION * 2)
+            .expect("target switch regression setup or operation must succeed");
+        assert!(
+            mixer.target_pcm().iter().any(|value| value.abs() > 0.01),
+            "fresh speech remains usable after a target switch"
+        );
+    }
+
     #[test]
     fn program_audio_never_loops_back_into_target_microphone() {
         let now = Instant::now();

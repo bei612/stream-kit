@@ -1,7 +1,7 @@
 //! A transport belongs to a rendering session, never to an individual browser.
 use super::{
     AppError,
-    media::{ControlGrant, MediaSessionKey, MediaSessionRegistry},
+    media::{ControlGrant, MediaSessionKey, MediaSessionRegistry, MicrophoneGrant},
 };
 use moonlight_common::stream::{
     HostFeatures,
@@ -26,7 +26,7 @@ mod target;
 
 enum Command {
     Packet(ControlGrant, ControlPacket),
-    Microphone(ControlGrant, Instant, Duration, Vec<u8>),
+    Microphone(MicrophoneGrant, Instant, Duration, Vec<u8>),
 }
 
 struct Shared {
@@ -310,7 +310,7 @@ impl UpstreamPool {
             tracing::error!(%error, "cannot initialize session mixer");
             AppError::StreamClosed
         })?;
-        let mut microphone_peer: Option<ControlGrant> = None;
+        let mut microphone_peer: Option<MicrophoneGrant> = None;
         let mut input = super::input::InputRuntime::default();
         let (commands, mut receiver) = mpsc::channel(256);
         let (recovery, mut recoveries) = recovery::channel();
@@ -362,11 +362,12 @@ impl UpstreamPool {
                                 resources.stream.send_raw(packet).map_err(|e| e.to_string())?;
                             }
                             mixer.configure(policy).map_err(|e| e.to_string())?;
-                            if microphone_peer != controller {
+                            let microphone = controller.map(|controller| MicrophoneGrant { controller, target_epoch: policy.target.epoch });
+                            if microphone_peer != microphone {
                                 mixer.clear_microphone().map_err(|e| e.to_string())?;
                                 resources.stream.clear_pending_microphone();
                                 if let Some(target) = &resources.target { target.clear(); }
-                                microphone_peer = controller;
+                                microphone_peer = microphone;
                             }
                             if !policy.microphone_enabled && let Some(target) = &resources.target {
                                 target.clear();
@@ -407,7 +408,7 @@ impl UpstreamPool {
                             if matches!(result, Some(Err(_))) { break; }
                         }
                         Some(Command::Microphone(grant, arrived, timestamp, bytes)) => {
-                            authority.with_microphone(&key, &grant.peer_id, |policy, current| {
+                            authority.with_microphone(&key, &grant.controller.peer_id, |policy, current| {
                                 // Age is measured at ingress, never at queue consumption.
                                 if current != grant || arrived.elapsed() >= Duration::from_millis(60) { return; }
                                 if let Err(error) = mixer.configure(policy) {

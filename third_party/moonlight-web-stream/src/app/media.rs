@@ -116,6 +116,14 @@ pub struct ControlGrant {
     attachment: u64,
 }
 
+/// Microphone data also belongs to the target selected at ingress. Changing a
+/// target must not redirect already queued speech or revoke keyboard ownership.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MicrophoneGrant {
+    pub controller: ControlGrant,
+    pub target_epoch: u64,
+}
+
 #[derive(Clone, Debug)]
 pub struct MediaSessionRegistry {
     pub control: Arc<RwLock<super::control_state::ControlState>>,
@@ -217,12 +225,20 @@ impl MediaSessionRegistry {
         &self,
         key: &MediaSessionKey,
         peer_id: &str,
-        action: impl FnOnce(&super::control_state::AudioPolicy, ControlGrant) -> T,
+        action: impl FnOnce(&super::control_state::AudioPolicy, MicrophoneGrant) -> T,
     ) -> Option<T> {
         self.with_runtime(key, |policy, grant| {
             grant
                 .filter(|g| g.peer_id == peer_id && policy.microphone_enabled)
-                .map(|grant| action(policy, grant))
+                .map(|controller| {
+                    action(
+                        policy,
+                        MicrophoneGrant {
+                            controller,
+                            target_epoch: policy.target.epoch,
+                        },
+                    )
+                })
         })
         .await
         .flatten()
@@ -484,6 +500,67 @@ mod tests {
                 .await
                 .is_none()
         );
+    }
+
+    #[tokio::test]
+    async fn microphone_target_change_invalidates_queued_grant_without_revoking_input() {
+        use super::super::control_state::{StateEnvelope, now_ms};
+        let registry = MediaSessionRegistry::new();
+        let now = now_ms();
+        registry.control.write().await.required = true;
+        registry
+            .attach(key(), "client-a".into())
+            .await
+            .expect("target switch regression setup or operation must succeed");
+        let mut prior_microphone = None;
+        let mut prior_input = None;
+        for (step, epoch) in [3, 8, 9].into_iter().enumerate() {
+            let mut state: StateEnvelope = serde_json::from_str(include_str!(
+                "../../../../contracts/media-state/v3.fixture.json"
+            ))
+            .expect("target switch regression setup or operation must succeed");
+            state.issued_at_ms = now + step as i64;
+            state.expires_at_ms = now + 10000;
+            let session = &mut state.sessions[0];
+            session.host_id = 1;
+            session.app_id = 2;
+            session.revision = 7 + step as u64;
+            session.audio.target.epoch = epoch;
+            session.audio.target.render_device_id = format!("render-{epoch}");
+            session.audio.target.capture_device_id = format!("capture-{epoch}");
+            for connection in &mut session.connections {
+                connection.expires_at_ms = now + 10000;
+            }
+            registry
+                .control
+                .write()
+                .await
+                .apply(state, now + step as i64)
+                .expect("target switch regression setup or operation must succeed");
+            let current = registry
+                .with_microphone(&key(), "client-a", |_, grant| grant)
+                .await
+                .expect("target switch regression setup or operation must succeed");
+            let input = registry
+                .with_controller(&key(), "client-a", |grant| grant)
+                .await
+                .expect("target switch regression setup or operation must succeed");
+            assert_eq!(current.target_epoch, epoch);
+            if let Some(prior) = prior_microphone {
+                assert_ne!(
+                    current, prior,
+                    "old queued speech cannot enter the new target"
+                );
+            }
+            if let Some(prior) = prior_input {
+                assert_eq!(
+                    input, prior,
+                    "audio routing does not revoke keyboard ownership"
+                );
+            }
+            prior_microphone = Some(current);
+            prior_input = Some(input);
+        }
     }
 
     #[tokio::test]
