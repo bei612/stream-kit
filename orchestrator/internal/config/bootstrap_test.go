@@ -121,8 +121,22 @@ func TestBootstrapTemplateValidationAndPreservation(t *testing.T) {
 				t.Fatal(err)
 			}
 			actual, _ := os.ReadFile(path)
-			if !bytes.Equal(actual, template) {
-				t.Fatal("explicit template was changed")
+			got, err := decodeSettings(actual)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want, err := decodeSettings(template)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(got.Server.Password) < 20 || len(got.Server.JWTSecret) < 32 {
+				t.Fatal("template inherited shared or empty credentials")
+			}
+			got.Server.Password, got.Server.JWTSecret = want.Server.Password, want.Server.JWTSecret
+			gotJSON, _ := json.Marshal(got)
+			wantJSON, _ := json.Marshal(want)
+			if !bytes.Equal(gotJSON, wantJSON) {
+				t.Fatal("template settings changed")
 			}
 		}
 	}

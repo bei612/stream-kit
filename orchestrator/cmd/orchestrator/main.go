@@ -39,6 +39,17 @@ var (
 func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
+		case "init-config":
+			path, err := configArgument(os.Args[2:])
+			if err != nil {
+				argumentError(err)
+			}
+			if err := config.Initialize(path); err != nil {
+				fmt.Fprintln(os.Stderr, "configuration initialization failed:", err)
+				os.Exit(1)
+			}
+			fmt.Println("Configuration created; retrieve administrator credentials from the protected configuration file. No services started.")
+			return
 		case "check-config":
 			path, err := configArgument(os.Args[2:])
 			if err != nil {

@@ -273,6 +273,12 @@ func validServiceURL(raw string) bool {
 	return err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Hostname() != "" && u.User == nil && u.RawQuery == "" && u.Fragment == ""
 }
 
+// Initialize creates a first-run file without starting any service. Existing
+// deployments are never overwritten; templates supply settings, not shared keys.
+func Initialize(path string) error {
+	return generateDefaultConfig(path)
+}
+
 func generateDefaultConfig(path string) error {
 	examplePath := filepath.Join(filepath.Dir(path), "config.example.json")
 	var data []byte
@@ -303,8 +309,21 @@ func generateDefaultConfig(path string) error {
 	if err != nil {
 		return fmt.Errorf("invalid example configuration: %w", err)
 	}
+	if cfg.Server.Password == "" || cfg.Server.Password == "admin" {
+		cfg.Server.Password = rand.Text()
+	}
+	if cfg.Server.JWTSecret == "" {
+		cfg.Server.JWTSecret = rand.Text() + rand.Text()
+	}
 	if _, err := deploymentConfig(cfg); err != nil {
 		return fmt.Errorf("invalid example configuration: %w", err)
+	}
+	data, err = json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+	if len(data) > maxConfigBytes {
+		return fmt.Errorf("generated configuration exceeds size limit")
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err

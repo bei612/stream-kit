@@ -1,22 +1,21 @@
 {
   "server": {
-    "bind_address": "0.0.0.0:9000",
+    "bind_address": "127.0.0.1:9000",
     "username": "admin",
-    "password": "admin",
+    "password": "",
     "jwt_secret": "",
     "media_ticket_secret": "",
     "cors_origins": [],
     "tls_cert": "",
     "tls_key": ""
   },
-
   "components": {
     "sunshine": {
-      "exe_path": "C:\\Program Files\\Sunshine\\sunshine.exe",
+      "exe_path": "",
       "args": "",
-      "working_dir": "C:\\Program Files\\Sunshine\\",
+      "working_dir": "",
       "env": {},
-      "auto_start": true,
+      "auto_start": false,
       "restart_on_crash": true,
       "restart_delay_seconds": 5,
       "max_restart_attempts": 3,
@@ -32,12 +31,12 @@
       }
     },
     "web_server": {
-      "exe_path": "C:\\Program Files\\Moonlight\\moonlight-web-x86_64-pc-windows-gnu\\web-server.exe",
+      "exe_path": "",
       "args": "",
-      "preflight_args": "config check",
-      "working_dir": "C:\\Program Files\\Moonlight\\moonlight-web-x86_64-pc-windows-gnu\\",
+      "preflight_args": "",
+      "working_dir": "",
       "env": {},
-      "auto_start": true,
+      "auto_start": false,
       "restart_on_crash": true,
       "restart_delay_seconds": 3,
       "max_restart_attempts": 3,
@@ -52,7 +51,6 @@
       }
     }
   },
-
   "sunshine_api": {
     "base_url": "https://localhost:47990",
     "server_info_url": "http://localhost:47989/serverinfo",
@@ -60,13 +58,11 @@
     "password": "",
     "verify_ssl": false
   },
-
   "moonlight_web": {
     "base_url": "http://localhost:8080",
     "username": "admin",
-    "password": "admin"
+    "password": ""
   },
-
   "storage": {
     "apps_dir": "./apps",
     "temp_dir": "./temp",
@@ -75,17 +71,19 @@
     "max_extract_size_bytes": 53687091200,
     "max_file_count": 100000
   },
-
   "process": {
     "monitor_interval_seconds": 5,
     "graceful_shutdown_timeout_seconds": 5
   },
-
   "notifications": {
     "webhook_url": "",
-    "events": ["component_error", "component_crashed", "app_crashed", "disk_low"]
+    "events": [
+      "component_error",
+      "component_crashed",
+      "app_crashed",
+      "disk_low"
+    ]
   },
-
   "log": {
     "level": "info",
     "file": {
@@ -98,14 +96,16 @@
     },
     "access_log": {
       "enabled": true,
-      "exclude_paths": ["/api/v1/health", "/api/v1/ws"]
+      "exclude_paths": [
+        "/api/v1/health",
+        "/api/v1/ws"
+      ]
     },
     "operation_log": {
       "max_age_days": 30,
       "max_count": 100000
     }
   },
-
   "templates": {
     "fullscreen_1080p": "-game -fullscreen -ResX=1920 -ResY=1080 -ForceRes",
     "fullscreen_2k": "-game -fullscreen -ResX=2560 -ResY=1440 -ForceRes",

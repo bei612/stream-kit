@@ -12,10 +12,14 @@ not verify publisher identity or replace a signed distribution channel.
 
 ## Prepare configuration
 
-Run the packaged executable with `--config` and an absolute path outside the
-bundle. If that file is absent, first run generates configuration and exits for
-review. It creates a random administrator password and leaves media components
-unconfigured. Protect the generated file with permissions limited to the service
+Run `orchestrator init-config --config PATH` with an absolute path outside the
+bundle. This initializes configuration without starting listeners or components
+and refuses to overwrite an existing file. Normal startup with an absent file
+also generates configuration and exits for review. Empty or default `admin`
+passwords and empty JWT keys in an adjacent `config.example.json` are replaced
+with random values; explicitly configured non-default credentials are preserved.
+The repository sample leaves media executable paths unset until the matching
+bundles are selected. Protect the generated file with permissions limited to the service
 identity and administrators. Review paths, credentials, bind address, TLS and
 media settings before starting the service; do not copy secrets into logs.
 
