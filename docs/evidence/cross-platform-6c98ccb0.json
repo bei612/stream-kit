@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "source_commit": "6c98ccb0d6aaae2e42c6256245ee51ff9d063e3a",
+  "workflow_run": 41220044437,
+  "url": "https://github.com/bei612/stream-kit/actions/runs/41220044437",
+  "status": "completed",
+  "conclusion": "failure",
+  "jobs": [
+    {
+      "name": "Orchestrator (windows-latest)",
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/41220044437/job/124592525932",
+      "failed_steps": [],
+      "gateway_release_build": null
+    },
+    {
+      "name": "Management Web",
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/41220044437/job/124592526069",
+      "failed_steps": [],
+      "gateway_release_build": null
+    },
+    {
+      "name": "Moonlight Web (windows-latest)",
+      "conclusion": "failure",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/41220044437/job/124592526111",
+      "failed_steps": [
+        "Require native Windows playback endpoint"
+      ],
+      "gateway_release_build": "success"
+    },
+    {
+      "name": "Orchestrator (ubuntu-latest)",
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/41220044437/job/124592526135",
+      "failed_steps": [],
+      "gateway_release_build": null
+    },
+    {
+      "name": "Moonlight Web (ubuntu-latest)",
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/41220044437/job/124592526144",
+      "failed_steps": [],
+      "gateway_release_build": "success"
+    },
+    {
+      "name": "Source SBOM",
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/41220044437/job/124592526198",
+      "failed_steps": [],
+      "gateway_release_build": null
+    }
+  ],
+  "windows_playback_environment": {
+    "input_count": 0,
+    "output_count": 0,
+    "prerequisite_met": false,
+    "clean_exit": true,
+    "error": "Windows browser playback requires an enabled native output endpoint. This runner has none; audio acceptance did not run. Provision an audio-capable runner before retrying.",
+    "receipt_sha256": "b401778ea3828c93fcbb49b3e63b92ab9feee173cd62cf198e58cb5580b3e3e6"
+  },
+  "scope": "Current revision CI results, including the unchanged explicit Windows playback prerequisite failure; not a complete Windows audio acceptance pass. No workflow rerun, fake backend or relaxed assertion."
+}
