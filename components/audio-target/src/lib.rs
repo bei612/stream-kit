@@ -3,6 +3,7 @@
 pub mod analysis;
 mod pcm;
 pub mod verification;
+pub mod wire;
 
 use cpal::{
     DeviceId, SampleFormat,

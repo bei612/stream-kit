@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 pub const FRAME_SAMPLES: usize = 960 * 2;
 const MAX_FRAMES: usize = 3;
-const MAX_AGE: Duration = Duration::from_millis(60);
+pub(crate) const MAX_AGE: Duration = Duration::from_millis(60);
 
 struct Frame {
     queued: Instant,
