@@ -640,7 +640,49 @@ func readStreamsInfo(r util.Reader) (*streamsInfo, error) {
 		return nil, errUnexpectedID
 	}
 
+	if err := s.validateLayout(); err != nil {
+		return nil, err
+	}
 	return s, nil
+}
+
+// validateLayout checks relationships between separately parsed stream tables
+// before any decoder indexes them or converts their sizes to signed offsets.
+func (s *streamsInfo) validateLayout() error {
+	invalid := errors.New("sevenzip: invalid packed stream layout")
+	if s.packInfo == nil && s.unpackInfo == nil {
+		return nil
+	}
+	if s.packInfo == nil || s.unpackInfo == nil {
+		return invalid
+	}
+	p := s.packInfo
+	if p.streams != uint64(len(p.size)) || p.position > math.MaxInt64 {
+		return invalid
+	}
+	end := p.position
+	for _, size := range p.size {
+		if size > math.MaxInt64-end {
+			return invalid
+		}
+		end += size
+	}
+	remaining := p.streams
+	for _, f := range s.unpackInfo.folder {
+		if f == nil || f.packedStreams != uint64(len(f.packed)) || f.packedStreams > remaining || f.out != uint64(len(f.size)) {
+			return invalid
+		}
+		remaining -= f.packedStreams
+		for _, size := range f.size {
+			if size > math.MaxInt64 {
+				return invalid
+			}
+		}
+	}
+	if remaining != 0 {
+		return invalid
+	}
+	return nil
 }
 
 func readTimes(r util.Reader, count uint64) ([]time.Time, error) {
