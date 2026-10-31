@@ -11,6 +11,7 @@ import { Alert } from '@/components/ui/alert'
 import { ConfigurationEditor } from '@/components/ConfigurationEditor'
 import { GatewayConfigurationEditor } from '@/components/GatewayConfigurationEditor'
 import { EncoderConfigurationEditor } from '@/components/EncoderConfigurationEditor'
+import { RenderNodes } from '@/components/RenderNodes'
 
 export default function Settings() {
   const [config, setConfig] = useState<any>(null)
@@ -48,6 +49,7 @@ export default function Settings() {
       </Card>
 
       <ConfigurationEditor />
+      <RenderNodes />
       <GatewayConfigurationEditor />
       <EncoderConfigurationEditor />
       <AudioDevices />

@@ -169,6 +169,7 @@ jobs:
             BROWSER_ENGINE="$engine" node scripts/test-admin-session-audio.cjs
             BROWSER_ENGINE="$engine" node scripts/test-admin-encoder-configuration.cjs
             BROWSER_ENGINE="$engine" node scripts/test-admin-worker-configuration.cjs
+            BROWSER_ENGINE="$engine" node scripts/test-admin-render-nodes.cjs
           done
       - uses: actions/upload-artifact@v4
         if: always()
@@ -177,6 +178,7 @@ jobs:
           path: |
             artifacts/session-audio/
             artifacts/encoder-configuration/
+            artifacts/admin-render-nodes/
           if-no-files-found: warn
 
   moonlight-web:

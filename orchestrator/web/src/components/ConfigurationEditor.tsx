@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
 
 const labels:Record<string,string> = {
+  render_nodes:'渲染节点连接',control_secret:'节点独立签名密钥',name:'显示名称',
   sunshine:'渲染服务',web_server:'媒体网关',
 	windows_session_id:'Windows 用户会话 ID',windows_user_sid:'Windows 用户 SID',
   server:'管理服务与登录',components:'服务组件',sunshine_api:'串流编码器连接',moonlight_web:'媒体网关连接',storage:'应用与存储',process:'进程管理',notifications:'通知',log:'日志',templates:'启动参数模板',
@@ -27,14 +28,15 @@ export function ConfigurationEditor() {
   const [notice,setNotice]=useState('')
   const [mapKeys,setMapKeys]=useState<Record<string,string>>({})
   const [added,setAdded]=useState<Record<string,string[]>>({})
+  const [removed,setRemoved]=useState<string[]>([])
   async function load() {
     setBusy(true); setError(''); setNotice('')
-    try { const response=await api.getConfiguration(); if(!response.data) throw new Error('未返回配置'); setView(response.data); setDrafts({}); setAdded({}); setMapKeys({}) }
+    try { const response=await api.getConfiguration(); if(!response.data) throw new Error('未返回配置'); setView(response.data); setDrafts({}); setAdded({}); setRemoved([]); setMapKeys({}) }
     catch(e:unknown) { setError(e instanceof Error?e.message:'无法读取配置') }
     finally { setBusy(false) }
   }
   useEffect(()=>{void load()},[])
-  const changed=Object.keys(drafts).length
+  const changed=Object.keys(drafts).length+removed.length
   const edit=(path:string,value:string)=>{setDrafts(d=>({...d,[path]:value}));setNotice('')}
   const original=(path:string):ConfigValue=>{
     let value:ConfigValue=view?.values||{}
@@ -49,7 +51,10 @@ export function ConfigurationEditor() {
     setError('');setNotice('');setBusy(true)
     try {
       const changes:Record<string,ConfigValue>={}
+      const newNodes=added['/render_nodes']||[]
       for(const [path,text] of Object.entries(drafts)) {
+        if(removed.some(prefix=>path.startsWith(prefix+'/')))continue
+        if(newNodes.some(id=>path.startsWith(`/render_nodes/${pointer(id)}/`)))continue
         const old=original(path), key=path.split('/').at(-1)!
         if(typeof old==='boolean' || key==='verify_ssl') changes[path]=text==='default'?null:text==='true'
         else if(typeof old==='number') {
@@ -59,22 +64,30 @@ export function ConfigurationEditor() {
         } else if(Array.isArray(old)||lists.has(key)) changes[path]=text.split('\n').map(s=>s.trim()).filter(Boolean)
         else changes[path]=text
       }
+      for(const id of newNodes){
+        const prefix=`/render_nodes/${pointer(id)}`
+        changes[prefix]={name:drafts[prefix+'/name']??id,base_url:drafts[prefix+'/base_url']??'',control_secret:drafts[prefix+'/control_secret']??''}
+      }
+      for(const prefix of removed)changes[prefix]=null
       const response=await api.saveConfiguration(view.revision,changes)
       if(!response.data) throw new Error('未返回保存结果')
-      setView(response.data);setDrafts({});setAdded({});setNotice('配置已保存。服务重启后生效，当前串流继续使用原配置。')
+      setView(response.data);setDrafts({});setAdded({});setRemoved([]);setNotice('配置已保存。服务重启后生效，当前串流继续使用原配置。')
     } catch(e:unknown) { setError(e instanceof Error?e.message:'保存失败') }
     finally { setBusy(false) }
   }
   function fields(value:ConfigValue,path:string,key:string):React.ReactNode {
+	if(removed.includes(path))return <div key={path} className="rounded-lg border border-border p-3 text-sm">节点 {key} 将在保存并重启后移除。<Button type="button" variant="outline" onClick={()=>setRemoved(items=>items.filter(item=>item!==path))}>撤销移除</Button></div>
 	if(['windows_session_id','windows_user_sid'].includes(key)&&!['sunshine','web_server'].some(component=>path.startsWith(`/components/${component}/`)))return null
-    const dictionary=key==='env'||key==='templates'
+    const dictionary=key==='env'||key==='templates'||path==='/render_nodes'
     if(value && typeof value==='object' && !Array.isArray(value) || dictionary) {
       const entries=value && typeof value==='object' && !Array.isArray(value)?value:{}
       const extra=(added[path]||[]).filter(k=>!(k in entries))
       return <div key={path} className={path.split('/').length>2?'space-y-4 rounded-lg border border-border p-3':'space-y-4'}>
         {path.split('/').length>2&&<h3 className="font-medium text-sm">{labels[key]||key}</h3>}
+        {path.startsWith('/render_nodes/')&&path.split('/').length===3&&original(path)!==null&&<Button type="button" variant="outline" aria-label={`移除节点 ${key}`} onClick={()=>setRemoved(items=>[...items,path])}>移除节点</Button>}
         {Object.entries(entries).map(([k,v])=>fields(v,path+'/'+pointer(k),k))}
-        {extra.map(k=>fields('',path+'/'+pointer(k),k))}
+        {path==='/render_nodes'&&<p className="text-xs text-muted-foreground">每个节点使用独立密钥。远端连接要求 HTTPS；保存后重启管理服务生效。节点设备目录不代表跨节点音频路由已建立。</p>}
+        {extra.map(k=>fields(path==='/render_nodes'?{name:k,base_url:'',control_secret:''}:'',path+'/'+pointer(k),k))}
         {dictionary && <div className="flex flex-wrap gap-2">
           <Input className="flex-1 min-w-0" aria-label={`${labels[key]}新名称`} placeholder="新增名称" value={mapKeys[path]||''} onChange={e=>setMapKeys(k=>({...k,[path]:e.target.value}))}/>
           <Button type="button" variant="outline" onClick={()=>{const name=(mapKeys[path]||'').trim();if(!name||name in entries||extra.includes(name))return;setAdded(a=>({...a,[path]:[...(a[path]||[]),name]}));setMapKeys(k=>({...k,[path]:''}))}}>添加条目</Button>
@@ -82,7 +95,7 @@ export function ConfigurationEditor() {
       </div>
     }
     const hidden=view?.redacted_paths.includes(path), id='setting'+path
-    const sensitive=hidden||['password','jwt_secret','media_ticket_secret','webhook_url','args','preflight_args'].includes(key)||path.includes('/env/')||path.startsWith('/templates/')
+    const sensitive=hidden||['password','jwt_secret','media_ticket_secret','control_secret','webhook_url','args','preflight_args'].includes(key)||path.includes('/env/')||path.startsWith('/templates/')
     const text=drafts[path]??(hidden?'':Array.isArray(value)?value.join('\n'):value===null?'':String(value))
     const title=labels[key]||key
     return <div key={path} className="space-y-1">

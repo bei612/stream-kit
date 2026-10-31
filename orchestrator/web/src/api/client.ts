@@ -120,6 +120,8 @@ export const api = {
   getStreamSession: (id: string) => request<RenderSession>(`/stream-sessions/${id}`),
   getMediaControl: () => request<MediaControlStatus>('/media-control'),
   getAudioDevices: () => request<AudioInventory>('/audio-devices'),
+  getRenderNodes: () => request<{apply_policy:string,nodes:{id:string,name:string,base_url:string}[]}>('/render-nodes'),
+  getNodeAudioDevices: (id:string) => request<{node_id:string,inventory:AudioInventory}>(`/render-nodes/${encodeURIComponent(id)}/audio-devices`),
   checkAudioPair: (render_device_id: string, capture_device_id: string) => request<AudioPairCheckResult>('/audio-devices/check-pair', { method: 'POST', body: JSON.stringify({render_device_id, capture_device_id}) }),
   updateAudioTarget: (id: string, expectedEpoch: number, target: Omit<AudioTarget, 'epoch'>) =>
     request<RenderSession>(`/stream-sessions/${id}/audio-target`, { method:'PATCH', body:JSON.stringify({expected_epoch:expectedEpoch,target}) }),

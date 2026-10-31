@@ -89,6 +89,7 @@ func (s *Server) setupRoutes() {
 	authed.GET("/config", h.GetConfig)
 	authed.GET("/configuration", h.Configuration)
 	authed.PATCH("/configuration", h.Configuration)
+	s.registerRenderNodes(authed)
 	authed.GET("/templates", h.GetTemplates)
 	authed.GET("/logs", h.GetLogs)
 	authed.GET("/metrics", h.Metrics)

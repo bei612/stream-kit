@@ -164,7 +164,11 @@ func (s *Settings) Save(expected string, changes map[string]json.RawMessage) (*S
 			}
 			segments[j] = strings.ReplaceAll(strings.ReplaceAll(part, "~1", "/"), "~0", "~")
 		}
-		base, err = replaceField(base, segments, changes[p])
+		if len(segments) == 2 && segments[0] == "render_nodes" && bytes.Equal(bytes.TrimSpace(changes[p]), []byte("null")) {
+			base, err = removeRenderNode(base, segments[1])
+		} else {
+			base, err = replaceField(base, segments, changes[p])
+		}
 		if err != nil {
 			return nil, err
 		}

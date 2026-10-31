@@ -17,15 +17,16 @@ import (
 type Config struct {
 	sourcePath     string
 	sourceRevision string
-	Server         ServerConfig               `json:"server" mapstructure:"server"`
-	Components     map[string]ComponentConfig `json:"components" mapstructure:"components"`
-	SunshineAPI    SunshineAPIConfig          `json:"sunshine_api" mapstructure:"sunshine_api"`
-	MoonlightWeb   MoonlightWebConfig         `json:"moonlight_web" mapstructure:"moonlight_web"`
-	Storage        StorageConfig              `json:"storage" mapstructure:"storage"`
-	Process        ProcessConfig              `json:"process" mapstructure:"process"`
-	Notifications  NotificationsConfig        `json:"notifications" mapstructure:"notifications"`
-	Log            LogConfig                  `json:"log" mapstructure:"log"`
-	Templates      map[string]string          `json:"templates" mapstructure:"templates"`
+	Server         ServerConfig                `json:"server" mapstructure:"server"`
+	Components     map[string]ComponentConfig  `json:"components" mapstructure:"components"`
+	SunshineAPI    SunshineAPIConfig           `json:"sunshine_api" mapstructure:"sunshine_api"`
+	MoonlightWeb   MoonlightWebConfig          `json:"moonlight_web" mapstructure:"moonlight_web"`
+	RenderNodes    map[string]RenderNodeConfig `json:"render_nodes" mapstructure:"render_nodes"`
+	Storage        StorageConfig               `json:"storage" mapstructure:"storage"`
+	Process        ProcessConfig               `json:"process" mapstructure:"process"`
+	Notifications  NotificationsConfig         `json:"notifications" mapstructure:"notifications"`
+	Log            LogConfig                   `json:"log" mapstructure:"log"`
+	Templates      map[string]string           `json:"templates" mapstructure:"templates"`
 }
 
 type ServerConfig struct {
@@ -263,6 +264,7 @@ func validate(cfg *Config) []string {
 		check(!validServiceURL(cfg.MoonlightWeb.PublicURL), "moonlight_web.public_url 必须是无凭据的 HTTP(S) 地址")
 	}
 
+	errs = append(errs, validateRenderNodes(cfg)...)
 	return errs
 }
 
@@ -362,6 +364,16 @@ func (c *Config) Sanitized() map[string]interface{} {
 	}
 	if moon, ok := m["moonlight_web"].(map[string]interface{}); ok {
 		mask(moon, "password")
+	}
+	if nodes, ok := m["render_nodes"].(map[string]interface{}); ok {
+		for _, raw := range nodes {
+			if node, ok := raw.(map[string]interface{}); ok {
+				mask(node, "control_secret")
+				if address, ok := node["base_url"].(string); ok {
+					node["base_url"] = sanitizedURL(address)
+				}
+			}
+		}
 	}
 	for _, section := range []string{"sunshine_api", "moonlight_web"} {
 		if service, ok := m[section].(map[string]interface{}); ok {
