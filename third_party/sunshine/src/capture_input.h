@@ -24,4 +24,11 @@ namespace capture {
    * @return Window origin, or no value when ownership or visibility cannot be verified.
    */
   std::optional<std::pair<int, int>> input_origin(const target_ptr &target, const input_viewport_t *viewport = nullptr);
+
+  /**
+   * @brief Check that the retained capture window currently owns keyboard focus.
+   * @param target Application identity; missing or unsupported targets are rejected.
+   * @return True only for a live, visible renderer matching the foreground window.
+   */
+  bool input_focused(const target_ptr &target);
 }  // namespace capture

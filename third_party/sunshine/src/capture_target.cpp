@@ -12,6 +12,17 @@
   #include <windows.h>
 
 namespace capture {
+  bool input_focused(const target_ptr &target) {
+    if (!input_origin(target)) {
+      return false;
+    }
+    const auto renderer = target->renderer();
+    const auto foreground = GetForegroundWindow();
+    return renderer && foreground && renderer->alive() && target->alive() &&
+           target->contains(renderer->process_id()) &&
+           reinterpret_cast<HWND>(renderer->window_handle()) == GetAncestor(foreground, GA_ROOT);
+  }
+
   std::optional<std::pair<int, int>> input_origin(const target_ptr &target, const input_viewport_t *viewport) {
     if (!target || !target->alive()) {
       return std::nullopt;
@@ -268,6 +279,10 @@ namespace capture {
 }  // namespace capture
 #else
 namespace capture {
+  bool input_focused(const target_ptr &) {
+    return false;
+  }
+
   std::optional<std::pair<int, int>> input_origin(const target_ptr &, const input_viewport_t *) {
     return std::nullopt;
   }

@@ -38,6 +38,22 @@
 #include "src/platform/virtualhid_input.h"
 
 namespace {
+  /** @brief A live application with no eligible foreground renderer. */
+  class unfocused_target_t final: public capture::target_t {
+  public:
+    std::uint32_t process_id() const override {
+      return 1;
+    }
+    bool alive() const override {
+      return !retired();
+    }
+    bool contains(std::uint32_t) const override {
+      return false;
+    }
+    capture::renderer_ptr renderer() const override {
+      return {};
+    }
+  };
   using namespace std::chrono_literals;
 
   // Windows virtual-key codes as they arrive from the client.
@@ -427,12 +443,55 @@ namespace {
       return *context_->keyboard;
     }
 
-  private:
+  protected:
     std::shared_ptr<input::input_t> stream_;  ///< Stream input state under test.
+  private:
     std::vector<input::testing::keyboard_event_t> events_;  ///< Keyboard output recorded for the current test.
     platf::virtualhid::input_context_t *context_ = nullptr;  ///< Fake input context installed in the global backend.
     config::input_t original_input_;  ///< Input configuration restored after each test.
   };
+
+  TEST_F(KeyboardPassthroughTest, ApplicationWithoutFocusReleasesHeldKeysAndRejectsNewPresses) {
+    press(VKEY_LSHIFT, MODIFIER_SHIFT);
+    press(VKEY_A, MODIFIER_SHIFT);
+    taken_events();
+    auto target = std::make_shared<unfocused_target_t>();
+    input::testing::set_capture_target(stream_, target);
+    const auto text_count = fake_keyboard().submit_count();
+    input::testing::send_text_packet(stream_, "blocked");
+    EXPECT_EQ(fake_keyboard().submit_count(), text_count);
+    press(VKEY_B);
+    const auto released = taken_events();
+    ASSERT_EQ(released.size(), 2U);
+    EXPECT_TRUE(std::all_of(released.begin(), released.end(), [](const auto &event) { return event.release; }));
+    press(VKEY_B);
+    release(VKEY_A);
+    EXPECT_TRUE(taken_events().empty());
+    target->retire();
+    press(VKEY_A);
+    EXPECT_TRUE(taken_events().empty());
+    input::testing::set_capture_target(stream_, {});
+    input::testing::send_text_packet(stream_, "allowed");
+    EXPECT_EQ(fake_keyboard().submit_count(), text_count + 1);
+    press(VKEY_B);
+    const auto desktop = taken_events();
+    ASSERT_EQ(desktop.size(), 1U);
+    EXPECT_EQ(desktop.front().key_code, VKEY_B);
+    EXPECT_FALSE(desktop.front().release);
+  }
+
+  TEST_F(KeyboardPassthroughTest, RepeatRechecksApplicationFocusAndWeakOwner) {
+    press(VKEY_A);
+    taken_events();
+    input::testing::set_capture_target(stream_, std::make_shared<unfocused_target_t>());
+    input::testing::repeat_keyboard(stream_, VKEY_A);
+    const auto released = taken_events();
+    ASSERT_EQ(released.size(), 1U);
+    EXPECT_TRUE(released.front().release);
+    input::testing::repeat_keyboard(stream_, VKEY_A);
+    input::testing::repeat_keyboard({}, VKEY_A);
+    EXPECT_TRUE(taken_events().empty());
+  }
 }  // namespace
 
 TEST_F(KeyboardPassthroughTest, ForwardsEveryUnmodifiedKeyUnchanged) {

@@ -1142,14 +1142,44 @@ namespace input {
     }
   }
 
+  /** @brief Release tracked keys without generating new presses. */
+  void reset_keyboard_keys();
+
   /**
-   * @brief Re-emit a held key until its repeat task is cancelled.
+   * @brief Admit keyboard input only while the captured application owns focus.
+   * @param input Stream context; desktop mode retains normal system input.
+   * @return Whether a new key or text event may be emitted.
+   */
+  bool keyboard_admitted(const std::shared_ptr<input_t> &input) {
+    if (!input) {
+      return false;
+    }
+    if (!input->target || capture::input_focused(input->target)) {
+      return true;
+    }
+    task_pool.cancel(key_press_repeat_id);
+    key_press_repeat_id = nullptr;
+    reset_keyboard_keys();
+    input->shortcutFlags = 0;
+    input->shift_keys = {};
+    input->control_keys = {};
+    input->alt_keys = {};
+    return false;
+  }
+
+  /**
+   * @brief Re-emit a held key until its repeat task is cancelled or focus is lost.
    *
+   * @param owner Weak stream owner; repetition cannot extend a disconnected stream.
    * @param key_code Moonlight keyboard packet key code.
    * @param flags Bit flags that modify the requested operation.
    * @param synthetic_modifiers Synthetic modifiers.
    */
-  void repeat_key(uint16_t key_code, uint8_t flags, uint8_t synthetic_modifiers) {
+  void repeat_key(std::weak_ptr<input_t> owner, uint16_t key_code, uint8_t flags, uint8_t synthetic_modifiers) {
+    if (!keyboard_admitted(owner.lock())) {
+      key_press_repeat_id = nullptr;
+      return;
+    }
     // If key no longer pressed, stop repeating
     if (!key_press[make_kpid(key_code, flags)]) {
       key_press_repeat_id = nullptr;
@@ -1158,7 +1188,7 @@ namespace input {
 
     send_key_and_modifiers(key_code, false, flags, synthetic_modifiers);
 
-    key_press_repeat_id = task_pool.pushDelayed(repeat_key, config::input.key_repeat_period, key_code, flags, synthetic_modifiers).task_id;
+    key_press_repeat_id = task_pool.pushDelayed(repeat_key, config::input.key_repeat_period, owner, key_code, flags, synthetic_modifiers).task_id;
   }
 
   /**
@@ -1168,7 +1198,7 @@ namespace input {
    * @param packet Protocol packet being processed.
    */
   void passthrough(std::shared_ptr<input_t> &input, PNV_KEYBOARD_PACKET packet) {
-    if (!config::input.keyboard) {
+    if (!config::input.keyboard || !keyboard_admitted(input)) {
       return;
     }
 
@@ -1212,7 +1242,7 @@ namespace input {
         }
 
         if (config::input.key_repeat_delay.count() > 0) {
-          key_press_repeat_id = task_pool.pushDelayed(repeat_key, config::input.key_repeat_delay, keyCode, packet->flags, synthetic_modifiers).task_id;
+          key_press_repeat_id = task_pool.pushDelayed(repeat_key, config::input.key_repeat_delay, std::weak_ptr<input_t>(input), keyCode, packet->flags, synthetic_modifiers).task_id;
         }
       } else {
         // Already released
@@ -1282,10 +1312,11 @@ namespace input {
   /**
    * @brief Forward a client input packet directly to the platform backend.
    *
+   * @param input Stream context carrying the capture target.
    * @param packet Protocol packet being processed.
    */
-  void passthrough(const NV_UNICODE_PACKET *packet) {
-    if (!config::input.keyboard) {
+  void passthrough(const std::shared_ptr<input_t> &input, const NV_UNICODE_PACKET *packet) {
+    if (!config::input.keyboard || !keyboard_admitted(input)) {
       return;
     }
 
@@ -2112,7 +2143,7 @@ namespace input {
         passthrough(input, (PNV_KEYBOARD_PACKET) payload);
         break;
       case UTF8_TEXT_EVENT_MAGIC:
-        passthrough(static_cast<const NV_UNICODE_PACKET *>(static_cast<const void *>(payload)));
+        passthrough(input, static_cast<const NV_UNICODE_PACKET *>(static_cast<const void *>(payload)));
         break;
       case MULTI_CONTROLLER_MAGIC_GEN5:
         passthrough(input, (PNV_MULTI_CONTROLLER_PACKET) payload);
@@ -2360,6 +2391,22 @@ namespace input {
 
 #ifdef SUNSHINE_TESTS
   namespace testing {
+    void set_capture_target(const std::shared_ptr<input_t> &input, capture::target_ptr target) {
+      input->target = std::move(target);
+    }
+
+    void repeat_keyboard(std::weak_ptr<input_t> input, std::uint16_t key_code) {
+      repeat_key(std::move(input), key_code, 0, 0);
+    }
+
+    void send_text_packet(const std::shared_ptr<input_t> &input, std::string_view text) {
+      std::vector<std::uint8_t> storage(sizeof(NV_UNICODE_PACKET) + text.size());
+      auto packet = reinterpret_cast<NV_UNICODE_PACKET *>(storage.data());
+      packet->header.size = util::endian::big(static_cast<std::uint32_t>(sizeof(packet->header.magic) + text.size()));
+      std::memcpy(packet->text, text.data(), text.size());
+      ::input::passthrough(input, static_cast<const NV_UNICODE_PACKET *>(packet));
+    }
+
     platf::client_input_t *client_context(const std::shared_ptr<input_t> &input) {
       return input->client_context.get();
     }

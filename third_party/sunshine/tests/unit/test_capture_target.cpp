@@ -111,9 +111,12 @@ namespace {
     EXPECT_EQ(target->renderer(), nullptr);
     EXPECT_FALSE(capture::input_origin(target));
     EXPECT_FALSE(capture::input_origin({}));
+    EXPECT_FALSE(capture::input_focused(target));
+    EXPECT_FALSE(capture::input_focused({}));
     target->retire();
     EXPECT_EQ(target->renderer(), nullptr);
     EXPECT_FALSE(capture::input_origin(target));
+    EXPECT_FALSE(capture::input_focused(target));
   }
 
   TEST_F(CaptureTargetTest, OwnershipTransferRetiresOnlyTheReplacedLaunch) {

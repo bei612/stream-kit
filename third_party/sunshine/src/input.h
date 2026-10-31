@@ -88,6 +88,15 @@ namespace input {
 
 #ifdef SUNSHINE_TESTS
   namespace testing {
+    /** @brief Change the capture identity without sending host input. @param input Stream context. @param target Test capture target. */
+    void set_capture_target(const std::shared_ptr<input_t> &input, capture::target_ptr target);
+
+    /** @brief Execute one key-repeat callback with the recorder installed. @param input Weak stream owner. @param key_code Held key. */
+    void repeat_keyboard(std::weak_ptr<input_t> input, std::uint16_t key_code);
+
+    /** @brief Deliver text through a test-installed fake platform backend. @param input Stream context. @param text UTF-8 payload. */
+    void send_text_packet(const std::shared_ptr<input_t> &input, std::string_view text);
+
     /** @brief Access retained client devices for fake-backend lifecycle tests. @param input Stream context. @return Client platform context. */
     platf::client_input_t *client_context(const std::shared_ptr<input_t> &input);
 
