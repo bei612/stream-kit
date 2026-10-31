@@ -1,5 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import vm from 'node:vm'
+import ts from '../orchestrator/web/node_modules/typescript/lib/typescript.js'
 import { MicrophoneCapture } from '../third_party/moonlight-web-stream/web/stream/audio/microphone_capture.ts'
 
 function track() {
@@ -9,6 +12,68 @@ function track() {
 function stream(audio, extra = []) {
   return { getAudioTracks: () => audio, getTracks: () => [...audio, ...extra] }
 }
+
+function pipeFixture(request) {
+  let capture, cleanups = 0, gestures = 0
+  const attached = [], notifications = []
+  const exports = {}
+  const source = readFileSync(new URL('../third_party/moonlight-web-stream/web/stream/audio/microphone_pipe.ts', import.meta.url), 'utf8')
+  vm.runInNewContext(ts.transpileModule(source, {compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText, {
+    exports,
+    require: () => ({
+      MicrophoneCapture: class extends MicrophoneCapture {
+        constructor() { super(request); capture = this }
+      },
+      addPipePassthrough() {},
+      showNotification(message) { notifications.push(message) },
+    }),
+  })
+  const pipe = new exports.MicrophonePipe({implementationName:'test',setTrack:t=>attached.push(t),cleanup(){cleanups++},onUserInteraction(){gestures++}})
+  return {pipe, attached, notifications, capture, counts:()=>({cleanups,gestures})}
+}
+
+test('microphone pipe never attaches a cached track after teardown or revoke/regrant', async () => {
+  for (const action of ['cleanup', 'revoke']) {
+    const audio = track(), f = pipeFixture(async()=>stream([audio]))
+    await f.capture.acquire()
+    const pending = f.pipe.resumeCapture()
+    if (action === 'cleanup') f.pipe.cleanup()
+    else { f.pipe.setAllowed(false); f.pipe.setAllowed(true) }
+    await pending
+    assert.deepEqual(f.attached, [])
+    assert.equal(audio.stops, 1)
+    f.pipe.cleanup()
+    f.pipe.onUserInteraction()
+    assert.deepEqual(f.counts(), {cleanups:1, gestures:0})
+  }
+})
+
+test('concurrent microphone gestures attach once and a new authority can attach a fresh track', async () => {
+  const tracks = [], f = pipeFixture(async()=>{ const audio=track();tracks.push(audio);return stream([audio]) })
+  await Promise.all([f.pipe.resumeCapture(),f.pipe.resumeCapture(),f.pipe.resumeCapture()])
+  assert.equal(tracks.length, 1)
+  assert.deepEqual(f.attached, [tracks[0]])
+  f.pipe.setAllowed(false);f.pipe.setAllowed(true)
+  await f.pipe.resumeCapture()
+  assert.equal(tracks.length, 2)
+  assert.deepEqual(f.attached, tracks)
+  f.pipe.cleanup()
+  assert.deepEqual(tracks.map(t=>t.stops), [1,1])
+})
+
+test('late microphone permission failure cannot notify for a disposed or superseded request', async () => {
+  for (const action of ['cleanup', 'revoke', 'active']) {
+    let reject
+    const f = pipeFixture(()=>new Promise((_, fail)=>{reject=fail}))
+    const pending=f.pipe.resumeCapture()
+    if(action==='cleanup')f.pipe.cleanup()
+    if(action==='revoke'){f.pipe.setAllowed(false);f.pipe.setAllowed(true)}
+    reject(new Error('permission denied'))
+    await pending
+    assert.equal(f.notifications.length, action==='active'?1:0)
+    f.pipe.cleanup()
+  }
+})
 
 test('mobile microphone requires secure audio capture, not screen sharing', () => {
   const browser = { isSecureContext: true, navigator: { mediaDevices: { getUserMedia() {} } } }

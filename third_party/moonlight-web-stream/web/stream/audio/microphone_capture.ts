@@ -23,6 +23,11 @@ export class MicrophoneCapture {
         return this.track?.readyState === "live" && this.track.enabled && !this.track.muted
     }
 
+    /** Recheck ownership after an await, before attaching a track to transport. */
+    owns(track: MediaStreamTrack): boolean {
+        return !this.disposed && this.allowed && this.track === track && track.readyState === "live"
+    }
+
     acquire(): Promise<MediaStreamTrack | null> {
         if (this.disposed || !this.allowed) return Promise.resolve(null)
         if (this.track?.readyState === "live") return Promise.resolve(this.track)

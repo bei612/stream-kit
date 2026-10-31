@@ -20,8 +20,8 @@ function MediaRuntime({ observation }: { observation?: MediaObservation }) {
     idle: '会话当前未运行，音频目标待启动',
     pending: '音频目标正在切换',
     disabled: '已关闭向目标程序发送麦克风',
-    device_open: '目标输入设备已打开',
-    device_failed: '目标输入设备故障',
+    device_open: '目标音频输出端已打开，程序录音待确认',
+    device_failed: '目标音频输出端故障',
     upstream_transport: '上游支持麦克风传输',
   }
   return <div role="status" className="runtime-strip">
