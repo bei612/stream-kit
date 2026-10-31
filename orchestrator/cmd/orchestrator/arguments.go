@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const commandUsage = "usage: orchestrator [--config PATH] | init-config [--config PATH] | print-config [--config PATH] | check-config [--config PATH] | version | verify-bundle DIRECTORY"
+const commandUsage = "usage: orchestrator [--config PATH] | init-config [--config PATH] | print-config [--config PATH] | check-config [--config PATH] | version | verify-bundle DIRECTORY | service install|start|stop|remove --config PATH"
 
 func argumentError(err error) {
 	fmt.Fprintln(os.Stderr, err)

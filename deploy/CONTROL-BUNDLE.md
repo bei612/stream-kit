@@ -36,16 +36,24 @@ Place the complete bundle at `C:\Program Files\StreamKit` and configuration at
 `C:\ProgramData\StreamKit\orchestrator.json`, or supply explicit paths:
 
 ```powershell
-.\orchestrator.exe verify-bundle 'C:\Program Files\StreamKit'
-.\install-windows-service.ps1 -InstallRoot 'C:\Program Files\StreamKit' -ConfigPath 'C:\ProgramData\StreamKit\orchestrator.json'
+.\orchestrator.exe service install --config 'C:\ProgramData\StreamKit\orchestrator.json'
+.\orchestrator.exe service start --config 'C:\ProgramData\StreamKit\orchestrator.json'
 ```
 
-Service registration requires an elevated PowerShell. The installer checks
+Service registration requires an elevated terminal or installer. No PowerShell
+script execution-policy change is required. The native executable checks
 bundle integrity and configuration before registering/starting the service and
 refuses to replace an existing service that uses different paths. Preflight
 runs as the invoking account; the service runs as LocalSystem and does not
 inherit that shell's environment. Store the intended deployment configuration
 in the protected file and verify service startup under its actual identity.
+
+`service stop --config PATH` performs a graceful stop with a bounded wait;
+`service remove --config PATH` stops and unregisters this installation without
+deleting configuration or application data. All operations reject a service with
+a different executable/configuration command, account or service type. Install
+does not start the service; start returns success only after SCM reports Running.
+The PowerShell entry point remains a compatibility wrapper around these commands.
 
 Rendering and audio require the intended logged-in interactive user's session.
 Configure the media components' Windows session ID and user SID together in the

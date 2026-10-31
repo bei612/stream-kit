@@ -39,6 +39,12 @@ var (
 func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
+		case "service":
+			if err := serviceCommand(os.Args[2:]); err != nil {
+				fmt.Fprintln(os.Stderr, "service operation failed:", err)
+				os.Exit(1)
+			}
+			return
 		case "init-config":
 			path, err := configArgument(os.Args[2:])
 			if err != nil {
