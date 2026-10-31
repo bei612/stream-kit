@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+	"unicode"
 
 	"github.com/stream-kit/orchestrator/internal/config"
 
@@ -31,9 +32,9 @@ type ManagedProcess struct {
 
 // StartProcess launches a process with stdout/stderr capture.
 func StartProcess(exePath, args, workingDir string, env map[string]string, logBuf *RingBuffer, logger *zap.Logger) (*ManagedProcess, error) {
-	var cmdArgs []string
-	if args != "" {
-		cmdArgs = splitArgs(args)
+	cmdArgs, err := splitArgs(args)
+	if err != nil {
+		return nil, err
 	}
 	cmd := exec.Command(exePath, cmdArgs...)
 	cmd.Dir = workingDir
@@ -125,6 +126,13 @@ func preflight(parent context.Context, cfg config.ComponentConfig) error {
 	if parent.Err() != nil {
 		return fmt.Errorf("组件原生配置预检已取消")
 	}
+	if _, err := splitArgs(cfg.Args); err != nil {
+		return err
+	}
+	preflightArgs, err := splitArgs(cfg.PreflightArgs)
+	if err != nil {
+		return fmt.Errorf("组件预检参数无效: %w", err)
+	}
 	if cfg.PreflightArgs == "" {
 		return nil
 	}
@@ -133,7 +141,7 @@ func preflight(parent context.Context, cfg config.ComponentConfig) error {
 	}
 	ctx, cancel := context.WithTimeout(parent, 15*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, cfg.ExePath, splitArgs(cfg.PreflightArgs)...)
+	cmd := exec.CommandContext(ctx, cfg.ExePath, preflightArgs...)
 	cmd.Dir = cfg.WorkingDir
 	if len(cfg.Env) > 0 {
 		cmd.Env = append(os.Environ(), mapToEnvSlice(cfg.Env)...)
@@ -151,30 +159,42 @@ func preflight(parent context.Context, cfg config.ComponentConfig) error {
 	return nil
 }
 
-// splitArgs tokenizes a command-line string respecting double and single quotes.
-func splitArgs(s string) []string {
+// splitArgs parses the same shell-free argument grammar on every platform.
+// Quotes group text (including empty values); backslashes stay literal so
+// Windows paths survive unchanged. No environment or shell expansion occurs.
+func splitArgs(s string) ([]string, error) {
 	var args []string
 	var cur strings.Builder
 	inSingle, inDouble := false, false
+	started := false
 	for _, r := range s {
 		switch {
+		case r == 0:
+			return nil, fmt.Errorf("组件参数不能包含空字符")
 		case r == '\'' && !inDouble:
 			inSingle = !inSingle
+			started = true
 		case r == '"' && !inSingle:
 			inDouble = !inDouble
-		case r == ' ' && !inSingle && !inDouble:
-			if cur.Len() > 0 {
+			started = true
+		case unicode.IsSpace(r) && !inSingle && !inDouble:
+			if started {
 				args = append(args, cur.String())
 				cur.Reset()
+				started = false
 			}
 		default:
 			cur.WriteRune(r)
+			started = true
 		}
 	}
-	if cur.Len() > 0 {
+	if inSingle || inDouble {
+		return nil, fmt.Errorf("组件参数引号未闭合")
+	}
+	if started {
 		args = append(args, cur.String())
 	}
-	return args
+	return args, nil
 }
 
 func mapToEnvSlice(env map[string]string) []string {
