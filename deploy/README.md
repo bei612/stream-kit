@@ -92,8 +92,10 @@ native dependencies still require their own package inventories and review.
 
 CI retains structured Orchestrator test events per OS and annotates failing
 test/package names without copying test output into annotations. The workflow
-cancels superseded runs in the same ref's concurrency group; this does not
-retroactively put older workflow versions into that group. On 2026-10-31,
+preserves the active run and retains the newest pending revision in the same
+ref's concurrency group, so frequent pushes do not continuously cancel native
+builds and browser acceptance. This does not restore already cancelled runs.
+Earlier on 2026-10-31,
 the Actions API showed run `41147255650` (commit `7dfa293b`) queued without an
 assigned runner. The most recent completed run `41117602538` (commit `606a181e`)
 failed Windows Orchestrator tests while its other five jobs succeeded. The log

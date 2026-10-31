@@ -11,7 +11,9 @@ permissions:
 
 concurrency:
   group: cross-platform-build-${{ github.ref }}
-  cancel-in-progress: true
+  # Finish the active native build and media acceptance before taking the newest
+  # pending revision. Frequent development pushes must not starve validation.
+  cancel-in-progress: false
 
 jobs:
   orchestrator:
