@@ -9,6 +9,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -20,9 +21,25 @@ import (
 
 func TestNativePipeWorkerHelper(t *testing.T) {
 	var pipe, instance string
+	var parentPID, creation, session uint64
+	var sid string
 	for i, arg := range os.Args {
-		if arg == "--" && i+2 < len(os.Args) {
+		if arg == "--" && i+6 < len(os.Args) {
 			pipe, instance = os.Args[i+1], os.Args[i+2]
+			var err error
+			parentPID, err = strconv.ParseUint(os.Args[i+3], 10, 32)
+			if err != nil {
+				os.Exit(33)
+			}
+			creation, err = strconv.ParseUint(os.Args[i+4], 10, 64)
+			if err != nil {
+				os.Exit(33)
+			}
+			sid = os.Args[i+5]
+			session, err = strconv.ParseUint(os.Args[i+6], 10, 32)
+			if err != nil {
+				os.Exit(33)
+			}
 			break
 		}
 	}
@@ -31,11 +48,15 @@ func TestNativePipeWorkerHelper(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	connection, err := workeripc.Dial(ctx, pipe)
+	controller, err := workeripc.RetainPeerProcess(uint32(parentPID), creation)
+	if err != nil {
+		os.Exit(34)
+	}
+	defer windows.CloseHandle(controller)
+	connection, err := dialNativeController(ctx, pipe, controller, sid, uint32(session))
 	if err != nil {
 		os.Exit(31)
 	}
-	// Test-only client: production entry must also authenticate the server.
 	err = serveWorker(ctx, connection, instance, func(logs *RingBuffer) (*ManagedProcess, error) {
 		return StartProcess(os.Args[0], "-test.run=^TestWorkerChild$", "", map[string]string{"STREAM_KIT_WORKER_TEST": "exit"}, logs, zap.NewNop())
 	})
@@ -59,6 +80,10 @@ func TestNativeWorkerAuthenticatedLifecycle(t *testing.T) {
 	if err := windows.ProcessIdToSessionId(uint32(os.Getpid()), &session); err != nil {
 		t.Fatal(err)
 	}
+	creation, err := workeripc.ProcessCreation(windows.CurrentProcess())
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, mode := range []string{"lifecycle", "wrong-session", "foreign-process", "cancelled"} {
 		t.Run(mode, func(t *testing.T) {
 			var nonce [16]byte
@@ -71,7 +96,7 @@ func TestNativeWorkerAuthenticatedLifecycle(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer listener.Close()
-			worker, err := createSuspendedWorker(os.Args[0], []string{"-test.run=^TestNativePipeWorkerHelper$", "--", listener.Name(), instance}, filepath.Dir(os.Args[0]),
+			worker, err := createSuspendedWorker(os.Args[0], []string{"-test.run=^TestNativePipeWorkerHelper$", "--", listener.Name(), instance, strconv.Itoa(os.Getpid()), strconv.FormatUint(creation, 10), user.User.Sid.String(), strconv.FormatUint(uint64(session), 10)}, filepath.Dir(os.Args[0]),
 				func(app, command, directory *uint16, startup *windows.StartupInfo, process *windows.ProcessInformation) error {
 					return windows.CreateProcess(app, command, nil, nil, false, windows.CREATE_SUSPENDED|windows.CREATE_NO_WINDOW, nil, directory, startup, process)
 				})
@@ -149,6 +174,81 @@ func TestNativeWorkerAuthenticatedLifecycle(t *testing.T) {
 			var code uint32
 			if err := windows.GetExitCodeProcess(retained, &code); err != nil || code != 0 {
 				t.Fatalf("worker exit: %d %v", code, err)
+			}
+		})
+	}
+}
+
+func TestNativeControllerRejectsWrongPeer(t *testing.T) {
+	var token windows.Token
+	if err := windows.OpenProcessToken(windows.CurrentProcess(), windows.TOKEN_QUERY, &token); err != nil {
+		t.Fatal(err)
+	}
+	defer token.Close()
+	user, err := token.GetTokenUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sid := user.User.Sid.String()
+	var session uint32
+	if err := windows.ProcessIdToSessionId(uint32(os.Getpid()), &session); err != nil {
+		t.Fatal(err)
+	}
+	creation, err := workeripc.ProcessCreation(windows.CurrentProcess())
+	if err != nil {
+		t.Fatal(err)
+	}
+	controller, err := workeripc.RetainPeerProcess(uint32(os.Getpid()), creation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer windows.CloseHandle(controller)
+	for _, mode := range []string{"session", "sid", "process"} {
+		t.Run(mode, func(t *testing.T) {
+			var nonce [16]byte
+			if _, err := rand.Read(nonce[:]); err != nil {
+				t.Fatal(err)
+			}
+			listener, err := workeripc.Listen(hex.EncodeToString(nonce[:]), sid)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer listener.Close()
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			expectedSID, expectedSession, expectedProcess := sid, session, controller
+			switch mode {
+			case "session":
+				expectedSession++
+			case "sid":
+				expectedSID = "S-1-5-21-1-2-3-9999"
+			case "process":
+				other, err := nativeTestWorker(filepath.Join(t.TempDir(), "unused.pid"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer other.Close()
+				expectedProcess = other.process
+			}
+			type accepted struct {
+				file *os.File
+				err  error
+			}
+			result := make(chan accepted, 1)
+			go func() { file, err := listener.Accept(ctx); result <- accepted{file, err} }()
+			connection, dialErr := dialNativeController(ctx, listener.Name(), expectedProcess, expectedSID, expectedSession)
+			if connection != nil {
+				_ = connection.Close()
+			}
+			server := <-result
+			if server.file != nil {
+				defer server.file.Close()
+			}
+			if server.err != nil {
+				t.Fatal(server.err)
+			}
+			if connection != nil || !errors.Is(dialErr, workeripc.ErrPeerIdentity) {
+				t.Fatalf("wrong server accepted: %v", dialErr)
 			}
 		})
 	}

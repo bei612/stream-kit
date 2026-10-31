@@ -13,6 +13,30 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+func TestRetainPeerRejectsStaleCreation(t *testing.T) {
+	created, err := ProcessCreation(windows.CurrentProcess())
+	if err != nil || created == 0 {
+		t.Fatalf("creation: %d %v", created, err)
+	}
+	process, err := RetainPeerProcess(uint32(os.Getpid()), created)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer windows.CloseHandle(process)
+	if process == windows.CurrentProcess() || !processRunning(process) {
+		t.Fatal("did not retain a real live handle")
+	}
+	for _, bad := range []uint64{0, created - 1, created + 1} {
+		process, err := RetainPeerProcess(uint32(os.Getpid()), bad)
+		if err == nil || process != 0 {
+			t.Fatalf("stale identity accepted: %d", bad)
+		}
+	}
+	if process, err := RetainPeerProcess(0, created); err == nil || process != 0 {
+		t.Fatal("zero PID accepted")
+	}
+}
+
 func TestNamedPipePeerIdentity(t *testing.T) {
 	process, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION|windows.SYNCHRONIZE, false, uint32(os.Getpid()))
 	if err != nil {

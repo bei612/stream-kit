@@ -11,6 +11,35 @@ import (
 
 var ErrPeerIdentity = errors.New("render worker pipe peer identity mismatch")
 
+// ProcessCreation returns the native FILETIME value without conversion or loss
+// of precision. The controller passes its own value in trusted launch metadata.
+func ProcessCreation(process windows.Handle) (uint64, error) {
+	var created, exited, kernel, user windows.Filetime
+	if err := windows.GetProcessTimes(process, &created, &exited, &kernel, &user); err != nil {
+		return 0, err
+	}
+	return uint64(created.HighDateTime)<<32 | uint64(created.LowDateTime), nil
+}
+
+// RetainPeerProcess opens the process named by trusted launch metadata exactly
+// once and rejects a reused PID. Values learned from the pipe are not trusted
+// bootstrap metadata. The caller retains and closes the handle after teardown.
+func RetainPeerProcess(pid uint32, creation uint64) (windows.Handle, error) {
+	if pid == 0 || creation == 0 {
+		return 0, ErrPeerIdentity
+	}
+	process, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION|windows.SYNCHRONIZE, false, pid)
+	if err != nil {
+		return 0, err
+	}
+	actual, err := ProcessCreation(process)
+	if err != nil || actual != creation || !processRunning(process) {
+		_ = windows.CloseHandle(process)
+		return 0, ErrPeerIdentity
+	}
+	return process, nil
+}
+
 type PeerSide uint8
 
 const (

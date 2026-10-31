@@ -12,6 +12,44 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+// dialNativeController authenticates the server before any lifecycle frame is
+// consumed. controller must be retained using trusted launch identity and kept
+// open until this connection is closed; no PID from the pipe may authorize it.
+func dialNativeController(parent context.Context, name string, controller windows.Handle, sid string, session uint32) (_ *os.File, result error) {
+	ctx, cancel := context.WithTimeout(parent, 15*time.Second)
+	defer cancel()
+	connection, err := workeripc.Dial(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if result != nil {
+			result = errors.Join(result, connection.Close())
+		}
+	}()
+	if err = verifyNativeConnection(connection, workeripc.ServerPeer, controller, sid, session); err != nil {
+		return nil, err
+	}
+	if err = ctx.Err(); err != nil {
+		return nil, err
+	}
+	return connection, nil
+}
+
+func verifyNativeConnection(connection *os.File, side workeripc.PeerSide, process windows.Handle, sid string, session uint32) error {
+	raw, err := connection.SyscallConn()
+	if err != nil {
+		return err
+	}
+	var identityError error
+	if err = raw.Control(func(handle uintptr) {
+		identityError = workeripc.VerifyPeer(windows.Handle(handle), side, process, sid, session)
+	}); err != nil {
+		return err
+	}
+	return identityError
+}
+
 // acceptNativeWorker consumes the one-shot listener and resumes the contained
 // process. Failure closes its job; success transfers the authenticated connection
 // to the caller, which must retain worker ownership for its entire lifetime.
@@ -39,18 +77,8 @@ func acceptNativeWorker(parent context.Context, listener *workeripc.Listener, wo
 			result = errors.Join(result, connection.Close())
 		}
 	}()
-	raw, err := connection.SyscallConn()
-	if err != nil {
+	if err = verifyNativeConnection(connection, workeripc.ClientPeer, worker.process, sid, session); err != nil {
 		return nil, err
-	}
-	var identityError error
-	if err = raw.Control(func(handle uintptr) {
-		identityError = workeripc.VerifyPeer(windows.Handle(handle), workeripc.ClientPeer, worker.process, sid, session)
-	}); err != nil {
-		return nil, err
-	}
-	if identityError != nil {
-		return nil, identityError
 	}
 	if err = ctx.Err(); err != nil {
 		return nil, err
