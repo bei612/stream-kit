@@ -592,9 +592,11 @@ namespace platf::audio {
       while (sample_buf_pos - std::begin(sample_buf) < sample_size) {
         auto capture_result = _fill_buffer();
         if (capture_result == capture_e::timeout && continuous_audio && !application_target) {
-          // Write silence to sample_buf
-          std::fill_n(sample_buf_pos, sample_size, 0.0f);
-          sample_buf_pos += sample_size;
+          // Complete only this frame. Padding a full frame after a partial
+          // packet leaves artificial silence queued ahead of later real audio.
+          const auto missing = sample_size - static_cast<std::size_t>(sample_buf_pos - std::begin(sample_buf));
+          std::fill_n(sample_buf_pos, missing, 0.0f);
+          sample_buf_pos += missing;
         } else if (capture_result != capture_e::ok) {
           return capture_result;
         }
@@ -1622,17 +1624,18 @@ namespace platf::audio {
   namespace tests {
     /** @brief Build a hardware-free capture using the production packet reader.
      * @param source Retained COM capture source supplied by the test.
-     * @return Mono capture with a two-sample staging buffer.
+     * @param continuous Whether desktop capture fills missing samples with silence.
+     * @return Mono capture with a four-sample staging buffer.
      */
-    std::unique_ptr<mic_t> packet_capture(IAudioCaptureClient *source) {
+    std::unique_ptr<mic_t> packet_capture(IAudioCaptureClient *source, bool continuous) {
       auto mic = std::make_unique<mic_wasapi_t>();
       source->AddRef();
       mic->audio_capture.reset(source);
       mic->audio_event.reset(CreateEventA(nullptr, FALSE, FALSE, nullptr));
       mic->default_latency_ms = 0;
       mic->channels = 1;
-      mic->continuous_audio = false;
-      mic->sample_buf = util::buffer_t<float> {2};
+      mic->continuous_audio = continuous;
+      mic->sample_buf = util::buffer_t<float> {4};
       mic->sample_buf_pos = std::begin(mic->sample_buf);
       return mic;
     }

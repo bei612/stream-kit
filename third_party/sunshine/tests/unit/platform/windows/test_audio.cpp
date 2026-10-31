@@ -19,7 +19,7 @@
   #include "src/platform/common.h"
 
 namespace platf::audio::tests {
-  std::unique_ptr<mic_t> packet_capture(IAudioCaptureClient *source);
+  std::unique_ptr<mic_t> packet_capture(IAudioCaptureClient *source, bool continuous = false);
   bool sink_device_available(const std::string &sink, IMMDeviceEnumerator *device_enum);
   bool microphone_available(const std::string &assigned_sink, const std::string &configured_sink, IMMDeviceEnumerator *device_enum);
   bool capture_follows_default_device(IMMDeviceEnumerator *device_enum, IMMDevice *capture_device);
@@ -415,6 +415,20 @@ TEST(WindowsAudioTest, EmptyPacketHandlingDoesNotSuppressRealFailures) {
     EXPECT_EQ(capture->sample(samples), expected);
     EXPECT_EQ(source.releases, 1);
   }
+}
+
+TEST(WindowsAudioTest, ContinuousCapturePadsOnlyMissingSamplesWithoutDelayingNextPacket) {
+  packet_capture_t source;
+  auto capture = platf::audio::tests::packet_capture(&source, true);
+  std::vector<float> samples(2, -1.0f);
+  EXPECT_EQ(capture->sample(samples), platf::capture_e::ok);
+  EXPECT_EQ(samples, (std::vector<float> {0.25f, 0.0f}));
+  EXPECT_EQ(source.reads, 2);
+  EXPECT_EQ(source.releases, 1);
+  EXPECT_EQ(capture->sample(samples), platf::capture_e::ok);
+  EXPECT_EQ(samples, (std::vector<float> {0.75f, 0.75f}));
+  EXPECT_EQ(source.reads, 4);
+  EXPECT_EQ(source.releases, 3);
 }
 
 TEST(WindowsAudioTest, PinnedCaptureContinuesAfterRenderEndpointChange) {
