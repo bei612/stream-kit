@@ -2,7 +2,7 @@
 # enclosing Stream-Kit repository or require nested repositories during builds.
 set(EXCLUDE_HASH ON CACHE BOOL "Use the vendored SVT-AV1 source version" FORCE)
 
-set(SVT_AV1_GENERATED_SRC_PATH ${CMAKE_CURRENT_BINARY_DIR}/FFmpeg/SVT-AV1)
+set(SVT_AV1_GENERATED_SRC_PATH ${FFMPEG_SOURCE_ROOT}/SVT-AV1)
 
 if(BUILD_FFMPEG_ALL_PATCHES OR BUILD_FFMPEG_SVT_AV1_PATCHES)
     file(GLOB FFMPEG_SVT_AV1_PATCH_FILES ${CMAKE_CURRENT_SOURCE_DIR}/patches/FFmpeg/FFmpeg/SVT-AV1/*.patch)

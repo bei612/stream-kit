@@ -1,5 +1,5 @@
 # Vulkan Headers
-set(VULKAN_HEADERS_GENERATED_SRC_PATH ${CMAKE_CURRENT_BINARY_DIR}/FFmpeg/Vulkan-Headers)
+set(VULKAN_HEADERS_GENERATED_SRC_PATH ${FFMPEG_SOURCE_ROOT}/Vulkan-Headers)
 
 add_custom_target(vulkan-headers ALL
         COMMAND ${CMAKE_COMMAND}
@@ -18,7 +18,7 @@ add_custom_target(vulkan-headers ALL
 add_dependencies(${CMAKE_PROJECT_NAME} vulkan-headers)
 
 # Vulkan Loader
-set(VULKAN_LOADER_GENERATED_SRC_PATH ${CMAKE_CURRENT_BINARY_DIR}/FFmpeg/Vulkan-Loader)
+set(VULKAN_LOADER_GENERATED_SRC_PATH ${FFMPEG_SOURCE_ROOT}/Vulkan-Loader)
 
 # Configure options for Vulkan-Loader
 set(VULKAN_LOADER_CMAKE_ARGS

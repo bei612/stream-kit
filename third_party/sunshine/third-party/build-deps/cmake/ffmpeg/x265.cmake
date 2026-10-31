@@ -1,7 +1,7 @@
 # The vendored x265Version.txt records the exact upstream release/commit.
 # No nested Git repository or network access is needed to generate x265.pc.
 
-set(X265_GENERATED_SRC_PATH ${CMAKE_CURRENT_BINARY_DIR}/FFmpeg/x265_git)
+set(X265_GENERATED_SRC_PATH ${FFMPEG_SOURCE_ROOT}/x265_git)
 
 file(GLOB X265_GIT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/patches/FFmpeg/x265_git/*.patch)
 foreach(patch_file ${X265_GIT_FILES})

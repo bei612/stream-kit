@@ -1,0 +1,31 @@
+# Prepare an independent generated source tree keyed by pristine source bytes,
+# patch bytes and patch-selection options. Never overlay pristine files onto a
+# patched tree: that leaves files created by earlier patches behind.
+function(PREPARE_SOURCE_TREE source patches output_parent options result)
+    set(fingerprint "source-tree-v1;${options}")
+    foreach(kind IN ITEMS source patches)
+        file(GLOB_RECURSE inputs LIST_DIRECTORIES FALSE RELATIVE "${${kind}}" "${${kind}}/*")
+        list(SORT inputs)
+        foreach(input IN LISTS inputs)
+            if(kind STREQUAL "source" AND input MATCHES "^Vulkan-Loader/tests(/|$)")
+                continue()
+            endif()
+            file(SHA256 "${${kind}}/${input}" digest)
+            list(APPEND fingerprint "${kind}/${input}:${digest}")
+        endforeach()
+    endforeach()
+    string(SHA256 identity "${fingerprint}")
+    set(destination "${output_parent}/FFmpeg-${identity}")
+    file(MAKE_DIRECTORY "${output_parent}")
+    file(LOCK "${output_parent}/prepare-source.lock" GUARD FUNCTION TIMEOUT 60)
+    if(NOT EXISTS "${destination}")
+        string(RANDOM LENGTH 12 ALPHABET 0123456789abcdef suffix)
+        set(staging "${output_parent}/prepare-${suffix}")
+        file(MAKE_DIRECTORY "${staging}")
+        file(COPY "${source}/" DESTINATION "${staging}" REGEX "/Vulkan-Loader/tests(/|$)" EXCLUDE)
+        # Publish only a completed copy. Keep failed staging copies for diagnosis;
+        # no existing source, generated tree or build output is deleted.
+        file(RENAME "${staging}" "${destination}")
+    endif()
+    set(${result} "${destination}" PARENT_SCOPE)
+endfunction()

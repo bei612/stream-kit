@@ -1,10 +1,3 @@
-# the destination directory needs to be same level down as the original source directory
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/third-party/FFmpeg DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
-        PATTERN "Vulkan-Loader/tests" EXCLUDE)  # vulkan loader test files contain emojis in file names which can fail
-
-set(FFMPEG_GENERATED_SRC_PATH ${CMAKE_CURRENT_BINARY_DIR}/FFmpeg/FFmpeg)
-set(AVCODEC_GENERATED_SRC_PATH ${CMAKE_CURRENT_BINARY_DIR}/FFmpeg/libavcodec)
-
 if(WIN32)
     set(BUILD_FFMPEG_LIBVA OFF)
     set(BUILD_FFMPEG_VULKAN OFF)
@@ -29,6 +22,20 @@ elseif(FREEBSD)
 elseif(UNIX)
     set(BUILD_FFMPEG_MF OFF)
 endif()
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/prepare_source_tree.cmake)
+get_cmake_property(_source_options VARIABLES)
+list(FILTER _source_options INCLUDE REGEX "^BUILD_FFMPEG")
+list(SORT _source_options)
+set(_patch_selection "")
+foreach(_option IN LISTS _source_options)
+    list(APPEND _patch_selection "${_option}=${${_option}}")
+endforeach()
+PREPARE_SOURCE_TREE("${CMAKE_CURRENT_SOURCE_DIR}/third-party/FFmpeg"
+        "${CMAKE_CURRENT_SOURCE_DIR}/patches/FFmpeg"
+        "${CMAKE_CURRENT_BINARY_DIR}/prepared-sources" "${_patch_selection}" FFMPEG_SOURCE_ROOT)
+set(FFMPEG_GENERATED_SRC_PATH "${FFMPEG_SOURCE_ROOT}/FFmpeg")
+set(AVCODEC_GENERATED_SRC_PATH "${FFMPEG_SOURCE_ROOT}/libavcodec")
 
 set(_original_cmake_install_prefix ${CMAKE_INSTALL_PREFIX})
 set(CMAKE_INSTALL_PREFIX ${FFMPEG_INSTALL_PREFIX})

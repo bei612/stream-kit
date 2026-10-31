@@ -1,4 +1,4 @@
-set(NV_CODEC_HEADERS_GENERATED_SRC_PATH ${CMAKE_CURRENT_BINARY_DIR}/FFmpeg/nv-codec-headers)
+set(NV_CODEC_HEADERS_GENERATED_SRC_PATH ${FFMPEG_SOURCE_ROOT}/nv-codec-headers)
 
 CPMGetPackage(nv_codec_headers_13_1)
 file(COPY "${nv_codec_headers_13_1_SOURCE_DIR}/"
