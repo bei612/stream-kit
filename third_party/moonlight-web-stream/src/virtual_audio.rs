@@ -107,13 +107,13 @@ mod tests {
     #[tokio::test]
     async fn provider_failure_drains_without_waiting_for_an_os_signal() {
         let (sender, receiver) = tokio::sync::oneshot::channel();
-        sender.send(()).unwrap();
+        sender.send(()).expect("termination receiver remains open");
         tokio::time::timeout(
             std::time::Duration::from_secs(1),
             shutdown_signal(std::future::pending(), Some(receiver)),
         )
         .await
-        .unwrap();
+        .expect("transport exit must wake the shutdown future");
     }
 
     #[tokio::test]
