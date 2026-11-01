@@ -1,0 +1,57 @@
+name: windows-installer-acceptance
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Published immutable release to install; no builds are performed'
+        type: string
+        default: v0.1.0-rc.1
+        required: true
+permissions:
+  contents: read
+jobs:
+  installed-service:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.4.0'
+      - name: Prepare isolated recording access and audio services
+        run: |
+          $ErrorActionPreference = 'Stop'
+          ./scripts/prepare-windows-audio-fixture.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Start-Service AudioEndpointBuilder
+          Start-Service Audiosrv
+          $session = (Get-Process -Id $PID).SessionId
+          if ($session -eq 0) { throw 'Actual installer acceptance requires the hosted interactive render session' }
+          Write-Output "Installer process session: $session"
+      - name: Download existing signed-driver runtime installer
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:RELEASE_TAG -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(?:-rc\.[1-9][0-9]*)?$') { throw 'Expected a stable or candidate tag' }
+          git fetch --no-tags origin "refs/tags/$env:RELEASE_TAG"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:EXPECTED_INSTALLER_COMMIT = git rev-parse 'FETCH_HEAD^{commit}'
+          gh release download $env:RELEASE_TAG --pattern '*windows-amd64-setup.exe' --pattern installer-manifest.json --dir artifacts/installer-download
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node -e "const fs=require('fs'),a=require('assert/strict'),m=JSON.parse(fs.readFileSync('artifacts/installer-download/installer-manifest.json'));a.equal(m.commit,process.env.EXPECTED_INSTALLER_COMMIT);a.equal(m.installer_source_commit,m.commit);a.equal(m.payload_profile,'runtime');a.equal(m.reused_payload,false)"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Install, verify native PCM and service lifecycle, then uninstall
+        run: node scripts/accept-windows-installer.cjs artifacts/installer-download/installer-manifest.json artifacts/installer-acceptance
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-installed-service-acceptance
+          path: |
+            artifacts/installer-acceptance/
+            artifacts/audio-playback/windows-*.json
+          if-no-files-found: warn
