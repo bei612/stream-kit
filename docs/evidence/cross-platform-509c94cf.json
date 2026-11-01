@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "source_commit": "509c94cf7d78e3ae09775f7f118904a741cd4fc2",
+  "workflow_run": 41295141037,
+  "url": "https://github.com/bei612/stream-kit/actions/runs/41295141037",
+  "status": "completed",
+  "conclusion": "success",
+  "scope": "Native Windows/Linux control and gateway builds, unit/lifecycle and browser checks, management Web and source SBOM. CI fixtures do not certify physical microphones, mobile hardware or a fresh customer installer.",
+  "jobs": [
+    {
+      "name": "Orchestrator (ubuntu-latest)",
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/41295141037/job/124814304015",
+      "checks": [
+        "Run go mod vendor",
+        "Verify regenerated vendor source",
+        "Test Orchestrator",
+        "Run go -C ../third_party/sevenzip test ./...",
+        "Run go test -race ./cmd/orchestrator ./internal/util ./internal/app ./internal/session ./internal/ws ./internal/server/...",
+        "Run npm ci",
+        "Build versioned control-plane bundle",
+        "Install locked bundle acceptance browser tooling",
+        "Install bundle acceptance browser",
+        "Verify the native control bundle with external configuration"
+      ]
+    },
+    {
+      "name": "Source SBOM",
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/41295141037/job/124814304039",
+      "checks": [
+        "Run anchore/sbom-action@v0"
+      ]
+    },
+    {
+      "name": "Moonlight Web (ubuntu-latest)",
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/41295141037/job/124814304070",
+      "checks": [
+        "Run dtolnay/rust-toolchain@1.99.0",
+        "Install Linux audio development libraries",
+        "Run Swatinem/rust-cache@v2",
+        "Run cargo check --locked",
+        "Verify gateway source stamp validation",
+        "Run cargo test --locked --features network --all-targets --manifest-path ../../components/audio-target/Cargo.toml",
+        "Run cargo clippy --locked --features network --manifest-path ../../components/audio-target/Cargo.toml --all-targets -- -D warnings",
+        "Verify isolated Linux microphone endpoint pair",
+        "Run cargo test --locked",
+        "Verify owned UDP port allocation",
+        "Run cargo install wasm-bindgen-cli --version 0.2.128 --locked",
+        "Run npm ci",
+        "Run node ../../scripts/build-gateway-release.mjs --output ../../artifacts/release/gateway",
+        "Run cargo fmt --all -- --check",
+        "Run cargo clippy --locked --all-targets -- -D warnings",
+        "Run node ../../scripts/test-gateway-config.cjs ../../artifacts/release/gateway/web-server",
+        "Run node ../../scripts/smoke-media-contract.cjs ../../artifacts/release/gateway/web-server",
+        "Run npx --no-install playwright install --with-deps chromium firefox",
+        "Install WebKit media test runtime on Linux",
+        "Run node ../../scripts/smoke-gateway-browser.cjs ../../artifacts/release/gateway/dist",
+        "Run node ../../scripts/smoke-gateway-browser.cjs ../../artifacts/release/gateway/dist",
+        "Verify WebKit viewer assets and WASM protocol bindings",
+        "Verify Linux browser audio and microphone RTP lifecycle",
+        "Verify WebKit audio and microphone RTP lifecycle"
+      ]
+    },
+    {
+      "name": "Orchestrator (windows-latest)",
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/41295141037/job/124814304097",
+      "checks": [
+        "Run go mod vendor",
+        "Verify regenerated vendor source",
+        "Test Orchestrator",
+        "Run go -C ../third_party/sevenzip test ./...",
+        "Test Windows example audio protocol handling",
+        "Run npm ci",
+        "Build versioned control-plane bundle",
+        "Install locked bundle acceptance browser tooling",
+        "Install bundle acceptance browser",
+        "Verify the native control bundle with external configuration"
+      ]
+    },
+    {
+      "name": "Moonlight Web (windows-latest)",
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/41295141037/job/124814304224",
+      "checks": [
+        "Run dtolnay/rust-toolchain@1.99.0",
+        "Run ilammy/msvc-dev-cmd@v1",
+        "Run Swatinem/rust-cache@v2",
+        "Run cargo check --locked",
+        "Verify gateway source stamp validation",
+        "Run cargo test --locked --features network --all-targets --manifest-path ../../components/audio-target/Cargo.toml",
+        "Run cargo clippy --locked --features network --manifest-path ../../components/audio-target/Cargo.toml --all-targets -- -D warnings",
+        "Run cargo test --locked",
+        "Verify owned UDP port allocation",
+        "Run cargo install wasm-bindgen-cli --version 0.2.128 --locked",
+        "Run npm ci",
+        "Run node ../../scripts/build-gateway-release.mjs --output ../../artifacts/release/gateway",
+        "Run cargo fmt --all -- --check",
+        "Run cargo clippy --locked --all-targets -- -D warnings",
+        "Run node ../../scripts/test-gateway-config.cjs ../../artifacts/release/gateway/web-server.exe",
+        "Run node ../../scripts/smoke-media-contract.cjs ../../artifacts/release/gateway/web-server.exe",
+        "Run npx --no-install playwright install --with-deps chromium firefox",
+        "Run node ../../scripts/smoke-gateway-browser.cjs ../../artifacts/release/gateway/dist",
+        "Run node ../../scripts/smoke-gateway-browser.cjs ../../artifacts/release/gateway/dist",
+        "Provision signed Windows CI audio controller",
+        "Verify owned Windows PCM device and browser audio lifecycle"
+      ]
+    },
+    {
+      "name": "Management Web",
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/41295141037/job/124814304965",
+      "checks": [
+        "Run npm ci",
+        "Run npm run build",
+        "Run node --test ../../scripts/test-go-test-failures.mjs ../../scripts/test-go-notices.mjs ../../scripts/test-cargo-notices.mjs ../../scripts/test-windows-usb-audio-driver.mjs ../../scripts/test-control-build-target.mjs ../../scripts/test-platform-packaging.mjs ../../scripts/test-product-release.mjs",
+        "Run node --experimental-strip-types --test ../../scripts/test-frontend-notices.mjs",
+        "Run node --test ../../scripts/test-audio-playback-lifecycle.mjs ../../scripts/test-realtime-track-writer.mjs ../../scripts/test-opus-audio.mjs ../../scripts/test-audio-envelope.cjs",
+        "Run node --experimental-strip-types --test ../../scripts/test-microphone-capture.mjs ../../scripts/test-microphone-sender.mjs ../../scripts/test-media-access.mjs ../../scripts/test-media-observation.mjs ../../scripts/test-viewer-bootstrap.mjs ../../scripts/test-webrtc-lifecycle.mjs ../../scripts/test-websocket-lifecycle.mjs ../../scripts/test-management-websocket.mjs ../../scripts/test-canvas-lifecycle.mjs ../../scripts/test-stream-pipelines.mjs ../../scripts/test-decoder-lifecycle.mjs ../../scripts/test-browser-condition.cjs",
+        "Install locked browser test tooling",
+        "Install browser engines",
+        "Verify management interactions across browser engines"
+      ]
+    }
+  ],
+  "separate_native_preparation_run": "https://github.com/bei612/stream-kit/actions/runs/41295064607",
+  "product_installer_run": "https://github.com/bei612/stream-kit/actions/runs/41295337750",
+  "product_installer_acceptance": "pending; not established by this CI result"
+}
