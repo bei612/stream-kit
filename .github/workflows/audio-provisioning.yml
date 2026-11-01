@@ -5,7 +5,7 @@ on:
       target:
         description: 'Native audio environment to verify without rebuilding the full platform'
         type: choice
-        options: [linux, windows]
+        options: [linux, windows, windows-policy]
         default: linux
   push:
     branches: [main]
@@ -49,7 +49,7 @@ jobs:
           if-no-files-found: ignore
 
   windows-audio:
-    if: github.event_name == 'workflow_dispatch' && inputs.target == 'windows'
+    if: github.event_name == 'workflow_dispatch' && (inputs.target == 'windows' || inputs.target == 'windows-policy')
     runs-on: windows-latest
     timeout-minutes: 20
     defaults:
@@ -90,7 +90,15 @@ jobs:
           cargo build --locked --manifest-path components/audio-target/Cargo.toml --bin audio-probe --example virtual_device --example verify_pair 2>&1 | Tee-Object -FilePath artifacts/audio-playback/native-probe-build.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verify native PCM and owned device cleanup
+        if: inputs.target == 'windows'
         run: node scripts/test-windows-virtual-audio.cjs components/audio-target/target/debug --pair-only
+      - name: Verify documented render endpoint policy in the disposable fixture
+        if: inputs.target == 'windows-policy'
+        run: |
+          go -C orchestrator build -o ../artifacts/audio-playback/endpoint-policy-check.exe ./tests/endpoint-policy
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/test-windows-endpoint-policy.cjs components/audio-target/target/debug artifacts/audio-playback/endpoint-policy-check.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
