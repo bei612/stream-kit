@@ -8,6 +8,14 @@ import {runWindowsPowerShell} from './windows-powershell.mjs'
 const profile=JSON.parse(fs.readFileSync(fileURLToPath(new URL('../../orchestrator/internal/audiodevice/usbip-driver.json',import.meta.url)),'utf8'))
 const hash=file=>createHash('sha256').update(fs.readFileSync(file)).digest('hex')
 
+export function validateUSBAudioIdentity(value){
+  if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).sort().join(',')!=='product_id,vendor_id')throw Error('Expected USB audio identity with vendor_id and product_id only')
+  for(const id of [value.vendor_id,value.product_id]){
+    if(!Number.isInteger(id)||id<1||id>65534)throw Error('USB audio vendor/product identity must be an integer in 1..65534')
+  }
+  return {vendor_id:value.vendor_id,product_id:value.product_id}
+}
+
 export function validateUSBDriverInventory(files){
   if(files.length!==profile.files.length)throw Error('USB audio driver package must contain both signed drivers and their license only')
   for(const expected of profile.files){

@@ -28,9 +28,12 @@ func TestPreparationConnectsNativeComponentsWithoutExposingSecretsInArguments(t 
 	opts := Options{SessionID: 1, UserSID: "S-1-5-21-123-456-789-1001", ControlPort: 19000, GatewayPort: 18080, RendererPort: 48989}
 	if runtime.GOOS == "linux" {
 		opts.SessionID, opts.UserSID = 0, ""
+	} else if runtime.GOOS == "windows" {
+		opts.VirtualAudio = &VirtualAudioIdentity{VendorID: 65534, ProductID: 1}
 	}
 	var operations []string
 	var credentials map[string]string
+	var initialGatewayAudio any
 	run := func(_ context.Context, binary, directory string, args []string, input []byte) ([]byte, error) {
 		if directory != stage {
 			t.Fatal("bootstrap wrote into the immutable program directory")
@@ -38,7 +41,15 @@ func TestPreparationConnectsNativeComponentsWithoutExposingSecretsInArguments(t 
 		operation := args[len(args)-1]
 		operations = append(operations, operation)
 		if operation == "print" {
-			return []byte(`{"web_server":{},"data_storage":{"type":"json"}}`), nil
+			return []byte(`{"web_server":{},"data_storage":{"type":"json"},"virtual_audio":null}`), nil
+		}
+		if operation == "initialize-admin" {
+			raw, err := os.ReadFile(args[1])
+			var snapshot map[string]any
+			if err != nil || json.Unmarshal(raw, &snapshot) != nil {
+				t.Fatal("gateway did not receive prepared configuration", err)
+			}
+			initialGatewayAudio = snapshot["virtual_audio"]
 		}
 		if operation == "initialize-admin" || operation == "--creds-stdin" {
 			var next map[string]string
@@ -77,6 +88,21 @@ func TestPreparationConnectsNativeComponentsWithoutExposingSecretsInArguments(t 
 		t.Fatal(err)
 	}
 	web := gateway["web_server"].(map[string]any)
+	initialAudio, _ := json.Marshal(initialGatewayAudio)
+	finalAudio, _ := json.Marshal(gateway["virtual_audio"])
+	if !bytes.Equal(initialAudio, finalAudio) {
+		t.Fatal("device identity changed between native initialization and final configuration")
+	}
+	if opts.VirtualAudio != nil {
+		audio, ok := gateway["virtual_audio"].(map[string]any)
+		if !ok || audio["vendor_id"] != float64(65534) || audio["product_id"] != float64(1) {
+			t.Fatal("installer identity was not propagated to the gateway")
+		}
+		serial, _ := audio["serial"].(string)
+		if len(serial) != 15 {
+			t.Fatal("installer did not persist a stable device serial")
+		}
+	}
 	if loaded.Server.BindAddress != "127.0.0.1:19000" || web["control_plane_url"] != "http://127.0.0.1:19000" || web["bind_address"] != "127.0.0.1:18080" || loaded.MoonlightWeb.BaseURL != "http://127.0.0.1:18080" || loaded.SunshineAPI.BaseURL != "https://127.0.0.1:48990" {
 		t.Fatal("custom listener ports did not propagate across components")
 	}

@@ -16,6 +16,12 @@
   #define HasAudioDriver
 #endif
 #ifdef UsbAudioDriverRoot
+  #ifndef UsbAudioVendorId
+    #error USB audio requires an explicit deployment vendor identity
+  #endif
+  #ifndef UsbAudioProductId
+    #error USB audio requires an explicit deployment product identity
+  #endif
   #ifdef AudioDriverRoot
     #error Only one bundled audio driver provider may be selected
   #endif
@@ -209,6 +215,10 @@ begin
       ' --control-port ' + Quoted(ExpandConstant('{param:CONTROLPORT|9000}')) +
       ' --gateway-port ' + Quoted(ExpandConstant('{param:GATEWAYPORT|8080}')) +
       ' --renderer-port ' + Quoted(ExpandConstant('{param:RENDERERPORT|47989}'));
+#ifdef UsbAudioDriverRoot
+    Arguments := Arguments + ' --usb-audio-vendor-id {#UsbAudioVendorId}' +
+      ' --usb-audio-product-id {#UsbAudioProductId}';
+#endif
     if AdminFile <> '' then Arguments := Arguments + ' --admin-file ' + Quoted(AdminFile);
     if ExpandConstant('{param:SESSIONID|}') <> '' then
       Arguments := Arguments + ' --session-id ' + Quoted(ExpandConstant('{param:SESSIONID|}'));

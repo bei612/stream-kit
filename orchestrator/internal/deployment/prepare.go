@@ -30,12 +30,16 @@ type Options struct {
 	ControlPort   int
 	GatewayPort   int
 	RendererPort  int
+	VirtualAudio  *VirtualAudioIdentity
 }
 
 // Initialize creates a fresh, protected deployment. All component credentials
 // travel over stdin. The final directory appears only after every check passes.
 // Failed staging directories remain protected for diagnosis; they are never run.
 func Initialize(ctx context.Context, options Options) (string, error) {
+	if err := options.validateVirtualAudio(); err != nil {
+		return "", err
+	}
 	if err := options.normalizePorts(); err != nil {
 		return "", err
 	}
@@ -145,6 +149,9 @@ func prepare(ctx context.Context, options Options, root, data, stage string) err
 }
 
 func prepareFiles(ctx context.Context, options Options, root, data, stage string, run nativeRunner) error {
+	if err := options.validateVirtualAudio(); err != nil {
+		return err
+	}
 	if err := options.normalizePorts(); err != nil {
 		return err
 	}
@@ -222,6 +229,9 @@ func prepareFiles(ctx context.Context, options Options, root, data, stage string
 	web["first_login_create_admin"], web["session_cookie_secure"] = false, false
 	web["media_ticket_secret"], web["control_plane_url"] = secret, "http://"+controlAddress
 	storage["path"] = filepath.Join(stage, "gateway", "data.json")
+	if err := configureVirtualAudio(gatewayConfig, options.VirtualAudio); err != nil {
+		return err
+	}
 	if err := writeJSON(gatewayFile, gatewayConfig); err != nil {
 		return err
 	}

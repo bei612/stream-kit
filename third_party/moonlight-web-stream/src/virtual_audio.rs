@@ -67,8 +67,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn disabled_provider_does_not_require_a_driver() {
-        Runtime::start(None).unwrap().close().unwrap();
+    fn disabled_provider_does_not_require_a_driver() -> std::io::Result<()> {
+        Runtime::start(None)?.close()
     }
 
     #[test]

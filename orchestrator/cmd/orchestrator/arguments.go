@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const commandUsage = "usage: orchestrator [--config PATH] | init-config [--config PATH] | init-platform --root DIRECTORY --data-dir NEW_DIRECTORY [--user-sid SID --session-id ID (Windows)] | print-config [--config PATH] | check-config [--config PATH] | prepare-audio|release-audio (Linux) | audio-driver verify|install PACKAGE_DIRECTORY | version | verify-bundle DIRECTORY | verify-platform DIRECTORY | service install|start|stop|remove --config PATH"
+const commandUsage = "usage: orchestrator [--config PATH] | init-config [--config PATH] | init-platform --root DIRECTORY --data-dir NEW_DIRECTORY [--user-sid SID --session-id ID (Windows)] [--usb-audio-vendor-id ID --usb-audio-product-id ID (Windows)] | print-config [--config PATH] | check-config [--config PATH] | prepare-audio|release-audio (Linux) | audio-driver verify|install PACKAGE_DIRECTORY | version | verify-bundle DIRECTORY | verify-platform DIRECTORY | service install|start|stop|remove --config PATH"
 
 func argumentError(err error) {
 	fmt.Fprintln(os.Stderr, err)

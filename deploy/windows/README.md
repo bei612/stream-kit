@@ -15,11 +15,23 @@ packaging time. The native installer verifies the same embedded file inventory;
 the customer does not need Node, an SDK, a separate driver wizard or the vendor's
 complete USB/IP application. No test certificate or test-signing policy is used.
 
-Build selection is `--usb-audio-driver PACKAGE_DIR --signtool OFFICIAL_SIGNTOOL_EXE`
+Build selection is `--usb-audio-driver PACKAGE_DIR --signtool OFFICIAL_SIGNTOOL_EXE
+--usb-audio-identity RELEASE_IDENTITY_JSON`
 on `scripts/build-windows-installer.mjs`; it is mutually exclusive with the
 legacy optional VB-CABLE selection. An older control binary without the native
 driver command is rejected before packaging. The default release remains the
-runtime-only package without a bundled audio driver.
+runtime-only package without a bundled audio driver. The release identity is a
+bounded JSON object containing only integer `vendor_id` and `product_id` fields;
+it does not contain a shared serial or test defaults. The control bundle must
+declare `virtual_audio_configuration_version: 1`; older initialization binaries
+cannot be paired with this installer branch using `--reuse-payload`.
+
+The same native `init-platform` operation receives the release identity, generates
+a 15-character serial for the new installation, and persists it in gateway
+configuration before preflight. Driver installation then runs within the same
+elevated installer, followed by service startup (or manual-reboot deferral).
+Subsequent gateway restarts reuse that persisted serial. Customers do not need
+to launch a device helper or manually edit the configuration after installation.
 
 Installation serializes concurrent attempts, reuses a healthy matching existing
 controller, and refuses incompatible/partial existing installations. DriverStore
