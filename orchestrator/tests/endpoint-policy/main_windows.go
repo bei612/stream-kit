@@ -9,6 +9,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"unsafe"
 
@@ -48,6 +50,7 @@ func run() error {
 		}
 	}()
 	rows := []map[string]any{}
+	var target *windows.DevInfoData
 	for i := 0; ; i++ {
 		dev, err := set.EnumDeviceInfo(i)
 		if errors.Is(err, windows.ERROR_NO_MORE_ITEMS) {
@@ -60,6 +63,14 @@ func run() error {
 		if err != nil || !strings.EqualFold(fmt.Sprint(p), parent) {
 			continue
 		}
+		if target != nil {
+			return errors.New("multiple audio nodes matched the fixture identity")
+		}
+		service, err := set.DeviceRegistryProperty(dev, windows.SPDRP_SERVICE)
+		if err != nil || !strings.EqualFold(fmt.Sprint(service), "usbaudio2") {
+			return errors.New("fixture must already use the Microsoft USB Audio 2 class driver")
+		}
+		target = dev
 		id, err := set.DeviceInstanceID(dev)
 		if err != nil {
 			return err
@@ -104,7 +115,62 @@ func run() error {
 		}
 		rows[i]["render_never_default_mask"] = 0x107
 	}
+	// Endpoint metadata persists across disconnect/reconnect. Reinstall only
+	// this exact synthetic node's existing inbox driver to invoke the documented
+	// endpoint migration path; never update matching hardware IDs globally.
+	if err := refresh(set, target); err != nil {
+		return err
+	}
+	for _, row := range rows {
+		row["inbox_driver_refreshed"] = true
+	}
 	return json.NewEncoder(os.Stdout).Encode(rows)
+}
+
+func refresh(set windows.DevInfo, device *windows.DevInfoData) error {
+	var status, problem uint32
+	if err := windows.CM_Get_DevNode_Status(&status, &problem, device.DevInst, 0); err != nil {
+		return err
+	}
+	if problem != 0 || status&windows.DN_STARTED == 0 {
+		return errors.New("fixture audio node must be present and running")
+	}
+	root, err := windows.GetWindowsDirectory()
+	if err != nil {
+		return err
+	}
+	params, err := set.DeviceInstallParams(device)
+	if err != nil {
+		return err
+	}
+	params.Flags |= windows.DI_ENUMSINGLEINF | windows.DI_QUIETINSTALL
+	params.FlagsEx |= windows.DI_FLAGSEX_ALLOWEXCLUDEDDRVS
+	if err := params.SetDriverPath(filepath.Join(root, "INF", "usbaudio2.inf")); err != nil {
+		return err
+	}
+	if err := set.SetDeviceInstallParams(device, params); err != nil {
+		return err
+	}
+	if err := set.BuildDriverInfoList(device, windows.SPDIT_COMPATDRIVER); err != nil {
+		return err
+	}
+	defer set.DestroyDriverInfoList(device, windows.SPDIT_COMPATDRIVER)
+	driver, err := set.EnumDriverInfo(device, windows.SPDIT_COMPATDRIVER, 0)
+	if err != nil {
+		return err
+	}
+	var reboot uint32
+	install := windows.NewLazySystemDLL("newdev.dll").NewProc("DiInstallDevice")
+	ok, _, callErr := install.Call(0, uintptr(set), uintptr(unsafe.Pointer(device)), uintptr(unsafe.Pointer(driver)), 0, uintptr(unsafe.Pointer(&reboot)))
+	runtime.KeepAlive(device)
+	runtime.KeepAlive(driver)
+	if ok == 0 {
+		return fmt.Errorf("refresh exact fixture inbox driver: %w", callErr)
+	}
+	if reboot != 0 {
+		return errors.New("fixture refresh requires reboot; no restart performed")
+	}
+	return nil
 }
 
 func apply(key registry.Key) error {

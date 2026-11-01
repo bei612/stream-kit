@@ -72,18 +72,30 @@ async function waitRemoved(pair){
   report.target=seed.pair;
   report.defaults_without_policy=defaults();
   report.selection_regression_reproduced=!isDeepStrictEqual(report.defaults_without_policy,report.defaults_before);
-  await close(seed);await waitRemoved(seed.pair);
-  assert.deepEqual(defaults(),report.defaults_before,'Closing the seed did not restore reference defaults');
   report.policy=JSON.parse(execFileSync(policy,[],{encoding:'utf8',windowsHide:true,timeout:30000}));
   assert.equal(report.policy.length,2);
-  assert.ok(report.policy.every(row=>row.render_never_default_mask===0x107));
+  assert.ok(report.policy.every(row=>row.render_never_default_mask===0x107&&row.inbox_driver_refreshed));
+  await close(seed);
+  for(let i=0;i<100;i++){
+   if((await inventory()).every(d=>d.id===reference.pair.render||d.id===reference.pair.capture))break;
+   await delay(100);
+  }
+  assert.equal((await inventory()).length,2,'Seed refresh left additional active endpoints');
+  assert.deepEqual(defaults(),report.defaults_before,'Closing the seed did not restore reference defaults');
   const target=await start('CIPolicyTarget',1);
-  assert.deepEqual(target.pair,seed.pair,'Policy preparation changed endpoint identity');
+  // An in-place driver update can migrate endpoint IDs. Persist and compare
+  // the post-install identity, not the temporary enumeration used during setup.
+  report.target_after_refresh=target.pair;
   report.pair=JSON.parse(execFileSync(path.join(native,'examples/verify_pair.exe'),[target.pair.render,target.pair.capture],{encoding:'utf8',windowsHide:true,timeout:30000}));
   assert.equal(report.pair.passed,true,'Explicit PCM route failed after render policy');
   report.defaults_with_policy=defaults();
   assert.deepEqual(report.defaults_with_policy,report.defaults_before,'Prepared virtual output still displaced reference defaults');
   await close(target);await waitRemoved(target.pair);
+  const restarted=await start('CIPolicyTarget',2);
+  assert.deepEqual(restarted.pair,target.pair,'Prepared endpoint identity changed across restart');
+  assert.deepEqual(defaults(),report.defaults_before,'Restarted prepared output displaced reference defaults');
+  await close(restarted);await waitRemoved(restarted.pair);
+  report.prepared_restart_passed=true;
   await close(reference);await waitRemoved(reference.pair);
   report.passed=true;
  }catch(error){report.error=error.message;process.exitCode=1;}

@@ -1,0 +1,22 @@
+{
+  "scope": "Disposable GitHub-hosted Windows device-policy investigation. No customer device changes or product fix claim.",
+  "interface_policy_without_driver_refresh": {
+    "source_commit": "24a4df6363fccc37c3142f6b18e1e0fafdc8c646",
+    "run": "https://github.com/bei612/stream-kit/actions/runs/41291943232",
+    "passed": false,
+    "selection_regression_reproduced": true,
+    "interface_policy_written_and_read_back": true,
+    "explicit_pcm_passed": true,
+    "captured_frames": 144000,
+    "dropped_frames": 0,
+    "xruns": 0,
+    "finding": "Writing render-only mask 0x107 and the association to the two exact owned interfaces, followed by disconnect/reconnect, did not prevent default and communications output selection. Do not integrate this sequence as a verified fix.",
+    "private_evidence": ".local/validation/ci-endpoint-policy-24a4df63/endpoint-policy/result.json"
+  },
+  "next_hypothesis": "Existing endpoint property stores persist across attachment. Microsoft documents an in-place reinstall of the existing audio driver as an endpoint migration trigger. Verify that path only on the exact disposable synthetic audio node; do not reinstall all matching hardware IDs or mutate default selections.",
+  "references": [
+    "https://learn.microsoft.com/en-us/windows-hardware/drivers/audio/pkey-audiodevice-neversetasdefaultendpoint",
+    "https://learn.microsoft.com/en-us/windows-hardware/drivers/audio/operating-system-upgrades",
+    "https://learn.microsoft.com/en-us/windows/win32/api/newdev/nf-newdev-diinstalldevice"
+  ]
+}
