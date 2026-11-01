@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-11-01T01:00:11.360Z",
+  "scope": "Read-only package/license/kernel-signature review; no driver installed, default-device changes, certificate injection or test-signing mode",
+  "candidate": {
+    "repository": "https://github.com/vadimgrn/usbip-win2",
+    "tag": "v.0.9.8.1",
+    "commit": "55e1fa7f0c2157017b02dc1f3236e98169a535e4",
+    "license": "BSD-2-Clause",
+    "license_url": "https://github.com/vadimgrn/usbip-win2/blob/55e1fa7f0c2157017b02dc1f3236e98169a535e4/LICENSE.txt",
+    "license_sha256": "723572b1487231edcc3a2594da30961c693da7a0d7b676ca718fe3391920b8ca",
+    "installer_url": "https://github.com/vadimgrn/usbip-win2/releases/download/v.0.9.8.1/USBip-0.9.8.1-x64.exe",
+    "installer_sha256": "38cad6d4432b52d5bb9409d9ad03b72fdffc4ada4cd3a48fbeca1a2752a8518a",
+    "selected_files": [
+      {
+        "name": "usbip2_ude.inf",
+        "bytes": 2964,
+        "sha256": "1ae9e8dc497929de1a6be1291ae1dca6a19e7fd6c0351e8c266f65dd91f15073"
+      },
+      {
+        "name": "usbip2_ude.sys",
+        "bytes": 157200,
+        "sha256": "abd4fc43dce40e027e4acc884cbfe92433e026206f6565c5ee5284a39441169a"
+      },
+      {
+        "name": "usbip2_ude.cat",
+        "bytes": 11404,
+        "sha256": "84dd6cc5985857adf1514a9ee202210ff3ee1384c9be40fd49d6810e23e25f3a"
+      }
+    ],
+    "kernel_signature": {
+      "tool": "Official Windows SDK 10.0.22621.0 signtool verify /kp /v /c CAT SYS",
+      "exit_code": 0,
+      "verified_files": 1,
+      "warnings": 0,
+      "errors": 0,
+      "publisher": "Microsoft Windows Hardware Compatibility Publisher",
+      "log_sha256": "3e44797a12e00a1d62cfa485f27b918e7dc9720f98699561cf8e94cabd824a0d"
+    }
+  },
+  "audio_reference": {
+    "repository": "https://github.com/hifihedgehog/HIDMaestro",
+    "commit": "77c4ddbad6cff428e79bc5f76d84eeef85cc8c7f",
+    "scope": "Reference USB Audio Class transport implementation only; not vendored, built or distributed"
+  },
+  "rejected_existing_vad": {
+    "path": "D:/Downloads/VDD.Control.25.7.23/SignedDrivers/x86/VAD",
+    "reason": "Ordinary SignPath Authenticode was valid but official signtool kernel /kp verification failed; no install or trust-policy bypass"
+  },
+  "integration_status": "research-only",
+  "not_proven": [
+    "Native audio-only virtual device implementation",
+    "Server/device lifecycle, startup and failure recovery",
+    "Application input/output endpoint identity and isolation",
+    "Fresh installation and microphone routing on the candidate driver"
+  ],
+  "distribution": "Not included in the runtime-only release; existing compatible audio devices remain usable"
+}

@@ -3,7 +3,7 @@ const path=require('node:path');
 const assert=require('node:assert/strict');
 const {createHash}=require('node:crypto');
 const {startAudioProbe}=require('./lib/audio-probe.cjs');
-const {listUE5Devices,startUE5Capture}=require('./lib/ue5-recorder.cjs');
+const {verifiedUE5Build,listUE5Devices,startUE5Capture}=require('./lib/ue5-recorder.cjs');
 
 async function main(){
  const args=process.argv.slice(2);
@@ -13,8 +13,7 @@ async function main(){
  assert.notEqual(renderDevice,captureDevice);
  assert.ok(!fs.existsSync(output),'Evidence directory must be new');fs.mkdirSync(output);
  const hash=file=>createHash('sha256').update(fs.readFileSync(file)).digest('hex');
- const build=JSON.parse(fs.readFileSync(path.join(path.dirname(project),'build-result.json'),'utf8').replace(/^\uFEFF/,''));
- assert.equal(build.project,project);assert.equal(hash(build.module),build.module_sha256);
+ const build=verifiedUE5Build(project);
  const result={schema_version:1,passed:false,scope:'Actual UE5 AudioCaptureCore records a selected virtual input and a native generated tone; no browser microphone, human speech, business UE project, hardware default changes or raw audio files',module_sha256:build.module_sha256,source_files:build.source_files,engine:build.engine,probe_sha256:hash(audioProbe),render_device_id:renderDevice,capture_device_id:captureDevice};
  const save=()=>fs.writeFileSync(path.join(output,'result.json'),JSON.stringify(result,null,2)+'\n');save();
  let native,recording;

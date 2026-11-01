@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-11-01T00:57:23.581Z",
+  "source_commit": "279bac98f38d6f4437632c2d3b94f9c47780b27d",
+  "release": {
+    "tag": "v0.1.0-preview.20261101.4",
+    "url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261101.4",
+    "prerelease": true,
+    "assets": [
+      {
+        "name": "installer-manifest.json",
+        "bytes": 766,
+        "sha256": "75edc60aea4e74da5924650d2981eabef381a55b7dedbd1f8a979991c087a59a",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261101.4/installer-manifest.json"
+      },
+      {
+        "name": "linux-installer-manifest.json",
+        "bytes": 1294,
+        "sha256": "17980f0bc670a775fa412daf1ba8fa8f082e2f692068a0d5438850bbb0954d46",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261101.4/linux-installer-manifest.json"
+      },
+      {
+        "name": "Linux-SHA256SUMS.txt",
+        "bytes": 126,
+        "sha256": "0709d81ed8ade28f98a43f2dca11864059194feafcf1fe23d8216c38b1efba2e",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261101.4/Linux-SHA256SUMS.txt"
+      },
+      {
+        "name": "SHA256SUMS.txt",
+        "bytes": 122,
+        "sha256": "db0103d38944b1d20b64640b9561ae2d7fa48a29b8ccfc441c845766739dc669",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261101.4/SHA256SUMS.txt"
+      },
+      {
+        "name": "stream-kit-preview-279bac98f38d-ubuntu24.04-amd64-setup.run",
+        "bytes": 62297538,
+        "sha256": "b128b45a082f2575b451b9dadd2d7bc560b703ac9dd48a3011079f2b0c778928",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261101.4/stream-kit-preview-279bac98f38d-ubuntu24.04-amd64-setup.run"
+      },
+      {
+        "name": "stream-kit-preview-279bac98f38d-windows-amd64-setup.exe",
+        "bytes": 97279433,
+        "sha256": "579dfb08a39b4262a88d01f49016632b5ae9e581fdee50f337b1e80426060ee7",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261101.4/stream-kit-preview-279bac98f38d-windows-amd64-setup.exe"
+      },
+      {
+        "name": "stream-kit-sbom.spdx.json",
+        "bytes": 6994435,
+        "sha256": "d0a468d59bae2e90da585fc0eaef5bce7c6e7e514723d0d399eb2dc1d52e1627",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261101.4/stream-kit-sbom.spdx.json"
+      }
+    ]
+  },
+  "build": {
+    "run": 41256661331,
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "Source SBOM",
+        "conclusion": "success"
+      },
+      {
+        "name": "Source-built Windows unified installer",
+        "conclusion": "success"
+      },
+      {
+        "name": "Linux product / Source-built Linux unified installer",
+        "conclusion": "success"
+      },
+      {
+        "name": "Promote verified product artifacts",
+        "conclusion": "skipped"
+      }
+    ]
+  },
+  "promotion": {
+    "run": 41258722040,
+    "conclusion": "success",
+    "recipe_commit": "ff748e35ab3062476e7385b97a342067cccf26c3",
+    "payload_rebuilt": false
+  },
+  "payload_profile": "runtime",
+  "components": [
+    "orchestrator",
+    "media-gateway",
+    "sunshine"
+  ],
+  "excluded_payload": [
+    "example",
+    "UE5 SDK probe",
+    "Playwright",
+    "acceptance scripts/configuration",
+    "Node.js/npm and compiler toolchains",
+    "virtual audio driver"
+  ],
+  "scope": [
+    "Both platform source-built unified installers and SBOM published from one successful source run",
+    "All seven published asset sizes and digests match downloaded CI artifacts",
+    "Linux actual installer extraction, three-component initialization/configuration and refusal to overwrite data"
+  ],
+  "not_repeated": [
+    "Accepted four-hour twenty-client soak",
+    "Earlier Windows service installation and removal"
+  ],
+  "remaining_delivery": [
+    "Free compatible server virtual microphone endpoint automatic provisioning",
+    "Real client speech through target recording application and audience"
+  ],
+  "excluded_by_current_scope": [
+    "Commercial publisher certificate",
+    "Linux/mobile hardware acceptance",
+    "Twenty-four-hour soak"
+  ]
+}

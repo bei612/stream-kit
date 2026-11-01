@@ -8,7 +8,7 @@ Stream-Kit 将管理服务、Sunshine 渲染端和 Moonlight Web 媒体网关集
 
 从 [GitHub Releases](https://github.com/bei612/stream-kit/releases) 获取当前可下载版本，查看该版本说明和 SHA-256。版本中若提供 `stream-kit-preview-<COMMIT>-windows-amd64-setup.exe`，使用这一个安装器安装三个核心组件；无需另外安装官方 Sunshine 或 Moonlight Web，也不要再注册独立 Sunshine 服务。
 
-当前统一安装候选版为 [2026-11-01.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261101.3)，提供同一干净提交构建的 Windows 单 EXE 和 Ubuntu 24.04 单文件安装包。本版补齐 Windows 应用本地运行库、Linux 原生安装与上传 ELF/脚本入口支持。音视频示例、麦克风设备选择和声音处理设置继续提供。安装及运行无需在宿主机安装 Node.js/npm；源码构建工具不属于产品运行依赖。版本清单及未闭合项见 [本版交付状态](deploy/releases/20261101.3.md)。
+当前统一安装候选版为 [2026-11-01.4](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261101.4)，提供同一干净提交构建的 Windows 单 EXE 和 Ubuntu 24.04 单文件安装包。只安装三个运行组件及必需运行库，开发示例和验收工具均不随包交付。麦克风设备选择、声音处理及上传 ELF/脚本入口等运行功能保留。安装及运行无需在宿主机安装 Node.js/npm；源码构建工具不属于产品运行依赖。版本清单及未闭合项见 [本版交付状态](deploy/releases/20261101.4.md)。
 
 Windows 安装器支持向导和静默模式。以管理员终端执行，将文件名替换为实际下载的名称：
 
@@ -21,7 +21,7 @@ Windows 安装器支持向导和静默模式。以管理员终端执行，将文
 Ubuntu 24.04 amd64 使用同一版本中的 `.run` 文件，明确指定实际拥有桌面和音频会话的非 root 用户：
 
 ```sh
-sudo bash stream-kit-preview-9fe6979a63a8-ubuntu24.04-amd64-setup.run --user RENDER_USER
+sudo bash stream-kit-preview-279bac98f38d-ubuntu24.04-amd64-setup.run --user RENDER_USER
 ```
 
 数据位于该用户的 `~/.local/share/stream-kit/runtime`，管理员凭据同样保存在受保护的 `orchestrator.json` 中。没有桌面会话时可加 `--no-start`，登录桌面后再启动用户服务。系统运行库由 apt 安装；详细说明见 [Linux 部署说明](deploy/linux/README.md)。
@@ -46,7 +46,7 @@ Windows 安装初始化检查各组件文件清单、版本及端口。服务启
 4. 将会话观看链接交给客户端，在管理页查看连接并授予、转移或释放唯一控制权。
 5. 需要麦克风时，配置目标节点与音频端点。当前控制者在浏览器主动开启采集；旁观者、已撤权连接不能发送有效输入或麦克风。广播音频同时包含程序音及已授权客户端麦克风。
 
-服务器将浏览器麦克风送入通用录音机或 UE5 时，需要一个实际可用的虚拟输出/录音端点对；客户端仍使用自身的物理麦克风和扬声器。端点由管理页选择，不限定 VB-CABLE 品牌。浏览器测试音到 Windows 虚拟端点的实录已有证据，物理麦克风和 UE5 的真实运行验收仍待完成。
+服务器将浏览器麦克风送入通用录音机或 UE5 时，需要一个实际可用的虚拟输出/录音端点对；客户端仍使用自身的物理麦克风和扬声器。端点由管理页选择，不限定 VB-CABLE 品牌，不要求客户购买 VB-CABLE。浏览器测试音到 Windows 虚拟端点、UE5 原生输入，以及 [浏览器到 UE5 五阶段授权链路](docs/evidence/browser-ue5-recording-20261101.json) 均已有实录证据。真人语音验收和免费端点自动部署仍待闭合，不能以生成测试音替代物理麦克风讲话。
 
 ## 源码与构建
 
@@ -87,4 +87,4 @@ Sunshine 原生编译入口见 [build-sunshine.sh](scripts/build-sunshine.sh)。
 
 源码中的历史记录可能描述当时尚未接入的功能；当前行为应结合实际源码、构建清单和对应版本的运行证据判断。预发布说明中的未完成项应在完成实际验收后更新。
 
-正式安装载荷仅包含三个运行组件和必需运行时。`example/`、UE5 录音探针、Playwright、测试脚本及测试配置属于开发验收，不进入客户安装器；两个平台的安装构建器共用规则并拒绝混入这些内容。示例可由开发者单独执行 `node scripts/build-example-release.mjs NEW_EXAMPLE_DIRECTORY` 构建。当前公开的历史预发布仍含自检示例，其内容和验收边界保留在对应版本记录中，不作为已经完成的正式生产包。
+正式安装载荷仅包含三个运行组件和必需运行时。`example/`、[UE5 录音探针](example/ue5/README.md)、Playwright、测试脚本及测试配置属于开发验收，不进入客户安装器；两个平台的安装构建器共用规则并拒绝混入这些内容。示例可由开发者单独执行 `node scripts/build-example-release.mjs NEW_EXAMPLE_DIRECTORY` 构建。2026-11-01.3 及更早的历史预发布可能包含自检示例，其内容和验收边界保留在对应版本记录中。

@@ -2,6 +2,19 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {spawn}=require('node:child_process');
 const readline=require('node:readline');
+const {createHash}=require('node:crypto');
+
+function verifiedUE5Build(project){
+ const root=fs.realpathSync(path.dirname(project));
+ const build=JSON.parse(fs.readFileSync(path.join(root,'build-result.json'),'utf8').replace(/^\uFEFF/,''));
+ const hash=file=>createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+ if(build.schema_version!==1||build.project!==project||path.dirname(path.dirname(path.dirname(build.module)))!==root||hash(build.module)!==build.module_sha256)throw Error('UE5 compiled probe identity does not match its build record');
+ for(const file of build.source_files){
+  const name=path.resolve(root,file.path);
+  if(!name.startsWith(root+path.sep)||fs.lstatSync(name).isSymbolicLink()||hash(name)!==file.sha256)throw Error('UE5 probe source snapshot changed since compilation');
+ }
+ return build;
+}
 
 // Optional UE SDK acceptance process, never a platform runtime dependency.
 // Its selected recording endpoint and JSON evidence are explicit. No business
@@ -54,4 +67,4 @@ function launch({editor,project,deviceId,durationMs=3000,resultFile,logFile,list
 
 async function listUE5Devices(options){return launch({...options,listOnly:true}).done}
 async function startUE5Capture(options){const recording=launch(options);await recording.ready;return recording}
-module.exports={listUE5Devices,startUE5Capture};
+module.exports={verifiedUE5Build,listUE5Devices,startUE5Capture};

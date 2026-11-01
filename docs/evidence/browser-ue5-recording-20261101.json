@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "passed": true,
+  "scope": "Browser-generated/file test microphone through the product route, shared audience broadcast and actual UE5 native recording, including authorization/revocation. No physical microphone, human speech or business UE project claim. UE5 recorded every authorization phase with an explicit endpoint.",
+  "recorded_at": "2026-11-01T00:59:58.505Z",
+  "runtime_source_commit": "6c98ccb0d6aaae2e42c6256245ee51ff9d063e3a",
+  "runtime_relationship": "Preserved source-built native baseline, not an installed test of the 279bac98 installer",
+  "binaries": {
+    "sunshine": "15fa2afb4aba1c66725dcabc88b1b97aff91ab22b8568883e973941cdffdff8e",
+    "gateway": "7138b857f807785ef7c9cfd7c4f88f2759c6a6dae521cfe6507021446f9f4433",
+    "orchestrator": "55a5c819bd37a389c0bc51e613f967a54fab3cf5d6b63a71128d0bfa27a31490",
+    "example": "505d2c29930d03cd2a75c20ff0ad8790ba65edff4b01c2713f224844ce0ca8ab",
+    "audio_probe": "37cf925ecceaa46a0368a0f63d033a48126a95bb2d1a9451fb6cd53241c24116",
+    "ue5_module": "5879e0aa149830f7bf11b743148ca406953a2d96f393ea90012de9f09cbb99e4"
+  },
+  "browser": {
+    "engine": "chromium",
+    "version": "156.0.8078.79",
+    "microphone_source": {
+      "kind": "generated",
+      "permission_prompt_tested": false,
+      "physical_device": false
+    }
+  },
+  "selected_ue5_device": {
+    "id": "{0.0.1.00000000}.{c8729a8c-d364-48a4-99b8-84edc39c5eb1}",
+    "name": "CABLE Output (VB-Audio Virtual Cable)",
+    "input_channels": 2,
+    "preferred_sample_rate": 48000
+  },
+  "engine_version": "5.3.2-29314046+++UE5+Release-5.3",
+  "phases": [
+    {
+      "phase": "viewer_denied",
+      "captured_frames": 144480,
+      "sample_rate": 48000,
+      "warmup_ms": 250,
+      "startup_discontinuities": 1,
+      "measured_overflows": 0,
+      "dropped_frames": 0,
+      "microphone": {
+        "frequency_hz": 1499,
+        "sample_rate": 48000,
+        "analyzed_frames": 144000,
+        "windows": 30,
+        "peak_amplitude": 0,
+        "mean_amplitude": 0
+      },
+      "program": {
+        "frequency_hz": 997,
+        "sample_rate": 48000,
+        "analyzed_frames": 144000,
+        "windows": 30,
+        "peak_amplitude": 0,
+        "mean_amplitude": 0
+      },
+      "stream_closed": true
+    },
+    {
+      "phase": "controller",
+      "captured_frames": 144000,
+      "sample_rate": 48000,
+      "warmup_ms": 250,
+      "startup_discontinuities": 1,
+      "measured_overflows": 0,
+      "dropped_frames": 0,
+      "microphone": {
+        "frequency_hz": 1499,
+        "sample_rate": 48000,
+        "analyzed_frames": 144000,
+        "windows": 30,
+        "peak_amplitude": 0.20101537502215366,
+        "mean_amplitude": 0.1538214873156213
+      },
+      "program": {
+        "frequency_hz": 997,
+        "sample_rate": 48000,
+        "analyzed_frames": 144000,
+        "windows": 30,
+        "peak_amplitude": 0.0007381137802071652,
+        "mean_amplitude": 0.00020831195621600837
+      },
+      "stream_closed": true
+    },
+    {
+      "phase": "previous_controller_denied",
+      "captured_frames": 144480,
+      "sample_rate": 48000,
+      "warmup_ms": 250,
+      "startup_discontinuities": 1,
+      "measured_overflows": 0,
+      "dropped_frames": 0,
+      "microphone": {
+        "frequency_hz": 1499,
+        "sample_rate": 48000,
+        "analyzed_frames": 144000,
+        "windows": 30,
+        "peak_amplitude": 0,
+        "mean_amplitude": 0
+      },
+      "program": {
+        "frequency_hz": 997,
+        "sample_rate": 48000,
+        "analyzed_frames": 144000,
+        "windows": 30,
+        "peak_amplitude": 0,
+        "mean_amplitude": 0
+      },
+      "stream_closed": true
+    },
+    {
+      "phase": "new_controller",
+      "captured_frames": 144480,
+      "sample_rate": 48000,
+      "warmup_ms": 250,
+      "startup_discontinuities": 1,
+      "measured_overflows": 0,
+      "dropped_frames": 0,
+      "microphone": {
+        "frequency_hz": 1499,
+        "sample_rate": 48000,
+        "analyzed_frames": 144000,
+        "windows": 30,
+        "peak_amplitude": 0.20132187842515328,
+        "mean_amplitude": 0.17821771991356028
+      },
+      "program": {
+        "frequency_hz": 997,
+        "sample_rate": 48000,
+        "analyzed_frames": 144000,
+        "windows": 30,
+        "peak_amplitude": 0.0009319200006388641,
+        "mean_amplitude": 0.00030090302865397745
+      },
+      "stream_closed": true
+    },
+    {
+      "phase": "released",
+      "captured_frames": 144000,
+      "sample_rate": 48000,
+      "warmup_ms": 250,
+      "startup_discontinuities": 1,
+      "measured_overflows": 0,
+      "dropped_frames": 0,
+      "microphone": {
+        "frequency_hz": 1499,
+        "sample_rate": 48000,
+        "analyzed_frames": 144000,
+        "windows": 30,
+        "peak_amplitude": 0,
+        "mean_amplitude": 0
+      },
+      "program": {
+        "frequency_hz": 997,
+        "sample_rate": 48000,
+        "analyzed_frames": 144000,
+        "windows": 30,
+        "peak_amplitude": 0,
+        "mean_amplitude": 0
+      },
+      "stream_closed": true
+    }
+  ],
+  "audience": {
+    "frequency_hz": 1499,
+    "viewer_denied_db": -116.45844268798828,
+    "controller_broadcast_db": -27.77543067932129,
+    "simultaneous_program_db": [
+      -36.18388748168945,
+      -36.1875114440918
+    ],
+    "previous_controller_denied_db": -127.17021179199219,
+    "new_controller_broadcast_db": -27.79198455810547,
+    "released_db": -126.4653091430664
+  },
+  "program_audio_db": [
+    -36.569400787353516,
+    -36.540313720703125
+  ],
+  "upstream_connections": 1,
+  "unique_controller": true,
+  "capture_released_on_revocation": true,
+  "sunshine_restored_idle": true,
+  "raw_evidence": {
+    "directory": "artifacts/source-stream/2026-11-01T00-58-33-202Z",
+    "result_sha256": "61d5791d9ae64d0d49e86bc86cd64d7414a7751fdc506740cda98e6c34bb3882",
+    "browser_result_sha256": "17b02f24dd75f81b21c4e84c52cfe07eeb55aefaaa03c13cd13c437083da7ee0"
+  },
+  "preceding_attempt": {
+    "directory": "artifacts/source-stream/2026-11-01T00-56-25-592Z",
+    "passed": false,
+    "error": "Native target recording check failed while the optional UE recorder was also active; that attempt does not prove UE5 reception"
+  },
+  "not_proven": [
+    "Human or physical microphone speech",
+    "Business UE project configuration",
+    "WAN or mobile hardware",
+    "Fresh server virtual-device installation"
+  ],
+  "runtime_distribution": "All UE5 SDK/example/probe and browser acceptance tools remain development-only; no changes to running business UE project or audio defaults"
+}

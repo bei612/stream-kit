@@ -13,7 +13,7 @@ test('both installers accept only the shared runtime component set',()=>{
   assert.throws(()=>requireRuntimeInstallerPayload(duplicate),/exactly the three runtime components/)
 })
 test('a self-consistent inventory cannot smuggle acceptance tooling into an installer',()=>{
-  for(const entry of ['example/checkerboard.exe','scripts/accept-source-stream.cjs','orchestrator/tests/result.json','media-gateway/node_modules/a/index.js','sunshine/.local/config.json','orchestrator/node.exe','orchestrator/UnrealEditor-Cmd.exe']){
+  for(const entry of ['example/checkerboard.exe','scripts/accept-source-stream.cjs','orchestrator/tests/result.json','media-gateway/node_modules/a/index.js','sunshine/.local/config.json','orchestrator/node.exe','orchestrator/UnrealEditor-Cmd.exe','sunshine/bin/UnrealEditor','orchestrator/npm.cmd','media-gateway/node','sunshine/bin/audio-probe']){
     const payload=runtime('windows');payload.files.push({path:entry})
     assert.throws(()=>requireRuntimeInstallerPayload(payload),/Non-runtime|Development-only/,entry)
   }

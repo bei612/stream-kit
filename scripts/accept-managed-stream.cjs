@@ -11,6 +11,7 @@ const { spawn, execFileSync } = require('node:child_process');
 const { once } = require('node:events');
 const { setTimeout: delay } = require('node:timers/promises');
 const { startAudioProbe } = require('./lib/audio-probe.cjs');
+const { verifiedUE5Build, listUE5Devices, startUE5Capture } = require('./lib/ue5-recorder.cjs');
 const { exercisePhysicalMicrophone } = require('./lib/physical-microphone.cjs');
 const { waitForPageCondition } = require('./lib/browser-condition.cjs');
 const { engine, launchBrowser } = require('./lib/test-browser.cjs');
@@ -52,6 +53,10 @@ const targetRender = endpointOption('--target-render-device');
 const targetCapture = endpointOption('--target-capture-device');
 const targetProbe = process.argv.includes('--audio-probe') ? argument('--audio-probe') : null;
 const targetRecording = !!(targetRender || targetCapture || targetProbe);
+const ue5Editor=process.argv.includes('--ue5-editor')?argument('--ue5-editor'):null;
+const ue5Project=process.argv.includes('--ue5-project')?argument('--ue5-project'):null;
+assert.ok(!(ue5Editor||ue5Project)||(ue5Editor&&ue5Project&&targetRecording&&applicationExample&&microphoneSource!=='physical'),'UE5 observer requires both SDK paths and the generated/file microphone application recording case');
+const ue5Build=ue5Project?verifiedUE5Build(ue5Project):null;
 assert.ok(microphoneSource!=='physical'||targetRecording,'Physical microphone acceptance requires native target recording');
 const remoteTarget = process.argv.includes('--remote-target');
 assert.ok(!remoteTarget || targetRecording, 'Remote target requires explicit recording endpoints');
@@ -92,6 +97,7 @@ if (applicationExample) {
   result.program_tone_count = programToneCount;
 }
 if (targetRecording) result.scope = 'Real browser test microphone uplink, shared broadcast and explicit target input recording with authorization/revocation checks requested; completion is recorded separately. No UE5, physical microphone or Linux capture claim.';
+if(ue5Build)result.scope='Browser-generated/file test microphone through the product route, shared audience broadcast and actual UE5 native recording, including authorization/revocation. No physical microphone, human speech or business UE project claim.';
 if(microphoneSource==='physical')result.scope='Physical browser microphone uplink, native target input recording, simultaneous program/audio broadcast and authority rejection requested; completion is recorded separately. No UE5, WAN or permission-prompt claim.';
 save();
 const children = [];
@@ -383,6 +389,13 @@ async function main() {
       expected_epoch:session.audio.target.epoch,target:{mode:remoteTarget?'remote':'local',...(remoteTarget?{node_id:'recording-target'}:{}),render_device_id:targetRender,capture_device_id:targetCapture}
     });
     result.target_recording={render_device_id:targetRender,capture_device_id:targetCapture,probe_sha256:sha(targetProbe),measurements:{},passed:false};
+    if(ue5Build){
+      const catalog=await listUE5Devices({editor:ue5Editor,project:ue5Project,resultFile:path.join(output,'ue5-catalog.json'),logFile:path.join(output,'ue5-catalog.log')});
+      const selected=catalog.devices.filter(d=>d.id===targetCapture.replace(/^wasapi:/,''));
+      assert.equal(selected.length,1,'Target input must match exactly one UE5 native capture ID');
+      result.ue5_recording={passed:false,scope:'Browser-generated microphone tone through the product route into actual UE5 AudioCaptureCore; not physical or human speech',module_sha256:ue5Build.module_sha256,source_files:ue5Build.source_files,selected_device:selected[0]};
+      save();
+    }
   }
   if (microphoneTest) await api(`/stream-sessions/${invite.session_id}/audio`, 'PATCH', {
     expected_audio: (await api(`/stream-sessions/${invite.session_id}`)).audio,
@@ -791,10 +804,22 @@ async function main() {
     const measure = page => measureReceivedTone(page, microphoneFrequency);
     const recordTarget = async phase => {
       if(!audioProbe)return null;
+      if(ue5Build){
+        // Use the application under acceptance as the recorder. A second native
+        // probe recording the same endpoint adds no evidence about UE reception.
+        const ue5=await startUE5Capture({editor:ue5Editor,project:ue5Project,deviceId:result.ue5_recording.selected_device.id,durationMs:3000,resultFile:path.join(output,`ue5-${phase}.json`),logFile:path.join(output,`ue5-${phase}.log`)});
+        const captured=await ue5.done;
+        const measurement={recorder:'UE5 AudioCaptureCore',capture:{captured_frames:captured.captured_frames,dropped_frames:captured.dropped_frames,sample_rate:captured.sample_rate,error:captured.error??null},microphone:captured.client_tone,program:captured.program_tone};
+        result.target_recording.measurements[phase]=measurement;
+        (result.ue5_recording.measurements??={})[phase]=captured;save();
+        assert.ok(captured.captured_frames>=48000,'UE5 did not capture one second of actual PCM');
+        return measurement;
+      }
       const started=await audioProbe.command('capture',{device_id:targetCapture});
       assert.ok(!started.error,`Target recording could not start: ${started.error}`);
       await delay(2200);
       const stopped=await audioProbe.command('stop');
+      result.target_recording.measurements[phase]={capture:stopped.data,error:stopped.error};save();
       assert.ok(!stopped.error && !stopped.data.error && stopped.data.captured_frames>=48000,'Target recording failed or did not capture one second of PCM');
       assert.ok(stopped.data.dropped_frames<stopped.data.captured_frames/100,'Target recording dropped more than 1% of frames');
       const microphone=await audioProbe.command('analyze',{frequency_hz:microphoneFrequency});
@@ -842,6 +867,7 @@ async function main() {
     if(receivedTarget) {
       assert.ok(receivedTarget.microphone.mean_amplitude>0.01,'Client microphone missing from target recording');
       if(receivedTarget.program)assert.ok(receivedTarget.program.peak_amplitude<0.003,'Program output leaked into microphone target');
+      if(ue5Build)result.ue5_recording.authorized_received=true;
     }
     assert.ok(levels.controller_broadcast_db > -55 && levels.controller_broadcast_db > levels.viewer_denied_db + 20,
       `Authorized microphone tone missing: ${JSON.stringify(levels)}`);
@@ -906,7 +932,8 @@ async function main() {
     if(releasedTarget) {
       assert.ok(releasedTarget.microphone.peak_amplitude<0.003,'Revoked microphone remained in target recording');
       result.target_recording.passed=true;
-      result.scope+=' Target input PCM verified with explicit endpoints and controller revocation; no UE5 or physical microphone claim.';
+      if(ue5Build)result.ue5_recording.passed=true;
+      result.scope+=ue5Build?' UE5 recorded every authorization phase with an explicit endpoint.':' Target input PCM verified with explicit endpoints and controller revocation; no UE5 or physical microphone claim.';
     }
     assert.ok(levels.released_db < levels.new_controller_broadcast_db - 20, 'Released microphone must be inaudible');
     await pages[1].waitForFunction(() => !window.app.getStream().getMicrophoneListener().isLive(), null, { timeout: 10000 });
