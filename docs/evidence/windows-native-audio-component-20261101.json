@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-11-01T01:35:38.493Z",
+  "scope": "Native Windows audio-only UAC2 and USB/IP component development; no driver or Windows endpoint installed",
+  "tests": {
+    "passed": 16,
+    "failed": 0,
+    "compiler": "rustc 1.99.0",
+    "checks": [
+      "descriptor tree and interface types",
+      "clock controls and stream lifecycle",
+      "bounded framing, offsets and completion lengths",
+      "USB/IP import and device identity isolation",
+      "paced PCM transfer, stale-frame removal, reset and cancellation",
+      "actual local TCP import/configuration/playback-to-capture/disconnect"
+    ],
+    "clippy": {
+      "library": "passed -D warnings",
+      "tests": "passed -D warnings"
+    }
+  },
+  "source_files": [
+    {
+      "path": "components/audio-target/src/virtual_device/audio_class.rs",
+      "sha256": "2aace52c3ef7cfca953c37082932282f62b3cd04e9c89ce78de3297dec42af71"
+    },
+    {
+      "path": "components/audio-target/src/virtual_device/engine.rs",
+      "sha256": "17a47ce42de606170e7a8063ca79b9e5eb66ad27c6dadfd7283b11dea3a17956"
+    },
+    {
+      "path": "components/audio-target/src/virtual_device/export.rs",
+      "sha256": "ccf58897d75231a6f6e869d886db4cc2cb14ecdf94b6357bcaa0047c51d56c06"
+    },
+    {
+      "path": "components/audio-target/src/virtual_device/transport.rs",
+      "sha256": "9ffe7f030305eafbec8e0d46bec47878fbe0d106a09d048b8f8b4d9fe004182e"
+    },
+    {
+      "path": "components/audio-target/src/virtual_device/usbip.rs",
+      "sha256": "520085fb1deb020ebb4f307288fc673f103df1339abf1f5b2258035af3053c83"
+    },
+    {
+      "path": "components/audio-target/src/virtual_device/mod.rs",
+      "sha256": "26be710f834da4e7d1a225a63d2e8500851546c2c16011378b87680b748a4ac2"
+    }
+  ],
+  "production_activation": false,
+  "hardware_acceptance": false,
+  "remaining": [
+    "Managed native host-controller attachment and installation",
+    "Platform service lifecycle integration",
+    "Deployment device identity",
+    "Windows PnP/audio endpoint and target recording acceptance"
+  ],
+  "distribution": "Runtime-only release 20261101.4 unchanged; unit fixtures and binaries stay outside production installers"
+}
