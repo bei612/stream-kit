@@ -1,9 +1,19 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
+import {createHash} from 'node:crypto'
 import {validateUSBDriverInventory,validateUSBAudioIdentity} from './lib/windows-usb-audio-driver.mjs'
 
 const profile=JSON.parse(fs.readFileSync(new URL('../orchestrator/internal/audiodevice/usbip-driver.json',import.meta.url),'utf8'))
+
+test('committed signed runtime payload matches the pinned source and native installer inventory',()=>{
+  const directory=new URL('../deploy/windows/usb-audio-driver/',import.meta.url)
+  const files=fs.readdirSync(directory).map(name=>{
+    const bytes=fs.readFileSync(new URL(name,directory))
+    return {path:name,bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')}
+  })
+  validateUSBDriverInventory(files)
+})
 
 test('USB audio release identity is explicit and never supplies a shared test serial',()=>{
   const fixture={vendor_id:65534,product_id:1}

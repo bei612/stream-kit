@@ -85,10 +85,13 @@ impl AudioClass {
         d.extend([9, 0x24, 1, 0, 2, 0, 0, 0, 0]);
         // Internal fixed clock synchronized to SOF; frequency/validity read-only.
         d.extend([8, 0x24, 10, CLOCK_ID, 5, 5, 0, 0]);
-        // USB playback input -> speaker output, and mic input -> USB capture.
+        // A software cable carries line-level PCM, not a physical microphone.
+        // Correct terminal types avoid the OS treating this already-processed
+        // remote signal as a built-in mic eligible for speech enhancement APOs.
+        // USB Terminal Types 1.0: external line connector = 0x0603.
         for (input, output, in_type, out_type, name) in [
-            (1u8, 2u8, 0x0101u16, 0x0301u16, 4u8),
-            (3, 4, 0x0201, 0x0101, 5),
+            (1u8, 2u8, 0x0101u16, 0x0603u16, 4u8),
+            (3, 4, 0x0603, 0x0101, 5),
         ] {
             d.extend([17, 0x24, 2, input]);
             d.extend(in_type.to_le_bytes());
@@ -293,6 +296,7 @@ mod tests {
         let mut interfaces = Vec::new();
         let mut endpoints = Vec::new();
         let mut ac_bytes = 0;
+        let mut terminals = Vec::new();
         while offset < d.len() {
             let item = &d[offset..offset + d[offset] as usize];
             match item[1] {
@@ -307,12 +311,21 @@ mod tests {
                     u16::from_le_bytes([item[4], item[5]]),
                     item[6],
                 )),
-                0x24 if interfaces.last().map(|i| i.0) == Some(0) => ac_bytes += item.len(),
+                0x24 if interfaces.last().map(|i| i.0) == Some(0) => {
+                    ac_bytes += item.len();
+                    if matches!(item[2], 2 | 3) {
+                        terminals.push((item[3], u16::from_le_bytes([item[4], item[5]])));
+                    }
+                }
                 _ => {}
             }
             offset += item.len();
         }
         assert_eq!(ac_bytes, 75);
+        assert_eq!(
+            terminals,
+            [(1, 0x0101), (2, 0x0603), (3, 0x0603), (4, 0x0101)]
+        );
         assert_eq!(u16::from_le_bytes([d[32], d[33]]), 75);
         assert_eq!(
             interfaces,

@@ -5,6 +5,7 @@ edition = "2024"
 license = "GPL-3.0-or-later"
 
 [patch.crates-io]
+cpal = { path = "../cpal" }
 pulseaudio = { path = "../pulseaudio-rs" }
 
 [dependencies]

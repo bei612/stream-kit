@@ -13,6 +13,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[cfg(test)]
 const INTERVAL: Duration = Duration::from_millis(1);
 const PCM_MAX_AGE: Duration = Duration::from_millis(60);
 const PCM_PACKETS: usize = 60;
@@ -81,14 +82,21 @@ impl PcmRing {
 
 struct Pending {
     request: Submit,
-    due: Instant,
+    first_frame: u64,
+    completed: usize,
+    data: Vec<u8>,
+}
+impl Pending {
+    fn frame(&self) -> u64 {
+        self.first_frame + self.completed as u64
+    }
 }
 
 pub struct Engine {
     device_id: u32,
     class: AudioClass,
     epoch: Instant,
-    cursors: [Instant; 2],
+    cursors: [u64; 2],
     pending: Vec<Pending>,
     pcm: PcmRing,
 }
@@ -99,7 +107,7 @@ impl Engine {
             device_id,
             class,
             epoch: now,
-            cursors: [now; 2],
+            cursors: [0; 2],
             pending: Vec::with_capacity(MAX_PENDING),
             pcm: PcmRing::new(),
         }
@@ -108,7 +116,10 @@ impl Engine {
         &self.class
     }
     pub fn next_deadline(&self) -> Option<Instant> {
-        self.pending.iter().map(|p| p.due).min()
+        self.pending
+            .iter()
+            .map(|p| self.epoch + Duration::from_millis(p.frame()))
+            .min()
     }
 
     /// Transport admission is device-scoped. Cross-device commands and duplicate
@@ -149,7 +160,7 @@ impl Engine {
                         .iter()
                         .any(|p| p.request.direction == direction)
                     {
-                        self.cursors[direction_index(direction)] = now;
+                        self.cursors[direction_index(direction)] = self.frame_at(now);
                     }
                 }
                 usbip::write_unlink(writer, sequence, found.is_some())
@@ -217,12 +228,21 @@ impl Engine {
                 if self.pending.len() == MAX_PENDING {
                     return reject(writer, &request, NO_SPACE);
                 }
+                let current_frame = self.frame_at(now);
                 let cursor = &mut self.cursors[direction_index(request.direction)];
-                let duration = INTERVAL * request.packets.as_ref().unwrap().len() as u32;
-                *cursor = (*cursor).max(now) + duration;
+                let count = request.packets.as_ref().unwrap().len();
+                let first_frame = (*cursor).max(current_frame) + 1;
+                *cursor = first_frame + count as u64 - 1;
+                let data = Vec::with_capacity(if request.direction == Direction::In {
+                    count * PACKET_BYTES
+                } else {
+                    0
+                });
                 self.pending.push(Pending {
                     request,
-                    due: *cursor,
+                    first_frame,
+                    completed: 0,
+                    data,
                 });
                 Ok(())
             }
@@ -243,62 +263,78 @@ impl Engine {
         }
         for direction in [Direction::Out, Direction::In] {
             if affected(direction) {
-                self.cursors[direction_index(direction)] = now;
+                self.cursors[direction_index(direction)] = self.frame_at(now);
             }
         }
         Ok(())
     }
 
-    /// Completes only due transfers. On equal deadlines, playback is consumed
-    /// before recording. Packet timestamps use the scheduled clock, so a late
-    /// scheduler drops expired PCM instead of making it sound current again.
+    fn frame_at(&self, now: Instant) -> u64 {
+        now.saturating_duration_since(self.epoch).as_millis() as u64
+    }
+
+    /// Both directions execute each USB frame on one clock, independent of URB
+    /// batching/arrival phase. Playback precedes capture in the same frame. A
+    /// response is sent only after the entire URB has completed. Expired PCM is
+    /// still discarded after a scheduling stall rather than replayed as current.
     pub fn complete_due(&mut self, now: Instant, writer: &mut impl Write) -> io::Result<()> {
         loop {
             let next = self
                 .pending
                 .iter()
                 .enumerate()
-                .filter(|(_, p)| p.due <= now)
-                .min_by_key(|(_, p)| (p.due, direction_index(p.request.direction)))
+                .filter(|(_, p)| p.frame() <= self.frame_at(now))
+                .min_by_key(|(_, p)| (p.frame(), direction_index(p.request.direction)))
                 .map(|(i, _)| i);
             let Some(index) = next else {
                 break;
             };
-            let Pending { request, due } = self.pending.remove(index);
+            let pending = &mut self.pending[index];
+            let request = &pending.request;
             let packets = request.packets.as_ref().unwrap();
-            let mut data = Vec::with_capacity(if request.direction == Direction::In {
-                packets.len() * PACKET_BYTES
-            } else {
-                0
-            });
-            let mut results = Vec::with_capacity(packets.len());
-            let mut actual = 0;
-            for (i, packet) in packets.iter().enumerate() {
-                let bytes = packet.length as usize;
-                if request.direction == Direction::Out {
-                    // No recording consumer: discard instead of buffering a
-                    // backlog that could be replayed when capture starts.
-                    if self.class.streaming(Direction::In, CAPTURE_ENDPOINT) {
-                        let captured = due - INTERVAL * (packets.len() - i - 1) as u32;
-                        self.pcm.push(
-                            &request.data[packet.offset as usize..packet.offset as usize + bytes],
-                            captured,
-                            now,
-                        );
-                    }
-                } else {
-                    let mut pcm = [0; PACKET_BYTES];
-                    self.pcm.read(&mut pcm, now);
-                    data.extend(pcm);
+            let packet = &packets[pending.completed];
+            let bytes = packet.length as usize;
+            if request.direction == Direction::Out {
+                // No consumer: discard instead of replaying a previous session.
+                if self.class.streaming(Direction::In, CAPTURE_ENDPOINT) {
+                    self.pcm.push(
+                        &request.data[packet.offset as usize..packet.offset as usize + bytes],
+                        self.epoch + Duration::from_millis(pending.frame()),
+                        now,
+                    );
                 }
-                actual += bytes;
-                results.push(IsoResult {
-                    actual: bytes as u32,
-                    status: 0,
-                });
+            } else {
+                let mut pcm = [0; PACKET_BYTES];
+                self.pcm.read(&mut pcm, now);
+                pending.data.extend(pcm);
             }
-            let frame = due.saturating_duration_since(self.epoch).as_millis() as i32;
-            usbip::write_completion(writer, &request, 0, actual, frame, &results, &data)?;
+            pending.completed += 1;
+            if pending.completed == packets.len() {
+                let pending = self.pending.remove(index);
+                let results: Vec<_> = pending
+                    .request
+                    .packets
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .map(|p| IsoResult {
+                        actual: p.length,
+                        status: 0,
+                    })
+                    .collect();
+                let actual = results.iter().map(|p| p.actual as usize).sum();
+                // USB/IP StartFrame means the FIRST packet, not the completion
+                // frame: https://learn.microsoft.com/windows-hardware/drivers/ddi/usb/ns-usb-_urb_isoch_transfer
+                usbip::write_completion(
+                    writer,
+                    &pending.request,
+                    0,
+                    actual,
+                    pending.first_frame as i32,
+                    &results,
+                    &pending.data,
+                )?;
+            }
         }
         Ok(())
     }
@@ -403,6 +439,62 @@ mod tests {
         );
         assert!(e.next_deadline().is_none());
     }
+    #[test]
+    fn shared_frames_preserve_pcm_across_different_urb_batches_and_arrival_phases() {
+        let now = Instant::now();
+        let mut e = engine(now);
+        let Request::Submit(mut out) = stream(4, Direction::Out, 0x23) else {
+            unreachable!()
+        };
+        out.length = PACKET_BYTES * 3;
+        out.data = vec![0x23; out.length];
+        out.packets = Some(
+            (0..3)
+                .map(|i| IsoPacket {
+                    offset: (i * PACKET_BYTES) as u32,
+                    length: PACKET_BYTES as u32,
+                })
+                .collect(),
+        );
+        let mut wire = Vec::new();
+        // Capture arrives earlier, in a smaller URB. Both use the next USB
+        // frame, not independent clocks phased by each request's arrival time.
+        e.request(
+            stream(5, Direction::In, 0),
+            now + Duration::from_micros(100),
+            &mut wire,
+        )
+        .unwrap();
+        e.request(
+            Request::Submit(out),
+            now + Duration::from_micros(800),
+            &mut wire,
+        )
+        .unwrap();
+        e.complete_due(now + INTERVAL, &mut wire).unwrap();
+        assert_eq!(wire.len(), 64 + PACKET_BYTES); // capture completed; OUT still pending
+        assert_eq!(&wire[48..48 + PACKET_BYTES], &[0x23; PACKET_BYTES]);
+        assert_eq!(i32::from_be_bytes(wire[28..32].try_into().unwrap()), 1);
+        wire.clear();
+        e.request(
+            stream(6, Direction::In, 0),
+            now + INTERVAL + Duration::from_micros(700),
+            &mut wire,
+        )
+        .unwrap();
+        e.complete_due(now + INTERVAL * 2, &mut wire).unwrap();
+        assert_eq!(&wire[48..48 + PACKET_BYTES], &[0x23; PACKET_BYTES]);
+        wire.clear();
+        e.complete_due(now + INTERVAL * 3, &mut wire).unwrap();
+        assert_eq!(wire.len(), 48 + 16 * 3);
+        assert_eq!(
+            i32::from_be_bytes(wire[28..32].try_into().unwrap()),
+            1,
+            "reply identifies first frame, not last"
+        );
+        assert!(e.next_deadline().is_none());
+    }
+
     #[test]
     fn expired_audio_and_stopped_recording_never_replay() {
         let now = Instant::now();

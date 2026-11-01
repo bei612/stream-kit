@@ -4,6 +4,7 @@
 pub mod audio_class;
 #[cfg(target_os = "windows")]
 pub mod controller;
+mod deadline_channel;
 pub mod engine;
 pub mod export;
 #[cfg(target_os = "windows")]

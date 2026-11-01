@@ -298,27 +298,41 @@ jobs:
           if-no-files-found: error
       # The production audio pipe type graph imports generated protocol bindings.
       # Run after the complete gateway build, not in the management-only job.
-      - name: Require native Windows playback endpoint
+      - uses: actions/setup-go@v5
+        if: runner.os == 'Windows'
+        with:
+          go-version: '1.27.3'
+          cache-dependency-path: orchestrator/go.sum
+      - name: Provision signed Windows CI audio controller
         if: runner.os == 'Windows'
         shell: pwsh
         working-directory: .
         run: |
           New-Item -ItemType Directory -Force artifacts/audio-playback | Out-Null
-          cargo build --locked --manifest-path components/audio-target/Cargo.toml --bin audio-probe 2>&1 | Tee-Object -FilePath artifacts/audio-playback/native-probe-build.log
+          $admin = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
+          if (-not $admin.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Hosted Windows audio fixture requires an elevated runner' }
+          go -C orchestrator build -o ../artifacts/audio-playback/orchestrator-audio-driver.exe ./cmd/orchestrator
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node scripts/record-windows-audio-environment.cjs components/audio-target/target/debug/audio-probe.exe --require-output
-      - name: Verify browser audio and microphone RTP lifecycle
+          & artifacts/audio-playback/orchestrator-audio-driver.exe audio-driver install deploy/windows/usb-audio-driver 2>&1 | Tee-Object -FilePath artifacts/audio-playback/driver-install.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Start-Service AudioEndpointBuilder
+          Start-Service Audiosrv
+          cargo build --locked --manifest-path components/audio-target/Cargo.toml --bin audio-probe --example virtual_device --example verify_pair 2>&1 | Tee-Object -FilePath artifacts/audio-playback/native-probe-build.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify owned Windows PCM device and browser audio lifecycle
+        if: runner.os == 'Windows'
+        timeout-minutes: 10
+        working-directory: .
+        run: node scripts/test-windows-virtual-audio.cjs components/audio-target/target/debug
+      - name: Verify Linux browser audio and microphone RTP lifecycle
+        if: runner.os == 'Linux'
         shell: bash
         working-directory: .
         env:
           BROWSER_CHANNEL: chromium
         run: |
           for engine in chromium firefox; do
-            if [[ "$RUNNER_OS" == Linux ]]; then
-              BROWSER_ENGINE="$engine" sh scripts/test-audio-target-linux.sh --command node scripts/test-audio-playback-browser.cjs
-            else
-              BROWSER_ENGINE="$engine" node scripts/test-audio-playback-browser.cjs
-            fi
+            BROWSER_ENGINE="$engine" sh scripts/test-audio-target-linux.sh --command node scripts/test-audio-playback-browser.cjs
           done
       # The Windows Playwright WebKit build lacks Web Audio and media tracks.
       # Exercise the actual media APIs on Linux instead of counting that engine

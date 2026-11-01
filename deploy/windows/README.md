@@ -15,6 +15,11 @@ packaging time. The native installer verifies the same embedded file inventory;
 the customer does not need Node, an SDK, a separate driver wizard or the vendor's
 complete USB/IP application. No test certificate or test-signing policy is used.
 
+The pinned signed runtime files are tracked in `deploy/windows/usb-audio-driver`;
+the complete matching upstream source is in `third_party/usbip-win2`. Packaging
+needs no vendor installer download. Only these seven runtime/license files are
+eligible for inclusion, never the upstream GUI or development utilities.
+
 Build selection is `--usb-audio-driver PACKAGE_DIR --signtool OFFICIAL_SIGNTOOL_EXE
 --usb-audio-identity RELEASE_IDENTITY_JSON`
 on `scripts/build-windows-installer.mjs`; it is mutually exclusive with the
@@ -57,11 +62,20 @@ through the existing explicit endpoint routing; system defaults are not changed.
 The bounded `components/audio-target/examples/virtual_device.rs` utility is for
 development only and is excluded from runtime packages.
 
-**Not yet a production audio-provider acceptance:** package policy checks, both
-kernel signatures, Inno compilation with output disabled, native protocol tests
-and the gateway provider module checks have passed. Actual elevated PnP/filter
-binding, complete gateway runtime integration and target-program recording must
-be verified before enabling this branch in a public release. The published
+**Native device acceptance completed on 2026-11-01:** elevated installation created
+one healthy controller with its companion filter, without reboot. Both endpoints
+enumerated and retained their IDs across restarts. Actual 48 kHz playback/capture,
+post-clear silence and clean device release passed. The software cable uses
+line-level terminal descriptors so Windows does not apply physical-microphone
+voice enhancement to already-processed remote PCM. Its two streams share one USB
+frame clock and a per-connection high-resolution Windows waitable timer.
+The local CPAL source fixes first-packet discontinuity handling; genuine later
+capture errors still fail acceptance. See `docs/evidence/windows-native-audio-installed-20261101.json`.
+
+**Still required before a public provider release:** complete gateway-owned
+runtime integration and target-program recording using this provider, production
+release identity, and the complete unified installer run. Generated PCM does not
+establish physical human speech acceptance. The published
 runtime-only installer is unchanged.
 
 The wizard accepts a program directory, a separate new data directory and the

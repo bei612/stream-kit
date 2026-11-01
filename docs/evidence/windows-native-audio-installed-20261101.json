@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-01",
+  "scope": "Actual local Windows driver installation and generated-PCM virtual cable acceptance; not browser/human speech or final installer acceptance",
+  "source_base": "74b8f73ddd7d3ffe6bcf886e103eaf407c234d6a",
+  "source_changes": "Recorded alongside the installation, scheduler, terminal descriptor and CPAL fixes in this commit",
+  "driver_install": {
+    "instance_id": "ROOT\\USB\\0000",
+    "reused": false,
+    "restart_required": false,
+    "driver_version": "12.1.30.403",
+    "controller_error_code": 0,
+    "companion_filter_running": true
+  },
+  "device": {
+    "identity": {"vendor_id": 65534, "product_id": 1, "serial": "LocalLine48k", "scope": "local development only"},
+    "render_id": "wasapi:{0.0.0.00000000}.{8956b385-e7b8-490e-ada9-1ed9f0fd45a6}",
+    "capture_id": "wasapi:{0.0.1.00000000}.{cc10b52c-c2a6-402a-96e9-484e6923f66d}",
+    "stable_across_two_lifecycles": true,
+    "provider_exit": 0,
+    "provider_stderr": "",
+    "owner_stdin_eof_cleanup": {"passed": true, "code": 0, "signal": null, "stderr": ""}
+  },
+  "pair": {
+    "passed": true,
+    "captured_frames": 144480,
+    "submitted_packets": 149,
+    "tone_amplitude": 0.09642567101122887,
+    "tone_rms": 0.06956926697645657,
+    "tone_peak": 0.10003662109375,
+    "first_error_after_frames": null,
+    "baseline": {"captured_frames": 24000, "quiet": true, "rms": 0.000020422470296186792},
+    "after_clear": {"captured_frames": 24000, "quiet": true, "rms": 0.000020415818799345332},
+    "drain_before_silence_ms": 300,
+    "closed_after_drop": true,
+    "target": {"device_open": true, "device_sample_frames": 221376, "dropped_frames": 1, "error": null, "realtime_denied": false, "xruns": 0}
+  },
+  "fixes": [
+    "NoInstallClass-compatible enumeration restricted to reviewed INF and newly created device",
+    "High-resolution interruptible audio deadline without global timer changes",
+    "One USB frame clock across IN/OUT and differing URB batches; StartFrame reports the first packet",
+    "Line-level terminal types prevent physical-microphone Voice Clarity processing of remote PCM",
+    "CPAL tracks actual first GetBuffer after Start, instead of assuming device position is zero; later discontinuities still report errors"
+  ],
+  "checks": {
+    "audio_target_unit_tests": 53,
+    "clippy_all_targets": "passed; CPAL has an existing Windows-only unused helper warning",
+    "go_packages": ["./internal/audiodevice", "./cmd/orchestrator"],
+    "driver_inventory_and_notice_tests": 8,
+    "workflow_yaml": "parsed; new Windows fixture not yet executed on GitHub Actions"
+  },
+  "local_raw_records": ".local/validation/usbip-protocol/{install-r2,device-line,device-final,pair-final,stdin-cleanup}*",
+  "production_release_changed": false,
+  "production_includes_test_binaries": false,
+  "remaining": [
+    "Production gateway binary owning this provider and target-application recording",
+    "Full unified installer acceptance using the new provider",
+    "Production release USB identity",
+    "Physical human speech acceptance"
+  ],
+  "references": [
+    "https://learn.microsoft.com/windows/win32/api/setupapi/nf-setupapi-setupdibuilddriverinfolist",
+    "https://learn.microsoft.com/windows/win32/api/synchapi/nf-synchapi-createwaitabletimerexw",
+    "https://learn.microsoft.com/windows-hardware/drivers/ddi/usb/ns-usb-_urb_isoch_transfer",
+    "https://www.usb.org/sites/default/files/termt10.pdf",
+    "https://chromium.googlesource.com/chromium/src/media/+/master/audio/win/audio_low_latency_input_win.cc"
+  ]
+}

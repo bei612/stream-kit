@@ -7,10 +7,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let args: Vec<_> = std::env::args().skip(1).collect();
     if args.len() != 4 {
-        return Err("usage: virtual_device VENDOR_ID PRODUCT_ID SERIAL HOLD_SECONDS".into());
+        return Err("usage: virtual_device VENDOR_ID PRODUCT_ID SERIAL HOLD_SECONDS|stdin".into());
     }
-    let duration: u64 = args[3].parse()?;
-    if !(1..=300).contains(&duration) {
+    let duration = if args[3] == "stdin" {
+        None
+    } else {
+        Some(args[3].parse::<u64>()?)
+    };
+    if duration.is_some_and(|value| !(1..=300).contains(&value)) {
         return Err("hold duration must be 1..300 seconds".into());
     }
     let mut device = ManagedDevice::start(Identity {
@@ -19,7 +23,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         serial: args[2].clone(),
     })?;
     println!("Virtual audio attached; awaiting Windows endpoint enumeration");
-    std::thread::sleep(std::time::Duration::from_secs(duration));
+    if let Some(duration) = duration {
+        std::thread::sleep(std::time::Duration::from_secs(duration));
+    } else {
+        // CI owns this pipe. EOF (including an owner crash) closes the device
+        // through the production lifecycle, without a force-kill or fixed wait.
+        use std::io::Read;
+        let mut byte = [0u8; 1];
+        while std::io::stdin().read(&mut byte)? != 0 {}
+    }
     let running = device.transport_running();
     let devices = stream_kit_audio_target::devices();
     device.close()?;

@@ -8,7 +8,7 @@ use cpal::{
 use std::{
     sync::{
         Arc, Mutex,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
     time::{Duration, Instant},
 };
@@ -55,14 +55,18 @@ fn capture<T: cpal::SizedSample>(
     config: cpal::StreamConfig,
     result: Arc<Mutex<Measurement>>,
     failed: Arc<AtomicBool>,
+    frames_received: Arc<AtomicU64>,
+    first_error_frame: Arc<AtomicU64>,
 ) -> Result<cpal::Stream, cpal::Error>
 where
     f32: cpal::FromSample<T>,
 {
     let channels = config.channels as usize;
+    let received = frames_received.clone();
     device.build_input_stream(
         config,
         move |samples: &[T], _| {
+            received.fetch_add((samples.len() / channels) as u64, Ordering::Relaxed);
             if let Ok(mut result) = result.try_lock() {
                 for frame in samples.chunks_exact(channels) {
                     let sample = <f32 as cpal::FromSample<T>>::from_sample_(frame[0]) as f64;
@@ -71,6 +75,12 @@ where
             }
         },
         move |error| {
+            let _ = first_error_frame.compare_exchange(
+                u64::MAX,
+                frames_received.load(Ordering::Relaxed),
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+            );
             failed.store(true, Ordering::Release);
             eprintln!("capture error: {error}");
         },
@@ -101,17 +111,34 @@ pub fn verify_pair(pair: &EndpointPair) -> Result<serde_json::Value, Box<dyn std
         .with_sample_rate(48_000);
     let result = Arc::new(Mutex::new(Measurement::default()));
     let failed = Arc::new(AtomicBool::new(false));
+    let frames_received = Arc::new(AtomicU64::new(0));
+    let first_error_frame = Arc::new(AtomicU64::new(u64::MAX));
     eprintln!("audio-pair: opening capture stream");
     let stream = match config.sample_format() {
-        SampleFormat::F32 => {
-            capture::<f32>(&device, config.into(), result.clone(), failed.clone())?
-        }
-        SampleFormat::I16 => {
-            capture::<i16>(&device, config.into(), result.clone(), failed.clone())?
-        }
-        SampleFormat::I32 => {
-            capture::<i32>(&device, config.into(), result.clone(), failed.clone())?
-        }
+        SampleFormat::F32 => capture::<f32>(
+            &device,
+            config.into(),
+            result.clone(),
+            failed.clone(),
+            frames_received.clone(),
+            first_error_frame.clone(),
+        )?,
+        SampleFormat::I16 => capture::<i16>(
+            &device,
+            config.into(),
+            result.clone(),
+            failed.clone(),
+            frames_received.clone(),
+            first_error_frame.clone(),
+        )?,
+        SampleFormat::I32 => capture::<i32>(
+            &device,
+            config.into(),
+            result.clone(),
+            failed.clone(),
+            frames_received.clone(),
+            first_error_frame.clone(),
+        )?,
         _ => return Err("capture format unsupported".into()),
     };
     eprintln!("audio-pair: opening render endpoint");
@@ -175,6 +202,7 @@ pub fn verify_pair(pair: &EndpointPair) -> Result<serde_json::Value, Box<dyn std
     eprintln!("audio-pair: endpoints closed; measurement complete");
     Ok(
         serde_json::json!({"passed": passed, "captured_frames": tone.frames,
+        "tone": tone.report(), "first_error_after_frames": (first_error_frame.load(Ordering::Relaxed) != u64::MAX).then(|| first_error_frame.load(Ordering::Relaxed)),
         "tone_amplitude": amplitude, "submitted_packets": submitted, "target": status,
         "baseline": baseline.report(), "after_clear": result.report(), "drain_before_silence_ms": 300,
         "closed_after_drop": closed_after_drop}),

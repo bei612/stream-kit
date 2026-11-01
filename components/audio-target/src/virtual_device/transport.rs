@@ -2,6 +2,7 @@
 //! installation are separate lifecycle responsibilities; this module never
 //! creates a persistent service or changes Windows defaults.
 use super::{
+    deadline_channel::{self, Event},
     engine::Engine,
     export::{DEVICE_ID, Export},
     usbip,
@@ -15,7 +16,6 @@ pub enum ConnectionOutcome {
 use std::{
     io::{self, BufWriter, Write},
     net::{Shutdown, TcpStream},
-    sync::mpsc::{self, RecvTimeoutError},
     thread,
     time::{Duration, Instant},
 };
@@ -41,7 +41,7 @@ pub fn serve_connection(stream: TcpStream, export: Export) -> io::Result<Connect
     }
     writer.flush()?;
     reader.set_read_timeout(None)?;
-    let (sender, receiver) = mpsc::sync_channel(32);
+    let (sender, receiver) = deadline_channel::channel(32)?;
     let read_thread = thread::Builder::new()
         .name("virtual-audio-usb-reader".into())
         .spawn(move || {
@@ -58,17 +58,10 @@ pub fn serve_connection(stream: TcpStream, export: Export) -> io::Result<Connect
         loop {
             engine.complete_due(Instant::now(), &mut writer)?;
             writer.flush()?;
-            let event = if let Some(deadline) = engine.next_deadline() {
-                match receiver.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
-                    Ok(value) => value,
-                    Err(RecvTimeoutError::Timeout) => continue,
-                    Err(RecvTimeoutError::Disconnected) => break,
-                }
-            } else {
-                match receiver.recv() {
-                    Ok(value) => value,
-                    Err(_) => break,
-                }
+            let event = match receiver.receive(engine.next_deadline())? {
+                Event::Message(value) => value,
+                Event::Deadline => continue,
+                Event::Closed => break,
             };
             match event {
                 Ok(request) => engine.request(request, Instant::now(), &mut writer)?,

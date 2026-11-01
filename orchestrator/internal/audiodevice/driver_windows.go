@@ -118,19 +118,24 @@ func InstallWindowsDriver(ctx context.Context, directory string) (result DriverI
 		return result, err
 	}
 	params.Flags |= windows.DI_ENUMSINGLEINF | windows.DI_QUIETINSTALL
+	// USB is a NoInstallClass on Windows. Programmatic enumeration must include
+	// excluded PnP drivers; this flag applies only to this new device's search.
+	// The exact reviewed INF and hardware-compatible list still constrain it.
+	// https://learn.microsoft.com/windows/win32/api/setupapi/nf-setupapi-setupdibuilddriverinfolist
+	params.FlagsEx |= windows.DI_FLAGSEX_ALLOWEXCLUDEDDRVS
 	if err = params.SetDriverPath(filepath.Join(directory, "usbip2_ude.inf")); err != nil {
 		return result, err
 	}
 	if err = set.SetDeviceInstallParams(device, params); err != nil {
 		return result, err
 	}
-	if err = set.BuildDriverInfoList(device, windows.SPDIT_CLASSDRIVER); err != nil {
-		return result, err
+	if err = set.BuildDriverInfoList(device, windows.SPDIT_COMPATDRIVER); err != nil {
+		return result, fmt.Errorf("build pinned compatible USB driver list: %w", err)
 	}
-	defer set.DestroyDriverInfoList(device, windows.SPDIT_CLASSDRIVER)
-	driver, err := set.EnumDriverInfo(device, windows.SPDIT_CLASSDRIVER, 0)
+	defer set.DestroyDriverInfoList(device, windows.SPDIT_COMPATDRIVER)
+	driver, err := set.EnumDriverInfo(device, windows.SPDIT_COMPATDRIVER, 0)
 	if err != nil {
-		return result, err
+		return result, fmt.Errorf("select pinned compatible USB driver: %w", err)
 	}
 	if err = set.SetSelectedDriver(device, driver); err != nil {
 		return result, err

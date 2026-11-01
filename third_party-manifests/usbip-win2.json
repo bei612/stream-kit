@@ -20,6 +20,7 @@
     }
   ],
   "runtime_inventory": "orchestrator/internal/audiodevice/usbip-driver.json",
+  "runtime_payload": "deploy/windows/usb-audio-driver",
   "integration": {
     "kernel": "Optional, unmodified upstream Microsoft-signed UDE and companion filter only",
     "userspace": "Platform-owned native Rust audio-only USB/IP provider and Go installation lifecycle; no upstream SDK, CLI or GUI runtime dependency",

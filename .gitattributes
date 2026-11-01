@@ -20,3 +20,5 @@ third_party/sevenzip/** -text
 scripts/licenses/**/LICENSE* -text
 # Pinned upstream notice hashes cover original bytes, including NOTICE files.
 scripts/licenses/cargo/** -text
+# Signed driver catalogs and inventory hashes require exact release bytes.
+deploy/windows/usb-audio-driver/** -text whitespace=cr-at-eol
