@@ -127,5 +127,10 @@
   ],
   "separate_native_preparation_run": "https://github.com/bei612/stream-kit/actions/runs/41295064607",
   "product_installer_run": "https://github.com/bei612/stream-kit/actions/runs/41295337750",
-  "product_installer_acceptance": "pending; not established by this CI result"
+  "product_installer_acceptance": {
+    "windows_run": "https://github.com/bei612/stream-kit/actions/runs/41298692565",
+    "windows_passed": true,
+    "evidence": "docs/evidence/windows-installer-509c94cf.json",
+    "human_speech": "deferred"
+  }
 }

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "source_commit": "509c94cf7d78e3ae09775f7f118904a741cd4fc2",
+  "installer_sha256": "d572414d6171845af2bd62ea85acf6857190f0d549383f295fae83036bd9c9d0",
+  "run": "https://github.com/bei612/stream-kit/actions/runs/41298692565",
+  "passed": true,
+  "environment": "Disposable GitHub-hosted Windows Server 2022; interactive runner account and LocalSystem installed service.",
+  "scope": "Actual unchanged published installer, first audio controller installation, silent setup, administrator login, native PCM, gateway restart, full SCM restart, uninstall and retained data.",
+  "checks": {
+    "install_exit": 0,
+    "admin_login": true,
+    "service_account": "LocalSystem",
+    "controller_previously_installed": false,
+    "healthy_controllers_after": 1,
+    "captured_frames": 144000,
+    "dropped_frames": 0,
+    "xruns": 0,
+    "gateway_stop_exit": 0,
+    "gateway_restarted": true,
+    "scm_restarted": true,
+    "service_pid_before": 2948,
+    "service_pid_after": 7864,
+    "endpoint_identities_preserved": true,
+    "render_defaults_preserved": true,
+    "uninstall_exit": 0,
+    "service_removed": true,
+    "data_preserved": true
+  },
+  "limits": [
+    "The VM initially had no audio endpoints. Creating the first input supplied its previously absent capture defaults; output defaults remained empty. This does not prove preservation of pre-existing physical input defaults.",
+    "No physical Windows 11 machine, GPU streaming, browser-to-UE5 or human speech acceptance is claimed by this installer check.",
+    "The earlier local Windows UAC cancellation remains unchanged; the successful installation took place only on the disposable hosted VM."
+  ],
+  "private_evidence": ".local/validation/installed-service-scm-509c94cf/installer-acceptance/result.json",
+  "sha256": "78ec5fa1a2e7541e176c37fca1242533048de807568c21d0d0348b3c7172d306"
+}

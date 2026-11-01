@@ -21,6 +21,13 @@
       "serial_prefix": "lkdtc2012@gmail.com:"
     },
     "actual_installation_acceptance": {
+      "passed": true,
+      "run": "https://github.com/bei612/stream-kit/actions/runs/41298692565",
+      "environment": "Disposable GitHub-hosted Windows Server 2022; interactive runner account and LocalSystem installed service.",
+      "evidence": "docs/evidence/windows-installer-509c94cf.json",
+      "scope": "Actual unchanged published installer, first audio controller installation, silent setup, administrator login, native PCM, gateway restart, full SCM restart, uninstall and retained data."
+    },
+    "local_installation_attempt": {
       "passed": false,
       "started": false,
       "status": "not_started_uac_cancelled",

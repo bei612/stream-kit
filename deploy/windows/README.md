@@ -62,8 +62,11 @@ applications. The preparation command opens no HTTP listener and sends no PCM.
 
 The actual native gateway preparation command, production controller preparation
 API, persisted completion, PCM and subsequent endpoint restart have passed in an
-isolated Windows environment. The matching unified installer and LocalSystem
-service still require their own acceptance; this does not establish absence of a transient default change
+isolated Windows environment. The matching published installer has also passed
+first driver installation, silent setup, administrator login, native PCM,
+interactive gateway restart, complete LocalSystem SCM restart and uninstall on
+a disposable Windows Server 2022 runner. Both media components recovered with
+stable audio endpoint identities. This does not establish absence of a transient default change
 during the first unprepared enumeration. See
 `docs/evidence/windows-endpoint-policy-20261101.json` for the evidence boundary.
 
@@ -120,12 +123,12 @@ VB-CABLE. The previously accepted encoder/example were retained for this focused
 integration run, so it is not a matching-revision release-bundle acceptance.
 Evidence: `docs/evidence/browser-native-audio-ue5-20261101.json`.
 
-**Still required before a public provider release:** acceptance of the matching
-unified installer and actual LocalSystem service lifecycle. The shared Audio class
-release identity is already selected and verified. Physical human speech acceptance
-is deferred separately; generated PCM does not establish it. The published
-`v0.1.0-rc.1` candidate includes this provider and explicitly retains those
-acceptance limits; older preview assets remain unchanged.
+The matching installer and complete LocalSystem service lifecycle acceptance are
+recorded in `docs/evidence/windows-installer-509c94cf.json`. The shared Audio class
+release identity is selected and verified. Physical human speech acceptance is
+deferred separately; generated PCM does not establish it. The published
+`v0.1.0-rc.1` candidate includes this provider and retains that acceptance limit;
+older preview assets remain unchanged.
 
 The wizard accepts a program directory, a separate new data directory and the
 single administrator's credentials. Internal media credentials and the shared
