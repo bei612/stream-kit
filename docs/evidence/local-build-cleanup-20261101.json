@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-11-01T00:10:38.538Z",
+  "root": "D:\\Projects\\fuzhougulou\\stream-kit",
+  "before_logical_bytes": 79936133967,
+  "after_logical_bytes": 6348677948,
+  "before_GiB": 74.44632609095424,
+  "after_GiB": 5.912667091935873,
+  "methods": [
+    "Cargo clean for five verified target directories",
+    "Playwright uninstall scoped to the project browser cache",
+    "Reviewed non-recursive deletion of 3290 generated binary/archive files"
+  ],
+  "preserved": [
+    "All tracked source and Git history",
+    "Uncommitted UE5 example source",
+    "Runtime configuration and media binaries",
+    "Latest Windows/Linux installer set and source SBOM (ci-9fe6979a)",
+    "One native baseline platform and audio probe (6c98ccb0)",
+    "JSON/logs/screenshots and prior acceptance evidence"
+  ],
+  "recursive_deletion_status": "Generic recursive commands rejected by automatic safety review; no alternate shell was used to bypass them",
+  "groups": [
+    {
+      "path": ".local/toolchains",
+      "bytes": 948093225
+    },
+    {
+      "path": "artifacts/release",
+      "bytes": 811172706
+    },
+    {
+      "path": ".local/cmake-build-sunshine",
+      "bytes": 624353492
+    },
+    {
+      "path": ".local/cmake-build-sunshine-release-20261031",
+      "bytes": 566786491
+    },
+    {
+      "path": "third_party/sunshine",
+      "bytes": 523705341
+    },
+    {
+      "path": ".local/cmake-build-sunshine-deps",
+      "bytes": 412424267
+    },
+    {
+      "path": ".local/downloads",
+      "bytes": 313978992
+    },
+    {
+      "path": "orchestrator/vendor",
+      "bytes": 179063167
+    },
+    {
+      "path": "orchestrator/web",
+      "bytes": 160996311
+    },
+    {
+      "path": ".git/objects",
+      "bytes": 143706308
+    },
+    {
+      "path": ".local/sunshine",
+      "bytes": 100957449
+    },
+    {
+      "path": "orchestrator/dist",
+      "bytes": 86392099
+    },
+    {
+      "path": "third_party/moonlight-web-stream",
+      "bytes": 84928995
+    },
+    {
+      "path": ".local/moonlight",
+      "bytes": 83144039
+    },
+    {
+      "path": ".local/validation",
+      "bytes": 78916503
+    }
+  ]
+}
