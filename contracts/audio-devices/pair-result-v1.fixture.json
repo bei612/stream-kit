@@ -1,0 +1,38 @@
+{
+  "after_clear": {
+    "captured_frames": 24000,
+    "peak": 0.00006103515625,
+    "quiet": true,
+    "rms": 0.00002055504823680115,
+    "tone_amplitude": 1.0200364466661853e-7
+  },
+  "baseline": {
+    "captured_frames": 24000,
+    "peak": 0.00006103515625,
+    "quiet": true,
+    "rms": 0.00002059182865121435,
+    "tone_amplitude": 1.7235238831834772e-8
+  },
+  "captured_frames": 144000,
+  "closed_after_drop": true,
+  "drain_before_silence_ms": 300,
+  "first_error_after_frames": null,
+  "passed": true,
+  "submitted_packets": 149,
+  "target": {
+    "device_open": true,
+    "device_sample_frames": 221376,
+    "dropped_frames": 1,
+    "error": null,
+    "realtime_denied": false,
+    "xruns": 0
+  },
+  "tone": {
+    "captured_frames": 144000,
+    "peak": 0.10003662109375,
+    "quiet": false,
+    "rms": 0.06982852247652106,
+    "tone_amplitude": 0.09744703493643375
+  },
+  "tone_amplitude": 0.09744703493643375
+}

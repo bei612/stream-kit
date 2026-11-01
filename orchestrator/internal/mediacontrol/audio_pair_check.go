@@ -26,15 +26,17 @@ type PairMeasurement struct {
 	Quiet          bool    `json:"quiet"`
 }
 type PairCheckResult struct {
-	Passed               *bool               `json:"passed"`
-	CapturedFrames       uint64              `json:"captured_frames"`
-	ToneAmplitude        float64             `json:"tone_amplitude"`
-	SubmittedPackets     uint32              `json:"submitted_packets"`
-	Target               *TargetDeviceStatus `json:"target"`
-	Baseline             *PairMeasurement    `json:"baseline"`
-	AfterClear           *PairMeasurement    `json:"after_clear"`
-	DrainBeforeSilenceMS uint32              `json:"drain_before_silence_ms"`
-	ClosedAfterDrop      bool                `json:"closed_after_drop"`
+	Passed                *bool               `json:"passed"`
+	CapturedFrames        uint64              `json:"captured_frames"`
+	ToneAmplitude         float64             `json:"tone_amplitude"`
+	Tone                  *PairMeasurement    `json:"tone"`
+	FirstErrorAfterFrames *uint64             `json:"first_error_after_frames"`
+	SubmittedPackets      uint32              `json:"submitted_packets"`
+	Target                *TargetDeviceStatus `json:"target"`
+	Baseline              *PairMeasurement    `json:"baseline"`
+	AfterClear            *PairMeasurement    `json:"after_clear"`
+	DrainBeforeSilenceMS  uint32              `json:"drain_before_silence_ms"`
+	ClosedAfterDrop       bool                `json:"closed_after_drop"`
 }
 type pairCheckRequest struct {
 	SchemaVersion uint32            `json:"schema_version"`
@@ -131,7 +133,7 @@ func decodePairCheck(secret []byte, signature string, body []byte, request pairC
 	quiet := func(m *PairMeasurement) bool {
 		return m.Quiet && m.CapturedFrames >= 12000 && m.RMS >= 0 && m.RMS < 0.001 && m.Peak >= 0 && m.Peak < 0.003
 	}
-	if *result.Passed && (result.SubmittedPackets < 140 || result.CapturedFrames <= 48000 || result.ToneAmplitude <= 0.01 || !quiet(result.Baseline) || !quiet(result.AfterClear) || !result.Target.DeviceOpen || result.Target.Error != nil || !result.ClosedAfterDrop) {
+	if *result.Passed && (result.FirstErrorAfterFrames != nil || result.SubmittedPackets < 140 || result.CapturedFrames <= 48000 || result.ToneAmplitude <= 0.01 || !quiet(result.Baseline) || !quiet(result.AfterClear) || !result.Target.DeviceOpen || result.Target.Error != nil || !result.ClosedAfterDrop) {
 		return fail()
 	}
 	return result, nil

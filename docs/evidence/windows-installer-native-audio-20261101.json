@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-01",
+  "source_commit": "f2f409f0b7b7649f70df4a8138a5890945c543b5",
+  "product_build": "https://github.com/bei612/stream-kit/actions/runs/41284560375",
+  "installer": {
+    "name": "stream-kit-0.1.0-f2f409f0b7b7-windows-amd64-setup.exe",
+    "bytes": 97450633,
+    "sha256": "bb8ac5e67eda696656fea3960284ede7ceedf008bf691f6ec1ebac98464a669b"
+  },
+  "identity": {
+    "vendor_id": 5824,
+    "product_id": 10208,
+    "serial_prefix": "lkdtc2012@gmail.com:"
+  },
+  "checks": {
+    "silent_install_exit": 0,
+    "administrator_login": true,
+    "service_account": "LocalSystem",
+    "explicit_endpoints_created": true,
+    "uninstall_exit": 0,
+    "service_removed": true,
+    "data_preserved": true,
+    "defaults_unchanged": true
+  },
+  "passed": false,
+  "failure": "Control POST /audio-devices/check-pair: 503",
+  "diagnosis": {
+    "confirmed": "Native verification emits tone and first_error_after_frames, but the Go strict decoder lacked both fields. The recorded real native result reproduces rejection in a regression test before the correction.",
+    "correction": "Align Go and TypeScript result contracts, retain strict unknown-field rejection, preserve capture diagnostics and reject a claimed pass with a capture error.",
+    "validation": "Go media-control and HTTP handler tests plus frontend TypeScript check passed. New complete product build and installed endpoint verification remain required.",
+    "limits": "The failed installer request exposed only HTTP 503; no claim is made that its native PCM measurement passed. The private before-controller inventory filter had a JavaScript escaping error, so that run does not establish controller reuse via inventory comparison."
+  },
+  "evidence": {
+    "path": ".local/validation/installer-f2f409f0-audio/result.json",
+    "sha256": "1d991387beb0049095824ba45c03c3b71555af92807ac5b084a924ad7176b33c"
+  },
+  "scope": "Real single-installer installation and removal on Windows; no human speech or completed production release claim."
+}

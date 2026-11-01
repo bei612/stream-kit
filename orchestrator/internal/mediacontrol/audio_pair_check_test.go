@@ -3,13 +3,49 @@ package mediacontrol
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/stream-kit/orchestrator/internal/session"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 )
+
+func TestPairCheckAcceptsNativeVerificationFixture(t *testing.T) {
+	// Captured from the native verifier, not marshalled from the Go consumer:
+	// otherwise a missing consumer field silently disappears from the test.
+	fixture, err := os.ReadFile("../../../contracts/audio-devices/pair-result-v1.fixture.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := pairCheckRequest{SchemaVersion: 1, RequestID: "nonce", IssuedAt: 10000}
+	body := []byte(fmt.Sprintf(`{"schema_version":1,"request_id":"nonce","request_issued_at_ms":10000,"observed_at_ms":14500,"result":%s}`, fixture))
+	result, err := decodePairCheck([]byte("key"), controlSignature([]byte("key"), pairResponseContext, body), body, request, 15000)
+	if err != nil {
+		t.Fatalf("native verification result rejected: %v", err)
+	}
+	if result.Passed == nil || !*result.Passed || result.CapturedFrames != 144000 {
+		t.Fatal("native measurement was not preserved")
+	}
+	if result.Tone == nil || result.Tone.CapturedFrames != result.CapturedFrames || result.FirstErrorAfterFrames != nil {
+		t.Fatal("native capture diagnostics were not preserved")
+	}
+	var unknown map[string]json.RawMessage
+	if err := json.Unmarshal(fixture, &unknown); err != nil {
+		t.Fatal(err)
+	}
+	unknown["unexpected_field"] = json.RawMessage(`true`)
+	altered, err := json.Marshal(unknown)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body = []byte(fmt.Sprintf(`{"schema_version":1,"request_id":"nonce","request_issued_at_ms":10000,"observed_at_ms":14500,"result":%s}`, altered))
+	if _, err := decodePairCheck([]byte("key"), controlSignature([]byte("key"), pairResponseContext, body), body, request, 15000); err == nil {
+		t.Fatal("unexpected native result field bypassed strict validation")
+	}
+}
 
 func TestPairCheckUsesVerifiedInventoryAndBoundRequest(t *testing.T) {
 	for _, badSignature := range []bool{false, true} {
@@ -74,6 +110,7 @@ func TestPairCheckResponseBindingAndEvidence(t *testing.T) {
 		{"missing result", func(r *pairCheckResponse) { r.Result.Passed = nil }, false},
 		{"false positive", func(r *pairCheckResponse) { r.Result.ToneAmplitude = 0 }, false},
 		{"device remains open", func(r *pairCheckResponse) { r.Result.ClosedAfterDrop = false }, false},
+		{"capture error", func(r *pairCheckResponse) { frame := uint64(0); r.Result.FirstErrorAfterFrames = &frame }, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := valid

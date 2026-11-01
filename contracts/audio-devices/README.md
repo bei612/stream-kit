@@ -77,6 +77,8 @@ node scripts/smoke-media-contract.cjs GATEWAY_EXECUTABLE [ORCHESTRATOR_EXECUTABL
 
 ## 端点对显式检查（网关内部接口）
 
+原生检查结果的跨语言样本为 `pair-result-v1.fixture.json`，取自实际 Windows 共享音频端点的原生测量结果。控制面直接解码该样本，避免仅用 Go 自身结构生成测试数据而漏掉生产者新增字段。结果中的 `tone` 保存测试音测量，`first_error_after_frames` 为首次采集错误所在帧数或 `null`；控制面和前端保留这些字段，有采集错误的结果不能声称通过。未知字段、错误签名及请求绑定仍严格拒绝。
+
 网关提供 `POST /internal/v1/audio-pair-check`，请求必须使用 `stream-kit/audio-pair-check/request/v1\n` 签名域，响应使用独立的 `stream-kit/audio-pair-check/response/v1\n` 签名域。请求包含 `schema_version`、32 位十六进制随机 `request_id`、`issued_at_ms` 和 `endpoint` 的明确输出/输入 ID；服务端校验签名、时效、方向格式与不同 ID，并在本进程内拒绝重复 nonce。nonce 缓存随进程结束而清空，不能视为跨重启的持久防重放机制。
 
 此操作会在指定输出播放测试音并打开指定输入进行测量，必须由管理员明确发起。网关对检查进行全局并发限额，使用与实时输出相同的端点占用登记；会话持有设备时检查失败，取消 HTTP 请求也不会提前释放运行中的原生任务及其占用。检查不更改默认设备。响应绑定原请求并包含基线静音、测试音、清空后静音、设备状态和测量结论。通过仅证明该端点对在检查时可传递测试音，不能证明浏览器上行或目标应用已录音。

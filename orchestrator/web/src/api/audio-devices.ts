@@ -1,3 +1,5 @@
+import type { TargetDeviceStatus } from './sessions'
+
 export interface AudioDevice {
   id: string
   name: string
@@ -21,12 +23,24 @@ export interface AudioInventory {
   configured_routes: AudioRoute[]
 }
 
+export interface AudioPairMeasurement {
+  captured_frames: number
+  tone_amplitude: number
+  quiet: boolean
+  rms: number
+  peak: number
+}
+
 export interface AudioPairCheckResult {
   passed: boolean
   captured_frames: number
   tone_amplitude: number
+  tone: AudioPairMeasurement | null
+  first_error_after_frames: number | null
   submitted_packets: number
   closed_after_drop: boolean
-  baseline: { quiet: boolean; rms: number; peak: number }
-  after_clear: { quiet: boolean; rms: number; peak: number }
+  baseline: AudioPairMeasurement
+  after_clear: AudioPairMeasurement
+  target: TargetDeviceStatus
+  drain_before_silence_ms: number
 }
