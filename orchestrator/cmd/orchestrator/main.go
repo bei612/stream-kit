@@ -225,6 +225,7 @@ func run(ctx context.Context, ready func()) error {
 			})
 		},
 		logger,
+		component.WithPreparation(prepareComponentAudio),
 	)
 	var autoStartDone <-chan struct{}
 	defer func() {

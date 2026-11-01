@@ -65,6 +65,8 @@ pub enum Command {
     InitializeAdmin,
     /// Lists native audio endpoint IDs without opening streams or changing defaults.
     AudioDevices,
+    /// Prepares the configured device through private platform-owned pipes; starts no media server.
+    PrepareAudio,
     /// Runs the server (default if no command specified)
     Run,
     /// Config related commands

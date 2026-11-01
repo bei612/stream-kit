@@ -9,8 +9,8 @@ assert.equal(process.platform,'win32');
 assert.equal(process.env.GITHUB_ACTIONS,'true');
 assert.equal(process.env.RUNNER_ENVIRONMENT,'github-hosted');
 assert.equal(process.env.RUNNER_OS,'Windows');
-assert.equal(process.argv.length,4,'Expected audio-target debug directory and policy helper');
-const native=path.resolve(process.argv[2]),policy=path.resolve(process.argv[3]);
+assert.equal(process.argv.length,5,'Expected audio-target debug directory, policy helper and native gateway');
+const native=path.resolve(process.argv[2]),policy=path.resolve(process.argv[3]),gateway=path.resolve(process.argv[4]);
 const output=path.resolve('artifacts/audio-playback/endpoint-policy');
 fs.mkdirSync(output,{recursive:true});
 const report={passed:false,scope:'Documented render-only endpoint policy on two owned synthetic devices in a disposable Windows runner. No customer installation or human speech claim.'};
@@ -72,10 +72,14 @@ async function waitRemoved(pair){
   report.target=seed.pair;
   report.defaults_without_policy=defaults();
   report.selection_regression_reproduced=!isDeepStrictEqual(report.defaults_without_policy,report.defaults_before);
-  report.policy=JSON.parse(execFileSync(policy,[],{encoding:'utf8',windowsHide:true,timeout:30000}));
-  assert.equal(report.policy.length,2);
-  assert.ok(report.policy.every(row=>row.render_never_default_mask===0x107&&row.inbox_driver_refreshed));
   await close(seed);
+  await waitRemoved(seed.pair);
+  const configuration=path.join(output,'gateway.json');
+  const config=JSON.parse(execFileSync(gateway,['--config-path',configuration,'config','print'],{encoding:'utf8',windowsHide:true,timeout:20000}));
+  config.virtual_audio={vendor_id:65534,product_id:1,serial:'CIPolicyTarget'};
+  fs.writeFileSync(configuration,JSON.stringify(config));
+  report.policy=JSON.parse(execFileSync(policy,[gateway,configuration],{encoding:'utf8',windowsHide:true,timeout:100000}));
+  assert.deepEqual(report.policy,{ready:true,production_policy:true,native_gateway_preparation:true,repeat_preparation_passed:true});
   for(let i=0;i<100;i++){
    if((await inventory()).every(d=>d.id===reference.pair.render||d.id===reference.pair.capture))break;
    await delay(100);

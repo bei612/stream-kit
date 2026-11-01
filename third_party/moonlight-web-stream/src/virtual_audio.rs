@@ -12,7 +12,7 @@ pub struct Config {
 }
 
 impl Config {
-    fn identity(&self) -> Identity {
+    pub(crate) fn identity(&self) -> Identity {
         Identity {
             vendor: self.vendor_id,
             product: self.product_id,

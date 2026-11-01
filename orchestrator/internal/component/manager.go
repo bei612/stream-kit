@@ -43,6 +43,15 @@ type ComponentState struct {
 
 type EventCallback func(name string, status Status)
 
+// Preparation owns platform resources that must be ready before launching a
+// component. It runs inside the same serialized lifecycle as normal/retry starts.
+type Preparation func(context.Context, string, config.ComponentConfig) error
+type Option func(*Manager)
+
+func WithPreparation(prepare Preparation) Option {
+	return func(m *Manager) { m.prepare = prepare }
+}
+
 type Manager struct {
 	components      map[string]*ComponentState
 	configs         map[string]config.ComponentConfig
@@ -55,6 +64,7 @@ type Manager struct {
 	closing         atomic.Bool
 	ctx             context.Context
 	cancel          context.CancelFunc
+	prepare         Preparation
 }
 
 func NewManager(
@@ -63,6 +73,7 @@ func NewManager(
 	dataDir string,
 	onEvent EventCallback,
 	logger *zap.Logger,
+	options ...Option,
 ) *Manager {
 	if shutdownTimeout <= 0 {
 		shutdownTimeout = 5
@@ -80,6 +91,9 @@ func NewManager(
 	}
 	for name := range configs {
 		m.components[name] = &ComponentState{Name: name, Status: StatusStopped}
+	}
+	for _, option := range options {
+		option(m)
 	}
 	return m
 }
@@ -184,6 +198,18 @@ func (m *Manager) start(name string, cs *ComponentState, retry bool) error {
 	cs.mu.Unlock()
 
 	m.emitEvent(name, StatusStarting)
+	if m.prepare != nil && cfg.ExePath != "" {
+		if err := m.prepare(m.ctx, name, cfg); err != nil {
+			cs.mu.Lock()
+			cs.Status, cs.LastError = StatusError, err.Error()
+			cs.mu.Unlock()
+			m.emitEvent(name, StatusError)
+			return fmt.Errorf("prepare component resources: %w", err)
+		}
+		if m.closing.Load() {
+			return fmt.Errorf("component manager is closing")
+		}
+	}
 
 	// Monitor-only: exe_path 为空表示组件由外部管理
 	if cfg.ExePath == "" {

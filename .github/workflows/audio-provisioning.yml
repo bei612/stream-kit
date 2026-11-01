@@ -51,7 +51,7 @@ jobs:
   windows-audio:
     if: github.event_name == 'workflow_dispatch' && (inputs.target == 'windows' || inputs.target == 'windows-policy')
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     defaults:
       run:
         shell: pwsh
@@ -75,7 +75,9 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: components/audio-target
+          workspaces: |
+            components/audio-target
+            third_party/moonlight-web-stream
           cache-on-failure: 'true'
       - name: Provision only the signed synthetic audio fixture
         run: |
@@ -95,9 +97,11 @@ jobs:
       - name: Verify documented render endpoint policy in the disposable fixture
         if: inputs.target == 'windows-policy'
         run: |
+          cargo build --locked --manifest-path third_party/moonlight-web-stream/Cargo.toml --bin web-server 2>&1 | Tee-Object -FilePath artifacts/audio-playback/native-gateway-build.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           go -C orchestrator build -o ../artifacts/audio-playback/endpoint-policy-check.exe ./tests/endpoint-policy
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node scripts/test-windows-endpoint-policy.cjs components/audio-target/target/debug artifacts/audio-playback/endpoint-policy-check.exe
+          node scripts/test-windows-endpoint-policy.cjs components/audio-target/target/debug artifacts/audio-playback/endpoint-policy-check.exe third_party/moonlight-web-stream/target/debug/web-server.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         if: always()

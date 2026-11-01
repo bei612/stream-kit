@@ -39,6 +39,7 @@ mod api;
 mod app;
 mod web;
 
+mod audio_preparation;
 mod cli;
 mod config;
 mod configuration;
@@ -71,7 +72,11 @@ async fn main() {
         Err(err) if matches!(err.kind(), io::ErrorKind::NotFound) => {
             if matches!(
                 cli.command.as_ref(),
-                Some(Command::Config(ConfigCommand::Check) | Command::InitializeAdmin)
+                Some(
+                    Command::Config(ConfigCommand::Check)
+                        | Command::InitializeAdmin
+                        | Command::PrepareAudio
+                )
             ) {
                 eprintln!("configuration file does not exist");
                 std::process::exit(2);
@@ -90,6 +95,13 @@ async fn main() {
     cli.options.apply(&mut config);
 
     match cli.command {
+        Some(Command::PrepareAudio) => {
+            if let Err(error) = audio_preparation::run(config.virtual_audio.as_ref()) {
+                eprintln!("audio device preparation failed: {error}");
+                std::process::exit(2);
+            }
+            return;
+        }
         Some(Command::InitializeAdmin) => {
             if let Err(error) = app::storage::json::initialize_admin(&config, io::stdin().lock()) {
                 eprintln!("administrator initialization failed: {error}");
