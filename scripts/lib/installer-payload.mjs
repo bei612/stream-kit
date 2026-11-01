@@ -7,6 +7,9 @@ export function requireRuntimeInstallerPayload(manifest){
   for(const file of manifest.files??[]){
     const parts=file.path.split('/')
     if(file.path!=='README.md'&&!required.includes(parts[0]))throw Error(`Non-runtime installer entry: ${file.path}`)
-    if(parts.some(part=>/^(?:example|tests?|__tests__|testdata|node_modules|playwright|\.local|artifacts)$/i.test(part))||/^(?:node|npm|cargo|rustc|go|dotnet|checkerboard|audio-probe|UnrealEditor(?:-Cmd)?)(?:\.exe|\.cmd)?$/i.test(parts.at(-1)))throw Error(`Development-only installer entry: ${file.path}`)
+    const developmentDirectory=/^(?:examples?|tests?|__tests__|testdata|fixtures|__fixtures__|e2e|coverage|playwright(?:-report)?|test-results|node_modules|\.local|artifacts)$/i
+    const developmentProgram=/^(?:node|npm|cargo|rustc|go|dotnet|checkerboard|audio-probe|virtual_device|verify_pair|UnrealEditor(?:-Cmd)?)(?:\.exe|\.cmd)?$/i
+    const developmentScript=/^(?:(?:accept|test)-.*\.(?:[cm]?js|ps1|sh)|.*\.(?:test|spec)\.[cm]?[jt]sx?)$/i
+    if(parts.some(part=>developmentDirectory.test(part))||developmentProgram.test(parts.at(-1))||developmentScript.test(parts.at(-1)))throw Error(`Development-only installer entry: ${file.path}`)
   }
 }

@@ -13,7 +13,9 @@ test('both installers accept only the shared runtime component set',()=>{
   assert.throws(()=>requireRuntimeInstallerPayload(duplicate),/exactly the three runtime components/)
 })
 test('a self-consistent inventory cannot smuggle acceptance tooling into an installer',()=>{
-  for(const entry of ['example/checkerboard.exe','scripts/accept-source-stream.cjs','orchestrator/tests/result.json','media-gateway/node_modules/a/index.js','sunshine/.local/config.json','orchestrator/node.exe','orchestrator/UnrealEditor-Cmd.exe','sunshine/bin/UnrealEditor','orchestrator/npm.cmd','media-gateway/node','sunshine/bin/audio-probe']){
+  for(const entry of ['example/checkerboard.exe','scripts/accept-source-stream.cjs','orchestrator/tests/result.json','media-gateway/node_modules/a/index.js','sunshine/.local/config.json','orchestrator/node.exe','orchestrator/UnrealEditor-Cmd.exe','sunshine/bin/UnrealEditor','orchestrator/npm.cmd','media-gateway/node','sunshine/bin/audio-probe',
+    'media-gateway/examples/virtual_device.exe','media-gateway/fixtures/microphone.wav','orchestrator/dist/__fixtures__/config.json','orchestrator/dist/e2e/login.js','orchestrator/coverage/index.html','media-gateway/playwright-report/index.html','media-gateway/test-results/result.json',
+    'media-gateway/virtual_device.exe','media-gateway/verify_pair.exe','sunshine/bin/verify_pair','orchestrator/scripts/accept-source-stream.cjs','orchestrator/scripts/test-install.ps1','media-gateway/dist/player.test.js','orchestrator/dist/settings.spec.ts']){
     const payload=runtime('windows');payload.files.push({path:entry})
     assert.throws(()=>requireRuntimeInstallerPayload(payload),/Non-runtime|Development-only/,entry)
   }
