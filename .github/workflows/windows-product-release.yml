@@ -16,7 +16,7 @@ on:
         type: string
         required: false
       release_tag:
-        description: 'New tag matching the built channel: vMAJOR.MINOR.PATCH or v0.1.0-preview.DATE.N'
+        description: 'Matching stable, candidate or preview tag: vMAJOR.MINOR.PATCH[-rc.N] or v0.1.0-preview.DATE.N'
         type: string
         required: false
 
@@ -228,6 +228,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - name: Verify artifact promotion rules
+        run: node --test scripts/test-product-release.mjs
       - name: Verify successful source run and publish immutable artifacts
         env:
           GH_TOKEN: ${{ github.token }}

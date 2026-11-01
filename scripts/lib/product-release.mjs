@@ -19,9 +19,10 @@ export function promotionProfile(windows,linux,tag){
   const release=manifestRelease(windows),other=manifestRelease(linux)
   if(windows.commit!==linux.commit||release.version!==other.version||release.channel!==other.channel)throw Error('Both installers must have the same source, version and channel')
   if(windows.file?.name!==`${release.prefix}-windows-amd64-setup.exe`||linux.installer?.file!==`${release.prefix}-ubuntu24.04-amd64-setup.run`)throw Error('Installer name does not match its verified product identity')
-  const validTag=typeof tag==='string'&&(release.channel==='stable'
-    ?tag===`v${release.version}`
+  const candidate=typeof tag==='string'&&release.channel==='stable'&&tag.startsWith(`v${release.version}-rc.`)&&/^[1-9][0-9]*$/.test(tag.slice(`v${release.version}-rc.`.length))
+  const validTag=typeof tag==='string'&&tag===tag.trim()&&(release.channel==='stable'
+    ?tag===`v${release.version}`||candidate
     :tag.startsWith(`v${release.version.split('-')[0]}-preview.`)&&/^v[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+(\.[0-9]+)*$/.test(tag))
   if(!validTag)throw Error('Release tag does not match the artifact channel/version')
-  return {...release,prerelease:release.channel==='preview',notes:release.channel==='preview'?'deploy/windows/CI-RELEASE.md':'deploy/RELEASE.md'}
+  return {...release,publication_channel:candidate?'candidate':release.channel,prerelease:release.channel==='preview'||candidate,notes:release.channel==='preview'?'deploy/windows/CI-RELEASE.md':'deploy/RELEASE.md'}
 }

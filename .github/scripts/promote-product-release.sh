@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 [[ ${SOURCE_RUN_ID:-} =~ ^[1-9][0-9]*$ ]] || { echo 'Expected a successful product run ID' >&2; exit 1; }
-[[ ${RELEASE_TAG:-} =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-preview\.[0-9]+(\.[0-9]+)*)?$ ]] || { echo 'Expected a new stable or preview version tag' >&2; exit 1; }
+[[ ${RELEASE_TAG:-} =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-preview\.[0-9]+(\.[0-9]+)*|-rc\.[1-9][0-9]*)?$ ]] || { echo 'Expected a new stable, candidate or preview version tag' >&2; exit 1; }
 mkdir -p artifacts/promotion
 gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > artifacts/promotion/source-run.json
 jq -e --arg repo "$GITHUB_REPOSITORY" '
@@ -41,7 +41,17 @@ linux_file=$(jq -r .installer.file "$linux/installer-manifest.json")
 jq -e '.spdxVersion | startswith("SPDX-")' "$sbom" > /dev/null
 git fetch --no-tags origin "$source_commit"
 notes_path=$(jq -r .notes artifacts/promotion/product-release.json)
-git show "$source_commit:$notes_path" > artifacts/promotion/release-notes.md
+# Deployment evidence is available after the immutable build. Reviewed notes
+# belong to this publication revision; the tag and both payloads remain bound
+# to the original source commit. Candidates require explicit release scope.
+reviewed_notes="deploy/releases/${RELEASE_TAG#v}.md"
+if [[ -f "$reviewed_notes" ]]; then
+  cp "$reviewed_notes" artifacts/promotion/release-notes.md
+elif [[ $(jq -r .publication_channel artifacts/promotion/product-release.json) == candidate ]]; then
+  echo 'Candidate publication requires committed version-specific release notes' >&2; exit 1
+else
+  git show "$source_commit:$notes_path" > artifacts/promotion/release-notes.md
+fi
 # Version refs are created through the release operator's existing Git write
 # transport. GITHUB_TOKEN can upload releases but cannot tag an older revision
 # whose workflow files differ from main without a separate workflows grant.

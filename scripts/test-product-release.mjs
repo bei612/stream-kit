@@ -31,3 +31,17 @@ test('publication cannot relabel preview bytes or mix versions, source commits o
   assert.throws(()=>promotionProfile(oldWindows,oldLinux,'v1.0.0'))
   assert.throws(()=>promotionProfile(oldWindows,oldLinux,'v1.0.0-preview.20261101.4'))
 })
+
+test('a release candidate and final release use the same immutable product version',()=>{
+  const [windows,linux]=manifests('1.2.3')
+  const candidate=promotionProfile(windows,linux,'v1.2.3-rc.1')
+  assert.equal(candidate.publication_channel,'candidate')
+  assert.equal(candidate.prerelease,true)
+  assert.equal(candidate.channel,'stable','artifact metadata must remain unchanged')
+  assert.equal(candidate.version,'1.2.3')
+  assert.equal(promotionProfile(windows,linux,'v1.2.3').publication_channel,'stable')
+  assert.equal(promotionProfile(windows,linux,'v1.2.3').prerelease,false)
+  for(const tag of ['v1.2.4-rc.1','v1.2.3-rc.0','v1.2.3-rc.01','v1.2.3-rc.-1','v1.2.3-rc.1\n','v1.2.3-rc.1/other'])assert.throws(()=>promotionProfile(windows,linux,tag))
+  assert.throws(()=>promotionProfile(...manifests(),'v0.1.0-rc.1'))
+  assert.throws(()=>promotionProfile(windows,{...linux,commit:'b'.repeat(40)},'v1.2.3-rc.1'))
+})
