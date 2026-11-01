@@ -242,6 +242,12 @@ physical microphone delivery, or bundled-driver/reboot acceptance.
 
 For an installer-only correction, append `--reuse-payload` to reuse an immutable,
 hash-verified platform bundle instead of recompiling its executable components.
+The Windows product workflow retains this input as the internal Actions artifact
+`windows-product-payload-<commit>` for seven days, before compiling the installer.
+Download that artifact into a new directory when reviewing an installer-only
+change. The builder rechecks every file against the payload manifest and records
+the payload and installer source revisions separately. This artifact is not
+uploaded to customer Releases; the public Windows download remains one installer.
 All payload components must still have the same payload source revision. The
 installer manifest records `commit` for that payload, `installer_source_commit`
 for its clean setup recipe, and `reused_payload`; the EXE filename gains the

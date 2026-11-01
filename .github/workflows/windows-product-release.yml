@@ -167,10 +167,21 @@ jobs:
         with:
           path: .local/cmake-build-sunshine-deps
           key: ${{ steps.codec-cache.outputs.cache-primary-key }}
-      - name: Package verified components into one installer
+      - name: Assemble verified runtime payload
         run: |
           node scripts/package-platform-release.mjs artifacts/windows-product/control artifacts/windows-product/gateway artifacts/windows-product/renderer artifacts/windows-product/platform
           if ($LASTEXITCODE -ne 0) { throw 'Platform inventory verification failed' }
+      # Preserve the verified inputs independently of installer compilation.
+      # Installer-only fixes can use --reuse-payload without rebuilding codecs
+      # or extracting files from an installed customer deployment.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-product-payload-${{ github.sha }}
+          path: artifacts/windows-product/platform/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Compile unified installer
+        run: |
           $audioArguments = @()
           if ($env:STREAM_KIT_USB_AUDIO_IDENTITY) {
             if (-not $env:WindowsSdkVerBinPath) { throw 'Official Windows SDK tool directory is unavailable' }
