@@ -1,0 +1,8 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.3",
+  "Category": "Stream-Kit acceptance",
+  "Description": "Isolated native UE5 recording endpoint probe; no business content.",
+  "Modules": [ { "Name": "StreamKitAudioProbe", "Type": "Editor", "LoadingPhase": "Default" } ],
+  "Plugins": [ { "Name": "AudioCapture", "Enabled": true } ]
+}

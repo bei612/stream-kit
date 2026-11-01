@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "passed": true,
+  "scope": "Actual UE5 AudioCaptureCore records a selected virtual input and a native generated tone; no browser microphone, human speech, business UE project, hardware default changes or raw audio files",
+  "engine_version": "5.3.2-29314046+++UE5+Release-5.3",
+  "module_sha256": "5879e0aa149830f7bf11b743148ca406953a2d96f393ea90012de9f09cbb99e4",
+  "source_files": [
+    {
+      "path": "Source/StreamKitAudioProbe/StreamKitAudioProbe.Build.cs",
+      "sha256": "8f96be7aa01c15f235224f04b72eadec06d6c91e10edeea6f68fc1cd93f16969"
+    },
+    {
+      "path": "Source/StreamKitAudioProbe/StreamKitCaptureCommandlet.cpp",
+      "sha256": "0c6fc99ea7fb5ad7507f87264d87267177c09022c08f65529e2517227c324472"
+    },
+    {
+      "path": "Source/StreamKitAudioProbe/StreamKitCaptureCommandlet.h",
+      "sha256": "4bee87a92bfc3864c7b9452f69a5d1e94731df5c2660ae58888f58cc0dfb3f62"
+    },
+    {
+      "path": "Source/StreamKitAudioProbeEditor.Target.cs",
+      "sha256": "196a4a82e790bf5d5e232c34ad174e2146a0d43580ea443f6252343c6bc28d92"
+    },
+    {
+      "path": "StreamKitAudioProbe.uproject",
+      "sha256": "070390b3f983d9e88d65dd915d7d73aae7e5657d0d47524937d664e77c3782a8"
+    }
+  ],
+  "probe_sha256": "37cf925ecceaa46a0368a0f63d033a48126a95bb2d1a9451fb6cd53241c24116",
+  "selected_device": {
+    "id": "{0.0.1.00000000}.{c8729a8c-d364-48a4-99b8-84edc39c5eb1}",
+    "name": "CABLE Output (VB-Audio Virtual Cable)",
+    "input_channels": 2,
+    "preferred_sample_rate": 48000
+  },
+  "baseline": {
+    "frames": 48000,
+    "program_tone": {
+      "frequency_hz": 997,
+      "sample_rate": 48000,
+      "analyzed_frames": 48000,
+      "windows": 10,
+      "peak_amplitude": 0,
+      "mean_amplitude": 0
+    },
+    "client_tone": {
+      "frequency_hz": 1499,
+      "sample_rate": 48000,
+      "analyzed_frames": 48000,
+      "windows": 10,
+      "peak_amplitude": 0,
+      "mean_amplitude": 0
+    }
+  },
+  "measurement": {
+    "frames": 192000,
+    "sample_rate": 48000,
+    "warmup_ms": 250,
+    "startup_discontinuities": 1,
+    "measured_overflows": 0,
+    "dropped_frames": 0,
+    "program_tone": {
+      "frequency_hz": 997,
+      "sample_rate": 48000,
+      "analyzed_frames": 192000,
+      "windows": 40,
+      "peak_amplitude": 0.07998081368166962,
+      "mean_amplitude": 0.05949823409069205
+    },
+    "client_tone": {
+      "frequency_hz": 1499,
+      "sample_rate": 48000,
+      "analyzed_frames": 192000,
+      "windows": 40,
+      "peak_amplitude": 0.0005347579905724621,
+      "mean_amplitude": 0.000013564969999574982
+    },
+    "stream_closed": true
+  },
+  "raw_result_sha256": "3d37d64c374cd2e3d601f350d6f4078eeb9502775b7c53db4fa9450a64a1a74a",
+  "not_proven": [
+    "Browser-to-UE5 end-to-end route",
+    "Human or physical microphone speech",
+    "Business UE project audio setup"
+  ],
+  "runtime_distribution": "Development-only example; excluded by both customer installer builders"
+}
