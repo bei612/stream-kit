@@ -309,6 +309,8 @@ jobs:
         working-directory: .
         run: |
           New-Item -ItemType Directory -Force artifacts/audio-playback | Out-Null
+          node scripts/record-windows-audio-environment.cjs --policy-only
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $admin = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
           if (-not $admin.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Hosted Windows audio fixture requires an elevated runner' }
           go -C orchestrator build -o ../artifacts/audio-playback/orchestrator-audio-driver.exe ./cmd/orchestrator

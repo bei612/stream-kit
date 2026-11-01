@@ -1,0 +1,236 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-11-01T06:02:42.990Z",
+  "scope": "Browser-generated/file test microphone through the product route, shared audience broadcast and actual UE5 native recording, including authorization/revocation. No physical microphone, human speech or business UE project claim. UE5 recorded every authorization phase with an explicit endpoint.",
+  "gateway_commit": "525b1377c22b3bf8d243a148d3a9652d2f3b9375",
+  "control_commit": "525b1377c22b3bf8d243a148d3a9652d2f3b9375",
+  "renderer_and_example_commit": "6c98ccb0d6aaae2e42c6256245ee51ff9d063e3a",
+  "mixed_component_revisions": true,
+  "purpose": "Verify the new provider route using the unchanged, previously accepted encoder/example. Not a matching-revision release bundle.",
+  "binaries": {
+    "gateway": "cf75ac6f137f8495bc0a96f59f0ffe7fc34801e5af750f722f090985a3e8d1f5",
+    "control": "1fcda910e590d032bb4799df4fbe77426f300d6a0751ff8bcf51d5ca62ac42ef",
+    "renderer": "15fa2afb4aba1c66725dcabc88b1b97aff91ab22b8568883e973941cdffdff8e",
+    "example": "505d2c29930d03cd2a75c20ff0ad8790ba65edff4b01c2713f224844ce0ca8ab",
+    "probe": "90360ad8dab3cc1072fab26a1458ee3925815b9e91e8be03ec2a22ba4cdd1c87",
+    "ue5_module": "5879e0aa149830f7bf11b743148ca406953a2d96f393ea90012de9f09cbb99e4"
+  },
+  "virtual_audio": {
+    "identity": {
+      "vendor_id": 65534,
+      "product_id": 1,
+      "serial": "LocalLine48k"
+    },
+    "owner": "gateway",
+    "scope": "explicit local acceptance identity, not a release allocation"
+  },
+  "selected_device": {
+    "id": "{0.0.1.00000000}.{cc10b52c-c2a6-402a-96e9-484e6923f66d}",
+    "name": "线路 (2- Stream Kit Virtual Audio)",
+    "input_channels": 2,
+    "preferred_sample_rate": 48000
+  },
+  "clients": 2,
+  "browser": "156.0.8078.79",
+  "upstream_connections": 1,
+  "target_recording": {
+    "render_device_id": "wasapi:{0.0.0.00000000}.{8956b385-e7b8-490e-ada9-1ed9f0fd45a6}",
+    "capture_device_id": "wasapi:{0.0.1.00000000}.{cc10b52c-c2a6-402a-96e9-484e6923f66d}",
+    "probe_sha256": "90360ad8dab3cc1072fab26a1458ee3925815b9e91e8be03ec2a22ba4cdd1c87",
+    "measurements": {
+      "viewer_denied": {
+        "recorder": "UE5 AudioCaptureCore",
+        "capture": {
+          "captured_frames": 144480,
+          "dropped_frames": 0,
+          "sample_rate": 48000,
+          "error": null
+        },
+        "microphone": {
+          "frequency_hz": 1499,
+          "sample_rate": 48000,
+          "analyzed_frames": 144000,
+          "windows": 30,
+          "peak_amplitude": 6.769631643415904e-7,
+          "mean_amplitude": 6.308761514785211e-7
+        },
+        "program": {
+          "frequency_hz": 997,
+          "sample_rate": 48000,
+          "analyzed_frames": 144000,
+          "windows": 30,
+          "peak_amplitude": 2.928719914913716e-7,
+          "mean_amplitude": 1.9540675548754627e-7
+        }
+      },
+      "controller": {
+        "recorder": "UE5 AudioCaptureCore",
+        "capture": {
+          "captured_frames": 144000,
+          "dropped_frames": 0,
+          "sample_rate": 48000,
+          "error": null
+        },
+        "microphone": {
+          "frequency_hz": 1499,
+          "sample_rate": 48000,
+          "analyzed_frames": 144000,
+          "windows": 30,
+          "peak_amplitude": 0.2015645656488498,
+          "mean_amplitude": 0.19380558658592795
+        },
+        "program": {
+          "frequency_hz": 997,
+          "sample_rate": 48000,
+          "analyzed_frames": 144000,
+          "windows": 30,
+          "peak_amplitude": 0.000740566014694764,
+          "mean_amplitude": 0.00007955797003038003
+        }
+      },
+      "previous_controller_denied": {
+        "recorder": "UE5 AudioCaptureCore",
+        "capture": {
+          "captured_frames": 144480,
+          "dropped_frames": 0,
+          "sample_rate": 48000,
+          "error": null
+        },
+        "microphone": {
+          "frequency_hz": 1499,
+          "sample_rate": 48000,
+          "analyzed_frames": 144000,
+          "windows": 30,
+          "peak_amplitude": 6.705123484835977e-7,
+          "mean_amplitude": 6.284349091111091e-7
+        },
+        "program": {
+          "frequency_hz": 997,
+          "sample_rate": 48000,
+          "analyzed_frames": 144000,
+          "windows": 30,
+          "peak_amplitude": 3.041862055959038e-7,
+          "mean_amplitude": 1.9566215667645063e-7
+        }
+      },
+      "new_controller": {
+        "recorder": "UE5 AudioCaptureCore",
+        "capture": {
+          "captured_frames": 144000,
+          "dropped_frames": 0,
+          "sample_rate": 48000,
+          "error": null
+        },
+        "microphone": {
+          "frequency_hz": 1499,
+          "sample_rate": 48000,
+          "analyzed_frames": 144000,
+          "windows": 30,
+          "peak_amplitude": 0.20182627616794166,
+          "mean_amplitude": 0.19350915466534588
+        },
+        "program": {
+          "frequency_hz": 997,
+          "sample_rate": 48000,
+          "analyzed_frames": 144000,
+          "windows": 30,
+          "peak_amplitude": 0.0005896605470080942,
+          "mean_amplitude": 0.0000959736543527701
+        }
+      },
+      "released": {
+        "recorder": "UE5 AudioCaptureCore",
+        "capture": {
+          "captured_frames": 144480,
+          "dropped_frames": 0,
+          "sample_rate": 48000,
+          "error": null
+        },
+        "microphone": {
+          "frequency_hz": 1499,
+          "sample_rate": 48000,
+          "analyzed_frames": 144000,
+          "windows": 30,
+          "peak_amplitude": 6.814863179445472e-7,
+          "mean_amplitude": 6.254691099372849e-7
+        },
+        "program": {
+          "frequency_hz": 997,
+          "sample_rate": 48000,
+          "analyzed_frames": 144000,
+          "windows": 30,
+          "peak_amplitude": 2.982738819774378e-7,
+          "mean_amplitude": 1.9294905519837816e-7
+        }
+      }
+    },
+    "passed": true
+  },
+  "microphone_tone": {
+    "frequency_hz": 1499,
+    "viewer_denied_db": -117.04623413085938,
+    "controller_broadcast_db": -27.6171875,
+    "simultaneous_program_db": [
+      -35.53421401977539,
+      -35.533958435058594
+    ],
+    "previous_controller_denied_db": -126.42032623291016,
+    "new_controller_broadcast_db": -27.52519989013672,
+    "released_db": -123.90412139892578
+  },
+  "program_audio_db": [
+    -35.53614044189453,
+    -35.529293060302734
+  ],
+  "final_active_target_metrics": {
+    "epoch": 2,
+    "state": "device_open",
+    "device": {
+      "device_open": true,
+      "device_sample_frames": 3730656,
+      "dropped_frames": 6,
+      "xruns": 0,
+      "realtime_denied": false,
+      "error": null
+    },
+    "error": null
+  },
+  "capture_released_on_revocation": true,
+  "program_capture_mode": "application",
+  "sunshine_restored_idle": true,
+  "evidence_files": [
+    {
+      "path": "artifacts/source-stream/2026-11-01T06-00-53-107Z/result.json",
+      "sha256": "9acce12a795aaa36d01f544da0a765d7fc71aa6f3b06969603de62e35e7af841"
+    },
+    {
+      "path": "artifacts/source-stream/2026-11-01T06-00-53-107Z/browser/result.json",
+      "sha256": "7350b9deed1d05630b5fd58854ab21b0fd71b89e4315d0e8ca0558d86d4f493a"
+    },
+    {
+      "path": "artifacts/source-stream/2026-11-01T06-00-53-107Z/browser/ue5-viewer_denied.json",
+      "sha256": "8de0ab835ff433db59128f39d95b7269a02151e798c0beea03469579b8c7d089"
+    },
+    {
+      "path": "artifacts/source-stream/2026-11-01T06-00-53-107Z/browser/ue5-controller.json",
+      "sha256": "73a4ffa7011c64cf70540c936787fad3b7cedf59d2c9924ddd293135bbb7f5e1"
+    },
+    {
+      "path": "artifacts/source-stream/2026-11-01T06-00-53-107Z/browser/ue5-previous_controller_denied.json",
+      "sha256": "5a38d77c78910c3b203eef13680c5eb72725cc08ebdce61872b616edbf5fe658"
+    },
+    {
+      "path": "artifacts/source-stream/2026-11-01T06-00-53-107Z/browser/ue5-new_controller.json",
+      "sha256": "7fe439a695094e06d86b6eeea3d5223148527fcca53b1574cbaddd304ea77be5"
+    },
+    {
+      "path": "artifacts/source-stream/2026-11-01T06-00-53-107Z/browser/ue5-released.json",
+      "sha256": "3ff98414a5c436a903bcdd180536976cd468f2111fd3e5267d84ecdd53d6dd5b"
+    }
+  ],
+  "production_installer_changed": false,
+  "vb_cable_used_in_route": false,
+  "physical_human_speech": false,
+  "shutdown_scope": "Harness stops direct children; this run does not prove the newer managed-worker graceful shutdown change or unified installation.",
+  "ci_scope": "Windows build/unit checks passed at 525b1377; full CI run 41277634929 failed native capture opening with E_ACCESSDENIED on its hosted runner. Local success does not relabel that run."
+}

@@ -72,9 +72,17 @@ frame clock and a per-connection high-resolution Windows waitable timer.
 The local CPAL source fixes first-packet discontinuity handling; genuine later
 capture errors still fail acceptance. See `docs/evidence/windows-native-audio-installed-20261101.json`.
 
-**Still required before a public provider release:** complete gateway-owned
-runtime integration and target-program recording using this provider, production
-release identity, and the complete unified installer run. Generated PCM does not
+**Gateway-owned recording completed on 2026-11-01:** the source-built gateway at
+`525b1377` delivered browser-generated microphone PCM through this provider into
+UE5 AudioCaptureCore. Two browsers shared one upstream; controller delivery,
+transfer, viewer/old-controller/released rejection and audience mixing passed.
+All five UE5 phases reported zero dropped capture frames. This route did not use
+VB-CABLE. The previously accepted encoder/example were retained for this focused
+integration run, so it is not a matching-revision release-bundle acceptance.
+Evidence: `docs/evidence/browser-native-audio-ue5-20261101.json`.
+
+**Still required before a public provider release:** the release identity decision
+and complete unified installer run. Generated PCM does not
 establish physical human speech acceptance. The published
 runtime-only installer is unchanged.
 
