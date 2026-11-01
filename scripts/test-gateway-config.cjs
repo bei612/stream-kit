@@ -34,8 +34,12 @@ const provider = {vendor_id:65534,product_id:1,serial:'TestOnly'};
 check({...base, virtual_audio:provider}, process.platform==='win32'?0:2);
 check({...base, virtual_audio:{...provider,vendor_id:0}}, 2);
 check({...base, virtual_audio:{...provider,product_id:65535}}, 2);
-check({...base, virtual_audio:{...provider,serial:'1234567890123456'}}, 2);
-check({...base, virtual_audio:{...provider,serial:'private-test-value'}}, 2);
+for (const serial of ['1234567890123456', 'owner@example.org:Device-01', 'x'.repeat(126)]) {
+  check({...base, virtual_audio:{...provider,serial}}, process.platform==='win32'?0:2);
+}
+for (const serial of ['x'.repeat(127), 'private-test-value/invalid', 'private-test-value\0']) {
+  check({...base, virtual_audio:{...provider,serial}}, 2);
+}
 check({...base, virtual_audio:{...provider,install_driver:true}}, 2);
 check({...base, unknown_setting:'private-test-value'}, 2);
 check({...base, webrtc:{port_range:{min:500,max:499}}}, 2);

@@ -69,7 +69,7 @@ if (process.argv.includes('--virtual-audio-identity')) {
   virtualAudioIdentity = JSON.parse(fs.readFileSync(identityFile, 'utf8'));
   assert.ok(virtualAudioIdentity && Object.keys(virtualAudioIdentity).sort().join(',') === 'product_id,serial,vendor_id', 'Expected explicit virtual audio identity and serial');
   assert.ok([virtualAudioIdentity.vendor_id, virtualAudioIdentity.product_id].every(id => Number.isInteger(id) && id >= 1 && id <= 65534), 'Invalid virtual audio VID/PID');
-  assert.match(virtualAudioIdentity.serial, /^[A-Za-z0-9]{1,15}$/, 'Invalid virtual audio serial');
+  assert.match(virtualAudioIdentity.serial, /^[A-Za-z0-9._@:+-]{1,126}$/, 'Invalid virtual audio serial');
 }
 const deleteActive = process.argv.includes('--delete-active');
 const stopActive = process.argv.includes('--stop-active') || deleteActive;
@@ -238,7 +238,7 @@ async function main() {
     components: {}, moonlight_web: { base_url: gateway, public_url: gateway, ...credentials },
     storage: { apps_dir: './apps', temp_dir: './temp', db_path: './control.db', max_upload_size_bytes: 10485760,
       max_extract_size_bytes: 10485760, max_file_count: 1000 },
-    process: { monitor_interval_seconds: 2, graceful_shutdown_timeout_seconds: 2 },
+    process: { monitor_interval_seconds: 2, graceful_shutdown_timeout_seconds: 5 },
     log: { level: 'info', file: { enabled: false }, access_log: { enabled: false } } };
   const controlConfigFile = path.join(scratch, 'control', 'config.json');
   if (remoteTarget) {
