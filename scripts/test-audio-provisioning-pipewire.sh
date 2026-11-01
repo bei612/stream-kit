@@ -52,5 +52,8 @@ for attempt in {1..100}; do
   sleep 0.1
 done
 [[ $(pactl get-default-sink) == fixture_output && $(pactl get-default-source) == fixture_input ]]
+mkdir -p "$repo/artifacts/audio-provisioning"
+pactl list short modules > "$repo/artifacts/audio-provisioning/pipewire-modules.txt"
+pactl --format=json list modules > "$repo/artifacts/audio-provisioning/pipewire-modules.json"
 cd "$repo/orchestrator"
 STREAM_KIT_ISOLATED_AUDIO_TEST=1 go test -count=1 -v ./internal/audiodevice

@@ -185,33 +185,41 @@ func ReleasePulse(ctx context.Context, run Runner) error {
 	return nil
 }
 
-// pactl's JSON module objects omit the index. The documented short table
-// includes the numeric owner ID and tab-delimits arguments independently.
+// JSON module objects omit IDs; the short table supplies IDs but does not
+// escape multiline arguments. Correlate both complete inventories exactly.
+// A concurrent inventory change fails closed, never guessing module ownership.
 func listModules(ctx context.Context, run Runner) ([]module, error) {
+	structured, err := list[module](ctx, run, "modules")
+	if err != nil {
+		return nil, err
+	}
 	data, err := run(ctx, "list", "short", "modules")
 	if err != nil {
 		return nil, err
 	}
+	table := strings.ReplaceAll(string(data), "\r\n", "\n")
 	result := []module{}
 	seen := map[uint32]bool{}
-	for _, line := range strings.Split(strings.TrimRight(string(data), "\r\n"), "\n") {
-		line = strings.TrimSuffix(line, "\r")
-		if line == "" {
-			continue
+	for _, entry := range structured {
+		raw, rest, ok := strings.Cut(table, "\t")
+		if !ok {
+			return nil, fmt.Errorf("incomplete indexed module catalog")
 		}
-		fields := strings.Split(line, "\t")
-		if len(fields) < 3 {
-			return nil, fmt.Errorf("invalid module table")
-		}
-		id, err := strconv.ParseUint(fields[0], 10, 32)
+		id, err := strconv.ParseUint(raw, 10, 32)
 		if err != nil {
 			return nil, fmt.Errorf("invalid module ID: %w", err)
 		}
-		if seen[uint32(id)] {
-			return nil, fmt.Errorf("duplicate module ID")
+		suffix := entry.Name + "\t" + strings.ReplaceAll(entry.Argument, "\r\n", "\n") + "\t\n"
+		if !strings.HasPrefix(rest, suffix) || seen[uint32(id)] {
+			return nil, fmt.Errorf("audio module inventories changed or disagree")
 		}
 		seen[uint32(id)] = true
-		result = append(result, module{uint32(id), fields[1], fields[2]})
+		entry.Index = uint32(id)
+		result = append(result, entry)
+		table = strings.TrimPrefix(rest, suffix)
+	}
+	if table != "" {
+		return nil, fmt.Errorf("unexpected indexed audio modules")
 	}
 	return result, nil
 }

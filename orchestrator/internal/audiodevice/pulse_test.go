@@ -18,12 +18,32 @@ type fakePulse struct {
 }
 
 func TestModuleTableRetainsEmptyArguments(t *testing.T) {
-	run := func(context.Context, ...string) ([]byte, error) {
+	run := func(_ context.Context, args ...string) ([]byte, error) {
+		if args[0] == "--format=json" {
+			return []byte(`[{"name":"module-native-protocol-unix","argument":""}]`), nil
+		}
 		return []byte("7\tmodule-native-protocol-unix\t\t\r\n"), nil
 	}
 	modules, err := listModules(context.Background(), run)
 	if err != nil || len(modules) != 1 || modules[0].Index != 7 || modules[0].Argument != "" {
 		t.Fatalf("valid empty module argument rejected: %+v %v", modules, err)
+	}
+}
+
+func TestModuleTableMultilineAndChangedSnapshot(t *testing.T) {
+	f := &fakePulse{modules: []module{{7, "native", "{\n\tkey = value\n12\tinside-argument\tdata\t\n}"}, {8, "empty", ""}}}
+	modules, err := listModules(context.Background(), f.run)
+	if err != nil || len(modules) != 2 || modules[0].Argument != f.modules[0].Argument || modules[1].Index != 8 {
+		t.Fatalf("multiline module changed: %+v %v", modules, err)
+	}
+	changed := func(ctx context.Context, args ...string) ([]byte, error) {
+		if args[0] == "list" {
+			f.modules[1].Name = "replaced"
+		}
+		return f.run(ctx, args...)
+	}
+	if _, err = listModules(context.Background(), changed); err == nil {
+		t.Fatal("changed inventory accepted")
 	}
 }
 
@@ -34,7 +54,10 @@ func (f *fakePulse) run(_ context.Context, args ...string) ([]byte, error) {
 		for _, m := range f.modules {
 			lines = append(lines, fmt.Sprintf("%d\t%s\t%s\t", m.Index, m.Name, m.Argument))
 		}
-		return []byte(strings.Join(lines, "\n")), nil
+		if len(lines) == 0 {
+			return nil, nil
+		}
+		return []byte(strings.Join(lines, "\n") + "\n"), nil
 	case "--format=json":
 		if args[2] == "modules" {
 			return json.Marshal(f.modules)
