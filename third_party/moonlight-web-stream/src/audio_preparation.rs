@@ -70,15 +70,16 @@ fn command(input: &mut impl BufRead) -> io::Result<bool> {
 mod tests {
     use super::*;
     #[test]
-    fn bounded_commands_keep_eof_distinct_from_activation() {
-        assert!(!command(&mut &b""[..]).unwrap());
-        assert!(command(&mut &b"attach\n"[..]).unwrap());
+    fn bounded_commands_keep_eof_distinct_from_activation() -> io::Result<()> {
+        assert!(!command(&mut &b""[..])?);
+        assert!(command(&mut &b"attach\n"[..])?);
         for input in ["attach", "close\n", "\n", &"a".repeat(10000)] {
             assert!(command(&mut input.as_bytes()).is_err());
         }
         let mut input = &b"attach\nattach\n"[..];
-        assert!(command(&mut input).unwrap());
-        assert!(command(&mut input).unwrap());
-        assert!(!command(&mut input).unwrap());
+        assert!(command(&mut input)?);
+        assert!(command(&mut input)?);
+        assert!(!command(&mut input)?);
+        Ok(())
     }
 }
