@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 [[ ${SOURCE_RUN_ID:-} =~ ^[1-9][0-9]*$ ]] || { echo 'Expected a successful product run ID' >&2; exit 1; }
-[[ ${RELEASE_TAG:-} =~ ^v[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+(\.[0-9]+)*$ ]] || { echo 'Expected a new preview version tag' >&2; exit 1; }
+[[ ${RELEASE_TAG:-} =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-preview\.[0-9]+(\.[0-9]+)*)?$ ]] || { echo 'Expected a new stable or preview version tag' >&2; exit 1; }
 mkdir -p artifacts/promotion
 gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > artifacts/promotion/source-run.json
 jq -e --arg repo "$GITHUB_REPOSITORY" '
@@ -23,13 +23,13 @@ sbom=artifacts/promotion/windows-product-sbom/stream-kit-sbom.spdx.json
 jq -e --arg commit "$source_commit" '
   .commit == $commit and .installer_source_commit == $commit and
   .reused_payload == false and .platform == "windows" and .architecture == "amd64" and
-  .release_channel == "preview" and .payload_profile == "runtime" and (.file.name | test("^stream-kit-preview-[a-f0-9]{12}-windows-amd64-setup\\.exe$"))
+  .payload_profile == "runtime"
 ' "$windows/installer-manifest.json" > /dev/null
 jq -e --arg commit "$source_commit" '
   .commit == $commit and .platform == "linux" and .architecture == "amd64" and
-  .distribution == "ubuntu-24.04" and .release_channel == "preview" and .payload_profile == "runtime" and
-  (.installer.file | test("^stream-kit-preview-[a-f0-9]{12}-ubuntu24\\.04-amd64-setup\\.run$"))
+  .distribution == "ubuntu-24.04" and .payload_profile == "runtime"
 ' "$linux/installer-manifest.json" > /dev/null
+node scripts/verify-product-promotion.mjs "$windows/installer-manifest.json" "$linux/installer-manifest.json" "$RELEASE_TAG" > artifacts/promotion/product-release.json
 (cd "$windows" && sha256sum -c SHA256SUMS.txt)
 (cd "$linux" && sha256sum -c SHA256SUMS)
 # Match the binary bytes against the source-bound manifests as well as the
@@ -40,7 +40,8 @@ linux_file=$(jq -r .installer.file "$linux/installer-manifest.json")
 [[ $(sha256sum "$linux/$linux_file" | cut -d ' ' -f 1) == $(jq -r .installer.sha256 "$linux/installer-manifest.json") ]]
 jq -e '.spdxVersion | startswith("SPDX-")' "$sbom" > /dev/null
 git fetch --no-tags origin "$source_commit"
-git show "$source_commit:deploy/windows/CI-RELEASE.md" > artifacts/promotion/release-notes.md
+notes_path=$(jq -r .notes artifacts/promotion/product-release.json)
+git show "$source_commit:$notes_path" > artifacts/promotion/release-notes.md
 # Version refs are created through the release operator's existing Git write
 # transport. GITHUB_TOKEN can upload releases but cannot tag an older revision
 # whose workflow files differ from main without a separate workflows grant.
@@ -51,4 +52,6 @@ git fetch --no-tags origin "refs/tags/$RELEASE_TAG"
 [[ $(git rev-parse 'FETCH_HEAD^{commit}') == "$source_commit" ]] || { echo 'Release tag points to another revision' >&2; exit 1; }
 mv "$linux/installer-manifest.json" "$linux/linux-installer-manifest.json"
 mv "$linux/SHA256SUMS" "$linux/Linux-SHA256SUMS.txt"
-gh release create "$RELEASE_TAG" "$windows/$win_file" "$windows/installer-manifest.json" "$windows/SHA256SUMS.txt" "$linux/$linux_file" "$linux/linux-installer-manifest.json" "$linux/Linux-SHA256SUMS.txt" "$sbom" --repo "$GITHUB_REPOSITORY" --verify-tag --prerelease --title "$RELEASE_TAG" --notes-file artifacts/promotion/release-notes.md
+channel_args=()
+if [[ $(jq -r .prerelease artifacts/promotion/product-release.json) == true ]]; then channel_args+=(--prerelease); fi
+gh release create "$RELEASE_TAG" "$windows/$win_file" "$windows/installer-manifest.json" "$windows/SHA256SUMS.txt" "$linux/$linux_file" "$linux/linux-installer-manifest.json" "$linux/Linux-SHA256SUMS.txt" "$sbom" --repo "$GITHUB_REPOSITORY" --verify-tag "${channel_args[@]}" --title "$RELEASE_TAG" --notes-file artifacts/promotion/release-notes.md

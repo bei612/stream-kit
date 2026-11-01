@@ -37,7 +37,7 @@ function fixture(t,platform,wrongAssets=false){
     fs.writeFileSync(path.join(directory,'bundle-manifest.json'),JSON.stringify({schema_version:1,component,commit:'a'.repeat(40),source_dirty:false,platform,architecture:'amd64',files:inventory}))
   }
   const output=path.join(root,'platform')
-  return {output,run:()=>spawnSync(process.execPath,[path.join(repo,'scripts/package-platform-release.mjs'),...inputs,output],{cwd:repo,encoding:'utf8',windowsHide:true})}
+  return {output,run:(...extra)=>spawnSync(process.execPath,[path.join(repo,'scripts/package-platform-release.mjs'),...inputs,output,...extra],{cwd:repo,encoding:'utf8',windowsHide:true})}
 }
 
 for(const platform of ['windows','linux'])test(`${platform} assembly preserves its native runtime layout`,t=>{
@@ -54,4 +54,13 @@ test('self-consistent Linux hashes cannot admit a Windows-style asset layout',t=
   assert.notEqual(result.status,0)
   assert.match(result.stderr,/Required runtime file missing: sunshine\/share\/sunshine\/web\/index.html/)
   assert.equal(fs.existsSync(f.output),false)
+})
+
+for(const platform of ['windows','linux'])test(`${platform} stable assembly uses explicit product version and runtime guide`,t=>{
+  const f=fixture(t,platform),result=f.run('--release-version','1.2.3')
+  assert.equal(result.status,0,result.stderr)
+  const manifest=JSON.parse(fs.readFileSync(path.join(f.output,'platform-manifest.json'),'utf8'))
+  assert.equal(manifest.release_channel,'stable');assert.equal(manifest.release_version,'1.2.3')
+  assert.equal(manifest.components.length,3)
+  assert.equal(fs.readFileSync(path.join(f.output,'README.md'),'utf8'),fs.readFileSync(path.join(repo,'deploy/PLATFORM.md'),'utf8'))
 })

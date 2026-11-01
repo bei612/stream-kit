@@ -34,7 +34,17 @@ on:
       - 'scripts/test-native-test-report.cjs'
       - '.github/workflows/linux-sunshine-build.yml'
   workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Product version MAJOR.MINOR.PATCH; blank builds a preview'
+        type: string
+        required: false
   workflow_call:
+    inputs:
+      release_version:
+        type: string
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -53,6 +63,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
+      STREAM_KIT_RELEASE_VERSION: ${{ inputs.release_version }}
       CCACHE_DIR: ${{ github.workspace }}/.local/ccache
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
@@ -70,6 +81,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '26.4.0'
+      - name: Validate requested product version before native builds
+        run: >-
+          node --input-type=module -e "import {productRelease} from './scripts/lib/product-release.mjs'; console.log(JSON.stringify(productRelease(process.env.GITHUB_SHA,process.env.STREAM_KIT_RELEASE_VERSION || '')))"
       - uses: actions/setup-go@v5
         with:
           go-version: '1.27.3'

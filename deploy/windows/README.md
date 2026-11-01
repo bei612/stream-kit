@@ -259,8 +259,17 @@ No host-wide Visual C++ installer or Node.js installation is invoked. This is
 
 ## Promote an existing CI product build
 
-Dispatch `windows-product-release.yml` with `promote_run_id` and a new
-`release_tag`. Promotion requires a completed successful manual product run on
+For a stable candidate, dispatch `windows-product-release.yml` with
+`release_version=MAJOR.MINOR.PATCH`. An empty version retains preview behavior.
+The shared product identity sets both installer filenames, Windows product/file
+versions, Debian package version and manifest channel/version. This selects
+packaging metadata; it does not claim deployment or audio acceptance has passed.
+
+Dispatch the same workflow with `promote_run_id` and a new `release_tag` to publish
+existing artifacts. A stable tag must be exactly `vMAJOR.MINOR.PATCH` matching both
+installer manifests. A preview uses its matching `v0.1.0-preview.DATE.N` tag and
+remains a GitHub prerelease. Promotion cannot relabel preview artifacts as stable,
+mix channels/versions, or change the bytes. Promotion requires a completed successful manual product run on
 main, checks its repository/workflow/source revision, both native installer
 manifests/checksums and source SBOM, then publishes those existing artifacts.
 It does not rebuild executables or repeat acceptance. The tag identifies the

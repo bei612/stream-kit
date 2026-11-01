@@ -6,6 +6,7 @@ import {createHash} from 'node:crypto'
 import {prepareAudioDriver} from './lib/windows-audio-driver.mjs'
 import {prepareUSBAudioDriver,validateUSBAudioIdentity} from './lib/windows-usb-audio-driver.mjs'
 import {requireRuntimeInstallerPayload} from './lib/installer-payload.mjs'
+import {manifestRelease} from './lib/product-release.mjs'
 
 const args=process.argv.slice(2)
 const reusePayload=args.at(-1)==='--reuse-payload'
@@ -29,7 +30,8 @@ if(output===payload||output.startsWith(payload+path.sep))throw Error('Output mus
 const manifest=JSON.parse(fs.readFileSync(path.join(payload,'platform-manifest.json'),'utf8'))
 requireRuntimeInstallerPayload(manifest)
 const commit=manifest.commit
-if(!/^[a-f0-9]{40}$/.test(commit)||(!reusePayload&&commit!==installerCommit)||manifest.platform!=='windows'||manifest.architecture!=='amd64'||manifest.release_channel!=='preview'||manifest.schema_version!==1)throw Error('Expected matching Windows amd64 preview platform; immutable older payloads require explicit --reuse-payload')
+const release=manifestRelease(manifest)
+if(!/^[a-f0-9]{40}$/.test(commit)||(!reusePayload&&commit!==installerCommit)||manifest.platform!=='windows'||manifest.architecture!=='amd64'||manifest.schema_version!==1)throw Error('Expected matching Windows amd64 platform; immutable older payloads require explicit --reuse-payload')
 const control=JSON.parse(fs.readFileSync(path.join(payload,'orchestrator','bundle-manifest.json'),'utf8'))
 if(control.platform_initialization_version!==1)throw Error('Payload does not declare unified native initialization support')
 if(usbAudio&&control.virtual_audio_configuration_version!==1)throw Error('Payload does not support unified virtual audio initialization')
@@ -59,7 +61,7 @@ fs.mkdirSync(output,{recursive:true})
 const driver=usbAudio?prepareUSBAudioDriver(path.resolve(args[4]),path.resolve(args[6]),output,path.join(payload,'orchestrator','orchestrator.exe')):vendorAudio?prepareAudioDriver(path.resolve(args[4]),path.resolve(args[6]),output):null
 if(usbAudio)driver.identity=usbIdentity
 const installerSuffix=installerCommit===commit?'':`-r${installerCommit.slice(0,8)}`
-execFileSync(compiler,['/Qp',`/DPayloadRoot=${payload}`,`/DArtifactDir=${output}`,`/DSourceCommit=${commit}`,`/DInstallerSuffix=${installerSuffix}`,...(driver?[`/D${usbAudio?'UsbAudioDriverRoot':'AudioDriverRoot'}=${driver.stage}`]:[]),...(usbAudio?[`/DUsbAudioVendorId=${usbIdentity.vendor_id}`,`/DUsbAudioProductId=${usbIdentity.product_id}`]:[]),path.join(root,'deploy/windows/stream-kit.iss')],{stdio:'inherit',windowsHide:true})
+execFileSync(compiler,['/Qp',`/DPayloadRoot=${payload}`,`/DArtifactDir=${output}`,`/DSourceCommit=${commit}`,`/DInstallerSuffix=${installerSuffix}`,`/DProductVersion=${release.version}`,`/DWindowsProductVersion=${release.windowsVersion}`,`/DProductArtifactPrefix=${release.prefix}`,...(driver?[`/D${usbAudio?'UsbAudioDriverRoot':'AudioDriverRoot'}=${driver.stage}`]:[]),...(usbAudio?[`/DUsbAudioVendorId=${usbIdentity.vendor_id}`,`/DUsbAudioProductId=${usbIdentity.product_id}`]:[]),path.join(root,'deploy/windows/stream-kit.iss')],{stdio:'inherit',windowsHide:true})
 if(driver){
   if(path.dirname(path.resolve(driver.stage))!==output)throw Error('Audio staging directory escaped installer output')
   // Remove only the exact vendor files this build staged, never recursively
@@ -68,9 +70,9 @@ if(driver){
   fs.rmdirSync(driver.stage)
 }
 if(git('rev-parse','HEAD')!==installerCommit||git('status','--porcelain'))throw Error('Source changed while building installer')
-const name=`stream-kit-preview-${commit.slice(0,12)}-windows-amd64-setup${installerSuffix}.exe`
+const name=`${release.prefix}-windows-amd64-setup${installerSuffix}.exe`
 const executable=path.join(output,name)
 const sha256=hash(executable)
 fs.writeFileSync(path.join(output,'SHA256SUMS.txt'),`${sha256}  ${name}\n`)
-fs.writeFileSync(path.join(output,'installer-manifest.json'),JSON.stringify({schema_version:1,commit,installer_source_commit:installerCommit,reused_payload:reusePayload,release_channel:'preview',platform:'windows',architecture:'amd64',payload_profile:'runtime',publisher_signed:false,audio_driver:driver?{...driver,stage:undefined}:null,payload_manifest_sha256:hash(path.join(payload,'platform-manifest.json')),compiler:{version:'7.1.1',sha256:hash(compiler)},file:{name,bytes:fs.statSync(executable).size,sha256}},null,2)+'\n')
+fs.writeFileSync(path.join(output,'installer-manifest.json'),JSON.stringify({schema_version:1,commit,installer_source_commit:installerCommit,reused_payload:reusePayload,release_channel:release.channel,release_version:release.version,platform:'windows',architecture:'amd64',payload_profile:'runtime',publisher_signed:false,audio_driver:driver?{...driver,stage:undefined}:null,payload_manifest_sha256:hash(path.join(payload,'platform-manifest.json')),compiler:{version:'7.1.1',sha256:hash(compiler)},file:{name,bytes:fs.statSync(executable).size,sha256}},null,2)+'\n')
 console.log(JSON.stringify({output,commit,executable,sha256}))

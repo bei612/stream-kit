@@ -12,6 +12,15 @@
 #ifndef InstallerSuffix
   #define InstallerSuffix ""
 #endif
+#ifndef ProductVersion
+  #define ProductVersion "0.1.0-preview." + Copy(SourceCommit, 1, 12)
+#endif
+#ifndef WindowsProductVersion
+  #define WindowsProductVersion "0.1.0.0"
+#endif
+#ifndef ProductArtifactPrefix
+  #define ProductArtifactPrefix "stream-kit-preview-" + Copy(SourceCommit, 1, 12)
+#endif
 #ifdef AudioDriverRoot
   #define HasAudioDriver
 #endif
@@ -31,8 +40,8 @@
 [Setup]
 AppId={{E7FD370E-32FD-4989-8FE8-C5F9D56187BC}
 AppName=Stream-Kit
-AppVersion=0.1.0-preview.{#Copy(SourceCommit, 1, 12)}
-VersionInfoVersion=0.1.0.0
+AppVersion={#ProductVersion}
+VersionInfoVersion={#WindowsProductVersion}
 DefaultDirName={autopf}\StreamKit
 DefaultGroupName=Stream-Kit
 PrivilegesRequired=admin
@@ -51,7 +60,7 @@ RestartIfNeededByRun=no
 Compression=lzma2
 SolidCompression=yes
 OutputDir={#ArtifactDir}
-OutputBaseFilename=stream-kit-preview-{#Copy(SourceCommit, 1, 12)}-windows-amd64-setup{#InstallerSuffix}
+OutputBaseFilename={#ProductArtifactPrefix}-windows-amd64-setup{#InstallerSuffix}
 UninstallDisplayIcon={app}\orchestrator\orchestrator.exe
 SetupLogging=yes
 

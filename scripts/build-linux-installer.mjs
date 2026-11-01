@@ -5,6 +5,7 @@ import {createHash} from 'node:crypto'
 import {execFileSync} from 'node:child_process'
 import {fileURLToPath} from 'node:url'
 import {platformLayout} from './lib/platform-layout.mjs'
+import {manifestRelease} from './lib/product-release.mjs'
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..')
 const [input, destination, ...extra]=process.argv.slice(2)
@@ -22,7 +23,8 @@ if(fs.existsSync(output))throw Error('Installer output must be new')
 if(output===source||output.startsWith(source+path.sep))throw Error('Installer output must be outside its platform input')
 const manifest=JSON.parse(fs.readFileSync(path.join(source,'platform-manifest.json'),'utf8'))
 requireRuntimeInstallerPayload(manifest)
-if(manifest.commit!==commit||manifest.platform!=='linux'||manifest.architecture!=='amd64'||manifest.release_channel!=='preview'||!Array.isArray(manifest.files))throw Error('Expected a same-commit Linux amd64 preview platform')
+const product=manifestRelease(manifest)
+if(manifest.commit!==commit||manifest.platform!=='linux'||manifest.architecture!=='amd64'||!Array.isArray(manifest.files))throw Error('Expected a same-commit Linux amd64 platform')
 const hash=file=>createHash('sha256').update(fs.readFileSync(file)).digest('hex')
 function inventory(directory,prefix=''){
   return fs.readdirSync(path.join(directory,prefix)).sort().flatMap(name=>{
@@ -66,17 +68,17 @@ const nativeDeps=deps.split('\n').find(line=>line.startsWith('shlibs:Depends='))
 if(!nativeDeps)throw Error('Native distribution dependency inventory is empty')
 const dependencies=[nativeDeps,'systemd','dbus-user-session','udev','kmod','util-linux','qt6-qpa-plugins','pulseaudio-utils'].join(', ')
 if(/\b(nodejs|npm|build-essential|cmake)\b/.test(dependencies))throw Error('Development tooling must not be a runtime prerequisite')
-const version=`0.1.0~preview.${Math.floor(Date.parse(git('show','-s','--format=%cI','HEAD'))/1000)}.${commit.slice(0,12)}`
+const version=product.channel==='stable'?product.version:`0.1.0~preview.${Math.floor(Date.parse(git('show','-s','--format=%cI','HEAD'))/1000)}.${commit.slice(0,12)}`
 fs.writeFileSync(path.join(stage,'DEBIAN/control'),`Package: stream-kit\nVersion: ${version}\nArchitecture: amd64\nSection: video\nPriority: optional\nMaintainer: Stream-Kit maintainers\nDepends: ${dependencies}\nHomepage: https://github.com/bei612/stream-kit\nDescription: Unified single-administrator cloud rendering platform\n Native control, browser media gateway and application renderer.\n`)
 const deb=path.join(output,'stream-kit.deb')
 run('dpkg-deb',['--root-owner-group','--build',stage,deb])
 const payloadHash=hash(deb)
 const header=fs.readFileSync(path.join(root,'deploy/linux/install-header.sh'),'utf8').replace('# Generated payload metadata is inserted by build-linux-installer.mjs.',`STREAM_KIT_PAYLOAD_SHA256='${payloadHash}'`)
-const filename=`stream-kit-preview-${commit.slice(0,12)}-ubuntu24.04-amd64-setup.run`
+const filename=`${product.prefix}-ubuntu24.04-amd64-setup.run`
 const installer=path.join(output,filename)
 fs.writeFileSync(installer,Buffer.concat([Buffer.from(`${header}\n__STREAM_KIT_PAYLOAD__\n`),fs.readFileSync(deb)]),{mode:0o755})
 clean()
-const release={schema_version:1,release_channel:'preview',payload_profile:'runtime',commit,platform:'linux',distribution:'ubuntu-24.04',architecture:'amd64',installer:{file:filename,bytes:fs.statSync(installer).size,sha256:hash(installer)},payload:{sha256:payloadHash,version,dependencies},runtime_requires_node:false}
+const release={schema_version:1,release_channel:product.channel,release_version:product.version,payload_profile:'runtime',commit,platform:'linux',distribution:'ubuntu-24.04',architecture:'amd64',installer:{file:filename,bytes:fs.statSync(installer).size,sha256:hash(installer)},payload:{sha256:payloadHash,version,dependencies},runtime_requires_node:false}
 fs.writeFileSync(path.join(output,'installer-manifest.json'),JSON.stringify(release,null,2)+'\n')
 fs.writeFileSync(path.join(output,'SHA256SUMS'),`${release.installer.sha256}  ${filename}\n`)
 console.log(JSON.stringify(release,null,2))

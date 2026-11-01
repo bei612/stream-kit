@@ -3,9 +3,12 @@ import path from 'node:path'
 import {createHash} from 'node:crypto'
 import {fileURLToPath} from 'node:url'
 import {platformLayout} from './lib/platform-layout.mjs'
+import {productRelease} from './lib/product-release.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const args = process.argv.slice(2)
+let releaseVersion=process.env.STREAM_KIT_RELEASE_VERSION??''
+if(args.at(-2)==='--release-version')releaseVersion=args.splice(-2)[1]
 if (![4,5].includes(args.length)) throw new Error('Expected CONTROL_BUNDLE GATEWAY_BUNDLE RENDERER_BUNDLE [EXAMPLE_BUNDLE] NEW_OUTPUT')
 const output = path.resolve(args.at(-1))
 if (fs.existsSync(output)) throw new Error('Output already exists; releases are never overwritten')
@@ -49,6 +52,8 @@ const components = names.map((component,index) => {
   return {component,directory,manifest}
 })
 const commit = components[0].manifest.commit
+const release=productRelease(commit,releaseVersion)
+if(release.channel==='stable'&&names.includes('example'))throw Error('Stable product payload cannot include development examples')
 const platform = value => value === 'win32' ? 'windows' : value
 const arch = value => value === 'x64' ? 'amd64' : value === 'arm64' ? 'arm64' : value
 for (const {manifest} of components) {
@@ -58,8 +63,8 @@ fs.mkdirSync(output,{recursive:true})
 for (const {component,directory} of components) {
   fs.cpSync(directory,path.join(output,component),{recursive:true,errorOnExist:true,force:false})
 }
-const guide=platform(components[0].manifest.platform)==='linux'?'deploy/linux/README.md':'deploy/PLATFORM-PREVIEW.md'
+const guide=release.channel==='stable'?'deploy/PLATFORM.md':platform(components[0].manifest.platform)==='linux'?'deploy/linux/README.md':'deploy/PLATFORM-PREVIEW.md'
 fs.copyFileSync(path.join(root,guide),path.join(output,'README.md'))
 const files = inventory(output)
-fs.writeFileSync(path.join(output,'platform-manifest.json'),JSON.stringify({schema_version:1,commit,platform:platform(components[0].manifest.platform),architecture:arch(components[0].manifest.architecture),release_channel:'preview',components:components.map(({component,manifest})=>({component,commit:manifest.commit,manifest_path:`${component}/bundle-manifest.json`})),files},null,2)+'\n')
-console.log(JSON.stringify({output,commit,files:files.length,release_channel:'preview'}))
+fs.writeFileSync(path.join(output,'platform-manifest.json'),JSON.stringify({schema_version:1,commit,platform:platform(components[0].manifest.platform),architecture:arch(components[0].manifest.architecture),release_channel:release.channel,release_version:release.version,components:components.map(({component,manifest})=>({component,commit:manifest.commit,manifest_path:`${component}/bundle-manifest.json`})),files},null,2)+'\n')
+console.log(JSON.stringify({output,commit,files:files.length,release_channel:release.channel,release_version:release.version}))

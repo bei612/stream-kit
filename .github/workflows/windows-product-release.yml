@@ -3,12 +3,16 @@ name: windows-product-release
 on:
   workflow_dispatch:
     inputs:
+      release_version:
+        description: 'Product version MAJOR.MINOR.PATCH for a stable candidate; blank builds a preview'
+        type: string
+        required: false
       promote_run_id:
         description: 'Completed successful product run to publish without rebuilding (blank builds only)'
         type: string
         required: false
       release_tag:
-        description: 'New preview tag for promotion, e.g. v0.1.0-preview.20261101.3'
+        description: 'New tag matching the built channel: vMAJOR.MINOR.PATCH or v0.1.0-preview.DATE.N'
         type: string
         required: false
 
@@ -24,6 +28,8 @@ jobs:
     name: Linux product
     if: inputs.promote_run_id == ''
     uses: ./.github/workflows/linux-sunshine-build.yml
+    with:
+      release_version: ${{ inputs.release_version }}
 
   build:
     name: Source-built Windows unified installer
@@ -34,6 +40,7 @@ jobs:
       run:
         shell: pwsh
     env:
+      STREAM_KIT_RELEASE_VERSION: ${{ inputs.release_version }}
       GIT_CONFIG_COUNT: '1'
       GIT_CONFIG_KEY_0: core.autocrlf
       GIT_CONFIG_VALUE_0: 'false'
@@ -49,6 +56,9 @@ jobs:
           cache-dependency-path: |
             orchestrator/web/package-lock.json
             third_party/moonlight-web-stream/package-lock.json
+      - name: Validate requested product version before native builds
+        run: >-
+          node --input-type=module -e "import {productRelease} from './scripts/lib/product-release.mjs'; console.log(JSON.stringify(productRelease(process.env.GITHUB_SHA,process.env.STREAM_KIT_RELEASE_VERSION || '')))"
       - uses: actions/setup-go@v5
         with:
           go-version: '1.27.3'
@@ -59,7 +69,7 @@ jobs:
           targets: wasm32-unknown-unknown
       - uses: ilammy/msvc-dev-cmd@v1
       - name: Verify native Windows signature tooling
-        run: node --test scripts/test-windows-powershell.mjs scripts/test-windows-audio-driver.mjs scripts/test-windows-usb-audio-driver.mjs scripts/test-installer-payload.mjs
+        run: node --test scripts/test-windows-powershell.mjs scripts/test-windows-audio-driver.mjs scripts/test-windows-usb-audio-driver.mjs scripts/test-installer-payload.mjs scripts/test-product-release.mjs
       - uses: Swatinem/rust-cache@v2
         with:
           # Every native workspace, the official generator and the WASM shim
