@@ -97,6 +97,26 @@ async function endpoints(){
   if(result.controllers_before.length)assert.deepEqual(result.controllers_after,result.controllers_before,'Existing controller was replaced');
   result.defaults_after_restart=defaults();
   assert.ok(result.defaults_preserved&&defaultsPreserved(result.defaults_before,result.defaults_after_restart),'Installation or gateway restart changed Windows default audio endpoints');
+  // Exercise the complete SCM owner as well as its interactive gateway worker.
+  const previousServicePID=result.service.ProcessId;
+  ps("$ErrorActionPreference='Stop';Restart-Service -Name StreamKitOrchestrator -ErrorAction Stop");
+  const serviceDeadline=Date.now()+90000;
+  let serviceReady=false;
+  while(Date.now()<serviceDeadline){
+   try{
+    const restartedHealth=await request('/health');
+    if(restartedHealth.commit===manifest.commit&&['sunshine','web_server'].every(key=>restartedHealth.components[key]?.status==='running')){serviceReady=true;break}
+   }catch{}
+   await delay(200);
+  }
+  assert.ok(serviceReady,'Restarted SCM service did not recover both native components');
+  result.service_after_restart=service();
+  assert.equal(result.service_after_restart.StartName,'LocalSystem');
+  assert.ok(result.service_after_restart.ProcessId>0&&result.service_after_restart.ProcessId!==previousServicePID,'SCM restart must create a new controller process');
+  assert.deepEqual(await endpoints(),result.endpoints,'SCM restart changed persistent audio endpoint identities');
+  result.defaults_after_service_restart=defaults();
+  assert.ok(defaultsPreserved(result.defaults_before,result.defaults_after_service_restart),'SCM restart changed existing audio defaults');
+  result.scm_restarted=true;
   result.passed=true;
  }catch(error){result.error=error.message}
  finally{
