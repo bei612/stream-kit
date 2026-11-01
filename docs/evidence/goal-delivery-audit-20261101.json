@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "product_source": "509c94cf7d78e3ae09775f7f118904a741cd4fc2",
+  "release": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-rc.1",
+  "overall_completion_proven": false,
+  "scope_changes": {
+    "accounts": "One administrator; viewing connections have viewer/controller authority, not separate user accounts.",
+    "stability": "20 clients for four hours, accepted complete at 16280.012 seconds; no 24-hour rerun required.",
+    "physical_devices": "Linux and mobile physical-device acceptance excluded from this round; source compatibility and automated checks retained.",
+    "publisher_certificate": "Commercial publisher signing excluded; bundled kernel-driver signatures verified.",
+    "human_speech": "Deferred until an actual physical microphone and speaking participant are available. Not waived or replaced by generated PCM."
+  },
+  "requirements": [
+    {
+      "id": 1,
+      "requirement": "Unified cross-platform Web/PWA viewing, audio, control and microphone",
+      "finding": "Automated cross-browser and source compatibility coverage passed; physical mobile acceptance excluded from this round.",
+      "evidence": ["docs/evidence/cross-platform-509c94cf.json", "docs/evidence/linux-browser-microphone-6c98ccb0.json"],
+      "implementation": ["third_party/moonlight-web-stream/web/manifest.json", "third_party/moonlight-web-stream/web/service-worker.js"],
+      "limit": "Browser-engine checks do not establish physical Android/iOS hardware behavior."
+    },
+    {
+      "id": 2,
+      "requirement": "Windows/Linux native servers and one management UI",
+      "finding": "Both native build paths passed. Published Windows installer passed actual installation and full SCM restart; Linux installer passed native extraction and initialization.",
+      "evidence": ["docs/evidence/windows-installer-509c94cf.json", "docs/evidence/unified-installers-509c94cf.json", "docs/evidence/cross-platform-509c94cf.json"],
+      "limit": "Windows installation ran on hosted Windows Server 2022. Linux physical desktop/GPU acceptance is excluded from this round."
+    },
+    {
+      "id": 3,
+      "requirement": "One shared upstream per host/app, multiple viewers and program audio",
+      "finding": "Existing real application-stream and 20-client stability evidence retained. Latest builds and gateway tests passed without rerunning the accepted soak.",
+      "evidence": ["deploy/README.md", "docs/evidence/browser-native-audio-ue5-20261101.json"],
+      "private_stability_receipt": "artifacts/source-stream/2026-10-31T05-01-53-785Z/four-hour-acceptance/result.json",
+      "limit": "Historical stream/soak runs retain their original component versions and measurement scope; they are not relabelled as new release-binary end-to-end runs."
+    },
+    {
+      "id": 4,
+      "requirement": "Authorized browser microphone to target recorder/UE5 and audience mix, with revocation",
+      "finding": "Generated browser audio reached actual UE5 capture through the open-source provider in five authorization phases. Native PCM and installed-device lifecycle passed. Physical human speech remains unverified.",
+      "evidence": ["docs/evidence/browser-native-audio-ue5-20261101.json", "docs/evidence/windows-endpoint-policy-20261101.json", "docs/evidence/windows-installer-509c94cf.json"],
+      "limit": "UE5 route evidence uses the recorded mixed component revisions. Generated/file audio is not physical microphone speech."
+    },
+    {
+      "id": 5,
+      "requirement": "Persistent sessions, lease/recovery, unique control, tickets, events and administrator operations",
+      "finding": "Implemented and covered by current Go/Rust/browser suites plus existing recovery/control stream evidence, with the single-administrator scope applied.",
+      "evidence": ["docs/evidence/cross-platform-509c94cf.json", "contracts/client-connections/README.md", "contracts/media-state/README.md", "contracts/management-events/README.md", "deploy/README.md"],
+      "implementation": ["orchestrator/internal/session/resume_test.go", "orchestrator/internal/store/session.go", "orchestrator/internal/identity/token_test.go", "orchestrator/internal/server/handlers/auth.go", "orchestrator/internal/store/log.go"]
+    },
+    {
+      "id": 6,
+      "requirement": "Unified vendored source, reproducible native builds, licenses, SBOM and downloads",
+      "finding": "Matching-source runtime installers and seven release assets published; both binaries and SBOM hashes match recorded verified artifacts.",
+      "evidence": ["third_party-manifests/upstream-lock.json", "docs/evidence/unified-installers-509c94cf.json"],
+      "limit": "Publisher certificate signing is excluded by scope. Kernel-driver verification remains required and passed."
+    },
+    {
+      "id": 7,
+      "requirement": "Service deployment, TLS/key handling, rate limits, recovery and lightweight operational state",
+      "finding": "Implemented with protected installation data, TLS preflight, administrator authentication and login rate limiting, existing lifecycle/recovery checks, structured access/operation logs and component health. No heavy monitoring service was added.",
+      "evidence": ["docs/evidence/cross-platform-509c94cf.json", "docs/evidence/windows-installer-509c94cf.json", "deploy/README.md"],
+      "implementation": ["orchestrator/internal/server/handlers/auth.go", "orchestrator/internal/server/middleware.go", "orchestrator/internal/deployment/security_windows.go", "orchestrator/internal/component/manager.go"],
+      "limit": "Unit and isolated deployment results do not establish a customer's WAN/TLS topology or hardware capacity."
+    },
+    {
+      "id": 8,
+      "requirement": "Accepted stability, recovery, authority and audio quality checks",
+      "finding": "Accepted four-hour/20-client result retained, existing reconnection/control/UE5 measurements reviewed, current cross-platform suites and released-installer lifecycle passed. Human speech remains the external acceptance gate.",
+      "evidence": ["docs/技术架构细节.md", "deploy/README.md", "docs/evidence/browser-native-audio-ue5-20261101.json", "docs/evidence/windows-installer-509c94cf.json"],
+      "limit": "No new 24-hour or physical Linux/mobile acceptance is claimed."
+    }
+  ],
+  "additional_delivery_requirements": {
+    "application_capture": "Windows application/desktop capture and Linux X11 application isolation retain their native scope; pure Wayland application capture is not claimed. See contracts/audio-devices/linux-application-capture.md and the native Linux evidence.",
+    "archives_and_local_apps": "Source and current Go suite cover local executable paths plus ZIP, 7z, RAR, TAR and common compressed TAR formats. Implementations: orchestrator/internal/app/archive.go and local.go; tests: archive_test.go, upload_archive_test.go and local_test.go.",
+    "configuration": "Unified management exposes component/gateway settings, restart applicability and encoder settings. The reviewed encoder catalog contains 79 typed fields; other native parameters can be added by name. Full semantic/range validation for arbitrary advanced native extensions is not claimed. See contracts/encoder-configuration.md and EncoderConfigurationEditor.tsx.",
+    "example": "Development example covers interaction and audio checks; examples and UE probes remain excluded from production installers.",
+    "single_silent_installer": "One installer per server platform. Windows silent installation verified using the unchanged published file. No Node.js/npm runtime dependency or VB-CABLE distribution dependency."
+  },
+  "remaining_external_acceptance": [
+    {
+      "requirement": "Real physical microphone speech to target program and other viewing clients",
+      "status": "deferred_by_user",
+      "needed": "A functioning physical microphone and participant speaking during a bounded browser-to-target/audience check.",
+      "handling": "Retain RC status and do not substitute tones, repeated builds or a second synthetic test for this result."
+    }
+  ],
+  "implementation_action": "No new core implementation defect was established by this review. Existing advanced-configuration and platform limits remain explicitly documented rather than described as universally verified."
+}
