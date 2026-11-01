@@ -17,6 +17,16 @@ type fakePulse struct {
 	failSource     bool
 }
 
+func TestModuleTableRetainsEmptyArguments(t *testing.T) {
+	run := func(context.Context, ...string) ([]byte, error) {
+		return []byte("7\tmodule-native-protocol-unix\t\t\r\n"), nil
+	}
+	modules, err := listModules(context.Background(), run)
+	if err != nil || len(modules) != 1 || modules[0].Index != 7 || modules[0].Argument != "" {
+		t.Fatalf("valid empty module argument rejected: %+v %v", modules, err)
+	}
+}
+
 func (f *fakePulse) run(_ context.Context, args ...string) ([]byte, error) {
 	switch args[0] {
 	case "list":

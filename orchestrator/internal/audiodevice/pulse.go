@@ -194,7 +194,8 @@ func listModules(ctx context.Context, run Runner) ([]module, error) {
 	}
 	result := []module{}
 	seen := map[uint32]bool{}
-	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+	for _, line := range strings.Split(strings.TrimRight(string(data), "\r\n"), "\n") {
+		line = strings.TrimSuffix(line, "\r")
 		if line == "" {
 			continue
 		}

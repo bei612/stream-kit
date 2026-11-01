@@ -6,11 +6,16 @@ on:
     paths:
       - 'orchestrator/internal/audiodevice/**'
       - 'orchestrator/cmd/orchestrator/prepare_audio.go'
+      - 'scripts/test-audio-provisioning-pipewire.sh'
       - '.github/workflows/audio-provisioning.yml'
 permissions:
   contents: read
 jobs:
   linux-audio:
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [pulse, pipewire]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -19,6 +24,19 @@ jobs:
         with:
           go-version: '1.27.3'
           cache-dependency-path: orchestrator/go.sum
-      - run: sudo apt-get update && sudo apt-get install -y pulseaudio pulseaudio-utils
+      - if: matrix.backend == 'pulse'
+        run: sudo apt-get update && sudo apt-get install -y pulseaudio pulseaudio-utils
+      - if: matrix.backend == 'pipewire'
+        run: sudo apt-get update && sudo apt-get install -y pipewire pipewire-pulse pulseaudio-utils
       - name: Provision and reuse real isolated recording endpoints
+        if: matrix.backend == 'pulse'
         run: bash scripts/test-audio-target-linux.sh --command bash -c 'cd orchestrator && STREAM_KIT_ISOLATED_AUDIO_TEST=1 go test -v ./internal/audiodevice'
+      - name: Provision and release PipeWire endpoints
+        if: matrix.backend == 'pipewire'
+        run: bash scripts/test-audio-provisioning-pipewire.sh
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: audio-provisioning-${{ matrix.backend }}-logs
+          path: artifacts/audio-provisioning/
+          if-no-files-found: ignore
