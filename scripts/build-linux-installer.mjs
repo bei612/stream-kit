@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import {requireRuntimeInstallerPayload} from './lib/installer-payload.mjs'
 import path from 'node:path'
 import {createHash} from 'node:crypto'
 import {execFileSync} from 'node:child_process'
@@ -20,6 +21,7 @@ const source=fs.realpathSync(path.resolve(input)), output=path.resolve(destinati
 if(fs.existsSync(output))throw Error('Installer output must be new')
 if(output===source||output.startsWith(source+path.sep))throw Error('Installer output must be outside its platform input')
 const manifest=JSON.parse(fs.readFileSync(path.join(source,'platform-manifest.json'),'utf8'))
+requireRuntimeInstallerPayload(manifest)
 if(manifest.commit!==commit||manifest.platform!=='linux'||manifest.architecture!=='amd64'||manifest.release_channel!=='preview'||!Array.isArray(manifest.files))throw Error('Expected a same-commit Linux amd64 preview platform')
 const hash=file=>createHash('sha256').update(fs.readFileSync(file)).digest('hex')
 function inventory(directory,prefix=''){
@@ -74,7 +76,7 @@ const filename=`stream-kit-preview-${commit.slice(0,12)}-ubuntu24.04-amd64-setup
 const installer=path.join(output,filename)
 fs.writeFileSync(installer,Buffer.concat([Buffer.from(`${header}\n__STREAM_KIT_PAYLOAD__\n`),fs.readFileSync(deb)]),{mode:0o755})
 clean()
-const release={schema_version:1,release_channel:'preview',commit,platform:'linux',distribution:'ubuntu-24.04',architecture:'amd64',installer:{file:filename,bytes:fs.statSync(installer).size,sha256:hash(installer)},payload:{sha256:payloadHash,version,dependencies},runtime_requires_node:false}
+const release={schema_version:1,release_channel:'preview',payload_profile:'runtime',commit,platform:'linux',distribution:'ubuntu-24.04',architecture:'amd64',installer:{file:filename,bytes:fs.statSync(installer).size,sha256:hash(installer)},payload:{sha256:payloadHash,version,dependencies},runtime_requires_node:false}
 fs.writeFileSync(path.join(output,'installer-manifest.json'),JSON.stringify(release,null,2)+'\n')
 fs.writeFileSync(path.join(output,'SHA256SUMS'),`${release.installer.sha256}  ${filename}\n`)
 console.log(JSON.stringify(release,null,2))

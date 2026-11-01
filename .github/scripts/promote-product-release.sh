@@ -23,11 +23,11 @@ sbom=artifacts/promotion/windows-product-sbom/stream-kit-sbom.spdx.json
 jq -e --arg commit "$source_commit" '
   .commit == $commit and .installer_source_commit == $commit and
   .reused_payload == false and .platform == "windows" and .architecture == "amd64" and
-  .release_channel == "preview" and (.file.name | test("^stream-kit-preview-[a-f0-9]{12}-windows-amd64-setup\\.exe$"))
+  .release_channel == "preview" and .payload_profile == "runtime" and (.file.name | test("^stream-kit-preview-[a-f0-9]{12}-windows-amd64-setup\\.exe$"))
 ' "$windows/installer-manifest.json" > /dev/null
 jq -e --arg commit "$source_commit" '
   .commit == $commit and .platform == "linux" and .architecture == "amd64" and
-  .distribution == "ubuntu-24.04" and .release_channel == "preview" and
+  .distribution == "ubuntu-24.04" and .release_channel == "preview" and .payload_profile == "runtime" and
   (.installer.file | test("^stream-kit-preview-[a-f0-9]{12}-ubuntu24\\.04-amd64-setup\\.run$"))
 ' "$linux/installer-manifest.json" > /dev/null
 (cd "$windows" && sha256sum -c SHA256SUMS.txt)

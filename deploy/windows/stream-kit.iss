@@ -55,7 +55,6 @@ Root: HKLM; Subkey: "Software\StreamKit"; ValueType: string; ValueName: "DataDir
 
 [Icons]
 Name: "{group}\Stream-Kit 管理控制台"; Filename: "{code:ControlURL}"
-Name: "{group}\Stream-Kit 音视频示例"; Filename: "{app}\example\checkerboard.exe"
 #ifdef AudioDriverRoot
 Name: "{group}\VB-CABLE 控制面板"; Filename: "{app}\drivers\VB-CABLE\VBCABLE_ControlPanel.exe"
 #endif

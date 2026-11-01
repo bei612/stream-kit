@@ -108,7 +108,7 @@ log without copying general child configuration output or credentials.
 ## Build
 
 `windows-product-release` is the unified GitHub Actions build entry point. Manual
-dispatch builds the four source components and one installer as downloadable
+dispatch builds the three runtime components and one installer as downloadable
 artifacts. After a successful run, push a new `v*-preview.*` tag at that run's
 source commit through the project's authorized Git transport, then dispatch the
 workflow with `promote_run_id` and `release_tag`. Promotion verifies both native
@@ -154,16 +154,16 @@ node scripts/build-windows-installer.mjs PLATFORM_BUNDLE NEW_OUTPUT OFFICIAL_ISC
 
 The platform must be assembled from clean, matching source-built components at
 the current commit. The control manifest must declare initialization version 1.
-The installer also requires the matching Windows example bundle, including both
-`checkerboard.exe` and its native `audio-probe.exe` helper. Build it with
-`node scripts/build-example-release.mjs NEW_EXAMPLE_DIRECTORY`, then provide that
-bundle as the fourth component before the output argument to
-`scripts/package-platform-release.mjs`. A Start menu entry opens the example;
-it is not launched automatically during installation. This keeps the complete
-audio/video test application in the same installer and source inventory.
-The example and gateway share the Cargo notice collector; generated notices
-record dependency identity, license text hashes and missing-text packages.
-No additional runtime monitoring service or dependency is introduced.
+Both installers require exactly control, media gateway and Sunshine. The shared
+installer policy rejects example components, acceptance directories, development
+toolchains and test executables, even when their file hashes are self-consistent.
+There is no example shortcut in a customer installation. Assemble the runtime
+with `node scripts/package-platform-release.mjs CONTROL GATEWAY RENDERER OUTPUT`.
+Developers may separately build the audio/video example using
+`node scripts/build-example-release.mjs NEW_EXAMPLE_DIRECTORY`; it remains an
+independent diagnostic artifact and is not an installer input. UE SDK probes,
+Playwright and acceptance scripts are also development-only. Historical preview
+releases that included an example are not relabeled as production releases.
 The builder verifies payload hashes and records the resulting installer hash,
 compiler hash and source revision. The executable is currently unsigned and the
 channel remains preview. Publisher code signing is not required by the current

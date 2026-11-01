@@ -1,4 +1,4 @@
-Source-built unified installer candidates for Windows x64 and Ubuntu 24.04 amd64. The Windows EXE contains the control service, management Web UI, Sunshine, Web/PWA media gateway and audio/video example. The Linux single `.run` contains the three native platform components and Web assets. Node.js/npm and compiler toolchains are build dependencies only; they are not required on deployment hosts.
+Source-built unified runtime installer candidates for Windows x64 and Ubuntu 24.04 amd64. Each platform's single installer contains the control service, management Web UI, Sunshine and Web/PWA media gateway. Audio/video examples, UE SDK probes, Playwright, acceptance scripts and test configurations are excluded. Node.js/npm and compiler toolchains are build dependencies only; they are not required on deployment hosts.
 
 Run the downloaded setup EXE with `/VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART` for silent installation. Windows UAC still applies. See the source archive's `deploy/windows/README.md` for credentials, listener configuration, data retention and deployment boundaries.
 

@@ -68,9 +68,8 @@ Windows 安装初始化检查各组件文件清单、版本及端口。服务启
 ```text
 node scripts/build-control-plane.mjs --require-clean --output NEW_CONTROL_DIRECTORY
 node scripts/build-gateway-release.mjs --output NEW_GATEWAY_DIRECTORY
-node scripts/build-example-release.mjs NEW_EXAMPLE_DIRECTORY
 node scripts/verify-sunshine-release.mjs SUNSHINE_BUILD_DIRECTORY FULL_COMMIT --output NEW_RENDERER_DIRECTORY
-node scripts/package-platform-release.mjs CONTROL_BUNDLE GATEWAY_BUNDLE RENDERER_BUNDLE EXAMPLE_BUNDLE NEW_PLATFORM_DIRECTORY
+node scripts/package-platform-release.mjs CONTROL_BUNDLE GATEWAY_BUNDLE RENDERER_BUNDLE NEW_PLATFORM_DIRECTORY
 node scripts/build-windows-installer.mjs PLATFORM_BUNDLE NEW_INSTALLER_DIRECTORY OFFICIAL_ISCC_EXE
 ```
 
@@ -87,3 +86,5 @@ Sunshine 原生编译入口见 [build-sunshine.sh](scripts/build-sunshine.sh)。
 - [媒体状态契约](contracts/media-state/README.md)
 
 源码中的历史记录可能描述当时尚未接入的功能；当前行为应结合实际源码、构建清单和对应版本的运行证据判断。预发布说明中的未完成项应在完成实际验收后更新。
+
+正式安装载荷仅包含三个运行组件和必需运行时。`example/`、UE5 录音探针、Playwright、测试脚本及测试配置属于开发验收，不进入客户安装器；两个平台的安装构建器共用规则并拒绝混入这些内容。示例可由开发者单独执行 `node scripts/build-example-release.mjs NEW_EXAMPLE_DIRECTORY` 构建。当前公开的历史预发布仍含自检示例，其内容和验收边界保留在对应版本记录中，不作为已经完成的正式生产包。
