@@ -1,5 +1,9 @@
 # 纳管源码与原生构建
 
+`usbip-win2.json` 锁定可选 Windows 虚拟音频驱动的上游提交和归档摘要。`third_party/usbip-win2` 纳入该版本全部 313 个普通源码、资源及文档文件，只省略 `.gitmodules`；原有 vcpkg gitlink 仅作为上游开发工具记录，不作为本项目 submodule。平台不构建或分发上游 GUI、CLI、SDK，也不执行其自动更新 submodule 的 `bootstrap.bat`。平台的音频协议、设备生命周期和安装流程分别由原生 Rust/Go 实现。
+
+可选驱动包只使用核验过的原版 Microsoft 签名 UDE 与配套过滤驱动，精确文件清单见 `orchestrator/internal/audiodevice/usbip-driver.json`。源码归档用于统一审查和维护，不代表本项目已重编译并取得内核签名。上游开发文档中的测试证书、testsigning 等做法不适用于产品安装；不执行这些操作。正式安装包不包含本源码目录、vcpkg、示例或验收工具。Windows 真实端点和录音联调通过前，此可选分支不默认进入公开安装包。
+
 `pulseaudio-rs.json` 记录 Linux 音频协议依赖 `pulseaudio 0.3.2` 的 crates.io 归档 SHA-256 和上游提交，MIT 许可证保留在 `third_party/pulseaudio-rs/LICENSE.md`。独立音频组件和媒体网关的 Cargo 根清单均将该依赖指向同一份仓库源码；两个生产锁文件与依赖自身的回归测试锁文件分别纳管。二开限制每轮接收批次并保留未读状态，使连续录音时仍能调度时延、暂停和删除命令；不通过遗留后台线程或强杀设备进程宣称释放成功。持续可读与分片回归测试、Linux 独立设备对检查由 `linux-native-capture` 执行，实际通过状态以对应提交的运行结果为准。
 
 `webrtc-rs.json` 记录 WebRTC 异步层 0.21.1 的 crates.io 归档来源与摘要，源码位于 `third_party/webrtc-rs`，由网关通过 Cargo 路径依赖编译。保留 MIT/Apache-2.0 许可证；移除归档中的未使用 submodule 声明，rtc 仍使用 Cargo 锁定依赖。二开把 UDP 范围选端口放到实际套接字绑定层，避免并发连接在探测后释放端口产生竞争；ICE 重绑复用同一策略。生产依赖锁定见网关 Cargo.lock，源码单元测试依赖单独锁定在该目录 Cargo.lock。

@@ -1,0 +1,234 @@
+/*
+ * Copyright (c) 2022-2026 Vadym Hrynchyshyn <vadimgrn@gmail.com>
+ */
+
+#include "mdl_cpp.h"
+#include "utils.h"
+
+/*
+ * @see reactos\ntoskrnl\io\iomgr\iomdl.c
+ */
+_IRQL_requires_same_
+_IRQL_requires_max_(DISPATCH_LEVEL)
+libdrv::Mdl::Mdl(_In_opt_ __drv_aliasesMem void *VirtualAddress, _In_ ULONG Length) :
+        m_mdl(IoAllocateMdl(VirtualAddress, Length, false, false, nullptr)) {}
+
+/*
+ * Impossible to build partial MDL for a chain, only for THIS SourceMdl.
+ */
+_IRQL_requires_same_
+_IRQL_requires_max_(DISPATCH_LEVEL)
+libdrv::Mdl::Mdl(_In_ MDL *SourceMdl, _In_ ULONG Offset, _In_ ULONG Length) : m_mdl(nullptr)
+{
+        if (!SourceMdl) {
+                NT_ASSERT(!"SourceMdl is NULL");
+                return;
+        }
+
+        if (SourceMdl->Next) {
+                NT_ASSERT(!"SourceMdl is a chain, IoBuildPartialMdl requires a single MDL");
+                return;
+        }
+
+        if (static_cast<ULONG64>(Offset) + Length > MmGetMdlByteCount(SourceMdl)) {
+                NT_ASSERT(!"Offset/Length exceed SourceMdl size");
+                return;
+        }
+
+        auto addr = reinterpret_cast<char*>(MmGetMdlVirtualAddress(SourceMdl)) + Offset;
+        m_mdl = IoAllocateMdl(addr, Length, false, false, nullptr);
+
+        if (m_mdl) {
+                NT_ASSERT(!partial());
+                IoBuildPartialMdl(SourceMdl, m_mdl, addr, Length);
+                NT_ASSERT(partial());
+        }
+}
+
+_IRQL_requires_same_
+_IRQL_requires_max_(DISPATCH_LEVEL)
+libdrv::Mdl::Mdl(_Inout_ Mdl&& m) :
+        m_mdl(m.release()),
+        m_mapped(m.m_mapped)
+{
+        m.m_mapped = false;
+}
+
+_IRQL_requires_same_
+_IRQL_requires_max_(DISPATCH_LEVEL)
+auto libdrv::Mdl::operator =(_Inout_ Mdl&& m) -> Mdl&
+{
+        Mdl(static_cast<Mdl&&>(m)).swap(*this);
+        return *this;
+}
+
+_IRQL_requires_same_
+_IRQL_requires_max_(DISPATCH_LEVEL)
+void libdrv::Mdl::swap(_Inout_ Mdl &other)
+{
+        ::swap(m_mdl, other.m_mdl);
+        ::swap(m_mapped, other.m_mapped);
+}
+
+_IRQL_requires_same_
+_IRQL_requires_max_(DISPATCH_LEVEL)
+MDL* libdrv::Mdl::release()
+{
+        auto m = m_mdl;
+        m_mdl = nullptr;
+        return m;
+}
+
+_IRQL_requires_same_
+_IRQL_requires_max_(DISPATCH_LEVEL)
+void libdrv::Mdl::reset(_In_opt_ MDL *mdl, _In_ bool mapped)
+{
+        if (m_mdl) {
+                NT_ASSERT(m_mdl != mdl);
+                unprepare();
+                IoFreeMdl(m_mdl); // calls MmPrepareMdlForReuse
+        }
+
+        m_mdl = mdl;
+        m_mapped = mapped;
+}
+
+_IRQL_requires_same_
+_IRQL_requires_max_(DISPATCH_LEVEL)
+NTSTATUS libdrv::Mdl::lock(_In_ LOCK_OPERATION Operation)
+{
+        NT_ASSERT(KeGetCurrentIrql() <= DISPATCH_LEVEL); // nonpageable buffers may be locked at DISPATCH_LEVEL
+        NT_ASSERT(m_mdl);
+
+        if (locked()) { 
+                return STATUS_ALREADY_COMPLETE;
+        }
+
+        __try {
+                MmProbeAndLockPages(m_mdl, KernelMode, Operation);
+        } __except (EXCEPTION_EXECUTE_HANDLER) {
+                return static_cast<NTSTATUS>(GetExceptionCode());
+        }
+
+        NT_ASSERT(locked());
+        return STATUS_SUCCESS;
+}
+
+_IRQL_requires_same_
+_IRQL_requires_max_(DISPATCH_LEVEL)
+void libdrv::Mdl::next(_In_opt_ MDL *m)
+{ 
+        if (m_mdl) {
+                NT_ASSERT(m_mdl != m);
+                m_mdl->Next = m;
+        }
+}
+
+_IRQL_requires_same_
+_IRQL_requires_max_(DISPATCH_LEVEL)
+NTSTATUS libdrv::Mdl::prepare_nonpaged()
+{
+        if (!m_mdl) {
+                return STATUS_INSUFFICIENT_RESOURCES;
+        }
+
+        if (nonpaged()) {
+                return STATUS_ALREADY_COMPLETE;
+        }
+
+        if (partial()) { // paged partial, calling BuildMdl is invalid
+                return STATUS_INVALID_PARAMETER;
+        }
+
+        MmBuildMdlForNonPagedPool(m_mdl);
+        NT_ASSERT(nonpaged());
+
+        return STATUS_SUCCESS;
+}
+
+_IRQL_requires_same_
+_IRQL_requires_max_(DISPATCH_LEVEL)
+NTSTATUS libdrv::Mdl::prepare_paged(_In_ LOCK_OPERATION Operation)
+{
+        return m_mdl ? lock(Operation) : STATUS_INSUFFICIENT_RESOURCES;
+}
+
+/*
+ * nonpaged() and partial() can be set both.
+ * 
+ * When a partial MDL is constructed using IoBuildPartialMdl, the partial MDL inherits MDL_PAGES_LOCKED from SourceMdl.
+ * Per Microsoft WDK documentation on IoBuildPartialMdl:
+ * "A driver must not call MmUnlockPages on a partial MDL created by IoBuildPartialMdl.
+ * The pages are unlocked when the source MDL is unlocked."
+ * Calling MmUnlockPages on a partial MDL decrements the underlying physical page lock counts prematurely.
+ * When the owner of the source MDL subsequently calls MmUnlockPages, it results in lock count underflow
+ * and Driver Verifier bugchecks (0xC4/PFN_SHARE_COUNT).
+ */
+_IRQL_requires_same_
+_IRQL_requires_max_(DISPATCH_LEVEL)
+void libdrv::Mdl::unprepare()
+{
+        if (!m_mdl) {
+                return;
+        }
+
+        if (m_mapped) {
+                NT_ASSERT(mapped());
+                MmUnmapLockedPages(m_mdl->MappedSystemVa, m_mdl);
+                m_mapped = false;
+                NT_ASSERT(!mapped());
+        }
+
+        if (locked() && !partial()) { // see comments
+                NT_ASSERT(!nonpaged());
+                MmUnlockPages(m_mdl);
+                NT_ASSERT(!locked());
+        }
+}
+
+/*
+ * Take ownership of unmapping if the system flag
+ * flipped from false to true strictly during this call.
+ */
+_IRQL_requires_same_
+_IRQL_requires_max_(DISPATCH_LEVEL)
+void* libdrv::Mdl::sysaddr(_In_ ULONG Priority)
+{ 
+        if (!m_mdl) {
+                return nullptr;
+        }
+
+        if (m_mapped) { // skip flag checks, we already did it
+                return MmGetSystemAddressForMdlSafe(m_mdl, Priority);
+        }
+
+        auto was_mapped_by_system = mapped();
+        auto addr = MmGetSystemAddressForMdlSafe(m_mdl, Priority);
+
+        if (addr && !was_mapped_by_system && mapped()) {
+                m_mapped = true;
+        }
+
+        return addr;
+}
+
+_IRQL_requires_same_
+_IRQL_requires_max_(DISPATCH_LEVEL)
+size_t libdrv::size(_In_opt_ const MDL *mdl)
+{
+        size_t total = 0;
+
+        for ( ; mdl; mdl = mdl->Next) {
+                total += MmGetMdlByteCount(const_cast<MDL*>(mdl));
+        }
+
+        return total;
+}
+
+_IRQL_requires_same_
+_IRQL_requires_max_(DISPATCH_LEVEL)
+MDL *libdrv::tail(_In_opt_ MDL *mdl)
+{
+        for ( ; mdl && mdl->Next; mdl = mdl->Next);
+        return mdl;
+}

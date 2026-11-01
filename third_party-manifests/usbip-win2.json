@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "name": "usbip-win2",
+  "version": "0.9.8.1",
+  "repository": "https://github.com/vadimgrn/usbip-win2",
+  "commit": "55e1fa7f0c2157017b02dc1f3236e98169a535e4",
+  "archive_url": "https://codeload.github.com/vadimgrn/usbip-win2/zip/55e1fa7f0c2157017b02dc1f3236e98169a535e4",
+  "archive_sha256": "9c428b198a0364cfae1dab0506e2fa4056273f333e1400e075b6cecb3baae237",
+  "path": "third_party/usbip-win2",
+  "license": "BSD-2-Clause",
+  "regular_files_imported": 313,
+  "omitted_files": [".gitmodules"],
+  "upstream_build_tools": [
+    {
+      "name": "vcpkg",
+      "commit": "127402f1c75bb3d5ff6bce04b285faa4930a5aca",
+      "repository": "https://github.com/microsoft/vcpkg",
+      "vendored": false,
+      "reason": "Upstream development tool; not used by the platform's Rust provider, native installer or customer runtime. Upstream GUI/CLI are not built or distributed."
+    }
+  ],
+  "runtime_inventory": "orchestrator/internal/audiodevice/usbip-driver.json",
+  "integration": {
+    "kernel": "Optional, unmodified upstream Microsoft-signed UDE and companion filter only",
+    "userspace": "Platform-owned native Rust audio-only USB/IP provider and Go installation lifecycle; no upstream SDK, CLI or GUI runtime dependency",
+    "source_changes": [],
+    "production_enabled_by_default": false,
+    "kernel_rebuild_claimed": false
+  }
+}
