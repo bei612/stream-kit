@@ -45,6 +45,9 @@ user's authenticated PulseAudio/PipeWire-Pulse server before launching component
 audio-server restart. It reuses matching modules, rejects existing names owned by
 other configurations, and rolls back only modules it created if preparation fails.
 It does not set system default devices or start a separate audio daemon.
+Service shutdown releases the owned source and sink in dependency order, including
+package removal and restart. `orchestrator release-audio` performs the same checked
+cleanup explicitly; foreign devices and unrelated audio modules are retained.
 The package includes `pulseaudio-utils`; an active user audio server is required.
 In the existing management audio-target selector, choose output
 `pulseaudio:stream_kit_microphone` and input

@@ -12,6 +12,7 @@ ExecStartPre=/opt/stream-kit/orchestrator/orchestrator verify-bundle /opt/stream
 ExecStartPre=/opt/stream-kit/orchestrator/orchestrator check-config --config %h/.local/share/stream-kit/runtime/orchestrator.json
 ExecStartPre=/opt/stream-kit/orchestrator/orchestrator prepare-audio
 ExecStart=/opt/stream-kit/orchestrator/orchestrator --config %h/.local/share/stream-kit/runtime/orchestrator.json
+ExecStopPost=/opt/stream-kit/orchestrator/orchestrator release-audio
 Restart=on-failure
 RestartSec=3
 TimeoutStopSec=45

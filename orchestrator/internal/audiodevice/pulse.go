@@ -83,7 +83,7 @@ func find(ctx context.Context, run Runner, s spec) (*uint32, error) {
 	if err != nil {
 		return nil, err
 	}
-	modules, err := list[module](ctx, run, "modules")
+	modules, err := listModules(ctx, run)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func EnsurePulse(ctx context.Context, run Runner) (pair Pair, err error) {
 			cleanup, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			for i := len(created) - 1; i >= 0; i-- {
-				current, e := list[module](cleanup, run, "modules")
+				current, e := listModules(cleanup, run)
 				if e != nil {
 					err = fmt.Errorf("%w; cleanup inventory failed: %v", err, e)
 					continue
@@ -160,4 +160,57 @@ func EnsurePulse(ctx context.Context, run Runner) (pair Pair, err error) {
 		}
 	}
 	return Pair{"pulseaudio:" + specs[0].name, "pulseaudio:" + specs[1].name}, nil
+}
+
+// ReleasePulse follows service lifetime. Validate both names first, then remove
+// the recording source before its backing sink, never a foreign configuration.
+func ReleasePulse(ctx context.Context, run Runner) error {
+	for _, s := range specs {
+		if _, err := find(ctx, run, s); err != nil {
+			return err
+		}
+	}
+	for i := len(specs) - 1; i >= 0; i-- {
+		id, err := find(ctx, run, specs[i])
+		if err != nil {
+			return err
+		}
+		if id == nil {
+			continue
+		}
+		if _, err = run(ctx, "unload-module", strconv.FormatUint(uint64(*id), 10)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// pactl's JSON module objects omit the index. The documented short table
+// includes the numeric owner ID and tab-delimits arguments independently.
+func listModules(ctx context.Context, run Runner) ([]module, error) {
+	data, err := run(ctx, "list", "short", "modules")
+	if err != nil {
+		return nil, err
+	}
+	result := []module{}
+	seen := map[uint32]bool{}
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		if line == "" {
+			continue
+		}
+		fields := strings.Split(line, "\t")
+		if len(fields) < 3 {
+			return nil, fmt.Errorf("invalid module table")
+		}
+		id, err := strconv.ParseUint(fields[0], 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("invalid module ID: %w", err)
+		}
+		if seen[uint32(id)] {
+			return nil, fmt.Errorf("duplicate module ID")
+		}
+		seen[uint32(id)] = true
+		result = append(result, module{uint32(id), fields[1], fields[2]})
+	}
+	return result, nil
 }
