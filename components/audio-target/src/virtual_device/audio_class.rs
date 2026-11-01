@@ -307,7 +307,9 @@ mod tests {
             assert_eq!(descriptor[0] as usize, descriptor.len());
             assert_eq!(descriptor[1], 3);
             let decoded: Vec<u16> = descriptor[2..]
-                .chunks_exact(2)
+                .as_chunks::<2>()
+                .0
+                .iter()
                 .map(|v| u16::from_le_bytes([v[0], v[1]]))
                 .collect();
             assert_eq!(String::from_utf16(&decoded).unwrap(), serial);
