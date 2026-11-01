@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "source_commit": "a17a8cd8f53ece20568817c696859270e565f613",
+  "baseline_run": "https://github.com/bei612/stream-kit/actions/runs/41281774289",
+  "passed_run": "https://github.com/bei612/stream-kit/actions/runs/41281972079",
+  "diagnosis": "The hosted Windows test user was denied recording by Windows DeviceAccessInformation despite machine-level Allow. The device driver and audio services were healthy; WASAPI Initialize returned E_ACCESSDENIED.",
+  "fixture_change": "On GitHub-hosted Windows runners with no existing sound devices only, explicitly provision per-user recording consent for the subsequent synthetic audio device. Preserve machine and enterprise policy. Record before/after access through the Windows API and require Allowed before continuing.",
+  "before": {"machine":"Allow", "user":"Deny", "desktop":"Allow", "device_class_status":"DeniedByUser"},
+  "after": {"machine":"Allow", "user":"Allow", "desktop":"Allow", "device_class_status":"Allowed"},
+  "actual_pcm": {
+    "passed": true,
+    "captured_frames": 144000,
+    "tone_amplitude": 0.09817147782660082,
+    "baseline_quiet": true,
+    "after_clear_quiet": true,
+    "target_dropped_frames": 0,
+    "target_xruns": 0,
+    "target_error": null,
+    "provider_exit_code": 0,
+    "clean_exit": true
+  },
+  "raw_artifacts": [
+    "windows-recording-access/windows-environment.json",
+    "windows-native-audio-environment/windows-access-before.json",
+    "windows-native-audio-environment/windows-access-after.json",
+    "windows-native-audio-environment/virtual-device/result.json"
+  ],
+  "local_check": "PowerShell syntax parsed; an attempted negative execution check was blocked by local PowerShell execution policy before the script guard could run. It is not recorded as a guard-test pass. No local recording policy was changed.",
+  "limits": [
+    "The focused run requested PCM and cleanup only; its browsers list is empty and browser_checks_requested is false.",
+    "The full cross-platform workflow retains the required Chromium/Firefox audio checks and is evaluated separately.",
+    "This CI provisioning script is not part of customer installers or runtime code.",
+    "No physical human speech, new soak test or production installer acceptance is claimed."
+  ]
+}

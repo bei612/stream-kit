@@ -62,6 +62,22 @@ through the existing explicit endpoint routing; system defaults are not changed.
 The bounded `components/audio-target/examples/virtual_device.rs` utility is for
 development only and is excluded from runtime packages.
 
+An unexpected native transport exit now drains the gateway and releases its
+owned attachment; the existing component supervisor applies the configured
+restart policy. Normal stop continues to use the same bounded cleanup path.
+
+Windows recording privacy applies to the configured interactive render account,
+including virtual recording endpoints. If opening an endpoint reports access
+denied, enable microphone access and desktop-app microphone access in Windows
+Settings for that account. Driver installation alone does not grant recording
+consent; see [Microsoft's microphone permission instructions](https://support.microsoft.com/en-us/windows/privacy/turn-on-app-permissions-for-your-microphone-in-windows).
+Customer installers do not change these privacy settings. The separate
+GitHub-hosted synthetic fixture configures its disposable test user only, after
+requiring an empty sound-device inventory and an allowing machine policy; it is
+never used on customer machines. See
+`docs/evidence/windows-ci-recording-access-20261101.json` for the before/after
+Windows API status and actual PCM result.
+
 **Native device acceptance completed on 2026-11-01:** elevated installation created
 one healthy controller with its companion filter, without reboot. Both endpoints
 enumerated and retained their IDs across restarts. Actual 48 kHz playback/capture,
