@@ -54,7 +54,9 @@ defaults:
     shell: bash
 
 concurrency:
-  group: linux-sunshine-build-${{ github.ref }}
+  # A reusable workflow sees the caller's github.workflow. Keep product builds
+  # out of the push queue: even cancel-in-progress:false replaces pending runs.
+  group: linux-sunshine-build-${{ github.workflow }}-${{ inputs.release_version || 'preview' }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
