@@ -88,8 +88,11 @@ func openPolicyNode(id WindowsIdentity, writable bool) (_ *policyNode, err error
 			return nil, e
 		}
 		links, e := windows.CM_Get_Device_Interface_List(instance, &audio, windows.CM_GET_DEVICE_INTERFACE_LIST_ALL_DEVICES)
+		if errors.Is(e, windows.CR_NO_SUCH_DEVNODE) || errors.Is(e, windows.ERROR_NO_SUCH_DEVICE_INTERFACE) {
+			return nil, errAudioNodeMissing
+		}
 		if e != nil {
-			return nil, e
+			return nil, fmt.Errorf("enumerate configured audio interfaces: %w", e)
 		}
 		for _, link := range links {
 			if !strings.HasSuffix(strings.ToLower(link), `\msft_topo`) && !strings.HasSuffix(strings.ToLower(link), `\msft_wave`) {
@@ -208,6 +211,9 @@ func PrepareWindowsPolicy(ctx context.Context, id WindowsIdentity) error {
 		return err
 	}
 	defer n.close()
+	if err := requireRunningAudioNode(n.device); err != nil {
+		return err
+	}
 	// Validate every destination before the first mutation.
 	for _, key := range n.keys {
 		owned, _, err := policyState(key)
@@ -283,13 +289,26 @@ func PrepareWindowsPolicy(ctx context.Context, id WindowsIdentity) error {
 	return nil
 }
 
-func refreshInboxAudioDriver(set windows.DevInfo, device *windows.DevInfoData) error {
+// Registered interfaces survive unplugging. Their presence alone must not end
+// the attachment wait or allow policy writes/driver migration before PnP starts
+// the new live node for this identity.
+func requireRunningAudioNode(device *windows.DevInfoData) error {
 	var status, problem uint32
 	if err := windows.CM_Get_DevNode_Status(&status, &problem, device.DevInst, 0); err != nil {
-		return err
+		if errors.Is(err, windows.CR_NO_SUCH_DEVNODE) {
+			return errAudioNodeMissing
+		}
+		return fmt.Errorf("inspect configured audio node: %w", err)
 	}
 	if problem != 0 || status&windows.DN_STARTED == 0 {
-		return errors.New("configured audio node must be present and running")
+		return errAudioNodeMissing
+	}
+	return nil
+}
+
+func refreshInboxAudioDriver(set windows.DevInfo, device *windows.DevInfoData) error {
+	if err := requireRunningAudioNode(device); err != nil {
+		return err
 	}
 	root, err := windows.GetWindowsDirectory()
 	if err != nil {

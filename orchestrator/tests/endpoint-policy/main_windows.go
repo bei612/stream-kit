@@ -28,7 +28,7 @@ func run() error {
 	id := audiodevice.WindowsIdentity{VendorID: 65534, ProductID: 1, Serial: "CIPolicyTarget"}
 	ready, err := audiodevice.WindowsPolicyReady(id)
 	if err != nil {
-		return err
+		return fmt.Errorf("initial policy query: %w", err)
 	}
 	if ready {
 		return errors.New("fixture was already prepared")
@@ -39,17 +39,17 @@ func run() error {
 		return audiodevice.PrepareWindowsGateway(ctx, os.Args[1], []string{"--config-path", os.Args[2], "prepare-audio"}, "", nil)
 	}
 	if err := prepare(); err != nil {
-		return err
+		return fmt.Errorf("first native gateway preparation: %w", err)
 	}
 	ready, err = audiodevice.WindowsPolicyReady(id)
 	if err != nil {
-		return err
+		return fmt.Errorf("persisted policy query: %w", err)
 	}
 	if !ready {
 		return errors.New("production preparation did not persist completion")
 	}
 	if err := prepare(); err != nil {
-		return err
+		return fmt.Errorf("repeat native gateway preparation: %w", err)
 	}
 	return json.NewEncoder(os.Stdout).Encode(map[string]any{"ready": true, "production_policy": true, "native_gateway_preparation": true, "repeat_preparation_passed": true})
 }

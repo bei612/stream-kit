@@ -135,7 +135,10 @@ func PrepareWindowsGateway(parent context.Context, executable string, args []str
 	for {
 		n, queryErr := openPolicyNode(id, false)
 		if queryErr == nil {
+			queryErr = requireRunningAudioNode(n.device)
 			n.close()
+		}
+		if queryErr == nil {
 			break
 		}
 		if !errors.Is(queryErr, errAudioNodeMissing) {
