@@ -4,12 +4,15 @@ import {fileURLToPath} from 'node:url'
 import {execFileSync} from 'node:child_process'
 import {createHash} from 'node:crypto'
 import {prepareAudioDriver} from './lib/windows-audio-driver.mjs'
+import {prepareUSBAudioDriver} from './lib/windows-usb-audio-driver.mjs'
 import {requireRuntimeInstallerPayload} from './lib/installer-payload.mjs'
 
 const args=process.argv.slice(2)
 const reusePayload=args.at(-1)==='--reuse-payload'
 if(reusePayload)args.pop()
-if(process.platform!=='win32'||![3,7].includes(args.length)||(args.length===7&&(args[3]!=='--audio-driver'||args[5]!=='--audio-driver-authorization')))throw Error('Expected Windows: node build-windows-installer.mjs PLATFORM_BUNDLE NEW_OUTPUT OFFICIAL_ISCC_EXE [--audio-driver PACKAGE_DIR --audio-driver-authorization PRIVATE_RECORD_JSON]')
+const usbAudio=args.length===7&&args[3]==='--usb-audio-driver'&&args[5]==='--signtool'
+const vendorAudio=args.length===7&&args[3]==='--audio-driver'&&args[5]==='--audio-driver-authorization'
+if(process.platform!=='win32'||![3,7].includes(args.length)||(args.length===7&&!usbAudio&&!vendorAudio))throw Error('Expected Windows: node build-windows-installer.mjs PLATFORM_BUNDLE NEW_OUTPUT OFFICIAL_ISCC_EXE [--usb-audio-driver PACKAGE_DIR --signtool OFFICIAL_SIGNTOOL_EXE | --audio-driver PACKAGE_DIR --audio-driver-authorization PRIVATE_RECORD_JSON]')
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..')
 const [payload,output,compiler]=args.slice(0,3).map(value=>path.resolve(value))
 const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',windowsHide:true}).trim()
@@ -46,9 +49,9 @@ if(expected.size)throw Error('Missing payload files')
 const info=execFileSync(compiler,['--version'],{encoding:'utf8',windowsHide:true})
 if(!info.includes('7.1.1'))throw Error('Expected pinned official Inno Setup 7.1.1 compiler')
 fs.mkdirSync(output,{recursive:true})
-const driver=args.length===7?prepareAudioDriver(path.resolve(args[4]),path.resolve(args[6]),output):null
+const driver=usbAudio?prepareUSBAudioDriver(path.resolve(args[4]),path.resolve(args[6]),output,path.join(payload,'orchestrator','orchestrator.exe')):vendorAudio?prepareAudioDriver(path.resolve(args[4]),path.resolve(args[6]),output):null
 const installerSuffix=installerCommit===commit?'':`-r${installerCommit.slice(0,8)}`
-execFileSync(compiler,['/Qp',`/DPayloadRoot=${payload}`,`/DArtifactDir=${output}`,`/DSourceCommit=${commit}`,`/DInstallerSuffix=${installerSuffix}`,...(driver?[`/DAudioDriverRoot=${driver.stage}`]:[]),path.join(root,'deploy/windows/stream-kit.iss')],{stdio:'inherit',windowsHide:true})
+execFileSync(compiler,['/Qp',`/DPayloadRoot=${payload}`,`/DArtifactDir=${output}`,`/DSourceCommit=${commit}`,`/DInstallerSuffix=${installerSuffix}`,...(driver?[`/D${usbAudio?'UsbAudioDriverRoot':'AudioDriverRoot'}=${driver.stage}`]:[]),path.join(root,'deploy/windows/stream-kit.iss')],{stdio:'inherit',windowsHide:true})
 if(driver){
   if(path.dirname(path.resolve(driver.stage))!==output)throw Error('Audio staging directory escaped installer output')
   // Remove only the exact vendor files this build staged, never recursively

@@ -6,6 +6,38 @@ policy or firewall policy and never reboots the machine automatically. An
 authorized build can include the reviewed VB-CABLE package inside the same EXE;
 otherwise an existing compatible virtual endpoint can be selected later.
 
+The free USB audio provider is being integrated. Its optional installer branch
+uses `orchestrator audio-driver install` inside the same elevated setup process.
+The reviewed package contains only the usbip-win2 0.9.8.1 host-controller and
+companion-filter INF/SYS/CAT files plus the BSD license (248,304 bytes total).
+Both catalogs are checked with the official Windows SDK `signtool verify /kp` at
+packaging time. The native installer verifies the same embedded file inventory;
+the customer does not need Node, an SDK, a separate driver wizard or the vendor's
+complete USB/IP application. No test certificate or test-signing policy is used.
+
+Build selection is `--usb-audio-driver PACKAGE_DIR --signtool OFFICIAL_SIGNTOOL_EXE`
+on `scripts/build-windows-installer.mjs`; it is mutually exclusive with the
+legacy optional VB-CABLE selection. An older control binary without the native
+driver command is rejected before packaging. The default release remains the
+runtime-only package without a bundled audio driver.
+
+Installation serializes concurrent attempts, reuses a healthy matching existing
+controller, and refuses incompatible/partial existing installations. DriverStore
+staging omits `pnputil /install`; the native device install targets only its newly
+created root node. The companion filter's upstream AddDevice handler attaches
+only above the USB/IP virtual controller. On failure, cleanup is limited to the
+new node, retaining potentially shared DriverStore packages. Windows-reported
+restart requirements return 3010 and defer service startup; no automatic restart
+or change of default audio endpoints is performed.
+
+**Not yet a production audio-provider acceptance:** native Windows/Linux builds,
+package policy checks, both kernel signatures, and Inno compilation with output
+disabled have passed. No new installer was generated or installed for these
+checks. Actual elevated PnP installation, filter binding, gateway/provider
+startup, stable endpoint selection and target-program recording remain to be
+integrated/verified before enabling this branch in a public release. Existing
+virtual audio devices and the published runtime-only installer are unchanged.
+
 The wizard accepts a program directory, a separate new data directory and the
 single administrator's credentials. Internal media credentials and the shared
 media ticket key are generated independently. Initial listeners are private:

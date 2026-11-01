@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "product": "usbip-win2",
+  "version": "0.9.8.1",
+  "driver_version": "12.1.30.403",
+  "platform": "windows",
+  "architecture": "amd64",
+  "source_commit": "55e1fa7f0c2157017b02dc1f3236e98169a535e4",
+  "license": "BSD-2-Clause",
+  "source_url": "https://github.com/vadimgrn/usbip-win2/tree/55e1fa7f0c2157017b02dc1f3236e98169a535e4",
+  "files": [
+    {
+      "path": "usbip2_ude.inf",
+      "bytes": 2964,
+      "sha256": "1ae9e8dc497929de1a6be1291ae1dca6a19e7fd6c0351e8c266f65dd91f15073"
+    },
+    {
+      "path": "usbip2_ude.sys",
+      "bytes": 157200,
+      "sha256": "abd4fc43dce40e027e4acc884cbfe92433e026206f6565c5ee5284a39441169a"
+    },
+    {
+      "path": "usbip2_ude.cat",
+      "bytes": 11404,
+      "sha256": "84dd6cc5985857adf1514a9ee202210ff3ee1384c9be40fd49d6810e23e25f3a"
+    },
+    {
+      "path": "usbip2_filter.inf",
+      "bytes": 2051,
+      "sha256": "b7fe01b04793d2f83cf3407601f2c835f1a10c2618e32a52c8fdef1da6b79bff"
+    },
+    {
+      "path": "usbip2_filter.sys",
+      "bytes": 61928,
+      "sha256": "b93a5fc3c23d56f9b49634742374e32f269e53f764caa2d5fcb43e3259f7eced"
+    },
+    {
+      "path": "usbip2_filter.cat",
+      "bytes": 11425,
+      "sha256": "f259d60bdb5ad9d7a976418bfc9156b788dfcec9b67c8d05d036eb03fb18ffe1"
+    },
+    {
+      "path": "LICENSE.txt",
+      "bytes": 1332,
+      "sha256": "723572b1487231edcc3a2594da30961c693da7a0d7b676ca718fe3391920b8ca"
+    }
+  ]
+}

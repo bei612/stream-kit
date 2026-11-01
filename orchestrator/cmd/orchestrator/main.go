@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/stream-kit/orchestrator/internal/app"
 	"github.com/stream-kit/orchestrator/internal/bundle"
@@ -39,6 +40,15 @@ var (
 func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
+		case "audio-driver":
+			if err := audioDriverCommand(os.Args[2:]); err != nil {
+				if errors.Is(err, errAudioDriverRestartRequired) {
+					os.Exit(3010)
+				}
+				fmt.Fprintln(os.Stderr, "audio driver operation failed:", err)
+				os.Exit(1)
+			}
+			return
 		case "prepare-audio", "release-audio":
 			if err := prepareAudio(os.Args[2:], os.Args[1] == "release-audio"); err != nil {
 				fmt.Fprintln(os.Stderr, "audio provisioning failed:", err)

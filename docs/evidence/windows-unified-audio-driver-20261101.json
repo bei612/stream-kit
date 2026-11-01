@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-11-01T02:02:58.023Z",
+  "scope": "Native unified installer integration under development; driver package verification and compiler checks only",
+  "driver_package": {
+    "product": "usbip-win2",
+    "version": "0.9.8.1",
+    "source_commit": "55e1fa7f0c2157017b02dc1f3236e98169a535e4",
+    "files": [
+      {
+        "path": "usbip2_ude.inf",
+        "bytes": 2964,
+        "sha256": "1ae9e8dc497929de1a6be1291ae1dca6a19e7fd6c0351e8c266f65dd91f15073"
+      },
+      {
+        "path": "usbip2_ude.sys",
+        "bytes": 157200,
+        "sha256": "abd4fc43dce40e027e4acc884cbfe92433e026206f6565c5ee5284a39441169a"
+      },
+      {
+        "path": "usbip2_ude.cat",
+        "bytes": 11404,
+        "sha256": "84dd6cc5985857adf1514a9ee202210ff3ee1384c9be40fd49d6810e23e25f3a"
+      },
+      {
+        "path": "usbip2_filter.inf",
+        "bytes": 2051,
+        "sha256": "b7fe01b04793d2f83cf3407601f2c835f1a10c2618e32a52c8fdef1da6b79bff"
+      },
+      {
+        "path": "usbip2_filter.sys",
+        "bytes": 61928,
+        "sha256": "b93a5fc3c23d56f9b49634742374e32f269e53f764caa2d5fcb43e3259f7eced"
+      },
+      {
+        "path": "usbip2_filter.cat",
+        "bytes": 11425,
+        "sha256": "f259d60bdb5ad9d7a976418bfc9156b788dfcec9b67c8d05d036eb03fb18ffe1"
+      },
+      {
+        "path": "LICENSE.txt",
+        "bytes": 1332,
+        "sha256": "723572b1487231edcc3a2594da30961c693da7a0d7b676ca718fe3391920b8ca"
+      }
+    ],
+    "bytes": 248304
+  },
+  "verified": {
+    "native_windows_build": true,
+    "native_linux_cross_build": true,
+    "go_tests": [
+      "./internal/audiodevice",
+      "./cmd/orchestrator"
+    ],
+    "go_vet": true,
+    "node_package_policy_tests": 4,
+    "windows_sdk_kernel_signature": [
+      "usbip2_ude.sys",
+      "usbip2_filter.sys"
+    ],
+    "native_read_only_package_verify": true,
+    "inno_7_1_1": {
+      "usb_branch": "compiled --output=no",
+      "default_branch": "compiled --output=no",
+      "installer_generated": false
+    }
+  },
+  "source_files": [
+    {
+      "path": "orchestrator/internal/audiodevice/driver_windows.go",
+      "sha256": "f30bc5404995573caff48b5ac160834f97e298e335eb00411c12225475095595"
+    },
+    {
+      "path": "orchestrator/internal/audiodevice/driver_package.go",
+      "sha256": "60a47e27c1ef9b533d4471517c10d8f2d18b42a92f99ed029b57ded672c5a8fb"
+    },
+    {
+      "path": "orchestrator/internal/audiodevice/usbip-driver.json",
+      "sha256": "5623a91a77d0f49d63c850bd620736e3934f0b385e37a42cec2d5f04fc00db8c"
+    },
+    {
+      "path": "orchestrator/cmd/orchestrator/audio_driver.go",
+      "sha256": "116759fee24621ffb9381c63c94aa9e9c13fd1dff971364dc0ec19f3380f93f2"
+    },
+    {
+      "path": "deploy/windows/stream-kit.iss",
+      "sha256": "d499a3196bb1a60849d2b5931c94224b6d4082ea668d2f80b2fc8e2d3be71926"
+    },
+    {
+      "path": "deploy/windows/audio-driver.iss",
+      "sha256": "ed54badcc211932caa64968a68f8c879cd95c3eed0dc83bc5a552548f0d513f0"
+    },
+    {
+      "path": "scripts/build-windows-installer.mjs",
+      "sha256": "64b8469412faf3fea6e52bef6ff84641c6b2e9591beb9e9b9af9ffed0e70abd7"
+    },
+    {
+      "path": "scripts/lib/windows-usb-audio-driver.mjs",
+      "sha256": "7459dd48c56a9d1c1aec93741c863c0e55df9e86da1dadd4ab890817a5a8b0a2"
+    }
+  ],
+  "source_review": {
+    "configuration_and_alternate_setting_require_companion_filter": true,
+    "filter_add_device_checks_virtual_controller_ancestry": true,
+    "reference": "https://github.com/vadimgrn/usbip-win2/tree/55e1fa7f0c2157017b02dc1f3236e98169a535e4/drivers"
+  },
+  "not_run": [
+    "Elevated native driver installation",
+    "Actual companion filter binding",
+    "Windows virtual audio endpoint enumeration",
+    "Gateway provider activation and application recording"
+  ],
+  "production_release_changed": false,
+  "system_devices_changed": false
+}

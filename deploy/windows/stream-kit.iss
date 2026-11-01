@@ -12,6 +12,15 @@
 #ifndef InstallerSuffix
   #define InstallerSuffix ""
 #endif
+#ifdef AudioDriverRoot
+  #define HasAudioDriver
+#endif
+#ifdef UsbAudioDriverRoot
+  #ifdef AudioDriverRoot
+    #error Only one bundled audio driver provider may be selected
+  #endif
+  #define HasAudioDriver
+#endif
 
 [Setup]
 AppId={{E7FD370E-32FD-4989-8FE8-C5F9D56187BC}
@@ -48,6 +57,9 @@ Name: "en"; MessagesFile: "compiler:Default.isl"
 Source: "{#PayloadRoot}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 #ifdef AudioDriverRoot
 Source: "{#AudioDriverRoot}\*"; DestDir: "{app}\drivers\VB-CABLE"; Flags: ignoreversion
+#endif
+#ifdef UsbAudioDriverRoot
+Source: "{#UsbAudioDriverRoot}\*"; DestDir: "{app}\drivers\usbip"; Flags: ignoreversion
 #endif
 
 [Registry]
@@ -207,15 +219,15 @@ begin
     if not WizardSilent then DeleteFile(AdminFile);
   end;
   ConfigFile := Quoted(AddBackslash(DataDirectory('')) + 'orchestrator.json');
-#ifdef AudioDriverRoot
+#ifdef HasAudioDriver
   InstallBundledAudioDriver;
 #endif
   if not NativeCommand('service install --config ' + ConfigFile) then
     RaiseException('服务注册失败，配置已保留。');
-#ifdef AudioDriverRoot
+#ifdef HasAudioDriver
   if AudioDriverRestartRequired then begin
     Log('Audio driver installed; platform service startup deferred until manual restart.');
-    WizardForm.FinishedLabel.Caption := '安装已完成。新音频驱动需要手动重启电脑；重启后登录配置的 Windows 用户，再检查管理页面中的服务与音频设备。安装程序不会自动重启。VB-CABLE 由 VB-Audio 提供：https://vb-audio.com/Cable/';
+    WizardForm.FinishedLabel.Caption := '安装已完成。新音频驱动需要手动重启电脑；重启后登录配置的 Windows 用户，再检查管理页面中的服务与音频设备。安装程序不会自动重启。';
     PlatformSetupCompleted := True;
     Exit;
   end;
