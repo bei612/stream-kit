@@ -124,7 +124,8 @@ Evidence: `docs/evidence/browser-native-audio-ue5-20261101.json`.
 unified installer and actual LocalSystem service lifecycle. The shared Audio class
 release identity is already selected and verified. Physical human speech acceptance
 is deferred separately; generated PCM does not establish it. The published
-runtime-only installer is unchanged.
+`v0.1.0-rc.1` candidate includes this provider and explicitly retains those
+acceptance limits; older preview assets remain unchanged.
 
 The wizard accepts a program directory, a separate new data directory and the
 single administrator's credentials. Internal media credentials and the shared

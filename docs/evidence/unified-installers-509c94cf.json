@@ -63,5 +63,56 @@
     }
   },
   "physical_human_speech_acceptance": "deferred; not proven by generated PCM",
-  "publication": "candidate prepared; pending verified artifact promotion"
+  "publication": {
+    "tag": "v0.1.0-rc.1",
+    "url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-rc.1",
+    "prerelease": true,
+    "draft": false,
+    "promotion_run": "https://github.com/bei612/stream-kit/actions/runs/41298168895",
+    "rebuilt": false,
+    "assets": [
+      {
+        "name": "installer-manifest.json",
+        "bytes": 2288,
+        "digest": "sha256:ba8ec8be861a8bc08daee01e5e0b9deb5c797640a2b578860484cdf4f3e9b045",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-rc.1/installer-manifest.json"
+      },
+      {
+        "name": "linux-installer-manifest.json",
+        "bytes": 1307,
+        "digest": "sha256:ba28bee738011891ab5f1770344bc027b071b785d4f6ee8c3b89d81b1d07e956",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-rc.1/linux-installer-manifest.json"
+      },
+      {
+        "name": "Linux-SHA256SUMS.txt",
+        "bytes": 124,
+        "digest": "sha256:cad570c4c9144f8602739878ec8f8d8b1a8245f382214033002b8c6b21726198",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-rc.1/Linux-SHA256SUMS.txt"
+      },
+      {
+        "name": "SHA256SUMS.txt",
+        "bytes": 120,
+        "digest": "sha256:ee453672c3d4a41e0750fecdaf09c47c2cf170d0637b5d2af49ed150d9b42a5c",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-rc.1/SHA256SUMS.txt"
+      },
+      {
+        "name": "stream-kit-0.1.0-509c94cf7d78-ubuntu24.04-amd64-setup.run",
+        "bytes": 62324620,
+        "digest": "sha256:48fb068d0d79814d0b20b76c82eeadb0fc0468752a19a905375bf94fed47d100",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-rc.1/stream-kit-0.1.0-509c94cf7d78-ubuntu24.04-amd64-setup.run"
+      },
+      {
+        "name": "stream-kit-0.1.0-509c94cf7d78-windows-amd64-setup.exe",
+        "bytes": 97485207,
+        "digest": "sha256:d572414d6171845af2bd62ea85acf6857190f0d549383f295fae83036bd9c9d0",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-rc.1/stream-kit-0.1.0-509c94cf7d78-windows-amd64-setup.exe"
+      },
+      {
+        "name": "stream-kit-sbom.spdx.json",
+        "bytes": 7404273,
+        "digest": "sha256:4b9a5ae1d9331aee3ab848caad906b73a2be3effc9861481268c01326f3d6cdb",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-rc.1/stream-kit-sbom.spdx.json"
+      }
+    ]
+  }
 }

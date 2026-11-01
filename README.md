@@ -8,12 +8,12 @@ Stream-Kit 将管理服务、Sunshine 渲染端和 Moonlight Web 媒体网关集
 
 从 [GitHub Releases](https://github.com/bei612/stream-kit/releases) 获取当前可下载版本，查看该版本说明和 SHA-256。版本中若提供 `stream-kit-preview-<COMMIT>-windows-amd64-setup.exe`，使用这一个安装器安装三个核心组件；无需另外安装官方 Sunshine 或 Moonlight Web，也不要再注册独立 Sunshine 服务。
 
-当前统一安装候选版为 [2026-11-01.4](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261101.4)，提供同一干净提交构建的 Windows 单 EXE 和 Ubuntu 24.04 单文件安装包。只安装三个运行组件及必需运行库，开发示例和验收工具均不随包交付。麦克风设备选择、声音处理及上传 ELF/脚本入口等运行功能保留。安装及运行无需在宿主机安装 Node.js/npm；源码构建工具不属于产品运行依赖。版本清单及未闭合项见 [本版交付状态](deploy/releases/20261101.4.md)。
+当前统一安装候选版为 [0.1.0-rc.1](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-rc.1)，提供同一干净提交构建的 Windows 单 EXE 和 Ubuntu 24.04 单文件安装包。Windows 已集成开源虚拟音频实现及签名控制器驱动。只安装三个运行组件及必需运行库，开发示例和验收工具均不随包交付。安装及运行无需在宿主机安装 Node.js/npm。六项跨平台 CI 和原生音频初始化检查已通过；本版 Windows 鲜装、实际系统服务重启及真人讲话验收尚未完成。文件清单和验证范围见 [本版交付状态](deploy/releases/0.1.0-rc.1.md)。
 
 Windows 安装器支持向导和静默模式。以管理员终端执行，将文件名替换为实际下载的名称：
 
 ```powershell
-.\stream-kit-preview-COMMIT-windows-amd64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART
+.\stream-kit-0.1.0-509c94cf7d78-windows-amd64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART
 ```
 
 默认程序目录为 `C:\Program Files\StreamKit`，运行数据目录为 `C:\ProgramData\StreamKit`。静默模式自动生成独立管理员密码，管理员可从受保护的 `orchestrator.json` 中读取 `server.username` 与 `server.password`。自动化部署也可以通过 `/ADMINFILE` 提供凭据文件；密码不作为命令行参数传入。
@@ -21,7 +21,7 @@ Windows 安装器支持向导和静默模式。以管理员终端执行，将文
 Ubuntu 24.04 amd64 使用同一版本中的 `.run` 文件，明确指定实际拥有桌面和音频会话的非 root 用户：
 
 ```sh
-sudo bash stream-kit-preview-279bac98f38d-ubuntu24.04-amd64-setup.run --user RENDER_USER
+sudo bash stream-kit-0.1.0-509c94cf7d78-ubuntu24.04-amd64-setup.run --user RENDER_USER
 ```
 
 数据位于该用户的 `~/.local/share/stream-kit/runtime`，管理员凭据同样保存在受保护的 `orchestrator.json` 中。没有桌面会话时可加 `--no-start`，登录桌面后再启动用户服务。系统运行库由 apt 安装；详细说明见 [Linux 部署说明](deploy/linux/README.md)。
@@ -36,7 +36,7 @@ sudo bash stream-kit-preview-279bac98f38d-ubuntu24.04-amd64-setup.run --user REN
 
 Windows 安装初始化检查各组件文件清单、版本及端口。服务启动命令等待控制端和自动启动的媒体组件就绪。已有程序目录、数据目录或其他 SCM 部署不会被覆盖；目前不支持 Windows 安装器原位升级。卸载移除匹配的服务和程序文件，保留运行数据。
 
-安装包当前未签名，商业代码签名证书不作为本次交付要求。Windows 静默安装、管理员登录、LocalSystem 服务启动和卸载已有真实通过记录；SCM 双客户端串流的原自动化任务在最后的日志归档步骤失败，另已通过原生 Sunshine 日志和原始媒体指标补充核对核心功能，不能将原任务改写为通过。当前源码已移除 VB-CABLE 的打包、安装和授权记录入口，改为集成开源音频实现；已发布候选版仍未包含新驱动。详细参数、会话身份和部署边界见 [Windows 安装说明](deploy/windows/README.md)。仍使用便携 ZIP 的版本请按随包说明部署。
+安装包当前未使用发行者证书签名，商业代码签名证书不作为本次交付要求；附带内核驱动已完成签名校验。Windows 静默安装、管理员登录、LocalSystem 服务启动和卸载已有历史真实记录，本候选版仍需自己的鲜装与服务重启验收。SCM 双客户端串流的原自动化任务在最后的日志归档步骤失败，另已通过原生 Sunshine 日志和原始媒体指标补充核对核心功能，不能将原任务改写为通过。产品不依赖 VB-CABLE。详细参数、会话身份和部署边界见 [Windows 安装说明](deploy/windows/README.md)。
 
 ## 使用流程
 
@@ -48,7 +48,7 @@ Windows 安装初始化检查各组件文件清单、版本及端口。服务启
 
 服务器将浏览器麦克风送入通用录音机或 UE5 时，需要一个实际可用的虚拟输出/录音端点对；客户端仍使用自身的物理麦克风和扬声器。端点由管理页选择，不限定 VB-CABLE 品牌，不要求客户购买 VB-CABLE。新开源实现已完成本机驱动安装、原生 PCM 收发，以及 [新网关到 UE5 的五阶段授权链路](docs/evidence/browser-native-audio-ue5-20261101.json)：未授权拒绝、控制者送音、旧控制者拒绝、新控制者送音、释放后拒绝，并保持旁观端混音广播。该次链路不使用 VB-CABLE。
 
-设备标识已采用公开允许共享的 Audio 类 `16c0:27e0` 与发布方邮箱前缀，不再等待 USB 编号申请。新产品构建默认集成开源音频驱动，安装器为每台部署生成独立且持久的序列号。该标识已通过 Windows 系统音频类驱动的实际 PCM 和端点重启检查，详见 [共享音频身份记录](docs/evidence/windows-shared-audio-identity-20261101.json)。本页上方已发布的 20261101.4 仍是旧版，不包含这项集成；新统一安装包验收、真人语音验收及发布尚待完成，生成测试音不替代物理麦克风讲话。
+设备标识采用公开允许共享的 Audio 类 `16c0:27e0` 与发布方邮箱前缀，无需申请 USB 编号。安装器为每台部署生成独立且持久的序列号。该标识已通过 Windows 系统音频类驱动的实际 PCM 和端点重启检查，详见 [共享音频身份记录](docs/evidence/windows-shared-audio-identity-20261101.json)。当前候选版已包含这项集成，并在媒体网关启动前准备输出策略；首次未准备的设备枚举可能短暂改变默认输出。原生初始化、重复启动和默认输出保持检查已通过，本版 Windows 鲜装与真人讲话验收仍待完成，生成测试音不替代物理麦克风讲话。
 
 ## 源码与构建
 
