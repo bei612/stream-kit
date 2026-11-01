@@ -50,7 +50,7 @@ fs.cpSync(source,installed,{recursive:true,errorOnExist:true,force:false})
 // installed in the runtime package. All three components keep their notices.
 const copy=(from,to,mode=0o644)=>{fs.mkdirSync(path.dirname(to),{recursive:true});fs.copyFileSync(from,to);fs.chmodSync(to,mode)}
 copy(path.join(root,'deploy/stream-kit-orchestrator.service'),path.join(stage,'usr/lib/systemd/user/stream-kit.service'))
-copy(path.join(root,'deploy/linux/README.md'),path.join(stage,'usr/share/doc/stream-kit/README.md'))
+copy(path.join(root,'deploy/linux/INSTALL.md'),path.join(stage,'usr/share/doc/stream-kit/README.md'))
 copy(path.join(root,'third_party/sunshine/LICENSE'),path.join(stage,'usr/share/doc/stream-kit/copyright'))
 copy(path.join(root,'third_party/sunshine/src_assets/linux/misc/60-sunshine.rules'),path.join(stage,'usr/lib/udev/rules.d/60-stream-kit.rules'))
 fs.mkdirSync(path.join(stage,'usr/lib/modules-load.d'),{recursive:true})

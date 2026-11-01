@@ -50,7 +50,9 @@ created root node. The companion filter's upstream AddDevice handler attaches
 only above the USB/IP virtual controller. On failure, cleanup is limited to the
 new node, retaining potentially shared DriverStore packages. Windows-reported
 restart requirements return 3010 and defer service startup; no automatic restart
-or change of default audio endpoints is performed.
+is performed. Setup does not call an API to select system defaults, but Windows
+can automatically select a newly created virtual output. This remains an open
+delivery issue, not a guarantee that installation preserves the default devices.
 
 Gateway configuration now includes `virtual_audio` (default `null`). When enabled,
 its `vendor_id`, `product_id` and stable `serial` identify the deployment's USB
@@ -63,7 +65,8 @@ The gateway starts the provider before serving requests and releases its own
 attachment when startup fails or the server shuts down. Device work runs off the
 async server thread. Configuration inspection and native device enumeration do
 not start the provider or install anything. Render/capture selection continues
-through the existing explicit endpoint routing; system defaults are not changed.
+through the existing explicit endpoint routing. This explicit routing does not
+prevent Windows from automatically changing its default output during attachment.
 The bounded `components/audio-target/examples/virtual_device.rs` utility is for
 development only and is excluded from runtime packages.
 
@@ -261,13 +264,15 @@ runtime changes. It is for explicitly reviewed installer-only releases.
 
 ## Native Windows runtime dependencies
 
-Native Windows source bundles package their imported Microsoft release CRT
-beside the gateway and audio probe. The shared packager reads dependencies with
+The production Windows bundle packages the imported Microsoft release CRT
+beside the gateway. The shared packager reads dependencies with
 the initialized MSVC toolchain, checks architecture and Microsoft's valid
 Authenticode signature, and includes the unmodified redistributable files,
 copyright notice and `WINDOWS-RUNTIME.json` in each component's hash inventory.
 It uses the toolchain's release redist directory, never System32/debug files.
-The packaged gateway's version and probe's idle startup are checked afterward.
+The packaged gateway's version is checked afterward. Developer audio-probe
+bundles use the same dependency packager separately; the probe, its startup
+check and its test fixtures are excluded from the customer installer.
 No host-wide Visual C++ installer or Node.js installation is invoked. This is
 [Microsoft's application-local redistribution model](https://learn.microsoft.com/en-us/cpp/windows/redistributing-visual-cpp-files).
 

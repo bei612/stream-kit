@@ -1,0 +1,31 @@
+{
+  "source_commit": "97f9e2fdfe58761215645ac169cbdc62774e7c0b",
+  "product_run": "https://github.com/bei612/stream-kit/actions/runs/41287320135",
+  "scope": "Static inspection of the immutable Windows payload and the Debian payload embedded in the Linux installer. No installation, service lifecycle, hardware, human speech or final production acceptance claim.",
+  "guard_revision": "82be02abb3b80c8b2113c77fe2048c036f779288",
+  "windows": {
+    "installer_sha256": "0c63fcb9abfc96c0177db6068ebf4c5b600042b669ee49eb753162ee122d5641",
+    "platform_manifest_sha256": "58594c970f2a44a3411ba773925781a6b5ec39b5cdb0eccdadaa4ee942eaa941",
+    "runtime_files": 187,
+    "all_payload_file_sizes_and_hashes_match": true,
+    "manifest_matches_installer_manifest": true,
+    "runtime_only_guard_passed": true
+  },
+  "linux": {
+    "installer_sha256": "62a788d3555cd5cb9b291169626a6161721dcc5be510ce6f120656c7401e6a0e",
+    "deb_sha256": "ac99fa9ad23e9b6aa89e62315d0d9e826836e5121656c9da96b05490d9468262",
+    "platform_manifest_sha256": "3b7798d0851721e9d35c05025019dc15615e9ac51ee7126deb85bd0b9f128c5e",
+    "runtime_files": 151,
+    "package_files": 157,
+    "installer_and_embedded_payload_hashes_match": true,
+    "all_archive_entries_match_platform_inventory_or_five_expected_packaging_files": true,
+    "runtime_only_guard_passed": true
+  },
+  "private_evidence": ".local/validation/product-97f9e2fd-inventory/result.json",
+  "remaining": [
+    "Windows automatically selected the new virtual render endpoint as default and communications output in installed-package acceptance. No policy fix has been applied or validated; the subsequent elevated experiment was cancelled at Windows UAC.",
+    "The installed-service gateway stop/restart checks did not run after the default-selection assertion failed. Existing narrower lifecycle evidence is not a substitute for that check.",
+    "Human microphone speech acceptance is deferred at the user's request.",
+    "Customer-guide separation and revised default-selection documentation in the current source are later than this immutable product build. They are not claimed to be present in these inspected installers."
+  ]
+}

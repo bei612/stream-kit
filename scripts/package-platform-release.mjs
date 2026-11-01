@@ -63,7 +63,7 @@ fs.mkdirSync(output,{recursive:true})
 for (const {component,directory} of components) {
   fs.cpSync(directory,path.join(output,component),{recursive:true,errorOnExist:true,force:false})
 }
-const guide=release.channel==='stable'?'deploy/PLATFORM.md':platform(components[0].manifest.platform)==='linux'?'deploy/linux/README.md':'deploy/PLATFORM-PREVIEW.md'
+const guide=release.channel==='stable'?'deploy/PLATFORM.md':platform(components[0].manifest.platform)==='linux'?'deploy/linux/INSTALL.md':'deploy/PLATFORM-PREVIEW.md'
 fs.copyFileSync(path.join(root,guide),path.join(output,'README.md'))
 const files = inventory(output)
 fs.writeFileSync(path.join(output,'platform-manifest.json'),JSON.stringify({schema_version:1,commit,platform:platform(components[0].manifest.platform),architecture:arch(components[0].manifest.architecture),release_channel:release.channel,release_version:release.version,components:components.map(({component,manifest})=>({component,commit:manifest.commit,manifest_path:`${component}/bundle-manifest.json`})),files},null,2)+'\n')

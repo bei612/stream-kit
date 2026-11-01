@@ -1,5 +1,9 @@
 # Linux unified deployment
 
+Customer installation and operation instructions are in [INSTALL.md](INSTALL.md).
+The package installs that guide; this source-development and evidence document
+is not copied into the customer installation.
+
 The native `init-platform` command now shares credential generation, listener
 validation, component verification and configuration preparation with Windows.
 The source pipeline assembles those native components into one silent-first
