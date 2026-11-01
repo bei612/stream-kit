@@ -46,8 +46,20 @@ struct LocalServer {
     connection: Arc<Mutex<Option<TcpStream>>>,
     worker: Option<JoinHandle<io::Result<()>>>,
 }
+
+// Notify the owner on every transport exit, including unwinding. This runs on
+// the existing transport thread; it never adds an idle watcher or polling loop.
+struct ExitNotification<F: FnOnce()>(Option<F>);
+impl<F: FnOnce()> Drop for ExitNotification<F> {
+    fn drop(&mut self) {
+        if let Some(notify) = self.0.take() {
+            notify();
+        }
+    }
+}
+
 impl LocalServer {
-    fn start(identity: Identity) -> io::Result<Self> {
+    fn start(identity: Identity, on_exit: impl FnOnce() + Send + 'static) -> io::Result<Self> {
         // Validate before opening any socket or spawning any thread.
         AudioClass::new(identity.clone()).map_err(io::Error::other)?;
         let listener = TcpListener::bind("127.0.0.1:0")?;
@@ -60,6 +72,7 @@ impl LocalServer {
         let worker = thread::Builder::new()
             .name("virtual-audio-local-server".into())
             .spawn(move || {
+                let _notification = ExitNotification(Some(on_exit));
                 while !worker_stop.load(Ordering::Acquire) {
                     let (stream, _) = listener.accept()?;
                     {
@@ -143,6 +156,16 @@ pub struct ManagedDevice {
 }
 impl ManagedDevice {
     pub fn start(identity: Identity) -> io::Result<Self> {
+        Self::start_observed(identity, || {})
+    }
+
+    /// Notify once when the transport ends, including normal close. The callback
+    /// must be nonblocking and must not panic. Owners can use it to drain their
+    /// service on device failure; `close` still joins and returns the cause.
+    pub fn start_observed(
+        identity: Identity,
+        on_exit: impl FnOnce() + Send + 'static,
+    ) -> io::Result<Self> {
         let interfaces = controller::interfaces()?;
         if interfaces.is_empty() {
             return Err(io::Error::new(
@@ -157,7 +180,7 @@ impl ManagedDevice {
             ));
         }
         let controller = Controller::open(&interfaces[0])?;
-        let server = LocalServer::start(identity)?;
+        let server = LocalServer::start(identity, on_exit)?;
         let attachment = controller.attach(server.location.clone())?;
         let mut device = Self { attachment, server };
         if device.server.finished() {
@@ -204,7 +227,7 @@ mod tests {
     }
     #[test]
     fn idle_local_server_stops_and_releases_listener_without_driver() {
-        let mut server = LocalServer::start(identity()).unwrap();
+        let mut server = LocalServer::start(identity(), || {}).unwrap();
         assert_eq!(server.location.bus_id().len(), 31);
         let port = server.location.port();
         server.stop().unwrap();
@@ -216,7 +239,7 @@ mod tests {
     #[test]
     fn stop_interrupts_an_imported_idle_peer() {
         use std::io::{Read, Write};
-        let mut server = LocalServer::start(identity()).unwrap();
+        let mut server = LocalServer::start(identity(), || {}).unwrap();
         let mut peer =
             TcpStream::connect((std::net::Ipv4Addr::LOCALHOST, server.location.port())).unwrap();
         peer.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
@@ -234,12 +257,46 @@ mod tests {
     #[test]
     fn invalid_identity_does_not_create_a_provider() {
         assert!(
-            LocalServer::start(Identity {
-                vendor: 0,
-                product: 1,
-                serial: "TestOnly".into()
-            })
+            LocalServer::start(
+                Identity {
+                    vendor: 0,
+                    product: 1,
+                    serial: "TestOnly".into()
+                },
+                || {}
+            )
             .is_err()
         );
+    }
+
+    #[test]
+    fn transport_failure_notifies_owner_and_preserves_cleanup_error() {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut server = LocalServer::start(identity(), move || {
+            let _ = sender.send(());
+        })
+        .unwrap();
+        let peer =
+            TcpStream::connect((std::net::Ipv4Addr::LOCALHOST, server.location.port())).unwrap();
+        // A truncated import fails the transport without any driver installation.
+        peer.shutdown(Shutdown::Both).unwrap();
+        receiver.recv_timeout(Duration::from_secs(3)).unwrap();
+        assert!(server.stop().is_err());
+        assert!(receiver.try_recv().is_err());
+        server.stop().unwrap();
+        TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, server.location.port())).unwrap();
+    }
+
+    #[test]
+    fn normal_close_notifies_once_without_reporting_failure() {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut server = LocalServer::start(identity(), move || {
+            let _ = sender.send(());
+        })
+        .unwrap();
+        server.stop().unwrap();
+        receiver.recv_timeout(Duration::from_secs(3)).unwrap();
+        server.stop().unwrap();
+        assert!(receiver.try_recv().is_err());
     }
 }

@@ -330,10 +330,11 @@ async fn start(
     let tls = tls::load(&config).map_err(anyhow::Error::msg)?;
     let shutdown = shutdown::signal()?;
     let provider_config = config.virtual_audio.clone();
-    let provider = tokio::task::spawn_blocking(move || {
+    let mut provider = tokio::task::spawn_blocking(move || {
         virtual_audio::Runtime::start(provider_config.as_ref())
     })
     .await??;
+    let shutdown = virtual_audio::shutdown_signal(shutdown, provider.take_termination());
     // All exits, including failed storage initialization and bind errors, release
     // this process's attachment. The driver remains installed for the next run.
     let result = serve(config, settings, tls, shutdown).await;

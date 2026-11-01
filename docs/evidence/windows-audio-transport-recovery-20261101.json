@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-01",
+  "source_base": "9e919eb41111e9eb9d949801b558229c33509a99",
+  "problem": "An unexpected virtual-audio transport exit could leave the gateway serving HTTP without its managed recording device. The existing process supervisor could not recover a process that had not exited.",
+  "change": "The existing transport thread sends a one-shot termination event. The gateway uses its existing bounded HTTP drain and owned-device cleanup, preserves the transport failure as a nonzero process exit, and delegates restart to the existing supervisor. No polling thread, audio default change, driver reinstall or new service is introduced.",
+  "checks": {
+    "native_lifecycle_tests": "5 passed, including truncated connection failure notification, preserved cleanup error, listener release and normal close notification",
+    "gateway_module_tests": "4 passed through the local harness importing the actual virtual_audio.rs and shutdown.rs; covers failure-triggered shutdown, normal OS shutdown and disabled provider behavior",
+    "audio_target_clippy_all_targets": "passed with -D warnings; existing dependency-only CPAL dead-code warning remains",
+    "rustfmt": "passed",
+    "diff_whitespace": "passed"
+  },
+  "limits": [
+    "This record does not claim full gateway binary, SCM or unified installer acceptance for the changed source.",
+    "Existing browser-to-UE5 evidence remains scoped to its recorded component revisions.",
+    "No new physical speech or long-duration acceptance was performed."
+  ]
+}

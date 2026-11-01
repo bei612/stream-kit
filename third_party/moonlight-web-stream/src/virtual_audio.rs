@@ -34,6 +34,7 @@ impl Config {
 pub struct Runtime {
     #[cfg(target_os = "windows")]
     device: Option<stream_kit_audio_target::virtual_device::lifecycle::ManagedDevice>,
+    termination: Option<tokio::sync::oneshot::Receiver<()>>,
 }
 
 impl Runtime {
@@ -44,13 +45,26 @@ impl Runtime {
         #[cfg(target_os = "windows")]
         {
             use stream_kit_audio_target::virtual_device::lifecycle::ManagedDevice;
-            let device = config
-                .map(|config| ManagedDevice::start(config.identity()))
-                .transpose()?;
-            Ok(Self { device })
+            let (device, termination) = if let Some(config) = config {
+                let (sender, receiver) = tokio::sync::oneshot::channel();
+                let device = ManagedDevice::start_observed(config.identity(), move || {
+                    let _ = sender.send(());
+                })?;
+                (Some(device), Some(receiver))
+            } else {
+                (None, None)
+            };
+            Ok(Self {
+                device,
+                termination,
+            })
         }
         #[cfg(not(target_os = "windows"))]
-        Ok(Self {})
+        Ok(Self { termination: None })
+    }
+
+    pub fn take_termination(&mut self) -> Option<tokio::sync::oneshot::Receiver<()>> {
+        self.termination.take()
     }
 
     pub fn close(self) -> std::io::Result<()> {
@@ -62,6 +76,25 @@ impl Runtime {
     }
 }
 
+/// Let the existing process supervisor recover a failed provider. The HTTP
+/// server drains first; Runtime::close then releases the owned attachment and
+/// reports the transport error. Disabled providers have no watcher at all.
+pub async fn shutdown_signal(
+    signal: impl std::future::Future<Output = ()>,
+    termination: Option<tokio::sync::oneshot::Receiver<()>>,
+) {
+    if let Some(termination) = termination {
+        tokio::select! {
+            _ = signal => {},
+            _ = termination => {
+                tracing::error!("virtual audio transport ended; stopping gateway for supervised recovery");
+            }
+        }
+    } else {
+        signal.await;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -69,6 +102,33 @@ mod tests {
     #[test]
     fn disabled_provider_does_not_require_a_driver() -> std::io::Result<()> {
         Runtime::start(None)?.close()
+    }
+
+    #[tokio::test]
+    async fn provider_failure_drains_without_waiting_for_an_os_signal() {
+        let (sender, receiver) = tokio::sync::oneshot::channel();
+        sender.send(()).unwrap();
+        tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            shutdown_signal(std::future::pending(), Some(receiver)),
+        )
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn normal_stop_does_not_wait_for_transport_cleanup() {
+        let (_sender, receiver) = tokio::sync::oneshot::channel();
+        shutdown_signal(std::future::ready(()), Some(receiver)).await;
+        shutdown_signal(std::future::ready(()), None).await;
+        assert!(
+            tokio::time::timeout(
+                std::time::Duration::from_millis(10),
+                shutdown_signal(std::future::pending(), None),
+            )
+            .await
+            .is_err()
+        );
     }
 
     #[test]
