@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "source_commit": "816832e0c9320b030ec2cb58cb0dd1c627d6ddc4",
+  "run": 41260663277,
+  "url": "https://github.com/bei612/stream-kit/actions/runs/41260663277",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "name": "linux-audio (pipewire)",
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/41260663277/job/124713076117"
+    },
+    {
+      "name": "linux-audio (pulse)",
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/41260663277/job/124713076343"
+    }
+  ],
+  "log_sha256": "2c49bbb5f863bb5606281a2557d3b67094602244a65f5d9b56d44bbf8aace644",
+  "checks": [
+    "linux-audio (pipewire)\tProvision and release PipeWire endpoints\t2026-11-01T01:20:53.8872426Z Server Name: PulseAudio (on PipeWire 1.0.5)",
+    "linux-audio (pipewire)\tProvision and release PipeWire endpoints\t2026-11-01T01:20:53.8872712Z Server Version: 15.0.0",
+    "linux-audio (pipewire)\tProvision and release PipeWire endpoints\t2026-11-01T01:20:54.2356714Z --- PASS: TestModuleTableRetainsEmptyArguments (0.00s)",
+    "linux-audio (pipewire)\tProvision and release PipeWire endpoints\t2026-11-01T01:20:54.2357676Z --- PASS: TestModuleTableMultilineAndChangedSnapshot (0.00s)",
+    "linux-audio (pipewire)\tProvision and release PipeWire endpoints\t2026-11-01T01:20:54.2358531Z --- PASS: TestProvisionReuseAndCollision (0.00s)",
+    "linux-audio (pipewire)\tProvision and release PipeWire endpoints\t2026-11-01T01:20:54.2359847Z --- PASS: TestPartialFailureRemovesOnlyNewModules (0.00s)",
+    "linux-audio (pipewire)\tProvision and release PipeWire endpoints\t2026-11-01T01:20:54.4290279Z     pulse_test.go:154: real provisioned endpoints: {Render:pulseaudio:stream_kit_microphone Capture:pulseaudio:stream_kit_microphone_capture}",
+    "linux-audio (pipewire)\tProvision and release PipeWire endpoints\t2026-11-01T01:20:54.5277875Z --- PASS: TestPulseIntegration (0.29s)",
+    "linux-audio (pipewire)\tProvision and release PipeWire endpoints\t2026-11-01T01:20:54.5279490Z --- PASS: TestReleasePreservesForeignEndpoints (0.00s)",
+    "linux-audio (pulse)\tProvision and reuse real isolated recording endpoints\t2026-11-01T01:21:47.7901199Z --- PASS: TestModuleTableRetainsEmptyArguments (0.00s)",
+    "linux-audio (pulse)\tProvision and reuse real isolated recording endpoints\t2026-11-01T01:21:47.7903379Z --- PASS: TestModuleTableMultilineAndChangedSnapshot (0.00s)",
+    "linux-audio (pulse)\tProvision and reuse real isolated recording endpoints\t2026-11-01T01:21:47.7908079Z --- PASS: TestProvisionReuseAndCollision (0.00s)",
+    "linux-audio (pulse)\tProvision and reuse real isolated recording endpoints\t2026-11-01T01:21:47.7909422Z --- PASS: TestPartialFailureRemovesOnlyNewModules (0.00s)",
+    "linux-audio (pulse)\tProvision and reuse real isolated recording endpoints\t2026-11-01T01:21:47.9599268Z     pulse_test.go:154: real provisioned endpoints: {Render:pulseaudio:stream_kit_microphone Capture:pulseaudio:stream_kit_microphone_capture}",
+    "linux-audio (pulse)\tProvision and reuse real isolated recording endpoints\t2026-11-01T01:21:48.0461018Z --- PASS: TestPulseIntegration (0.26s)",
+    "linux-audio (pulse)\tProvision and reuse real isolated recording endpoints\t2026-11-01T01:21:48.0462831Z --- PASS: TestReleasePreservesForeignEndpoints (0.00s)"
+  ],
+  "scope": [
+    "Actual isolated PulseAudio and PipeWire-Pulse servers",
+    "Private WirePlumber policy session with hardware monitors disabled",
+    "Managed recording pair creation/reuse/release; existing default devices retained",
+    "Foreign device protection and rollback policy",
+    "Empty/multiline module arguments preserved; inconsistent catalog snapshots rejected"
+  ],
+  "prior_failed_runs": [
+    {
+      "run": 41260259696,
+      "reason": "PipeWire fixture lacked session policy needed for default-device operations; product provisioner did not run"
+    },
+    {
+      "run": 41260429958,
+      "reason": "Indexed module table parser rejected PipeWire multiline arguments; fixed by exact structured/indexed inventory correlation"
+    }
+  ],
+  "not_proven": [
+    "Physical microphone speech",
+    "PCM recording through the newly provisioned pair",
+    "Installed systemd service lifecycle on customer hardware",
+    "Windows virtual-device automatic installation"
+  ],
+  "release_status": "Source implementation passed targeted native CI; not included in the published .4 installers"
+}

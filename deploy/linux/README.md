@@ -55,6 +55,14 @@ In the existing management audio-target selector, choose output
 target recording application. Existing route ownership and controller permissions
 continue to apply. These source changes are not included in the earlier .4 release;
 Windows automatic device provisioning remains pending.
+
+Native CI has verified creation, reuse, default-device preservation and removal
+against isolated PulseAudio and PipeWire-Pulse servers with real WirePlumber
+session policy. Module ownership uses exact correlation of the structured
+argument catalog and indexed listing, including empty and multiline arguments.
+The [backend evidence](../../docs/evidence/linux-audio-backends-20261101.json)
+records source identity and limits: it does not establish customer-host systemd
+installation or physical microphone speech acceptance.
 The unified release workflow requires both package builds and source SBOM before
 publishing a tagged preview. The Linux package check extracts the actual payload,
 executes all three components through initialization, validates its private
