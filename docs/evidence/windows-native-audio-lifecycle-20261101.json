@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-11-01T01:43:56.812Z",
+  "parent_commit": "fba201dc5da28b5c686a6c2799421a7f5af28f51",
+  "scope": "Windows native USB host-controller adapter and owned local audio lifecycle; installation and kernel attachment were not performed",
+  "checks": {
+    "controller_protocol": 3,
+    "local_lifecycle": 3,
+    "existing_tcp_pcm_regression": 1,
+    "failed": 0,
+    "clippy_library": "passed -D warnings",
+    "clippy_tests": "passed -D warnings",
+    "native_read_only_inventory": {
+      "controller_count": 0,
+      "exit_code": 0
+    }
+  },
+  "source_files": [
+    {
+      "path": "components/audio-target/src/virtual_device/controller.rs",
+      "sha256": "c6ed1862928ccdf5591e5607c959998c17f450b07720cfb695dbc7b12f3bfec5"
+    },
+    {
+      "path": "components/audio-target/src/virtual_device/lifecycle.rs",
+      "sha256": "2780a7b5efa58511e2ccc9f212d6dc93f9fda8c11df68a05c1919079a6f1b3af"
+    },
+    {
+      "path": "components/audio-target/src/virtual_device/transport.rs",
+      "sha256": "ea52774a402eab25a8611b356a89ff9ad30832285d9bb35093afd57540968986"
+    },
+    {
+      "path": "components/audio-target/src/virtual_device/mod.rs",
+      "sha256": "61f2a2acab9a9abb3d300a8842c39c0dc08f73f3cfa2f4d09d058244af48bc99"
+    }
+  ],
+  "driver_abi": {
+    "upstream_commit": "55e1fa7f0c2157017b02dc1f3236e98169a535e4",
+    "attach_request_bytes": 1124,
+    "attach_completion_bytes": 8,
+    "stop_request_bytes": 1108,
+    "device_row_bytes": 1132
+  },
+  "not_verified": [
+    "Kernel attach/detach and Windows endpoint enumeration",
+    "Signed driver installation and platform service integration",
+    "Deployment device identity and target-program PCM recording"
+  ],
+  "ci_previous_revision": {
+    "commit": "816832e0c9320b030ec2cb58cb0dd1c627d6ddc4",
+    "linux_installer": {
+      "run": 41260663416,
+      "conclusion": "success"
+    },
+    "cross_platform": {
+      "run": 41260663270,
+      "conclusion": "failure",
+      "failed_step": "Require native Windows playback endpoint",
+      "observed_inputs": 0,
+      "observed_outputs": 0,
+      "reason": "Hosted Windows runner has no playback endpoint; browser audio acceptance did not run"
+    },
+    "linux_real_audio_backends": {
+      "run": 41260663277,
+      "conclusion": "success"
+    }
+  },
+  "production_release_changed": false
+}

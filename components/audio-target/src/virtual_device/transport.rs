@@ -6,6 +6,12 @@ use super::{
     export::{DEVICE_ID, Export},
     usbip,
 };
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConnectionOutcome {
+    NotImported,
+    Imported,
+}
 use std::{
     io::{self, BufWriter, Write},
     net::{Shutdown, TcpStream},
@@ -17,7 +23,7 @@ use std::{
 /// Serve a connected loopback socket. The owner retains a cloned socket and
 /// calls shutdown(Both) to stop it, including while the peer is idle. All reader
 /// threads are joined on every exit. Network and pending queues remain bounded.
-pub fn serve_connection(stream: TcpStream, export: Export) -> io::Result<()> {
+pub fn serve_connection(stream: TcpStream, export: Export) -> io::Result<ConnectionOutcome> {
     if !stream.peer_addr()?.ip().is_loopback() || !stream.local_addr()?.ip().is_loopback() {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
@@ -31,7 +37,7 @@ pub fn serve_connection(stream: TcpStream, export: Export) -> io::Result<()> {
     let mut writer = BufWriter::with_capacity(65536, stream.try_clone()?);
     if !export.handshake(&mut reader, &mut writer)? {
         writer.flush()?;
-        return Ok(());
+        return Ok(ConnectionOutcome::NotImported);
     }
     writer.flush()?;
     reader.set_read_timeout(None)?;
@@ -87,7 +93,8 @@ pub fn serve_connection(stream: TcpStream, export: Export) -> io::Result<()> {
     drop(receiver);
     let joined = read_thread.join();
     result?;
-    joined.map_err(|_| io::Error::other("virtual audio reader terminated unexpectedly"))
+    joined.map_err(|_| io::Error::other("virtual audio reader terminated unexpectedly"))?;
+    Ok(ConnectionOutcome::Imported)
 }
 
 #[cfg(test)]
