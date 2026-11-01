@@ -144,6 +144,7 @@
     "failed_run": "https://github.com/bei612/stream-kit/actions/runs/41284813088",
     "reason": "Windows CLI regression still expected 16-character and hyphenated serials to be invalid after the runtime descriptor limit was corrected.",
     "correction": "Accept 16-character, email-prefixed and 126-character serials on Windows; reject 127-character, slash and NUL inputs on all platforms, preserving no-secret-output checks. Align private managed acceptance with the same grammar and production 5-second shutdown grace.",
-    "validation": "JavaScript syntax and diff checks passed. Native CLI execution awaits the current Windows artifact or replacement CI; no runtime change and no product rebuild."
+    "validation": "Replacement cross-platform CI 41285806265 at 8ef83023d339fc02974af79b7736a3ea1cc95d56 completed successfully: Windows/Linux gateways, Windows/Linux control services, management Web and source SBOM. Windows native CLI identity checks passed with no device activation; the product runtime is unchanged from f2f409f0.",
+    "successful_run": "https://github.com/bei612/stream-kit/actions/runs/41285806265"
   }
 }

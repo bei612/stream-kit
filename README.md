@@ -72,7 +72,7 @@ node scripts/build-control-plane.mjs --require-clean --output NEW_CONTROL_DIRECT
 node scripts/build-gateway-release.mjs --output NEW_GATEWAY_DIRECTORY
 node scripts/verify-sunshine-release.mjs SUNSHINE_BUILD_DIRECTORY FULL_COMMIT --output NEW_RENDERER_DIRECTORY
 node scripts/package-platform-release.mjs CONTROL_BUNDLE GATEWAY_BUNDLE RENDERER_BUNDLE NEW_PLATFORM_DIRECTORY
-node scripts/build-windows-installer.mjs PLATFORM_BUNDLE NEW_INSTALLER_DIRECTORY OFFICIAL_ISCC_EXE
+node scripts/build-windows-installer.mjs PLATFORM_BUNDLE NEW_INSTALLER_DIRECTORY OFFICIAL_ISCC_EXE --usb-audio-driver deploy/windows/usb-audio-driver --signtool OFFICIAL_WINDOWS_SDK_SIGNTOOL_EXE --usb-audio-identity deploy/windows/usb-audio-identity.json
 ```
 
 Sunshine 原生编译入口见 [build-sunshine.sh](scripts/build-sunshine.sh)。安装器使用官方 Inno Setup 7.1.1。以上发布步骤校验干净工作树、同一源码提交及文件完整性，各输出目录必须是新目录。测试、运行凭据、数据库和构建产物保留在被忽略的本地目录。

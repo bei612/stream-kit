@@ -54,7 +54,8 @@ In the existing management audio-target selector, choose output
 `pulseaudio:stream_kit_microphone_capture`. Select **StreamKit-Microphone** in the
 target recording application. Existing route ownership and controller permissions
 continue to apply. These source changes are not included in the earlier .4 release;
-Windows automatic device provisioning remains pending.
+Windows product source now also provisions its integrated virtual audio device;
+its new unified installer acceptance remains pending.
 
 Native CI has verified creation, reuse, default-device preservation and removal
 against isolated PulseAudio and PipeWire-Pulse servers with real WirePlumber
