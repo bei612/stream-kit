@@ -44,6 +44,7 @@ mod config;
 mod configuration;
 mod human_json;
 mod node_identity;
+mod shutdown;
 mod tls;
 mod virtual_audio;
 
@@ -327,6 +328,7 @@ async fn start(
 ) -> Result<(), anyhow::Error> {
     config.validate().map_err(anyhow::Error::msg)?;
     let tls = tls::load(&config).map_err(anyhow::Error::msg)?;
+    let shutdown = shutdown::signal()?;
     let provider_config = config.virtual_audio.clone();
     let provider = tokio::task::spawn_blocking(move || {
         virtual_audio::Runtime::start(provider_config.as_ref())
@@ -334,7 +336,7 @@ async fn start(
     .await??;
     // All exits, including failed storage initialization and bind errors, release
     // this process's attachment. The driver remains installed for the next run.
-    let result = serve(config, settings, tls).await;
+    let result = serve(config, settings, tls, shutdown).await;
     let cleanup = tokio::task::spawn_blocking(move || provider.close()).await?;
     if let Err(error) = &cleanup {
         error!(%error, "virtual audio shutdown failed");
@@ -348,6 +350,7 @@ async fn serve(
     config: Config,
     settings: Data<configuration::Settings>,
     tls: Option<rustls::ServerConfig>,
+    shutdown: impl std::future::Future<Output = ()> + Send + 'static,
 ) -> Result<(), anyhow::Error> {
     let app = App::new(config.clone()).await?;
     let app = Data::new(app);
@@ -385,7 +388,11 @@ async fn serve(
                         .service(web_service()),
                 )
         }
-    });
+    })
+    .shutdown_signal(shutdown)
+    // Persistent media sockets must not consume the worker's entire stop
+    // budget. Reserve time for native audio detach after HTTP workers drain.
+    .shutdown_timeout(2);
 
     if let Some(config) = tls {
         info!("[Server]: Running Https Server with ssl tls");

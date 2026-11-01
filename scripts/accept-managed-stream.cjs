@@ -61,6 +61,16 @@ assert.ok(microphoneSource!=='physical'||targetRecording,'Physical microphone ac
 const remoteTarget = process.argv.includes('--remote-target');
 assert.ok(!remoteTarget || targetRecording, 'Remote target requires explicit recording endpoints');
 assert.ok(!targetRecording || (targetRender && targetCapture && targetProbe && microphoneTest), 'Target recording requires both explicit endpoint IDs, --audio-probe and --microphone-tone');
+let virtualAudioIdentity = null;
+if (process.argv.includes('--virtual-audio-identity')) {
+  assert.ok(process.platform === 'win32' && targetRecording, 'Virtual audio acceptance requires Windows and explicit recording endpoints');
+  const identityFile = argument('--virtual-audio-identity'), stat = fs.lstatSync(identityFile);
+  assert.ok(stat.isFile() && !stat.isSymbolicLink() && stat.size <= 4096, 'Expected bounded regular virtual audio identity file');
+  virtualAudioIdentity = JSON.parse(fs.readFileSync(identityFile, 'utf8'));
+  assert.ok(virtualAudioIdentity && Object.keys(virtualAudioIdentity).sort().join(',') === 'product_id,serial,vendor_id', 'Expected explicit virtual audio identity and serial');
+  assert.ok([virtualAudioIdentity.vendor_id, virtualAudioIdentity.product_id].every(id => Number.isInteger(id) && id >= 1 && id <= 65534), 'Invalid virtual audio VID/PID');
+  assert.match(virtualAudioIdentity.serial, /^[A-Za-z0-9]{1,15}$/, 'Invalid virtual audio serial');
+}
 const deleteActive = process.argv.includes('--delete-active');
 const stopActive = process.argv.includes('--stop-active') || deleteActive;
 assert.ok(!stopActive || applicationExample, 'Active native stop acceptance requires the owned example');
@@ -215,7 +225,9 @@ async function main() {
   config.data_storage.path = path.join(scratch, 'gateway-data.json');
   config.webrtc.ice_servers = [];
   config.local_audio_targets = [];
+  config.virtual_audio = remoteTarget ? null : virtualAudioIdentity;
   fs.writeFileSync(gatewayConfigFile, JSON.stringify(config));
+  if (virtualAudioIdentity) result.virtual_audio = {identity:virtualAudioIdentity, owner:remoteTarget?'receiver':'gateway', scope:'explicit local acceptance identity, not a release allocation'};
   fs.cpSync(webAssets, path.join(scratch, 'dist'), { recursive: true });
   fs.cpSync(path.join(scratch, 'dist'), path.join(scratch, 'static'), { recursive: true });
   result.web_assets_source = webAssets;
@@ -233,6 +245,7 @@ async function main() {
     const targetPort = await port(), targetSecret = crypto.randomBytes(32).toString('hex');
     const targetURL = `http://127.0.0.1:${targetPort}`;
     const receiver = structuredClone(config);
+    receiver.virtual_audio = virtualAudioIdentity;
     receiver.web_server.bind_address = `127.0.0.1:${targetPort}`;
     receiver.web_server.media_ticket_secret = targetSecret;
     receiver.web_server.first_login_create_admin = false;
@@ -381,7 +394,16 @@ async function main() {
   const invite = await api('/stream-invitations', 'POST', { host_id: host.host_id, app_id: desktop.app_id });
   if (targetRecording) {
     audioProbe=startAudioProbe(targetProbe);
-    const catalog=await audioProbe.command('devices');
+    let catalog=await audioProbe.command('devices');
+    // HTTP readiness can precede Windows audio endpoint enumeration. Wait only
+    // for the exact requested pair, never substitute the system default device.
+    if (virtualAudioIdentity) {
+      const deadline=Date.now()+20000;
+      while (Date.now()<deadline && (catalog.error || !catalog.data.devices.some(d=>d.id===targetCapture&&d.input) || !catalog.data.devices.some(d=>d.id===targetRender&&d.output))) {
+        await delay(200);
+        catalog=await audioProbe.command('devices');
+      }
+    }
     assert.ok(!catalog.error && catalog.data.devices.some(d=>d.id===targetCapture&&d.input), 'Explicit target capture endpoint is unavailable');
     assert.ok(catalog.data.devices.some(d=>d.id===targetRender&&d.output), 'Explicit target render endpoint is unavailable');
     const session=await api(`/stream-sessions/${invite.session_id}`);

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-01",
+  "source_base": "525b1377c22b3bf8d243a148d3a9652d2f3b9375",
+  "scope": "Native Windows worker stop, actual gateway signal module and virtual audio runtime cleanup; not full HTTP gateway or final installer acceptance",
+  "causes": [
+    "CREATE_NO_WINDOW workers had no console for scoped CTRL_BREAK_EVENT delivery",
+    "The gateway framework default Windows signal listener did not handle Ctrl+Break",
+    "Worker stop used a separate hardcoded one-second deadline, cutting short the Manager's configured grace period"
+  ],
+  "changes": [
+    "Create a private console hidden by STARTF_USESHOWWINDOW/SW_HIDE before worker execution; preserve authenticated IPC and job containment",
+    "Register Windows Ctrl+C/Break/Close/Shutdown or Unix INT/TERM/QUIT before starting gateway native resources",
+    "Drain HTTP workers for at most two seconds before closing the native provider",
+    "Manager remains the single owner of normal stop deadlines and job-based force escalation; worker keeps forwarding logs and heartbeats"
+  ],
+  "checks": {
+    "native_managed_graceful": "passed with a 1200ms child cleanup, exceeding the removed one-second internal deadline",
+    "actual_gateway_modules": "passed: local-only Rust harness imports shutdown.rs and virtual_audio.rs, starts the installed native provider and closes it after the worker's scoped stop signal; process exit zero and completion marker required",
+    "worker_protocol_tests": "go test ./internal/component -run ^TestWorker -count=1 passed",
+    "runtime_payload_and_driver_inventory": "6 Node tests passed",
+    "gateway_rustfmt": "passed",
+    "acceptance_javascript_syntax": "passed",
+    "product_workflow_yaml": "parsed with js-yaml"
+  },
+  "pre_fix_failure": "Actual-provider harness intermittently exited with code 1 and no completion marker when the worker's one-second timeout killed cleanup; retained as a failure, not an audio-quality result",
+  "local_harness": ".local/validation/gateway-shutdown/",
+  "remaining": [
+    "Complete gateway build and browser-to-target run with the new provider",
+    "Unified installer acceptance for this source",
+    "Release identity decision; user declined external USB PID application on 2026-11-01",
+    "Physical human speech acceptance"
+  ],
+  "external_application_submitted": false,
+  "production_release_changed": false
+}

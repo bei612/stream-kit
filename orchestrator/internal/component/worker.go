@@ -122,9 +122,11 @@ func serveWorker(parent context.Context, connection workerConnection, instance s
 					return err
 				}
 			case "stop":
-				if err := stopProcess(process, 1); err != nil {
-					return err
-				}
+				// The owning Manager enforces the configured graceful deadline
+				// and escalates through its retained job handle. A second, fixed
+				// one-second timeout here used to kill native cleanup early.
+				// Keep forwarding logs/heartbeats while the child shuts down.
+				_ = process.backend.interrupt()
 			case "kill":
 				if err := forceStop(process); err != nil {
 					return err

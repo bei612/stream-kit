@@ -275,6 +275,15 @@ No host-wide Visual C++ installer or Node.js installation is invoked. This is
 
 For a stable candidate, dispatch `windows-product-release.yml` with
 `release_version=MAJOR.MINOR.PATCH`. An empty version retains preview behavior.
+The optional `usb_audio_identity` input takes a JSON object containing only
+integer `vendor_id` and `product_id`. Supply an assigned release identity to
+include the pinned, signed virtual-audio controller in the same installer.
+The workflow validates this input before compilation and uses the initialized
+official Windows SDK signature tool to verify the payload. The installer creates
+a persistent serial for each installation; CI fixture identities and test
+executables are not substituted into this input. With the input empty, no USB
+driver is bundled. Selecting this branch is not evidence of identity allocation
+or completed installation acceptance.
 The shared product identity sets both installer filenames, Windows product/file
 versions, Debian package version and manifest channel/version. This selects
 packaging metadata; it does not claim deployment or audio acceptance has passed.

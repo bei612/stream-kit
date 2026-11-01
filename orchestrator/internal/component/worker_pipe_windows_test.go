@@ -50,7 +50,7 @@ func TestNativeWorkerAuthenticatedLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, mode := range []string{"lifecycle", "managed-exit", "managed-stop", "managed-kill", "managed-disconnect", "managed-cancel", "managed-heartbeat", "wrong-session", "foreign-process", "cancelled"} {
+	for _, mode := range []string{"lifecycle", "managed-exit", "managed-stop", "managed-graceful", "managed-kill", "managed-disconnect", "managed-cancel", "managed-heartbeat", "wrong-session", "foreign-process", "cancelled"} {
 		t.Run(mode, func(t *testing.T) {
 			var nonce [16]byte
 			if _, err := rand.Read(nonce[:]); err != nil {
@@ -66,7 +66,15 @@ func TestNativeWorkerAuthenticatedLifecycle(t *testing.T) {
 			if strings.HasPrefix(mode, "managed-") && mode != "managed-exit" {
 				childMode = "hold"
 			}
-			snapshot, err := writeWorkerLaunch(t.TempDir(), instance, user.User.Sid.String(), config.ComponentConfig{ExePath: os.Args[0], Args: "-test.run=^TestWorkerChild$", WorkingDir: filepath.Dir(os.Args[0]), Env: map[string]string{"STREAM_KIT_WORKER_TEST": childMode}})
+			if mode == "managed-graceful" {
+				childMode = "graceful"
+			}
+			childConfig := config.ComponentConfig{ExePath: os.Args[0], Args: "-test.run=^TestWorkerChild$", WorkingDir: filepath.Dir(os.Args[0]), Env: map[string]string{"STREAM_KIT_WORKER_TEST": childMode}}
+			if binary := os.Getenv("STREAM_KIT_TEST_GRACEFUL_CHILD"); mode == "managed-graceful" && binary != "" {
+				childConfig.ExePath, childConfig.Args = binary, ""
+				childConfig.WorkingDir = filepath.Dir(binary)
+			}
+			snapshot, err := writeWorkerLaunch(t.TempDir(), instance, user.User.Sid.String(), childConfig)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -84,7 +92,7 @@ func TestNativeWorkerAuthenticatedLifecycle(t *testing.T) {
 			}
 			worker, err := createSuspendedWorker(workerExe, args, filepath.Dir(workerExe),
 				func(app, command, directory *uint16, startup *windows.StartupInfo, process *windows.ProcessInformation) error {
-					return windows.CreateProcess(app, command, nil, nil, false, windows.CREATE_SUSPENDED|windows.CREATE_NO_WINDOW, nil, directory, startup, process)
+					return windows.CreateProcess(app, command, nil, nil, false, windows.CREATE_SUSPENDED|windows.CREATE_NEW_CONSOLE, nil, directory, startup, process)
 				})
 			if err != nil {
 				t.Fatal(err)
@@ -140,6 +148,15 @@ func TestNativeWorkerAuthenticatedLifecycle(t *testing.T) {
 					child = retainNativeProcess(t, uint32(process.PID))
 				}
 				go process.RunWait()
+				if mode == "managed-graceful" {
+					deadline := time.Now().Add(5 * time.Second)
+					for !strings.Contains(strings.Join(logs.GetLast(2000), "\n"), "worker-ready") && time.Now().Before(deadline) {
+						time.Sleep(20 * time.Millisecond)
+					}
+					if !strings.Contains(strings.Join(logs.GetLast(2000), "\n"), "worker-ready") {
+						t.Fatal("child signal handler was not ready")
+					}
+				}
 				switch mode {
 				case "managed-heartbeat":
 					// Cross the worker's 30-second command idle timeout.
@@ -152,7 +169,7 @@ func TestNativeWorkerAuthenticatedLifecycle(t *testing.T) {
 					if err := stopProcess(process, 3); err != nil {
 						t.Fatal(err)
 					}
-				case "managed-stop":
+				case "managed-stop", "managed-graceful":
 					if err := stopProcess(process, 3); err != nil {
 						t.Fatal(err)
 					}
@@ -173,6 +190,9 @@ func TestNativeWorkerAuthenticatedLifecycle(t *testing.T) {
 				assertNativeExited(t, retained)
 				if child != 0 {
 					assertNativeExited(t, child)
+				}
+				if mode == "managed-graceful" && (process.ExitCode != 0 || !strings.Contains(strings.Join(logs.GetLast(2000), "\n"), "graceful-stop")) {
+					t.Fatalf("child did not receive scoped console stop: exit=%d logs=%v", process.ExitCode, logs.GetLast(2000))
 				}
 				if mode == "managed-exit" {
 					output := strings.Join(logs.GetLast(2000), "\n")

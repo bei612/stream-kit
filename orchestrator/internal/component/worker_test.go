@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/signal"
 	"strings"
 	"testing"
 	"time"
@@ -19,6 +20,11 @@ func TestWorkerChild(t *testing.T) {
 	if mode == "" {
 		return
 	}
+	interrupt := make(chan os.Signal, 1)
+	if mode == "graceful" {
+		signal.Notify(interrupt, os.Interrupt)
+		defer signal.Stop(interrupt)
+	}
 	fmt.Print("worker-ready\n")
 	fmt.Println("instance=" + os.Getenv("STREAM_KIT_PROCESS_INSTANCE"))
 	if mode == "escaped-log" {
@@ -28,6 +34,14 @@ func TestWorkerChild(t *testing.T) {
 	if mode == "exit" || mode == "escaped-log" {
 		fmt.Print("final-partial")
 		os.Exit(7)
+	}
+	if mode == "graceful" {
+		<-interrupt
+		// Native resources may need more than the worker's former fixed
+		// one-second timeout, but remain within the owner's three seconds.
+		time.Sleep(1200 * time.Millisecond)
+		fmt.Println("graceful-stop")
+		os.Exit(0)
 	}
 	for {
 		time.Sleep(time.Second)

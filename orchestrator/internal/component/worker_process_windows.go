@@ -38,7 +38,11 @@ func startNativeWorker(token windows.Token, session uint32, sid string, exe stri
 	defer windows.DestroyEnvironmentBlock(environment)
 	return createSuspendedWorker(exe, args, dir, func(app, command, directory *uint16, startup *windows.StartupInfo, process *windows.ProcessInformation) error {
 		return windows.CreateProcessAsUser(token, app, command, nil, nil, false,
-			windows.CREATE_SUSPENDED|windows.CREATE_UNICODE_ENVIRONMENT|windows.CREATE_NO_WINDOW,
+			// A private hidden console lets the worker deliver scoped Ctrl+Break
+			// to its child process groups. CREATE_NO_WINDOW has no console and
+			// therefore cannot perform the documented graceful stop operation.
+			// createSuspendedWorker supplies STARTF_USESHOWWINDOW / SW_HIDE.
+			windows.CREATE_SUSPENDED|windows.CREATE_UNICODE_ENVIRONMENT|windows.CREATE_NEW_CONSOLE,
 			environment, directory, startup, process)
 	})
 }
