@@ -92,5 +92,68 @@
       "path": ".local/validation/pair-contract-97f9e2fd/run-PE0v5x/result.json",
       "sha256": "6f1c6bb76f378685bb992336267fca4803d57761e4df6ea75ffe86b9c8cabac0"
     }
-  }
+  },
+  "installer_followup": {
+    "source_commit": "97f9e2fdfe58761215645ac169cbdc62774e7c0b",
+    "product_build": "https://github.com/bei612/stream-kit/actions/runs/41287320135",
+    "source_ci": "https://github.com/bei612/stream-kit/actions/runs/41287319318",
+    "passed": false,
+    "install_exit": 0,
+    "administrator_login": true,
+    "service_account": "LocalSystem",
+    "pair": {
+      "passed": true,
+      "captured_frames": 144480,
+      "tone_amplitude": 0.09751366093352602,
+      "tone": {
+        "captured_frames": 144480,
+        "tone_amplitude": 0.09751366093352602,
+        "rms": 0.06981930328340474,
+        "peak": 0.10003662109375,
+        "quiet": false
+      },
+      "first_error_after_frames": null,
+      "submitted_packets": 150,
+      "target": {
+        "device_open": true,
+        "device_sample_frames": 221376,
+        "dropped_frames": 0,
+        "xruns": 0,
+        "realtime_denied": false,
+        "error": null
+      },
+      "baseline": {
+        "captured_frames": 24000,
+        "tone_amplitude": 7.605158761501112e-8,
+        "rms": 0.00002066707080800334,
+        "peak": 0.00006103515625,
+        "quiet": true
+      },
+      "after_clear": {
+        "captured_frames": 24000,
+        "tone_amplitude": 6.571424592052451e-8,
+        "rms": 0.000020749522048068495,
+        "peak": 0.00006103515625,
+        "quiet": true
+      },
+      "drain_before_silence_ms": 300,
+      "closed_after_drop": true
+    },
+    "default_selection_changed_during_install": true,
+    "defaults_restored_after_uninstall": true,
+    "uninstall_exit": 0,
+    "service_removed": true,
+    "data_preserved": true,
+    "failure": "Windows selected the newly created Stream Kit render endpoint as the default and communications output. The helper stopped before its gateway restart check; uninstall restored the original outputs.",
+    "diagnosis": "Native PCM and strict control API result decoding now pass in the actual installed package. Endpoint default-selection policy remains unresolved. No default-selection workaround, unsigned driver change or test program has been added to the customer payload.",
+    "evidence": {
+      "path": ".local/validation/installer-97f9e2fd-audio/result.json",
+      "sha256": "74756a31c957e5662a2faeba918cd766bc39a8c42d664a1c2469faaac409d593"
+    }
+  },
+  "endpoint_policy_references": [
+    "https://learn.microsoft.com/en-us/windows-hardware/drivers/audio/pkey-audiodevice-neversetasdefaultendpoint",
+    "https://learn.microsoft.com/en-us/windows-hardware/drivers/install/accessing-the-properties-of-installed-device-interface-classes",
+    "https://learn.microsoft.com/en-us/windows/win32/api/cfgmgr32/nf-cfgmgr32-cm_open_device_interface_keyw"
+  ]
 }
