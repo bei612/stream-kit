@@ -1,0 +1,24 @@
+name: audio-provisioning
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'orchestrator/internal/audiodevice/**'
+      - 'orchestrator/cmd/orchestrator/prepare_audio.go'
+      - '.github/workflows/audio-provisioning.yml'
+permissions:
+  contents: read
+jobs:
+  linux-audio:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.3'
+          cache-dependency-path: orchestrator/go.sum
+      - run: sudo apt-get update && sudo apt-get install -y pulseaudio pulseaudio-utils
+      - name: Provision and reuse real isolated recording endpoints
+        run: bash scripts/test-audio-target-linux.sh --command bash -c 'cd orchestrator && STREAM_KIT_ISOLATED_AUDIO_TEST=1 go test -v ./internal/audiodevice'

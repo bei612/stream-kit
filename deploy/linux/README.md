@@ -38,6 +38,20 @@ rules and uinput/uhid module configuration; active installation reloads only
 those factory device rules. KMS CAP_SYS_ADMIN is not granted automatically.
 
 Windows keeps its single setup EXE; each server OS has one native installer.
+
+The service prepares a dedicated 48 kHz virtual microphone pair in the rendering
+user's authenticated PulseAudio/PipeWire-Pulse server before launching components.
+`orchestrator prepare-audio` is also available for explicit preparation after an
+audio-server restart. It reuses matching modules, rejects existing names owned by
+other configurations, and rolls back only modules it created if preparation fails.
+It does not set system default devices or start a separate audio daemon.
+The package includes `pulseaudio-utils`; an active user audio server is required.
+In the existing management audio-target selector, choose output
+`pulseaudio:stream_kit_microphone` and input
+`pulseaudio:stream_kit_microphone_capture`. Select **StreamKit-Microphone** in the
+target recording application. Existing route ownership and controller permissions
+continue to apply. These source changes are not included in the earlier .4 release;
+Windows automatic device provisioning remains pending.
 The unified release workflow requires both package builds and source SBOM before
 publishing a tagged preview. The Linux package check extracts the actual payload,
 executes all three components through initialization, validates its private

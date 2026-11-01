@@ -1,6 +1,6 @@
 [Unit]
 Description=Stream-Kit unified rendering platform
-After=graphical-session.target
+After=graphical-session.target pipewire-pulse.service pulseaudio.service
 StartLimitIntervalSec=60
 StartLimitBurst=3
 
@@ -10,6 +10,7 @@ WorkingDirectory=/opt/stream-kit/orchestrator
 UMask=0077
 ExecStartPre=/opt/stream-kit/orchestrator/orchestrator verify-bundle /opt/stream-kit/orchestrator
 ExecStartPre=/opt/stream-kit/orchestrator/orchestrator check-config --config %h/.local/share/stream-kit/runtime/orchestrator.json
+ExecStartPre=/opt/stream-kit/orchestrator/orchestrator prepare-audio
 ExecStart=/opt/stream-kit/orchestrator/orchestrator --config %h/.local/share/stream-kit/runtime/orchestrator.json
 Restart=on-failure
 RestartSec=3

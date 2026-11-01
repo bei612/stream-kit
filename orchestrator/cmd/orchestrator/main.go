@@ -39,6 +39,12 @@ var (
 func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
+		case "prepare-audio":
+			if err := prepareAudio(os.Args[2:]); err != nil {
+				fmt.Fprintln(os.Stderr, "audio provisioning failed:", err)
+				os.Exit(1)
+			}
+			return
 		case "init-platform":
 			if err := initializePlatform(os.Args[2:]); err != nil {
 				fmt.Fprintln(os.Stderr, "platform initialization failed:", err)
