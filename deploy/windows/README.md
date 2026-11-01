@@ -50,9 +50,21 @@ created root node. The companion filter's upstream AddDevice handler attaches
 only above the USB/IP virtual controller. On failure, cleanup is limited to the
 new node, retaining potentially shared DriverStore packages. Windows-reported
 restart requirements return 3010 and defer service startup; no automatic restart
-is performed. Setup does not call an API to select system defaults, but Windows
-can automatically select a newly created virtual output. This remains an open
-delivery issue, not a guarantee that installation preserves the default devices.
+is performed. Setup does not call an API to select system defaults. Windows can
+automatically select an unprepared virtual output during first-time enumeration.
+The platform now prepares its configured device before launching the interactive
+gateway: the native gateway briefly owns the attachment, while the privileged
+controller applies the documented render-only endpoint policy and refreshes only
+that device's existing Microsoft inbox audio driver. Successful preparation is
+persisted on both owned interfaces; ordinary starts read that state and skip
+attachment and driver refresh. Capture remains explicitly selectable by recording
+applications. The preparation command opens no HTTP listener and sends no PCM.
+
+The isolated policy migration and subsequent endpoint restart have passed. The
+production startup integration and matching unified installer still require their
+own acceptance; this does not establish absence of a transient default change
+during the first unprepared enumeration. See
+`docs/evidence/windows-endpoint-policy-20261101.json` for the evidence boundary.
 
 Gateway configuration now includes `virtual_audio` (default `null`). When enabled,
 its `vendor_id`, `product_id` and stable `serial` identify the deployment's USB
@@ -65,8 +77,10 @@ The gateway starts the provider before serving requests and releases its own
 attachment when startup fails or the server shuts down. Device work runs off the
 async server thread. Configuration inspection and native device enumeration do
 not start the provider or install anything. Render/capture selection continues
-through the existing explicit endpoint routing. This explicit routing does not
-prevent Windows from automatically changing its default output during attachment.
+through the existing explicit endpoint routing. Unified Windows deployments keep
+the gateway's native `config check` preflight configured with the same options as
+its normal launch; the controller uses those options for device preparation.
+Direct standalone gateway execution does not replace privileged preparation.
 The bounded `components/audio-target/examples/virtual_device.rs` utility is for
 development only and is excluded from runtime packages.
 
@@ -105,9 +119,10 @@ VB-CABLE. The previously accepted encoder/example were retained for this focused
 integration run, so it is not a matching-revision release-bundle acceptance.
 Evidence: `docs/evidence/browser-native-audio-ue5-20261101.json`.
 
-**Still required before a public provider release:** the release identity decision
-and complete unified installer run. Generated PCM does not
-establish physical human speech acceptance. The published
+**Still required before a public provider release:** acceptance of the integrated
+preparation lifecycle and the matching unified installer. The shared Audio class
+release identity is already selected and verified. Physical human speech acceptance
+is deferred separately; generated PCM does not establish it. The published
 runtime-only installer is unchanged.
 
 The wizard accepts a program directory, a separate new data directory and the
