@@ -2,9 +2,10 @@
 
 The first-install wizard and silent mode use the same native `init-platform` and
 `service` commands. Setup elevates once. It does not change PowerShell execution
-policy or firewall policy and never reboots the machine automatically. An
-authorized build can include the reviewed VB-CABLE package inside the same EXE;
-otherwise an existing compatible virtual endpoint can be selected later.
+policy or firewall policy and never reboots the machine automatically.
+VB-CABLE packaging and installation support has been removed. The product
+does not download it, request a vendor authorization record, or install it.
+Existing compatible endpoints remain selectable through normal audio routing.
 
 The free USB audio provider is being integrated. Its optional installer branch
 uses `orchestrator audio-driver install` inside the same elevated setup process.
@@ -22,8 +23,7 @@ eligible for inclusion, never the upstream GUI or development utilities.
 
 Build selection is `--usb-audio-driver PACKAGE_DIR --signtool OFFICIAL_SIGNTOOL_EXE
 --usb-audio-identity RELEASE_IDENTITY_JSON`
-on `scripts/build-windows-installer.mjs`; it is mutually exclusive with the
-legacy optional VB-CABLE selection. An older control binary without the native
+on `scripts/build-windows-installer.mjs`. An older control binary without the native
 driver command is rejected before packaging. The default release remains the
 runtime-only package without a bundled audio driver. The release identity is a
 bounded JSON object containing only integer `vendor_id` and `product_id` fields;
@@ -126,41 +126,6 @@ Session 0 must supply both the target session ID and SID; normal interactive
 installation resolves them from its current desktop session. The data parent
 must already exist. Silent mode preserves nonzero setup failure codes and never
 automatically reboots.
-
-## Bundled virtual audio driver
-
-The builder accepts `--audio-driver PACKAGE_DIRECTORY
---audio-driver-authorization PRIVATE_RECORD_JSON` after its three existing
-arguments. Both options are required together. The input must be the complete,
-unmodified official VB-CABLE Pack45 directory. All 31 files are checked against
-`third_party-manifests/windows-audio-driver.json` and the vendor installer's
-Authenticode publisher is checked before inclusion. The payload is embedded in
-the one platform installer; there is no online download or extra UAC request.
-
-The private authorization record contains `vendor: "VB-Audio"`,
-`product: "VB-CABLE"`, `scope: "professional-bundle"`, and a nonempty `reference`
-to the actual vendor authorization/order. It is supplied by the distributor;
-the build checks the record's structure, not the legal validity of the grant.
-Only its SHA-256 is published; customer and invoice contents are not bundled.
-No such authorization has been supplied for the currently published candidate,
-which continues to exclude this driver.
-
-During installation a healthy existing VB-CABLE PnP device is reused. An
-existing but unusable registration is reported instead of overwritten. A fresh
-installation invokes the vendor's `-i -h` mode under the already elevated setup
-process, checks its exit status and driver registration, and returns `3010`
-after platform service registration to request a manual restart. Startup is
-deferred in that case; after restarting and logging into the configured desktop
-account, check the components and audio endpoints from the management page.
-Do not treat `3010` as full streaming acceptance. Without a fresh driver the
-existing normal component-readiness gate still applies.
-
-VB-CABLE is by VB-Audio (https://vb-audio.com/Cable/), distributed under its
-donationware/licensing terms (https://vb-audio.com/Services/licensing.htm).
-The platform uninstaller retains the shared system audio driver. Setup does
-not set default audio endpoints; Windows may automatically select a newly
-installed device, as described in the vendor manual. This adapter's first-time
-driver installation and reboot flow still require real installation acceptance.
 
 Override initial listeners using `/CONTROLPORT=19000 /GATEWAYPORT=18080
 /RENDERERPORT=48989`. Native initialization derives component URLs, health checks,

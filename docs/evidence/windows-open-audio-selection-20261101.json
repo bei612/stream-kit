@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-01",
+  "source_base": "4bb55b80fc8b6e06c1bc36a73a74942fa478c82e",
+  "decision": "Remove the legacy VB-CABLE packaging and setup path. Do not submit an external USB PID application, install unverified alternatives, or alter Windows driver trust policy.",
+  "removed": [
+    "VB-CABLE payload preparation and authorization-record requirement",
+    "Vendor driver inventory manifest and obsolete inventory test",
+    "Inno vendor installer invocation, registration checks and control-panel shortcut",
+    "Current deployment instructions for the removed packaging option"
+  ],
+  "preserved": [
+    "Historical acceptance records identifying the actual device used at the time",
+    "Selection of existing compatible endpoints through ordinary audio routing",
+    "Existing host audio devices and defaults"
+  ],
+  "additional_candidate_review": {
+    "repository": "https://github.com/Nactro-Development/DeckX-Virtual-Audio-Driver",
+    "release": "v1.0.17",
+    "release_url": "https://github.com/Nactro-Development/DeckX-Virtual-Audio-Driver/releases/tag/v1.0.17",
+    "files": [
+      {"name":"virtualaudiodriver.cat","bytes":14122,"sha256":"f741cf334fadc0d3d6532b40500375d940dc39be3e0d7c4b9701818ed848f9dd"},
+      {"name":"VirtualAudioDriver.inf","bytes":14982,"sha256":"f3b3996ba75ee069202e3b6e4da1db53e4da41cf1c38ab664edf6787707ba3e2"},
+      {"name":"VirtualAudioDriver.sys","bytes":64936,"sha256":"44eca82ea3f4b16fe6b4ea7d7c5976ffcddaf9352a7c1988c140c1995f55046a"}
+    ],
+    "tool": "Official Windows SDK 10.0.22621.0 signtool.exe",
+    "catalog_membership": "verify /kp /v /c virtualaudiodriver.cat VirtualAudioDriver.sys failed: File not found in the specified catalog",
+    "catalog_kernel_policy": "verify /kp /v virtualaudiodriver.cat failed: certificate chain terminated in a root not trusted by the trust provider",
+    "ordinary_authenticode": "The catalog reports Valid; this is distinct from kernel-policy and member-hash verification",
+    "installed": false,
+    "production_adopted": false
+  },
+  "previous_candidate_evidence": [
+    "third_party-manifests/windows-audio-evaluation.json",
+    "docs/evidence/free-virtual-audio-provider-review-20261101.json"
+  ],
+  "checks": {
+    "inno_runtime_variant": "compiled with --output=no",
+    "inno_native_audio_variant": "compiled with --output=no using an explicit development identity; no installer generated",
+    "runtime_inventory_driver_and_product_identity": "8 tests passed",
+    "builder_javascript_syntax": "passed"
+  },
+  "limits": "These findings cover the exact reviewed packages, not every open-source audio project. No production-ready claim, USB allocation, driver installation or Windows security-setting change follows from this review."
+}

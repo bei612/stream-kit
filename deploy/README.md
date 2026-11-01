@@ -1,5 +1,10 @@
 # Stream-Kit service deployment
 
+Current Windows packaging uses the pinned open-source audio provider branch;
+the former optional VB-CABLE bundler and installer adapter have been removed.
+VB-CABLE is not a product dependency. Historical acceptance records below retain
+the exact devices used at the time and do not describe current package contents.
+
 The published Windows preview `cc650e8f` has now passed controlled-browser
 microphone recording into an installed VB-CABLE endpoint pair, both through a
 local gateway target and a separate receiver gateway over loopback WebSocket.
