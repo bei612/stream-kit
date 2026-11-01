@@ -28,6 +28,15 @@ function check(config, expected, extra = [], command = ['config', 'check']) {
 check(null, 2);
 const base = { data_storage: { type:'json', path:storagePath, session_expiration_check_interval:{secs:300,nanos:0} } };
 check(base, 0);
+check({...base, virtual_audio:null}, 0);
+// Configuration checks validate identities but must never activate a driver.
+const provider = {vendor_id:65534,product_id:1,serial:'TestOnly'};
+check({...base, virtual_audio:provider}, process.platform==='win32'?0:2);
+check({...base, virtual_audio:{...provider,vendor_id:0}}, 2);
+check({...base, virtual_audio:{...provider,product_id:65535}}, 2);
+check({...base, virtual_audio:{...provider,serial:'1234567890123456'}}, 2);
+check({...base, virtual_audio:{...provider,serial:'private-test-value'}}, 2);
+check({...base, virtual_audio:{...provider,install_driver:true}}, 2);
 check({...base, unknown_setting:'private-test-value'}, 2);
 check({...base, webrtc:{port_range:{min:500,max:499}}}, 2);
 check({...base, webrtc:{port_range:{min:0,max:10}}}, 2);

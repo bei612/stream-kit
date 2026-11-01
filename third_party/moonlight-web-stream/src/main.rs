@@ -45,6 +45,7 @@ mod configuration;
 mod human_json;
 mod node_identity;
 mod tls;
+mod virtual_audio;
 
 #[actix_web::main]
 async fn main() {
@@ -326,6 +327,28 @@ async fn start(
 ) -> Result<(), anyhow::Error> {
     config.validate().map_err(anyhow::Error::msg)?;
     let tls = tls::load(&config).map_err(anyhow::Error::msg)?;
+    let provider_config = config.virtual_audio.clone();
+    let provider = tokio::task::spawn_blocking(move || {
+        virtual_audio::Runtime::start(provider_config.as_ref())
+    })
+    .await??;
+    // All exits, including failed storage initialization and bind errors, release
+    // this process's attachment. The driver remains installed for the next run.
+    let result = serve(config, settings, tls).await;
+    let cleanup = tokio::task::spawn_blocking(move || provider.close()).await?;
+    if let Err(error) = &cleanup {
+        error!(%error, "virtual audio shutdown failed");
+    }
+    result?;
+    cleanup?;
+    Ok(())
+}
+
+async fn serve(
+    config: Config,
+    settings: Data<configuration::Settings>,
+    tls: Option<rustls::ServerConfig>,
+) -> Result<(), anyhow::Error> {
     let app = App::new(config.clone()).await?;
     let app = Data::new(app);
 

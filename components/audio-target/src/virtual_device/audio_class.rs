@@ -38,18 +38,25 @@ pub struct AudioClass {
     alternate: [u8; 3],
 }
 
-impl AudioClass {
-    pub fn new(identity: Identity) -> Result<Self, &'static str> {
-        if matches!(identity.vendor, 0 | 0xffff) || matches!(identity.product, 0 | 0xffff) {
+impl Identity {
+    pub fn validate(&self) -> Result<(), &'static str> {
+        if matches!(self.vendor, 0 | 0xffff) || matches!(self.product, 0 | 0xffff) {
             return Err("explicit USB vendor/product identity required");
         }
         // usbip-win2's serial buffer is 16 bytes including the terminator.
-        if identity.serial.is_empty()
-            || identity.serial.len() > 15
-            || !identity.serial.bytes().all(|b| b.is_ascii_alphanumeric())
+        if self.serial.is_empty()
+            || self.serial.len() > 15
+            || !self.serial.bytes().all(|b| b.is_ascii_alphanumeric())
         {
             return Err("USB serial must contain 1..15 ASCII letters/digits");
         }
+        Ok(())
+    }
+}
+
+impl AudioClass {
+    pub fn new(identity: Identity) -> Result<Self, &'static str> {
+        identity.validate()?;
         Ok(Self {
             identity,
             configuration: 0,

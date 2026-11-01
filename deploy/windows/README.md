@@ -30,13 +30,27 @@ new node, retaining potentially shared DriverStore packages. Windows-reported
 restart requirements return 3010 and defer service startup; no automatic restart
 or change of default audio endpoints is performed.
 
-**Not yet a production audio-provider acceptance:** native Windows/Linux builds,
-package policy checks, both kernel signatures, and Inno compilation with output
-disabled have passed. No new installer was generated or installed for these
-checks. Actual elevated PnP installation, filter binding, gateway/provider
-startup, stable endpoint selection and target-program recording remain to be
-integrated/verified before enabling this branch in a public release. Existing
-virtual audio devices and the published runtime-only installer are unchanged.
+Gateway configuration now includes `virtual_audio` (default `null`). When enabled,
+its `vendor_id`, `product_id` and stable `serial` identify the deployment's USB
+audio device. These values have no fabricated production defaults; the test
+identity used in unit tests is not a production assignment. The unified management
+page edits these fields and marks them as gateway-restart settings. Linux rejects
+this Windows-specific provider and continues using native PulseAudio provisioning.
+
+The gateway starts the provider before serving requests and releases its own
+attachment when startup fails or the server shuts down. Device work runs off the
+async server thread. Configuration inspection and native device enumeration do
+not start the provider or install anything. Render/capture selection continues
+through the existing explicit endpoint routing; system defaults are not changed.
+The bounded `components/audio-target/examples/virtual_device.rs` utility is for
+development only and is excluded from runtime packages.
+
+**Not yet a production audio-provider acceptance:** package policy checks, both
+kernel signatures, Inno compilation with output disabled, native protocol tests
+and the gateway provider module checks have passed. Actual elevated PnP/filter
+binding, complete gateway runtime integration and target-program recording must
+be verified before enabling this branch in a public release. The published
+runtime-only installer is unchanged.
 
 The wizard accepts a program directory, a separate new data directory and the
 single administrator's credentials. Internal media credentials and the shared

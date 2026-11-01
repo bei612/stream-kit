@@ -47,6 +47,10 @@ func InstallWindowsDriver(ctx context.Context, directory string) (result DriverI
 		return result, mutexErr
 	}
 	defer windows.CloseHandle(mutex)
+	// Windows mutex ownership is thread-local, while a Go goroutine may migrate
+	// during native calls. Keep acquisition and release on the same OS thread.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	wait, waitErr := windows.WaitForSingleObject(mutex, 30000)
 	if waitErr != nil {
 		return result, waitErr

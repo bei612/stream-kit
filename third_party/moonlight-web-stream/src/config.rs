@@ -26,6 +26,9 @@ pub struct Config {
     pub log: LogConfig,
     #[serde(default)]
     pub local_audio_targets: Vec<LocalAudioTarget>,
+    /// Optional Windows provider, owned by the gateway until shutdown.
+    #[serde(default)]
+    pub virtual_audio: Option<crate::virtual_audio::Config>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,6 +44,9 @@ impl Config {
     pub fn validate(&self) -> Result<(), &'static str> {
         self.web_server.validate_managed()?;
         self.validate_audio_targets()?;
+        if let Some(provider) = &self.virtual_audio {
+            provider.validate()?;
+        }
         let StorageConfig::Json {
             path,
             session_expiration_check_interval,

@@ -7,6 +7,7 @@ import { Input, Label, Select, Textarea } from '@/components/ui/input'
 import { Alert } from '@/components/ui/alert'
 
 const labels:Record<string,string> = {
+  virtual_audio:'Windows 虚拟麦克风',vendor_id:'USB 厂商标识（十进制）',product_id:'USB 产品标识（十进制）',serial:'稳定设备序列号',
   data_storage:'网关存储',webrtc:'网络与 WebRTC',web_server:'访问与信任',moonlight:'渲染主机连接',log:'网关日志',local_audio_targets:'独立模式音频路由',
   path:'存储路径',type:'存储类型',session_expiration_check_interval:'过期会话清理周期',secs:'秒',nanos:'纳秒',
   ice_servers:'STUN / TURN 服务',ice_server_script:'动态 ICE 脚本',port_range:'媒体 UDP 端口范围',nat_1to1:'NAT 地址映射',include_loopback_candidates:'允许回环网络候选',urls:'服务地址（每行一项）',username:'用户名',credential:'访问凭据',
@@ -21,6 +22,7 @@ const nullableStrings=new Set(['ice_server_script','media_ticket_secret','file_p
 const examples:Record<string,string>={port_range:'{"min": 50000, "max": 50100}',nat_1to1:'{"ips": ["203.0.113.10"], "ice_candidate_type": "host"}',certificate:'{"certificate_pem": "certs/server.pem", "private_key_pem": "certs/server-key.pem"}',forwarded_header:'{"username_header": "X-Forwarded-User", "auto_create_missing_user": false, "ignore_case": false}'}
 type ObjectField={key:string;kind:Exclude<Kind,'json'>;initial:ConfigValue;options?:string[]}
 const objects:Record<string,ObjectField[]>={
+  '/virtual_audio':[{key:'vendor_id',kind:'number',initial:null},{key:'product_id',kind:'number',initial:null},{key:'serial',kind:'string',initial:''}],
   '/webrtc/port_range':[{key:'min',kind:'number',initial:50000},{key:'max',kind:'number',initial:50100}],
   '/webrtc/nat_1to1':[{key:'ips',kind:'lines',initial:[]},{key:'ice_candidate_type',kind:'string',initial:'host',options:['host','srflx']}],
   '/web_server/certificate':[{key:'certificate_pem',kind:'string',initial:''},{key:'private_key_pem',kind:'string',initial:''}],
@@ -90,6 +92,7 @@ export function GatewayConfigurationEditor() {
             <Input id={childId} type={descriptor.kind==='number'?'number':hidden?'password':'text'} value={text} autoComplete="off" placeholder={hidden?'已配置；未编辑则保留原值':''} onChange={e=>update(descriptor,e.target.value)}/>}</div>
       })}
       {hidden&&enabled&&<p className="text-xs text-muted-foreground">证书路径已隐藏，未编辑的路径保持原值。</p>}
+      {path==='/virtual_audio'&&<p className="text-xs text-muted-foreground">仅适用于已安装兼容驱动的 Windows 节点。使用部署指定的设备标识和 1–15 位字母数字序列号；网关启动时创建端点，退出时释放。应用的播放与录音端点仍在音频路由中指定。</p>}
       <p className="text-xs text-muted-foreground">保存后需重启网关；不会立即改变当前连接。</p>
       {changed&&<Button size="sm" variant="ghost" onClick={()=>undo(path)}>撤销此项修改</Button>}
     </div>

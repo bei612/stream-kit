@@ -7,7 +7,6 @@ pub mod remote;
 #[cfg(feature = "network")]
 pub mod sender;
 pub mod verification;
-#[cfg(target_os = "windows")]
 pub mod virtual_device;
 pub mod wire;
 
