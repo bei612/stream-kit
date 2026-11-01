@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "source_commit": "509c94cf7d78e3ae09775f7f118904a741cd4fc2",
+  "product_run": "https://github.com/bei612/stream-kit/actions/runs/41295337750",
+  "source_ci": "https://github.com/bei612/stream-kit/actions/runs/41295141037",
+  "build_passed": true,
+  "windows": {
+    "installer": {
+      "name": "stream-kit-0.1.0-509c94cf7d78-windows-amd64-setup.exe",
+      "bytes": 97485207,
+      "sha256": "d572414d6171845af2bd62ea85acf6857190f0d549383f295fae83036bd9c9d0"
+    },
+    "source_commit": "509c94cf7d78e3ae09775f7f118904a741cd4fc2",
+    "reused_payload": false,
+    "payload_profile": "runtime",
+    "publisher_signed": false,
+    "kernel_signature_verified": true,
+    "identity": {
+      "vendor_id": 5824,
+      "product_id": 10208,
+      "serial_prefix": "lkdtc2012@gmail.com:"
+    },
+    "actual_installation_acceptance": "pending Windows UAC confirmation"
+  },
+  "linux": {
+    "installer": {
+      "file": "stream-kit-0.1.0-509c94cf7d78-ubuntu24.04-amd64-setup.run",
+      "bytes": 62324620,
+      "sha256": "48fb068d0d79814d0b20b76c82eeadb0fc0468752a19a905375bf94fed47d100"
+    },
+    "payload_sha256": "3ea006e95395f8477078eee2765436db9b25276f7e3fc1fd42ac0e2c1a0a164e",
+    "payload_profile": "runtime",
+    "runtime_requires_node": false,
+    "extraction_initialization_configuration_and_data_preservation_passed": true,
+    "scope": "Native CI package extraction and initialization; no fresh physical Linux machine or full media service startup claim."
+  },
+  "sbom": {
+    "file": "stream-kit-sbom.spdx.json",
+    "bytes": 7404273,
+    "sha256": "4b9a5ae1d9331aee3ab848caad906b73a2be3effc9861481268c01326f3d6cdb"
+  },
+  "inventory": {
+    "source_commit": "509c94cf7d78e3ae09775f7f118904a741cd4fc2",
+    "scope": "Static content inspection only; no installation, service startup, driver operation or human speech verification.",
+    "linux": {
+      "installer_sha256": "48fb068d0d79814d0b20b76c82eeadb0fc0468752a19a905375bf94fed47d100",
+      "deb_sha256": "3ea006e95395f8477078eee2765436db9b25276f7e3fc1fd42ac0e2c1a0a164e",
+      "platform_manifest_sha256": "39033695a5fc9ff3e9e9703648673fa5d968b91133f617cc209b3162cb35a2d8",
+      "runtime_files": 151,
+      "package_files": 157,
+      "passed": true
+    },
+    "windows": {
+      "installer_sha256": "d572414d6171845af2bd62ea85acf6857190f0d549383f295fae83036bd9c9d0",
+      "platform_manifest_sha256": "691f5dbee0c4dc7ebec116680492bbccd2f2d1ce6413cfc9c928b0b3e26cb387",
+      "runtime_files": 187,
+      "passed": true
+    }
+  },
+  "physical_human_speech_acceptance": "deferred; not proven by generated PCM",
+  "publication": "not published"
+}
