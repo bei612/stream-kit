@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "source_commit": "f7c9d6b58caea37c63f56f28002c63d7c293264d",
+  "run": 41259808152,
+  "url": "https://github.com/bei612/stream-kit/actions/runs/41259808152",
+  "conclusion": "success",
+  "log_sha256": "9a3fbcbdc5cf62953caa536c97bb1f1f88dc9a89de958cac32bc214f2e0efdcb",
+  "checks": [
+    "linux-audio\tProvision and reuse real isolated recording endpoints\t2026-11-01T01:12:08.0962085Z === RUN   TestProvisionReuseAndCollision",
+    "linux-audio\tProvision and reuse real isolated recording endpoints\t2026-11-01T01:12:08.0964644Z --- PASS: TestProvisionReuseAndCollision (0.00s)",
+    "linux-audio\tProvision and reuse real isolated recording endpoints\t2026-11-01T01:12:08.0965709Z === RUN   TestPartialFailureRemovesOnlyNewModules",
+    "linux-audio\tProvision and reuse real isolated recording endpoints\t2026-11-01T01:12:08.0967304Z --- PASS: TestPartialFailureRemovesOnlyNewModules (0.00s)",
+    "linux-audio\tProvision and reuse real isolated recording endpoints\t2026-11-01T01:12:08.0968071Z === RUN   TestPulseIntegration",
+    "linux-audio\tProvision and reuse real isolated recording endpoints\t2026-11-01T01:12:08.2261892Z     pulse_test.go:121: real provisioned endpoints: {Render:pulseaudio:stream_kit_microphone Capture:pulseaudio:stream_kit_microphone_capture}",
+    "linux-audio\tProvision and reuse real isolated recording endpoints\t2026-11-01T01:12:08.2891544Z --- PASS: TestPulseIntegration (0.19s)",
+    "linux-audio\tProvision and reuse real isolated recording endpoints\t2026-11-01T01:12:08.2892409Z === RUN   TestReleasePreservesForeignEndpoints",
+    "linux-audio\tProvision and reuse real isolated recording endpoints\t2026-11-01T01:12:08.2893055Z --- PASS: TestReleasePreservesForeignEndpoints (0.00s)"
+  ],
+  "scope": [
+    "Actual isolated PulseAudio server: create and reuse managed output/input pair",
+    "Existing default output/input unchanged",
+    "Release managed modules and confirm endpoints disappear",
+    "Unit checks: foreign owner/configuration rejection, partial rollback, idempotent release"
+  ],
+  "not_proven": [
+    "PipeWire runtime execution",
+    "Hardware audio capture or client speech",
+    "Installed systemd lifecycle on a deployment host",
+    "Windows automatic virtual device provisioning"
+  ],
+  "installation": "Integrated into Linux service ExecStartPre/ExecStopPost; not present in the previously published .4 package"
+}
