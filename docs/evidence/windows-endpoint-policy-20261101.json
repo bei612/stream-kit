@@ -1,5 +1,5 @@
 {
-  "scope": "Disposable GitHub-hosted Windows device-policy investigation. No customer device changes or product fix claim.",
+  "scope": "Disposable GitHub-hosted Windows policy investigation and actual native-gateway preparation protocol. No customer installer or human speech acceptance claim.",
   "interface_policy_without_driver_refresh": {
     "source_commit": "24a4df6363fccc37c3142f6b18e1e0fafdc8c646",
     "run": "https://github.com/bei612/stream-kit/actions/runs/41291943232",
@@ -36,7 +36,40 @@
       "The check used generated PCM, not human speech."
     ]
   },
-  "next_step": "Integrate device preparation into the existing privileged platform lifecycle, using the actual native gateway solely to initialize its configured device, without an HTTP listener or generated PCM. Apply policy through documented interface APIs and refresh only the exact owned node's existing Microsoft inbox driver before the regular user-session gateway starts. Make completed preparation idempotent and preserve normal restart identity. Keep the experiment programs outside runtime bundles.",
+  "production_protocol_initial_run": {
+    "source_commit": "71f8bc8a339103bbbba36d70d36432f3d0325df7",
+    "run": "https://github.com/bei612/stream-kit/actions/runs/41294329734",
+    "passed": false,
+    "failure": "CONFIGRET CR_NO_SUCH_DEVNODE during native preparation after detaching the initial unprepared device.",
+    "correction": "Treat disappearing device interfaces as absent; wait for the exact live PnP node to report DN_STARTED before policy writes and driver refresh, rather than accepting persisted interface keys as attachment readiness.",
+    "private_evidence": ".local/validation/ci-endpoint-policy-71f8bc8a/endpoint-policy/result.json",
+    "sha256": "3b3a3d5a14d564ae88d6ead92fae159d2e57c0a44834b64c47453ce37e46781f"
+  },
+  "production_protocol_followup": {
+    "source_commit": "5e1319b5020c73fa92efea853319cf7eb4c8d3ee",
+    "run": "https://github.com/bei612/stream-kit/actions/runs/41295064607",
+    "passed": true,
+    "actual_gateway_prepare_audio_command": true,
+    "production_go_preparation_api": true,
+    "completion_marker_persisted_after_detachment": true,
+    "repeat_preparation_passed": true,
+    "system_and_communications_outputs_preserved_after_preparation": true,
+    "explicit_pcm_passed": true,
+    "captured_frames": 144000,
+    "dropped_frames": 0,
+    "xruns": 0,
+    "prepared_restart_passed": true,
+    "post_preparation_ids_stable_across_restart": true,
+    "owned_devices_cleanly_released": true,
+    "private_evidence": ".local/validation/ci-endpoint-policy-5e1319b5/endpoint-policy/result.json",
+    "sha256": "36db696b989726ce572d22847b3865efe1c828d3884a930621155aea45bedfac",
+    "limits": [
+      "The CI-only caller invokes the production Go preparation API and actual native gateway, but does not install or launch the LocalSystem platform service.",
+      "First unprepared enumeration temporarily changed output defaults. The verified invariant applies after preparation and during subsequent attachment/restart.",
+      "Generated PCM is not human speech; the matching unified installer still requires installation and service-lifecycle acceptance."
+    ]
+  },
+  "next_step": "Build the matching unified Windows/Linux installers, verify Windows installation and the actual service lifecycle once, then publish the reviewed candidate with its remaining human-speech acceptance boundary. Keep CI-only programs outside runtime bundles.",
   "references": [
     "https://learn.microsoft.com/en-us/windows-hardware/drivers/audio/pkey-audiodevice-neversetasdefaultendpoint",
     "https://learn.microsoft.com/en-us/windows-hardware/drivers/audio/operating-system-upgrades",

@@ -60,9 +60,10 @@ persisted on both owned interfaces; ordinary starts read that state and skip
 attachment and driver refresh. Capture remains explicitly selectable by recording
 applications. The preparation command opens no HTTP listener and sends no PCM.
 
-The isolated policy migration and subsequent endpoint restart have passed. The
-production startup integration and matching unified installer still require their
-own acceptance; this does not establish absence of a transient default change
+The actual native gateway preparation command, production controller preparation
+API, persisted completion, PCM and subsequent endpoint restart have passed in an
+isolated Windows environment. The matching unified installer and LocalSystem
+service still require their own acceptance; this does not establish absence of a transient default change
 during the first unprepared enumeration. See
 `docs/evidence/windows-endpoint-policy-20261101.json` for the evidence boundary.
 
@@ -119,8 +120,8 @@ VB-CABLE. The previously accepted encoder/example were retained for this focused
 integration run, so it is not a matching-revision release-bundle acceptance.
 Evidence: `docs/evidence/browser-native-audio-ue5-20261101.json`.
 
-**Still required before a public provider release:** acceptance of the integrated
-preparation lifecycle and the matching unified installer. The shared Audio class
+**Still required before a public provider release:** acceptance of the matching
+unified installer and actual LocalSystem service lifecycle. The shared Audio class
 release identity is already selected and verified. Physical human speech acceptance
 is deferred separately; generated PCM does not establish it. The published
 runtime-only installer is unchanged.
