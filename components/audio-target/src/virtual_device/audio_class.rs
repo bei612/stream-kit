@@ -43,12 +43,18 @@ impl Identity {
         if matches!(self.vendor, 0 | 0xffff) || matches!(self.product, 0 | 0xffff) {
             return Err("explicit USB vendor/product identity required");
         }
-        // usbip-win2's serial buffer is 16 bytes including the terminator.
+        // This is the device's USB string descriptor, not usbip-win2's optional
+        // 16-byte serial override (which our native adapter leaves empty).
+        // A one-byte bLength permits 126 UTF-16 code units plus the header.
+        // Keep a Windows-safe ASCII subset supporting a domain/email prefix.
         if self.serial.is_empty()
-            || self.serial.len() > 15
-            || !self.serial.bytes().all(|b| b.is_ascii_alphanumeric())
+            || self.serial.len() > 126
+            || !self
+                .serial
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b"._@:+-".contains(&b))
         {
-            return Err("USB serial must contain 1..15 ASCII letters/digits");
+            return Err("USB serial must contain 1..126 ASCII letters, digits or ._@:+-");
         }
         Ok(())
     }
@@ -284,6 +290,40 @@ mod tests {
             } else {
                 Vec::new()
             },
+        }
+    }
+    #[test]
+    fn serial_descriptor_preserves_long_identity_and_bounds() {
+        let mut identity = class().identity().clone();
+        identity.serial = "owner@example.org:StreamKit0123456789".into();
+        for serial in [identity.serial.clone(), "x".repeat(126)] {
+            identity.serial = serial.clone();
+            let mut device = AudioClass::new(identity.clone()).unwrap();
+            let descriptor = device
+                .control(&setup(0x80, 6, 0x303, 0x0409, 255))
+                .unwrap()
+                .data;
+            assert_eq!(descriptor.len(), 2 + serial.len() * 2);
+            assert_eq!(descriptor[0] as usize, descriptor.len());
+            assert_eq!(descriptor[1], 3);
+            let decoded: Vec<u16> = descriptor[2..]
+                .chunks_exact(2)
+                .map(|v| u16::from_le_bytes([v[0], v[1]]))
+                .collect();
+            assert_eq!(String::from_utf16(&decoded).unwrap(), serial);
+        }
+        for serial in [
+            "".into(),
+            "x".repeat(127),
+            "bad,serial".into(),
+            "bad serial".into(),
+            "bad\\serial".into(),
+            "bad/serial".into(),
+            "bad\0serial".into(),
+            "麦克风".into(),
+        ] {
+            identity.serial = serial;
+            assert!(AudioClass::new(identity.clone()).is_err());
         }
     }
     #[test]

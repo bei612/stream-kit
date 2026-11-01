@@ -149,6 +149,8 @@ impl Location {
         let service = self.port.to_string();
         b[44..44 + service.len()].copy_from_slice(service.as_bytes());
         b[76..76 + LOCAL_HOST.len()].copy_from_slice(LOCAL_HOST.as_bytes());
+        // Leave the optional driver serial override empty. Windows reads the
+        // device's original string descriptor, including its complete prefix.
         b
     }
 }

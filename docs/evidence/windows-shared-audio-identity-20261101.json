@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-01",
+  "source_base": "e06f40422e44185f1f4eab12437b9b0de97571bb",
+  "decision": "Use Objective Development shared Audio class identity with an owner-controlled email namespace. No external PID request, purchase or proprietary driver.",
+  "identity": {
+    "vendor_id": 5824,
+    "product_id": 10208,
+    "serial_prefix": "lkdtc2012@gmail.com:"
+  },
+  "namespace_source": "Public email from the authenticated bei612 GitHub profile; user authorized using an account email for the product identifier.",
+  "sharing_rules": "https://github.com/obdev/v-usb/blob/801242072fa035e1839e3571df0d9a18e9cec95c/usbdrv/USB-IDs-for-free.txt",
+  "rules_applied": [
+    "Audio class VID/PID 16c0:27e0 uses the Windows system audio class driver.",
+    "Serial starts with the owner-controlled email plus colon; installation appends an independently generated suffix.",
+    "Applications select explicit WASAPI endpoint IDs; VID/PID alone is not used to select a recording target.",
+    "No exclusive allocation, USB-IF certification or use of V-USB firmware is claimed."
+  ],
+  "driver_review": {
+    "source": "third_party/usbip-win2/drivers/ude/wsk_receive.cpp and device_ioctl.cpp",
+    "finding": "The optional 16-byte driver serial override is left empty. The original USB string descriptor is passed through, preserving the complete domain/email namespace."
+  },
+  "windows_serial_reference": "https://learn.microsoft.com/en-us/windows-hardware/drivers/usbcon/usb-faq--introductory-level",
+  "checks": {
+    "descriptor_boundary": "1..126 safe ASCII characters; UTF-16 descriptor round-trip and invalid/truncated inputs checked",
+    "gateway_configuration": "Actual gateway module validation and strict Clippy through local harness passed",
+    "native_deployment": "Go deployment and command tests passed; a prefix generates a fresh suffix and is not emitted as an unsupported gateway field",
+    "package_profile": "Five native driver/profile inventory tests passed",
+    "actual_device": {
+      "passed": true,
+      "rounds": [
+        {
+          "devices": [
+            {
+              "id": "wasapi:{0.0.0.00000000}.{3afd7873-daef-4d22-b4dc-6c7c0d0c16c9}",
+              "input": false,
+              "name": "线路 (4- Stream Kit Virtual Audio)",
+              "output": true
+            },
+            {
+              "id": "wasapi:{0.0.1.00000000}.{96759672-3be2-4949-abb4-8eaac03625a2}",
+              "input": true,
+              "name": "线路 (4- Stream Kit Virtual Audio)",
+              "output": false
+            }
+          ],
+          "pnp": [
+            {
+              "PNPDeviceID": "USB\\VID_16C0&PID_27E0\\LKDTC2012@GMAIL.COM:LOCALIDENTITY0123456789",
+              "Service": "usbccgp",
+              "ConfigManagerErrorCode": 0
+            }
+          ]
+        },
+        {
+          "devices": [
+            {
+              "id": "wasapi:{0.0.0.00000000}.{3afd7873-daef-4d22-b4dc-6c7c0d0c16c9}",
+              "input": false,
+              "name": "线路 (4- Stream Kit Virtual Audio)",
+              "output": true
+            },
+            {
+              "id": "wasapi:{0.0.1.00000000}.{96759672-3be2-4949-abb4-8eaac03625a2}",
+              "input": true,
+              "name": "线路 (4- Stream Kit Virtual Audio)",
+              "output": false
+            }
+          ],
+          "pnp": [
+            {
+              "PNPDeviceID": "USB\\VID_16C0&PID_27E0\\LKDTC2012@GMAIL.COM:LOCALIDENTITY0123456789",
+              "Service": "usbccgp",
+              "ConfigManagerErrorCode": 0
+            }
+          ]
+        }
+      ],
+      "pair": {
+        "after_clear": {
+          "captured_frames": 24000,
+          "peak": 0.00006103515625,
+          "quiet": true,
+          "rms": 0.00002055504823680115,
+          "tone_amplitude": 1.0200364466661853e-7
+        },
+        "baseline": {
+          "captured_frames": 24000,
+          "peak": 0.00006103515625,
+          "quiet": true,
+          "rms": 0.00002059182865121435,
+          "tone_amplitude": 1.7235238831834772e-8
+        },
+        "captured_frames": 144000,
+        "closed_after_drop": true,
+        "drain_before_silence_ms": 300,
+        "first_error_after_frames": null,
+        "passed": true,
+        "submitted_packets": 149,
+        "target": {
+          "device_open": true,
+          "device_sample_frames": 221376,
+          "dropped_frames": 1,
+          "error": null,
+          "realtime_denied": false,
+          "xruns": 0
+        },
+        "tone": {
+          "captured_frames": 144000,
+          "peak": 0.10003662109375,
+          "quiet": false,
+          "rms": 0.06982852247652106,
+          "tone_amplitude": 0.09744703493643375
+        },
+        "tone_amplitude": 0.09744703493643375
+      },
+      "default_endpoints_unchanged": true,
+      "provider_exit_codes": [
+        0,
+        0
+      ],
+      "function_driver": {
+        "service": "usbaudio2",
+        "parent_serial": "lkdtc2012@gmail.com:LocalIdentity0123456789",
+        "source": "Read-only Get-PnpDeviceProperty after owned provider cleanup; parent relationship matches the tested shared-ID device"
+      }
+    },
+    "installer_recipe": "Official Inno Setup 7.1.1 /O- compile passed with shared profile and serial prefix; no installer produced by this syntax check"
+  },
+  "evidence": {
+    "path": ".local/validation/long-audio-identity-1793517608241/result.json",
+    "sha256": "3b06644978f7989d4f3d593207a8d67619ee2f69b57cdaa894fd042f58776d85"
+  },
+  "limits": "Local shared-ID enumeration, generated PCM, clean stop and persistent endpoint IDs. Not a unified installed package, physical human speech or complete production acceptance."
+}

@@ -28,6 +28,16 @@ test('USB audio packaging requires the host controller, companion filter and lic
   assert.throws(()=>validateUSBDriverInventory(profile.files.filter(file=>!file.path.startsWith('usbip2_filter'))),/both signed drivers/)
   assert.throws(()=>validateUSBDriverInventory(profile.files.filter(file=>file.path!=='LICENSE.txt')),/license/)
 })
+test('shared Audio class profile requires a bounded owner namespace and no fixed serial',()=>{
+  const shared={vendor_id:5824,product_id:10208,serial_prefix:'owner@example.org:'}
+  assert.deepEqual(validateUSBAudioIdentity(shared),shared)
+  assert.doesNotThrow(()=>validateUSBAudioIdentity({...shared,serial_prefix:'example.org:'}))
+  assert.doesNotThrow(()=>validateUSBAudioIdentity(JSON.parse(fs.readFileSync(new URL('../deploy/windows/usb-audio-identity.json',import.meta.url),'utf8'))))
+  for(const serial_prefix of [undefined,'','TestOnly','owner@example.org','bad,owner@example.org:','x'.repeat(112)+'.org:','owner@example.org:\n']){
+    const value={...shared,serial_prefix};if(serial_prefix===undefined)delete value.serial_prefix
+    assert.throws(()=>validateUSBAudioIdentity(value))
+  }
+})
 test('USB audio packaging rejects changed, duplicate and development-only files',()=>{
   const changed=structuredClone(profile.files);changed[0].sha256='0'.repeat(64)
   assert.throws(()=>validateUSBDriverInventory(changed),/integrity mismatch/)

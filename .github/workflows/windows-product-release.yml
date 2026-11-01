@@ -8,7 +8,7 @@ on:
         type: string
         required: false
       usb_audio_identity:
-        description: 'Optional assigned USB audio identity JSON: vendor_id and product_id; no test serial'
+        description: 'Optional USB audio identity override; blank uses the committed shared Audio class profile'
         type: string
         required: false
       promote_run_id:
@@ -64,9 +64,9 @@ jobs:
       - name: Validate requested product version before native builds
         run: >-
           node --input-type=module -e "import {productRelease} from './scripts/lib/product-release.mjs'; console.log(JSON.stringify(productRelease(process.env.GITHUB_SHA,process.env.STREAM_KIT_RELEASE_VERSION || '')))"
-      - name: Validate optional audio identity before native builds
+      - name: Validate product audio identity before native builds
         run: >-
-          node --input-type=module -e "import fs from 'node:fs'; import {validateUSBAudioIdentity} from './scripts/lib/windows-usb-audio-driver.mjs'; const raw=process.env.STREAM_KIT_USB_AUDIO_IDENTITY; if(raw){if(raw.length>4096)throw Error('USB identity too large'); const value=validateUSBAudioIdentity(JSON.parse(raw)); fs.mkdirSync('artifacts/windows-product',{recursive:true}); fs.writeFileSync('artifacts/windows-product/usb-audio-identity.json',JSON.stringify(value));}"
+          node --input-type=module -e "import fs from 'node:fs'; import {validateUSBAudioIdentity} from './scripts/lib/windows-usb-audio-driver.mjs'; const raw=process.env.STREAM_KIT_USB_AUDIO_IDENTITY || fs.readFileSync('deploy/windows/usb-audio-identity.json','utf8'); if(raw.length>4096)throw Error('USB identity too large'); const value=validateUSBAudioIdentity(JSON.parse(raw)); fs.mkdirSync('artifacts/windows-product',{recursive:true}); fs.writeFileSync('artifacts/windows-product/usb-audio-identity.json',JSON.stringify(value));"
       - uses: actions/setup-go@v5
         with:
           go-version: '1.27.3'
@@ -182,13 +182,10 @@ jobs:
           retention-days: 7
       - name: Compile unified installer
         run: |
-          $audioArguments = @()
-          if ($env:STREAM_KIT_USB_AUDIO_IDENTITY) {
-            if (-not $env:WindowsSdkVerBinPath) { throw 'Official Windows SDK tool directory is unavailable' }
-            $signatureTool = Join-Path $env:WindowsSdkVerBinPath 'x64/signtool.exe'
-            if (-not (Test-Path -LiteralPath $signatureTool -PathType Leaf)) { throw 'Official Windows SDK signtool.exe is unavailable' }
-            $audioArguments = @('--usb-audio-driver', 'deploy/windows/usb-audio-driver', '--signtool', $signatureTool, '--usb-audio-identity', 'artifacts/windows-product/usb-audio-identity.json')
-          }
+          if (-not $env:WindowsSdkVerBinPath) { throw 'Official Windows SDK tool directory is unavailable' }
+          $signatureTool = Join-Path $env:WindowsSdkVerBinPath 'x64/signtool.exe'
+          if (-not (Test-Path -LiteralPath $signatureTool -PathType Leaf)) { throw 'Official Windows SDK signtool.exe is unavailable' }
+          $audioArguments = @('--usb-audio-driver', 'deploy/windows/usb-audio-driver', '--signtool', $signatureTool, '--usb-audio-identity', 'artifacts/windows-product/usb-audio-identity.json')
           node scripts/build-windows-installer.mjs artifacts/windows-product/platform artifacts/windows-product/installer "$env:INNO_ISCC" @audioArguments
           if ($LASTEXITCODE -ne 0) { throw 'Unified installer compilation failed' }
       - uses: actions/upload-artifact@v4

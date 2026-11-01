@@ -32,7 +32,8 @@ const release=manifestRelease(manifest)
 if(!/^[a-f0-9]{40}$/.test(commit)||(!reusePayload&&commit!==installerCommit)||manifest.platform!=='windows'||manifest.architecture!=='amd64'||manifest.schema_version!==1)throw Error('Expected matching Windows amd64 platform; immutable older payloads require explicit --reuse-payload')
 const control=JSON.parse(fs.readFileSync(path.join(payload,'orchestrator','bundle-manifest.json'),'utf8'))
 if(control.platform_initialization_version!==1)throw Error('Payload does not declare unified native initialization support')
-if(usbAudio&&control.virtual_audio_configuration_version!==1)throw Error('Payload does not support unified virtual audio initialization')
+if(usbAudio&&![1,2].includes(control.virtual_audio_configuration_version))throw Error('Payload does not support unified virtual audio initialization')
+if(usbIdentity?.serial_prefix&&control.virtual_audio_configuration_version!==2)throw Error('Payload does not support namespaced virtual audio identity')
 const hash=file=>createHash('sha256').update(fs.readFileSync(file)).digest('hex')
 const expected=new Map()
 for(const file of manifest.files){
@@ -59,7 +60,7 @@ fs.mkdirSync(output,{recursive:true})
 const driver=usbAudio?prepareUSBAudioDriver(path.resolve(args[4]),path.resolve(args[6]),output,path.join(payload,'orchestrator','orchestrator.exe')):null
 if(usbAudio)driver.identity=usbIdentity
 const installerSuffix=installerCommit===commit?'':`-r${installerCommit.slice(0,8)}`
-execFileSync(compiler,['/Qp',`/DPayloadRoot=${payload}`,`/DArtifactDir=${output}`,`/DSourceCommit=${commit}`,`/DInstallerSuffix=${installerSuffix}`,`/DProductVersion=${release.version}`,`/DWindowsProductVersion=${release.windowsVersion}`,`/DProductArtifactPrefix=${release.prefix}`,...(driver?[`/DUsbAudioDriverRoot=${driver.stage}`,`/DUsbAudioVendorId=${usbIdentity.vendor_id}`,`/DUsbAudioProductId=${usbIdentity.product_id}`]:[]),path.join(root,'deploy/windows/stream-kit.iss')],{stdio:'inherit',windowsHide:true})
+execFileSync(compiler,['/Qp',`/DPayloadRoot=${payload}`,`/DArtifactDir=${output}`,`/DSourceCommit=${commit}`,`/DInstallerSuffix=${installerSuffix}`,`/DProductVersion=${release.version}`,`/DWindowsProductVersion=${release.windowsVersion}`,`/DProductArtifactPrefix=${release.prefix}`,...(driver?[`/DUsbAudioDriverRoot=${driver.stage}`,`/DUsbAudioVendorId=${usbIdentity.vendor_id}`,`/DUsbAudioProductId=${usbIdentity.product_id}`,...(usbIdentity.serial_prefix?[`/DUsbAudioSerialPrefix=${usbIdentity.serial_prefix}`]:[])]:[]),path.join(root,'deploy/windows/stream-kit.iss')],{stdio:'inherit',windowsHide:true})
 if(driver){
   if(path.dirname(path.resolve(driver.stage))!==output)throw Error('Audio staging directory escaped installer output')
   // Remove only the exact vendor files this build staged, never recursively

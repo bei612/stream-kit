@@ -208,6 +208,9 @@ begin
 #ifdef UsbAudioDriverRoot
     Arguments := Arguments + ' --usb-audio-vendor-id {#UsbAudioVendorId}' +
       ' --usb-audio-product-id {#UsbAudioProductId}';
+  #ifdef UsbAudioSerialPrefix
+    Arguments := Arguments + ' --usb-audio-serial-prefix ' + Quoted('{#UsbAudioSerialPrefix}');
+  #endif
 #endif
     if AdminFile <> '' then Arguments := Arguments + ' --admin-file ' + Quoted(AdminFile);
     if ExpandConstant('{param:SESSIONID|}') <> '' then

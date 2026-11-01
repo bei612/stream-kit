@@ -9,11 +9,13 @@ const profile=JSON.parse(fs.readFileSync(fileURLToPath(new URL('../../orchestrat
 const hash=file=>createHash('sha256').update(fs.readFileSync(file)).digest('hex')
 
 export function validateUSBAudioIdentity(value){
-  if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).sort().join(',')!=='product_id,vendor_id')throw Error('Expected USB audio identity with vendor_id and product_id only')
+  if(!value||typeof value!=='object'||Array.isArray(value)||!['product_id,vendor_id','product_id,serial_prefix,vendor_id'].includes(Object.keys(value).sort().join(',')))throw Error('Expected USB audio identity with vendor_id, product_id and optional serial_prefix')
   for(const id of [value.vendor_id,value.product_id]){
     if(!Number.isInteger(id)||id<1||id>65534)throw Error('USB audio vendor/product identity must be an integer in 1..65534')
   }
-  return {vendor_id:value.vendor_id,product_id:value.product_id}
+  if(value.serial_prefix!==undefined&&(typeof value.serial_prefix!=='string'||value.serial_prefix.length>111||!/^(?:[A-Za-z0-9._+-]+@)?[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+:$/.test(value.serial_prefix)))throw Error('USB audio serial prefix requires an owner-controlled domain or email followed by a colon, up to 111 ASCII characters')
+  if(value.vendor_id===0x16c0&&value.product_id===0x27e0&&!value.serial_prefix)throw Error('Shared Audio class identity requires an owner-controlled domain/email serial prefix')
+  return {vendor_id:value.vendor_id,product_id:value.product_id,...(value.serial_prefix?{serial_prefix:value.serial_prefix}:{})}
 }
 
 export function validateUSBDriverInventory(files){

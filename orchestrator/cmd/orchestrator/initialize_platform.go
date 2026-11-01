@@ -24,6 +24,7 @@ func initializePlatform(args []string) error {
 	rendererPort := flags.Int("renderer-port", 47989, "renderer base port")
 	usbVendor := flags.Int("usb-audio-vendor-id", 0, "deployment USB audio vendor identity")
 	usbProduct := flags.Int("usb-audio-product-id", 0, "deployment USB audio product identity")
+	usbPrefix := flags.String("usb-audio-serial-prefix", "", "owner-controlled domain/email serial prefix")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -41,8 +42,8 @@ func initializePlatform(args []string) error {
 		return fmt.Errorf("invalid Windows session ID")
 	}
 	options := deployment.Options{Root: *root, Data: *data, Commit: commit, SessionID: uint32(*session), UserSID: *sid, ControlPort: *controlPort, GatewayPort: *gatewayPort, RendererPort: *rendererPort}
-	if *usbVendor != 0 || *usbProduct != 0 {
-		options.VirtualAudio = &deployment.VirtualAudioIdentity{VendorID: *usbVendor, ProductID: *usbProduct}
+	if *usbVendor != 0 || *usbProduct != 0 || *usbPrefix != "" {
+		options.VirtualAudio = &deployment.VirtualAudioIdentity{VendorID: *usbVendor, ProductID: *usbProduct, SerialPrefix: *usbPrefix}
 	}
 	if *adminFile != "" {
 		name, password, err := readAdministrator(*adminFile)

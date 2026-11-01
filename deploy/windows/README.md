@@ -7,7 +7,7 @@ VB-CABLE packaging and installation support has been removed. The product
 does not download it, request a vendor authorization record, or install it.
 Existing compatible endpoints remain selectable through normal audio routing.
 
-The free USB audio provider is being integrated. Its optional installer branch
+The free USB audio provider is being integrated. Its bundled installer branch
 uses `orchestrator audio-driver install` inside the same elevated setup process.
 The reviewed package contains only the usbip-win2 0.9.8.1 host-controller and
 companion-filter INF/SYS/CAT files plus the BSD license (248,304 bytes total).
@@ -24,15 +24,20 @@ eligible for inclusion, never the upstream GUI or development utilities.
 Build selection is `--usb-audio-driver PACKAGE_DIR --signtool OFFICIAL_SIGNTOOL_EXE
 --usb-audio-identity RELEASE_IDENTITY_JSON`
 on `scripts/build-windows-installer.mjs`. An older control binary without the native
-driver command is rejected before packaging. The default release remains the
-runtime-only package without a bundled audio driver. The release identity is a
-bounded JSON object containing only integer `vendor_id` and `product_id` fields;
-it does not contain a shared serial or test defaults. The control bundle must
-declare `virtual_audio_configuration_version: 1`; older initialization binaries
-cannot be paired with this installer branch using `--reuse-payload`.
+driver command is rejected before packaging. Product CI uses the committed
+`deploy/windows/usb-audio-identity.json` profile by default: the freely shared
+Audio class VID/PID `16c0:27e0`, with an owner-controlled email prefix. The
+[published sharing rules](https://github.com/obdev/v-usb/blob/801242072fa035e1839e3571df0d9a18e9cec95c/usbdrv/USB-IDs-for-free.txt)
+permit Audio class use with the system class driver and the prescribed device
+namespace; this is not an exclusive allocation or a USB-IF certification claim.
+No external PID application, paid driver or V-USB firmware is required.
+The identity JSON contains integer `vendor_id`, `product_id` and optional
+`serial_prefix` (required for this shared pair); it never supplies a fixed serial.
+Namespaced initialization requires `virtual_audio_configuration_version: 2`;
+older payloads are rejected even with `--reuse-payload`.
 
 The same native `init-platform` operation receives the release identity, generates
-a 15-character serial for the new installation, and persists it in gateway
+a fresh 15-character random suffix after the release profile's prefix, and persists the complete serial in gateway
 configuration before preflight. Driver installation then runs within the same
 elevated installer, followed by service startup (or manual-reboot deferral).
 Subsequent gateway restarts reuse that persisted serial. Customers do not need
@@ -270,15 +275,15 @@ No host-wide Visual C++ installer or Node.js installation is invoked. This is
 
 For a stable candidate, dispatch `windows-product-release.yml` with
 `release_version=MAJOR.MINOR.PATCH`. An empty version retains preview behavior.
-The optional `usb_audio_identity` input takes a JSON object containing only
-integer `vendor_id` and `product_id`. Supply an assigned release identity to
-include the pinned, signed virtual-audio controller in the same installer.
+The optional `usb_audio_identity` input overrides the committed product profile
+with integer `vendor_id`, `product_id` and optional `serial_prefix` fields.
+Without an override, the shared Audio class profile is used and the pinned,
+signed virtual-audio controller is included in the same installer.
 The workflow validates this input before compilation and uses the initialized
 official Windows SDK signature tool to verify the payload. The installer creates
 a persistent serial for each installation; CI fixture identities and test
-executables are not substituted into this input. With the input empty, no USB
-driver is bundled. Selecting this branch is not evidence of identity allocation
-or completed installation acceptance.
+executables are not substituted into this input. Selecting this profile is not
+evidence of exclusive identity allocation or completed installation acceptance.
 The shared product identity sets both installer filenames, Windows product/file
 versions, Debian package version and manifest channel/version. This selects
 packaging metadata; it does not claim deployment or audio acceptance has passed.

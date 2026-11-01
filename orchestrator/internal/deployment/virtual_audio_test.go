@@ -3,8 +3,36 @@ package deployment
 import (
 	"encoding/json"
 	"runtime"
+	"strings"
 	"testing"
 )
+
+func TestSharedAudioIdentityPersistsNamespaceAndUniqueSuffix(t *testing.T) {
+	identity := &VirtualAudioIdentity{VendorID: 5824, ProductID: 10208, SerialPrefix: "owner@example.org:"}
+	seen := map[string]bool{}
+	for range 2 {
+		gateway := map[string]any{"virtual_audio": nil}
+		if err := configureVirtualAudio(gateway, identity); err != nil {
+			t.Fatal(err)
+		}
+		encoded, _ := json.Marshal(gateway["virtual_audio"])
+		var value map[string]any
+		if err := json.Unmarshal(encoded, &value); err != nil {
+			t.Fatal(err)
+		}
+		serial := value["serial"].(string)
+		if len(value) != 3 || value["vendor_id"] != float64(5824) || value["product_id"] != float64(10208) || !strings.HasPrefix(serial, identity.SerialPrefix) || len(serial) != len(identity.SerialPrefix)+15 || seen[serial] {
+			t.Fatal("shared identity was not encoded as a complete unique gateway serial")
+		}
+		seen[serial] = true
+	}
+	for _, prefix := range []string{"", "TestOnly", "owner@example.org", "bad,owner@example.org:", strings.Repeat("x", 112) + ".org:"} {
+		identity.SerialPrefix = prefix
+		if err := configureVirtualAudio(map[string]any{"virtual_audio": nil}, identity); err == nil {
+			t.Fatal("invalid shared identity accepted")
+		}
+	}
+}
 
 func TestVirtualAudioConfigurationRequiresSupportedGatewayAndFreshSerial(t *testing.T) {
 	identity := &VirtualAudioIdentity{VendorID: 65534, ProductID: 1}

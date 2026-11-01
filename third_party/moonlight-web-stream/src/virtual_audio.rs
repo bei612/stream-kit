@@ -139,7 +139,11 @@ mod tests {
             serial: "TestOnly".into(),
         };
         assert_eq!(config.validate().is_ok(), cfg!(target_os = "windows"));
-        for serial in ["", "a-b", "1234567890123456", "麦克风"] {
+        for serial in ["owner@example.org:StreamKit0123456789", &"a".repeat(126)] {
+            config.serial = serial.into();
+            assert_eq!(config.validate().is_ok(), cfg!(target_os = "windows"));
+        }
+        for serial in ["", "bad,serial", "bad/serial", "麦克风", &"a".repeat(127)] {
             config.serial = serial.into();
             assert!(config.validate().is_err());
         }
