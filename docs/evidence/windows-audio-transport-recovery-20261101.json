@@ -7,6 +7,7 @@
   "checks": {
     "native_lifecycle_tests": "5 passed, including truncated connection failure notification, preserved cleanup error, listener release and normal close notification",
     "gateway_module_tests": "4 passed through the local harness importing the actual virtual_audio.rs and shutdown.rs; covers failure-triggered shutdown, normal OS shutdown and disabled provider behavior",
+    "native_provider_graceful_stop": "Passed TestNativeWorkerAuthenticatedLifecycle/managed-graceful with the rebuilt harness importing the changed gateway modules. It created the real LocalLine48k virtual device, received the authenticated worker's scoped stop, released the owned attachment and exited zero with the completion marker. No driver installation or default audio change.",
     "audio_target_clippy_all_targets": "passed with -D warnings; existing dependency-only CPAL dead-code warning remains",
     "rustfmt": "passed",
     "diff_whitespace": "passed"
