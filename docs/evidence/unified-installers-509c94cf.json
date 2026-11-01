@@ -20,7 +20,12 @@
       "product_id": 10208,
       "serial_prefix": "lkdtc2012@gmail.com:"
     },
-    "actual_installation_acceptance": "pending Windows UAC confirmation"
+    "actual_installation_acceptance": {
+      "passed": false,
+      "started": false,
+      "status": "not_started_uac_cancelled",
+      "scope": "Windows Start-Process RunAs returned operation cancelled; acceptance helper did not start and no installation result exists. No driver/service change claimed."
+    }
   },
   "linux": {
     "installer": {
@@ -58,5 +63,5 @@
     }
   },
   "physical_human_speech_acceptance": "deferred; not proven by generated PCM",
-  "publication": "not published"
+  "publication": "candidate prepared; pending verified artifact promotion"
 }
