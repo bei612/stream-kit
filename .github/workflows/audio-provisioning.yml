@@ -79,6 +79,8 @@ jobs:
           cache-on-failure: 'true'
       - name: Provision only the signed synthetic audio fixture
         run: |
+          ./scripts/prepare-windows-audio-fixture.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           go -C orchestrator build -o ../artifacts/audio-playback/orchestrator-audio-driver.exe ./cmd/orchestrator
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & artifacts/audio-playback/orchestrator-audio-driver.exe audio-driver install deploy/windows/usb-audio-driver 2>&1 | Tee-Object -FilePath artifacts/audio-playback/driver-install.log

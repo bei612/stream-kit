@@ -6,6 +6,9 @@ on:
     paths-ignore:
       - 'docs/**'
       - '.github/workflows/windows-product-release.yml'
+      - '.github/workflows/linux-sunshine-build.yml'
+      - '.github/workflows/linux-native-capture.yml'
+      - '.github/workflows/audio-provisioning.yml'
       - '.github/scripts/**'
       - '**/*.md'
       - 'contracts/windows-installation/**'
@@ -16,6 +19,9 @@ on:
     paths-ignore:
       - 'docs/**'
       - '.github/workflows/windows-product-release.yml'
+      - '.github/workflows/linux-sunshine-build.yml'
+      - '.github/workflows/linux-native-capture.yml'
+      - '.github/workflows/audio-provisioning.yml'
       - '.github/scripts/**'
       - '**/*.md'
       - 'contracts/windows-installation/**'
@@ -309,7 +315,7 @@ jobs:
         working-directory: .
         run: |
           New-Item -ItemType Directory -Force artifacts/audio-playback | Out-Null
-          node scripts/record-windows-audio-environment.cjs --policy-only
+          ./scripts/prepare-windows-audio-fixture.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $admin = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
           if (-not $admin.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Hosted Windows audio fixture requires an elevated runner' }
