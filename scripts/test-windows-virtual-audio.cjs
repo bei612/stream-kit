@@ -10,13 +10,14 @@ const {startAudioProbe} = require('./lib/audio-probe.cjs');
 const execute = promisify(execFile);
 
 async function main() {
-  if (process.platform !== 'win32' || process.argv.length !== 3) {
-    throw Error('Expected Windows: node test-windows-virtual-audio.cjs AUDIO_TARGET_DEBUG_DIRECTORY');
+  const pairOnly = process.argv.length === 4 && process.argv[3] === '--pair-only';
+  if (process.platform !== 'win32' || !(process.argv.length === 3 || pairOnly)) {
+    throw Error('Expected Windows: node test-windows-virtual-audio.cjs AUDIO_TARGET_DEBUG_DIRECTORY [--pair-only]');
   }
   const native = path.resolve(process.argv[2]);
   const output = path.resolve('artifacts/audio-playback/virtual-device');
   fs.mkdirSync(output, {recursive:true});
-  const report = {schema_version:1, recorded_at:new Date().toISOString(), scope:'Temporary CI audio device and generated PCM; not physical human speech', passed:false};
+  const report = {schema_version:1, recorded_at:new Date().toISOString(), scope:'Temporary CI audio device and generated PCM; not physical human speech', browser_checks_requested:!pairOnly, passed:false};
   let provider, ended, probe, closed = false;
   const abort = new AbortController();
   const cancel = () => { abort.abort(); provider?.stdin?.end(); };
@@ -67,7 +68,7 @@ async function main() {
     report.pair=JSON.parse(await run('pair',path.join(native,'examples/verify_pair.exe'),[report.endpoints.render.id,report.endpoints.capture.id]));
     if (report.pair.passed!==true) throw Error('Actual native PCM pair did not pass');
     report.browsers=[];
-    for (const engine of ['chromium','firefox']) {
+    for (const engine of pairOnly ? [] : ['chromium','firefox']) {
       await run(`browser-${engine}`,process.execPath,['scripts/test-audio-playback-browser.cjs'],{...process.env,BROWSER_CHANNEL:'chromium',BROWSER_ENGINE:engine});
       report.browsers.push(engine);
     }
@@ -101,6 +102,8 @@ async function main() {
     }
   }
   if (!report.passed) throw Error(report.cleanup_error || 'Provider cleanup failed');
-  console.log('Windows owned virtual audio: PCM, Chromium/Firefox audio and clean device shutdown passed');
+  console.log(pairOnly
+    ? 'Windows owned virtual audio: PCM and clean device shutdown passed; browsers not requested'
+    : 'Windows owned virtual audio: PCM, Chromium/Firefox audio and clean device shutdown passed');
 }
 main().catch(error => { console.error(error); process.exitCode=1; });

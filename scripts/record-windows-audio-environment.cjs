@@ -26,11 +26,21 @@ function Read-AudioSetting($key,$name) {
   return $item.$name
 }
 $consent='SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone'
+$deviceAccess=$null
+$deviceAccessError=$null
+try {
+  $access=[Windows.Devices.Enumeration.DeviceAccessInformation,Windows.Devices.Enumeration,ContentType=WindowsRuntime]::CreateFromDeviceClass([Windows.Devices.Enumeration.DeviceClass,Windows.Devices.Enumeration,ContentType=WindowsRuntime]::AudioCapture)
+  $deviceAccess=$access.CurrentStatus.ToString()
+} catch { $deviceAccessError=$_.Exception.Message }
 [pscustomobject]@{
   process_session_id=[Diagnostics.Process]::GetCurrentProcess().SessionId
+  session_name=$env:SESSIONNAME
+  user_interactive=[Environment]::UserInteractive
   services=@(Get-Service -Name Audiosrv,AudioEndpointBuilder | Select-Object Name,@{n='status';e={$_.Status.ToString()}})
   sound_devices=@(Get-CimInstance Win32_SoundDevice | Select-Object Name,Status,ConfigManagerErrorCode)
   recording_access=[pscustomobject]@{
+    device_class_status=$deviceAccess
+    device_class_query_error=$deviceAccessError
     machine=Read-AudioSetting ('HKLM:\'+$consent) 'Value'
     user=Read-AudioSetting ('HKCU:\'+$consent) 'Value'
     desktop=Read-AudioSetting ('HKCU:\'+$consent+'\NonPackaged') 'Value'

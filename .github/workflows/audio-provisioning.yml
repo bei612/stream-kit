@@ -1,6 +1,12 @@
 name: audio-provisioning
 on:
   workflow_dispatch:
+    inputs:
+      target:
+        description: 'Native audio environment to verify without rebuilding the full platform'
+        type: choice
+        options: [linux, windows]
+        default: linux
   push:
     branches: [main]
     paths:
@@ -12,6 +18,7 @@ permissions:
   contents: read
 jobs:
   linux-audio:
+    if: github.event_name != 'workflow_dispatch' || inputs.target == 'linux'
     strategy:
       fail-fast: false
       matrix:
@@ -40,3 +47,51 @@ jobs:
           name: audio-provisioning-${{ matrix.backend }}-logs
           path: artifacts/audio-provisioning/
           if-no-files-found: ignore
+
+  windows-audio:
+    if: github.event_name == 'workflow_dispatch' && inputs.target == 'windows'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.4.0'
+      - name: Record Windows recording access without changing it
+        run: node scripts/record-windows-audio-environment.cjs --policy-only
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-recording-access
+          path: artifacts/audio-playback/windows-environment.json
+          if-no-files-found: error
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.3'
+          cache-dependency-path: orchestrator/go.sum
+      - uses: dtolnay/rust-toolchain@1.99.0
+      - uses: ilammy/msvc-dev-cmd@v1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: components/audio-target
+          cache-on-failure: 'true'
+      - name: Provision only the signed synthetic audio fixture
+        run: |
+          go -C orchestrator build -o ../artifacts/audio-playback/orchestrator-audio-driver.exe ./cmd/orchestrator
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & artifacts/audio-playback/orchestrator-audio-driver.exe audio-driver install deploy/windows/usb-audio-driver 2>&1 | Tee-Object -FilePath artifacts/audio-playback/driver-install.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Start-Service AudioEndpointBuilder
+          Start-Service Audiosrv
+          cargo build --locked --manifest-path components/audio-target/Cargo.toml --bin audio-probe --example virtual_device --example verify_pair 2>&1 | Tee-Object -FilePath artifacts/audio-playback/native-probe-build.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify native PCM and owned device cleanup
+        run: node scripts/test-windows-virtual-audio.cjs components/audio-target/target/debug --pair-only
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-native-audio-environment
+          path: artifacts/audio-playback/
+          if-no-files-found: error
