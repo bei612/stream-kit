@@ -27,13 +27,13 @@ jobs:
       - if: matrix.backend == 'pulse'
         run: sudo apt-get update && sudo apt-get install -y pulseaudio pulseaudio-utils
       - if: matrix.backend == 'pipewire'
-        run: sudo apt-get update && sudo apt-get install -y pipewire pipewire-pulse pulseaudio-utils
+        run: sudo apt-get update && sudo apt-get install -y pipewire pipewire-pulse wireplumber pulseaudio-utils dbus
       - name: Provision and reuse real isolated recording endpoints
         if: matrix.backend == 'pulse'
         run: bash scripts/test-audio-target-linux.sh --command bash -c 'cd orchestrator && STREAM_KIT_ISOLATED_AUDIO_TEST=1 go test -v ./internal/audiodevice'
       - name: Provision and release PipeWire endpoints
         if: matrix.backend == 'pipewire'
-        run: bash scripts/test-audio-provisioning-pipewire.sh
+        run: dbus-run-session -- bash scripts/test-audio-provisioning-pipewire.sh
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
