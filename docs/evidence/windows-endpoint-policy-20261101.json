@@ -13,7 +13,30 @@
     "finding": "Writing render-only mask 0x107 and the association to the two exact owned interfaces, followed by disconnect/reconnect, did not prevent default and communications output selection. Do not integrate this sequence as a verified fix.",
     "private_evidence": ".local/validation/ci-endpoint-policy-24a4df63/endpoint-policy/result.json"
   },
-  "next_hypothesis": "Existing endpoint property stores persist across attachment. Microsoft documents an in-place reinstall of the existing audio driver as an endpoint migration trigger. Verify that path only on the exact disposable synthetic audio node; do not reinstall all matching hardware IDs or mutate default selections.",
+  "interface_policy_with_device_scoped_inbox_refresh": {
+    "source_commit": "b1ee31ff273893f4cdfbad6f51a67e0c3a5d26b6",
+    "run": "https://github.com/bei612/stream-kit/actions/runs/41292476731",
+    "passed": true,
+    "selection_regression_reproduced_before_preparation": true,
+    "exact_target_inbox_driver_refreshed": true,
+    "system_and_communications_outputs_preserved_after_preparation": true,
+    "explicit_pcm_passed": true,
+    "captured_frames": 144000,
+    "dropped_frames": 0,
+    "xruns": 0,
+    "prepared_restart_passed": true,
+    "endpoint_ids_migrated_during_driver_refresh": true,
+    "post_preparation_ids_stable_across_restart": true,
+    "private_log_result": ".local/validation/endpoint-policy-refresh-log.json",
+    "private_log_result_sha256": "f7818a2d89c0195e23c83c5a2784b9b6ae9559c3b89e9b1bcad3fa1c4b1b7137",
+    "limits": [
+      "This is an isolated Windows CI experiment. The customer installer and production startup lifecycle have not yet integrated the sequence.",
+      "The initial unprepared attachment reproduced a temporary default-output change. This evidence establishes the state after preparation and after subsequent restart, not absence of all transient selection during first-time setup.",
+      "Only render-role default selection was prohibited. Capture remains selectable as a default input.",
+      "The check used generated PCM, not human speech."
+    ]
+  },
+  "next_step": "Integrate device preparation into the existing privileged platform lifecycle, using the actual native gateway solely to initialize its configured device, without an HTTP listener or generated PCM. Apply policy through documented interface APIs and refresh only the exact owned node's existing Microsoft inbox driver before the regular user-session gateway starts. Make completed preparation idempotent and preserve normal restart identity. Keep the experiment programs outside runtime bundles.",
   "references": [
     "https://learn.microsoft.com/en-us/windows-hardware/drivers/audio/pkey-audiodevice-neversetasdefaultendpoint",
     "https://learn.microsoft.com/en-us/windows-hardware/drivers/audio/operating-system-upgrades",
