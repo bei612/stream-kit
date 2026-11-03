@@ -173,13 +173,13 @@ func prepareFiles(ctx context.Context, options Options, root, data, stage string
 	internalPassword := rand.Text() + rand.Text()
 	control.Server.MediaTicketSecret = secret
 	control.Server.BindAddress = controlAddress
-	control.Server.CORSOrigins = []string{gatewayURL}
+	control.Server.CORSOrigins = []string{fmt.Sprintf("http://{host}:%d", options.GatewayPort)}
 	control.Storage.AppsDir = filepath.Join(data, "apps")
 	control.Storage.TempDir = filepath.Join(data, "temp")
 	control.Storage.DBPath = filepath.Join(data, "data", "orchestrator.db")
 	control.Log.File.Path = filepath.Join(data, "logs", "orchestrator.log")
 	control.SunshineAPI = config.SunshineAPIConfig{BaseURL: fmt.Sprintf("https://127.0.0.1:%d", options.RendererPort+1), ServerInfoURL: fmt.Sprintf("http://127.0.0.1:%d/serverinfo", options.RendererPort), Username: "stream-kit", Password: internalPassword, VerifySSL: false}
-	control.MoonlightWeb = config.MoonlightWebConfig{BaseURL: gatewayURL, PublicURL: gatewayURL, Username: "stream-kit", Password: internalPassword}
+	control.MoonlightWeb = config.MoonlightWebConfig{BaseURL: gatewayURL, PublicURL: "", Username: "stream-kit", Password: internalPassword}
 	for _, name := range []string{"sunshine", "web_server"} {
 		component := control.Components[name]
 		component.AutoStart = true
