@@ -202,7 +202,7 @@ func prepareFiles(ctx context.Context, options Options, root, data, stage string
 			component.ExePath = filepath.Join(component.WorkingDir, filepath.FromSlash(layout.Executable))
 			prefix := "--config-path " + quote(filepath.Join(data, "gateway", "config.json"))
 			component.Args, component.PreflightArgs = prefix+" run", prefix+" config check"
-			component.HealthCheck.URL = gatewayURL + "/config.js"
+			component.HealthCheck.URL = gatewayURL + "/stream.html"
 		}
 		control.Components[name] = component
 	}

@@ -63,6 +63,14 @@ async function main() {
       await delay(100);
     }
     assert.ok(ready, 'Gateway readiness timeout');
+    // Check the actual bundle from an unrelated working/configuration directory.
+    // config.js is generated and can succeed even when every viewer asset is 404.
+    for (const asset of ['index.html', 'stream.html', 'manifest.json', 'service-worker.js']) {
+      const response = await fetch(`http://127.0.0.1:${port}/gateway/${asset}`);
+      assert.equal(response.status, 200, `Packaged viewer asset unavailable: ${asset}`);
+      const expected = fs.readFileSync(path.join(path.dirname(binary), 'dist', asset));
+      assert.deepEqual(Buffer.from(await response.arrayBuffer()), expected, `Wrong packaged viewer asset: ${asset}`);
+    }
     const inventoryURL = `http://127.0.0.1:${port}/gateway/internal/v2/audio-devices`;
     const inventoryRequest = { schema_version: 2, request_id: crypto.randomBytes(16).toString('hex'), issued_at_ms: Date.now() };
     const inventoryPost = (request, domain = 'stream-kit/audio-devices/request/v2\n') => {
