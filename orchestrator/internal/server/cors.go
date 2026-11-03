@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -21,8 +22,12 @@ func CORSMiddleware(allowed []string) gin.HandlerFunc {
 	}
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
+		_, permitted := set[origin]
+		if !permitted {
+			permitted = sameHostOrigin(origin, c.Request.Host, allowed)
+		}
 		if origin != "" {
-			if _, ok := set[origin]; ok {
+			if permitted {
 				c.Header("Access-Control-Allow-Origin", origin)
 				c.Header("Vary", "Origin")
 				c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
@@ -34,7 +39,7 @@ func CORSMiddleware(allowed []string) gin.HandlerFunc {
 				c.AbortWithStatus(http.StatusNoContent)
 				return
 			}
-			if _, ok := set[origin]; !ok {
+			if !permitted {
 				c.AbortWithStatus(http.StatusForbidden)
 				return
 			}
@@ -43,4 +48,31 @@ func CORSMiddleware(allowed []string) gin.HandlerFunc {
 		}
 		c.Next()
 	}
+}
+
+// {host} represents only the request's hostname, never an arbitrary origin.
+// Scheme and gateway port remain explicitly configured. Forwarded headers are
+// deliberately not trusted to expand the browser-origin allow list.
+func sameHostOrigin(origin, host string, allowed []string) bool {
+	u, err := url.Parse("//" + host)
+	if err != nil || u.Hostname() == "" || u.User != nil || u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
+		return false
+	}
+	name := u.Hostname()
+	if strings.Contains(name, ":") {
+		name = "[" + name + "]"
+	}
+	for _, template := range allowed {
+		if !strings.Contains(template, "{host}") {
+			continue
+		}
+		parsed, err := url.Parse(strings.ReplaceAll(template, "{host}", "stream-kit.invalid"))
+		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Hostname() != "stream-kit.invalid" || parsed.User != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+			continue
+		}
+		if origin == strings.ReplaceAll(template, "{host}", name) {
+			return true
+		}
+	}
+	return false
 }

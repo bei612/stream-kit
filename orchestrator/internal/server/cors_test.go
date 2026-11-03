@@ -34,3 +34,24 @@ func TestCORSRejectsUnknownPreflight(t *testing.T) {
 		t.Fatalf("status=%d, want %d", res.Code, http.StatusForbidden)
 	}
 }
+
+func TestCORSFollowsRequestHostWithoutOpeningOtherOrigins(t *testing.T) {
+	for _, tc := range []struct {
+		host, origin string
+		want         bool
+	}{
+		{"192.168.3.66:9000", "http://192.168.3.66:8080", true},
+		{"192.168.3.77:9000", "http://192.168.3.77:8080", true},
+		{"render.example:9000", "http://render.example:8080", true},
+		{"[::1]:9000", "http://[::1]:8080", true},
+		{"192.168.3.77:9000", "http://192.168.3.66:8080", false},
+		{"render.example:9000", "http://evil.example:8080", false},
+		{"render.example:9000", "http://render.example:8081", false},
+		{"render.example:9000", "https://render.example:8080", false},
+		{"render.example:9000", "null", false},
+	} {
+		if got := sameHostOrigin(tc.origin, tc.host, []string{"http://{host}:8080"}); got != tc.want {
+			t.Errorf("origin %q for host %q: %v", tc.origin, tc.host, got)
+		}
+	}
+}
