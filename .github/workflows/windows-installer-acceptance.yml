@@ -5,10 +5,14 @@ on:
       release_tag:
         description: 'Published immutable release to install; no builds are performed'
         type: string
-        default: v0.1.0-rc.1
-        required: true
+        required: false
+      product_run_id:
+        description: 'Successful windows-product-release run to accept before publication; exclusive with release_tag'
+        type: string
+        required: false
 permissions:
   contents: read
+  actions: read
 jobs:
   installed-service:
     runs-on: windows-2022
@@ -16,6 +20,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       RELEASE_TAG: ${{ inputs.release_tag }}
+      PRODUCT_RUN_ID: ${{ inputs.product_run_id }}
     defaults:
       run:
         shell: pwsh
@@ -24,6 +29,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '26.4.0'
+      - name: Validate immutable installer source selection
+        run: |
+          if ([bool]$env:RELEASE_TAG -eq [bool]$env:PRODUCT_RUN_ID) { throw 'Select exactly one release tag or product run' }
+          if ($env:PRODUCT_RUN_ID -and $env:PRODUCT_RUN_ID -notmatch '^[1-9][0-9]*$') { throw 'Invalid product run ID' }
       - name: Prepare isolated recording access and audio services
         run: |
           $ErrorActionPreference = 'Stop'
@@ -35,6 +44,7 @@ jobs:
           if ($session -eq 0) { throw 'Actual installer acceptance requires the hosted interactive render session' }
           Write-Output "Installer process session: $session"
       - name: Download existing signed-driver runtime installer
+        if: inputs.release_tag != ''
         run: |
           $ErrorActionPreference = 'Stop'
           if ($env:RELEASE_TAG -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(?:-rc\.[1-9][0-9]*)?$') { throw 'Expected a stable or candidate tag' }
@@ -42,6 +52,18 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:EXPECTED_INSTALLER_COMMIT = git rev-parse 'FETCH_HEAD^{commit}'
           gh release download $env:RELEASE_TAG --pattern '*windows-amd64-setup.exe' --pattern installer-manifest.json --dir artifacts/installer-download
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node -e "const fs=require('fs'),a=require('assert/strict'),m=JSON.parse(fs.readFileSync('artifacts/installer-download/installer-manifest.json'));a.equal(m.commit,process.env.EXPECTED_INSTALLER_COMMIT);a.equal(m.installer_source_commit,m.commit);a.equal(m.payload_profile,'runtime');a.equal(m.reused_payload,false)"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Download unpublished verified product artifact
+        if: inputs.product_run_id != ''
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $run = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:PRODUCT_RUN_ID" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot read product run' }
+          if ($run.status -ne 'completed' -or $run.conclusion -ne 'success' -or $run.path -ne '.github/workflows/windows-product-release.yml' -or $run.head_repository.full_name -ne $env:GITHUB_REPOSITORY) { throw 'Expected a successful owned product workflow' }
+          $env:EXPECTED_INSTALLER_COMMIT = $run.head_sha
+          gh run download $env:PRODUCT_RUN_ID --name "windows-product-installer-$($run.head_sha)" --dir artifacts/installer-download
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node -e "const fs=require('fs'),a=require('assert/strict'),m=JSON.parse(fs.readFileSync('artifacts/installer-download/installer-manifest.json'));a.equal(m.commit,process.env.EXPECTED_INSTALLER_COMMIT);a.equal(m.installer_source_commit,m.commit);a.equal(m.payload_profile,'runtime');a.equal(m.reused_payload,false)"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
