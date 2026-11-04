@@ -1,5 +1,9 @@
 name: windows-installer-acceptance
 on:
+  workflow_run:
+    workflows: [windows-product-release]
+    branches: [main]
+    types: [completed]
   workflow_dispatch:
     inputs:
       release_tag:
@@ -15,12 +19,13 @@ permissions:
   actions: read
 jobs:
   installed-service:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: windows-2022
     timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}
       RELEASE_TAG: ${{ inputs.release_tag }}
-      PRODUCT_RUN_ID: ${{ inputs.product_run_id }}
+      PRODUCT_RUN_ID: ${{ github.event.workflow_run.id || inputs.product_run_id }}
     defaults:
       run:
         shell: pwsh
@@ -56,7 +61,7 @@ jobs:
           node -e "const fs=require('fs'),a=require('assert/strict'),m=JSON.parse(fs.readFileSync('artifacts/installer-download/installer-manifest.json'));a.equal(m.commit,process.env.EXPECTED_INSTALLER_COMMIT);a.equal(m.installer_source_commit,m.commit);a.equal(m.payload_profile,'runtime');a.equal(m.reused_payload,false)"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Download unpublished verified product artifact
-        if: inputs.product_run_id != ''
+        if: env.PRODUCT_RUN_ID != ''
         run: |
           $ErrorActionPreference = 'Stop'
           $run = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:PRODUCT_RUN_ID" | ConvertFrom-Json
