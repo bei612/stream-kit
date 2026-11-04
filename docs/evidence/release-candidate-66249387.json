@@ -2,7 +2,7 @@
     "schema_version":  1,
     "source_commit":  "66249387b32975e79d56b19fdf98d4bc7d414da0",
     "release_tag":  "v0.1.0-rc.2",
-    "state":  "windows_built_linux_building_not_published",
+    "state":  "draft_uploaded_linux_building",
     "windows":  {
                     "manifest":  ".local/release-66249387/windows/installer-manifest.json",
                     "file":  {
@@ -34,5 +34,12 @@
                    "Not yet a published release.",
                    "No new installer execution on the shared host.",
                    "Human speech and trusted LAN HTTPS deployment remain unproven; historical four-hour acceptance is retained."
-               ]
+               ],
+    "draft_release":  "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-rc.2",
+    "windows_acceptance":  {
+                               "run":  "https://github.com/bei612/stream-kit/actions/runs/41760694646",
+                               "state":  "download_precondition_failed",
+                               "reason":  "The workflow read-only token cannot see the draft release. Installer execution did not start.",
+                               "next":  "After publishing the completed candidate assets, retry the acceptance workflow against the unchanged installer."
+                           }
 }
