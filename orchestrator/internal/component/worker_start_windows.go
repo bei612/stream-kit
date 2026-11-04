@@ -17,6 +17,12 @@ import (
 )
 
 func startSessionWorker(ctx context.Context, cfg config.ComponentConfig, root string, session uint32, sid string, logs *RingBuffer) (*ManagedProcess, error) {
+	var err error
+	session, err = resolveWorkerSession(session, sid)
+	if err != nil {
+		return nil, err
+	}
+	cfg.WindowsSessionID = session
 	token, err := openWorkerUser(session, sid)
 	if err != nil {
 		return nil, err

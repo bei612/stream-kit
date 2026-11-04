@@ -174,11 +174,7 @@ func (m *Manager) start(name string, cs *ComponentState, retry bool) error {
 	}
 	cs.mu.Unlock()
 	if err := m.preflight(m.ctx, name); err != nil {
-		cs.mu.Lock()
-		cs.Status = StatusError
-		cs.LastError = err.Error()
-		cs.mu.Unlock()
-		m.emitEvent(name, StatusError)
+		m.startFailed(name, cs, err)
 		return err
 	}
 	if m.closing.Load() {
@@ -200,10 +196,7 @@ func (m *Manager) start(name string, cs *ComponentState, retry bool) error {
 	m.emitEvent(name, StatusStarting)
 	if m.prepare != nil && cfg.ExePath != "" {
 		if err := m.prepare(m.ctx, name, cfg); err != nil {
-			cs.mu.Lock()
-			cs.Status, cs.LastError = StatusError, err.Error()
-			cs.mu.Unlock()
-			m.emitEvent(name, StatusError)
+			m.startFailed(name, cs, err)
 			return fmt.Errorf("prepare component resources: %w", err)
 		}
 		if m.closing.Load() {
@@ -226,11 +219,7 @@ func (m *Manager) start(name string, cs *ComponentState, retry bool) error {
 	logBuf := NewRingBuffer(2000)
 	proc, err := launchComponent(m.ctx, cfg, m.dataDir, logBuf, m.logger)
 	if err != nil {
-		cs.mu.Lock()
-		cs.Status = StatusError
-		cs.LastError = err.Error()
-		cs.mu.Unlock()
-		m.emitEvent(name, StatusError)
+		m.startFailed(name, cs, err)
 		m.logger.Error("组件启动失败", zap.String("component", name), zap.Error(err))
 		return fmt.Errorf("启动失败: %w", err)
 	}

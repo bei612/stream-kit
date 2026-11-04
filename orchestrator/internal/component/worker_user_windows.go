@@ -12,6 +12,38 @@ import (
 
 var errWorkerUser = errors.New("render worker user/session identity mismatch")
 
+func resolveWorkerSession(preferred uint32, sid string) (uint32, error) {
+	expected, err := windows.StringToSid(sid)
+	if err != nil || !interactiveWorkerSID(expected) {
+		return 0, errWorkerUser
+	}
+	var entries *windows.WTS_SESSION_INFO
+	var count uint32
+	if err := windows.WTSEnumerateSessions(0, 0, 1, &entries, &count); err != nil {
+		return 0, err
+	}
+	defer windows.WTSFreeMemory(uintptr(unsafe.Pointer(entries)))
+	if count > 0 && entries == nil {
+		return 0, errWorkerUser
+	}
+	var owned []uint32
+	for _, entry := range unsafe.Slice(entries, count) {
+		if entry.SessionID == 0 || entry.State != windows.WTSActive {
+			continue
+		}
+		var token windows.Token
+		if err := windows.WTSQueryUserToken(entry.SessionID, &token); err != nil {
+			return 0, fmt.Errorf("query active render session: %w", err)
+		}
+		valid := validateWorkerUser(token, entry.SessionID, sid) == nil
+		token.Close()
+		if valid {
+			owned = append(owned, entry.SessionID)
+		}
+	}
+	return chooseWorkerSession(preferred, owned)
+}
+
 // openWorkerUser selects exactly the configured session and SID. No console-
 // session fallback is permitted: session IDs can be reused after sign-out.
 // The caller owns the returned token and must close it after process creation.
@@ -59,7 +91,7 @@ func activeWorkerSession(session uint32) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("render session %d is not active", session)
+	return fmt.Errorf("%w: session %d is not active", errSessionUnavailable, session)
 }
 
 func interactiveWorkerSID(sid *windows.SID) bool {
