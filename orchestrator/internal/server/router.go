@@ -190,6 +190,13 @@ func (s *Server) setupRoutes() {
 		}
 		clientHandler := handlers.NewClientSessionHandler(sh, jwtSecret)
 		clientHandler.GatewayPublicURL = s.Config.MoonlightWeb.PublicURL
+		if s.AppManager != nil {
+			watch := handlers.NewWatchHandler(s.Store, s.AppManager, clientHandler)
+			for _, method := range []string{"GET", "POST", "PUT", "DELETE"} {
+				authed.Handle(method, "/apps/:app_id/watch-link", watch.Manage)
+			}
+			api.POST("/watch/open", watch.Open)
+		}
 		authed.POST("/stream-invitations", clientHandler.Invite)
 		api.POST("/client-sessions/join", clientHandler.Join)
 		api.POST("/client-sessions/:session_id/connections/:connection_id/resume", clientHandler.Resume)

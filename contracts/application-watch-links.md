@@ -1,0 +1,15 @@
+# Durable application viewing links
+
+An administrator enables one durable viewing link per application in the application detail page. The capability is a cryptographically random 256-bit value persisted in the application's SQLite record. Reopening the page, restarting the server, or updating the runtime does not rotate it. Publishing an enabled link is idempotent. Explicit reset replaces it; disable or application deletion revokes it. The normal application JSON projection excludes this capability.
+
+The address is `/watch#key=CAPABILITY` on the management origin. The fragment keeps the capability out of HTTP URLs and access logs. The public watch page uses it only in the Authorization header of `POST /api/v1/watch/open`, without administrator cookies or credentials. Administrative link operations remain behind management authentication. Public admission is rate limited by the actual remote IP.
+
+The server resolves the capability to its application, runs the existing managed application launch lookup and ownership checks, and obtains a fresh invitation for that host/app through the existing session service. The public caller cannot select a different application, executable or command line. The application uses the startup arguments saved by the administrator; an already running shared upstream is joined without restarting it to change arguments. Query parameters do not override startup arguments.
+
+The top-level watch page retains the durable URL and embeds the viewer with a newly issued short-lived invitation. Refreshing or opening a saved iPad bookmark repeats admission automatically. Internal ticket expiry still limits media credentials; it does not expire the saved application link. Admission creates viewer authority only. Input and microphone capture remain subject to the current exclusive controller lease and audio policy.
+
+Reset/disable prevents further use of the old durable capability, including rechecking admission after the launch lookup. It does not terminate existing viewer connections or already issued short-lived invitations. Use session disconnection or application stop when existing viewers must also be removed.
+
+The hostname follows the management page used to copy the link. Other devices need a reachable LAN address or resolvable stable hostname. A saved numeric IP URL cannot follow DHCP changes by itself. The existing HTTPS/browser microphone requirements still apply. Browser autoplay restrictions may require a user gesture before audible playback, independently of application startup.
+
+Coverage: store tests reopen the database and check idempotence, rotation, disable, removal and JSON secrecy. Handler tests exercise repeat admission, viewer-only authority, credential isolation, unchanged startup arguments, invalid keys and rotation during launch lookup. Installed-browser acceptance must additionally demonstrate real automatic application streaming through the durable page.

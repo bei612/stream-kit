@@ -43,6 +43,7 @@ const (
 )
 
 type App struct {
+	WatchToken         *string     `json:"-" gorm:"uniqueIndex;size:43"`
 	CaptureMode        CaptureMode `json:"capture_mode" gorm:"size:16;not null;default:'desktop'"`
 	Source             AppSource   `json:"source" gorm:"size:16;not null;default:'archive'"`
 	ID                 string      `json:"id" gorm:"primaryKey;size:36"`

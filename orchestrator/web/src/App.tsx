@@ -10,6 +10,7 @@ import Logs from '@/pages/Logs'
 import Settings from '@/pages/Settings'
 import StreamSessions from '@/pages/StreamSessions'
 import Login from '@/pages/Login'
+import Watch from '@/pages/Watch'
 import { useWSStore } from '@/stores/websocket'
 import { useEffect } from 'react'
 import { isLoggedIn, getToken, clearToken } from '@/lib/utils'
@@ -112,12 +113,11 @@ function RequireAuth({ children }: { children: ReactNode }) {
 export default function App() {
   return (
     <BrowserRouter>
-      <WSConnector />
-      <TokenExpiryChecker />
-      <AuthRedirector />
+      <ManagementServices />
       <ErrorBoundary>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/watch" element={<Watch />} />
           <Route path="*" element={
             <RequireAuth>
               <Layout>
@@ -139,4 +139,10 @@ export default function App() {
       </ErrorBoundary>
     </BrowserRouter>
   )
+}
+
+function ManagementServices() {
+  const location = useLocation()
+  if (location.pathname === '/watch') return null
+  return <><WSConnector /><TokenExpiryChecker /><AuthRedirector /></>
 }

@@ -1,14 +1,15 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { api } from '@/api/client'
-import { createViewingInvitation, openViewingStream } from '@/lib/stream-access'
+import { openViewingStream } from '@/lib/stream-access'
+import AppWatchLink from '@/components/AppWatchLink'
 import StatusBadge from '@/components/StatusBadge'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/input'
 import { Alert } from '@/components/ui/alert'
 import { formatBytes, formatTime, argsToLines, linesToArgs } from '@/lib/utils'
-import { ArrowLeft, Trash2, Save, RotateCcw, Play, Square, Copy, Check } from 'lucide-react'
+import { ArrowLeft, Trash2, Save, RotateCcw, Play, Square } from 'lucide-react'
 import CaptureModeField, { type CaptureMode } from '@/components/CaptureModeField'
 
 export default function AppDetail() {
@@ -119,27 +120,6 @@ export default function AppDetail() {
 
   const [launching, setLaunching] = useState(false)
   const [stopping, setStopping] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const [viewingLink, setViewingLink] = useState('')
-  const [generatingLink, setGeneratingLink] = useState(false)
-  const [linkError, setLinkError] = useState('')
-
-  useEffect(() => { setViewingLink(''); setLinkError(''); setCopied(false) }, [id])
-
-  const handleViewingLink = async () => {
-    if (!id || generatingLink) return
-    setGeneratingLink(true)
-    setViewingLink('')
-    setLinkError('')
-    setCopied(false)
-    try {
-      const res = await api.launchApp(id)
-      if (!res.data?.stream_url) throw new Error('应用没有可用的串流入口')
-      setViewingLink(await createViewingInvitation(res.data.stream_url))
-    } catch (error: unknown) {
-      setLinkError(error instanceof Error ? error.message : '无法生成观看链接')
-    } finally { setGeneratingLink(false) }
-  }
 
   const handleLaunch = async () => {
     if (!id) return
@@ -214,9 +194,6 @@ export default function AppDetail() {
               <Button onClick={handleLaunch} disabled={launching}>
                 <Play className="w-4 h-4" /> {launching ? '打开中...' : app.status === 'running' ? '进入串流' : '启动串流'}
               </Button>
-              <Button variant="outline" onClick={handleViewingLink} disabled={generatingLink}>
-                <Copy className="w-4 h-4" /> {generatingLink ? '生成中...' : '生成观看链接'}
-              </Button>
               </>
             )}
             {app.status === 'running' && (
@@ -227,24 +204,7 @@ export default function AppDetail() {
               </>
             )}
           </div>
-          {linkError && <p role="alert" className="mt-3 text-sm text-destructive">{linkError}</p>}
-          {viewingLink && (
-            <div className="mt-3 space-y-2">
-              <label htmlFor="viewing-link" className="text-sm font-medium">完整观看链接</label>
-              <Textarea id="viewing-link" value={viewingLink} readOnly rows={3}
-                className="font-mono text-xs break-all" onFocus={event => event.currentTarget.select()} />
-              <p className="text-xs text-muted-foreground">生成后 2 分钟内打开，可启动应用并加入观看；过期请重新生成。可选择上方完整地址手动复制，请勿用串流页地址栏中的地址替代。</p>
-              {navigator.clipboard?.writeText && <Button variant="outline" size="sm" onClick={async () => {
-                try { await navigator.clipboard.writeText(viewingLink); setCopied(true); setLinkError('') }
-                catch { setLinkError('浏览器未允许自动复制，请选择上方完整地址手动复制。') }
-              }}>{copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}{copied ? '已复制' : '复制链接'}</Button>}
-            </div>
-          )}
-          {app.status === 'running' && app.stream_url && (
-            <div className="mt-3 text-xs text-muted-foreground font-mono bg-muted rounded px-3 py-2 break-all select-all">
-              使用启动按钮或观看链接进入串流，无需注册观看账号；链接在两分钟内可加入，已加入的连接通过心跳续期。
-            </div>
-          )}
+          <AppWatchLink appId={app.id} />
         </CardContent>
       </Card>
 

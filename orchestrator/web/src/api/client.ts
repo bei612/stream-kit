@@ -91,6 +91,7 @@ async function loginRequest(username: string, password: string): Promise<{ token
 }
 
 export const api = {
+  watchLink: (id: string, method = 'GET') => request<{ enabled: boolean; path: string }>(`/apps/${id}/watch-link`, { method }),
   getEncoderConfiguration: () => request<EncoderConfigurationView>('/encoder-configuration'),
   applyEncoderConfiguration: (revision:string, instance_id:string) => request<EncoderStartupState>('/encoder-configuration/apply', {method:'POST',body:JSON.stringify({revision,instance_id})}, 90000),
   saveEncoderConfiguration: (revision:string, changes:Record<string,ConfigValue>) => request<EncoderConfigurationAcknowledgement>('/encoder-configuration', {method:'PATCH',body:JSON.stringify({revision,changes})}),

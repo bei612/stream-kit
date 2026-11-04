@@ -28,6 +28,12 @@ export async function createViewingInvitation(portPath: string): Promise<string>
   const response = await api.inviteStreamViewers(hostId, appId)
   if (!response.data) throw new Error('无法创建观看链接')
   const result = response.data
+  return viewingURL(source, result)
+}
+
+export function viewingURL(source: URL, result: { invitation: string; gateway_public_url: string }): string {
+  const hostId = source.searchParams.get('hostId')
+  const appId = source.searchParams.get('appId')
   const url = result.gateway_public_url
     ? new URL('stream.html', result.gateway_public_url.replace(/\/$/, '') + '/')
     : source
