@@ -1,0 +1,68 @@
+{
+  "source_commit": "05baccd8aad19a32f427eeabadbc918866e882dd",
+  "run": "https://github.com/bei612/stream-kit/actions/runs/41818089391",
+  "scope": "Downloaded structured CI results; not installation acceptance or full goal completion",
+  "control": {
+    "windows": {
+      "artifact": "orchestrator-tests-Windows-X64",
+      "sha256": "09f132e9e437b5cb84e772b00e3c3dc51eb22503406fd4370289646804b26c90",
+      "failed": 0,
+      "verified_tests": [
+        "TestSettingsRecoverPersistedStopOnlyAfterAcknowledgements",
+        "TestRuntimeCancellationClosesHTTPAndDatabase",
+        "TestLifecycleProjectionKeepsPendingStopActionable",
+        "TestInstalledStartupPolicyOnRealSCM"
+      ]
+    },
+    "linux": {
+      "artifact": "orchestrator-tests-Linux-X64",
+      "sha256": "810dbb3fae32c2e6e5a37dda72bdc36d24c0b42ccd7f14441c352076606b7289",
+      "failed": 0,
+      "verified_tests": [
+        "TestSettingsRecoverPersistedStopOnlyAfterAcknowledgements",
+        "TestLifecycleProjectionKeepsPendingStopActionable",
+        "TestRuntimeCancellationClosesHTTPAndDatabase"
+      ]
+    }
+  },
+  "browser": [
+    {
+      "passed": true,
+      "pending_stop_visible": true,
+      "stop_reenables_settings": true,
+      "failed_stop_retry": true,
+      "draft_preserved_on_refresh": true,
+      "page_errors": [],
+      "engine": "chromium",
+      "scope": "Built UI with simulated lifecycle API; no production services changed",
+      "sha256": "b82527505c6c3df410dc84fc923443b847f5d3c7d7be9d8a732505d1006dab24"
+    },
+    {
+      "passed": true,
+      "pending_stop_visible": true,
+      "stop_reenables_settings": true,
+      "failed_stop_retry": true,
+      "draft_preserved_on_refresh": true,
+      "page_errors": [],
+      "engine": "firefox",
+      "scope": "Built UI with simulated lifecycle API; no production services changed",
+      "sha256": "83baa343833b1e5fc21224590d13f36c3de7c4ce437513d2b2806f268ce30e3f"
+    },
+    {
+      "passed": true,
+      "pending_stop_visible": true,
+      "stop_reenables_settings": true,
+      "failed_stop_retry": true,
+      "draft_preserved_on_refresh": true,
+      "page_errors": [],
+      "engine": "webkit",
+      "scope": "Built UI with simulated lifecycle API; no production services changed",
+      "sha256": "19911df3a9607ab18910b4d43852d329c5a54da84978b975cb7f7f1c165b95af"
+    }
+  ],
+  "limitations": [
+    "Browser tests use simulated lifecycle API responses. They do not prove real media rendering or a physical mobile device.",
+    "SCM test creates an isolated never-started service to verify installation policy. It does not install the unified product.",
+    "Unified installer validation remains pending; currently installed control remains 70ea6f70."
+  ]
+}
