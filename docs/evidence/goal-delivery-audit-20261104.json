@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "overall_completion_proven": false,
+  "installed_source": "66249387b32975e79d56b19fdf98d4bc7d414da0",
+  "historical_requirement_audit": "docs/evidence/goal-delivery-audit-20261101.json",
+  "scope_preserved": {
+    "accounts": "One administrator, with viewer/controller connection authority; no additional user-account system.",
+    "stability": "Previously accepted four-hour, 20-client result remains accepted. Do not restart a 24-hour gate.",
+    "physical_linux_and_mobile": "Physical-device acceptance excluded from this round by the user; native build and browser compatibility checks retained.",
+    "publisher_certificate": "Commercial publisher certificate excluded; native driver signature checks retained.",
+    "human_speech": "Previously deferred by the user, not established by generated audio or packet counts.",
+    "startup_arguments": "Fixed links use the application's administrator-saved startup parameters, as explicitly confirmed by the user."
+  },
+  "new_verified_delivery": [
+    {
+      "item": "Installed native Windows services and LAN data plane",
+      "evidence": "docs/evidence/local-lan-demo-20261104.json",
+      "finding": "Wildcard listeners, LocalSubnet firewall scope, host-following browser addresses and an actual 192.168.3.66 UDP media candidate were exercised. Installed components are now updated together to source 66249387."
+    },
+    {
+      "item": "Permanent application launch/viewing link",
+      "evidence": "docs/evidence/durable-watch-link-20261104.json",
+      "finding": "Stopped example had its link visible before startup. Unauthenticated public browser opening the application capability produced video; reload retained the bookmark; reset invalidated the old address and the replacement produced video. SQLite persistence across reopen is covered by the store test."
+    },
+    {
+      "item": "Current cross-platform CI",
+      "run": "https://github.com/bei612/stream-kit/actions/runs/41756604158",
+      "conclusion": "success",
+      "successful_jobs": ["Management Web", "Source SBOM", "Orchestrator (ubuntu-latest)", "Orchestrator (windows-latest)", "Moonlight Web (ubuntu-latest)", "Moonlight Web (windows-latest)"],
+      "limit": "These jobs and the local Chrome run do not establish physical iPad/TV operation or human speech."
+    }
+  ],
+  "remaining_acceptance": [
+    {
+      "item": "Trusted LAN HTTPS deployment",
+      "state": "prepared_not_applied",
+      "evidence": ".local/management/lan-tls-preparation.json",
+      "finding": "Private CA and hostname/current-IP server certificate were prepared and both native configuration preflights passed. System trust and live service configuration have not been changed. Explicit confirmation to add the generated CA to system trust remains pending; each remote client must also trust it.",
+      "next": "After confirmation, apply the coordinated native TLS configuration with rollback, then verify browser and internal-service certificate trust without error bypasses."
+    },
+    {
+      "item": "Human microphone to target program and audience",
+      "state": "deferred_by_user",
+      "next": "Use a working physical microphone and participant for the bounded target/audience check. Do not replace the result with a repeated synthetic test."
+    },
+    {
+      "item": "Actual host IP change and recovery",
+      "state": "not_exercised",
+      "finding": "Dynamic URL/ICE behavior and stable-hostname LAN access have evidence; the shared host's physical network has not been deliberately disrupted. Saved numeric-IP URLs cannot update themselves.",
+      "next": "Validate during an agreed network-change window or on an isolated deployment, preserving the other projects and remote sessions on this host."
+    }
+  ],
+  "distribution_boundary": "The public v0.1.0-rc.1 assets remain the historical 509c94cf product. This work deployed verified native runtime modules locally; it did not replace public installer assets. Do not describe that older download as containing the new permanent-link feature.",
+  "completion_decision": "Goal remains incomplete. Current installed operation and permanent-link delivery do not substitute for the remaining acceptance conditions."
+}
