@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "source_commit": "d2ecdc55e511f3d6e957e148937c7483de42a5a7",
+  "environment": "Native Windows 11 installed service; Chrome on the same host using the LAN hostname",
+  "deployment_passed": true,
+  "service": {"name": "StreamKitOrchestrator", "state": "Running", "start_mode": "Auto"},
+  "management_url": "http://VOLCENGINE.local:9000/",
+  "current_ipv4_url": "http://192.168.3.66:9000/",
+  "checks": {
+    "management_hostname_http": 200,
+    "management_ipv4_http": 200,
+    "viewer_http": 200,
+    "config_js_control_plane_follows_request_host": true,
+    "sunshine_running": true,
+    "gateway_running": true,
+    "example_application_capture": true,
+    "video_width": 1280,
+    "video_height": 720,
+    "decoded_frames_at_transport_snapshot": 68,
+    "control_granted": true,
+    "peer_state": "connected",
+    "selected_remote_candidate": "192.168.3.66:60000/udp",
+    "nominated_pair_bytes_received": 611271,
+    "nominated_pair_bytes_sent": 26470,
+    "audio_packets_received": 193,
+    "video_packets_received": 535,
+    "browser_page_errors": []
+  },
+  "network_configuration": {
+    "control_bind": "0.0.0.0:9000",
+    "gateway_bind": "0.0.0.0:8080",
+    "gateway_public_url": "",
+    "cors_origins": ["http://{host}:8080"],
+    "media_udp_ports": "60000-61000",
+    "fixed_nat_mapping": false,
+    "loopback_ice_candidates": false,
+    "firewall_remote_scope": "LocalSubnet",
+    "internal_component_addresses": "Loopback; independent of DHCP",
+    "hostname_publication": "Existing Sunshine native Windows mDNS service"
+  },
+  "update_review": "Initial readiness check failed because the native directory replacement omitted Sunshine's installation-created empty config directory. The operation restored the old runtime and configuration. The corrected update preserved that directory, retained external ProgramData state, verified all three native component manifests at the same source revision, and passed readiness and browser streaming checks. No installer or public release was generated.",
+  "cross_platform_ci": "https://github.com/bei612/stream-kit/actions/runs/41679941702",
+  "limits": [
+    "No physical second LAN device or actual DHCP/NIC change was tested; the browser and server ran on the same Windows host, using its actual LAN candidate.",
+    "Stable hostname access depends on LAN DNS/mDNS resolution. An already shared numeric IP URL cannot rewrite itself; an address change can interrupt active transport before reconnecting.",
+    "Audio packet receipt does not prove audible program output or human microphone input. No human speech was recorded in this check.",
+    "Remote browser microphone capture still requires browser-trusted HTTPS; this deployment exposes HTTP and does not add certificate trust."
+  ],
+  "private_evidence": [
+    ".local/management/lan-update-result.json",
+    ".local/management/demo-check-result.json",
+    ".local/management/demo-stream.png"
+  ]
+}
