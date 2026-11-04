@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router'
+import { useAppCommand, type AppCommand } from '@/hooks/useAppCommand'
 import { useQuery } from '@/hooks/useQuery'
 import { api } from '@/api/client'
 import { openViewingStream } from '@/lib/stream-access'
@@ -28,9 +29,13 @@ function AppDetailContent({id}: {id: string | undefined}) {
   const [captureMode,setCaptureMode]=useState<CaptureMode>('desktop')
   const [argsDirty, setArgsDirty] = useState(false)
   const argsDirtyRef = useRef(false)
-  const [saving, setSaving] = useState(false)
+  const command = useAppCommand(refresh)
+  const pending = id ? command.pending[id] : undefined
+  const saving = pending === 'save'
+  const retrying = pending === 'register'
+  const launching = pending === 'launch'
+  const stopping = pending === 'stop'
   const [saveNotice, setSaveNotice] = useState<{kind:'error'|'success';message:string}|null>(null)
-  const [retrying, setRetrying] = useState(false)
   const [candidateError, setCandidateError] = useState('')
   const [candidates, setCandidates] = useState<any[]>([])
 
@@ -46,95 +51,30 @@ function AppDetailContent({id}: {id: string | undefined}) {
     setCandidateError('')
     if (id && app?.status === 'detecting') api.getAppCandidates(id).then(res => {
       if (active) setCandidates(res.data || [])
-    }).catch(e => { if (active) setCandidateError(e.message || '????????') })
+    }).catch(e => { if (active) setCandidateError(e.message || '读取程序入口失败') })
     return () => { active = false }
   }, [id, app])
 
-  const handleSave = async () => {
-    if (!id || saving) return
-    setSaving(true)
-    setSaveNotice(null)
-    try {
-      await api.updateApp(id, { args: linesToArgs(args), capture_mode:captureMode })
-      argsDirtyRef.current = false
-      setArgsDirty(false)
-      await refresh()
-      setSaveNotice({kind:'success',message:'配置已保存，下次启动应用时生效。'})
-    } catch (e: unknown) {
-      setSaveNotice({kind:'error',message:e instanceof Error?e.message:'配置保存失败，请重试。'})
-      // A failed native apply can still leave durable desired settings. Refresh
-      // status immediately, preserving the draft until successful submission.
-      await refresh()
-    } finally {
-      setSaving(false)
-    }
+  const execute = (kind: AppCommand, task: () => Promise<void>) => {
+    if (!id || loadError) return
+    return command.run(id, kind, async () => { setSaveNotice(null); await task() })
   }
-
-  const handleDelete = async () => {
-    if (!id || !app) return
-    if (!confirm(app.source==='local' ? `移除 "${app.name}" 的平台注册？原程序及工作目录会保留。` : `确定删除应用 "${app.name}" 及上传文件？`)) return
-    try {
-      await api.deleteApp(id)
-      navigate('/apps')
-    } catch (e: any) {
-      alert(e.message)
-    }
+  const handleSave = () => execute('save', async () => {
+    await api.updateApp(id!, {args:linesToArgs(args), capture_mode:captureMode})
+    argsDirtyRef.current = false
+    setArgsDirty(false)
+    setSaveNotice({kind:'success',message:'配置已保存，下次启动应用时生效。'})
+  })
+  const handleDelete = () => {
+    if (!app || !confirm(app.source === 'local' ? `移除 "${app.name}" 的平台注册？原程序及工作目录会保留。` : `确定删除应用 "${app.name}" 及上传文件？`)) return
+    return execute('delete', async () => { await api.deleteApp(id!); navigate('/apps') })
   }
-
-  const handleSelectExe = async (exePath: string) => {
-    if (!id) return
-    try {
-      await api.selectExe(id, exePath)
-      setCandidates([])
-      refresh()
-    } catch (e: any) {
-      alert(e.message)
-    }
-  }
-
-  const handleRetryRegister = async () => {
-    if (!id || retrying) return
-    setRetrying(true)
-    setSaveNotice(null)
-    try {
-      await api.retryRegister(id)
-      await refresh()
-    } catch (e: unknown) {
-      setSaveNotice({kind:'error',message:e instanceof Error?e.message:'无法重试注册。'})
-    } finally {
-      setRetrying(false)
-    }
-  }
-
-  const [launching, setLaunching] = useState(false)
-  const [stopping, setStopping] = useState(false)
-
-  const handleLaunch = async () => {
-    if (!id || launching || stopping || saving) return
-    setLaunching(true)
-    try {
-      await openViewingStream(async () => {
-        const res = await api.launchApp(id)
-        return res.data?.stream_url
-      })
-      refresh()
-    } catch (e: any) {
-      alert(e.message)
-    }
-    setLaunching(false)
-  }
-
-  const handleStopStream = async () => {
-    if (!id || stopping || launching || saving) return
-    setStopping(true)
-    try {
-      await api.stopApp(id)
-      refresh()
-    } catch (e: any) {
-      alert(e.message)
-    }
-    setStopping(false)
-  }
+  const handleSelectExe = (exePath: string) => execute('select', async () => { await api.selectExe(id!, exePath); setCandidates([]) })
+  const handleRetryRegister = () => execute('register', async () => { await api.retryRegister(id!) })
+  const handleLaunch = () => execute('launch', async () => {
+    await openViewingStream(async () => (await api.launchApp(id!)).data?.stream_url)
+  })
+  const handleStopStream = () => execute('stop', async () => { await api.stopApp(id!) })
 
   if (loadError && !app) return (
     <div className="text-center py-12">
@@ -145,7 +85,7 @@ function AppDetailContent({id}: {id: string | undefined}) {
   if (!app) return <div className="text-muted-foreground">加载中...</div>
 
   const settingsEditable = app.lifecycle?.can_edit === true
-  const settingsDisabled = saving || retrying || launching || stopping || !!loadError || !settingsEditable
+  const settingsDisabled = !!pending || !!loadError || !settingsEditable
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -159,6 +99,7 @@ function AppDetailContent({id}: {id: string | undefined}) {
       </div>
       {loadError && <Alert variant="warning" role="status">状态刷新失败：{loadError}。当前显示上次读取的状态。</Alert>}
 
+      {command.error && <Alert variant="error" role="alert">{command.error}</Alert>}
       {/* Stream controls */}
       <Card>
         <CardHeader>
@@ -179,14 +120,14 @@ function AppDetailContent({id}: {id: string | undefined}) {
           <div className="flex flex-wrap items-center gap-3">
             {app.lifecycle?.can_launch && (
               <>
-              <Button onClick={handleLaunch} disabled={launching || stopping || saving || !!loadError}>
+              <Button onClick={handleLaunch} disabled={!!pending || !!loadError}>
                 <Play className="w-4 h-4" /> {launching ? '打开中...' : app.status === 'running' ? '进入串流' : '启动串流'}
               </Button>
               </>
             )}
             {app.lifecycle?.can_stop && (
               <>
-                <Button variant="destructive" onClick={handleStopStream} disabled={stopping || launching || saving || !!loadError}>
+                <Button variant="destructive" onClick={handleStopStream} disabled={!!pending || !!loadError}>
                   <Square className="w-4 h-4" /> {stopping ? '停止中...' : '停止串流（含程序）'}
                 </Button>
               </>
@@ -206,7 +147,7 @@ function AppDetailContent({id}: {id: string | undefined}) {
               <Button
                 key={c.relative_path}
                 variant="outline"
-                onClick={() => handleSelectExe(c.relative_path)}
+                disabled={!!pending || !!loadError} onClick={() => handleSelectExe(c.relative_path)}
                 className="w-full text-left justify-start"
               >
                 {c.relative_path} <span className="text-muted-foreground">({formatBytes(c.size_bytes)})</span>
@@ -294,7 +235,7 @@ function AppDetailContent({id}: {id: string | undefined}) {
           <CardTitle className="text-red-300">危险操作</CardTitle>
         </CardHeader>
         <CardContent>
-          <Button variant="destructive" size="sm" onClick={handleDelete}>
+          <Button variant="destructive" size="sm" disabled={!!pending || !!loadError} onClick={handleDelete}>
             <Trash2 className="w-3 h-3" /> {app.source==='local'?'移除平台注册':'删除应用'}
           </Button>
         </CardContent>

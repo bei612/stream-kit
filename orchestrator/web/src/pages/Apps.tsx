@@ -1,6 +1,8 @@
 import { useCallback } from 'react'
 import { Link } from 'react-router'
 import { api } from '@/api/client'
+import { useAppCommand } from '@/hooks/useAppCommand'
+import { Alert } from '@/components/ui/alert'
 import { useQuery } from '@/hooks/useQuery'
 import QueryWrapper from '@/components/QueryWrapper'
 import AppLifecycleStatus from '@/components/AppLifecycleStatus'
@@ -19,40 +21,20 @@ export default function Apps() {
 
   const apps = (data ?? []) as any[]
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`确定要删除应用 "${name}" 吗？此操作不可恢复。`)) return
-    try {
-      await api.deleteApp(id)
-      refresh()
-    } catch (e: any) {
-      alert(e.message)
-    }
+  const command = useAppCommand(refresh)
+  const handleDelete = (id: string, name: string) => {
+    if (!confirm(`确定移除应用 "${name}"？上传内容将删除，本机外部程序会保留。`)) return
+    return command.run(id, 'delete', async () => { await api.deleteApp(id) })
   }
-
-  const handleLaunch = async (id: string) => {
-    try {
-      await openViewingStream(async () => {
-        const res = await api.launchApp(id)
-        return res.data?.stream_url
-      })
-      refresh()
-    } catch (e: any) {
-      alert(e.message)
-    }
-  }
-
-  const handleStop = async (id: string) => {
-    try {
-      await api.stopApp(id)
-      refresh()
-    } catch (e: any) {
-      alert(e.message)
-    }
-  }
+  const handleLaunch = (id: string) => command.run(id, 'launch', async () => {
+    await openViewingStream(async () => (await api.launchApp(id)).data?.stream_url)
+  })
+  const handleStop = (id: string) => command.run(id, 'stop', async () => { await api.stopApp(id) })
 
   return (
     <QueryWrapper loading={loading} error={error} onRetry={refresh}>
       <div className="space-y-4">
+        {command.error && <Alert variant="error" role="alert">{command.error}</Alert>}
         <div className="page-heading">
           <div><p className="page-eyebrow">渲染内容</p><h2>应用管理</h2><p className="page-description">管理上传包和本机程序，启动或结束串流。</p></div>
           <Link to="/upload">
@@ -90,16 +72,16 @@ export default function Apps() {
                   <Td className="text-right">
                     <div className="flex justify-end gap-2">
                       {app.lifecycle?.can_launch && (
-                        <Button size="sm" onClick={() => handleLaunch(app.id)}>
+                        <Button size="sm" disabled={!!command.pending[app.id]} onClick={() => handleLaunch(app.id)}>
                           <Play className="w-3 h-3" /> 启动串流
                         </Button>
                       )}
                       {app.lifecycle?.can_stop && (
-                        <Button size="sm" variant="destructive" onClick={() => handleStop(app.id)}>
+                        <Button size="sm" variant="destructive" disabled={!!command.pending[app.id]} onClick={() => handleStop(app.id)}>
                           <Square className="w-3 h-3" /> 停止串流
                         </Button>
                       )}
-                      <Button size="sm" variant="outline" onClick={() => handleDelete(app.id, app.name)}>
+                      <Button size="sm" variant="outline" disabled={!!command.pending[app.id]} onClick={() => handleDelete(app.id, app.name)}>
                         <Trash2 className="w-3 h-3" /> 删除
                       </Button>
                     </div>
