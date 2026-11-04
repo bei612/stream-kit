@@ -755,6 +755,9 @@ func (m *Manager) UpdateApp(appID string, name, args, argsTemplate *string, capt
 	default:
 		return fmt.Errorf("请等待应用处理完成并停止串流后再修改参数")
 	}
+	if err := m.completePendingStop(app); err != nil {
+		return err
+	}
 	if m.sessions != nil {
 		for _, s := range m.sessions.List() {
 			if s.AppID == int64(app.SunshineAppID) && s.State != session.StateStopped {

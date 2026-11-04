@@ -19,6 +19,15 @@ import (
 )
 
 func TestAdmissionRecoversPersistedStopOnlyAfterAcknowledgements(t *testing.T) {
+	testPersistedStopRecovery(t, false)
+}
+
+func TestSettingsRecoverPersistedStopOnlyAfterAcknowledgements(t *testing.T) {
+	testPersistedStopRecovery(t, true)
+}
+
+func testPersistedStopRecovery(t *testing.T, updateSettings bool) {
+	t.Helper()
 	m, st, req := localFixture(t)
 	a, err := m.RegisterLocal(req)
 	if err != nil {
@@ -38,6 +47,7 @@ func TestAdmissionRecoversPersistedStopOnlyAfterAcknowledgements(t *testing.T) {
 		t.Fatal(err)
 	}
 	var gatewayDown, encoderDown atomic.Bool
+	var writes atomic.Int32
 	gatewayDown.Store(true)
 	fixture := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -50,7 +60,19 @@ func TestAdmissionRecoversPersistedStopOnlyAfterAcknowledgements(t *testing.T) {
 		case "/api/stream-kit/capabilities":
 			json.NewEncoder(w).Encode(sunshine.Capabilities{SchemaVersion: 1, ManagedAppsVersion: 1, ManagedRuntimeVersion: 1, CaptureModes: []model.CaptureMode{model.CaptureDesktop}, CaptureModeApply: "application_restart"})
 		case "/api/stream-kit/apps/" + a.ID:
-			json.NewEncoder(w).Encode(sunshine.ManagedApp{SchemaVersion: 1, AppID: a.ID, GameStreamID: 771, App: sunshine.SunshineApp{ManagedID: a.ID}})
+			projected := sunshine.SunshineApp{ManagedID: a.ID}
+			if r.Method == http.MethodPut {
+				writes.Add(1)
+				if gatewayDown.Load() || encoderDown.Load() {
+					t.Error("settings changed before stop acknowledgement")
+				}
+				if err := json.NewDecoder(r.Body).Decode(&projected); err != nil {
+					t.Error(err)
+				}
+			}
+			json.NewEncoder(w).Encode(sunshine.ManagedApp{SchemaVersion: 1, AppID: a.ID, GameStreamID: 771, App: projected})
+		case "/api/csrf-token":
+			_, _ = w.Write([]byte(`{"csrf_token":"fixture"}`))
 		case "/api/stream-kit/runtime":
 			if gatewayDown.Load() {
 				t.Error("native queried before gateway acknowledgement")
@@ -77,15 +99,32 @@ func TestAdmissionRecoversPersistedStopOnlyAfterAcknowledgements(t *testing.T) {
 	for _, phase := range []string{"gateway unavailable", "encoder unavailable", "recovered"} {
 		gatewayDown.Store(phase == "gateway unavailable")
 		encoderDown.Store(phase == "encoder unavailable")
-		fresh, err := m.EnsureViewingSession(context.Background(), 1, 771)
+		var fresh *session.RenderSession
+		args := "--updated-after-stop"
+		if updateSettings {
+			err = m.UpdateApp(a.ID, nil, &args, nil, nil)
+		} else {
+			fresh, err = m.EnsureViewingSession(context.Background(), 1, 771)
+		}
 		previous, _ := sessions.Get(old.ID)
+		saved, readErr := st.GetApp(a.ID)
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
 		if phase != "recovered" {
-			if err == nil || previous.State != session.StateStopping {
+			if err == nil || previous.State != session.StateStopping || saved.Args != a.Args || writes.Load() != 0 {
 				t.Fatalf("admitted before ack: %s %v", phase, err)
 			}
 		} else {
-			if err != nil || fresh.ID == old.ID || previous.State != session.StateStopped {
+			if err != nil || previous.State != session.StateStopped {
 				t.Fatalf("recovery failed: %v", err)
+			}
+			if updateSettings {
+				if saved.Args != args || writes.Load() != 1 || len(sessions.List()) != 1 {
+					t.Fatal("settings recovery did not apply once or unexpectedly created a viewer")
+				}
+			} else if fresh.ID == old.ID {
+				t.Fatal("old authority reused")
 			}
 		}
 	}

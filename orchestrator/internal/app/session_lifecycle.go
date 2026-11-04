@@ -71,15 +71,28 @@ func (m *Manager) EnsureViewingSession(ctx context.Context, hostID, appID int64)
 	// A shutdown can persist revocation before the encoder/gateway acknowledge
 	// it. Finish that transaction after both services return, before issuing a
 	// new generation. Never reopen the old generation or bypass native ownership.
+	if err := m.completePendingStop(target); err != nil {
+		return nil, err
+	}
+	return m.sessions.Ensure(hostID, appID)
+}
+
+// completePendingStop requires runtimeMu. Finish an already requested stop at
+// either admission or settings boundaries using the same acknowledged lifecycle.
+// Active/starting sessions remain protected; this never initiates their stop.
+func (m *Manager) completePendingStop(app *model.App) error {
+	if m.sessions == nil || app.SunshineAppID <= 0 {
+		return nil
+	}
 	for _, previous := range m.sessions.List() {
-		if previous.HostID == hostID && previous.AppID == appID && previous.State == session.StateStopping {
-			if err := m.stopManagedExecution(target); err != nil {
-				return nil, fmt.Errorf("恢复未完成的停止操作失败: %w", err)
+		if previous.AppID == int64(app.SunshineAppID) && previous.State == session.StateStopping {
+			if err := m.stopManagedExecution(app); err != nil {
+				return fmt.Errorf("恢复未完成的停止操作失败: %w", err)
 			}
 			break
 		}
 	}
-	return m.sessions.Ensure(hostID, appID)
+	return nil
 }
 
 // stopManagedExecution orders admission revocation, gateway acknowledgement,
