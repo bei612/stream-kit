@@ -22,6 +22,8 @@ on:
       - 'scripts/build-linux-installer.mjs'
       - 'scripts/package-platform-release.mjs'
       - 'scripts/accept-linux-installer.sh'
+      - '.github/scripts/release-renderer-intermediates.mjs'
+      - '.github/scripts/test-renderer-intermediates.mjs'
       - 'scripts/lib/**'
       - 'deploy/linux/**'
       - 'deploy/stream-kit-orchestrator.service'
@@ -86,19 +88,7 @@ jobs:
       - name: Validate requested product version before native builds
         run: >-
           node --input-type=module -e "import {productRelease} from './scripts/lib/product-release.mjs'; console.log(JSON.stringify(productRelease(process.env.GITHUB_SHA,process.env.STREAM_KIT_RELEASE_VERSION || '')))"
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.27.3'
-          cache-dependency-path: orchestrator/go.sum
-      - uses: dtolnay/rust-toolchain@1.99.0
-        with:
-          targets: wasm32-unknown-unknown
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: third_party/moonlight-web-stream -> ../../.local/targets/native
-          key: linux-product-${{ hashFiles('components/audio-target/Cargo.lock', 'third_party/moonlight-common-rust/Cargo.lock', 'third_party-manifests/gateway-web/*.Cargo.lock') }}
-          cache-on-failure: 'true'
-      - run: node --test scripts/test-native-test-report.cjs
+      - run: node --test scripts/test-native-test-report.cjs .github/scripts/test-renderer-intermediates.mjs
       - name: Install distribution build dependencies
         run: |
           sudo apt-get update
@@ -159,6 +149,20 @@ jobs:
       - name: Verify staged installation resolves its private Vulkan loader
         run: |
           node scripts/verify-sunshine-release.mjs .local/cmake-build-sunshine "$GITHUB_SHA" --output artifacts/linux-sunshine/renderer 2>&1 | tee artifacts/linux-sunshine/installed-runtime.log
+      - name: Release verified renderer intermediates before restoring language caches
+        run: node .github/scripts/release-renderer-intermediates.mjs
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.3'
+          cache-dependency-path: orchestrator/go.sum
+      - uses: dtolnay/rust-toolchain@1.99.0
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: third_party/moonlight-web-stream -> ../../.local/targets/native
+          key: linux-product-${{ hashFiles('components/audio-target/Cargo.lock', 'third_party/moonlight-common-rust/Cargo.lock', 'third_party-manifests/gateway-web/*.Cargo.lock') }}
+          cache-on-failure: 'true'
       - name: Build control, native gateway and browser assets
         run: |
           npm ci --prefix orchestrator/web
@@ -197,8 +201,9 @@ jobs:
         if: always()
         with:
           name: linux-sunshine-source-build
+          # The verified native executable remains in the renderer bundle;
+          # compiler intermediates have been released before the Rust build.
           path: |
             artifacts/linux-sunshine/
             artifacts/audio-target/
-            .local/cmake-build-sunshine/sunshine
           if-no-files-found: error
