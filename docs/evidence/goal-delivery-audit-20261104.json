@@ -6,9 +6,11 @@
     "actual_boot_evidence": "docs/evidence/windows-real-boot-20261104.json",
     "source_candidate": "05baccd8aad19a32f427eeabadbc918866e882dd",
     "product_build_run": 41818329279,
-    "note": "Installed control remains 70ea6f70. Current source passed Windows SCM policy and three-browser lifecycle checks; standalone Linux package and offline autostart checks passed. Unified Windows product installation acceptance remains pending. These checks do not establish clean-install full machine reboot recovery.",
+    "note": "Unified Windows/Linux product build 41818329279 and clean Windows installer acceptance 41828402371 passed for 05baccd8. Automatic SCM startup was verified immediately after installation without manual repair. Installed local control remains 70ea6f70; hosted service restart is not full-machine reboot evidence.",
     "linux_installer_evidence": "docs/evidence/linux-installer-autostart-05baccd8.json",
-    "lifecycle_and_startup_policy_evidence": "docs/evidence/lifecycle-and-autostart-ci-05baccd8.json"
+    "lifecycle_and_startup_policy_evidence": "docs/evidence/lifecycle-and-autostart-ci-05baccd8.json",
+    "unified_installer_evidence": "docs/evidence/unified-installers-05baccd8.json",
+    "windows_installer_acceptance_run": 41828402371
   },
   "installed_source": "66249387b32975e79d56b19fdf98d4bc7d414da0",
   "historical_requirement_audit": "docs/evidence/goal-delivery-audit-20261101.json",

@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "source_commit": "05baccd8aad19a32f427eeabadbc918866e882dd",
+  "product_run": "https://github.com/bei612/stream-kit/actions/runs/41818329279",
+  "windows_acceptance_run": "https://github.com/bei612/stream-kit/actions/runs/41828402371",
+  "windows": {
+    "installer_sha256": "c8dc768987f0cd5a8c3145fab59d6ab2febcf8117430ee24ddc788ae02004b40",
+    "installer_source_commit": "05baccd8aad19a32f427eeabadbc918866e882dd",
+    "acceptance_result_sha256": "16844345def16a7003c8a09d38dbe860716753a4416fc3f4dbe7d216ff68fd82",
+    "passed": true,
+    "install_exit": 0,
+    "administrator_login": true,
+    "service_after_install": {
+      "name": "StreamKitOrchestrator",
+      "state": "Running",
+      "start_mode": "Auto",
+      "account": "LocalSystem",
+      "pid": 8628
+    },
+    "service_after_restart": {
+      "name": "StreamKitOrchestrator",
+      "state": "Running",
+      "start_mode": "Auto",
+      "account": "LocalSystem",
+      "pid": 8128
+    },
+    "component_autostart_configuration": "Acceptance script asserts sunshine.auto_start and web_server.auto_start before any restart; no post-install startup repair is performed.",
+    "gateway_restarted": true,
+    "scm_restarted": true,
+    "audio": {
+      "passed": true,
+      "captured_frames": 144000,
+      "dropped_frames": 0,
+      "xruns": 0
+    },
+    "uninstall_exit": 0,
+    "service_removed": true,
+    "data_preserved": true,
+    "installer": {
+      "name": "stream-kit-preview-05baccd8aad1-windows-amd64-setup.exe",
+      "bytes": 97465281,
+      "sha256": "c8dc768987f0cd5a8c3145fab59d6ab2febcf8117430ee24ddc788ae02004b40"
+    }
+  },
+  "linux": {
+    "installer": {
+      "file": "stream-kit-preview-05baccd8aad1-ubuntu24.04-amd64-setup.run",
+      "bytes": 62361155,
+      "sha256": "c55522fd4fee100a659b43a6674a2d3d87ba04be42b3d09ff213e8e9ec9aaf00"
+    },
+    "acceptance_log_sha256": "d56e30e8d6e913c74532a4f6bd7575bb0ad3e3303d594e93d5e3ec4c93b6621c",
+    "scope": "Native package extraction, offline user-service enablement, three-component initialization and data preservation; no media stream or full host installation."
+  },
+  "sbom": {
+    "file": "stream-kit-sbom.spdx.json",
+    "bytes": 7410013,
+    "sha256": "0c178eaa274eb4077bd7055282f8bfa3b80f37df1007e10e7a3f9a698ed88607",
+    "format": "SPDX-2.3"
+  },
+  "limits": [
+    "Windows acceptance used a disposable Windows Server 2022 runner; not a complete machine reboot.",
+    "The local installation remains the prior control-only maintenance revision; this record does not claim local deployment of this installer.",
+    "Generated PCM is not human speech acceptance. Physical Linux/mobile acceptance and publisher signing are excluded by current user scope."
+  ],
+  "local_downloads_verified": true
+}
