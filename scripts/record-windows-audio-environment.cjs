@@ -49,7 +49,17 @@ try {
     remote_capture_session=Read-AudioSetting 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' 'fDisableAudioCapture'
   }
 } | ConvertTo-Json -Depth 4 -Compress`;
-    result.windows = JSON.parse(execFileSync('powershell.exe', ['-NoProfile','-NonInteractive','-Command',script], {encoding:'utf8', windowsHide:true, timeout:15000, maxBuffer:1024*1024}));
+    // A fresh hosted Windows image can take longer than 15 seconds to start
+    // PowerShell and initialize WinRT/CIM. Keep the complete policy query
+    // bounded and fail closed; a timeout must never stand in for consent.
+    const queryStarted = performance.now();
+    result.policy_query = {timeout_ms:60000, elapsed_ms:null, completed:false};
+    try {
+      result.windows = JSON.parse(execFileSync('powershell.exe', ['-NoProfile','-NonInteractive','-Command',script], {encoding:'utf8', windowsHide:true, timeout:result.policy_query.timeout_ms, maxBuffer:1024*1024}));
+      result.policy_query.completed = true;
+    } finally {
+      result.policy_query.elapsed_ms = Math.round(performance.now() - queryStarted);
+    }
     if (policyOnly) {
       result.scope='Read-only recording-access and service diagnostics; endpoint inventory and audio acceptance not run';
       console.log(JSON.stringify(result.windows));

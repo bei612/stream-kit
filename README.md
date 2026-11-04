@@ -6,14 +6,14 @@ Stream-Kit 将管理服务、Sunshine 渲染端和 Moonlight Web 媒体网关集
 
 ## 安装与访问
 
-从 [GitHub Releases](https://github.com/bei612/stream-kit/releases) 获取当前可下载版本，查看该版本说明和 SHA-256。版本中若提供 `stream-kit-preview-<COMMIT>-windows-amd64-setup.exe`，使用这一个安装器安装三个核心组件；无需另外安装官方 Sunshine 或 Moonlight Web，也不要再注册独立 Sunshine 服务。
+从 [GitHub Releases](https://github.com/bei612/stream-kit/releases) 获取当前可下载版本，查看该版本说明和 SHA-256。Windows 使用版本中的单个 `*-windows-amd64-setup.exe` 安装三个核心组件；无需另外安装官方 Sunshine 或 Moonlight Web，也不要再注册独立 Sunshine 服务。
 
-当前统一安装候选版为 [0.1.0-rc.1](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-rc.1)，提供同一干净提交构建的 Windows 单 EXE 和 Ubuntu 24.04 单文件安装包。Windows 已集成开源虚拟音频实现及签名控制器驱动。只安装三个运行组件及必需运行库，开发示例和验收工具均不随包交付。安装及运行无需在宿主机安装 Node.js/npm。六项跨平台 CI 和原生音频初始化检查已通过；本版已在隔离 Windows Server 2022 中通过鲜装、音频及完整系统服务重启验收；真人讲话验收仍暂缓。文件清单和验证范围见 [本版交付状态](deploy/releases/0.1.0-rc.1.md)。
+当前统一安装候选版为 [0.1.0-rc.2](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-rc.2)，提供同一干净提交构建的 Windows 单 EXE 和 Ubuntu 24.04 单文件安装包。本版增加永久应用启动链接并修复局域网浏览器地址和原生观看页面资源路径。Windows 已集成开源虚拟音频实现及签名控制器驱动。只安装三个运行组件及必需运行库，开发示例和验收工具均不随包交付；安装及运行无需宿主机另行安装 Node.js/npm。六项跨平台 CI、Linux 安装包初始化和本机永久链接串流检查已通过；新版 Windows 整包隔离安装检查进行中，真人讲话验收仍暂缓。文件清单和验证范围见 [本版交付状态](deploy/releases/0.1.0-rc.2.md)。
 
 Windows 安装器支持向导和静默模式。以管理员终端执行，将文件名替换为实际下载的名称：
 
 ```powershell
-.\stream-kit-0.1.0-509c94cf7d78-windows-amd64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART
+.\stream-kit-0.1.0-66249387b329-windows-amd64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART
 ```
 
 默认程序目录为 `C:\Program Files\StreamKit`，运行数据目录为 `C:\ProgramData\StreamKit`。静默模式自动生成独立管理员密码，管理员可从受保护的 `orchestrator.json` 中读取 `server.username` 与 `server.password`。自动化部署也可以通过 `/ADMINFILE` 提供凭据文件；密码不作为命令行参数传入。

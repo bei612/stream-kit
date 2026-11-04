@@ -1,45 +1,62 @@
 {
-    "schema_version":  1,
-    "source_commit":  "66249387b32975e79d56b19fdf98d4bc7d414da0",
-    "release_tag":  "v0.1.0-rc.2",
-    "state":  "draft_uploaded_linux_building",
-    "windows":  {
-                    "manifest":  ".local/release-66249387/windows/installer-manifest.json",
-                    "file":  {
-                                 "name":  "stream-kit-0.1.0-66249387b329-windows-amd64-setup.exe",
-                                 "bytes":  97494588,
-                                 "sha256":  "ba55c48c88fc583aa1c0e99856008baca0af1b6320508d9019183756014280bb"
-                             },
-                    "recipe_commit":  "66249387b32975e79d56b19fdf98d4bc7d414da0",
-                    "runtime_only":  true,
-                    "kernel_driver_signature_verified":  true,
-                    "compiler":  {
-                                     "version":  "7.1.1",
-                                     "sha256":  "e0f9f1dc32032650c6629f6dee41eb6d20ba140e4e3c07c25d8a24f9ba781644"
-                                 },
-                    "method":  "Verified existing source-built native modules, composed with the matching clean sparse source checkout and official pinned Inno Setup. Native services were not rebuilt or reinstalled."
-                },
-    "linux":  {
-                  "run":  "https://github.com/bei612/stream-kit/actions/runs/41760125211",
-                  "state":  "in_progress"
-              },
-    "source_ci":  "https://github.com/bei612/stream-kit/actions/runs/41756604158",
-    "sbom":  {
-                 "file":  "stream-kit-sbom.spdx.json",
-                 "bytes":  7410013,
-                 "sha256":  "1068ec79c11a7cbbf5d667f589cd24f0c007b9cd437d1816e022a98476ae0c4e",
-                 "spdx":  "SPDX-2.3"
-             },
-    "limits":  [
-                   "Not yet a published release.",
-                   "No new installer execution on the shared host.",
-                   "Human speech and trusted LAN HTTPS deployment remain unproven; historical four-hour acceptance is retained."
-               ],
-    "draft_release":  "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-rc.2",
-    "windows_acceptance":  {
-                               "run":  "https://github.com/bei612/stream-kit/actions/runs/41760694646",
-                               "state":  "download_precondition_failed",
-                               "reason":  "The workflow read-only token cannot see the draft release. Installer execution did not start.",
-                               "next":  "After publishing the completed candidate assets, retry the acceptance workflow against the unchanged installer."
-                           }
+  "schema_version": 1,
+  "source_commit": "66249387b32975e79d56b19fdf98d4bc7d414da0",
+  "release_tag": "v0.1.0-rc.2",
+  "state": "published_candidate_windows_acceptance_running",
+  "windows": {
+    "manifest": ".local/release-66249387/windows/installer-manifest.json",
+    "file": {
+      "name": "stream-kit-0.1.0-66249387b329-windows-amd64-setup.exe",
+      "bytes": 97494588,
+      "sha256": "ba55c48c88fc583aa1c0e99856008baca0af1b6320508d9019183756014280bb"
+    },
+    "recipe_commit": "66249387b32975e79d56b19fdf98d4bc7d414da0",
+    "runtime_only": true,
+    "kernel_driver_signature_verified": true,
+    "compiler": {
+      "version": "7.1.1",
+      "sha256": "e0f9f1dc32032650c6629f6dee41eb6d20ba140e4e3c07c25d8a24f9ba781644"
+    },
+    "method": "Verified existing source-built native modules, composed with the matching clean sparse source checkout and official pinned Inno Setup. Native services were not rebuilt or reinstalled."
+  },
+  "linux": {
+    "run": "https://github.com/bei612/stream-kit/actions/runs/41760125211",
+    "state": "success",
+    "installer": {
+      "file": "stream-kit-0.1.0-66249387b329-ubuntu24.04-amd64-setup.run",
+      "bytes": 62365208,
+      "sha256": "6dc4280976b24675c81b27bc6d9f62ea849039ca5718c2fd202bd0fba613106e"
+    },
+    "acceptance_scope": "Native application capture, three-component source builds, installer extraction/initialization/configuration/data preservation; no physical desktop/GPU run."
+  },
+  "source_ci": "https://github.com/bei612/stream-kit/actions/runs/41756604158",
+  "sbom": {
+    "file": "stream-kit-sbom.spdx.json",
+    "bytes": 7410013,
+    "sha256": "1068ec79c11a7cbbf5d667f589cd24f0c007b9cd437d1816e022a98476ae0c4e",
+    "spdx": "SPDX-2.3"
+  },
+  "limits": [
+    "Candidate publication is not a claim that all production acceptance is complete.",
+    "No new installer execution or service/configuration changes on the shared demonstration host.",
+    "Human speech and trusted LAN HTTPS deployment remain unproven; historical four-hour acceptance is retained."
+  ],
+  "windows_acceptance": {
+    "run": "https://github.com/bei612/stream-kit/actions/runs/41762066487",
+    "state": "in_progress",
+    "method": "Download and execute the unchanged public RC2 Windows installer on an isolated Windows Server 2022 runner."
+  },
+  "release": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-rc.2",
+  "publication": {
+    "is_prerelease": true,
+    "published_at": "2026-11-04T02:38:25Z",
+    "asset_count": 7,
+    "all_uploaded_sizes_and_sha256_match": true
+  },
+  "previous_windows_acceptance": {
+    "run": "https://github.com/bei612/stream-kit/actions/runs/41760694646",
+    "state": "download_precondition_failed",
+    "reason": "The workflow read-only token cannot see the draft release. Installer execution did not start.",
+    "next": "After publishing the completed candidate assets, retry the acceptance workflow against the unchanged installer."
+  }
 }
