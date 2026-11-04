@@ -11,7 +11,8 @@
     "lifecycle_and_startup_policy_evidence": "docs/evidence/lifecycle-and-autostart-ci-05baccd8.json",
     "unified_installer_evidence": "docs/evidence/unified-installers-05baccd8.json",
     "windows_installer_acceptance_run": 41828402371,
-    "release": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261104.1"
+    "release": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261104.1",
+    "subsequent_ci_disk_fix": "docs/evidence/linux-build-disk-lifecycle-c5878b7d.json"
   },
   "installed_source": "66249387b32975e79d56b19fdf98d4bc7d414da0",
   "historical_requirement_audit": "docs/evidence/goal-delivery-audit-20261101.json",

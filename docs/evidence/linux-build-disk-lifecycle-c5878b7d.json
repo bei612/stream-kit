@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "source_commit": "c5878b7d7731bb7b4bbf9293a267c527d876e249",
+  "run": "https://github.com/bei612/stream-kit/actions/runs/41834275441",
+  "job_id": 126589045280,
+  "conclusion": "success",
+  "started_at": "2026-11-04T13:01:10Z",
+  "completed_at": "2026-11-04T13:13:48Z",
+  "previous_failure": {
+    "run_id": 41820699276,
+    "job_id": 126545650275,
+    "finding": "Runner diagnostic reported System.IO.IOException: No space left on device while compiling Sunshine. This was a separate later CI run, not the successful published 05baccd8 product build."
+  },
+  "change": "Restore Go/Rust caches only after native renderer checks and staging, then release the three compiler-owned renderer directories. Retain the verified renderer bundle for subsequent packaging and save reusable compiler/codec caches before cleanup.",
+  "cleanup_observation": {
+    "removed": [
+      ".local/cmake-build-sunshine",
+      ".local/cmake-build-sunshine-deps",
+      ".local/ccache"
+    ],
+    "available_bytes_before": 84234289152,
+    "available_bytes_after": 88883105792,
+    "reclaimed_bytes": 4648816640
+  },
+  "verified": [
+    "Hosted Linux cleanup safety tests passed, including linked-target refusal and staged payload/source preservation.",
+    "Native Sunshine build, application capture checks, management capture capability/persistence checks and installed Vulkan-loader resolution passed before cleanup.",
+    "Control, native media gateway and browser assets built after renderer intermediates were removed.",
+    "The final runtime installer checksum passed on the runner; native extraction, three-component initialization, configuration validation and existing-data preservation passed.",
+    "Offline systemd user-service enablement persisted without a live user bus.",
+    "Both installer and renderer evidence artifacts uploaded successfully; cache post-processing and the full job completed successfully."
+  ],
+  "installer_reported_by_runner": {
+    "artifact_id": 13325471958,
+    "file": "stream-kit-preview-c5878b7d7731-ubuntu24.04-amd64-setup.run",
+    "bytes": 62361767,
+    "sha256": "198194467644677100f5692f38a68b5b2efee6d7e0929f78c48f7e4c5a1e87c0",
+    "payload_profile": "runtime",
+    "runtime_requires_node": false
+  },
+  "evidence": {
+    "local_normalized_job_log": ".local/linux-ci-c5878b7d-completed.log",
+    "local_normalized_job_log_sha256": "50c3c6461aed6d890e58b20a1024eb02f7e25f6656fa7207508756f32ff53e46",
+    "renderer_artifact_id": 13325801777
+  },
+  "limits": [
+    "Disk values are this runner's observations, not a controlled comparison against the failed runner or a guarantee against every future capacity failure.",
+    "Installer checksum and acceptance were inspected in the completed hosted job log; this CI artifact was not downloaded or published as a new Release.",
+    "This check does not establish a Linux desktop/GPU session, physical microphone speech, a host IP change or local trusted HTTPS deployment.",
+    "The published 05baccd8 Windows/Linux installers and the existing local Windows deployment remain unchanged."
+  ]
+}
