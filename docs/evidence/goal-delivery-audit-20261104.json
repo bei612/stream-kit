@@ -53,15 +53,16 @@
   "remaining_acceptance": [
     {
       "item": "Trusted LAN HTTPS deployment",
-      "state": "prepared_not_applied",
+      "state": "preparation_invalidated_refresh_elevation_cancelled",
       "evidence": ".local/management/lan-tls-preparation.json",
-      "finding": "Private CA and hostname/current-IP server certificate were prepared and both native configuration preflights passed. System trust and live service configuration have not been changed. Explicit confirmation to add the generated CA to system trust remains pending; each remote client must also trust it.",
-      "next": "After confirmation, apply the coordinated native TLS configuration with rollback, then verify browser and internal-service certificate trust without error bypasses."
+      "finding": "Old unapplied preparation lacked current configuration/binary/proposal fingerprints. Its application helper also used the base platform revision while installed control is a newer maintenance revision. Local development helpers now check those fingerprints and maintenance provenance. The UAC request to refresh protected preparation was canceled; no new preparation, system trust change or live TLS switch occurred. Current WLAN remains 192.168.3.66, covered by the prior address list; additional virtual-interface addresses do not prove a WLAN address change.",
+      "next": "When maintenance is available, refresh the protected configuration snapshot with Windows elevation, review certificate trust and entry URL changes, then apply and verify native HTTPS with rollback. Do not apply the disabled old preparation."
     },
     {
       "item": "Human microphone to target program and audience",
       "state": "deferred_by_user",
-      "next": "Use a working physical microphone and participant for the bounded target/audience check. Do not replace the result with a repeated synthetic test."
+      "next": "Use a working physical microphone and participant for the bounded target/audience check. Do not replace the result with a repeated synthetic test.",
+      "finding": "After publication of the startup-fix preview, the user explicitly confirmed that physical speech acceptance remains inconvenient and should continue to be deferred. No recording test was started."
     },
     {
       "item": "Actual host IP change and recovery",
