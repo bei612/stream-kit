@@ -4,6 +4,7 @@
   "installed_source": "66249387b32975e79d56b19fdf98d4bc7d414da0",
   "historical_requirement_audit": "docs/evidence/goal-delivery-audit-20261101.json",
   "scope_preserved": {
+    "local_demo_protection": "On 2026-11-04 the user requested that the afternoon demonstration not be affected. Keep the installed Windows services, configuration, application and durable-link capability unchanged. Release publication and isolated hosted-runner work may continue; do not apply local TLS, installers or service restarts during this protection window.",
     "accounts": "One administrator, with viewer/controller connection authority; no additional user-account system.",
     "stability": "Previously accepted four-hour, 20-client result remains accepted. Do not restart a 24-hour gate.",
     "physical_linux_and_mobile": "Physical-device acceptance excluded from this round by the user; native build and browser compatibility checks retained.",
