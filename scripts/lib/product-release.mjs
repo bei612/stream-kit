@@ -26,3 +26,22 @@ export function promotionProfile(windows,linux,tag){
   if(!validTag)throw Error('Release tag does not match the artifact channel/version')
   return {...release,publication_channel:candidate?'candidate':release.channel,prerelease:release.channel==='preview'||candidate,notes:release.channel==='preview'?'deploy/windows/CI-RELEASE.md':'deploy/RELEASE.md'}
 }
+
+// Publication accepts evidence for the exact installer bytes, not a green build
+// or a service configuration check performed on another deployment.
+export function verifyInstallerAcceptance(manifest,result){
+  if(!result || result.passed!==true || result.error)throw Error('Windows installer acceptance did not pass')
+  if(!/^[a-f0-9]{64}$/.test(manifest.file?.sha256) ||
+    result.commit!==manifest.commit || result.installer_source_commit!==manifest.commit ||
+    result.installer_sha256!==manifest.file.sha256)throw Error('Installer acceptance does not match the published source and bytes')
+  if(result.install_exit!==0 || result.uninstall_exit!==0)throw Error('Installer lifecycle did not finish successfully')
+  for(const key of ['admin_login','gateway_restarted','scm_restarted','defaults_preserved','service_removed','data_preserved']){
+    if(result[key]!==true)throw Error(`Missing installer acceptance: ${key}`)
+  }
+  if(result.pair?.passed!==true)throw Error('Installed native audio pair did not pass')
+  for(const key of ['service','service_after_restart']){
+    if(result[key]?.StartMode!=='Auto' || result[key]?.StartName!=='LocalSystem' || result[key]?.State!=='Running'){
+      throw Error(`Installed automatic service is not verified: ${key}`)
+    }
+  }
+}

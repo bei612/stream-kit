@@ -1,0 +1,22 @@
+{
+  "source_commit": "05baccd8aad19a32f427eeabadbc918866e882dd",
+  "run": "https://github.com/bei612/stream-kit/actions/runs/41818089286",
+  "conclusion": "success",
+  "artifact": "linux-product-installer-05baccd8aad19a32f427eeabadbc918866e882dd",
+  "installer": {
+    "file": "stream-kit-preview-05baccd8aad1-ubuntu24.04-amd64-setup.run",
+    "bytes": 62360887,
+    "sha256": "ada3d8798a94322851b3657af8f52eae4a2eb32ca92f53950890547faead8219"
+  },
+  "acceptance_log_sha256": "1d66572dec1833c2094d0f481a1eb03d432d901935f03fe5ce7ef6896f74b311",
+  "verified": [
+    "Installer checksum matches the downloaded manifest",
+    "Native package extraction and three-component initialization",
+    "Offline systemd user-service enablement persisted without a live user bus",
+    "Configuration validation and existing data preservation"
+  ],
+  "limits": [
+    "No host installation, media service startup, GPU or physical Linux device acceptance.",
+    "This standalone Linux run is not the paired Windows/Linux product publication run."
+  ]
+}

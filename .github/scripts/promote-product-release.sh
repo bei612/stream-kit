@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 [[ ${SOURCE_RUN_ID:-} =~ ^[1-9][0-9]*$ ]] || { echo 'Expected a successful product run ID' >&2; exit 1; }
+[[ ${INSTALLER_ACCEPTANCE_RUN_ID:-} =~ ^[1-9][0-9]*$ ]] || { echo 'Expected the successful Windows installer acceptance run ID' >&2; exit 1; }
 [[ ${RELEASE_TAG:-} =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-preview\.[0-9]+(\.[0-9]+)*|-rc\.[1-9][0-9]*)?$ ]] || { echo 'Expected a new stable, candidate or preview version tag' >&2; exit 1; }
 mkdir -p artifacts/promotion
 gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > artifacts/promotion/source-run.json
@@ -11,6 +12,14 @@ jq -e --arg repo "$GITHUB_REPOSITORY" '
   .event == "workflow_dispatch" and (.head_sha | test("^[a-f0-9]{40}$"))
 ' artifacts/promotion/source-run.json > /dev/null
 source_commit=$(jq -r .head_sha artifacts/promotion/source-run.json)
+gh api "repos/$GITHUB_REPOSITORY/actions/runs/$INSTALLER_ACCEPTANCE_RUN_ID" > artifacts/promotion/acceptance-run.json
+jq -e --arg repo "$GITHUB_REPOSITORY" '
+  .status == "completed" and .conclusion == "success" and
+  .path == ".github/workflows/windows-installer-acceptance.yml" and
+  .head_repository.full_name == $repo and .head_branch == "main" and
+  (.event == "workflow_run" or .event == "workflow_dispatch")
+' artifacts/promotion/acceptance-run.json > /dev/null
+gh run download "$INSTALLER_ACCEPTANCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name windows-installed-service-acceptance --dir artifacts/promotion/acceptance
 for name in windows-product-installer linux-product-installer windows-product-sbom; do
   gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$name-$source_commit" --dir "artifacts/promotion/$name"
 done
@@ -29,7 +38,7 @@ jq -e --arg commit "$source_commit" '
   .commit == $commit and .platform == "linux" and .architecture == "amd64" and
   .distribution == "ubuntu-24.04" and .payload_profile == "runtime"
 ' "$linux/installer-manifest.json" > /dev/null
-node scripts/verify-product-promotion.mjs "$windows/installer-manifest.json" "$linux/installer-manifest.json" "$RELEASE_TAG" > artifacts/promotion/product-release.json
+node scripts/verify-product-promotion.mjs "$windows/installer-manifest.json" "$linux/installer-manifest.json" "$RELEASE_TAG" artifacts/promotion/acceptance/installer-acceptance/result.json > artifacts/promotion/product-release.json
 (cd "$windows" && sha256sum -c SHA256SUMS.txt)
 (cd "$linux" && sha256sum -c SHA256SUMS)
 # Match the binary bytes against the source-bound manifests as well as the

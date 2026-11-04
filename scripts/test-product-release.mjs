@@ -1,7 +1,28 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {productRelease,manifestRelease,promotionProfile} from './lib/product-release.mjs'
+import {productRelease,manifestRelease,promotionProfile,verifyInstallerAcceptance} from './lib/product-release.mjs'
 const commit='a'.repeat(40)
+
+test('publication requires successful installation of the exact source and bytes with automatic services',()=>{
+  const manifest={commit,file:{sha256:'b'.repeat(64)}}
+  const service={StartMode:'Auto',StartName:'LocalSystem',State:'Running'}
+  const result={passed:true,commit,installer_source_commit:commit,installer_sha256:manifest.file.sha256,
+    install_exit:0,uninstall_exit:0,admin_login:true,gateway_restarted:true,scm_restarted:true,
+    defaults_preserved:true,service_removed:true,data_preserved:true,pair:{passed:true},
+    service,service_after_restart:service}
+  assert.doesNotThrow(()=>verifyInstallerAcceptance(manifest,result))
+  for(const key of Object.keys(result)){
+    const missing={...result};delete missing[key]
+    assert.throws(()=>verifyInstallerAcceptance(manifest,missing),`missing ${key}`)
+  }
+  for(const patch of [{passed:false},{error:'failed'}, {commit:'c'.repeat(40)},
+    {installer_source_commit:'c'.repeat(40)},{installer_sha256:'c'.repeat(64)},
+    {install_exit:3010},{uninstall_exit:1},{scm_restarted:false},{pair:{passed:false}},
+    {service:{...service,StartMode:'Manual'}},{service_after_restart:{...service,State:'Stopped'}}]){
+    assert.throws(()=>verifyInstallerAcceptance(manifest,{...result,...patch}))
+  }
+  assert.throws(()=>verifyInstallerAcceptance(manifest,null))
+})
 
 function manifests(version=''){
   const release=productRelease(commit,version)

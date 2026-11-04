@@ -15,6 +15,10 @@ on:
         description: 'Completed successful product run to publish without rebuilding (blank builds only)'
         type: string
         required: false
+      installer_acceptance_run_id:
+        description: 'Successful windows-installer-acceptance run for the exact installer; required for promotion'
+        type: string
+        required: false
       release_tag:
         description: 'Matching stable, candidate or preview tag: vMAJOR.MINOR.PATCH[-rc.N] or v0.1.0-preview.DATE.N'
         type: string
@@ -234,5 +238,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SOURCE_RUN_ID: ${{ inputs.promote_run_id }}
+          INSTALLER_ACCEPTANCE_RUN_ID: ${{ inputs.installer_acceptance_run_id }}
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: bash .github/scripts/promote-product-release.sh
