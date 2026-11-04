@@ -77,7 +77,10 @@ jobs:
           JS
       - name: Test Orchestrator
         shell: bash
-        run: mkdir -p ../artifacts/ci && go test -json ./... | tee ../artifacts/ci/orchestrator-tests.jsonl
+        # Integration packages spawn native child processes and SQLite instances.
+        # Bound package concurrency so hosted-runner load does not consume their
+        # readiness deadlines; retain all tests and their existing assertions.
+        run: mkdir -p ../artifacts/ci && go test -p 2 -json ./... | tee ../artifacts/ci/orchestrator-tests.jsonl
       - name: Annotate failing Go tests
         if: failure()
         run: node ../scripts/report-go-test-failures.mjs ../artifacts/ci/orchestrator-tests.jsonl

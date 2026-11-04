@@ -108,9 +108,21 @@ func testRuntimeCancellation(t *testing.T, encrypted, monitor bool) {
 	ready := make(chan struct{})
 	done := make(chan error, 1)
 	go func() { done <- run(ctx, func() { close(ready) }) }()
+	joined := false
+	defer func() {
+		cancel()
+		if !joined {
+			select {
+			case <-done:
+			case <-time.After(30 * time.Second):
+				t.Error("runtime cleanup timed out after failed startup; resources may still be held")
+			}
+		}
+	}()
 	select {
 	case <-ready:
 	case err := <-done:
+		joined = true
 		t.Fatalf("startup failed: %v", err)
 	case <-time.After(10 * time.Second):
 		t.Fatal("startup timed out")
@@ -134,6 +146,7 @@ func testRuntimeCancellation(t *testing.T, encrypted, monitor bool) {
 	cancel()
 	select {
 	case err := <-done:
+		joined = true
 		if err != nil {
 			t.Fatal(err)
 		}
