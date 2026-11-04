@@ -1,0 +1,37 @@
+{
+  "recorded_at": "2026-11-04T12:15:00+08:00",
+  "scope": "Installed Windows control-component maintenance update; not a new unified installer or full OS reboot acceptance",
+  "control_commit": "24537e6bb4fe27c168e7bf1eba2eb0ee746abf9f",
+  "base_platform_commit": "66249387b32975e79d56b19fdf98d4bc7d414da0",
+  "findings": [
+    "SCM was Running but media startup had failed before the configured user's interactive session became active; no login retry existed.",
+    "The original internal Sunshine ports could not be bound. The conflicting owner was not determined; installation configuration was consistently relocated to an available internal port range.",
+    "An interrupted session stop persisted StateStopping and prevented fresh viewing admission. Normal revoke, gateway acknowledgement, native stop and completion now recover that transaction before admitting a new generation."
+  ],
+  "installed_configuration": {
+    "windows_service": "StreamKitOrchestrator",
+    "service_start": "Automatic",
+    "service_recovery_seconds": [5, 15, 60],
+    "management_port": 9000,
+    "viewer_port": 8080,
+    "sunshine_base_port": 48989,
+    "sunshine_api_port": 48990,
+    "sunshine_rtsp_port": 49010,
+    "host_identity_and_permanent_link_preserved": true
+  },
+  "verification": {
+    "component_package_tests": "passed",
+    "app_and_handler_package_tests": "passed",
+    "typescript_and_control_bundle_build": "passed",
+    "installed_service_restart": "passed; both media components started automatically",
+    "installed_component_crash_counts": {"sunshine": 0, "web_server": 0},
+    "watch_browser_503_recovery": "passed; two unavailable replies followed by successful iframe admission",
+    "watch_browser_invalid_link": "passed; one denied request, no automatic retry or viewer iframe",
+    "original_ue_watch_link": {"passed": true, "unchanged": true, "video_width": 1280, "video_height": 720, "received_frames": 31, "page_errors": []}
+  },
+  "remaining_acceptance": [
+    "A full Windows reboot followed by login has not yet been observed after this update. Service restart and session-selection tests do not substitute for it.",
+    "Rendering requires the configured Windows user's active interactive desktop. No automatic Windows login was configured.",
+    "The published RC2 installer remains at the base revision; these runtime changes are currently installed as an explicitly recorded control maintenance update."
+  ]
+}
