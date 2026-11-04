@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -16,6 +17,82 @@ import (
 	"github.com/stream-kit/orchestrator/internal/sunshine"
 	"go.uber.org/zap"
 )
+
+func TestAdmissionRecoversPersistedStopOnlyAfterAcknowledgements(t *testing.T) {
+	m, st, req := localFixture(t)
+	a, err := m.RegisterLocal(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = st.UpdateAppFields(a.ID, map[string]interface{}{"sunshine_app_id": 771}); err != nil {
+		t.Fatal(err)
+	}
+	sessions, err := session.NewManagerWithStore(nil, st)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old, _ := sessions.Ensure(1, 771)
+	sessions.BeginStop(1, 771)
+	sessions, err = session.NewManagerWithStore(nil, st)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var gatewayDown, encoderDown atomic.Bool
+	gatewayDown.Store(true)
+	fixture := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/login":
+			http.SetCookie(w, &http.Cookie{Name: "mlSession", Value: "fixture"})
+		case "/api/hosts":
+			json.NewEncoder(w).Encode(map[string]any{"hosts": []moonlight.Host{{HostID: 1}}})
+		case "/api/apps":
+			json.NewEncoder(w).Encode(map[string]any{"apps": []moonlight.App{{AppID: 771}}})
+		case "/api/stream-kit/capabilities":
+			json.NewEncoder(w).Encode(sunshine.Capabilities{SchemaVersion: 1, ManagedAppsVersion: 1, ManagedRuntimeVersion: 1, CaptureModes: []model.CaptureMode{model.CaptureDesktop}, CaptureModeApply: "application_restart"})
+		case "/api/stream-kit/apps/" + a.ID:
+			json.NewEncoder(w).Encode(sunshine.ManagedApp{SchemaVersion: 1, AppID: a.ID, GameStreamID: 771, App: sunshine.SunshineApp{ManagedID: a.ID}})
+		case "/api/stream-kit/runtime":
+			if gatewayDown.Load() {
+				t.Error("native queried before gateway acknowledgement")
+			}
+			if encoderDown.Load() {
+				w.WriteHeader(503)
+				return
+			}
+			json.NewEncoder(w).Encode(sunshine.Runtime{SchemaVersion: 1})
+		default:
+			t.Error(r.URL.Path)
+			w.WriteHeader(500)
+		}
+	}))
+	defer fixture.Close()
+	m.moonClient = moonlight.NewClient(config.MoonlightWebConfig{BaseURL: fixture.URL}, zap.NewNop())
+	m.sunClient = sunshine.NewClient(config.SunshineAPIConfig{BaseURL: fixture.URL}, zap.NewNop())
+	m.ConfigureSessionLifecycle(sessions, func(context.Context) error {
+		if gatewayDown.Load() {
+			return errors.New("gateway unavailable")
+		}
+		return nil
+	})
+	for _, phase := range []string{"gateway unavailable", "encoder unavailable", "recovered"} {
+		gatewayDown.Store(phase == "gateway unavailable")
+		encoderDown.Store(phase == "encoder unavailable")
+		fresh, err := m.EnsureViewingSession(context.Background(), 1, 771)
+		previous, _ := sessions.Get(old.ID)
+		if phase != "recovered" {
+			if err == nil || previous.State != session.StateStopping {
+				t.Fatalf("admitted before ack: %s %v", phase, err)
+			}
+		} else {
+			if err != nil || fresh.ID == old.ID || previous.State != session.StateStopped {
+				t.Fatalf("recovery failed: %v", err)
+			}
+		}
+	}
+	if _, err := sessions.AddConnection(old.ID, "stale invitation"); !errors.Is(err, session.ErrInvalidState) {
+		t.Fatal("old authority reopened")
+	}
+}
 
 func TestViewingAdmissionAndDeletionShareLifecycle(t *testing.T) {
 	m, st, req := localFixture(t)

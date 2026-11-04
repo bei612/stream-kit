@@ -11,16 +11,28 @@ export default function Watch() {
   const [error, setError] = useState('')
   useEffect(() => {
     const abort = new AbortController()
-    const timer = setTimeout(() => abort.abort(), 30000)
+    const timer = setTimeout(() => abort.abort(), 120000)
     setStream(''); setError('')
     const key = new URLSearchParams(hash.slice(1)).get('key')
     const open = async () => {
       if (!key) throw new Error('观看地址不完整，请使用管理员提供的固定观看链接。')
+      while (!abort.signal.aborted) {
       const response = await fetch('/api/v1/watch/open', {
         method: 'POST', headers: { Authorization: `Bearer ${key}` },
         signal: abort.signal, credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer',
       })
       const result = await response.json()
+      if (response.status === 503 && ['APP_UNAVAILABLE', 'MEDIA_CONTROL_UNAVAILABLE'].includes(result.code)) {
+        // Windows can accept HTTP before the user's render desktop is ready.
+        // Keep the same capability and wait within the overall startup deadline.
+        await new Promise<void>(resolve => {
+          const retry = setTimeout(done, 2500)
+          function done() { clearTimeout(retry); abort.signal.removeEventListener('abort', done); resolve() }
+          abort.signal.addEventListener('abort', done, { once: true })
+          if (abort.signal.aborted) done()
+        })
+        continue
+      }
       if (!response.ok || result.status !== 'ok') throw new Error(result.message || '暂时无法连接应用')
       const port = response.headers.get('X-Stream-Port')
       if (!port || !/^\d+$/.test(port)) throw new Error('媒体服务地址无效')
@@ -29,6 +41,8 @@ export default function Watch() {
       source.searchParams.set('appId', String(result.data.app_id))
       const url = viewingURL(source, result.data)
       if (!abort.signal.aborted) setStream(url)
+      return
+      }
     }
     open().catch(e => { if (!abort.signal.aborted) setError(e instanceof Error ? e.message : '连接失败') }).finally(() => clearTimeout(timer))
     const timeoutMessage = () => setError('连接超时，请检查服务器是否在线后重试。')

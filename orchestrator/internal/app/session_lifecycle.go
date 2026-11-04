@@ -68,6 +68,17 @@ func (m *Manager) EnsureViewingSession(ctx context.Context, hostID, appID int64)
 	if int64(stream.HostID) != hostID {
 		return nil, session.ErrInvalidState
 	}
+	// A shutdown can persist revocation before the encoder/gateway acknowledge
+	// it. Finish that transaction after both services return, before issuing a
+	// new generation. Never reopen the old generation or bypass native ownership.
+	for _, previous := range m.sessions.List() {
+		if previous.HostID == hostID && previous.AppID == appID && previous.State == session.StateStopping {
+			if err := m.stopManagedExecution(target); err != nil {
+				return nil, fmt.Errorf("恢复未完成的停止操作失败: %w", err)
+			}
+			break
+		}
+	}
 	return m.sessions.Ensure(hostID, appID)
 }
 
