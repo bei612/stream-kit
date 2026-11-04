@@ -2,7 +2,7 @@
   "schema_version": 1,
   "source_commit": "66249387b32975e79d56b19fdf98d4bc7d414da0",
   "release_tag": "v0.1.0-rc.2",
-  "state": "published_candidate_windows_acceptance_running",
+  "state": "published_candidate_native_installer_checks_passed",
   "windows": {
     "manifest": ".local/release-66249387/windows/installer-manifest.json",
     "file": {
@@ -42,9 +42,35 @@
     "Human speech and trusted LAN HTTPS deployment remain unproven; historical four-hour acceptance is retained."
   ],
   "windows_acceptance": {
-    "run": "https://github.com/bei612/stream-kit/actions/runs/41762066487",
-    "state": "in_progress",
-    "method": "Download and execute the unchanged public RC2 Windows installer on an isolated Windows Server 2022 runner."
+    "run": "https://github.com/bei612/stream-kit/actions/runs/41762273259",
+    "state": "success",
+    "test_source": "daf05d82ee3b7e607ef559a02d1223cea59c0eba",
+    "environment": "Isolated GitHub-hosted Windows Server 2022, no pre-existing sound endpoints",
+    "method": "Download and execute the unchanged public RC2 installer. Test tooling remains outside the customer installer.",
+    "private_receipt": ".local/release-66249387/windows-acceptance/installer-acceptance/result.json",
+    "installer_sha256": "ba55c48c88fc583aa1c0e99856008baca0af1b6320508d9019183756014280bb",
+    "install_exit": 0,
+    "admin_login": true,
+    "pcm": {
+      "passed": true,
+      "captured_frames": 144000,
+      "dropped_frames": 0,
+      "xruns": 0,
+      "after_clear_quiet": true
+    },
+    "gateway_clean_stop_exit": 0,
+    "gateway_restarted": true,
+    "scm_restarted": true,
+    "service_identity": "LocalSystem",
+    "uninstall_exit": 0,
+    "service_removed": true,
+    "data_preserved": true,
+    "finished_at": "2026-11-04T02:42:24.883Z",
+    "limits": [
+      "No browser/GPU stream or physical human microphone in this installer check.",
+      "No pre-existing physical default audio devices; their preservation is not established by this runner.",
+      "No installation or service mutation on the shared demonstration host."
+    ]
   },
   "release": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-rc.2",
   "publication": {
@@ -53,10 +79,23 @@
     "asset_count": 7,
     "all_uploaded_sizes_and_sha256_match": true
   },
-  "previous_windows_acceptance": {
-    "run": "https://github.com/bei612/stream-kit/actions/runs/41760694646",
-    "state": "download_precondition_failed",
-    "reason": "The workflow read-only token cannot see the draft release. Installer execution did not start.",
-    "next": "After publishing the completed candidate assets, retry the acceptance workflow against the unchanged installer."
+  "previous_windows_acceptances": [
+    {
+      "run": "https://github.com/bei612/stream-kit/actions/runs/41760694646",
+      "state": "download_precondition_failed",
+      "reason": "The workflow read-only token cannot see the draft release. Installer execution did not start.",
+      "next": "After publishing the completed candidate assets, retry the acceptance workflow against the unchanged installer."
+    },
+    {
+      "run": "https://github.com/bei612/stream-kit/actions/runs/41762066487",
+      "state": "environment_precondition_failed",
+      "method": "Download and execute the unchanged public RC2 Windows installer on an isolated Windows Server 2022 runner.",
+      "reason": "Before installation, the read-only PowerShell recording-policy query exceeded its 15-second timeout. A bounded 60-second query budget and elapsed-time evidence were added to the test script only."
+    }
+  ],
+  "redundant_build": {
+    "run": "https://github.com/bei612/stream-kit/actions/runs/41762272224",
+    "disposition": "cancelled_intentionally",
+    "reason": "Only test diagnostic timing and documentation changed; product source stays 66249387. The changed test script is exercised by the successful isolated installer run."
   }
 }
