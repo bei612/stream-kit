@@ -437,4 +437,4 @@ Cross-session LocalSystem/SCM acceptance remains outstanding: the development
 shell used for these checks is not elevated. These tests do not establish that
 an installed service can capture or inject audio in the selected desktop.
 
-TLS termination should be provided by the deployment ingress; the Orchestrator bind address must remain private when TLS is terminated outside the process.
+TLS can terminate in the native Orchestrator and gateway, or at a deployment ingress. When using an ingress, keep the upstream listeners private. Native TLS requires coordinated changes to browser URLs, internal gateway requests, health checks and certificate trust; see [the address and HTTPS deployment contract](../contracts/public-addresses.md). Enabling a certificate on only one listener does not complete remote microphone deployment.
