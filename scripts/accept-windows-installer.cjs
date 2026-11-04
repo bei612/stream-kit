@@ -22,7 +22,7 @@ assert.equal(hash(installer),manifest.file.sha256,'Installer must match its mani
 const ps=(script,input)=>cp.execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',script],
   {input:input===undefined?undefined:JSON.stringify(input),encoding:'utf8',windowsHide:true,timeout:30000});
 assert.equal(ps('[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)').trim(),'True','Run the single installer acceptance helper elevated');
-const service=()=>JSON.parse(ps('$s=Get-CimInstance Win32_Service -Filter "Name=\'StreamKitOrchestrator\'";if($s){$s|Select-Object Name,State,StartName,ProcessId,PathName|ConvertTo-Json -Compress}else{"null"}'));
+const service=()=>JSON.parse(ps('$s=Get-CimInstance Win32_Service -Filter "Name=\'StreamKitOrchestrator\'";if($s){$s|Select-Object Name,State,StartMode,StartName,ProcessId,PathName|ConvertTo-Json -Compress}else{"null"}'));
 const defaults=()=>JSON.parse(ps(`$ErrorActionPreference='Stop';$m=[Windows.Media.Devices.MediaDevice,Windows.Media.Devices,ContentType=WindowsRuntime];$r=[Windows.Media.Devices.AudioDeviceRole,Windows.Media.Devices,ContentType=WindowsRuntime];@{render=$m::GetDefaultAudioRenderId($r::Default);capture=$m::GetDefaultAudioCaptureId($r::Default);communication_render=$m::GetDefaultAudioRenderId($r::Communications);communication_capture=$m::GetDefaultAudioCaptureId($r::Communications)}|ConvertTo-Json -Compress`));
 // Keep the array through -InputObject on Windows PowerShell 5.1.
 const controllerInventory=()=>JSON.parse(ps(String.raw`ConvertTo-Json -InputObject @(Get-CimInstance Win32_PnPEntity | Where-Object {$_.HardwareID -contains 'ROOT\USBIP_WIN2\UDE'} | Select-Object PNPDeviceID,ConfigManagerErrorCode) -Compress`));
@@ -65,6 +65,7 @@ async function endpoints(){
   installed=fs.existsSync(path.join(program,'unins000.exe'));
   assert.equal(installation.status,0,'Installer did not complete without reboot');
   const cfg=JSON.parse(fs.readFileSync(path.join(data,'orchestrator.json'),'utf8'));
+  for(const key of ['sunshine','web_server'])assert.equal(cfg.components[key].auto_start,true,`${key} must start with the installed controller`);
   assert.equal(cfg.server.bind_address,'127.0.0.1:19000');
   const gateway=JSON.parse(fs.readFileSync(path.join(data,'gateway/config.json'),'utf8'));
   assert.equal(gateway.virtual_audio.vendor_id,result.identity.vendor_id);
@@ -77,6 +78,7 @@ async function endpoints(){
   for(const key of ['sunshine','web_server'])assert.equal(health.components[key].status,'running');
   const login=await request('/login','POST',{username:cfg.server.username,password:cfg.server.password});token=login.token;
   assert.ok(token);result.admin_login=true;result.service=service();assert.equal(result.service.StartName,'LocalSystem');
+  assert.equal(result.service.StartMode,'Auto','Installer must persist automatic SCM startup');
   result.endpoints=await endpoints();
   result.pair=await request('/audio-devices/check-pair','POST',result.endpoints);
   assert.equal(result.pair.passed,true,'Installed native pair failed PCM verification');
@@ -112,6 +114,7 @@ async function endpoints(){
   assert.ok(serviceReady,'Restarted SCM service did not recover both native components');
   result.service_after_restart=service();
   assert.equal(result.service_after_restart.StartName,'LocalSystem');
+  assert.equal(result.service_after_restart.StartMode,'Auto');
   assert.ok(result.service_after_restart.ProcessId>0&&result.service_after_restart.ProcessId!==previousServicePID,'SCM restart must create a new controller process');
   assert.deepEqual(await endpoints(),result.endpoints,'SCM restart changed persistent audio endpoint identities');
   result.defaults_after_service_restart=defaults();

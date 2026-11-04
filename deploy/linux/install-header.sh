@@ -67,13 +67,16 @@ modprobe uhid
 udevadm control --reload-rules
 udevadm trigger --property-match=DEVNAME=/dev/uinput
 udevadm trigger --property-match=DEVNAME=/dev/uhid
+# Enabling is an offline filesystem operation: it also works before the user's
+# bus exists. --no-start defers this session only, never future automatic startup.
+as_user systemctl --user --no-reload enable stream-kit.service
+as_user systemctl --user is-enabled --quiet stream-kit.service
 if ((start)); then
   as_user systemctl --user daemon-reload
-  as_user systemctl --user enable stream-kit.service
   as_user systemctl --user restart stream-kit.service
   as_user systemctl --user is-active --quiet stream-kit.service
   printf 'Stream-Kit service started; check component readiness in management. Administrator credentials: %s/orchestrator.json\n' "$data"
 else
-  printf 'Stream-Kit installed and configured; service not started. After desktop login: systemctl --user enable --now stream-kit.service\nAdministrator credentials: %s/orchestrator.json\n' "$data"
+  printf 'Stream-Kit installed with automatic startup enabled; immediate startup deferred. Service starts at the next rendering-user desktop login.\nAdministrator credentials: %s/orchestrator.json\n' "$data"
 fi
 exit 0

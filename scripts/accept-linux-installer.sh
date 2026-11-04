@@ -15,6 +15,16 @@ tail -n +"$line" "${installers[0]}" > "$temporary/package.deb"
 cmp -- "$temporary/package.deb" "$output/stream-kit.deb"
 dpkg-deb --info "$temporary/package.deb"
 dpkg-deb --extract "$temporary/package.deb" "$temporary/extracted"
+# Confirm deferred installs can persist automatic startup without a live user
+# bus, using an isolated configuration directory rather than this user's units.
+unit="$temporary/extracted/usr/lib/systemd/user/stream-kit.service"
+offline_systemctl() {
+  env -u DBUS_SESSION_BUS_ADDRESS XDG_CONFIG_HOME="$temporary/systemd-config" \
+    XDG_RUNTIME_DIR="$temporary/no-user-bus" systemctl --user "$@"
+}
+offline_systemctl --no-reload enable "$unit"
+offline_systemctl is-enabled --quiet stream-kit.service
+[[ $(readlink -f "$temporary/systemd-config/systemd/user/default.target.wants/stream-kit.service") == "$unit" ]]
 root="$temporary/extracted/opt/stream-kit"
 control="$root/orchestrator/orchestrator"
 "$control" init-platform --root "$root" --data-dir "$temporary/runtime"

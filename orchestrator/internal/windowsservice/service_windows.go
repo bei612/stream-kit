@@ -78,7 +78,7 @@ func Apply(operation, binary, config string) error {
 	switch operation {
 	case "install":
 		// Re-installation of an owned service is idempotent; it does not restart it.
-		if err := recovery(service); err != nil {
+		if err := installStartupPolicy(service); err != nil {
 			if created {
 				return errors.Join(err, windows.DeleteService(service))
 			}
@@ -143,6 +143,31 @@ func recovery(service windows.Handle) error {
 	}
 	flag := windows.SERVICE_FAILURE_ACTIONS_FLAG{FailureActionsOnNonCrashFailures: 1}
 	return windows.ChangeServiceConfig2(service, windows.SERVICE_CONFIG_FAILURE_ACTIONS_FLAG, (*byte)(unsafe.Pointer(&flag)))
+}
+
+// Reapply installation policy for an owned service as well as a new one.
+// Registration must never report success with a manual/disabled service.
+func installStartupPolicy(service windows.Handle) error {
+	if err := windows.ChangeServiceConfig(service, windows.SERVICE_NO_CHANGE, windows.SERVICE_AUTO_START,
+		windows.SERVICE_NO_CHANGE, nil, nil, nil, nil, nil, nil, nil); err != nil {
+		return fmt.Errorf("configure automatic service startup: %w", err)
+	}
+	if err := recovery(service); err != nil {
+		return err
+	}
+	var needed uint32
+	if err := windows.QueryServiceConfig(service, nil, 0, &needed); !errors.Is(err, windows.ERROR_INSUFFICIENT_BUFFER) || needed == 0 {
+		return fmt.Errorf("query installed startup policy: %w", err)
+	}
+	buffer := make([]byte, needed)
+	cfg := (*windows.QUERY_SERVICE_CONFIG)(unsafe.Pointer(&buffer[0]))
+	if err := windows.QueryServiceConfig(service, cfg, needed, &needed); err != nil {
+		return err
+	}
+	if cfg.StartType != windows.SERVICE_AUTO_START {
+		return fmt.Errorf("installed service is not configured for automatic startup")
+	}
+	return nil
 }
 
 func waitState(service windows.Handle, wanted uint32) error {
