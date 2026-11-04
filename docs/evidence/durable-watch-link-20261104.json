@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "source_commit": "66249387b32975e79d56b19fdf98d4bc7d414da0",
+  "installed_platform_verified": true,
+  "deployment_success": true,
+  "environment": "Native Windows installed SCM service; real Chrome browser via VOLCENGINE.local; actual Sunshine application capture",
+  "requirements": {
+    "durable_link": "Persisted per application without an expiry; explicit reset, disable or application deletion revokes admission.",
+    "launch_arguments": "Uses administrator-saved application startup arguments, as explicitly selected by the user. Viewer URL parameters cannot change the executable or arguments.",
+    "before_start": "The example was stopped before opening the fixed link. Its management page showed both the Start streaming button and the complete fixed link.",
+    "direct_start": "A browser context without administrator credentials opened the durable page and received actual video from the previously stopped example.",
+    "bookmark": "The top-level durable address remained unchanged while the embedded viewer redeemed temporary media authority; reload produced video again.",
+    "rotation": "Reset returned a different durable address. The old address was rejected with HTTP 401 and displayed a revoked-link message in a fresh page. The new address produced video.",
+    "authority": "Initial viewer role, management credential isolation, unmodified saved arguments, invalid keys and rotation during launch lookup are covered by handler tests. Existing viewer connections are not disconnected by link rotation alone."
+  },
+  "browser_result": {
+    "passed": true,
+    "status_before_open": "stopped",
+    "link_visible_before_start": true,
+    "first_video": {"width": 1280, "height": 720, "frames": 16},
+    "bookmark_preserved": true,
+    "reloaded_video": {"width": 1280, "height": 720, "frames": 16},
+    "reload_keeps_address": true,
+    "old_link_status": 401,
+    "old_bookmark_shows_revocation": true,
+    "rotated_video": {"width": 1280, "height": 720, "frames": 16},
+    "page_errors": []
+  },
+  "checks": [
+    "Go internal/store, internal/server/handlers and internal/server suites passed locally.",
+    "Store test closes and reopens an on-disk SQLite database and verifies link persistence, idempotence, reset, disable and application removal.",
+    "TypeScript and production frontend build passed.",
+    "All three installed component manifests verified at source commit 66249387b32975e79d56b19fdf98d4bc7d414da0."
+  ],
+  "ci_run": "https://github.com/bei612/stream-kit/actions/runs/41756604158",
+  "private_evidence": [
+    ".local/management/watch-update-result.json",
+    ".local/management/watch-check-result.json",
+    ".local/management/watch-link-before-start.png",
+    ".local/management/watch-stream.png"
+  ],
+  "limits": [
+    "No physical iPad/TV or actual DHCP change was exercised. This is a Chrome same-host browser check using the LAN hostname.",
+    "This does not claim human speech, audible autoplay on iPad, or HTTPS deployment. Those previous acceptance limits remain.",
+    "Durable capability values are intentionally excluded from committed evidence. The administrator can retrieve the current link in the application detail page."
+  ]
+}
