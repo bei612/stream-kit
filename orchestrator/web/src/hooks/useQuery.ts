@@ -12,7 +12,7 @@ interface UseQueryResult<T> {
   loading: boolean    // true only on first fetch
   error: string       // empty = no error
   refreshing: boolean // true on subsequent fetches
-  refresh: () => void
+  refresh: () => Promise<void>
 }
 
 export function useQuery<T>(opts: UseQueryOptions<T>): UseQueryResult<T> {
@@ -23,20 +23,22 @@ export function useQuery<T>(opts: UseQueryOptions<T>): UseQueryResult<T> {
   const [refreshing, setRefreshing] = useState(false)
   const firstLoad = useRef(true)
   const mounted = useRef(true)
+  const revision = useRef(0)
 
   const refresh = useCallback(async () => {
     if (!enabled) return
+    const requestRevision = ++revision.current
     if (!firstLoad.current) setRefreshing(true)
     try {
       const res = await queryFn()
-      if (mounted.current) {
+      if (mounted.current && requestRevision === revision.current) {
         setData((res.data ?? null) as T | null)
         setError('')
       }
     } catch (e: any) {
-      if (mounted.current) setError(e.message || '请求失败')
+      if (mounted.current && requestRevision === revision.current) setError(e.message || '请求失败')
     } finally {
-      if (mounted.current) {
+      if (mounted.current && requestRevision === revision.current) {
         setLoading(false)
         setRefreshing(false)
         firstLoad.current = false
@@ -48,11 +50,14 @@ export function useQuery<T>(opts: UseQueryOptions<T>): UseQueryResult<T> {
   useEffect(() => {
     mounted.current = true
     firstLoad.current = true
+    setData(null)
+    setError('')
     setLoading(true)
     refresh()
     const timer = setInterval(refresh, pollInterval)
     return () => {
       mounted.current = false
+      revision.current++
       clearInterval(timer)
     }
   }, [refresh, pollInterval])

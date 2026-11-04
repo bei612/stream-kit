@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { api } from '@/api/client'
 import { useQuery } from '@/hooks/useQuery'
 import QueryWrapper from '@/components/QueryWrapper'
-import StatusBadge from '@/components/StatusBadge'
+import AppLifecycleStatus from '@/components/AppLifecycleStatus'
 import { Button } from '@/components/ui/button'
 import { Table, TableHead, TableBody, TableRow, Th, Td } from '@/components/ui/table'
 import { formatBytes, formatTime } from '@/lib/utils'
@@ -14,7 +14,7 @@ export default function Apps() {
   const { data, loading, error, refresh } = useQuery({
     queryFn: useCallback(() => api.listApps(), []),
     pollInterval: 10000,
-    wsInvalidateEvents: ['app_status'],
+    wsInvalidateEvents: ['app_status', 'stream_session_state_changed', 'stream_session_created'],
   })
 
   const apps = (data ?? []) as any[]
@@ -84,17 +84,17 @@ export default function Apps() {
                   <Td>
                     <Link to={`/apps/${app.id}`} className="text-primary hover:underline font-medium">{app.name}</Link>
                   </Td>
-                  <Td><StatusBadge status={app.status} /></Td>
+                  <Td><AppLifecycleStatus app={app} /></Td>
                   <Td className="text-muted-foreground">{formatBytes(app.extracted_size_bytes || app.file_size_bytes)}</Td>
                   <Td className="text-muted-foreground">{formatTime(app.created_at)}</Td>
                   <Td className="text-right">
                     <div className="flex justify-end gap-2">
-                      {['ready', 'stopped', 'crashed'].includes(app.status) && (
+                      {app.lifecycle?.can_launch && (
                         <Button size="sm" onClick={() => handleLaunch(app.id)}>
                           <Play className="w-3 h-3" /> 启动串流
                         </Button>
                       )}
-                      {app.status === 'running' && (
+                      {app.lifecycle?.can_stop && (
                         <Button size="sm" variant="destructive" onClick={() => handleStop(app.id)}>
                           <Square className="w-3 h-3" /> 停止串流
                         </Button>

@@ -1,9 +1,10 @@
-import { useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router'
+import { useQuery } from '@/hooks/useQuery'
 import { api } from '@/api/client'
 import { openViewingStream } from '@/lib/stream-access'
 import AppWatchLink from '@/components/AppWatchLink'
-import StatusBadge from '@/components/StatusBadge'
+import AppLifecycleStatus from '@/components/AppLifecycleStatus'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/input'
@@ -14,8 +15,15 @@ import CaptureModeField, { type CaptureMode } from '@/components/CaptureModeFiel
 
 export default function AppDetail() {
   const { id } = useParams<{ id: string }>()
+  return <AppDetailContent key={id} id={id} />
+}
+
+function AppDetailContent({id}: {id: string | undefined}) {
   const navigate = useNavigate()
-  const [app, setApp] = useState<any>(null)
+  const {data:app, error:loadError, refresh} = useQuery<any>({
+    queryFn: useCallback(() => api.getApp(id!), [id]), enabled: !!id, pollInterval: 5000,
+    wsInvalidateEvents: ['app_status', 'stream_session_state_changed', 'stream_session_created'],
+  })
   const [args, setArgs] = useState('')
   const [captureMode,setCaptureMode]=useState<CaptureMode>('desktop')
   const [argsDirty, setArgsDirty] = useState(false)
@@ -23,44 +31,24 @@ export default function AppDetail() {
   const [saving, setSaving] = useState(false)
   const [saveNotice, setSaveNotice] = useState<{kind:'error'|'success';message:string}|null>(null)
   const [retrying, setRetrying] = useState(false)
+  const [candidateError, setCandidateError] = useState('')
   const [candidates, setCandidates] = useState<any[]>([])
 
-  const [loadError, setLoadError] = useState('')
-
-  const refresh = async () => {
-    if (!id) return
-    try {
-      const res = await api.getApp(id)
-      setApp(res.data)
-      setLoadError('')
-      if (!argsDirtyRef.current) {
-        setArgs(argsToLines(res.data?.args || ''))
-        setCaptureMode(res.data?.capture_mode || 'desktop')
-      }
-
-      if (res.data?.status === 'detecting') {
-        const cands = await api.getAppCandidates(id)
-        setCandidates(cands.data || [])
-      }
-    } catch (e: any) {
-      setLoadError(e.message || '加载失败')
-    }
-  }
-
   useEffect(() => {
-    refresh()
-    const t = setInterval(refresh, 5000)
-    // Also refresh immediately on WebSocket app_status events
-    const onWsEvent = (e: Event) => {
-      const detail = (e as CustomEvent).detail
-      if (detail?.type === 'app_status') refresh()
+    if (app && !argsDirtyRef.current) {
+      setArgs(argsToLines(app.args || ''))
+      setCaptureMode(app.capture_mode || 'desktop')
     }
-    window.addEventListener('ws-event', onWsEvent)
-    return () => {
-      clearInterval(t)
-      window.removeEventListener('ws-event', onWsEvent)
-    }
-  }, [id])
+  }, [app])
+  useEffect(() => {
+    let active = true
+    setCandidates([])
+    setCandidateError('')
+    if (id && app?.status === 'detecting') api.getAppCandidates(id).then(res => {
+      if (active) setCandidates(res.data || [])
+    }).catch(e => { if (active) setCandidateError(e.message || '????????') })
+    return () => { active = false }
+  }, [id, app])
 
   const handleSave = async () => {
     if (!id || saving) return
@@ -122,7 +110,7 @@ export default function AppDetail() {
   const [stopping, setStopping] = useState(false)
 
   const handleLaunch = async () => {
-    if (!id) return
+    if (!id || launching || stopping || saving) return
     setLaunching(true)
     try {
       await openViewingStream(async () => {
@@ -137,7 +125,7 @@ export default function AppDetail() {
   }
 
   const handleStopStream = async () => {
-    if (!id) return
+    if (!id || stopping || launching || saving) return
     setStopping(true)
     try {
       await api.stopApp(id)
@@ -156,8 +144,8 @@ export default function AppDetail() {
   )
   if (!app) return <div className="text-muted-foreground">加载中...</div>
 
-  const settingsEditable = ['ready','stopped','crashed','register_failed'].includes(app.status)
-  const settingsDisabled = saving || retrying || !settingsEditable
+  const settingsEditable = app.lifecycle?.can_edit === true
+  const settingsDisabled = saving || retrying || launching || stopping || !!loadError || !settingsEditable
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -167,7 +155,7 @@ export default function AppDetail() {
 
       <div className="flex items-center gap-3">
         <h2 className="min-w-0 break-words text-2xl font-bold text-card-foreground">{app.name}</h2>
-        <div className="shrink-0"><StatusBadge status={app.status} /></div>
+        <div className="shrink-0"><AppLifecycleStatus app={app} /></div>
       </div>
       {loadError && <Alert variant="warning" role="status">状态刷新失败：{loadError}。当前显示上次读取的状态。</Alert>}
 
@@ -189,16 +177,16 @@ export default function AppDetail() {
             {app.status==='register_failed'?'完成编码器注册后即可启动串流。':'应用尚未准备完成，请等待处理完成或按下方提示选择入口。'}
           </p>}
           <div className="flex flex-wrap items-center gap-3">
-            {['ready', 'stopped', 'crashed', 'running'].includes(app.status) && (
+            {app.lifecycle?.can_launch && (
               <>
-              <Button onClick={handleLaunch} disabled={launching}>
+              <Button onClick={handleLaunch} disabled={launching || stopping || saving || !!loadError}>
                 <Play className="w-4 h-4" /> {launching ? '打开中...' : app.status === 'running' ? '进入串流' : '启动串流'}
               </Button>
               </>
             )}
-            {app.status === 'running' && (
+            {app.lifecycle?.can_stop && (
               <>
-                <Button variant="destructive" onClick={handleStopStream} disabled={stopping}>
+                <Button variant="destructive" onClick={handleStopStream} disabled={stopping || launching || saving || !!loadError}>
                   <Square className="w-4 h-4" /> {stopping ? '停止中...' : '停止串流（含程序）'}
                 </Button>
               </>
@@ -208,6 +196,7 @@ export default function AppDetail() {
         </CardContent>
       </Card>
 
+      {candidateError && <Alert variant="warning">{candidateError}</Alert>}
       {/* Exe selection dialog */}
       {app.status === 'detecting' && candidates.length > 0 && (
         <Alert variant="warning">
@@ -259,7 +248,7 @@ export default function AppDetail() {
             </div>
             <div>
               <span className="text-muted-foreground">状态：</span>
-              <StatusBadge status={app.status} />
+              <AppLifecycleStatus app={app} />
             </div>
           </div>
 

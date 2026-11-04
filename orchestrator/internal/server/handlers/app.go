@@ -60,7 +60,7 @@ func (h *AppHandler) RegisterLocal(c *gin.Context) {
 }
 
 func (h *AppHandler) List(c *gin.Context) {
-	apps, err := h.Store.ListApps()
+	apps, err := h.Manager.ListViews()
 	if err != nil {
 		errResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "服务器内部错误")
 		return
@@ -70,7 +70,7 @@ func (h *AppHandler) List(c *gin.Context) {
 
 func (h *AppHandler) Get(c *gin.Context) {
 	id := c.Param("app_id")
-	a, err := h.Store.GetApp(id)
+	a, err := h.Manager.GetView(id)
 	if err != nil {
 		errResponse(c, http.StatusNotFound, "APP_NOT_FOUND", "应用不存在")
 		return

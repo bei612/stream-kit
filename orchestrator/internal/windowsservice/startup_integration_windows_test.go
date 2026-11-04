@@ -53,7 +53,10 @@ func TestInstalledStartupPolicyOnRealSCM(t *testing.T) {
 			t.Fatal(err)
 		}
 		var needed uint32
-		buf := make([]byte, 8192)
+		if err := windows.QueryServiceConfig(s, nil, 0, &needed); !errors.Is(err, windows.ERROR_INSUFFICIENT_BUFFER) || needed == 0 {
+			t.Fatalf("size service configuration: %v", err)
+		}
+		buf := make([]byte, needed)
 		cfg := (*windows.QUERY_SERVICE_CONFIG)(unsafe.Pointer(&buf[0]))
 		if err := windows.QueryServiceConfig(s, cfg, uint32(len(buf)), &needed); err != nil {
 			t.Fatal(err)
@@ -61,6 +64,10 @@ func TestInstalledStartupPolicyOnRealSCM(t *testing.T) {
 		if cfg.StartType != windows.SERVICE_AUTO_START {
 			t.Fatal("automatic startup not persisted")
 		}
+		if err := windows.QueryServiceConfig2(s, windows.SERVICE_CONFIG_FAILURE_ACTIONS, nil, 0, &needed); !errors.Is(err, windows.ERROR_INSUFFICIENT_BUFFER) || needed == 0 {
+			t.Fatalf("size recovery configuration: %v", err)
+		}
+		buf = make([]byte, needed)
 		if err := windows.QueryServiceConfig2(s, windows.SERVICE_CONFIG_FAILURE_ACTIONS, &buf[0], uint32(len(buf)), &needed); err != nil {
 			t.Fatal(err)
 		}
