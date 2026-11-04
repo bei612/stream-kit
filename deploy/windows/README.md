@@ -3,6 +3,26 @@
 The first-install wizard and silent mode use the same native `init-platform` and
 `service` commands. Setup elevates once. It does not change PowerShell execution
 policy or firewall policy and never reboots the machine automatically.
+
+Setup itself registers `StreamKitOrchestrator` as an automatic LocalSystem
+Windows service, verifies that startup setting, and installs service recovery
+actions. Initialization enables automatic startup for both managed components:
+Sunshine and the Web media gateway. There is one Windows service owning these
+two workers; no separate Startup-folder shortcuts or post-install service
+configuration are required. At boot the control service starts independently of
+desktop login. Rendering waits for the configured user's active desktop session;
+it retries after login and resolves the session by user identity rather than
+assuming the previous boot's session number. Setup does not enable Windows
+automatic login. Driver restart-required installation still registers the
+automatic service before returning 3010.
+
+Source policy and clean-installer acceptance are separate checks. The startup
+policy check creates an isolated SCM service; the product acceptance runs the
+actual unified installer on a clean hosted Windows runner, checks automatic
+startup and both workers, then exercises service restart and uninstall. Neither
+check alone demonstrates a full machine reboot. Current product acceptance and
+local reboot evidence must identify their respective source revisions.
+
 VB-CABLE packaging and installation support has been removed. The product
 does not download it, request a vendor authorization record, or install it.
 Existing compatible endpoints remain selectable through normal audio routing.
@@ -200,8 +220,10 @@ log without copying general child configuration output or credentials.
 dispatch builds the three runtime components and one installer as downloadable
 artifacts. After a successful run, push a new `v*-preview.*` tag at that run's
 source commit through the project's authorized Git transport, then dispatch the
-workflow with `promote_run_id` and `release_tag`. Promotion verifies both native
-installers and the source SBOM, and publishes those exact files without building
+workflow with `promote_run_id`, `installer_acceptance_run_id` and `release_tag`.
+The acceptance run must have succeeded for the exact Windows installer source
+and SHA-256. Promotion verifies that evidence, both native installers and the
+source SBOM, and publishes those exact files without building
 again or replacing release assets. Tag pushes do not start new builds in the
 current workflow. The default Actions token uploads the release; it does not
 need a deploy key or an additional workflow-writing OAuth grant. The
