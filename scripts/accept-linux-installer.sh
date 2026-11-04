@@ -19,7 +19,7 @@ dpkg-deb --extract "$temporary/package.deb" "$temporary/extracted"
 # bus, using an isolated configuration directory rather than this user's units.
 unit="$temporary/extracted/usr/lib/systemd/user/stream-kit.service"
 offline_systemctl() {
-  env -u DBUS_SESSION_BUS_ADDRESS XDG_CONFIG_HOME="$temporary/systemd-config" \
+  env -u DBUS_SESSION_BUS_ADDRESS SYSTEMD_OFFLINE=1 XDG_CONFIG_HOME="$temporary/systemd-config" \
     XDG_RUNTIME_DIR="$temporary/no-user-bus" systemctl --user "$@"
 }
 offline_systemctl --no-reload enable "$unit"

@@ -69,8 +69,8 @@ udevadm trigger --property-match=DEVNAME=/dev/uinput
 udevadm trigger --property-match=DEVNAME=/dev/uhid
 # Enabling is an offline filesystem operation: it also works before the user's
 # bus exists. --no-start defers this session only, never future automatic startup.
-as_user systemctl --user --no-reload enable stream-kit.service
-as_user systemctl --user is-enabled --quiet stream-kit.service
+as_user env SYSTEMD_OFFLINE=1 systemctl --user --no-reload enable stream-kit.service
+as_user env SYSTEMD_OFFLINE=1 systemctl --user is-enabled --quiet stream-kit.service
 if ((start)); then
   as_user systemctl --user daemon-reload
   as_user systemctl --user restart stream-kit.service
