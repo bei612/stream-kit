@@ -62,5 +62,51 @@
     "The local installation remains the prior control-only maintenance revision; this record does not claim local deployment of this installer.",
     "Generated PCM is not human speech acceptance. Physical Linux/mobile acceptance and publisher signing are excluded by current user scope."
   ],
-  "local_downloads_verified": true
+  "local_downloads_verified": true,
+  "publication": {
+    "url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261104.1",
+    "tag": "v0.1.0-preview.20261104.1",
+    "prerelease": true,
+    "published_at": "2026-11-04T12:28:34Z",
+    "promotion_run": "https://github.com/bei612/stream-kit/actions/runs/41829499794",
+    "all_asset_bytes_and_digests_match": true,
+    "release_notes_match": true,
+    "assets": [
+      {
+        "name": "installer-manifest.json",
+        "bytes": 2312,
+        "sha256": "4bfc07f7574af980d40eed3619f9aa168abd5b2dd7710ebacd81bc5a32db9455"
+      },
+      {
+        "name": "linux-installer-manifest.json",
+        "bytes": 1363,
+        "sha256": "5dbc3f15c909eda8e45553db894c70f76130898de976d48fe8c0f8ec7c2bb458"
+      },
+      {
+        "name": "Linux-SHA256SUMS.txt",
+        "bytes": 126,
+        "sha256": "cadc75a51bfc0b2619422d71ad36c5ec7c8450a525a8330b59aa72ec68b6207f"
+      },
+      {
+        "name": "SHA256SUMS.txt",
+        "bytes": 122,
+        "sha256": "1c4f5827a69235947f9457dbd505ed268ffc67413d768bc48b041f2092bf6793"
+      },
+      {
+        "name": "stream-kit-preview-05baccd8aad1-ubuntu24.04-amd64-setup.run",
+        "bytes": 62361155,
+        "sha256": "c55522fd4fee100a659b43a6674a2d3d87ba04be42b3d09ff213e8e9ec9aaf00"
+      },
+      {
+        "name": "stream-kit-preview-05baccd8aad1-windows-amd64-setup.exe",
+        "bytes": 97465281,
+        "sha256": "c8dc768987f0cd5a8c3145fab59d6ab2febcf8117430ee24ddc788ae02004b40"
+      },
+      {
+        "name": "stream-kit-sbom.spdx.json",
+        "bytes": 7410013,
+        "sha256": "0c178eaa274eb4077bd7055282f8bfa3b80f37df1007e10e7a3f9a698ed88607"
+      }
+    ]
+  }
 }

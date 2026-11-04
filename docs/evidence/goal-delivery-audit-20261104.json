@@ -10,7 +10,8 @@
     "linux_installer_evidence": "docs/evidence/linux-installer-autostart-05baccd8.json",
     "lifecycle_and_startup_policy_evidence": "docs/evidence/lifecycle-and-autostart-ci-05baccd8.json",
     "unified_installer_evidence": "docs/evidence/unified-installers-05baccd8.json",
-    "windows_installer_acceptance_run": 41828402371
+    "windows_installer_acceptance_run": 41828402371,
+    "release": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261104.1"
   },
   "installed_source": "66249387b32975e79d56b19fdf98d4bc7d414da0",
   "historical_requirement_audit": "docs/evidence/goal-delivery-audit-20261101.json",
@@ -69,6 +70,6 @@
       "next": "Validate during an agreed network-change window or on an isolated deployment, preserving the other projects and remote sessions on this host."
     }
   ],
-  "distribution_boundary": "Public v0.1.0-rc.2 contains Windows and Ubuntu 24.04 runtime installers and SBOM at source 66249387, matching the installed feature revision. All seven uploaded files match verified SHA-256/size records. Linux native package initialization and Windows actual installation, PCM, gateway/SCM restart and uninstall passed. See docs/evidence/release-candidate-66249387.json. The shared demonstration host has not been reinstalled or restarted.",
+  "distribution_boundary": "Public v0.1.0-preview.20261104.1 contains Windows and Ubuntu 24.04 runtime installers and SBOM at source 05baccd8. All seven published asset sizes and server SHA-256 digests match locally verified build artifacts. Clean Windows silent installation verified automatic SCM startup without manual repair, native PCM, gateway/SCM restart and uninstall; Linux native package initialization and offline user-service enablement passed. Installed local control remains 70ea6f70 with media baseline 66249387; this publication did not replace the local installation. See docs/evidence/unified-installers-05baccd8.json.",
   "completion_decision": "Goal remains incomplete. Current installed operation and permanent-link delivery do not substitute for the remaining acceptance conditions."
 }
