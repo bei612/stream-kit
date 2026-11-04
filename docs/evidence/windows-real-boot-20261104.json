@@ -1,0 +1,16 @@
+{
+  "scope": "Read-only observation of an actual Windows reboot after control maintenance fixes; no component start was requested by this check",
+  "boot": "2026-11-04T17:36:48.5000000+08:00",
+  "installed_control_commit": "70ea6f7090097af5e6e3b7dca0185a712d5fc37f",
+  "base_platform_commit": "66249387b32975e79d56b19fdf98d4bc7d414da0",
+  "service": {"name": "StreamKitOrchestrator", "state": "Running", "start_mode": "Auto", "pid": 6004, "session": 0, "started_unix_ms": 1793785029656},
+  "sunshine": {"state": "running", "pid": 9284, "session": 1, "started_unix_ms": 1793785030641, "crash_count": 0},
+  "web_server": {"state": "running", "pid": 23028, "session": 1, "started_unix_ms": 1793785061642, "crash_count": 0},
+  "evidence_sources": ["Win32_OperatingSystem.LastBootUpTime", "Win32_Service", "Win32_Process.CreationDate", "GET /api/v1/health"],
+  "limits": [
+    "One observed boot does not guarantee every future boot.",
+    "Interactive rendering requires the configured Windows user to log in.",
+    "UE application was left stopped; this observation does not establish full-scene rendering or human microphone delivery.",
+    "The newer installation policy and lifecycle UI at 198221ee are not installed locally; product run 41816309307 is still building."
+  ]
+}

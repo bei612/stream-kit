@@ -1,6 +1,13 @@
 {
   "schema_version": 1,
   "overall_completion_proven": false,
+  "latest_observation": {
+    "control_commit": "70ea6f7090097af5e6e3b7dca0185a712d5fc37f",
+    "actual_boot_evidence": "docs/evidence/windows-real-boot-20261104.json",
+    "source_candidate": "198221ee396e83f5a6478b9788aa7ca23ed6f2ec",
+    "product_build_run": 41816309307,
+    "note": "Earlier entries describe the morning baseline. Later authorized repairs installed control-only maintenance updates. The new unified installer and lifecycle UI await acceptance."
+  },
   "installed_source": "66249387b32975e79d56b19fdf98d4bc7d414da0",
   "historical_requirement_audit": "docs/evidence/goal-delivery-audit-20261101.json",
   "scope_preserved": {
