@@ -12,11 +12,7 @@ sudo bash INSTALLER.run --user RENDER_USER
 
 安装器使用包管理器补齐系统运行库，初始化私有数据，并启用该用户的 `stream-kit.service`。缺少运行库时，需要能访问 Ubuntu 软件源。运行不需要 Node.js、npm 或编译工具。
 
-尚未登录图形桌面时，可附加 `--no-start` 仅安装并初始化。随后以指定用户登录桌面，执行：
-
-```sh
-systemctl --user enable --now stream-kit.service
-```
+尚未登录图形桌面时，可附加 `--no-start` 安装并初始化，暂不立即启动。安装器仍会启用该用户的服务自启动；随后以指定用户登录，用户服务管理器将自动启动平台，无需另行执行启用命令。
 
 渲染与音频运行需要该用户的图形会话，以及可用的 PulseAudio 或 PipeWire-Pulse 音频服务。无桌面安装成功不代表采集已经可用。
 
