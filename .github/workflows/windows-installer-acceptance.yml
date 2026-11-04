@@ -18,8 +18,41 @@ permissions:
   contents: read
   actions: read
 jobs:
-  installed-service:
+  select-source:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      install: ${{ steps.select.outputs.install }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      PRODUCT_RUN_ID: ${{ github.event.workflow_run.id || inputs.product_run_id }}
+      PRODUCT_COMMIT: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Select an installer build, excluding publication-only runs
+        id: select
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "$RELEASE_TAG" && -n "$PRODUCT_RUN_ID" ]] || [[ -z "$RELEASE_TAG" && -z "$PRODUCT_RUN_ID" ]]; then
+            echo 'Select exactly one release tag or product run' >&2; exit 1
+          fi
+          if [[ -n "$PRODUCT_RUN_ID" && ! "$PRODUCT_RUN_ID" =~ ^[1-9][0-9]*$ ]]; then
+            echo 'Invalid product run ID' >&2; exit 1
+          fi
+          if [[ "$GITHUB_EVENT_NAME" == workflow_run ]]; then
+            gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/actions/runs/$PRODUCT_RUN_ID/artifacts" > source-artifacts.json
+            if ! jq -e --arg name "windows-product-installer-$PRODUCT_COMMIT" '[.[].artifacts[] | select(.name == $name and .expired == false)] | length == 1' source-artifacts.json > /dev/null; then
+              echo 'install=false' >> "$GITHUB_OUTPUT"
+              echo 'No installer artifact in this run; installation acceptance is skipped. Publication-only runs do not create installers.' >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+          fi
+          echo 'install=true' >> "$GITHUB_OUTPUT"
+  installed-service:
+    needs: select-source
+    if: needs.select-source.outputs.install == 'true'
     runs-on: windows-2022
     timeout-minutes: 15
     env:
@@ -34,10 +67,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '26.4.0'
-      - name: Validate immutable installer source selection
-        run: |
-          if ([bool]$env:RELEASE_TAG -eq [bool]$env:PRODUCT_RUN_ID) { throw 'Select exactly one release tag or product run' }
-          if ($env:PRODUCT_RUN_ID -and $env:PRODUCT_RUN_ID -notmatch '^[1-9][0-9]*$') { throw 'Invalid product run ID' }
       - name: Prepare isolated recording access and audio services
         run: |
           $ErrorActionPreference = 'Stop'
