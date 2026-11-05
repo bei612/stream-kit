@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "source_commit": "371db43538813cf04a277efb2b2a4cbf6c86f606",
+  "cross_platform": {
+    "run": "https://github.com/bei612/stream-kit/actions/runs/41995016831",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "Management Web",
+        "conclusion": "success",
+        "job_id": 127135986047
+      },
+      {
+        "name": "Orchestrator (ubuntu-latest)",
+        "conclusion": "success",
+        "job_id": 127135986334
+      },
+      {
+        "name": "Orchestrator (windows-latest)",
+        "conclusion": "success",
+        "job_id": 127135986464
+      },
+      {
+        "name": "Source SBOM",
+        "conclusion": "success",
+        "job_id": 127135986593
+      },
+      {
+        "name": "Moonlight Web (windows-latest)",
+        "conclusion": "success",
+        "job_id": 127135986651
+      },
+      {
+        "name": "Moonlight Web (ubuntu-latest)",
+        "conclusion": "success",
+        "job_id": 127135986799
+      }
+    ]
+  },
+  "linux_installer": {
+    "run": "https://github.com/bei612/stream-kit/actions/runs/41995016834",
+    "conclusion": "success",
+    "job_id": 127135985946,
+    "verified": [
+      "Native Sunshine application capture and managed capability checks",
+      "Staged renderer remains usable after compiler intermediate cleanup",
+      "Runtime installer checksum, native extraction and three-component initialization",
+      "Offline user-service enablement and existing data preservation"
+    ]
+  },
+  "changed_acceptance_checks": {
+    "signal_policy_regression": "passed in Management Web job",
+    "management_browser_engines": [
+      "chromium",
+      "firefox",
+      "webkit"
+    ],
+    "physical_voice_evidence": "docs/evidence/human-voice-installed-20261105.json"
+  },
+  "logs": [
+    {
+      "path": ".local/ci-371db435-linux.log",
+      "sha256": "9d1eb1846d21131f68387177a9a9dbc5ca5ef4c88e9860a2002a89a769219e75"
+    },
+    {
+      "path": ".local/ci-371db435-management.log",
+      "sha256": "697997b956996374ba39b247ab8213fbe801498ade2ad02b075e1e5233a925e9"
+    },
+    {
+      "path": ".local/ci-371db435-windows-gateway.log",
+      "sha256": "2fdd066e452384cbb7532e977a18509df1434f75461fb5d6338b072ca40064aa"
+    }
+  ],
+  "limits": [
+    "CI does not establish human speech; the separate local physical-device evidence records that result.",
+    "Management browser interactions do not prove remote mobile device hardware or LAN certificate trust.",
+    "These runs did not replace the published 05baccd8 installers or install a new platform on the local host."
+  ]
+}
