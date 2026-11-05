@@ -54,6 +54,11 @@
       "item": "Physical human microphone to native target and audience",
       "evidence": "docs/evidence/human-voice-installed-20261105.json",
       "finding": "Two real local browsers and explicit Stream Kit virtual input; authorized and transferred-controller correlations exceed 0.995, all five native recording phases have zero dropped frames. Denied output remained below the stated absolute and relative measurement floors. User participation is no longer required for this completed local speech check."
+    },
+    {
+      "item": "Updated local Example audio capture",
+      "evidence": "docs/evidence/local-example-audio-update-20261105.json",
+      "finding": "Replaced the old demonstration bundle with a clean source-matched build using the vendored WASAPI correction. Explicit virtual input captured 120480 frames with no drops/errors; application ID/path and existing platform services preserved. No additional human speech test."
     }
   ],
   "remaining_acceptance": [

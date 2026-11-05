@@ -219,7 +219,7 @@
   "limits": [
     "The reported lags align energy envelopes; they are not a general latency guarantee.",
     "Synthetic tests were not substituted for the physical input. Earlier failed/interrupted attempts remain in artifacts/installed-voice.",
-    "The installed Example still contains its older audio probe; this recording used the separately hash-verified corrected diagnostic probe. Updating the example bundle remains a separate local maintenance task.",
+    "Speech acceptance used the separately hash-verified corrected diagnostic probe. The local Example was subsequently rebuilt and updated; see docs/evidence/local-example-audio-update-20261105.json.",
     "A local browser microphone does not establish client certificate trust or remote LAN HTTPS deployment."
   ]
 }

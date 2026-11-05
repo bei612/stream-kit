@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-11-05T08:44:01.883Z",
+  "scope": "Local demonstration Example update only; public production installers and installed platform services are unchanged.",
+  "passed": true,
+  "source_commit": "371db43538813cf04a277efb2b2a4cbf6c86f606",
+  "previous_source_commit": "6c98ccb0d6aaae2e42c6256245ee51ff9d063e3a",
+  "reason": "The old Example probe predated the vendored WASAPI initialization correction and failed virtual-input capture after 5280 frames. The source-matched updated Example now includes the corrected optimized probe and matching signed Microsoft release runtime.",
+  "manifest_verified_after_directory_swap": true,
+  "files": [
+    {
+      "path": "Cargo.lock",
+      "bytes": 39530,
+      "sha256": "72e7de5bd21a39fb9369c6ba3db0180baa0af54dedc8551c10bcc6b73e3982be"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.go.json",
+      "bytes": 3268,
+      "sha256": "3ee29bedf9fcf18f83891da9fc86de92fd5e97cc62d36f874dbeee7ec9641892"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.rust.json",
+      "bytes": 481033,
+      "sha256": "ac04deb4250e8e3fc5bb09c738861e62f48f1f73474bb5e2c4493617820caf04"
+    },
+    {
+      "path": "WINDOWS-RUNTIME-NOTICE.txt",
+      "bytes": 447,
+      "sha256": "6d85b5348c70b144f4827f8fdf828883c15a489463e1e736b605bab6e19f1b65"
+    },
+    {
+      "path": "WINDOWS-RUNTIME.json",
+      "bytes": 539,
+      "sha256": "02f1fd32117da16a83d68616efa9cc2e4331a8c4b4691c1cecb39be431eee50e"
+    },
+    {
+      "path": "audio-probe.exe",
+      "bytes": 603648,
+      "sha256": "0a71e6924dd8f2af8c8504e38eb526b3679c4565a7fe8054de03f317f0598931"
+    },
+    {
+      "path": "checkerboard.exe",
+      "bytes": 3009536,
+      "sha256": "73107f5d52295225a7f40c6623adf139d14fe761fdca62526ab8b09dcf7a584b"
+    },
+    {
+      "path": "vcruntime140.dll",
+      "bytes": 119376,
+      "sha256": "bdf138419212f885be2db487f586a1b5b7efacdbe076a9be971e322b6a2c8fc3"
+    }
+  ],
+  "device_check": {
+    "passed": true,
+    "scope": "Updated Example probe captures idle virtual endpoint; no physical microphone captured",
+    "commit": "371db43538813cf04a277efb2b2a4cbf6c86f606",
+    "manifest_verified": true,
+    "toolset": "Official Visual Studio 2022 MSVC 14.38.33130 with matching release CRT",
+    "probe_sha256": "0a71e6924dd8f2af8c8504e38eb526b3679c4565a7fe8054de03f317f0598931",
+    "capture": {
+      "captured_frames": 120480,
+      "dropped_frames": 0,
+      "error": null,
+      "input_state": "idle",
+      "output_state": "idle",
+      "peak": 0.000030517578125,
+      "played_frames": 0,
+      "rms": 0.000010812048171733252,
+      "sample_rate": 48000,
+      "state": "idle"
+    },
+    "app_status_before": "stopped"
+  },
+  "installation": {
+    "installed": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\applications\\stream-kit-example",
+    "backup": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\applications\\stream-kit-example-backup-6c98ccb0-20261105",
+    "commit": "371db43538813cf04a277efb2b2a4cbf6c86f606",
+    "service_restarted": false
+  },
+  "registration": {
+    "id": "18f482ef-5d7b-4528-a5e7-6fbd8a150980",
+    "exe_path": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\applications\\stream-kit-example\\checkerboard.exe",
+    "args": "",
+    "status": "stopped"
+  },
+  "temporary_voice_applications_removed": true,
+  "services": {
+    "sunshine": {
+      "crash_count": 0,
+      "pid": 9284,
+      "status": "running"
+    },
+    "web_server": {
+      "crash_count": 0,
+      "pid": 23028,
+      "status": "running"
+    }
+  },
+  "control_commit": "70ea6f7090097af5e6e3b7dca0185a712d5fc37f",
+  "physical_microphone_retested": false
+}
