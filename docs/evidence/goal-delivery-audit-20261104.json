@@ -22,7 +22,7 @@
     "stability": "Previously accepted four-hour, 20-client result remains accepted. Do not restart a 24-hour gate.",
     "physical_linux_and_mobile": "Physical-device acceptance excluded from this round by the user; native build and browser compatibility checks retained.",
     "publisher_certificate": "Commercial publisher certificate excluded; native driver signature checks retained.",
-    "human_speech": "Previously deferred by the user, not established by generated audio or packet counts.",
+    "human_speech": "User resumed participation on 2026-11-05. Physical local browser microphone delivery, controller transfer and revocation were measured; see docs/evidence/human-voice-installed-20261105.json for retrospective noise-aware assessment and retained original failure.",
     "startup_arguments": "Fixed links use the application's administrator-saved startup parameters, as explicitly confirmed by the user."
   },
   "new_verified_delivery": [
@@ -49,6 +49,11 @@
         "Moonlight Web (windows-latest)"
       ],
       "limit": "These jobs and the local Chrome run do not establish physical iPad/TV operation or human speech."
+    },
+    {
+      "item": "Physical human microphone to native target and audience",
+      "evidence": "docs/evidence/human-voice-installed-20261105.json",
+      "finding": "Two real local browsers and explicit Stream Kit virtual input; authorized and transferred-controller correlations exceed 0.995, all five native recording phases have zero dropped frames. Denied output remained below the stated absolute and relative measurement floors. User participation is no longer required for this completed local speech check."
     }
   ],
   "remaining_acceptance": [
@@ -62,12 +67,6 @@
       "trust_installed": false,
       "service_changed": false,
       "next": "After confirmation of the entry URL/trust changes, recheck the prepared fingerprints, apply with rollback and verify native HTTPS and browser operation without certificate-error overrides. Other clients must separately trust the public CA certificate."
-    },
-    {
-      "item": "Human microphone to target program and audience",
-      "state": "deferred_by_user",
-      "next": "Use a working physical microphone and participant for the bounded target/audience check. Do not replace the result with a repeated synthetic test.",
-      "finding": "After publication of the startup-fix preview, the user explicitly confirmed that physical speech acceptance remains inconvenient and should continue to be deferred. No recording test was started."
     },
     {
       "item": "Actual host IP change and recovery",

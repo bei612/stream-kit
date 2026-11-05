@@ -1,0 +1,225 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-11-05T08:27:34.161Z",
+  "physical_human_speech": true,
+  "assessment_passed": true,
+  "scope": "Physical Realtek browser microphone on the installed Windows host to a native recording program and a second actual browser viewer, with control transfer/revocation and simultaneous program audio. No business UE executable, remote physical client, HTTPS or browser permission-prompt claim.",
+  "control_commit": "70ea6f7090097af5e6e3b7dca0185a712d5fc37f",
+  "source_test_base": "861ca99d",
+  "mixed_component_revisions": true,
+  "native_probe_sha256": "90360ad8dab3cc1072fab26a1458ee3925815b9e91e8be03ec2a22ba4cdd1c87",
+  "native_probe_provenance": "docs/evidence/browser-native-audio-ue5-20261101.json",
+  "physical_input": "麦克风 (Realtek(R) Audio)",
+  "native_target": "线路 (8- Stream Kit Virtual Audio)",
+  "clients": 2,
+  "original_result": {
+    "path": "artifacts/installed-voice/2026-11-05T08-20-05.195Z/result.json",
+    "sha256": "e1dc26bd9fa73bc3b338d6d9934c747847e2623f5a5486fd24e98d1f9ec93e54",
+    "passed": false,
+    "error": "viewer_denied: Unauthorized physical microphone correlated with audience output"
+  },
+  "assessment_method": "Re-evaluated the unchanged aggregate measurements; original failed receipt retained. Correlation alone is scale-invariant and produced a false alarm for approximately -100 dBFS codec/endpoint noise. The revised measurement policy requires observable correlated signal for authorized delivery and both an absolute noise floor and at least 60 dB suppression for denied delivery. This is an engineering acceptance tolerance, not proof of bit-exact zero packets or a speech intelligibility standard.",
+  "signal_policy": {
+    "noise_floor_dbfs": -90,
+    "rejection_attenuation_db": 60,
+    "delivery_correlation": 0.3
+  },
+  "denied_program_gain_db": -60,
+  "simultaneous_program_db": [
+    -35.51716232299805,
+    -35.52174377441406
+  ],
+  "cases": {
+    "viewer_denied": {
+      "allowed": false,
+      "source_audible_and_varying": true,
+      "target": {
+        "correlation": 0.05228109447360112,
+        "lag_ms": 970,
+        "overlap_windows": 285,
+        "reference_rms": 0.21403938296552744,
+        "received_rms": 0.000014730144866233284,
+        "reference_variation": 0.8396517798176419,
+        "assessment": {
+          "passed": true,
+          "below_noise_floor": true,
+          "attenuation_db": 83.24573344612583,
+          "digital_silence": false
+        }
+      },
+      "audience": [
+        {
+          "correlation": 0.24867962312375239,
+          "lag_ms": 1000,
+          "overlap_windows": 280,
+          "reference_rms": 0.21403938296552744,
+          "received_rms": 0.000010575998932781648,
+          "reference_variation": 0.8396517798176419,
+          "assessment": {
+            "passed": true,
+            "below_noise_floor": true,
+            "attenuation_db": 86.1234458399843,
+            "digital_silence": false
+          }
+        }
+      ],
+      "native_frames": 192960,
+      "dropped_frames": 0
+    },
+    "controller": {
+      "allowed": true,
+      "source_audible_and_varying": true,
+      "target": {
+        "correlation": 0.9966227325859371,
+        "lag_ms": 120,
+        "overlap_windows": 370,
+        "reference_rms": 0.15032776087778682,
+        "received_rms": 0.14244796643930752,
+        "reference_variation": 1.1266951541268353,
+        "assessment": {
+          "passed": true,
+          "below_noise_floor": false,
+          "attenuation_db": 0.4676587001965751,
+          "digital_silence": false
+        }
+      },
+      "audience": [
+        {
+          "correlation": 0.9977990142973151,
+          "lag_ms": 100,
+          "overlap_windows": 370,
+          "reference_rms": 0.15032776087778682,
+          "received_rms": 0.1425622623317653,
+          "reference_variation": 1.1266951541268353,
+          "assessment": {
+            "passed": true,
+            "below_noise_floor": false,
+            "attenuation_db": 0.4606922024293054,
+            "digital_silence": false
+          }
+        }
+      ],
+      "native_frames": 192960,
+      "dropped_frames": 0
+    },
+    "transferred_controller": {
+      "allowed": true,
+      "source_audible_and_varying": true,
+      "target": {
+        "correlation": 0.997810356903414,
+        "lag_ms": 100,
+        "overlap_windows": 372,
+        "reference_rms": 0.16461160716464193,
+        "received_rms": 0.15959252003133317,
+        "reference_variation": 1.3758014059105357,
+        "assessment": {
+          "passed": true,
+          "below_noise_floor": false,
+          "attenuation_db": 0.2689584529039631,
+          "digital_silence": false
+        }
+      },
+      "audience": [
+        {
+          "correlation": 0.9953826726602594,
+          "lag_ms": 70,
+          "overlap_windows": 373,
+          "reference_rms": 0.16461160716464193,
+          "received_rms": 0.16062257771163052,
+          "reference_variation": 1.3758014059105357,
+          "assessment": {
+            "passed": true,
+            "below_noise_floor": false,
+            "attenuation_db": 0.213077276438347,
+            "digital_silence": false
+          }
+        }
+      ],
+      "native_frames": 192960,
+      "dropped_frames": 0
+    },
+    "old_controller_denied": {
+      "allowed": false,
+      "source_audible_and_varying": true,
+      "target": {
+        "correlation": 0.08855461712182247,
+        "lag_ms": -920,
+        "overlap_windows": 308,
+        "reference_rms": 0.01942922704417635,
+        "received_rms": 0.000014364252305766745,
+        "reference_variation": 3.281071398079854,
+        "assessment": {
+          "passed": true,
+          "below_noise_floor": true,
+          "attenuation_db": 62.623449970165986,
+          "digital_silence": false
+        }
+      },
+      "audience": [
+        {
+          "correlation": 0.12345430881891314,
+          "lag_ms": 430,
+          "overlap_windows": 337,
+          "reference_rms": 0.01942922704417635,
+          "received_rms": 0.000011047418139580575,
+          "reference_variation": 3.281071398079854,
+          "assessment": {
+            "passed": true,
+            "below_noise_floor": true,
+            "attenuation_db": 64.90389462360321,
+            "digital_silence": false
+          }
+        }
+      ],
+      "native_frames": 192960,
+      "dropped_frames": 0
+    },
+    "released": {
+      "allowed": false,
+      "source_audible_and_varying": true,
+      "target": {
+        "correlation": 0.028421675556894045,
+        "lag_ms": -570,
+        "overlap_windows": 343,
+        "reference_rms": 0.08163548223546875,
+        "received_rms": 0.000014586951309681114,
+        "reference_variation": 1.6930946608921302,
+        "assessment": {
+          "passed": true,
+          "below_noise_floor": true,
+          "attenuation_db": 74.95828858479248,
+          "digital_silence": false
+        }
+      },
+      "audience": [
+        {
+          "correlation": 0.08451633392092443,
+          "lag_ms": -530,
+          "overlap_windows": 347,
+          "reference_rms": 0.08163548223546875,
+          "received_rms": 0.000010383609759801484,
+          "reference_variation": 1.6930946608921302,
+          "assessment": {
+            "passed": true,
+            "below_noise_floor": true,
+            "attenuation_db": 77.91061209165848,
+            "digital_silence": false
+          }
+        }
+      ],
+      "native_frames": 192960,
+      "dropped_frames": 0
+    }
+  },
+  "cleanup": {
+    "owned_app_removed": true,
+    "voice_files_saved": false,
+    "existing_services_restarted": false
+  },
+  "limits": [
+    "The reported lags align energy envelopes; they are not a general latency guarantee.",
+    "Synthetic tests were not substituted for the physical input. Earlier failed/interrupted attempts remain in artifacts/installed-voice.",
+    "The installed Example still contains its older audio probe; this recording used the separately hash-verified corrected diagnostic probe. Updating the example bundle remains a separate local maintenance task.",
+    "A local browser microphone does not establish client certificate trust or remote LAN HTTPS deployment."
+  ]
+}

@@ -1,5 +1,23 @@
 const assert=require('node:assert/strict');
 
+// Correlation is scale-invariant: correlated numerical/codec noise cannot prove
+// audible speech. Rejection checks run with program audio at -60 dB and require
+// both an absolute floor and at least 60 dB attenuation from the live source.
+const microphoneSignalPolicy={noise_floor_dbfs:-90,rejection_attenuation_db:60,delivery_correlation:0.3};
+function assessMicrophoneSignal(value,allowed){
+ for(const key of ['reference_rms','received_rms','correlation'])assert.ok(Number.isFinite(value[key]),'Missing finite microphone measurement: '+key);
+ assert.ok(value.reference_rms>=0&&value.received_rms>=0,'Invalid microphone level');
+ const floor=10**(microphoneSignalPolicy.noise_floor_dbfs/20);
+ const quiet=value.received_rms<=floor;
+ const attenuated=value.reference_rms>0&&value.received_rms<=value.reference_rms*10**(-microphoneSignalPolicy.rejection_attenuation_db/20);
+ return {
+  passed:allowed?!quiet&&value.correlation>microphoneSignalPolicy.delivery_correlation:quiet&&attenuated,
+  below_noise_floor:quiet,
+  attenuation_db:value.received_rms>0&&value.reference_rms>0?20*Math.log10(value.reference_rms/value.received_rms):null,
+  digital_silence:value.received_rms===0,
+ };
+}
+
 function compareEnvelopes(reference,received){
  for(const value of [reference,received]){
   assert.equal(value.sample_rate,48000);assert.equal(value.window_frames,480);assert.equal(value.notch_hz,997);
@@ -24,7 +42,7 @@ function compareEnvelopes(reference,received){
   const score=denominator>1e-12?Math.max(-1,Math.min(1,xy/denominator)):0;
   if(score>best){best=score;lag=offset;overlap=count}
  }
- return {correlation:best,lag_ms:lag*10,overlap_windows:overlap,reference_rms:Math.sqrt(reference.rms.reduce((a,b)=>a+b*b,0)/reference.rms.length),reference_variation:mean>0?Math.sqrt(variance)/mean:0};
+ return {correlation:best,lag_ms:lag*10,overlap_windows:overlap,reference_rms:Math.sqrt(reference.rms.reduce((a,b)=>a+b*b,0)/reference.rms.length),received_rms:Math.sqrt(received.rms.reduce((a,b)=>a+b*b,0)/received.rms.length),reference_variation:mean>0?Math.sqrt(variance)/mean:0};
 }
 
 async function captureEnvelope(page,direction='received',milliseconds=4000){
@@ -53,4 +71,4 @@ async function captureEnvelope(page,direction='received',milliseconds=4000){
   }finally{await context.close();if(url)URL.revokeObjectURL(url)}
  },{direction,blocks:Math.floor(milliseconds/10)});
 }
-module.exports={compareEnvelopes,captureEnvelope};
+module.exports={compareEnvelopes,captureEnvelope,assessMicrophoneSignal,microphoneSignalPolicy};
