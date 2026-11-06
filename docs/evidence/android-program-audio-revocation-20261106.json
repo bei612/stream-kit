@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-06",
+  "source_commit": "04e5cea5ba30a13af6bee01d25d6347be0aaed08",
+  "apk_version": "0.1.0-preview.20261106.5",
+  "apk_sha256": "dfa2ff9487ff907a36b05a7f2d2694a571b29afa1097161c92e35132b05e4f14",
+  "artifact": "Byte-identical public CI APK",
+  "passed": true,
+  "scope": "Installed target-application capture with Example tone to signed native Android playout and Web; authorized Android microphone to explicit server recorder and Web; revocation during continuous source injection.",
+  "program": {
+    "source": "Example child audio backend, --tone-output explicit Realtek endpoint, application capture mode; no default-device change",
+    "frequency_hz": 997,
+    "web_median_db": -35.50731658935547,
+    "android_output_pcm_bytes": 431998,
+    "android_997_median_amplitude": 0.019588166558941685,
+    "android_measurement": "Official emulator streamAudio; PCM retained only in memory; 100ms frequency windows",
+    "threshold": 0.01
+  },
+  "microphone": {
+    "source": "Official emulator injectAudio; 1499Hz mono PCM16LE/48kHz/-18dBFS, continuously sent during revocation",
+    "host_microphone_enabled": false,
+    "authorized": {
+      "target": {
+        "analyzed_frames": 120000,
+        "frequency_hz": 1499,
+        "mean_amplitude": 0.1535355340966193,
+        "peak_amplitude": 0.3247252760742614,
+        "sample_rate": 48000,
+        "windows": 25
+      },
+      "target_status": {
+        "captured_frames": 121920,
+        "dropped_frames": 0,
+        "error": null,
+        "input_state": "idle",
+        "output_state": "idle",
+        "peak": 0,
+        "played_frames": 0,
+        "rms": 0,
+        "sample_rate": 48000,
+        "state": "idle"
+      },
+      "web_median_db": -20.313884735107422
+    },
+    "revoked": {
+      "target": {
+        "analyzed_frames": 96000,
+        "frequency_hz": 1499,
+        "mean_amplitude": 0.0000012289350146486821,
+        "peak_amplitude": 0.0000013190874774325081,
+        "sample_rate": 48000,
+        "windows": 20
+      },
+      "target_status": {
+        "captured_frames": 96960,
+        "dropped_frames": 0,
+        "error": null,
+        "input_state": "idle",
+        "output_state": "idle",
+        "peak": 0,
+        "played_frames": 0,
+        "rms": 0,
+        "sample_rate": 48000,
+        "state": "idle"
+      },
+      "web_median_db": -127.21136474609375
+    },
+    "assertions": {
+      "target_peak_below": 0.001,
+      "web_signal_below_db": -65,
+      "settling_after_capture_stop_ms": 1500
+    },
+    "injection_completed": true
+  },
+  "cleanup": {
+    "owned_application_removed": true,
+    "original_target_restored": true,
+    "controller_released": true,
+    "recording_and_browser_closed": true,
+    "emulator_restored_without_grpc": true,
+    "original_bookmark_restored": true
+  },
+  "raw_result": ".local/validation/android-audio-completion/result.json",
+  "fixture": ".local/android-audio-completion.cjs (development only)",
+  "prior_fixture_error": ".local/validation/android-audio-completion/program-pass-fixture-ui-failure.json",
+  "limits": [
+    "Synthetic signals, not a physical mobile microphone or speaker test",
+    "Capture-stop settling window is not instantaneous revocation latency",
+    "No effective keyboard/touch acceptance while host locked",
+    "No production LAN HTTPS or physical IP change claim"
+  ]
+}

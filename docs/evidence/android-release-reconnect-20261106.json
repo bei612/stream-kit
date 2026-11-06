@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-06",
+  "source_commit": "04e5cea5ba30a13af6bee01d25d6347be0aaed08",
+  "artifact": "Public signed CI APK",
+  "passed": true,
+  "started_at": "2026-11-06T08:02:16.899Z",
+  "apk_sha256": "dfa2ff9487ff907a36b05a7f2d2694a571b29afa1097161c92e35132b05e4f14",
+  "session_id": "5650a090-b815-48a6-b827-33d7c3443223",
+  "recording_before_disconnect": true,
+  "network_off_at": "2026-11-06T08:02:26.552Z",
+  "recovery_visible": true,
+  "authority_expired": true,
+  "resumed_same_connection_as_viewer": true,
+  "background_leaves": true,
+  "foreground_viewer_microphone_off": true,
+  "finished_at": "2026-11-06T08:02:53.753Z",
+  "scope": "Release client on official Android 16 emulator; Wi-Fi and cellular data disabled in the AVD while recording, then restored. No host NIC, service or IP change.",
+  "video_after_reconnect": {
+    "screenshot": ".local/validation/android-reconnect/reconnected.png",
+    "sha256": "5fcc953fa57bfab286af4fbc1271308f7262a761b105c3f17dd5979793dcef77",
+    "visible_example_tick": 1538
+  },
+  "cleanup": {
+    "wifi_on": 1,
+    "mobile_data": 1,
+    "android_backgrounded": true,
+    "controller_released": true
+  },
+  "raw_result": ".local/validation/android-reconnect/result.json",
+  "limits": [
+    "No physical host DHCP change",
+    "No physical mobile radio or microphone acceptance",
+    "No effective input acceptance while host locked"
+  ]
+}

@@ -70,12 +70,14 @@
       "item": "Integrated native Android application",
       "state": "signed_preview_published_shared_video_microphone_route_verified",
       "scope": "docs/goal-current.md",
-      "finding": "Official native Android fork uses the managed shared session. Source 04e5cea5 signed CI and Android client CI passed; version 0.1.0-preview.20261106.5 is the downloadable preview. Android and Web received one shared upstream; administrative transfer and microphone permission/capture stop passed. A synthetic Android microphone reached the explicit server recorder and Web audience with zero recording drops. Actual input under an unlocked host, Android program playout and non-silent revocation still require evidence. Production LAN TLS/IP-change remain separate open items.",
-      "next": "Complete effective input when the host is unlocked, program audio received by Android and non-silent revocation using isolated automated fixtures. Do not repeat completed speech or unchanged packaging tests.",
+      "finding": "Official native Android fork and public signed APK 0.1.0-preview.20261106.5 are delivered at source 04e5cea5. Shared Android/Web video, administrative transfer, permission/capture lifecycle, native program playout, microphone target and audience delivery, continuous-source revocation, network reconnect as viewer and foreground/background recovery have scoped emulator evidence. Effective keyboard/touch delivery remains unproven on the locked host. Production LAN TLS/IP change remain separate open items.",
+      "next": "Complete effective input and revoked-input denial when the host is unlocked. Do not repeat completed audio, reconnect, speech or unchanged packaging checks.",
       "evidence": [
         "docs/evidence/android-shared-authority-20261106.json",
         "docs/evidence/android-microphone-route-20261106.json",
-        "docs/evidence/android-preview-release-20261106.json"
+        "docs/evidence/android-preview-release-20261106.json",
+        "docs/evidence/android-program-audio-revocation-20261106.json",
+        "docs/evidence/android-release-reconnect-20261106.json"
       ]
     },
     {

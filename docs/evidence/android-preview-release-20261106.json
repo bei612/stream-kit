@@ -66,9 +66,11 @@
   "installed_host_updated": false,
   "remaining": [
     "Effective keyboard/touch delivery while host unlocked",
-    "Android program audio playout",
-    "Non-silent source revocation signal suppression",
     "Production LAN HTTPS deployment",
     "Actual host IP change and recovery"
+  ],
+  "subsequent_published_apk_evidence": [
+    "docs/evidence/android-program-audio-revocation-20261106.json",
+    "docs/evidence/android-release-reconnect-20261106.json"
   ]
 }
