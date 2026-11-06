@@ -55,6 +55,8 @@ func testPersistedStopRecovery(t *testing.T, updateSettings bool) {
 			http.SetCookie(w, &http.Cookie{Name: "mlSession", Value: "fixture"})
 		case "/api/hosts":
 			json.NewEncoder(w).Encode(map[string]any{"hosts": []moonlight.Host{{HostID: 1}}})
+		case "/api/host":
+			writeRendererFixture(w, r, -1)
 		case "/api/apps":
 			json.NewEncoder(w).Encode(map[string]any{"apps": []moonlight.App{{AppID: 771}}})
 		case "/api/stream-kit/capabilities":
@@ -149,6 +151,8 @@ func TestViewingAdmissionAndDeletionShareLifecycle(t *testing.T) {
 			http.SetCookie(w, &http.Cookie{Name: "mlSession", Value: "fixture"})
 		case "/api/hosts":
 			_ = json.NewEncoder(w).Encode(map[string]any{"hosts": []moonlight.Host{{HostID: 1}}})
+		case "/api/host":
+			writeRendererFixture(w, r, -1)
 		case "/api/apps":
 			_ = json.NewEncoder(w).Encode(map[string]any{"apps": []moonlight.App{{AppID: 771}}})
 		case "/api/stream-kit/capabilities":

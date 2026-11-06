@@ -44,6 +44,7 @@ where
 
         HttpResponse::Ok()
             .insert_header(("Content-Type", "application/x-ndjson"))
+            .insert_header(("Cache-Control", "no-store"))
             .streaming(stream)
     }
 }
@@ -109,6 +110,11 @@ impl<T> StreamedResponseSender<T>
 where
     T: Debug + Send + Sync + 'static,
 {
+    /// Allows a bounded producer to stop work when the HTTP client disconnects.
+    pub async fn closed(&self) {
+        self.sender.closed().await;
+    }
+
     pub async fn send(&self, value: T) -> Result<(), StreamedResponseError> {
         self.sender
             .send(value)

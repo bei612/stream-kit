@@ -3,35 +3,21 @@
 const path=require('node:path'),assert=require('node:assert/strict');
 const {spawn}=require('node:child_process');
 const readline=require('node:readline');
-const {setTimeout:delay}=require('node:timers/promises');
 module.exports=async function startMedia({config,api,clientPID,report,save}){
   const base='https://127.0.0.1:18080';
   const auth=await fetch(base+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:config.moonlight_web.username,password:config.moonlight_web.password})});
   assert.ok(auth.ok);const cookie=auth.headers.get('set-cookie').split(';')[0];
   const native=(resource,method='GET',body)=>fetch(base+'/api'+resource,{method,headers:{Cookie:cookie,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(60000)});
-  const json=async response=>{assert.ok(response.ok);return response.json();};
-  const sun=async(resource,body,csrf)=>json(await fetch(config.sunshine_api.base_url+resource,{method:body===undefined?'GET':'POST',headers:{Authorization:'Basic '+Buffer.from(config.sunshine_api.username+':'+config.sunshine_api.password).toString('base64'),'Content-Type':'application/json',...(csrf?{'X-CSRF-Token':csrf}:{})},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(10000)}));
-  const host=(await json(await native('/host','POST',{address:'127.0.0.1',http_port:47989}))).host;
-  const previous=new Set(((await sun('/api/pin')).pairings||[]).map(p=>p.id));
-  const csrf=(await sun('/api/csrf-token')).csrf_token;
-  const response=await native('/pair','POST',{host_id:host.host_id});assert.ok(response.ok);
-  let pending='',paired=false;const decoder=new TextDecoder();
-  for await(const chunk of response.body){
-    pending+=decoder.decode(chunk,{stream:true});let index;
-    while((index=pending.indexOf('\n'))>=0){
-      const line=pending.slice(0,index);pending=pending.slice(index+1);if(!line.trim())continue;
-      const event=JSON.parse(line);
-      if(event.Pin){
-        let candidates=[];
-        for(let i=0;i<100;i++){candidates=((await sun('/api/pin')).pairings||[]).filter(p=>!previous.has(p.id));if(candidates.length)break;await delay(100);}
-        assert.equal(candidates.length,1);
-        await sun('/api/pin',{pairing_id:candidates[0].id,pin:event.Pin,name:'Isolated network acceptance'},csrf);
-      }
-      if(event.Paired)paired=true;
-      assert.ok(event!=='PairError'&&!event.PairError);
-    }
-  }
-  assert.ok(paired);
+  // Read-only observation: product LaunchApp must create and pair the renderer.
+  // The fixture never POSTs /host, /pair or the renderer's /api/pin.
+  const hosts=async()=>{
+    const response=await native('/hosts');assert.ok(response.ok);
+    const reader=response.body.getReader(),decoder=new TextDecoder();let pending='';
+    try{for(;;){const {done,value}=await reader.read();assert.ok(!done,'Missing host snapshot');pending+=decoder.decode(value,{stream:true});const end=pending.indexOf('\n');if(end>=0)return JSON.parse(pending.slice(0,end)).hosts;}}
+    finally{await reader.cancel();}
+  };
+  assert.deepEqual(await hosts(),[],'Fresh deployment must have no pre-paired renderer');
+  report.fresh_gateway_before_launch=true;save();
   const app=await api('/apps/local','POST',{name:'Isolated LAN target',exe_path:'/usr/bin/xmessage',args:'-geometry 640x360 Stream-Kit-LAN',capture_mode:'desktop'});
   assert.equal(app.status,'ready');
   const watch=await api(`/apps/${app.id}/watch-link`,'POST');assert.ok(watch.enabled);
@@ -55,7 +41,9 @@ module.exports=async function startMedia({config,api,clientPID,report,save}){
     await api(`/apps/${app.id}/stop`,'POST');
   };
   try{
-    report.media_before=await send({action:'start',url:new URL(watch.path,'https://stream-kit-server.local:19000').href});save();
+    report.media_before=await send({action:'start',url:new URL(watch.path,'https://stream-kit-server.local:19000').href});
+    const registered=await hosts();assert.equal(registered.length,1);assert.equal(registered[0].paired,'Paired');
+    report.renderer_enrollment={automatic:true,host_count:registered.length,host_id:registered[0].host_id,paired:true,fixture_pairing_mutations:0};save();
     return {recover:async()=>{report.media_after=await send({action:'recover'});report.media_reconnected_without_reload=true;save();},close};
   }catch(error){await close().catch(()=>{});throw error;}
 };

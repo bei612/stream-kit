@@ -142,7 +142,7 @@ jobs:
         timeout-minutes: 2
         working-directory: artifacts/linux-sunshine
         run: |
-          "$GITHUB_WORKSPACE/.local/cmake-build-sunshine/tests/test_sunshine" --gtest_filter='ConfigHttpTest.CaptureCapabilities*:ManagedAppsHttpTest.ApplicationModeSaveMatchesAdvertisedCapabilityAndLaunchRules:GraphicsAttributes.*:ResourcePathTest.*' --gtest_output=json:management.json 2>&1 | tee -a runtime.log
+          "$GITHUB_WORKSPACE/.local/cmake-build-sunshine/tests/test_sunshine" --gtest_filter='ConfigHttpTest.CaptureCapabilities*:ConfigHttpTest.PairingRestApi*:ManagedAppsHttpTest.ApplicationModeSaveMatchesAdvertisedCapabilityAndLaunchRules:GraphicsAttributes.*:ResourcePathTest.*' --gtest_output=json:management.json 2>&1 | tee -a runtime.log
           node "$GITHUB_WORKSPACE/tools/verify-native-tests.cjs" management.json management
           node "$GITHUB_WORKSPACE/tools/verify-native-tests.cjs" management.json graphics
           node "$GITHUB_WORKSPACE/tools/verify-native-tests.cjs" management.json resources

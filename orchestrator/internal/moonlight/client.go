@@ -34,13 +34,15 @@ type Client struct {
 	mu           sync.Mutex
 	sessionToken string
 	tokenExpiry  time.Time
+	enrollment   chan struct{}
 }
 
 func NewClient(cfg config.MoonlightWebConfig, logger *zap.Logger) *Client {
 	return &Client{
-		cfg:    cfg,
-		client: &http.Client{Timeout: 10 * time.Second},
-		logger: logger,
+		cfg:        cfg,
+		client:     &http.Client{Timeout: 10 * time.Second},
+		logger:     logger,
+		enrollment: make(chan struct{}, 1),
 	}
 }
 
@@ -89,18 +91,23 @@ func (c *Client) login(ctx context.Context) (string, error) {
 
 // doRequest executes an authenticated request to Moonlight-Web.
 func (c *Client) doRequest(ctx context.Context, method, path string) (*http.Response, error) {
+	return c.requestJSON(ctx, method, path, nil, c.client)
+}
+
+func (c *Client) requestJSON(ctx context.Context, method, path string, body []byte, client *http.Client) (*http.Response, error) {
 	token, err := c.login(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, c.cfg.BaseURL+path, nil)
+	req, err := http.NewRequestWithContext(ctx, method, c.cfg.BaseURL+path, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := c.client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("串流网关不可达: %w", err)
 	}
@@ -116,9 +123,10 @@ func (c *Client) doRequest(ctx context.Context, method, path string) (*http.Resp
 		if err != nil {
 			return nil, err
 		}
-		req, _ = http.NewRequestWithContext(ctx, method, c.cfg.BaseURL+path, nil)
+		req, _ = http.NewRequestWithContext(ctx, method, c.cfg.BaseURL+path, bytes.NewReader(body))
 		req.Header.Set("Authorization", "Bearer "+token)
-		return c.client.Do(req)
+		req.Header.Set("Content-Type", "application/json")
+		return client.Do(req)
 	}
 
 	return resp, nil
@@ -200,7 +208,7 @@ func (c *Client) BuildStreamInfo(hostID, appID uint32) StreamURLInfo {
 }
 
 // FindStreamInfo finds the stream info for an app by name.
-// Legacy callers only. Managed applications use FindStreamInfoByID.
+// Legacy callers only. Managed applications use the configured renderer endpoint.
 func (c *Client) FindStreamInfo(ctx context.Context, appName string) (*StreamURLInfo, error) {
 	hosts, err := c.GetHosts(ctx)
 	if err != nil {

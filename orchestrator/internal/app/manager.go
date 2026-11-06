@@ -368,7 +368,7 @@ func (m *Manager) registerWithSunshine(appID string) error {
 	// Try to get stream info from Moonlight-Web
 	streamURL := ""
 	if m.moonClient != nil {
-		info, err := m.moonClient.FindStreamInfoByID(ctx, uint32(registration.GameStreamID))
+		info, err := m.resolveRendererStream(ctx, uint32(registration.GameStreamID), false)
 		if err == nil {
 			streamURL = info.Port + info.Path
 		} else {
@@ -474,7 +474,7 @@ func (m *Manager) LaunchApp(appID string) (string, error) {
 			return "", fmt.Errorf("应用身份注册未完成: %s", app.ErrorMessage)
 		}
 	}
-	ctx2, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx2, cancel2 := context.WithTimeout(m.workCtx, 40*time.Second)
 	defer cancel2()
 	if m.sunClient == nil {
 		return "", fmt.Errorf("编码器未配置，无法确认应用归属")
@@ -486,7 +486,7 @@ func (m *Manager) LaunchApp(appID string) (string, error) {
 	if registered.GameStreamID != app.SunshineAppID {
 		return "", fmt.Errorf("编码器应用身份与本地记录不一致，请重新注册")
 	}
-	streamInfo, err := m.moonClient.FindStreamInfoByID(ctx2, uint32(app.SunshineAppID))
+	streamInfo, err := m.resolveRendererStream(ctx2, uint32(app.SunshineAppID), true)
 	if err != nil {
 		return "", fmt.Errorf("串流网关离线或应用未注册: %w", err)
 	}

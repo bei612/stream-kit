@@ -52,6 +52,8 @@ func TestApplicationStopRevokesBeforeNativeAndRetriesWithoutReadmission(t *testi
 						_ = json.NewEncoder(w).Encode(map[string]any{"hosts": []moonlight.Host{{HostID: hostID}}})
 					case "/api/apps":
 						_ = json.NewEncoder(w).Encode(map[string]any{"apps": []moonlight.App{{AppID: 771}}})
+					case "/api/host":
+						writeRendererFixture(w, r, -1)
 					case "/api/stream-kit/capabilities":
 						_ = json.NewEncoder(w).Encode(sunshine.Capabilities{SchemaVersion: 1, ManagedAppsVersion: 1, ManagedRuntimeVersion: 1, CaptureModes: []model.CaptureMode{model.CaptureDesktop}, CaptureModeApply: "application_restart"})
 					case "/api/csrf-token":

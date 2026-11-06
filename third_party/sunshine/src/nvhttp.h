@@ -171,6 +171,7 @@ namespace nvhttp {
     std::string id;  ///< Unguessable approval identifier.
     std::string name;  ///< Untrusted device name reported by the pairing client.
     std::string address;  ///< Network address from which the request originated.
+    std::string client_certificate_sha256;  ///< SHA-256 of the requesting client's DER certificate, for exact managed approval.
   };
 
   /**
@@ -225,7 +226,8 @@ namespace nvhttp {
   /**
    * @brief List pairing requests that are waiting for operator PIN approval.
    *
-   * @return Pending requests ordered from oldest to newest.
+   * @return Pending requests ordered from oldest to newest, including the SHA-256
+   * digest of each parsed DER certificate. Malformed certificates have no digest.
    */
   std::vector<pending_pairing_t> get_pending_pairings();
 

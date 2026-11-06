@@ -362,6 +362,18 @@ impl Host {
         user: &mut AuthenticatedUser,
         pin: PairPin,
     ) -> Result<(), AppError> {
+        let identity = RustCryptoBackend.generate_client_identity()?;
+        self.pair_with_identity(user, pin, identity).await
+    }
+
+    /// Managed enrollment approves the exact fresh certificate before completing
+    /// the ordinary GameStream pairing protocol. Private keys remain in gateway storage.
+    pub async fn pair_with_identity(
+        &mut self,
+        user: &mut AuthenticatedUser,
+        pin: PairPin,
+        identity: (ClientIdentifier, ClientSecret),
+    ) -> Result<(), AppError> {
         self.can_use(user).await?;
 
         let user_id = user.id();
@@ -385,12 +397,10 @@ impl Host {
         }
 
         let device_name = app.config.moonlight.pair_device_name.clone();
+        let (client_identifier, client_secret) = identity;
 
         let modify = self
             .use_request_client(&app, user, async |this, host| {
-                let (client_identifier, client_secret) =
-                    RustCryptoBackend.generate_client_identity()?;
-
                 // Store pair info
                 host.pair(
                     &client_identifier,

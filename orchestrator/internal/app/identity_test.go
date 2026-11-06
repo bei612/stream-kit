@@ -101,7 +101,12 @@ func TestLaunchConfirmsOwnedNativeRegistrationBeforeResolvingStream(t *testing.T
 					gatewayReads++
 					_, _ = w.Write([]byte(`{"hosts":[{"host_id":1}]}`))
 				case "/api/apps":
+					if r.URL.Query().Get("host_id") != "1" {
+						t.Error("wrong renderer")
+					}
 					_, _ = w.Write([]byte(`{"apps":[{"app_id":771,"title":"Same display name"}]}`))
+				case "/api/host":
+					writeRendererFixture(w, r, 0)
 				default:
 					t.Error(r.URL.Path)
 					w.WriteHeader(404)

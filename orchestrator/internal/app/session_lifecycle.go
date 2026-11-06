@@ -7,8 +7,23 @@ import (
 	"time"
 
 	"github.com/stream-kit/orchestrator/internal/model"
+	"github.com/stream-kit/orchestrator/internal/moonlight"
 	"github.com/stream-kit/orchestrator/internal/session"
 )
+
+func (m *Manager) resolveRendererStream(ctx context.Context, appID uint32, enroll bool) (*moonlight.StreamURLInfo, error) {
+	if m.sunClient == nil || m.moonClient == nil {
+		return nil, fmt.Errorf("渲染组件未配置")
+	}
+	address, port, err := m.sunClient.RendererEndpoint()
+	if err != nil {
+		return nil, err
+	}
+	if enroll {
+		return m.moonClient.FindManagedStream(ctx, address, port, appID, m.sunClient.ApprovePairing)
+	}
+	return m.moonClient.FindRendererStream(ctx, address, port, appID)
+}
 
 // ConfigureSessionLifecycle wires the existing session authority and signed
 // media publisher before serving requests. It must not be changed at runtime.
@@ -61,7 +76,7 @@ func (m *Manager) EnsureViewingSession(ctx context.Context, hostID, appID int64)
 	if int64(registered.GameStreamID) != appID {
 		return nil, session.ErrInvalidState
 	}
-	stream, err := m.moonClient.FindStreamInfoByID(ctx, uint32(appID))
+	stream, err := m.resolveRendererStream(ctx, uint32(appID), false)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +152,7 @@ func (m *Manager) revokeViewingSession(app *model.App) (string, error) {
 	defer cancel()
 	// Host identity is authoritative gateway metadata, never an app name or a
 	// cached URL. Ambiguous/missing catalogs cannot authorize another host's stop.
-	target, err := m.moonClient.FindStreamInfoByID(ctx, uint32(app.SunshineAppID))
+	target, err := m.resolveRendererStream(ctx, uint32(app.SunshineAppID), false)
 	if err != nil {
 		return "", fmt.Errorf("无法确认观看会话所属主机: %w", err)
 	}

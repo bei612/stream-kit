@@ -655,10 +655,18 @@ namespace nvhttp {
     std::vector<pending_pairing_t> result;
     result.reserve(pending_sessions.size());
     for (const auto *sess : pending_sessions) {
+      std::string fingerprint;
+      auto certificate = crypto::x509(sess->client.cert);
+      crypto::sha256_t digest {};
+      unsigned int digest_size = 0;
+      if (certificate && X509_digest(certificate.get(), EVP_sha256(), digest.data(), &digest_size) == 1 && digest_size == digest.size()) {
+        fingerprint = util::hex_vec(digest, true);
+      }
       result.push_back({
         .id = sess->async_insert_pin.id,
         .name = sess->async_insert_pin.device_name,
         .address = sess->async_insert_pin.address,
+        .client_certificate_sha256 = std::move(fingerprint),
       });
     }
     return result;

@@ -9,7 +9,12 @@ use actix_web::{
     web::{Data, Json, Query},
 };
 use futures::future::try_join_all;
-use moonlight_common::{crypto::rustcrypto::RustCryptoBackend, http::pair::PairPin};
+use moonlight_common::{
+    crypto::rustcrypto::RustCryptoBackend,
+    http::pair::{PairPin, PairingCryptoBackend},
+};
+use serde::Serialize;
+use sha2::{Digest, Sha256};
 use tracing::warn;
 
 use crate::{
@@ -18,7 +23,7 @@ use crate::{
         App, AppError,
         host::HostId,
         storage::StorageHostModify,
-        user::{AuthenticatedUser, RoleType, UserId},
+        user::{Admin, AuthenticatedUser, RoleType, UserId},
     },
 };
 
@@ -188,6 +193,48 @@ async fn pair_host(
     Ok(stream_response)
 }
 
+#[derive(Serialize)]
+struct ManagedPairChallenge {
+    schema_version: u8,
+    pin: String,
+    client_certificate_sha256: String,
+}
+
+/// Administrator-only enrollment for the configured renderer. The controller
+/// approves this exact certificate through the renderer's authenticated API;
+/// a device name or a newly appearing request alone is never approval evidence.
+#[post("/host/pair/managed")]
+async fn pair_managed_host(
+    mut admin: Admin,
+    Json(request): Json<PostPairRequest>,
+) -> Result<StreamedResponse<ManagedPairChallenge, PostPairResponse2>, AppError> {
+    let mut host = admin.host(HostId(request.host_id)).await?;
+    let pin = PairPin::new_random(&RustCryptoBackend)?;
+    let identity = RustCryptoBackend.generate_client_identity()?;
+    let challenge = ManagedPairChallenge {
+        schema_version: 1,
+        pin: pin.to_string(),
+        client_certificate_sha256: hex::encode(Sha256::digest(identity.0.to_pem().contents())),
+    };
+    let (response, sender) = StreamedResponse::new(challenge);
+    spawn(async move {
+        let pairing = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+            host.pair_with_identity(&mut admin, pin, identity).await?;
+            host.detailed_host(&mut admin).await
+        });
+        let result = tokio::select! {
+            result = pairing => result,
+            _ = sender.closed() => return,
+        };
+        let message = match result {
+            Ok(Ok(host)) => PostPairResponse2::Paired(host),
+            _ => PostPairResponse2::PairError,
+        };
+        let _ = sender.send(message).await;
+    });
+    Ok(response)
+}
+
 #[post("/host/wake")]
 async fn wake_host(
     mut user: AuthenticatedUser,
@@ -214,4 +261,92 @@ pub async fn cancel_host(
     host.cancel_app(&mut user).await?;
 
     Ok(Json(PostCancelResponse { success: true }))
+}
+
+#[cfg(test)]
+mod managed_pair_tests {
+    use super::*;
+    use crate::app::storage::{StorageRoleAdd, StorageUserAdd};
+    use actix_web::{App as HttpApp, http::StatusCode, test};
+
+    #[actix_web::test]
+    async fn managed_pair_requires_admin_even_with_a_default_admin() {
+        let mut config = crate::config::Config::default();
+        let crate::config::StorageConfig::Json { path, .. } = &mut config.data_storage;
+        *path = std::env::temp_dir()
+            .join(format!(
+                "stream-kit-pair-auth-{}.json",
+                uuid::Uuid::new_v4()
+            ))
+            .to_string_lossy()
+            .into_owned();
+        config.web_server.media_ticket_secret = Some("test-only-secret-at-least-32-bytes".into());
+        let app = Data::new(App::new(config).await.expect("app"));
+        let admin = app
+            .try_add_first_login("owner".into(), "test-password".into())
+            .await
+            .expect("seed admin")
+            .into_admin()
+            .await
+            .expect("admin");
+        app.set_default_user(&admin, Some(&admin))
+            .await
+            .expect("legacy default");
+        let role = app
+            .add_role(
+                &admin,
+                StorageRoleAdd {
+                    name: "test viewer".into(),
+                    ty: RoleType::User,
+                    default_settings: Default::default(),
+                    permissions: Default::default(),
+                },
+            )
+            .await
+            .expect("test role");
+        let viewer = app
+            .add_user(
+                &admin,
+                StorageUserAdd {
+                    role_id: role.id(),
+                    name: "test viewer".into(),
+                    password: None,
+                    client_unique_id: "test-viewer".into(),
+                },
+            )
+            .await
+            .expect("test user");
+        let session = viewer
+            .new_session(std::time::Duration::from_secs(60))
+            .await
+            .expect("session");
+        let mut bytes = [0; 64];
+        let token = session.encode(&mut bytes);
+        let service = test::init_service(
+            HttpApp::new()
+                .app_data(app)
+                .service(crate::api::api_service()),
+        )
+        .await;
+        for (header, expected) in [
+            (None, StatusCode::UNAUTHORIZED),
+            (
+                Some(("x-stream-media-ticket", "viewer-ticket".to_string())),
+                StatusCode::UNAUTHORIZED,
+            ),
+            (
+                Some(("Authorization", format!("Bearer {token}"))),
+                StatusCode::FORBIDDEN,
+            ),
+        ] {
+            let mut request = test::TestRequest::post()
+                .uri("/api/host/pair/managed")
+                .set_json(serde_json::json!({"host_id":7}));
+            if let Some(header) = header {
+                request = request.insert_header(header);
+            }
+            let response = test::call_service(&service, request.to_request()).await;
+            assert_eq!(response.status(), expected);
+        }
+    }
 }

@@ -407,14 +407,16 @@ protected:
   /**
    * @brief Insert a test pairing request into the production pending-session registry.
    *
+   * @param valid_certificate Whether to attach a parseable public client certificate.
    * @return Unguessable approval identifier assigned to the request.
    */
-  static std::string insert_pending_pairing() {
+  static std::string insert_pending_pairing(bool valid_certificate = true) {
     nvhttp::pair_session_t session;
     session.client.uniqueID = "rest-api-client";
     session.async_insert_pin.salt = "ff5dc6eda99339a8a0793e216c4257c4";
     session.async_insert_pin.device_name = "REST client";
     session.async_insert_pin.address = "192.0.2.30";
+    session.client.cert = valid_certificate ? TEST_PUBLIC_CERT : "not a certificate";
 
     std::string pairing_id;
     EXPECT_EQ(nvhttp::insert_pair_session(std::move(session), pairing_id), nvhttp::pair_session_insert_e::ADDED);
@@ -1007,6 +1009,18 @@ TEST_F(ConfigHttpTest, PairingRestApiListsAuthenticatedPendingRequests) {
   EXPECT_EQ(body.at("pairings").front().at("id"), pairing_id);
   EXPECT_EQ(body.at("pairings").front().at("name"), "REST client");
   EXPECT_EQ(body.at("pairings").front().at("address"), "192.0.2.30");
+  EXPECT_EQ(body.at("pairings").front().at("client_certificate_sha256"), "124548A2282F95A1F16FC98B713309F91806FFDC0100A8F760633171ADC0161F");
+}
+
+TEST_F(ConfigHttpTest, PairingRestApiDoesNotInventFingerprintForMalformedCertificate) {
+  insert_pending_pairing(false);
+  SimpleWeb::CaseInsensitiveMultimap headers;
+  headers.emplace("Authorization", create_auth_header("testuser", "testpass"));
+  const auto response = client->request("GET", "/pairing-test", "", headers);
+  ASSERT_EQ(response->status_code, "200 OK");
+  const auto body = nlohmann::json::parse(response->content.string());
+  ASSERT_EQ(body.at("pairings").size(), 1);
+  EXPECT_EQ(body.at("pairings").front().at("client_certificate_sha256"), "");
 }
 
 TEST_F(ConfigHttpTest, PairingRestApiRejectsMalformedFieldsWithoutConsumingRequest) {

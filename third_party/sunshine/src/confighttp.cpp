@@ -2017,6 +2017,7 @@ namespace confighttp {
         {"id", pairing.id},
         {"name", pairing.name},
         {"address", pairing.address},
+        {"client_certificate_sha256", pairing.client_certificate_sha256},
       });
     }
     send_response(response, output_tree);
