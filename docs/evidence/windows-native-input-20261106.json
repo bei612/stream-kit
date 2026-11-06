@@ -58,7 +58,30 @@
     "interpretation": "A local input/focus delivery problem is reproduced outside the streaming stack. This does not prove its cause or exclude an additional streaming bug. ToDesk is present, but no causal attribution is established.",
     "remote_control_settings_changed": false,
     "security_policy_changed": false,
-    "installed_services_or_example_changed": false
+    "installed_services_or_example_changed": false,
+    "read_only_environment_followup": {
+      "desktop": {
+        "observed_at": "2026-11-06T12:39:17.2437523Z",
+        "process_station": "WinSta0",
+        "thread_desktop": "Default",
+        "thread_desktop_receives_input": true,
+        "input_desktop": "Default",
+        "input_desktop_receives_input": true,
+        "process_session": 1,
+        "read_only": true
+      },
+      "input_state": {
+        "observed_at": "2026-11-06T12:40:48.8042020Z",
+        "gui_flags": 0,
+        "has_mouse_capture": false,
+        "capture_pid": 0,
+        "has_menu_owner": false,
+        "has_move_size_window": false,
+        "held_mouse_or_modifiers": [],
+        "read_only": true
+      },
+      "interpretation": "At the recorded time, the tool process was in WinSta0/Default with an input-receiving desktop, no mouse capture/menu/move-size loop and no held mouse/modifier keys. This does not prove earlier input delivery or its cause. Existing ToDesk UI automation did not expose runtime input-blocking state; persisted settings alone are not causal evidence."
+    }
   },
   "observer": {
     "enabled_by_default": false,
@@ -90,6 +113,14 @@
     {
       "path": ".local/validation/example-input-disabled.stdout",
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".local/validation/input-desktop-station-20261106.json",
+      "sha256": "b83d9ed7b74d61d932590090bb0dcca7b8f07112beaabed6faeb9131c1b04586"
+    },
+    {
+      "path": ".local/validation/input-state-readonly-20261106.json",
+      "sha256": "e9c66bd225daccb2f22df69f1703f08610479fe31b574cf3244fd081070abf83"
     }
   ],
   "remaining": "Resolve local input delivery without bypassing OS policy or disrupting remote control; then verify effective Android/Web input and revocation with the owned Example event stream. No additional audio or stability rerun required."

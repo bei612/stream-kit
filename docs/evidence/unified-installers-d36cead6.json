@@ -67,8 +67,58 @@
   ],
   "local_downloads_verified": true,
   "publication": {
-    "status": "not_published",
-    "candidate_tag": "v0.1.0-preview.20261106.2",
-    "remaining_gate": "Source CI 42209334110: Linux browser checks still running; cancelled Management Web job needs retry after workflow completion."
+    "url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261106.2",
+    "tag": "v0.1.0-preview.20261106.2",
+    "source_commit": "d36cead6fd856925b283daddcc4af6cd1cdb7dd0",
+    "prerelease": true,
+    "published_at": "2026-11-06T12:43:57Z",
+    "promotion_run": "https://github.com/bei612/stream-kit/actions/runs/42219847465",
+    "all_asset_bytes_and_digests_match": true,
+    "release_notes_match": true,
+    "assets": [
+      {
+        "name": "installer-manifest.json",
+        "bytes": 2312,
+        "sha256": "c8506a157f84848f235bccfd15e66c6aeadd54fe37902ebffa4873737872bfd2",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261106.2/installer-manifest.json"
+      },
+      {
+        "name": "linux-installer-manifest.json",
+        "bytes": 1408,
+        "sha256": "7bcf57a2fda537ceadb3df96159902aff4a5ee6cbc5c739e1d15fc01de38874a",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261106.2/linux-installer-manifest.json"
+      },
+      {
+        "name": "Linux-SHA256SUMS.txt",
+        "bytes": 126,
+        "sha256": "2f07aaea1fc6bba3932503693beb0bb004581fb7cb25e6deff76908b670d7580",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261106.2/Linux-SHA256SUMS.txt"
+      },
+      {
+        "name": "SHA256SUMS.txt",
+        "bytes": 122,
+        "sha256": "43fdfe3d992a596434447af36ded39d4c9e7025e38b71d9ed42ce813ebf971db",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261106.2/SHA256SUMS.txt"
+      },
+      {
+        "name": "stream-kit-preview-d36cead6fd85-ubuntu24.04-amd64-setup.run",
+        "bytes": 62362543,
+        "sha256": "6df089ad4f46ef9628d1299ac7392dae6baa9604f1e60764ef286785eec55a62",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261106.2/stream-kit-preview-d36cead6fd85-ubuntu24.04-amd64-setup.run"
+      },
+      {
+        "name": "stream-kit-preview-d36cead6fd85-windows-amd64-setup.exe",
+        "bytes": 97493785,
+        "sha256": "6f936fc5497bd00008884aa4c2b6a774b189e0cb0c94ba4875d375ba7540a4c5",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261106.2/stream-kit-preview-d36cead6fd85-windows-amd64-setup.exe"
+      },
+      {
+        "name": "stream-kit-sbom.spdx.json",
+        "bytes": 7453600,
+        "sha256": "f19f2eac968c5340821875de17c9c0d8190294e314377b70f0b3ca1340831efc",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261106.2/stream-kit-sbom.spdx.json"
+      }
+    ],
+    "public_download_headers_verified": true
   }
 }

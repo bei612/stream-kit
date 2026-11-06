@@ -84,7 +84,7 @@
   "followup": {
     "source_commit": "e29b824da2e9b9ed6b1184f69c0c465abba9555e",
     "run": "https://github.com/bei612/stream-kit/actions/runs/42209334110",
-    "status": "native_format_strict_lint_and_tests_passed_full_ci_in_progress",
+    "status": "complete_ci_passed_and_verified_installers_published",
     "ci_change": "Move format and strict Clippy checks ahead of release/WASM builds; retain all checks",
     "native_gates": [
       {
@@ -139,12 +139,16 @@
       "job": 127863810555,
       "conclusion": "cancelled",
       "cause": "Ubuntu dependency downloads exceeded the 30-minute job deadline before browser interaction tests could start",
-      "retry": "GitHub REST returned 403: The workflow run containing this job is already running. Retry only this cancelled job after workflow completion."
+      "retry": {
+        "job": 127897060908,
+        "conclusion": "success",
+        "scope": "Only cancelled Management Web retried after first workflow attempt completed; other successful results retained"
+      }
     },
     "current_product_candidate": {
       "source_commit": "d36cead6fd856925b283daddcc4af6cd1cdb7dd0",
       "run": "https://github.com/bei612/stream-kit/actions/runs/42211313164",
-      "status": "build_and_exact_installer_acceptance_passed_waiting_source_ci",
+      "status": "published_verified_preview",
       "source_difference_from_tested_commit": "Only docs/evidence/goal-delivery-audit-20261104.json and docs/evidence/input-ingress-20261106.json",
       "linux": {
         "installer": {
@@ -162,13 +166,16 @@
         "format": "SPDX-2.3",
         "packages": 3123
       },
-      "published": false,
+      "published": true,
       "installed": false,
       "installer_acceptance": {
         "run": "https://github.com/bei612/stream-kit/actions/runs/42216232449",
         "passed": true,
         "evidence": "docs/evidence/unified-installers-d36cead6.json"
-      }
-    }
+      },
+      "release": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261106.2",
+      "promotion_run": "https://github.com/bei612/stream-kit/actions/runs/42219847465"
+    },
+    "cross_platform_evidence": "docs/evidence/cross-platform-e29b824d.json"
   }
 }

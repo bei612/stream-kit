@@ -6,16 +6,16 @@
   "latest_observation": {
     "control_commit": "70ea6f7090097af5e6e3b7dca0185a712d5fc37f",
     "actual_boot_evidence": "docs/evidence/windows-real-boot-20261104.json",
-    "source_candidate": "902798f02d6e5746e9237d5ab92867a6496818bd",
-    "product_build_run": 42189092709,
-    "note": "Unified Windows/Linux product build 42189092709 and exact Windows installer acceptance 42195134226 passed for 902798f0. Promotion 42195634850 published the existing bytes without rebuilding; all seven public asset sizes/digests and release notes match. Installer-created automatic SCM startup, component auto-start, audio PCM, service restart and uninstall passed. Local control remains 70ea6f70 and media 66249387; no local service/trust/network mutation.",
-    "linux_installer_evidence": "docs/evidence/linux-installer-902798f0.json",
+    "source_candidate": "d36cead6fd856925b283daddcc4af6cd1cdb7dd0",
+    "product_build_run": 42211313164,
+    "note": "Unified Windows/Linux product build 42211313164 and exact Windows installer acceptance 42216232449 passed for d36cead6. Source CI 42209334110 at e29b824d passed; d36cead6 differs only in two evidence documents. Promotion 42219847465 published the existing bytes without rebuilding. All seven asset sizes/digests and release notes match; unauthenticated download HEAD requests returned 200 with matching lengths. Local control remains 70ea6f70 and media 66249387; no local service/trust/network mutation.",
+    "linux_installer_evidence": "docs/evidence/unified-installers-d36cead6.json",
     "lifecycle_and_startup_policy_evidence": "docs/evidence/lifecycle-and-autostart-ci-05baccd8.json",
-    "unified_installer_evidence": "docs/evidence/unified-installers-902798f0.json",
-    "windows_installer_acceptance_run": 42195134226,
-    "release": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261106.1",
+    "unified_installer_evidence": "docs/evidence/unified-installers-d36cead6.json",
+    "windows_installer_acceptance_run": 42216232449,
+    "release": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261106.2",
     "subsequent_ci_disk_fix": "docs/evidence/linux-build-disk-lifecycle-c5878b7d.json",
-    "current_cross_platform_evidence": "docs/evidence/cross-platform-902798f0.json",
+    "current_cross_platform_evidence": "docs/evidence/cross-platform-e29b824d.json",
     "current_watch_link_state_evidence": "docs/evidence/watch-link-state-902798f0.json"
   },
   "installed_source": "66249387b32975e79d56b19fdf98d4bc7d414da0",
@@ -42,18 +42,18 @@
     },
     {
       "item": "Current cross-platform CI",
-      "run": "https://github.com/bei612/stream-kit/actions/runs/42189035929",
+      "run": "https://github.com/bei612/stream-kit/actions/runs/42209334110",
       "conclusion": "success",
       "successful_jobs": [
-        "Source SBOM",
         "Management Web",
-        "Orchestrator (windows-latest)",
-        "Orchestrator (ubuntu-latest)",
         "Moonlight Web (windows-latest)",
-        "Moonlight Web (ubuntu-latest)"
+        "Source SBOM",
+        "Orchestrator (ubuntu-latest)",
+        "Moonlight Web (ubuntu-latest)",
+        "Orchestrator (windows-latest)"
       ],
       "limit": "Automated Windows/Linux builds and browser-engine checks do not establish physical mobile operation or LAN certificate trust. Human speech has separate local evidence.",
-      "evidence": "docs/evidence/cross-platform-902798f0.json"
+      "evidence": "docs/evidence/cross-platform-e29b824d.json"
     },
     {
       "item": "Physical human microphone to native target and audience",
@@ -71,7 +71,7 @@
       "item": "Integrated native Android application",
       "state": "signed_preview_key_format_fixed_host_input_delivery_unresolved",
       "scope": "docs/goal-current.md",
-      "finding": "Signed APK 0.1.0-preview.20261106.6 at source 6e9b2249 is published. Both Android CI runs, 13 release JVM tests, inventory and minified JNI checks passed; 21 candidate checksums and all 5 public assets verified. Official Windows emulator has the downloaded CI APK. Source-matched local .6 keyboard packets reach Sunshine, but Example receives no effective input even after foreground checks; do not continue attributing this only to a locked host. Existing .5 media, microphone and reconnect evidence remains scoped to that version. Independent Windows CI 42205252275 at 3573c1cc delivered a real key and click to the Example and exited cleanly. A separate native Win32 window on this host receives no injected clicks, outside the streaming stack; the local cause remains unproven. Gateway source 88ff24b2 separately removes unbound input application queuing, owns poller lifetime and corrects malformed control packet lengths; its Rust tests passed on Windows and Linux. The first candidate 42208552631 was cancelled after strict lint found unused/redundant items despite passing Rust tests. Source e29b824d fixes them and moves lint before expensive builds. Windows/Linux format, strict Clippy and native tests passed in CI 42209334110; the complete Windows gateway job passed. Linux browser checks remain in progress. Management browser dependency downloads exceeded the job deadline before interactions ran; only that cancelled job needs retry after the workflow finishes. Product 42211313164 at d36cead6 differs from e29b824d only in evidence documents: Linux installer build/init passed and downloaded bytes/checksums/SBOM match, Windows installer build and exact-byte silent installation acceptance 42216232449 also passed, including automatic service startup, component recovery, native PCM and uninstall/data preservation. Complete source CI remains pending. No new installer has been published or installed.",
+      "finding": "Signed Android APK 0.1.0-preview.20261106.6 at source 6e9b2249 is published and installed on the official Windows emulator. Android CI, 13 release JVM tests, inventory/minified JNI checks and public artifact verification passed. Source-matched local .6 keyboard packets reach Sunshine, but Example receives no effective input. Existing .5 media, microphone and reconnect evidence remains scoped to that version. Independent Windows CI delivered a real key and click to Example; a separate native Win32 window on this host received no injected clicks. The local cause remains unproven. Gateway input authorization at queue entry, control-task ownership and malformed-packet fixes passed complete Windows/Linux CI at e29b824d; source-equivalent d36cead6 runtime installers passed installation acceptance and are published as 20261106.2. Publication did not replace the local installation or establish target application input delivery.",
       "next": "Resolve the local input/focus environment without changing remote-control policy, then use Example event output to verify effective Android/Web input and revocation. Preserve completed audio/reconnect checks.",
       "evidence": [
         "docs/evidence/android-shared-authority-20261106.json",
@@ -104,6 +104,6 @@
       "next": "Validate during an agreed network-change window or on an isolated deployment, preserving the other projects and remote sessions on this host."
     }
   ],
-  "distribution_boundary": "Public v0.1.0-preview.20261106.1 contains Windows and Ubuntu 24.04 runtime installers and SPDX SBOM at source 902798f0. All seven published asset sizes and server SHA-256 digests match locally downloaded build artifacts. Clean Windows silent installation verified automatic SCM startup without manual repair, native PCM, default audio preservation, gateway/SCM restart and uninstall. Linux native package extraction, initialization, offline user-service enablement and existing-data preservation passed. Local control remains 70ea6f70 with media 66249387; publication did not replace the local installation. See docs/evidence/unified-installers-902798f0.json. Android preview v0.1.0-android-preview.20261106.6 separately supplies the signed APK, distribution archive, provenance, SBOM and checksums from source 6e9b2249. It requires verified HTTPS; the installed HTTP host was not changed.",
+  "distribution_boundary": "Public v0.1.0-preview.20261106.2 contains Windows and Ubuntu 24.04 runtime installers and SPDX SBOM at source d36cead6. All seven published asset sizes and server SHA-256 digests match locally downloaded build artifacts, and unauthenticated download HEAD requests return 200 with matching content lengths. Exact Windows installer acceptance verified automatic SCM startup without manual repair, native PCM, default audio preservation, gateway/SCM restart and uninstall. Linux native extraction, initialization, offline user-service enablement and data preservation passed. Local control remains 70ea6f70 with media 66249387. See docs/evidence/unified-installers-d36cead6.json. Android preview 20261106.6 separately provides the signed APK, archive, provenance, SBOM and checksums at 6e9b2249. It requires verified HTTPS; the installed HTTP host remains unchanged.",
   "completion_decision": "Goal remains incomplete. Current installed operation and permanent-link delivery do not substitute for the remaining acceptance conditions."
 }
