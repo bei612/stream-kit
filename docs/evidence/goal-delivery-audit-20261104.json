@@ -1,5 +1,7 @@
 {
   "schema_version": 1,
+  "current_scope": "docs/goal-current.md",
+  "scope_updated_at": "2026-11-06",
   "overall_completion_proven": false,
   "latest_observation": {
     "control_commit": "70ea6f7090097af5e6e3b7dca0185a712d5fc37f",
@@ -64,6 +66,13 @@
     }
   ],
   "remaining_acceptance": [
+    {
+      "item": "Integrated native Android application",
+      "state": "planned_not_implemented",
+      "scope": "docs/goal-current.md",
+      "finding": "User added official Moonlight Android source integration and authorized local official Android Emulator development. No integrated Android APK has been delivered. Existing Web and local speech evidence does not establish Android functionality.",
+      "next": "Vendor pinned official sources without submodules; review native/GameStream versus gateway/WebRTC transport and reuse native platform capabilities with one shared managed upstream; implement permanent entry, unified session authority, microphone and audience audio, lifecycle and reconnect; validate on an emulator and publish a release-signed APK. Physical mobile acceptance remains outside this round."
+    },
     {
       "item": "Trusted LAN HTTPS deployment",
       "state": "prepared_awaiting_cutover_confirmation",

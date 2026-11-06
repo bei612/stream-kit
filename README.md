@@ -4,6 +4,8 @@ Stream-Kit 将管理服务、Sunshine 渲染端和 Moonlight Web 媒体网关集
 
 服务端支持 Windows/Linux，客户端采用 Web/PWA。手机和平板不需要安装原生客户端；浏览器采集麦克风需要安全上下文和用户授权。当前发布渠道为预发布，不能把构建成功视为全部生产验收完成。
 
+2026-11-06 新增交付要求：在保留 Web/PWA 的基础上，纳入官方 Moonlight Android 源码二开，交付接入同一会话、控制权和音频链路的 Android 原生 APK。该 App 尚未交付，不能用现有 Web 检查代替 Android 验收；本机采用官方 Android Emulator 调试。完整范围和完成条件见 [当前 Goal](docs/goal-current.md)。
+
 ## 安装与访问
 
 从 [GitHub Releases](https://github.com/bei612/stream-kit/releases) 获取当前可下载版本，查看该版本说明和 SHA-256。Windows 使用版本中的单个 `*-windows-amd64-setup.exe` 安装三个核心组件；无需另外安装官方 Sunshine 或 Moonlight Web，也不要再注册独立 Sunshine 服务。
