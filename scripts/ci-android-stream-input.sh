@@ -12,6 +12,13 @@ mkdir -p "$ANDROID_AVD_HOME"
 serial=emulator-5580
 display_pid='' wm_pid='' emulator_pid=''
 cleanup() {
+  # Retain only resource/termination diagnostics, never intent URLs, full
+  # logcat, UI contents or credentials. These remain test artifacts only.
+  if [[ -n "$emulator_pid" ]]; then
+    timeout 5s adb -s "$serial" shell cat /proc/meminfo > "$evidence/android-memory.txt" 2>/dev/null || true
+    timeout 5s adb -s "$serial" logcat -d -b events -s am_kill:I am_proc_died:I '*:S' > "$evidence/android-process-exits.txt" 2>/dev/null || true
+    timeout 5s adb -s "$serial" logcat -d -s lowmemorykiller:I lmkd:I '*:S' > "$evidence/android-memory-kills.txt" 2>/dev/null || true
+  fi
   if [[ -n "$emulator_pid" ]]; then timeout 10s adb -s "$serial" emu kill >/dev/null 2>&1 || true; kill "$emulator_pid" 2>/dev/null || true; fi
   if [[ -n "$wm_pid" ]]; then kill "$wm_pid" 2>/dev/null || true; fi
   if [[ -n "$display_pid" ]]; then kill "$display_pid" 2>/dev/null || true; fi
@@ -42,7 +49,7 @@ certutil -A -d "sql:$HOME/.pki/nssdb" -n StreamKitIsolatedInput -t 'C,,' -i "$tl
 export NODE_EXTRA_CA_CERTS="$tls/ca.crt"
 sudo chmod a+rw /dev/kvm
 avdmanager create avd --name StreamKit_Input_CI --package 'system-images;android-36;google_apis;x86_64' --device pixel_6 <<< no
-"$ANDROID_HOME/emulator/emulator" -avd StreamKit_Input_CI -port 5580 -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader \
+"$ANDROID_HOME/emulator/emulator" -avd StreamKit_Input_CI -port 5580 -memory 4096 -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader \
   > "$evidence/emulator.log" 2>&1 &
 emulator_pid=$!
 ready=false

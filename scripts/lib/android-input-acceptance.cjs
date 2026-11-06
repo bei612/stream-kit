@@ -21,7 +21,10 @@ function androidParticipant({adb,serial}) {
     }
   };
   const hierarchy=()=>{
-    run('shell','uiautomator','dump','/sdcard/stream-kit-input.xml');
+    const output=run('shell','uiautomator','dump','/sdcard/stream-kit-input.xml');
+    // AOSP dump can return exit 0 after a null-root/idle failure. Require its
+    // completion marker so a previous hierarchy can never stand in for a new one.
+    assert.ok(output.includes('UI hierchary dumped to: /sdcard/stream-kit-input.xml'),'Android hierarchy dump did not complete');
     return run('shell','cat','/sdcard/stream-kit-input.xml');
   };
   const role=controller=>until(()=>hierarchy().includes(controller?'已连接 · 控制中':'已连接 · 观看中'),'Android role update',30000);
