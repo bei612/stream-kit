@@ -1,5 +1,33 @@
 apply plugin: 'com.android.application'
 
+abstract class GenerateStreamKitBuild extends DefaultTask {
+    @Input abstract org.gradle.api.provider.MapProperty<String, String> getBuildIdentity()
+    @OutputDirectory abstract org.gradle.api.file.DirectoryProperty getOutputDirectory()
+    @TaskAction void generate() {
+        def identity = buildIdentity.get()
+        def target = new File(outputDirectory.get().asFile, 'stream-kit-build.json')
+        target.parentFile.mkdirs()
+        target.setText(groovy.json.JsonOutput.toJson([version: identity.version, version_code: identity.code.toInteger(),
+                source_commit: identity.commit, source_dirty: identity.dirty == 'true']) + '\n', 'UTF-8')
+    }
+}
+
+def streamKitVersion = providers.gradleProperty('streamKitVersionName').getOrElse('0.1.0-dev')
+def streamKitCode = providers.gradleProperty('streamKitVersionCode').getOrElse('1000000')
+def streamKitCommit = providers.gradleProperty('streamKitSourceCommit').getOrElse('development')
+def streamKitDirty = providers.gradleProperty('streamKitSourceDirty').getOrElse('true')
+if (!(streamKitVersion ==~ /[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?/) ||
+        !(streamKitCode ==~ /[1-9][0-9]{0,8}/)) {
+    throw new GradleException('Invalid Stream Kit Android version')
+}
+if (!(streamKitCommit ==~ /[0-9a-f]{40}|development/) || !(streamKitDirty in ['true', 'false'])) {
+    throw new GradleException('Invalid Stream Kit source identity')
+}
+def generateStreamKitBuild = tasks.register('generateStreamKitBuild', GenerateStreamKitBuild) {
+    buildIdentity.set([version: streamKitVersion, code: streamKitCode, commit: streamKitCommit, dirty: streamKitDirty])
+    outputDirectory.set(layout.buildDirectory.dir('generated/streamKitAssets'))
+}
+
 android {
     ndkVersion "29.0.14206865"
 
@@ -11,8 +39,8 @@ android {
         minSdk 21
         targetSdk 36
 
-        versionName "12.2"
-        versionCode = 315
+        versionName streamKitVersion
+        versionCode = streamKitCode.toInteger()
 
         // Generate native debug symbols to allow Google Play to symbolicate our native crashes
         ndk.debugSymbolLevel = 'FULL'
@@ -81,6 +109,19 @@ android {
         }
     }
 
+    signingConfigs {
+        if (System.getenv('STREAM_KIT_ANDROID_KEYSTORE')) {
+            release {
+                storeFile file(System.getenv('STREAM_KIT_ANDROID_KEYSTORE'))
+                storePassword System.getenv('STREAM_KIT_ANDROID_STORE_PASSWORD')
+                keyAlias 'stream-kit'
+                keyPassword System.getenv('STREAM_KIT_ANDROID_STORE_PASSWORD')
+                enableV1Signing true
+                enableV2Signing true
+                enableV3Signing true
+            }
+        }
+    }
     buildTypes {
         debug {
             applicationIdSuffix ".debug"
@@ -88,11 +129,13 @@ android {
             resValue "string", "app_label_root", "Stream Kit (Root Debug)"
         }
         release {
+            if (System.getenv('STREAM_KIT_ANDROID_KEYSTORE')) signingConfig signingConfigs.release
             // Stream Kit uses its own application ID and release signing identity.
             resValue "string", "app_label", "Stream Kit"
             resValue "string", "app_label_root", "Stream Kit (Root)"
 
             minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -111,6 +154,12 @@ android {
     }
 }
 
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.sources.assets.addGeneratedSourceDirectory(generateStreamKitBuild, { it.outputDirectory })
+    }
+}
+
 dependencies {
     implementation 'io.github.webrtc-sdk:android:150.7871.01'
     testImplementation 'junit:junit:4.13.2'
@@ -124,4 +173,27 @@ dependencies {
     implementation 'com.github.cgutman:ShieldControllerExtensions:1.0.1'
 
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
+}
+
+// Resolved runtime dependency hashes accompany release artifacts. Test libraries
+// are deliberately outside this configuration and cannot enter this inventory.
+tasks.register('writeManagedRuntimeInventory') {
+    def destination = layout.buildDirectory.file('reports/stream-kit-runtime-dependencies.json')
+    inputs.files(providers.provider { configurations.nonRootReleaseRuntimeClasspath })
+    outputs.file(destination)
+    doLast {
+        def artifacts = configurations.nonRootReleaseRuntimeClasspath.resolvedConfiguration.resolvedArtifacts.collect { item ->
+            def digest = java.security.MessageDigest.getInstance('SHA-256')
+            item.file.withInputStream { input ->
+                byte[] buffer = new byte[65536]
+                int count
+                while ((count = input.read(buffer)) != -1) digest.update(buffer, 0, count)
+            }
+            [coordinate: item.moduleVersion.id.toString(), file: item.file.name, sha256: digest.digest().encodeHex().toString()]
+        }.sort { a, b -> a.coordinate <=> b.coordinate }
+        def target = destination.get().asFile
+        target.parentFile.mkdirs()
+        target.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson([
+                schema_version: 1, configuration: 'nonRootReleaseRuntimeClasspath', dependencies: artifacts])) + '\n'
+    }
 }

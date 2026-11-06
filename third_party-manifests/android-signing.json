@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "application_id": "io.github.bei612.streamkit",
+  "alias": "stream-kit",
+  "certificate_sha256": "2dcc cab9 fddf b420 a47c b1ef 870e 8bae 96b4 a802 5a4e 4215 6528 cc3e 07d2 8d4f",
+  "created_at": "2026-11-06",
+  "algorithm": "RSA-3072 / SHA256withRSA",
+  "retention": "Persistent project identity; never regenerate for upgrades. Private material is excluded from Git and artifacts."
+}
