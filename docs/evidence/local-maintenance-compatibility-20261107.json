@@ -1,0 +1,43 @@
+{
+  "observed_at": "2026-11-06T20:35:11.894Z",
+  "source": "47c02726c0161ebdec50911422d62845a9b6e59a",
+  "installed_control_source": "70ea6f7090097af5e6e3b7dca0185a712d5fc37f",
+  "installed_platform_source": "66249387b32975e79d56b19fdf98d4bc7d414da0",
+  "changed_control_schema_files": [],
+  "changed_gateway_configuration_files": [],
+  "installed_driver_files": [
+    {
+      "file": "LICENSE.txt",
+      "matches_release": true
+    },
+    {
+      "file": "usbip2_filter.cat",
+      "matches_release": true
+    },
+    {
+      "file": "usbip2_filter.inf",
+      "matches_release": true
+    },
+    {
+      "file": "usbip2_filter.sys",
+      "matches_release": true
+    },
+    {
+      "file": "usbip2_ude.cat",
+      "matches_release": true
+    },
+    {
+      "file": "usbip2_ude.inf",
+      "matches_release": true
+    },
+    {
+      "file": "usbip2_ude.sys",
+      "matches_release": true
+    }
+  ],
+  "driver_package_replacement_required": false,
+  "service_changed": false,
+  "trust_changed": false,
+  "todesk_changed": false,
+  "limit": "Matching driver package files and unchanged schema source do not replace protected configuration preflight or installed runtime verification. No update has run."
+}
