@@ -23,6 +23,75 @@ pub enum ControlChannelEvent {
     Closed,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use moonlight_common::stream::control::{KeyAction, KeyCode, KeyFlags, KeyModifiers};
+    use moonlight_common::stream::proto::control::packet::{
+        UTF8_TEXT_EVENT_MAGIC, UTF8_TEXT_MAX_COUNT,
+    };
+
+    #[test]
+    fn truncated_input_is_rejected_without_panicking() {
+        let config = create_control_packet_config();
+        let packet = ControlPacket::Keyboard {
+            action: KeyAction::Down,
+            flags: KeyFlags::empty(),
+            key_code: KeyCode(65),
+            modifiers: KeyModifiers::empty(),
+            zero: 0,
+        };
+        let mut bytes = [0; ControlPacket::MAX_SIZE];
+        let length = packet.serialize(&config, &mut bytes).expect("valid key");
+        for end in 0..length {
+            assert!(
+                ControlPacket::deserialize(PacketDirection::ServerBound, &config, &bytes[..end])
+                    .is_none(),
+                "truncated at {end}"
+            );
+        }
+        assert!(matches!(
+            ControlPacket::deserialize(PacketDirection::ServerBound, &config, &bytes[..length]),
+            Some(ControlPacket::Keyboard {
+                key_code: KeyCode(65),
+                ..
+            })
+        ));
+    }
+
+    fn text_packet(config: &ControlPacketConfig, content: &[u8]) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&config.input_data.0.to_le_bytes());
+        bytes.extend_from_slice(&((8 + content.len()) as u16).to_le_bytes());
+        bytes.extend_from_slice(&((4 + content.len()) as u32).to_be_bytes());
+        bytes.extend_from_slice(&UTF8_TEXT_EVENT_MAGIC.to_le_bytes());
+        bytes.extend_from_slice(content);
+        bytes
+    }
+
+    #[test]
+    fn text_length_cannot_underflow_or_exceed_fixed_storage() {
+        let config = create_control_packet_config();
+        for invalid in 0u32..4 {
+            let mut bytes = text_packet(&config, b"");
+            bytes[4..8].copy_from_slice(&invalid.to_be_bytes());
+            assert!(
+                ControlPacket::deserialize(PacketDirection::ServerBound, &config, &bytes).is_none()
+            );
+        }
+        for length in [0, 1, UTF8_TEXT_MAX_COUNT, UTF8_TEXT_MAX_COUNT + 1, 256] {
+            let bytes = text_packet(&config, &vec![b'x'; length]);
+            let Some(ControlPacket::Text { text, text_len }) =
+                ControlPacket::deserialize(PacketDirection::ServerBound, &config, &bytes)
+            else {
+                panic!("valid text length {length}");
+            };
+            assert_eq!(text_len, length.min(UTF8_TEXT_MAX_COUNT));
+            assert!(text[..text_len].iter().all(|&byte| byte == b'x'));
+        }
+    }
+}
+
 async fn receive_input(
     sender: &InputSender,
     config: &ControlPacketConfig,

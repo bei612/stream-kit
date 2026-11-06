@@ -2159,7 +2159,7 @@ impl ControlPacket {
         }
     }
 
-    #[instrument(level = Level::TRACE)]
+    #[instrument(level = Level::TRACE, skip(payload))]
     pub fn deserialize(
         packet_direction: PacketDirection,
         config: &ControlPacketConfig,
@@ -2181,7 +2181,7 @@ impl ControlPacket {
         };
         trace!("parsed type: {ty:?}");
 
-        if payload.len() < 4 + len as usize - 1 {
+        if payload.len() < 4 + len as usize {
             warn!(packet_ty = ?ty, full_len = payload.len(), got_len = payload.len() - 4, expected_len = len, "received payload that has incorrect length in its length field");
             return None;
         }
@@ -2492,7 +2492,7 @@ impl ControlPacket {
                     u32::from_le_bytes([payload[8], payload[9], payload[10], payload[11]]);
 
                 // Control Header + Input Len + The rest
-                if payload.len() < 4 + 4 + input_len as usize {
+                if input_len < 4 || input_len as usize > payload.len() - 8 {
                     warn!(actual_payload_len = ?payload.len(), packet_header_len = ?len, input_header_len = ?input_len, "InputData length is bigger than the payload length");
                     return None;
                 }
@@ -2614,7 +2614,7 @@ impl ControlPacket {
                             );
                             text_len = text.len();
                         }
-                        text[0..text_len].copy_from_slice(text_ref);
+                        text[0..text_len].copy_from_slice(&text_ref[..text_len]);
 
                         Some(ControlPacket::Text { text, text_len })
                     }

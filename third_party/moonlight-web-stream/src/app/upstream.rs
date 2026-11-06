@@ -80,7 +80,7 @@ pub struct UpstreamPeer {
     events: broadcast::Receiver<Arc<MoonlightStreamEvent>>,
 }
 
-// Bind input to authority at transport ingress, before any asynchronous queue.
+// Bind input at transport polling, before the application's input queue.
 // Like microphone ingress, this handle must not retain a departed attachment.
 #[derive(Clone)]
 pub struct InputSender {

@@ -162,14 +162,9 @@ pub async fn webrtc_loop(
                 }
             }
             result = control_channel.drive() => {
-                let event = result?;
-
-                match event {
-                    ControlChannelEvent::Closed => {
-                        info!("control channel closed");
-                        return Err(AppError::StreamClosed);
-                    },
-                }
+                let ControlChannelEvent::Closed = result?;
+                info!("control channel closed");
+                return Err(AppError::StreamClosed);
             }
         }
     }
