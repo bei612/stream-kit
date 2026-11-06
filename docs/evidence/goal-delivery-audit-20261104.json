@@ -190,7 +190,7 @@
       "item": "Local deployment of verified LAN address recovery",
       "state": "isolated_runtime_passed_local_cutover_pending",
       "finding": "Functional discovery, HTTPS and WebRTC recovery across an actual isolated server NIC change now pass at source 00fe4953. The installed Windows host still has its previous HTTP deployment; no local IP change or ToDesk coexistence result is claimed.",
-      "next": "Complete the matching Windows installer release and the separately confirmed local HTTPS/entry cutover; preserve the shared network and ToDesk.",
+      "next": "Matching Windows installer is published. Prepare the local runtime update and separately confirmed HTTPS/entry cutover; preserve the shared network and ToDesk.",
       "evidence": "docs/evidence/lan-address-recovery-20261107.json"
     }
   ],

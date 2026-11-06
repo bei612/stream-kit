@@ -53,5 +53,5 @@
     "fixture_scope": "Official Inno 7.1.1 compiled the actual production exit-code handler. Private non-admin fixtures changed no services, drivers, registry entries or application files.",
     "source_reference": "https://jrsoftware.org/ishelp/topic_scriptevents.htm"
   },
-  "remaining": "Publish the verified replacement bytes; do not promote the failed 928c012a Windows installer. No local Windows runtime, TLS trust or ToDesk changes were made."
+  "remaining": "Verified replacement bytes are published as v0.1.0-preview.20261107.1; see unified-installers-47c02726.json. Local runtime update and trusted entry cutover remain separate pending work. The rejected 928c012a Windows installer was not promoted; no local runtime, TLS trust or ToDesk changes were made."
 }
