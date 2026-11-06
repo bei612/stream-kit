@@ -8,11 +8,11 @@ Stream-Kit 将管理服务、Sunshine 渲染端和 Moonlight Web 媒体网关集
 
 ## 安装与访问
 
-2026-11-07 交付进展：HTTP/2 回环地址缺陷与首次安装缺少自动配对的问题均已修复。`928c012a` Linux 安装包从空网关目录打开永久链接即可自动配对并串流，随后真实切换测试网卡 IP，同一观看页面自动恢复画面与音频 RTP，见[首次启动与网络恢复证据](docs/evidence/managed-enrollment-20261107.json)。该候选的 Windows 安装验收发现音频设备要求重启时的处理缺陷，未予发布；`47c02726` 已修复安装顺序与退出码，替代安装包正在构建，见[安装流程修复记录](docs/evidence/windows-installer-restart-20261107.json)。尚未发布替代服务端版本或替换本机部署。
+2026-11-07 交付进展：HTTP/2 回环地址缺陷与首次安装缺少自动配对的问题均已修复。`928c012a` Linux 安装包从空网关目录打开永久链接即可自动配对并串流，随后真实切换测试网卡 IP，同一观看页面自动恢复画面与音频 RTP，见[首次启动与网络恢复证据](docs/evidence/managed-enrollment-20261107.json)。该候选的 Windows 安装验收发现音频设备要求重启时的处理缺陷，未予发布；`47c02726` 已修复安装顺序与退出码，精确安装包验收通过并已发布，见[安装流程修复记录](docs/evidence/windows-installer-restart-20261107.json)。本机部署尚未替换。
 
 从 [GitHub Releases](https://github.com/bei612/stream-kit/releases) 获取当前可下载版本，查看该版本说明和 SHA-256。Windows 使用版本中的单个 `*-windows-amd64-setup.exe` 安装三个核心组件；无需另外安装官方 Sunshine 或 Moonlight Web，也不要再注册独立 Sunshine 服务。
 
-当前统一安装预发布版为 [20261106.2](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261106.2)，提供源码 `d36cead6` 构建的 Windows 单 EXE 和 Ubuntu 24.04 单文件安装包。本版修复输入排队期间权限移交、异常控制报文与连接任务清理，保留前版的局域网发现依赖和固定链接状态修复。Windows 已集成开源虚拟音频实现及签名控制器驱动。只安装三个运行组件及必需运行库，开发示例和验收工具均不随包交付；安装及运行无需宿主机另行安装 Node.js/npm。跨平台 CI、Linux 安装包初始化，以及 Windows 整包静默安装、自启动、原生音频、网关与系统服务重启、卸载检查已通过。文件清单和验证范围见 [本版交付状态](deploy/releases/0.1.0-preview.20261106.2.md)。发布不会自动替换已有部署，也不代表已完成本机 HTTPS 切换及实际 IP 变化恢复验收。
+当前统一安装预发布版为 [20261107.1](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261107.1)，提供源码 `47c02726` 构建的 Windows 单 EXE 和 Ubuntu 24.04 单文件安装包。本版包含自动主机配对、HTTP/2 地址修复及安装前音频端点准备，明确区分成功、失败和需要重启的退出码。Windows 已集成开源虚拟音频实现及签名控制器驱动。只安装三个运行组件及必需运行库，开发示例和验收工具均不随包交付；安装及运行无需宿主机另行安装 Node.js/npm。跨平台 CI、Linux 安装包初始化，以及 Windows 整包静默安装、自启动、原生音频、网关与系统服务重启、卸载检查已通过。本版 Windows 验收包含服务重启，不是整机重启。7 个公开附件的大小、SHA-256 与验收产物一致，见[发布核验](docs/evidence/unified-installers-47c02726.json)和[安装说明](deploy/releases/0.1.0-preview.20261107.1.md)。发布不会自动替换已有部署，也不代表已完成本机 HTTPS 切换及实际 IP 变化恢复验收。
 
 Windows 安装器支持向导和静默模式。以管理员终端执行，将文件名替换为实际下载的名称：
 

@@ -61,11 +61,66 @@
   },
   "local_downloads_verified": true,
   "native_windows_three_component_inventory_verified": true,
-  "published": false,
+  "published": true,
   "limits": [
     "Windows acceptance used hosted Windows Server 2022, including SCM restart, not a full host reboot. Restart-required exit handling has separate actual Inno fixture coverage.",
     "Fresh-install packages do not establish in-place upgrade support.",
     "Installed local control remains 70ea6f70 and media 66249387; no local runtime, TLS trust, network or ToDesk changes.",
     "Synthetic installed PCM does not replace physical human speech; previously accepted speech and stability evidence remain separate."
-  ]
+  ],
+  "publication": {
+    "url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261107.1",
+    "tag": "v0.1.0-preview.20261107.1",
+    "source_commit": "47c02726c0161ebdec50911422d62845a9b6e59a",
+    "prerelease": true,
+    "published_at": "2026-11-06T20:19:02Z",
+    "verified_at": "2026-11-06T20:23:37.603Z",
+    "promotion_run": "https://github.com/bei612/stream-kit/actions/runs/42287229735",
+    "all_asset_bytes_and_digests_match": true,
+    "release_notes_match": true,
+    "assets": [
+      {
+        "name": "installer-manifest.json",
+        "bytes": 2312,
+        "sha256": "ceeb6944cf983c63d7a6866ebd595bc80154566a1c42e827dde4364ac7c8ec7d",
+        "public_download_status": 200
+      },
+      {
+        "name": "linux-installer-manifest.json",
+        "bytes": 1408,
+        "sha256": "d82d187b1bada54c1f51a9b156f9d4ffba3b48dc3b674ea6da8f713d3b4c0b60",
+        "public_download_status": 200
+      },
+      {
+        "name": "Linux-SHA256SUMS.txt",
+        "bytes": 126,
+        "sha256": "a3f8fcb8459573381b3083a081385db7f171f0a9e3ae27aec53c7f0cb482beb8",
+        "public_download_status": 200
+      },
+      {
+        "name": "SHA256SUMS.txt",
+        "bytes": 122,
+        "sha256": "66324e3ebd6cd8795cd7b77c0a5e3f50c4934af7db183b669ac4e187ded8ea39",
+        "public_download_status": 200
+      },
+      {
+        "name": "stream-kit-preview-47c02726c016-ubuntu24.04-amd64-setup.run",
+        "bytes": 62412685,
+        "sha256": "aa04a5ef7a9423ddb7a2c5d27820cda430bed61591b1e41a71d063a22c3221e4",
+        "public_download_status": 200
+      },
+      {
+        "name": "stream-kit-preview-47c02726c016-windows-amd64-setup.exe",
+        "bytes": 97553532,
+        "sha256": "089e7207881b63c75db54009afe2480b4b1e8ccd73a8ffb92d5b594b94851e25",
+        "public_download_status": 200
+      },
+      {
+        "name": "stream-kit-sbom.spdx.json",
+        "bytes": 7479449,
+        "sha256": "8d7e4cf4a0e55aa0c8c2e8e9c7ec770e0f887b28a2a65084ad6b317d5c233204",
+        "public_download_status": 200
+      }
+    ]
+  }
 }

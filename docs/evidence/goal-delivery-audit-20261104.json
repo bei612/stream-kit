@@ -7,16 +7,16 @@
   "latest_observation": {
     "control_commit": "70ea6f7090097af5e6e3b7dca0185a712d5fc37f",
     "actual_boot_evidence": "docs/evidence/windows-real-boot-20261104.json",
-    "source_candidate": "d36cead6fd856925b283daddcc4af6cd1cdb7dd0",
-    "product_build_run": 42211313164,
-    "note": "Unified Windows/Linux product build 42211313164 and exact Windows installer acceptance 42216232449 passed for d36cead6. Source CI 42209334110 at e29b824d passed; d36cead6 differs only in two evidence documents. Promotion 42219847465 published the existing bytes without rebuilding. All seven asset sizes/digests and release notes match; unauthenticated download HEAD requests returned 200 with matching lengths. Local control remains 70ea6f70 and media 66249387; no local service/trust/network mutation.",
-    "linux_installer_evidence": "docs/evidence/unified-installers-d36cead6.json",
+    "source_candidate": "47c02726c0161ebdec50911422d62845a9b6e59a",
+    "product_build_run": 42280613810,
+    "note": "Replacement 47c02726 Windows/Linux build, all six source CI jobs and exact Windows installer acceptance passed. Promotion 42287229735 published the same verified bytes. Seven public assets match local sizes/SHA-256; public HEAD requests returned 200. Local control remains 70ea6f70 and media 66249387; no local runtime, trust, network or ToDesk changes.",
+    "linux_installer_evidence": "docs/evidence/unified-installers-47c02726.json",
     "lifecycle_and_startup_policy_evidence": "docs/evidence/lifecycle-and-autostart-ci-05baccd8.json",
-    "unified_installer_evidence": "docs/evidence/unified-installers-d36cead6.json",
-    "windows_installer_acceptance_run": 42216232449,
-    "release": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261106.2",
+    "unified_installer_evidence": "docs/evidence/unified-installers-47c02726.json",
+    "windows_installer_acceptance_run": 42286667294,
+    "release": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261107.1",
     "subsequent_ci_disk_fix": "docs/evidence/linux-build-disk-lifecycle-c5878b7d.json",
-    "current_cross_platform_evidence": "docs/evidence/cross-platform-00fe4953.json",
+    "current_cross_platform_evidence": "docs/evidence/windows-installer-restart-20261107.json",
     "current_watch_link_state_evidence": "docs/evidence/watch-link-state-902798f0.json",
     "new_candidate": {
       "source": "00fe4953751e52dd38f0d707e9ba721d5374cb81",
@@ -58,7 +58,12 @@
       "native_runtime_acceptance": "passed",
       "native_runtime_evidence": "docs/evidence/managed-enrollment-20261107.json",
       "source_ci_evidence": "docs/evidence/cross-platform-enrollment-20261107.json",
-      "linux_installer_built": true
+      "linux_installer_built": true,
+      "replacement_product_status": "success",
+      "replacement_windows_installer_acceptance_run": 42286667294,
+      "replacement_windows_installer_acceptance": "success",
+      "replacement_server_published": true,
+      "replacement_release_evidence": "docs/evidence/unified-installers-47c02726.json"
     }
   },
   "installed_source": "66249387b32975e79d56b19fdf98d4bc7d414da0",
@@ -189,7 +194,7 @@
       "evidence": "docs/evidence/lan-address-recovery-20261107.json"
     }
   ],
-  "distribution_boundary": "Public v0.1.0-preview.20261106.2 contains Windows and Ubuntu 24.04 runtime installers and SPDX SBOM at source d36cead6. All seven published asset sizes and server SHA-256 digests match locally downloaded build artifacts, and unauthenticated download HEAD requests return 200 with matching content lengths. Exact Windows installer acceptance verified automatic SCM startup without manual repair, native PCM, default audio preservation, gateway/SCM restart and uninstall. Linux native extraction, initialization, offline user-service enablement and data preservation passed. Local control remains 70ea6f70 with media 66249387. See docs/evidence/unified-installers-d36cead6.json. Android preview 20261106.6 separately provides the signed APK, archive, provenance, SBOM and checksums at 6e9b2249. It requires verified HTTPS; the installed HTTP host remains unchanged.",
-  "completion_decision": "Goal remains incomplete: 928c012a Windows installation acceptance found an audio endpoint restart outcome and incorrect success exit code. The candidate was not published; native preparation and installer outcome handling have been fixed and require a matching replacement build/acceptance. Trusted local HTTPS/entry deployment awaits its pending confirmation. Automatic renderer enrollment and isolated LAN recovery pass on exact 928c012a Linux runtime. Android APK 20261107.1 is published and installed on the existing local emulator. Local Windows input cause remains unproven and ToDesk unchanged.",
+  "distribution_boundary": "Public server preview 20261107.1 contains exact 47c02726 Windows/Ubuntu 24.04 installers and SPDX SBOM. All seven public asset sizes and SHA-256 digests match downloaded build artifacts, with successful unauthenticated HEAD checks. Windows exact-package silent installation, automatic SCM startup, gateway/SCM restart, native audio and data-preserving uninstall passed; this was not a whole-machine reboot. Linux extraction/initialization/offline user-service/data protection passed; earlier 928c012a media and actual isolated IP-recovery evidence retains its version scope. Android 20261107.1 is published and installed on the local emulator. Local Windows control remains 70ea6f70 with media 66249387 and HTTP entry; neither runtime nor trust was changed. Fresh-install delivery is not in-place upgrade support.",
+  "completion_decision": "Goal remains incomplete because trusted local deployment/entry cutover and actual host recovery remain pending. The replacement server installer defect is fixed, exact-package acceptance passed and Windows/Linux artifacts are published. Android 20261107.1 is published and installed on the emulator. Local Windows input cause remains unproven; ToDesk is unchanged. Do not repeat accepted speech/stability or relabel independent CI as local deployment.",
   "local_input_caveat": "Earlier local Windows input/focus failure remains unresolved; its cause is unproven. Independent Windows Web and Linux Android/Web target-input checks now pass. No local ToDesk coexistence claim is made. Preserve ToDesk settings, processes and remote connection unchanged; do not require the user to operate ToDesk."
 }
