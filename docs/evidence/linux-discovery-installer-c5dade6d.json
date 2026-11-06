@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-06",
+  "source_commit": "c5dade6d533b1f0543b91bbd15d04a25c8ed5609",
+  "run": "https://github.com/bei612/stream-kit/actions/runs/42185352764",
+  "conclusion": "success",
+  "installer": {
+    "file": "stream-kit-preview-c5dade6d533b-ubuntu24.04-amd64-setup.run",
+    "bytes": 62347999,
+    "sha256": "a6a91ec10fef884578e6387b0456cc3a1629c864fe9a56b495fe95892d5bb4dd"
+  },
+  "installer_hash_verified_locally": true,
+  "payload_profile": "runtime",
+  "runtime_requires_node": false,
+  "explicit_discovery_dependencies": [
+    "libavahi-client3",
+    "avahi-daemon",
+    "libnss-mdns"
+  ],
+  "acceptance": [
+    "Actual archive checksum and embedded Debian payload match",
+    "Package metadata contains dynamically loaded discovery runtime",
+    "Extracted native three-component platform initialization and preflight",
+    "Offline user-service startup enablement",
+    "Reinitialization rejected without replacing existing credentials or runtime data"
+  ],
+  "acceptance_log": {
+    "path": ".local/linux-installer-ci-c5dade6d/installer-acceptance.log",
+    "sha256": "ce92462f566d83f760b62e44c7d3a896ff3c0d17a666b838ad9f1f9135c36964"
+  },
+  "limits": [
+    "This is the completed standalone Linux CI artifact, not the coordinated product-run artifact or a GitHub Release",
+    "No actual apt host installation, LAN client discovery, physical desktop or IP-change acceptance",
+    "No change to the installed Windows demo host"
+  ]
+}
