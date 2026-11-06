@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "source_commit": "d36cead6fd856925b283daddcc4af6cd1cdb7dd0",
+  "product_run": "https://github.com/bei612/stream-kit/actions/runs/42211313164",
+  "windows_acceptance_run": "https://github.com/bei612/stream-kit/actions/runs/42216232449",
+  "windows": {
+    "installer_sha256": "6f936fc5497bd00008884aa4c2b6a774b189e0cb0c94ba4875d375ba7540a4c5",
+    "installer_source_commit": "d36cead6fd856925b283daddcc4af6cd1cdb7dd0",
+    "acceptance_result_sha256": "96767ba9a6378e331ea789965f7b6db0230322c7759dca6eb8d79ac65caa2ba7",
+    "passed": true,
+    "install_exit": 0,
+    "administrator_login": true,
+    "service_after_install": {
+      "name": "StreamKitOrchestrator",
+      "state": "Running",
+      "start_mode": "Auto",
+      "account": "LocalSystem",
+      "pid": 6424
+    },
+    "service_after_restart": {
+      "name": "StreamKitOrchestrator",
+      "state": "Running",
+      "start_mode": "Auto",
+      "account": "LocalSystem",
+      "pid": 2604
+    },
+    "component_autostart_configuration": "Acceptance asserts sunshine.auto_start and web_server.auto_start before any restart; no post-install startup repair.",
+    "gateway_restarted": true,
+    "scm_restarted": true,
+    "audio": {
+      "passed": true,
+      "captured_frames": 144000,
+      "dropped_frames": 0,
+      "xruns": 0
+    },
+    "defaults_preserved": true,
+    "uninstall_exit": 0,
+    "service_removed": true,
+    "data_preserved": true,
+    "installer": {
+      "name": "stream-kit-preview-d36cead6fd85-windows-amd64-setup.exe",
+      "bytes": 97493785,
+      "sha256": "6f936fc5497bd00008884aa4c2b6a774b189e0cb0c94ba4875d375ba7540a4c5"
+    }
+  },
+  "linux": {
+    "installer": {
+      "file": "stream-kit-preview-d36cead6fd85-ubuntu24.04-amd64-setup.run",
+      "bytes": 62362543,
+      "sha256": "6df089ad4f46ef9628d1299ac7392dae6baa9604f1e60764ef286785eec55a62"
+    },
+    "acceptance_log_sha256": "c362badaddbf6052377d855b217e5f315589aac483a26a586bc54d41e2189d66",
+    "scope": "Native extraction, offline user-service enablement, configuration initialization and data preservation; no actual media session or host IP change."
+  },
+  "sbom": {
+    "file": "stream-kit-sbom.spdx.json",
+    "bytes": 7453600,
+    "sha256": "f19f2eac968c5340821875de17c9c0d8190294e314377b70f0b3ca1340831efc",
+    "format": "SPDX-2.3",
+    "packages": 3123
+  },
+  "limits": [
+    "Windows acceptance used a disposable Windows Server 2022 runner; not a full-machine reboot.",
+    "Local installed control remains 70ea6f70 and media 66249387; candidate build/acceptance does not upgrade this host.",
+    "Android effective input, production LAN HTTPS and actual host IP-change acceptance remain open.",
+    "Generated PCM does not replace human speech; previous accepted speech evidence remains separate."
+  ],
+  "local_downloads_verified": true,
+  "publication": {
+    "status": "not_published",
+    "candidate_tag": "v0.1.0-preview.20261106.2",
+    "remaining_gate": "Source CI 42209334110: Linux browser checks still running; cancelled Management Web job needs retry after workflow completion."
+  }
+}

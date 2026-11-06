@@ -139,12 +139,12 @@
       "job": 127863810555,
       "conclusion": "cancelled",
       "cause": "Ubuntu dependency downloads exceeded the 30-minute job deadline before browser interaction tests could start",
-      "retry": "pending workflow completion; no passed job is intentionally restarted"
+      "retry": "GitHub REST returned 403: The workflow run containing this job is already running. Retry only this cancelled job after workflow completion."
     },
     "current_product_candidate": {
       "source_commit": "d36cead6fd856925b283daddcc4af6cd1cdb7dd0",
       "run": "https://github.com/bei612/stream-kit/actions/runs/42211313164",
-      "status": "windows_build_in_progress_linux_build_succeeded",
+      "status": "build_and_exact_installer_acceptance_passed_waiting_source_ci",
       "source_difference_from_tested_commit": "Only docs/evidence/goal-delivery-audit-20261104.json and docs/evidence/input-ingress-20261106.json",
       "linux": {
         "installer": {
@@ -164,7 +164,11 @@
       },
       "published": false,
       "installed": false,
-      "installer_acceptance": "pending automatic workflow after successful product build"
+      "installer_acceptance": {
+        "run": "https://github.com/bei612/stream-kit/actions/runs/42216232449",
+        "passed": true,
+        "evidence": "docs/evidence/unified-installers-d36cead6.json"
+      }
     }
   }
 }
