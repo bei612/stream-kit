@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "source_commit": "c3ffd1b6b3f90f722a493710c36e5758c8cb8b42",
+  "scope": "Native Android integration foundation, not APK or streaming acceptance",
+  "upstream": {
+    "version": "v12.2",
+    "commit": "b48494cb96bff23d8886c4775cc4f39a1075495d",
+    "manifest": "third_party-manifests/moonlight-android.json",
+    "submodules": false
+  },
+  "managed_protocol": {
+    "command": "node scripts/test-android-protocol.mjs",
+    "checks_passed": 28,
+    "local_result": "success",
+    "ci_run": "https://github.com/bei612/stream-kit/actions/runs/42165415445",
+    "ci_result": "success",
+    "coverage": [
+      "Durable link validation and credential isolation",
+      "Viewer denial and explicit recording permission",
+      "Revision/epoch ordering and revocation",
+      "No automatic recording after control regrant or foreground return",
+      "Stale callback suppression after disconnect and stop"
+    ]
+  },
+  "development_environment": {
+    "host": "Native Windows",
+    "jdk": "Temurin 21.0.13+9",
+    "android_command_line_tools": "23.0",
+    "avd": "StreamKit_API_36",
+    "android_release": "16",
+    "abi": "x86_64",
+    "system_image": "system-images;android-36;google_apis;x86_64",
+    "acceleration_check": "WHPX(10.0.26200) is installed and usable.",
+    "adb_sys_boot_completed": "1",
+    "host_restarted": false,
+    "system_virtualization_changed": false,
+    "production_services_changed": false
+  },
+  "remaining": [
+    "Complete Android compilation and product application identity",
+    "Wire native UI, admission, heartbeat and lifecycle to managed authority",
+    "Native WebRTC media and data-channel integration with shared upstream",
+    "Physical capture release and mixed Android/Web controller audio enforcement",
+    "Emulator end-to-end media and reconnect acceptance",
+    "Release dependency provenance, signing, package validation and publication"
+  ],
+  "limits": [
+    "Upstream native touch-interface refactor is not yet proven by a completed Android build.",
+    "Emulator boot does not prove application installation, media playback or physical mobile behavior.",
+    "Current published installers and local production runtime were not replaced."
+  ]
+}
