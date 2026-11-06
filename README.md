@@ -8,6 +8,8 @@ Stream-Kit 将管理服务、Sunshine 渲染端和 Moonlight Web 媒体网关集
 
 ## 安装与访问
 
+2026-11-07 网络修复进展：`00fe4953` 修复了原预发布安装包在 HTTP/2 下生成回环地址的问题。新的 Linux 安装包已通过独立局域网 IP 切换、可信 HTTPS、发现与 WebRTC 自动恢复检查，见[实际网络证据](docs/evidence/lan-address-recovery-20261107.json)。匹配的 Windows 安装包仍在构建，尚未发布或替换本机部署。
+
 从 [GitHub Releases](https://github.com/bei612/stream-kit/releases) 获取当前可下载版本，查看该版本说明和 SHA-256。Windows 使用版本中的单个 `*-windows-amd64-setup.exe` 安装三个核心组件；无需另外安装官方 Sunshine 或 Moonlight Web，也不要再注册独立 Sunshine 服务。
 
 当前统一安装预发布版为 [20261106.2](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261106.2)，提供源码 `d36cead6` 构建的 Windows 单 EXE 和 Ubuntu 24.04 单文件安装包。本版修复输入排队期间权限移交、异常控制报文与连接任务清理，保留前版的局域网发现依赖和固定链接状态修复。Windows 已集成开源虚拟音频实现及签名控制器驱动。只安装三个运行组件及必需运行库，开发示例和验收工具均不随包交付；安装及运行无需宿主机另行安装 Node.js/npm。跨平台 CI、Linux 安装包初始化，以及 Windows 整包静默安装、自启动、原生音频、网关与系统服务重启、卸载检查已通过。文件清单和验证范围见 [本版交付状态](deploy/releases/0.1.0-preview.20261106.2.md)。发布不会自动替换已有部署，也不代表已完成本机 HTTPS 切换及实际 IP 变化恢复验收。

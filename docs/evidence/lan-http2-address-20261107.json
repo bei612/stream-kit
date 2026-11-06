@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "confirmed_product_defect_fix_submitted",
+  "status": "fixed_runtime_verified",
   "runtime_source": "d36cead6fd856925b283daddcc4af6cd1cdb7dd0",
   "runtime_release": "v0.1.0-preview.20261106.2",
   "runtime_installer_sha256": "6df089ad4f46ef9628d1299ac7392dae6baa9604f1e60764ef286785eec55a62",
@@ -24,6 +24,11 @@
   "fix_source": "00fe4953751e52dd38f0d707e9ba721d5374cb81",
   "fix": "Prefer actual request URI authority, fall back to Host for HTTP/1 origin-form; preserve IPv6 and explicit public control URL, and ignore forwarded host metadata.",
   "candidate_build_run": "https://github.com/bei612/stream-kit/actions/runs/42259797123",
-  "fixed_installer_network_acceptance": "pending",
+  "fixed_installer_network_acceptance": {
+    "passed": true,
+    "evidence": "docs/evidence/lan-address-recovery-20261107.json",
+    "run": "https://github.com/bei612/stream-kit/actions/runs/42262760215",
+    "installer_sha256": "6dcf4754a78fe3e9d37b184f68bfbbd4ebfbd1c74579bb4405ed1796bbd1d5ad"
+  },
   "boundary": "No ToDesk changes, shared-host network interruption, installed runtime replacement or local TLS trust cutover. Discovery/TLS reachability on the old installer is not proof of media recovery. The first failing observation prevented the fixture IP change."
 }

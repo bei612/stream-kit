@@ -16,7 +16,15 @@
     "release": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261106.2",
     "subsequent_ci_disk_fix": "docs/evidence/linux-build-disk-lifecycle-c5878b7d.json",
     "current_cross_platform_evidence": "docs/evidence/cross-platform-e29b824d.json",
-    "current_watch_link_state_evidence": "docs/evidence/watch-link-state-902798f0.json"
+    "current_watch_link_state_evidence": "docs/evidence/watch-link-state-902798f0.json",
+    "new_candidate": {
+      "source": "00fe4953751e52dd38f0d707e9ba721d5374cb81",
+      "product_run": 42259797123,
+      "linux_installer_built": true,
+      "linux_network_recovery_passed": true,
+      "windows_build": "running",
+      "published": false
+    }
   },
   "installed_source": "66249387b32975e79d56b19fdf98d4bc7d414da0",
   "historical_requirement_audit": "docs/evidence/goal-delivery-audit-20261101.json",
@@ -88,6 +96,11 @@
         "docs/evidence/windows-stream-input-20261106.json",
         "docs/evidence/windows-android-environment-20261106.json"
       ]
+    },
+    {
+      "item": "Actual isolated LAN address change with trusted HTTPS and WebRTC recovery",
+      "evidence": "docs/evidence/lan-address-recovery-20261107.json",
+      "finding": "Exact 00fe4953 Linux installer passed independent client multicast discovery and verified HTTP/2/HTTP/1.1 before and after server NIC address 198.18.31.1 -> 198.18.31.2. The same permanent-entry page automatically replaced its WebRTC peer and presented video from the new UDP address. Old address became unreachable; renderer identity, component PIDs, configuration and certificate remained unchanged. Owned target stopped cleanly."
     }
   ],
   "remaining_acceptance": [
@@ -103,14 +116,14 @@
       "next": "After confirmation of the entry URL/trust changes, recheck the prepared fingerprints, apply with rollback and verify native HTTPS and browser operation without certificate-error overrides. Other clients must separately trust the public CA certificate."
     },
     {
-      "item": "Actual host IP change and recovery",
-      "state": "isolated_lan_http2_defect_fixed_pending_runtime_acceptance",
-      "finding": "Independent client network/Avahi namespaces resolved the published renderer via multicast and verified native HTTPS. They exposed a real gateway HTTP/2 bug: config.js returned loopback instead of the browser hostname; HTTP/1.1 returned the correct hostname. Source 00fe4953 fixes URI authority extraction. Replacement installers and actual network/media recovery acceptance are pending. The shared Windows host network remains unchanged; saved numeric-IP URLs cannot update themselves.",
-      "next": "Use the exact new installer in the isolated LAN fixture to verify discovery, HTTPS and browser WebRTC after an actual owned-interface address change, without changing ToDesk or the shared host network.",
-      "evidence": "docs/evidence/lan-http2-address-20261107.json"
+      "item": "Local deployment of verified LAN address recovery",
+      "state": "isolated_runtime_passed_local_cutover_pending",
+      "finding": "Functional discovery, HTTPS and WebRTC recovery across an actual isolated server NIC change now pass at source 00fe4953. The installed Windows host still has its previous HTTP deployment; no local IP change or ToDesk coexistence result is claimed.",
+      "next": "Complete the matching Windows installer release and the separately confirmed local HTTPS/entry cutover; preserve the shared network and ToDesk.",
+      "evidence": "docs/evidence/lan-address-recovery-20261107.json"
     }
   ],
   "distribution_boundary": "Public v0.1.0-preview.20261106.2 contains Windows and Ubuntu 24.04 runtime installers and SPDX SBOM at source d36cead6. All seven published asset sizes and server SHA-256 digests match locally downloaded build artifacts, and unauthenticated download HEAD requests return 200 with matching content lengths. Exact Windows installer acceptance verified automatic SCM startup without manual repair, native PCM, default audio preservation, gateway/SCM restart and uninstall. Linux native extraction, initialization, offline user-service enablement and data preservation passed. Local control remains 70ea6f70 with media 66249387. See docs/evidence/unified-installers-d36cead6.json. Android preview 20261106.6 separately provides the signed APK, archive, provenance, SBOM and checksums at 6e9b2249. It requires verified HTTPS; the installed HTTP host remains unchanged.",
-  "completion_decision": "Goal remains incomplete: local trusted LAN HTTPS deployment and actual IP-change recovery are not yet accepted. Independent Android/Web input and control transfer/revocation now pass; preserve prior version-scoped media/audio/reconnect evidence. Published and local installed versions remain distinct, and the local Windows input caveat remains explicit.",
+  "completion_decision": "Goal remains incomplete: trusted local LAN HTTPS/entry deployment is still pending and the new Windows installer/release is building. Independent Android/Web input and actual isolated Linux LAN address-change recovery now pass. Published and local installed versions remain distinct; the local Windows input caveat is unchanged.",
   "local_input_caveat": "Earlier local Windows input/focus failure remains unresolved; its cause is unproven. Independent Windows Web and Linux Android/Web target-input checks now pass. No local ToDesk coexistence claim is made. Preserve ToDesk settings, processes and remote connection unchanged; do not require the user to operate ToDesk."
 }

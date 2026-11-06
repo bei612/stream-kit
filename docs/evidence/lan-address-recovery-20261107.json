@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "run": "https://github.com/bei612/stream-kit/actions/runs/42262760215",
+  "artifact": "lan-address-change-evidence",
+  "provenance": {
+    "runtime_commit": "00fe4953751e52dd38f0d707e9ba721d5374cb81",
+    "installer_sha256": "6dcf4754a78fe3e9d37b184f68bfbbd4ebfbd1c74579bb4405ed1796bbd1d5ad",
+    "product_run_id": "42259797123",
+    "acceptance_commit": "8fc63f075f989556e6045af304d6409fcc99fa7a",
+    "runtime_rebuilt": false
+  },
+  "result": {
+    "schema_version": 1,
+    "passed": true,
+    "scope": "Separate client network and Avahi/DBus namespaces; exact native runtime HTTPS, renderer discovery and browser WebRTC recovery across an actual test-NIC IP change. No local Windows deployment, physical LAN, Android migration or new audio-quality acceptance.",
+    "acceptance_commit": "8fc63f075f989556e6045af304d6409fcc99fa7a",
+    "observations": [
+      {
+        "address": "198.18.31.1",
+        "resolved": "stream-kit-server.local\t198.18.31.1",
+        "renderer_service": "=;sknet-peer;IPv4;runnervm7aw5e;_nvstream._tcp;local;stream-kit-server.local;198.18.31.1;47989;",
+        "control_https": true,
+        "gateway_https": true,
+        "configs": [
+          {
+            "requested": "default",
+            "http_version": "2",
+            "control_plane_url": "https://stream-kit-server.local:19000/"
+          },
+          {
+            "requested": "http1.1",
+            "http_version": "1.1",
+            "control_plane_url": "https://stream-kit-server.local:19000/"
+          }
+        ],
+        "public_control_host_correct": true
+      },
+      {
+        "address": "198.18.31.2",
+        "resolved": "stream-kit-server.local\t198.18.31.2",
+        "renderer_service": "=;sknet-peer;IPv4;runnervm7aw5e;_nvstream._tcp;local;stream-kit-server.local;198.18.31.2;47989;",
+        "control_https": true,
+        "gateway_https": true,
+        "configs": [
+          {
+            "requested": "default",
+            "http_version": "2",
+            "control_plane_url": "https://stream-kit-server.local:19000/"
+          },
+          {
+            "requested": "http1.1",
+            "http_version": "1.1",
+            "control_plane_url": "https://stream-kit-server.local:19000/"
+          }
+        ],
+        "public_control_host_correct": true
+      }
+    ],
+    "stage": "complete",
+    "runtime_commit": "00fe4953751e52dd38f0d707e9ba721d5374cb81",
+    "configuration_hashes": {
+      "control": "2b29c4cbaf2116b01115d22cad2809904a078b96b84543de4745c79074c0356a",
+      "gateway": "54703e29b4b0cd9805afa82572011340529dbc9bf2f3892f3faf127cfbfa14b7",
+      "renderer": "1fe08840fcf3d1d665e3d430b8a1952663afd30e83504cbf485584ae167b59e5"
+    },
+    "certificate_sha256": "f34b23d450355d78d16bc296fd69abc4c0fa94243395d4b8a17b56a577a48a2e",
+    "initial_pids": [
+      {
+        "name": "sunshine",
+        "pid": 5218
+      },
+      {
+        "name": "web_server",
+        "pid": 5254
+      }
+    ],
+    "media_before": {
+      "peer_count": 1,
+      "state": "connected",
+      "frames": 56,
+      "audio_packets": 91,
+      "presented_frames": 14,
+      "width": 1280,
+      "remote_address": "198.18.31.1",
+      "remote_port": 39578
+    },
+    "media_after": {
+      "peer_count": 2,
+      "state": "connected",
+      "frames": 45,
+      "audio_packets": 75,
+      "presented_frames": 28,
+      "width": 1280,
+      "remote_address": "198.18.31.2",
+      "remote_port": 38173
+    },
+    "media_reconnected_without_reload": true,
+    "old_address_unreachable": true,
+    "renderer_identity_preserved": true,
+    "components_not_restarted": true,
+    "configuration_and_certificate_unchanged": true,
+    "target_stopped": true,
+    "finished_at": "2026-11-06T17:36:17.522Z"
+  },
+  "result_sha256": "b2c00877458da5cb530f013ef5b31992aaeb994047f99d7f6e17667b39857261",
+  "previous_fixture_attempt": {
+    "run": "https://github.com/bei612/stream-kit/actions/runs/42261861096",
+    "finding": "HTTP/2 fix passed; observer incorrectly inspected the top-level permanent entry instead of its cross-origin viewer iframe. Acceptance source 8fc63f07 corrected observation only; runtime bytes were unchanged."
+  },
+  "limits": [
+    "Hosted Ubuntu 24.04, one actual Chrome client in separate network and Avahi/DBus namespaces. This is not a shared Windows host cutover or physical-device test.",
+    "The owned server veth address changed while client address, browser page, services and trusted certificate remained unchanged. Client namespace had no default route.",
+    "Audio RTP counters are recorded, but this is not new human-speech, audio-quality, controller-input or Android address-migration acceptance.",
+    "Certificate trust was provisioned only on the disposable CI machine. No test CA, browser tooling or target is included in the runtime installer."
+  ]
+}
