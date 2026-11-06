@@ -1,0 +1,44 @@
+{
+    "schema_version":  1,
+    "policy":  "Pinned official stable release with recursively expanded source dependencies; no gitlinks or submodules",
+    "imported_at":  "2026-11-06",
+    "components":  [
+                       {
+                           "commit":  "b48494cb96bff23d8886c4775cc4f39a1075495d",
+                           "name":  "moonlight-android",
+                           "archive_url":  "https://codeload.github.com/moonlight-stream/moonlight-android/tar.gz/b48494cb96bff23d8886c4775cc4f39a1075495d",
+                           "repository":  "https://github.com/moonlight-stream/moonlight-android.git",
+                           "path":  "third_party/moonlight-android",
+                           "upstream_gitmodules":  "[submodule \"app/src/main/jni/moonlight-core/moonlight-common-c\"]\n\tpath = app/src/main/jni/moonlight-core/moonlight-common-c\n\turl = https://github.com/moonlight-stream/moonlight-common-c.git\n",
+                           "archive_sha256":  "92820032a6e59306018a30e5600cf6bde5d4ab8b528f396f4a741876a6d34e3d"
+                       },
+                       {
+                           "commit":  "874ac9548f1bd6f095ef2b435c42cdde460e7821",
+                           "name":  "moonlight-common-c",
+                           "archive_url":  "https://codeload.github.com/moonlight-stream/moonlight-common-c/tar.gz/874ac9548f1bd6f095ef2b435c42cdde460e7821",
+                           "repository":  "https://github.com/moonlight-stream/moonlight-common-c.git",
+                           "path":  "third_party/moonlight-android/app/src/main/jni/moonlight-core/moonlight-common-c",
+                           "upstream_gitmodules":  "[submodule \"enet\"]\n\tpath = enet\n\turl = https://github.com/cgutman/enet.git\n[submodule \"nanors\"]\n\tpath = nanors\n\turl = https://github.com/sleepybishop/nanors.git\n",
+                           "archive_sha256":  "b8f50784bea9cae40eccbc6caba4a19f6051a5055a7dc5061cd365088cf09251"
+                       },
+                       {
+                           "commit":  "aca87840b57f045a1f7f9299e4b1b9b8e2a5e2f1",
+                           "name":  "enet",
+                           "archive_url":  "https://codeload.github.com/cgutman/enet/tar.gz/aca87840b57f045a1f7f9299e4b1b9b8e2a5e2f1",
+                           "repository":  "https://github.com/cgutman/enet.git",
+                           "path":  "third_party/moonlight-android/app/src/main/jni/moonlight-core/moonlight-common-c/enet",
+                           "upstream_gitmodules":  null,
+                           "archive_sha256":  "6bb1a151e6d21e1756baeff5a95eaf85a5b6731aeda6d0bc255651192ba4a32d"
+                       },
+                       {
+                           "commit":  "b1e3c22ca0cdc0bb83e3cd6ed1a2fc77869ed99a",
+                           "name":  "nanors",
+                           "archive_url":  "https://codeload.github.com/sleepybishop/nanors/tar.gz/b1e3c22ca0cdc0bb83e3cd6ed1a2fc77869ed99a",
+                           "repository":  "https://github.com/sleepybishop/nanors.git",
+                           "path":  "third_party/moonlight-android/app/src/main/jni/moonlight-core/moonlight-common-c/nanors",
+                           "upstream_gitmodules":  null,
+                           "archive_sha256":  "41edc0309b255b0eeb5e8eb1ad79f7c7e9e6c31db1bd79a16d73271c62867003"
+                       }
+                   ],
+    "version":  "v12.2"
+}

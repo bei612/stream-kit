@@ -2,6 +2,15 @@
   "generated_at": "2026-10-29",
   "policy": "stable-release",
   "components": {
+    "moonlight-android": {
+      "repository": "https://github.com/moonlight-stream/moonlight-android.git",
+      "version": "v12.2",
+      "commit": "b48494cb96bff23d8886c4775cc4f39a1075495d",
+      "license": "GPL-3.0",
+      "dependency_mode": "vendored-source",
+      "manifest": "third_party-manifests/moonlight-android.json",
+      "integration_status": "in-progress-not-released"
+    },
     "sunshine": {
       "repository": "https://github.com/LizardByte/Sunshine.git",
       "version": "v2026.914.233613",

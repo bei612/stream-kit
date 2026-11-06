@@ -21,6 +21,8 @@ orchestrator/config.json
 !.env.example
 *.key
 *.pem
+*.jks
+*.keystore
 .local/
 artifacts/
 

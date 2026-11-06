@@ -10,6 +10,8 @@
 *.service text eol=lf
 # Native build scripts and upstream configure inputs require LF even on Windows.
 third_party/sunshine/** text=auto eol=lf
+third_party/moonlight-android/** text=auto eol=lf
+third_party/moonlight-android/*.bat text eol=crlf
 # Go mod vendor copies module archive bytes, including upstream CRLF files.
 # Preserve those bytes across checkouts so regeneration is identical on both OSes.
 # Nested upstream attributes may re-enable text conversion; retain LF in that

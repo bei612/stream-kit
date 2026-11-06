@@ -1,0 +1,38 @@
+name: android-client
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'third_party/moonlight-android/**'
+      - 'third_party-manifests/moonlight-android.json'
+      - 'scripts/android/**'
+      - 'scripts/test-android-protocol.mjs'
+      - '.github/workflows/android-client.yml'
+  pull_request:
+    paths:
+      - 'third_party/moonlight-android/**'
+      - 'third_party-manifests/moonlight-android.json'
+      - 'scripts/android/**'
+      - 'scripts/test-android-protocol.mjs'
+      - '.github/workflows/android-client.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  managed-protocol:
+    name: Android managed protocol (no APK acceptance)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.4.0'
+      - run: node scripts/test-android-protocol.mjs

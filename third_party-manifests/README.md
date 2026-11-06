@@ -1,5 +1,7 @@
 # 纳管源码与原生构建
 
+`moonlight-android.json` 记录官方 Android v12.2 及 moonlight-common-c、enet、nanors 的来源、固定提交和归档摘要，全部作为普通文件纳管。初始二开新增统一观看链接/权限状态核心，并将原生触摸识别器从直连传输中解耦；详见 [Android 接入契约](../contracts/android-client.md)。当前尚未交付平台 Android APK，不把上游 GameStream 直连或协议单元检查当作统一会话串流验收。上游快照内的 OpenSSL/Opus 静态库是保留的上游构建输入，不是本项目重编译证据。
+
 `usbip-win2.json` 锁定可选 Windows 虚拟音频驱动的上游提交和归档摘要。`third_party/usbip-win2` 纳入该版本全部 313 个普通源码、资源及文档文件，只省略 `.gitmodules`；原有 vcpkg gitlink 仅作为上游开发工具记录，不作为本项目 submodule。平台不构建或分发上游 GUI、CLI、SDK，也不执行其自动更新 submodule 的 `bootstrap.bat`。平台的音频协议、设备生命周期和安装流程分别由原生 Rust/Go 实现。
 
 可选驱动包只使用核验过的原版 Microsoft 签名 UDE 与配套过滤驱动，精确文件清单见 `orchestrator/internal/audiodevice/usbip-driver.json`。源码归档用于统一审查和维护，不代表本项目已重编译并取得内核签名。上游开发文档中的测试证书、testsigning 等做法不适用于产品安装；不执行这些操作。正式安装包不包含本源码目录、vcpkg、示例或验收工具。Windows 真实端点和录音联调通过前，此可选分支不默认进入公开安装包。
