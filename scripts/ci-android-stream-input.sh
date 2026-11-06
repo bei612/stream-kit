@@ -61,11 +61,23 @@ while (( SECONDS < boot_deadline )); do
   sleep 2
 done
 [[ "$ready" == true ]]
+# Restarting adbd can close its requesting transport before the acknowledgement.
+# Verify the resulting identity after reconnection; never trust only exit status.
+adb_identity() {
+  local action="$1" expected="$2" deadline=$((SECONDS + 40))
+  while (( SECONDS < deadline )); do
+    timeout 8s adb -s "$serial" "$action" >/dev/null 2>&1 || true
+    timeout 5s adb -s "$serial" wait-for-device >/dev/null 2>&1 || true
+    if [[ "$(timeout 5s adb -s "$serial" shell id -u 2>/dev/null | tr -d '\r' || true)" == "$expected" ]]; then return 0; fi
+    sleep 1
+  done
+  echo "Official test emulator did not enter requested adb identity: $expected" >&2
+  return 1
+}
 # AOSP UserCertificateSource reads the user store under /data/misc/user/<id>.
 # Provision the public test CA on the root-capable official CI image before
 # launching the release APK, then return adbd to its ordinary shell identity.
-adb -s "$serial" root
-timeout 30s adb -s "$serial" wait-for-device
+adb_identity root 0
 [[ $(adb -s "$serial" shell am get-current-user | tr -d '\r') == 0 ]]
 ca_hash=$(openssl x509 -in "$tls/ca.crt" -subject_hash_old -noout)
 [[ "$ca_hash" =~ ^[0-9a-f]{8}$ ]]
@@ -76,9 +88,7 @@ adb -s "$serial" push "$tls/ca.crt" "/data/misc/user/0/cacerts-added/$ca_hash.0"
 adb -s "$serial" shell chown system:system "/data/misc/user/0/cacerts-added/$ca_hash.0"
 adb -s "$serial" shell chmod 644 "/data/misc/user/0/cacerts-added/$ca_hash.0"
 adb -s "$serial" shell restorecon -R /data/misc/user/0/cacerts-added
-adb -s "$serial" unroot
-timeout 30s adb -s "$serial" wait-for-device
-[[ $(adb -s "$serial" shell id -u | tr -d '\r') == 2000 ]]
+adb_identity unroot 2000
 # Bound software rasterization cost independently of the 720p30 stream profile.
 adb -s "$serial" shell wm size 720x1280
 adb -s "$serial" shell wm density 240
