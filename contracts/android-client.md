@@ -10,6 +10,8 @@ Upstream `NvConnection` directly creates a GameStream connection and cannot be u
 
 Reuse the official Android native platform and gesture implementation through transport interfaces. `PointerInput` decouples the existing absolute/relative touch recognizers from `NvConnection`; `ManagedInput` adapts them and upstream `KeyboardTranslator` to the existing gateway input packets. Pressed keys are released on loss of window focus or stop. The pinned native WebRTC library handles peer negotiation, secure RTP and audio capture/playout. No WebView streaming wrapper is used.
 
+`KeyboardTranslator` returns GFE-prefixed keys such as `0x8041`. The managed adapter removes that exact `0x8000` prefix and emits the gateway's canonical Windows virtual key (`0x41`); unprefixed keys in `1..255` remain valid and other values are rejected. Both key-down and key-up use the same canonical identity, preserving the gateway's pressed-state reconciliation and ownership cleanup. The upstream translator and gateway validation remain unchanged.
+
 ## Admission and authority
 
 1. Parse the same `/watch#key=...` capability used by Web. Send it only as a Bearer header to `/api/v1/watch/open`; never log it, include it in HTTP query strings or send administrator credentials.

@@ -23,10 +23,21 @@ public class ManagedInputTest {
                 "06020900000000050800000001",
                 "06020900000000050900000001",
                 "06020e000000000a0a000000ff88ff880000",
-                "06020e000000000a03000000014180030000",
-                "06020e000000000a04000000014180000000"
+                "06020e000000000a03000000014100030000",
+                "06020e000000000a04000000014100000000"
         };
         for (int i = 0; i < expected.length; i++) assertArrayEquals(HexFormat.of().parseHex(expected[i]), packets.get(i));
+    }
+    @Test public void normalizesOfficialKeyPrefixAndRejectsInvalidKeys() {
+        List<byte[]> packets = new ArrayList<>();
+        var input = new ManagedInput(packets::add);
+        input.sendKey((short) 0x8041, true, (byte) 0, (byte) 0);
+        input.sendKey((short) 0x0041, true, (byte) 0, (byte) 0);
+        assertArrayEquals(packets.get(0), packets.get(1));
+        for (int invalid : new int[] {0, 0x8000, 0x0100, 0x8141, 0xffff}) {
+            input.sendKey((short) invalid, true, (byte) 0, (byte) 0);
+        }
+        assertEquals(2, packets.size());
     }
     @Test public void relativeAsAbsoluteAccumulatesAndClamps() {
         List<byte[]> packets = new ArrayList<>();

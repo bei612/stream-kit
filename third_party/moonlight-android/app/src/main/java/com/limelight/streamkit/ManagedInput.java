@@ -36,7 +36,13 @@ final class ManagedInput implements PointerInput {
         sink.send(packet(10, 6).putShort(amount).putShort(amount).putShort((short) 0).array());
     }
     void sendKey(short key, boolean down, byte modifiers, byte flags) {
+        // Upstream KeyboardTranslator returns GFE's 0x80-prefixed virtual key.
+        // The managed gateway reconciles pressed state with canonical 1..255
+        // Windows virtual keys, shared with its browser client.
+        int canonical = Short.toUnsignedInt(key);
+        if ((canonical & 0xff00) == 0x8000) canonical &= 0xff;
+        if (canonical < 1 || canonical > 255) return;
         sink.send(packet(down ? 3 : 4, 6).order(ByteOrder.LITTLE_ENDIAN)
-                .put(flags).putShort(key).put(modifiers).putShort((short) 0).array());
+                .put(flags).putShort((short) canonical).put(modifiers).putShort((short) 0).array());
     }
 }
