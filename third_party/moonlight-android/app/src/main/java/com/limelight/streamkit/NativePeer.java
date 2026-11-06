@@ -12,6 +12,7 @@ import org.webrtc.audio.JavaAudioDeviceModule;
 import com.limelight.nvstream.StreamConfiguration;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Native WebRTC media peer. Public lifecycle methods are owned by the main looper. */
 public final class NativePeer implements AutoCloseable {
@@ -19,6 +20,8 @@ public final class NativePeer implements AutoCloseable {
         void offerReady(String sdp);
         void connected();
         void failed(String reason);
+        void microphoneState(boolean live);
+        void frameReceived();
     }
     private static boolean initialized;
     private final Context context;
@@ -26,6 +29,7 @@ public final class NativePeer implements AutoCloseable {
     private final AuthorityState authority;
     private final Listener listener;
     private final VideoSink videoSink;
+    private final VideoSink guardedSink;
     private final JavaAudioDeviceModule audio;
     private final PeerConnectionFactory factory;
     private final PeerConnection peer;
@@ -35,7 +39,7 @@ public final class NativePeer implements AutoCloseable {
     private VideoTrack receivedVideo;
     private AudioTrack microphoneTrack;
     private AudioSource microphoneSource;
-    private boolean closed;
+    private volatile boolean closed;
     private boolean offerSent;
     private String offerAttributes;
 
@@ -46,6 +50,12 @@ public final class NativePeer implements AutoCloseable {
         this.authority = authority;
         this.listener = listener;
         this.videoSink = sink;
+        AtomicBoolean firstFrame = new AtomicBoolean();
+        this.guardedSink = frame -> {
+            if (closed) return;
+            videoSink.onFrame(frame);
+            if (firstFrame.compareAndSet(false, true)) post(listener::frameReceived);
+        };
         synchronized (NativePeer.class) {
             if (!initialized) {
                 PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions
@@ -53,7 +63,16 @@ public final class NativePeer implements AutoCloseable {
                 initialized = true;
             }
         }
-        audio = JavaAudioDeviceModule.builder(this.context).createAudioDeviceModule();
+        audio = JavaAudioDeviceModule.builder(this.context)
+                .setAudioRecordStateCallback(new JavaAudioDeviceModule.AudioRecordStateCallback() {
+                    @Override public void onWebRtcAudioRecordStart() {
+                        post(() -> {
+                            if (!authority.canSendMicrophone()) { setMicrophone(false); return; }
+                            listener.microphoneState(true);
+                        });
+                    }
+                    @Override public void onWebRtcAudioRecordStop() { post(() -> listener.microphoneState(false)); }
+                }).createAudioDeviceModule();
         audio.setAudioRecordEnabled(false);
         factory = PeerConnectionFactory.builder().setAudioDeviceModule(audio)
                 .setVideoDecoderFactory(new DefaultVideoDecoderFactory(egl))
@@ -161,12 +180,14 @@ public final class NativePeer implements AutoCloseable {
         return controlChannel.send(new DataChannel.Buffer(ByteBuffer.wrap(packet), true));
     }
 
+    public void audible(boolean enabled) { requireMain(); if (!closed) peer.setAudioPlayout(enabled); }
+
     @Override public void close() {
         requireMain();
         if (closed) return;
         setMicrophone(false);
         closed = true;
-        if (receivedVideo != null) { receivedVideo.removeSink(videoSink); receivedVideo = null; }
+        if (receivedVideo != null) { receivedVideo.removeSink(guardedSink); receivedVideo = null; }
         if (controlChannel != null) { controlChannel.close(); controlChannel.dispose(); controlChannel = null; }
         negotiationChannel.close();
         negotiationChannel.dispose();
@@ -217,9 +238,9 @@ public final class NativePeer implements AutoCloseable {
             post(() -> {
                 MediaStreamTrack track = transceiver.getReceiver().track();
                 if (track instanceof VideoTrack) {
-                    if (receivedVideo != null) receivedVideo.removeSink(videoSink);
+                    if (receivedVideo != null) receivedVideo.removeSink(guardedSink);
                     receivedVideo = (VideoTrack) track;
-                    receivedVideo.addSink(videoSink);
+                    receivedVideo.addSink(guardedSink);
                 } else if (track instanceof AudioTrack) track.setEnabled(true);
             });
         }

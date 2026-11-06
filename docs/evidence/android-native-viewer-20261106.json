@@ -1,0 +1,44 @@
+{
+    "schema_version":  1,
+    "date":  "2026-11-06",
+    "baseline_commit":  "764679b8a086f7cbeeaad5751a9dfbb01db8975a",
+    "working_source_sha256":  {
+                                  "AuthorityState.java":  "cb1302a25ae189c255241a5eda3b17614084537c58b3c2765e4beae048d67c11",
+                                  "ConnectionAuthority.java":  "d1483fed139f19cfb8d6056c283d85f1477522fac55ac9e646dd96935f989b42",
+                                  "ManagedActivity.java":  "223c734d7c0fbbda33ea0fedeb71cae86ee4f2ad4e7a938248ebcc4653af41f9",
+                                  "ManagedApi.java":  "dcc6b9cbdb7b543f822b7349e802a6e5417c4a0461d5cc8a81ce44961eba0d49",
+                                  "ManagedPointer.java":  "dfc6a438f7e2c2aef46f6cab5f1c6b45646a6534009aafc2e03fdee68e1004e8",
+                                  "ManagedSession.java":  "f1733cbfb80a6a0c59aaace683075ad6e4c61b4446a2076e09769c6fdd649909",
+                                  "MediaProfile.java":  "82f58bddb1a3ba6d8dee8f41ecb131fc5cf146b2ba26b98c5ca2295f9dac95ca",
+                                  "NativePeer.java":  "a39fc85d522ca6f32a59c7d4f65475541303b8729a0559777772b03327fbd995",
+                                  "WatchLink.java":  "67bdba36797f2e2629d6e5146213bd61102e033319ce365f6e02659069424d54"
+                              },
+    "apk_sha256":  "edd00e98c0d84793a1f6191d599302918e96e2dca135e6575f1d64ba5ed09753",
+    "package":  "io.github.bei612.streamkit.debug",
+    "avd":  "StreamKit_API_36",
+    "android":  "16 / API 36 x86_64",
+    "acceleration":  "WHPX",
+    "transport":  "Debug HTTP through emulator host alias; existing installed gateway and controller unchanged",
+    "unit_tests":  {
+                       "failures":  0,
+                       "tests":  11
+                   },
+    "observed":  [
+                     "Existing permanent Example link starts application and displays native decoded checkerboard frames",
+                     "Viewer microphone control is disabled",
+                     "Confirmed HOME launcher foreground before resuming native Activity",
+                     "Resumed connection displays video and hides entry after per-peer first frame; microphone remains disabled",
+                     "No Android crash-buffer output"
+                 ],
+    "private_screenshots":  [
+                                ".local/validation/android-native-entry/first-frame.png",
+                                ".local/validation/android-native-entry/resumed-frame.png"
+                            ],
+    "not_proven":  [
+                       "Controller transfer and effective input",
+                       "Android microphone and received audio",
+                       "Release TLS and signing",
+                       "Physical devices",
+                       "Production APK delivery"
+                   ]
+}
