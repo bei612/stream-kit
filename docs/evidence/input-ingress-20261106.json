@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-06",
+  "source_commit": "88ff24b2ade19e9d8faa46e6936ebf1d1ff5c219",
+  "scope": "Gateway control ingress, queued authority and bounded control packet parsing; not physical input delivery",
+  "changes": [
+    "WebRTC pollers send decoded input directly to the existing authorized bounded command queue; no intervening unbound application input queue",
+    "ControlGrant is fixed at enqueue and checked again before native forwarding, including A-to-B-to-A transfers",
+    "Forbidden input is rejected before queuing; overflow terminates the attachment so the existing runtime releases held input",
+    "Control channel polling/sending tasks are owned by JoinSet; ending a task ends the attachment, and dropping the channel cancels its tasks",
+    "Truncated packet lengths, input length below four, and oversized text copies no longer reach the identified panic paths; decoder trace excludes the payload"
+  ],
+  "verification": {
+    "run": "https://github.com/bei612/stream-kit/actions/runs/42207806232",
+    "native_gateway_tests": [
+      {
+        "name": "Moonlight Web (windows-latest)",
+        "job": 127858705785,
+        "test": {
+          "completedAt": "2026-11-06T11:12:18Z",
+          "conclusion": "success",
+          "name": "Run cargo test --locked",
+          "number": 14,
+          "startedAt": "2026-11-06T11:11:13Z",
+          "status": "completed"
+        }
+      },
+      {
+        "name": "Moonlight Web (ubuntu-latest)",
+        "job": 127858705858,
+        "test": {
+          "completedAt": "2026-11-06T11:11:34Z",
+          "conclusion": "success",
+          "name": "Run cargo test --locked",
+          "number": 14,
+          "startedAt": "2026-11-06T11:10:54Z",
+          "status": "completed"
+        }
+      }
+    ],
+    "overall_workflow": "in_progress_at_recording",
+    "regressions": [
+      "subscribers_reuse_transport_until_last_peer_leaves: viewer denial, input generation preserved across transfer, queue saturation and weak-handle lifetime",
+      "truncated_input_is_rejected_without_panicking",
+      "text_length_cannot_underflow_or_exceed_fixed_storage"
+    ],
+    "source_files": [
+      {
+        "path": "third_party/moonlight-web-stream/src/api/stream/webrtc/control.rs",
+        "sha256": "d9c0e0ae1e5ddcb6a6e3fbc8996348bdf0f7059c77c51b4a86cd2bf11693dfd9"
+      },
+      {
+        "path": "third_party/moonlight-web-stream/src/app/upstream.rs",
+        "sha256": "6f6528a2beac5c40f981c6747d54a295c83d5f9480c1764641b294812a82de95"
+      },
+      {
+        "path": "third_party/moonlight-common-rust/src/stream/proto/control/packet.rs",
+        "sha256": "9a126b153e26f403df9043f60e9d6781e8ec194ee656b850da363da532276a9c"
+      }
+    ]
+  },
+  "product_candidate": {
+    "run": "https://github.com/bei612/stream-kit/actions/runs/42208552631",
+    "status": "started_not_published",
+    "installer_acceptance": "pending"
+  },
+  "installed_services_changed": false,
+  "android_apk_changed": false,
+  "limits": [
+    "The input authority guarantee covers application queuing after data-channel polling; it does not assert client generation tagging for network-delayed packets.",
+    "Native unit tests do not establish actual Android/Web input delivery or revocation in the target application.",
+    "Local input/focus interference, trusted LAN HTTPS cutover and actual host IP-change recovery remain unresolved."
+  ]
+}
