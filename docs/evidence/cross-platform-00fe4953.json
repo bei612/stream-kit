@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "source_commit": "00fe4953751e52dd38f0d707e9ba721d5374cb81",
+  "run": "https://github.com/bei612/stream-kit/actions/runs/42259794077",
+  "run_id": 42259794077,
+  "attempt": 2,
+  "conclusion": "success",
+  "jobs": [
+    {
+      "name": "Management Web",
+      "job_id": 128053351606,
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/42259794077/job/128053351606"
+    },
+    {
+      "name": "Orchestrator (windows-latest)",
+      "job_id": 128053353403,
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/42259794077/job/128053353403"
+    },
+    {
+      "name": "Moonlight Web (windows-latest)",
+      "job_id": 128053354294,
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/42259794077/job/128053354294"
+    },
+    {
+      "name": "Source SBOM",
+      "job_id": 128053419985,
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/42259794077/job/128053419985"
+    },
+    {
+      "name": "Orchestrator (ubuntu-latest)",
+      "job_id": 128053435390,
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/42259794077/job/128053435390"
+    },
+    {
+      "name": "Moonlight Web (ubuntu-latest)",
+      "job_id": 128053438190,
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/42259794077/job/128053438190"
+    }
+  ],
+  "coverage": [
+    "Windows and Linux gateway build, Rust formatting, strict Clippy and unit tests, including HTTP/2 authority mapping regression cases.",
+    "Windows and Linux Orchestrator tests and versioned native control bundle acceptance.",
+    "Management Web build, lifecycle/state tests and Chromium/Firefox/WebKit management interactions.",
+    "Native media contract and existing browser audio lifecycle checks within the gateway jobs.",
+    "Source SPDX SBOM generation."
+  ],
+  "prior_attempt": {
+    "management_job": 128036404829,
+    "conclusion": "cancelled",
+    "cause": "Official Ubuntu package mirror downloads during playwright install --with-deps exceeded the 30-minute management job budget. UI browser tests had not begun. Other five jobs passed.",
+    "action": "Reran only the timed-out management job on the same source; did not repeat passing jobs or rebuild the product installer.",
+    "started_at": "2026-11-06T17:14:27Z",
+    "completed_at": "2026-11-06T17:44:44Z"
+  },
+  "limits": [
+    "Source CI is separate from exact Windows installer acceptance, which is still pending in product run 42259797123.",
+    "The independent real NIC-change/media recovery has separate exact-installer evidence.",
+    "No local Windows deployment, ToDesk change, certificate trust import or physical-device acceptance is implied."
+  ]
+}

@@ -15,7 +15,7 @@
     "windows_installer_acceptance_run": 42216232449,
     "release": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261106.2",
     "subsequent_ci_disk_fix": "docs/evidence/linux-build-disk-lifecycle-c5878b7d.json",
-    "current_cross_platform_evidence": "docs/evidence/cross-platform-e29b824d.json",
+    "current_cross_platform_evidence": "docs/evidence/cross-platform-00fe4953.json",
     "current_watch_link_state_evidence": "docs/evidence/watch-link-state-902798f0.json",
     "new_candidate": {
       "source": "00fe4953751e52dd38f0d707e9ba721d5374cb81",
@@ -23,7 +23,9 @@
       "linux_installer_built": true,
       "linux_network_recovery_passed": true,
       "windows_build": "running",
-      "published": false
+      "published": false,
+      "source_ci": "success",
+      "source_ci_run": 42259794077
     }
   },
   "installed_source": "66249387b32975e79d56b19fdf98d4bc7d414da0",
@@ -50,18 +52,20 @@
     },
     {
       "item": "Current cross-platform CI",
-      "run": "https://github.com/bei612/stream-kit/actions/runs/42209334110",
+      "run": "https://github.com/bei612/stream-kit/actions/runs/42259794077",
       "conclusion": "success",
       "successful_jobs": [
         "Management Web",
+        "Orchestrator (windows-latest)",
         "Moonlight Web (windows-latest)",
         "Source SBOM",
         "Orchestrator (ubuntu-latest)",
-        "Moonlight Web (ubuntu-latest)",
-        "Orchestrator (windows-latest)"
+        "Moonlight Web (ubuntu-latest)"
       ],
       "limit": "Automated Windows/Linux builds and browser-engine checks do not establish physical mobile operation or LAN certificate trust. Human speech has separate local evidence.",
-      "evidence": "docs/evidence/cross-platform-e29b824d.json"
+      "evidence": "docs/evidence/cross-platform-00fe4953.json",
+      "source_commit": "00fe4953751e52dd38f0d707e9ba721d5374cb81",
+      "attempt": 2
     },
     {
       "item": "Physical human microphone to native target and audience",
