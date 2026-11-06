@@ -26,7 +26,7 @@ function androidParticipant({adb,serial}) {
     assert.match(output,/INSTRUMENTATION_CODE: -1/,'Android UI observer failed');
     assert.match(output,/INSTRUMENTATION_RESULT: snapshot=complete/);
     const role=output.match(/INSTRUMENTATION_RESULT: role=(controller|viewer|other)\b/);
-    const bounds=output.match(/INSTRUMENTATION_RESULT: surface=(\d+),(\d+),(\d+),(\d+)/);
+    const bounds=output.match(/INSTRUMENTATION_RESULT: window=(\d+),(\d+),(\d+),(\d+)/);
     assert.ok(role&&bounds,'Incomplete Android UI snapshot');
     return {role:role[1],bounds:bounds.slice(1).map(Number)};
   };
@@ -40,8 +40,11 @@ function androidParticipant({adb,serial}) {
     role,
     key(){run('shell','input','keyevent','KEYCODE_A');},
     tap(){
-      const {bounds:[left,top,right,bottom]}=snapshot();
-      assert.ok(right>left&&bottom>top,'Native Android video surface missing');
+      const {role,bounds:[left,top,right,bottom]}=snapshot();
+      assert.ok(role!=='other'&&right>left&&bottom>top,'Expected active Android streaming window');
+      // The published Activity centers the video in its main area. Exercise an
+      // ordinary center-window tap, independent of SurfaceView accessibility.
+      // Success still requires an actual pointer-down event at the remote target.
       run('shell','input','tap',String(Math.floor((left+right)/2)),String(Math.floor((top+bottom)/2)));
     },
     close(){run('shell','input','keyevent','KEYCODE_HOME');},
