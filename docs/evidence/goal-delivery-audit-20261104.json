@@ -32,7 +32,21 @@
       "windows_installer_evidence": "docs/evidence/windows-installer-00fe4953.json"
     },
     "android_release": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261107.1",
-    "android_release_evidence": "docs/evidence/android-preview-release-20261107-1.json"
+    "android_release_evidence": "docs/evidence/android-preview-release-20261107-1.json",
+    "enrollment_candidate": {
+      "source": "928c012a3dae3a4be658caf56f25eae9389b447a",
+      "product_run": 42273134264,
+      "product_status": "in_progress",
+      "native_linux_pairing_fingerprint_tests": "passed",
+      "source_ci_run": 42273640023,
+      "source_ci_commit": "2da0b2ed",
+      "linux_gateway_ci": "passed",
+      "source_ci_overall": "in_progress",
+      "runtime_acceptance": "Automatic dispatch after product Linux job succeeds; fixture has no manual pairing writes.",
+      "android_release": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261107.1",
+      "server_published": false,
+      "local_deployment_changed": false
+    }
   },
   "installed_source": "66249387b32975e79d56b19fdf98d4bc7d414da0",
   "historical_requirement_audit": "docs/evidence/goal-delivery-audit-20261101.json",
