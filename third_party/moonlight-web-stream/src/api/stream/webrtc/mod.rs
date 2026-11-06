@@ -546,7 +546,7 @@ pub async fn webrtc_post(
     info!("started moonlight stream");
 
     // -- Create control channel
-    let result = ControlChannel::new(&*peer).await;
+    let result = ControlChannel::new(&*peer, moonlight_stream.input_sender()).await;
     let control_channel = match result {
         Err(err) => {
             error!("failed to add control stream to webrtc peer");

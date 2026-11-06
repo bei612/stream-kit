@@ -80,6 +80,37 @@ pub struct UpstreamPeer {
     events: broadcast::Receiver<Arc<MoonlightStreamEvent>>,
 }
 
+// Bind input to authority at transport ingress, before any asynchronous queue.
+// Like microphone ingress, this handle must not retain a departed attachment.
+#[derive(Clone)]
+pub struct InputSender {
+    peer_id: String,
+    shared: Weak<Shared>,
+}
+
+impl InputSender {
+    pub async fn send(&self, packet: ControlPacket) -> Result<(), AppError> {
+        let shared = self.shared.upgrade().ok_or(AppError::StreamClosed)?;
+        shared
+            .authority
+            .with_controller(&shared.key, &self.peer_id, |grant| {
+                if matches!(packet, ControlPacket::RequestIdr) {
+                    return shared
+                        .recovery
+                        .request()
+                        .then_some(())
+                        .ok_or(AppError::StreamClosed);
+                }
+                shared
+                    .commands
+                    .try_send(Command::Packet(grant, packet))
+                    .map_err(|_| AppError::StreamClosed)
+            })
+            .await
+            .unwrap_or(Err(AppError::Forbidden))
+    }
+}
+
 // An ingress task may enqueue authorized microphone data, but must not keep
 // the shared upstream or native audio device alive after its viewer leaves.
 pub struct MicrophoneSender {
@@ -538,16 +569,13 @@ impl UpstreamPeer {
                 Err(AppError::StreamClosed)
             };
         }
-        self.shared
-            .authority
-            .with_controller(&self.shared.key, &self.peer_id, |grant| {
-                self.shared
-                    .commands
-                    .try_send(Command::Packet(grant, packet))
-                    .map_err(|_| AppError::StreamClosed)
-            })
-            .await
-            .unwrap_or(Err(AppError::Forbidden))
+        self.input_sender().send(packet).await
+    }
+    pub fn input_sender(&self) -> InputSender {
+        InputSender {
+            peer_id: self.peer_id.clone(),
+            shared: Arc::downgrade(&self.shared),
+        }
     }
     pub fn microphone_sender(&self) -> MicrophoneSender {
         MicrophoneSender {
@@ -950,6 +978,15 @@ mod tests {
             .attach(key.clone(), "other".into())
             .await
             .expect("attach viewer");
+        let input = second.input_sender();
+        let input_packet = || ControlPacket::MouseButton {
+            action: moonlight_common::stream::control::MouseButtonAction::Press,
+            button: moonlight_common::stream::control::MouseButton::Left,
+        };
+        assert!(matches!(
+            input.send(input_packet()).await,
+            Err(AppError::Forbidden)
+        ));
         assert!(!microphone.send_opus(Duration::ZERO, b"viewer").await);
         assert!(
             receiver.try_recv().is_err(),
@@ -959,6 +996,47 @@ mod tests {
             .claim_controller(&key, "second", false)
             .await
             .expect("grant speaker");
+        input.send(input_packet()).await.expect("authorized input");
+        // Leave input queued while authority changes away and back. Dequeue
+        // must retain the original grant, not stamp it with the new owner.
+        authority
+            .claim_controller(&key, "other", true)
+            .await
+            .expect("input transfer away");
+        assert!(matches!(
+            input.send(input_packet()).await,
+            Err(AppError::Forbidden)
+        ));
+        authority
+            .claim_controller(&key, "second", true)
+            .await
+            .expect("input transfer back");
+        input
+            .send(input_packet())
+            .await
+            .expect("new input generation");
+        let Some(Command::Packet(old_input, _)) = receiver.recv().await else {
+            panic!("original input missing");
+        };
+        let Some(Command::Packet(new_input, _)) = receiver.recv().await else {
+            panic!("current input missing");
+        };
+        assert_ne!(
+            old_input, new_input,
+            "ingress must bind input before queuing"
+        );
+        assert_eq!(
+            authority
+                .with_controller(&key, "second", |current| current == old_input)
+                .await,
+            Some(false)
+        );
+        assert_eq!(
+            authority
+                .with_controller(&key, "second", |current| current == new_input)
+                .await,
+            Some(true)
+        );
         assert!(microphone.send_opus(Duration::ZERO, b"controller").await);
         let Some(Command::Microphone(before, _, _, _)) = receiver.recv().await else {
             panic!("authorized microphone command missing");
@@ -987,9 +1065,23 @@ mod tests {
         for _ in 0..256 {
             assert!(microphone.send_opus(Duration::ZERO, b"bounded").await);
         }
+        assert!(
+            matches!(
+                input.send(input_packet()).await,
+                Err(AppError::StreamClosed)
+            ),
+            "input overflow must close the attachment, never silently drop key-up"
+        );
         assert!(!microphone.send_opus(Duration::ZERO, b"overflow").await);
         while receiver.try_recv().is_ok() {}
         drop(second);
+        assert!(
+            matches!(
+                input.send(input_packet()).await,
+                Err(AppError::StreamClosed)
+            ),
+            "input callback must not retain the shared upstream"
+        );
         assert!(!microphone.send_opus(Duration::ZERO, b"closed").await);
         assert!(
             receiver.recv().await.is_none(),

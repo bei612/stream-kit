@@ -165,19 +165,6 @@ pub async fn webrtc_loop(
                 let event = result?;
 
                 match event {
-                    ControlChannelEvent::Packet(packet) => {
-                        if !media_registry.can_control(&media_key, &media_peer_id).await {
-                            debug!(peer_id = %media_peer_id, "dropping viewer control packet");
-                            continue;
-                        }
-                        match stream.send_raw(packet).await {
-                            Ok(()) | Err(AppError::Forbidden) => {},
-                            // A dropped key-up cannot be repaired by waiting
-                            // for another event. End this attachment so the
-                            // shared runtime releases its accepted input.
-                            Err(error) => return Err(error),
-                        }
-                    },
                     ControlChannelEvent::Closed => {
                         info!("control channel closed");
                         return Err(AppError::StreamClosed);
