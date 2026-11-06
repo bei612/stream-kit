@@ -14,6 +14,14 @@ temporary=$(mktemp -d "$output/native-init.XXXXXXXX")
 tail -n +"$line" "${installers[0]}" > "$temporary/package.deb"
 cmp -- "$temporary/package.deb" "$output/stream-kit.deb"
 dpkg-deb --info "$temporary/package.deb"
+# dlopen dependencies are invisible to ELF dependency scanning. Inspect the
+# actual package metadata so a clean host receives the existing mDNS publisher.
+dependencies=$(dpkg-deb --field "$temporary/package.deb" Depends)
+for dependency in libavahi-client3 avahi-daemon libnss-mdns; do
+  [[ ", $dependencies," =~ ,[[:space:]]*$dependency([[:space:]]|,|\() ]] || {
+    echo "Missing native LAN discovery dependency: $dependency" >&2; exit 1;
+  }
+done
 dpkg-deb --extract "$temporary/package.deb" "$temporary/extracted"
 # Confirm deferred installs can persist automatic startup without a live user
 # bus, using an isolated configuration directory rather than this user's units.

@@ -10,6 +10,10 @@ For remote access, bind control and gateway listeners to an appropriate wildcard
 
 A numeric URL already sent to a client cannot change its hostname when DHCP assigns another address. A stable hostname/domain with DNS updated to the current address provides the persistent entry point. Local machine-name resolution depends on the LAN's DNS/name services; public access requires a configured domain/DDNS and routing. Browser connections may briefly drop during a network change and reconnect through that stable name. Remote microphone access additionally requires browser-trusted HTTPS.
 
+For same-LAN operation without a purchased domain, reuse Sunshine's existing OS publisher: Windows `DnsServiceRegister` advertises `<computer-name>.local`; Linux uses Avahi. The Ubuntu installer explicitly depends on `libavahi-client3`, `avahi-daemon` and `libnss-mdns`, because the renderer loads Avahi through `dlopen` and ELF dependency scanning cannot include it automatically. Do not add a second application discovery daemon. A certificate covering the stable `.local` hostname preserves the HTTPS identity across IP changes; mDNS records alone are not trusted identity. A numeric-IP certificate requires the new address in its SAN before that address can be used securely.
+
+Client resolution and multicast reachability must still be verified. [AOSP documents `.local` resolver support](https://source.android.com/docs/core/ota/modular-system/dns-resolver) from November 2021; older or vendor-modified clients and isolated Wi-Fi networks can differ. Local resolution on the server is not proof of remote LAN or DHCP-change recovery. Windows service publication already exists in the vendored source; the new Linux dependency declaration has not yet been delivered in a rebuilt installer.
+
 Verification must cover page assets from an external working directory, two different request IPs, a stable hostname, IPv6 authority formatting, and rejection of unrelated CORS origins. A deliberate DHCP/NIC change is not part of automated tests on a shared development host because it would interrupt unrelated projects and remote sessions.
 
 ## Native HTTPS deployment

@@ -66,7 +66,10 @@ fs.writeFileSync(path.join(debian,'shlibs.local'),'libvulkan 1 stream-kit\n')
 const deps=run('dpkg-shlibdeps',['-O','-xstream-kit',`-l${privateLib}`,...binaries.map(binary=>`-e${binary}`)],{cwd:output})
 const nativeDeps=deps.split('\n').find(line=>line.startsWith('shlibs:Depends='))?.slice('shlibs:Depends='.length)
 if(!nativeDeps)throw Error('Native distribution dependency inventory is empty')
-const dependencies=[nativeDeps,'systemd','dbus-user-session','udev','kmod','util-linux','qt6-qpa-plugins','pulseaudio-utils'].join(', ')
+// Sunshine loads Avahi with dlopen, so dpkg-shlibdeps cannot discover it.
+// Reuse its native publisher and the OS resolver for stable .local names;
+// no additional Stream Kit discovery daemon is installed.
+const dependencies=[nativeDeps,'systemd','dbus-user-session','udev','kmod','util-linux','qt6-qpa-plugins','pulseaudio-utils','libavahi-client3','avahi-daemon','libnss-mdns'].join(', ')
 if(/\b(nodejs|npm|build-essential|cmake)\b/.test(dependencies))throw Error('Development tooling must not be a runtime prerequisite')
 const version=product.channel==='stable'?product.version:`0.1.0~preview.${Math.floor(Date.parse(git('show','-s','--format=%cI','HEAD'))/1000)}.${commit.slice(0,12)}`
 fs.writeFileSync(path.join(stage,'DEBIAN/control'),`Package: stream-kit\nVersion: ${version}\nArchitecture: amd64\nSection: video\nPriority: optional\nMaintainer: Stream-Kit maintainers\nDepends: ${dependencies}\nHomepage: https://github.com/bei612/stream-kit\nDescription: Unified single-administrator cloud rendering platform\n Native control, browser media gateway and application renderer.\n`)
