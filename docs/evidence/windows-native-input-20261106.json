@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-06",
+  "source_commit": "3573c1cc883f7385ee074c2527df35ade66ff224",
+  "scope": "Windows native input baseline and local delivery diagnosis; not Android/Web end-to-end acceptance",
+  "ci": {
+    "run": "https://github.com/bei612/stream-kit/actions/runs/42205252275",
+    "conclusion": "success",
+    "example_sha256": "3f8cf8205d84705f85efd5f07d7d64fb8364d83cacfead5eff6665dd428fce02",
+    "input_desktop": "Default",
+    "key_events_accepted": 2,
+    "key_received": {
+      "schema_version": 1,
+      "type": "stream-kit-example-input",
+      "event": "key_down",
+      "process_id": 1788,
+      "time": "2026-11-06T10:47:30.935603Z",
+      "keys": 1,
+      "clicks": 0,
+      "foreground": true,
+      "has_keyboard_focus": true
+    },
+    "mouse_events_accepted": 2,
+    "click_received": {
+      "schema_version": 1,
+      "type": "stream-kit-example-input",
+      "event": "pointer_down",
+      "process_id": 1788,
+      "time": "2026-11-06T10:47:30.9544516Z",
+      "keys": 1,
+      "clicks": 1,
+      "foreground": true,
+      "has_keyboard_focus": true
+    },
+    "clean_exit": true,
+    "exit_code": 0
+  },
+  "local": {
+    "independent_win32_window": {
+      "foreground_acquisition": false,
+      "mouse_sendinput_accepted": 2,
+      "last_error": 0,
+      "received_keys": 0,
+      "received_clicks": 0,
+      "uses_stream_kit_gateway": false,
+      "uses_sunshine": false,
+      "uses_go_example": false
+    },
+    "owned_gui_example_observer": {
+      "passed": true,
+      "default_flag_off_emits_no_input_events": true,
+      "scope": "Startup, event formatting and clean shutdown only; no injected-input acceptance"
+    },
+    "desktop": "Default",
+    "tool_code_and_sunshine_integrity_rid": 8192,
+    "tool_code_and_sunshine_ui_access": false,
+    "tool_code_and_sunshine_app_container": false,
+    "interpretation": "A local input/focus delivery problem is reproduced outside the streaming stack. This does not prove its cause or exclude an additional streaming bug. ToDesk is present, but no causal attribution is established.",
+    "remote_control_settings_changed": false,
+    "security_policy_changed": false,
+    "installed_services_or_example_changed": false
+  },
+  "observer": {
+    "enabled_by_default": false,
+    "records_text_or_key_codes": false,
+    "global_input_hook": false,
+    "production_package_inclusion": false
+  },
+  "evidence": [
+    {
+      "path": ".local/validation/windows-native-input-ci-3573c1cc/result.json",
+      "sha256": "ae7b5ce9c9142fa539daa7948ac88ea3990ccec40b1e16d54cd8009f982feafa"
+    },
+    {
+      "path": ".local/validation/windows-native-input-ci-3573c1cc/input-events.jsonl",
+      "sha256": "aaccafc6a2d43b4a2879810b2b218fcdc0d8ffb4fdf09b8190dd8a205ce75599"
+    },
+    {
+      "path": ".local/validation/native-input-observer.log",
+      "sha256": "fcfcc19bf709f8b75e94652ea8b274e45903b5b13056c41b91926f88dee53d4f"
+    },
+    {
+      "path": ".local/validation/native-input-hook-observer.log",
+      "sha256": "90be69ab0c75ca1de20227b65a8bb74fd1f3989938f47855e9d2bb81bae3e506"
+    },
+    {
+      "path": ".local/validation/example-input-gui-observer-20261106/result.json",
+      "sha256": "4a8c52e94a5762122f756233c4dd1906f28adda4bce00f100ff6b01c03dc03af"
+    },
+    {
+      "path": ".local/validation/example-input-disabled.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "remaining": "Resolve local input delivery without bypassing OS policy or disrupting remote control; then verify effective Android/Web input and revocation with the owned Example event stream. No additional audio or stability rerun required."
+}
