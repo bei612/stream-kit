@@ -8,7 +8,7 @@ Stream-Kit 将管理服务、Sunshine 渲染端和 Moonlight Web 媒体网关集
 
 ## 安装与访问
 
-2026-11-07 交付进展：HTTP/2 回环地址缺陷已修复，`00fe4953` 安装包已通过独立局域网 IP 切换、可信 HTTPS、发现与 WebRTC 自动恢复检查，见[实际网络证据](docs/evidence/lan-address-recovery-20261107.json)，对应 Windows 安装验收也已通过。随后发现全新安装缺少自动配对，现已在 `928c012a` 中接入产品启动流程，配套安装包与空目录首次串流验收进行中。尚未发布替代服务端版本或替换本机部署。
+2026-11-07 交付进展：HTTP/2 回环地址缺陷与首次安装缺少自动配对的问题均已修复。`928c012a` Linux 安装包从空网关目录打开永久链接即可自动配对并串流，随后真实切换测试网卡 IP，同一观看页面自动恢复画面与音频 RTP，见[首次启动与网络恢复证据](docs/evidence/managed-enrollment-20261107.json)。Windows/Linux 源码 CI 已通过；匹配的 Windows 安装包仍在构建。尚未发布替代服务端版本或替换本机部署。
 
 从 [GitHub Releases](https://github.com/bei612/stream-kit/releases) 获取当前可下载版本，查看该版本说明和 SHA-256。Windows 使用版本中的单个 `*-windows-amd64-setup.exe` 安装三个核心组件；无需另外安装官方 Sunshine 或 Moonlight Web，也不要再注册独立 Sunshine 服务。
 

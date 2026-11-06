@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "source_commit": "2da0b2ed92ed474ac6b92579b4f8d98315bf2033",
+  "run": "https://github.com/bei612/stream-kit/actions/runs/42273640023",
+  "conclusion": "success",
+  "updated_at": "2026-11-06T19:03:43Z",
+  "jobs": [
+    {
+      "name": "Orchestrator (ubuntu-latest)",
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/42273640023/job/128084279802"
+    },
+    {
+      "name": "Source SBOM",
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/42273640023/job/128084280333"
+    },
+    {
+      "name": "Moonlight Web (windows-latest)",
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/42273640023/job/128084280345"
+    },
+    {
+      "name": "Orchestrator (windows-latest)",
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/42273640023/job/128084280362"
+    },
+    {
+      "name": "Management Web",
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/42273640023/job/128084280387"
+    },
+    {
+      "name": "Moonlight Web (ubuntu-latest)",
+      "conclusion": "success",
+      "url": "https://github.com/bei612/stream-kit/actions/runs/42273640023/job/128084280396"
+    }
+  ],
+  "installer_candidate_source": "928c012a3dae3a4be658caf56f25eae9389b447a",
+  "runtime_difference": "None. Validation source adds one required control_plane_url inside #[cfg(test)] to the managed-pair admin-auth fixture; other intervening changes are evidence documents.",
+  "scope": "Windows/Linux control and native gateway checks including managed pairing admin authentication, management browser checks and source SBOM. Native Sunshine certificate fingerprint and complete first-install media acceptance are recorded separately.",
+  "previous_failure": {
+    "run": 42272883974,
+    "cause": "New auth fixture omitted the required managed control-plane URL; corrected in the validation source. Candidate runtime code unchanged."
+  }
+}

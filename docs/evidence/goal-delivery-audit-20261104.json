@@ -41,11 +41,15 @@
       "source_ci_run": 42273640023,
       "source_ci_commit": "2da0b2ed",
       "linux_gateway_ci": "passed",
-      "source_ci_overall": "in_progress",
+      "source_ci_overall": "success",
       "runtime_acceptance": "Automatic dispatch after product Linux job succeeds; fixture has no manual pairing writes.",
       "android_release": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261107.1",
       "server_published": false,
-      "local_deployment_changed": false
+      "local_deployment_changed": false,
+      "native_runtime_acceptance": "passed",
+      "native_runtime_evidence": "docs/evidence/managed-enrollment-20261107.json",
+      "source_ci_evidence": "docs/evidence/cross-platform-enrollment-20261107.json",
+      "linux_installer_built": true
     }
   },
   "installed_source": "66249387b32975e79d56b19fdf98d4bc7d414da0",
@@ -125,14 +129,12 @@
       "item": "Actual isolated LAN address change with trusted HTTPS and WebRTC recovery",
       "evidence": "docs/evidence/lan-address-recovery-20261107.json",
       "finding": "Exact 00fe4953 Linux installer passed independent client multicast discovery and verified HTTP/2/HTTP/1.1 before and after server NIC address 198.18.31.1 -> 198.18.31.2. The same permanent-entry page automatically replaced its WebRTC peer and presented video from the new UDP address. Old address became unreachable; renderer identity, component PIDs, configuration and certificate remained unchanged. Owned target stopped cleanly."
-    }
-  ],
-  "remaining_acceptance": [
+    },
     {
       "item": "Automatic renderer enrollment on a fresh installation",
-      "state": "implemented_pending_native_runtime_acceptance",
-      "finding": "init-platform starts with no gateway hosts. Prior runtime fixtures explicitly paired the renderer; they do not prove automatic first-install launch. Product LaunchApp now enrolls only its configured renderer via exact certificate fingerprint correlation and normal authenticated GameStream pairing. Updated fixture removes all test-side host creation and PIN approval.",
-      "next": "Run source CI and build the integrated native components, then open the permanent link on a pristine deployment. Publish only source-matched verified installers.",
+      "state": "native_runtime_passed",
+      "finding": "Exact 928c012a Linux installer starts with zero gateway hosts. Opening the permanent application link creates and pairs one configured renderer without fixture PIN/host writes and produces video/audio RTP. Same page then recovers across real fixture NIC address change; target stops cleanly.",
+      "next": "Finish matching Windows installer build/acceptance and publish existing verified bytes; local HTTPS deployment is separate.",
       "source_commit": "928c012a",
       "source_ci_run": 42273640023,
       "product_run": 42273134264,
@@ -154,8 +156,11 @@
       "source_ci_commit": "2da0b2ed",
       "source_ci_scope": "Candidate 928c012a production code plus a test-only required control-plane URL in the admin-auth fixture; no runtime change or installer rebuild.",
       "android_release_published": true,
-      "android_release_evidence": "docs/evidence/android-preview-release-20261107-1.json"
-    },
+      "android_release_evidence": "docs/evidence/android-preview-release-20261107-1.json",
+      "evidence": "docs/evidence/managed-enrollment-20261107.json"
+    }
+  ],
+  "remaining_acceptance": [
     {
       "item": "Trusted LAN HTTPS deployment",
       "state": "prepared_awaiting_cutover_confirmation",
@@ -176,6 +181,6 @@
     }
   ],
   "distribution_boundary": "Public v0.1.0-preview.20261106.2 contains Windows and Ubuntu 24.04 runtime installers and SPDX SBOM at source d36cead6. All seven published asset sizes and server SHA-256 digests match locally downloaded build artifacts, and unauthenticated download HEAD requests return 200 with matching content lengths. Exact Windows installer acceptance verified automatic SCM startup without manual repair, native PCM, default audio preservation, gateway/SCM restart and uninstall. Linux native extraction, initialization, offline user-service enablement and data preservation passed. Local control remains 70ea6f70 with media 66249387. See docs/evidence/unified-installers-d36cead6.json. Android preview 20261106.6 separately provides the signed APK, archive, provenance, SBOM and checksums at 6e9b2249. It requires verified HTTPS; the installed HTTP host remains unchanged.",
-  "completion_decision": "Goal remains incomplete: automatic first-install renderer enrollment has an integrated source fix pending native runtime acceptance. Previous 00fe4953 Windows/Linux build and Windows installer acceptance passed, but do not include this fix. Trusted local HTTPS/entry cutover remains pending. Prior independent Android/Web input and isolated LAN recovery evidence is retained; local Windows input cause remains unproven and ToDesk is unchanged.",
+  "completion_decision": "Goal remains incomplete: matching Windows installer build/acceptance and server release remain in progress; trusted local HTTPS/entry deployment awaits its pending confirmation. Automatic first-install renderer enrollment and isolated LAN recovery now pass on exact 928c012a Linux runtime. Android startup-timeout APK 20261107.1 is published. Local Windows input cause remains unproven and ToDesk unchanged.",
   "local_input_caveat": "Earlier local Windows input/focus failure remains unresolved; its cause is unproven. Independent Windows Web and Linux Android/Web target-input checks now pass. No local ToDesk coexistence claim is made. Preserve ToDesk settings, processes and remote connection unchanged; do not require the user to operate ToDesk."
 }

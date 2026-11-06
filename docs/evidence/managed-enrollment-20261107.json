@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "passed": true,
+  "run": "https://github.com/bei612/stream-kit/actions/runs/42275950549",
+  "runtime_commit": "928c012a3dae3a4be658caf56f25eae9389b447a",
+  "acceptance_commit": "71f5264861914a97b1af7051edfb4bbf2788ef73",
+  "product_run": 42273134264,
+  "installer_sha256": "9f183149c60078400e2f819eaac18b2305dab8a1a2deb849b48b82099de80cbf",
+  "runtime_rebuilt": false,
+  "result_sha256": "8f8c55ae87faed81429e0091b39d1e565cea01bcc260cb7a9ceecdd57cf1e08b",
+  "fresh_gateway_before_launch": true,
+  "enrollment": {
+    "automatic": true,
+    "host_count": 1,
+    "host_id": 3200343159,
+    "paired": true,
+    "fixture_pairing_mutations": 0
+  },
+  "media_before": {
+    "peer_count": 1,
+    "state": "connected",
+    "frames": 53,
+    "audio_packets": 85,
+    "presented_frames": 16,
+    "width": 1280,
+    "remote_address": "198.18.31.1",
+    "remote_port": 57854
+  },
+  "media_after": {
+    "peer_count": 2,
+    "state": "connected",
+    "frames": 48,
+    "audio_packets": 78,
+    "presented_frames": 34,
+    "width": 1280,
+    "remote_address": "198.18.31.2",
+    "remote_port": 45384
+  },
+  "automatic_reconnect": true,
+  "observations": [
+    {
+      "address": "198.18.31.1",
+      "resolved": "stream-kit-server.local\t198.18.31.1",
+      "renderer_service": "=;sknet-peer;IPv4;runnervm7aw5e;_nvstream._tcp;local;stream-kit-server.local;198.18.31.1;47989;",
+      "control_https": true,
+      "gateway_https": true,
+      "configs": [
+        {
+          "requested": "default",
+          "http_version": "2",
+          "control_plane_url": "https://stream-kit-server.local:19000/"
+        },
+        {
+          "requested": "http1.1",
+          "http_version": "1.1",
+          "control_plane_url": "https://stream-kit-server.local:19000/"
+        }
+      ],
+      "public_control_host_correct": true
+    },
+    {
+      "address": "198.18.31.2",
+      "resolved": "stream-kit-server.local\t198.18.31.2",
+      "renderer_service": "=;sknet-peer;IPv4;runnervm7aw5e;_nvstream._tcp;local;stream-kit-server.local;198.18.31.2;47989;",
+      "control_https": true,
+      "gateway_https": true,
+      "configs": [
+        {
+          "requested": "default",
+          "http_version": "2",
+          "control_plane_url": "https://stream-kit-server.local:19000/"
+        },
+        {
+          "requested": "http1.1",
+          "http_version": "1.1",
+          "control_plane_url": "https://stream-kit-server.local:19000/"
+        }
+      ],
+      "public_control_host_correct": true
+    }
+  ],
+  "old_address_unreachable": true,
+  "renderer_identity_preserved": true,
+  "components_not_restarted": true,
+  "configuration_and_certificate_unchanged": true,
+  "target_stopped": true,
+  "finished_at": "2026-11-06T19:04:13.022Z",
+  "limits": [
+    "Hosted Linux runtime and independent Chromium client namespace; not the local Windows host or a physical WLAN/mobile-device result.",
+    "Test-only CA, display target, namespaces and browser tooling are outside production installers.",
+    "Audio RTP receipt is not a new speech-quality or microphone acceptance result; previously accepted speech evidence remains separate."
+  ]
+}
