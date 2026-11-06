@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -107,7 +108,15 @@ func (h *ClientSessionHandler) Join(c *gin.Context) {
 		return
 	}
 	// Client-supplied labels never become authenticated identities.
-	connection, err := h.sessions.Manager.AddConnection(claims.SessionID, "guest:"+uuid.NewString())
+	var req struct {
+		ClientType string `json:"client_type"`
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 4096)
+	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
+		errResponse(c, 400, "CONFIG_INVALID", "invalid client metadata")
+		return
+	}
+	connection, err := h.sessions.Manager.AddClientConnection(claims.SessionID, "guest:"+uuid.NewString(), req.ClientType)
 	if err != nil {
 		respondSessionError(c, err)
 		return

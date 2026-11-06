@@ -52,6 +52,7 @@ type Policy struct {
 type Connection struct {
 	ID              string    `json:"connection_id"`
 	UserID          string    `json:"user_id,omitempty"`
+	ClientType      string    `json:"client_type"`
 	Role            string    `json:"role"`
 	State           string    `json:"state"`
 	Microphone      bool      `json:"microphone"`
@@ -209,6 +210,17 @@ func (m *Manager) SetState(id, state string) error {
 }
 
 func (m *Manager) AddConnection(id, userID string) (*Connection, error) {
+	return m.AddClientConnection(id, userID, "unknown")
+}
+
+// Client type is bounded, untrusted presentation metadata, never authorization.
+func (m *Manager) AddClientConnection(id, userID, clientType string) (*Connection, error) {
+	if clientType == "" {
+		clientType = "unknown"
+	}
+	if clientType != "unknown" && clientType != "web" && clientType != "android" {
+		return nil, ErrInvalidState
+	}
 	var result *Connection
 	err := m.mutate(id, "stream_connection_changed", func(s *RenderSession) error {
 		if s.State == StateStopped || s.State == StateStopping {
@@ -218,7 +230,7 @@ func (m *Manager) AddConnection(id, userID string) (*Connection, error) {
 			return ErrCapacity
 		}
 		now := time.Now().UTC()
-		c := &Connection{ID: uuid.NewString(), UserID: userID, Role: "viewer", State: "connected", ConnectedAt: now, LastHeartbeatAt: now, ExpiresAt: now.Add(15 * time.Second)}
+		c := &Connection{ID: uuid.NewString(), UserID: userID, ClientType: clientType, Role: "viewer", State: "connected", ConnectedAt: now, LastHeartbeatAt: now, ExpiresAt: now.Add(15 * time.Second)}
 		s.Connections[c.ID] = c
 		result = copyConnection(c)
 		return nil

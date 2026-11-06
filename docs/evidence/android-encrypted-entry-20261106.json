@@ -1,0 +1,37 @@
+{
+    "schema_version":  1,
+    "date":  "2026-11-06",
+    "baseline_commit":  "61757acec3a44b5fd841b7672b552a0916525c09",
+    "apk_sha256":  "7370c402beb20b41e4371b75d88967d24d3a3bd39be3d723f6f9f49f3da0d3c5",
+    "package":  "io.github.bei612.streamkit.debug",
+    "observed":  [
+                     "Saved bookmark survived force-stop and Activity relaunch",
+                     "Same debug signing identity upgrade retained encrypted bookmark and loaded it on cold start",
+                     "Launch without URI displayed only saved origin and waited for connect gesture",
+                     "Connect gesture joined existing Example native video; viewer microphone disabled",
+                     "Keystore AES-GCM bookmark ciphertext 103 bytes, app-private no_backup, no plaintext #key marker"
+                 ],
+    "ui":  [
+               {
+                   "text":  "STREAM KIT",
+                   "enabled":  "true"
+               },
+               {
+                   "text":  "已连接 · 观看中",
+                   "enabled":  "true"
+               },
+               {
+                   "text":  "麦克风已关闭",
+                   "enabled":  "false"
+               },
+               {
+                   "text":  "断开",
+                   "enabled":  "true"
+               }
+           ],
+    "limits":  [
+                   "Debug identity upgrade only; release-signing upgrade is not yet verified",
+                   "Controller input and Android audio remain pending",
+                   "No physical-device acceptance claimed"
+               ]
+}

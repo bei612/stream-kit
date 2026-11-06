@@ -44,6 +44,9 @@ public final class WatchLink {
     public URI admissionEndpoint() { return origin.resolve("/api/v1/watch/open"); }
     public String admissionAuthorization() { return "Bearer " + capability; }
 
+    // Only the encrypted local store serializes the full capability.
+    String storedValue() { return origin + "/watch#key=" + capability; }
+
     @Override
     public String toString() { return origin + "/watch#key=[redacted]"; }
 

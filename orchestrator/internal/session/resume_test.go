@@ -17,7 +17,7 @@ func expiredPeer(t *testing.T, m *Manager) (*RenderSession, *Connection) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, err := m.AddConnection(s.ID, "viewer-owner")
+	c, err := m.AddClientConnection(s.ID, "viewer-owner", "android")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +60,7 @@ func TestExpiredResumePersistsAndNeverRestoresControl(t *testing.T) {
 		t.Fatal(err)
 	}
 	resumed, err := m.ResumeConnection(s.ID, c.ID, c.UserID)
-	if err != nil || resumed.Role != "viewer" || resumed.MicrophoneLive || resumed.Microphone {
+	if err != nil || resumed.Role != "viewer" || resumed.ClientType != "android" || resumed.MicrophoneLive || resumed.Microphone {
 		t.Fatal(resumed, err)
 	}
 	current, _ = m.Get(s.ID)

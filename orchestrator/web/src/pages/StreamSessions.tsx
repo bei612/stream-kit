@@ -142,7 +142,7 @@ export default function StreamSessions() {
               const isController = connection.connection_id === session.controller_connection_id
               const expired = Date.parse(connection.expires_at) <= now
               return <div key={connection.connection_id} className="client-card space-y-3" data-controller={isController}>
-                <div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="font-medium text-card-foreground">客户端 {connection.connection_id.slice(0, 6).toUpperCase()}</div><div className="text-[11px] text-muted-foreground font-mono truncate" title={connection.connection_id}>{connection.connection_id}</div></div>{isController && <Crown className="w-4 h-4 text-primary shrink-0" />}</div>
+                <div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="font-medium text-card-foreground">{connection.client_type === 'android' ? 'Android' : connection.client_type === 'web' ? 'Web' : '客户端'} {connection.connection_id.slice(0, 6).toUpperCase()}</div><div className="text-[11px] text-muted-foreground font-mono truncate" title={connection.connection_id}>{connection.connection_id}</div></div>{isController && <Crown className="w-4 h-4 text-primary shrink-0" />}</div>
                 <div className="flex flex-wrap gap-2 text-xs text-muted-foreground"><span>{isController ? '控制者' : '观众'}</span><span>{expired ? '连接已过期' : '已连接'}</span><span className="inline-flex items-center gap-1">{connection.microphone_live ? <Mic className="w-3 h-3 text-green-400" /> : <MicOff className="w-3 h-3" />}{connection.microphone_live ? '客户端报告麦克风活动' : '麦克风未活动'}</span></div>
                 <div className="flex flex-wrap gap-2">
                   {isController

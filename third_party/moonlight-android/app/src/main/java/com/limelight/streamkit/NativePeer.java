@@ -64,6 +64,18 @@ public final class NativePeer implements AutoCloseable {
             }
         }
         audio = JavaAudioDeviceModule.builder(this.context)
+                .setAudioRecordErrorCallback(new JavaAudioDeviceModule.AudioRecordErrorCallback() {
+                    @Override public void onWebRtcAudioRecordInitError(String error) { recordingFailed(); }
+                    @Override public void onWebRtcAudioRecordStartError(JavaAudioDeviceModule.AudioRecordStartErrorCode code, String error) { recordingFailed(); }
+                    @Override public void onWebRtcAudioRecordError(String error) { recordingFailed(); }
+                    private void recordingFailed() {
+                        post(() -> {
+                            authority.muteMicrophone();
+                            setMicrophone(false);
+                            listener.microphoneState(false);
+                        });
+                    }
+                })
                 .setAudioRecordStateCallback(new JavaAudioDeviceModule.AudioRecordStateCallback() {
                     @Override public void onWebRtcAudioRecordStart() {
                         post(() -> {

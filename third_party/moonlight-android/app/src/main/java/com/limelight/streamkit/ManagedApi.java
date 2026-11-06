@@ -101,7 +101,7 @@ public final class ManagedApi {
                 gateway = control.newBuilder().port(port).build();
             }
             String bearer = credential(invitation, "invitation");
-            JSONObject joined = controlJson("/api/v1/client-sessions/join", "Bearer " + bearer, "POST", "{}");
+            JSONObject joined = controlJson("/api/v1/client-sessions/join", "Bearer " + bearer, "POST", "{\"client_type\":\"android\"}");
             ConnectionAuthority authority = authority(joined);
             // A valid late join can always be explicitly released by the caller.
             boolean accepted = false;

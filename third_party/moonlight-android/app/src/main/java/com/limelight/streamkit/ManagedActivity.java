@@ -8,16 +8,21 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.media.AudioManager;
+import android.hardware.input.InputManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.*;
 import com.limelight.BuildConfig;
 import com.limelight.binding.input.touch.AbsoluteTouchContext;
+import com.limelight.binding.input.KeyboardTranslator;
+import java.util.HashMap;
+import java.util.Map;
 import org.webrtc.EglBase;
 import org.webrtc.RendererCommon;
 import org.webrtc.SurfaceViewRenderer;
@@ -32,15 +37,19 @@ public final class ManagedActivity extends Activity {
     private Button connect, microphone;
     private LinearLayout entry;
     private WatchLink currentLink;
+    private WatchLinkStore bookmarks;
+    private int entryGeneration;
     private boolean resumeOnStart;
-    private boolean microphoneRequested;
     private AbsoluteTouchContext touch;
     private FrameLayout mediaArea;
     private int frameWidth, frameHeight;
     private AudioManager audio;
+    private ManagedInput input;
+    private KeyboardTranslator keyboard;
+    private InputManager devices;
+    private final Map<Short, Byte> pressedKeys = new HashMap<>();
     private final AudioManager.OnAudioFocusChangeListener audioFocus = change -> {
         if (session == null) return;
-        if (change != AudioManager.AUDIOFOCUS_GAIN) microphoneRequested = false;
         session.audioFocus(change == AudioManager.AUDIOFOCUS_GAIN);
     };
 
@@ -75,6 +84,8 @@ public final class ManagedActivity extends Activity {
         entry.addView(address, new LinearLayout.LayoutParams(-1, dp(56)));
         connect = button("连接应用", Color.rgb(40, 107, 226));
         entry.addView(connect);
+        Button forget = button("清除已保存链接", Color.rgb(37, 49, 67));
+        entry.addView(forget);
         root.addView(entry);
         video = new SurfaceViewRenderer(this);
         egl = EglBase.create();
@@ -105,16 +116,36 @@ public final class ManagedActivity extends Activity {
         int width = getResources().getDisplayMetrics().widthPixels;
         int height = getResources().getDisplayMetrics().heightPixels;
         session = new ManagedSession(this, egl.getEglBaseContext(), video, width, height, BuildConfig.DEBUG,
-                (message, control, live, videoReady) -> {
-                    status.setText(message);
-                    microphone.setEnabled(control);
-                    if (!control) { microphoneRequested = false; if (touch != null) touch.cancelTouch(); }
-                    microphone.setText(live ? "麦克风开启中" : microphoneRequested ? "正在开启麦克风…" : "麦克风已关闭");
-                    connect.setEnabled(!sessionRunning());
-                    entry.setVisibility(videoReady ? View.GONE : View.VISIBLE);
+                stateView -> {
+                    status.setText(stateView.status);
+                    microphone.setEnabled(stateView.microphoneAllowed);
+                    if (!stateView.control) { pressedKeys.clear(); if (touch != null) touch.cancelTouch(); }
+                    microphone.setText(stateView.microphoneLive ? "麦克风开启中" : stateView.microphoneRequested ? "正在开启麦克风…" : "麦克风已关闭");
+                    connect.setEnabled(!stateView.running);
+                    entry.setVisibility(stateView.videoReady ? View.GONE : View.VISIBLE);
                 });
         audio = (AudioManager) getSystemService(AUDIO_SERVICE);
-        touch = new AbsoluteTouchContext(new ManagedPointer(packet -> session.sendInput(packet)), 0, video);
+        bookmarks = new WatchLinkStore(this, BuildConfig.DEBUG);
+        bookmarks.load((saved, unreadable) -> {
+            if (entryGeneration != 0 || address.length() != 0) return;
+            if (saved != null) { currentLink = saved; savedLinkHint(); }
+            else if (unreadable) status.setText("已保存链接无法读取，请重新粘贴");
+        });
+        forget.setOnClickListener(view -> {
+            ++entryGeneration;
+            currentLink = null;
+            address.setText("");
+            address.setHint("粘贴管理员提供的固定观看链接");
+            bookmarks.clear();
+            resumeOnStart = false;
+            session.stop();
+            video.clearImage();
+        });
+        input = new ManagedInput(packet -> session.sendInput(packet));
+        keyboard = new KeyboardTranslator();
+        devices = (InputManager) getSystemService(INPUT_SERVICE);
+        devices.registerInputDeviceListener(keyboard, null);
+        touch = new AbsoluteTouchContext(input, 0, video);
         video.setOnTouchListener((view, event) -> {
             if (!session.canControl()) return true;
             touch.setPointerCount(event.getPointerCount());
@@ -128,10 +159,16 @@ public final class ManagedActivity extends Activity {
             return true;
         });
         connect.setOnClickListener(view -> connect());
-        disconnect.setOnClickListener(view -> { resumeOnStart = false; session.stop(); video.clearImage(); });
+        disconnect.setOnClickListener(view -> {
+            resumeOnStart = false;
+            releaseKeys();
+            session.stop();
+            audio.abandonAudioFocus(audioFocus);
+            video.clearImage();
+        });
         microphone.setEnabled(false);
         microphone.setOnClickListener(view -> {
-            if (microphoneRequested) { microphoneRequested = false; session.microphone(false, false); return; }
+            if (session.microphoneRequested()) { session.microphone(false, false); return; }
             if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED)
                 requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 1);
             else enableMicrophone();
@@ -142,18 +179,26 @@ public final class ManagedActivity extends Activity {
     private boolean sessionRunning() { return session != null && session.isRunning(); }
     private void connect() {
         try {
-            currentLink = WatchLink.parse(address.getText().toString(), BuildConfig.DEBUG);
-            microphoneRequested = false;
+            String entered = address.getText().toString().trim();
+            if (!entered.isEmpty() || currentLink == null) {
+                currentLink = WatchLink.parse(entered, BuildConfig.DEBUG);
+                int generation = ++entryGeneration;
+                bookmarks.save(currentLink, saved -> {
+                    if (!saved && generation == entryGeneration) Toast.makeText(this, "链接仅供本次使用，无法安全保存到设备", Toast.LENGTH_LONG).show();
+                });
+            }
+            address.setText("");
+            savedLinkHint();
             acquireAudioFocus();
             session.start(currentLink);
         } catch (IllegalArgumentException error) {
             status.setText(BuildConfig.DEBUG ? "观看链接格式不正确" : "请使用有效的 HTTPS 观看链接");
         }
     }
+    private void savedLinkHint() { address.setHint("当前应用 · " + currentLink.origin()); }
     private void enableMicrophone() {
         if (!session.canControl()) return;
         if (!acquireAudioFocus()) { Toast.makeText(this, "音频正在被其他应用使用", Toast.LENGTH_SHORT).show(); return; }
-        microphoneRequested = true;
         session.microphone(true, true);
     }
     @Override public void onRequestPermissionsResult(int request, String[] permissions, int[] results) {
@@ -173,19 +218,54 @@ public final class ManagedActivity extends Activity {
         super.onStart();
         if (resumeOnStart && currentLink != null) { resumeOnStart = false; acquireAudioFocus(); session.start(currentLink); }
     }
+    @Override protected void onResume() {
+        super.onResume();
+        // Android 15+ requires a foreground app for audio-focus acquisition.
+        if (sessionRunning()) acquireAudioFocus();
+    }
     @Override protected void onStop() {
         resumeOnStart = sessionRunning();
-        microphoneRequested = false;
         touch.cancelTouch();
+        releaseKeys();
         session.stop();
         audio.abandonAudioFocus(audioFocus);
         super.onStop();
     }
     @Override protected void onDestroy() {
+        devices.unregisterInputDeviceListener(keyboard);
+        bookmarks.close();
         session.close();
         video.release();
         egl.release();
         super.onDestroy();
+    }
+    @Override public boolean dispatchKeyEvent(KeyEvent event) {
+        int code = event.getKeyCode();
+        if (session != null && session.canControl() && entry.getVisibility() == View.GONE &&
+                code != KeyEvent.KEYCODE_BACK && code != KeyEvent.KEYCODE_VOLUME_UP &&
+                code != KeyEvent.KEYCODE_VOLUME_DOWN && code != KeyEvent.KEYCODE_VOLUME_MUTE &&
+                !KeyEvent.isGamepadButton(code) &&
+                (event.getAction() == KeyEvent.ACTION_DOWN || event.getAction() == KeyEvent.ACTION_UP)) {
+            short key = keyboard.translate(code, event.getDeviceId());
+            if (key != 0) {
+                boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
+                byte flags = (byte) (keyboard.hasNormalizedMapping(code, event.getDeviceId()) ? 0 : 1);
+                byte modifiers = (byte) ((event.isShiftPressed() ? 1 : 0) | (event.isCtrlPressed() ? 2 : 0) |
+                        (event.isAltPressed() ? 4 : 0) | (event.isMetaPressed() ? 8 : 0));
+                if (down && event.getRepeatCount() == 0) { input.sendKey(key, true, modifiers, flags); pressedKeys.put(key, flags); }
+                else if (!down && pressedKeys.remove(key) != null) input.sendKey(key, false, modifiers, flags);
+                return true;
+            }
+        }
+        return super.dispatchKeyEvent(event);
+    }
+    @Override public void onWindowFocusChanged(boolean focused) {
+        super.onWindowFocusChanged(focused);
+        if (!focused) { releaseKeys(); if (touch != null) touch.cancelTouch(); }
+    }
+    private void releaseKeys() {
+        if (input != null) for (Map.Entry<Short, Byte> key : pressedKeys.entrySet()) input.sendKey(key.getKey(), false, (byte) 0, key.getValue());
+        pressedKeys.clear();
     }
     private int dp(int value) { return (int) (value * getResources().getDisplayMetrics().density + .5f); }
     private boolean acquireAudioFocus() {

@@ -55,6 +55,7 @@ public class ManagedApiTest {
             response = "{\"invitation\":\"invitation-secret\",\"session_id\":\"session-1\",\"host_id\":17,\"app_id\":29,\"gateway_public_url\":\"\"}";
         } else if (path.equals("/api/v1/client-sessions/join")) {
             if (!"Bearer invitation-secret".equals(exchange.getHeader("Authorization"))) code = 401;
+            if (!"{\"client_type\":\"android\"}".equals(exchange.getBody().readUtf8())) code = 400;
             response = state();
         } else if (path.startsWith("/api/v1/client-sessions/session-1/connections/connection-1")) {
             if (!"Bearer connection-secret".equals(exchange.getHeader("Authorization"))) code = 401;

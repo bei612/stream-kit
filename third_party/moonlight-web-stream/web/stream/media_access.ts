@@ -76,7 +76,7 @@ export async function acquireMediaAccess(hostId: number, appId: number): Promise
     url.searchParams.delete("mediaTicket")
     window.history.replaceState(null, "", url)
     if (!invitation) throw new Error("Open a new viewing link from the management page")
-    const joined = await request<ConnectionResponse>(baseUrl, invitation, "/client-sessions/join", "POST")
+    const joined = await request<ConnectionResponse>(baseUrl, invitation, "/client-sessions/join", "POST", { client_type: "web" })
     const access: MediaAccess = {
         baseUrl, bearer: joined.connection_token, sessionId: joined.session_id,
         connectionId: joined.connection.connection_id, role: joined.connection.role,

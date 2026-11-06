@@ -24,6 +24,7 @@ export interface SessionPolicy {
 export interface SessionConnection {
   connection_id: string
   user_id?: string
+  client_type?: 'unknown' | 'web' | 'android'
   role: 'viewer' | 'controller'
   state: string
   microphone: boolean

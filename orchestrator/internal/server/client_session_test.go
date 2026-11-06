@@ -76,7 +76,13 @@ func TestManagedClientAdmissionAndAuthorityBoundaries(t *testing.T) {
 	}
 	request("POST", "/api/v1/client-sessions/join", admin, nil, 401)
 	request("GET", "/api/v1/config", invitation, nil, 401)
-	a := request("POST", "/api/v1/client-sessions/join", invitation, map[string]string{"user_id": "admin"}, 200)
+	before := len(managed.Connections)
+	request("POST", "/api/v1/client-sessions/join", invitation, map[string]string{"client_type": "administrator"}, 400)
+	after, _ := manager.Get(managed.ID)
+	if len(after.Connections) != before {
+		t.Fatal("invalid client metadata created a connection")
+	}
+	a := request("POST", "/api/v1/client-sessions/join", invitation, map[string]string{"user_id": "admin", "client_type": "android"}, 200)
 	if _, exposed := a["audio"].(map[string]any)["target"]; exposed {
 		t.Fatal("viewer received native endpoint topology")
 	}
@@ -84,6 +90,9 @@ func TestManagedClientAdmissionAndAuthorityBoundaries(t *testing.T) {
 	token := a["connection_token"].(string)
 	sid := a["session_id"].(string)
 	ac := a["connection"].(map[string]any)
+	if ac["client_type"] != "android" || b["connection"].(map[string]any)["client_type"] != "unknown" {
+		t.Fatal("client type metadata was not retained or legacy join broke")
+	}
 	aid := ac["connection_id"].(string)
 	bid := b["connection"].(map[string]any)["connection_id"].(string)
 	if !strings.HasPrefix(ac["user_id"].(string), "guest:") || ac["role"] != "viewer" {

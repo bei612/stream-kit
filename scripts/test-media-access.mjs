@@ -92,6 +92,7 @@ test('admission uses configured origin and distinct credentials, scrubs URL secr
   assert.equal(access.ticket, 'media-admission')
   assert.equal(calls[0].url, 'https://control.example/api/v1/client-sessions/join')
   assert.equal(calls[0].options.headers.Authorization, 'Bearer short-invitation')
+  assert.deepEqual(JSON.parse(calls[0].options.body), { client_type: 'web' })
   assert.equal(calls[1].options.headers.Authorization, 'Bearer own-connection')
   assert.equal(calls[1].options.cache, 'no-store')
   assert.equal(window.location.hash, '')

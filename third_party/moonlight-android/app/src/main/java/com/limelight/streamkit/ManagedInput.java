@@ -5,11 +5,11 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 /** Existing gateway control-packet format (Sunshine 7, input_data 0x0206). */
-final class ManagedPointer implements PointerInput {
+final class ManagedInput implements PointerInput {
     interface Sink { void send(byte[] packet); }
     private final Sink sink;
     private int virtualX = -1, virtualY = -1;
-    ManagedPointer(Sink sink) { this.sink = sink; }
+    ManagedInput(Sink sink) { this.sink = sink; }
     private static ByteBuffer packet(int type, int payloadSize) {
         int inputSize = 4 + payloadSize;
         ByteBuffer data = ByteBuffer.allocate(8 + inputSize).order(ByteOrder.LITTLE_ENDIAN);
@@ -34,5 +34,9 @@ final class ManagedPointer implements PointerInput {
     @Override public void sendMouseButtonUp(byte button) { sink.send(packet(9, 1).put(button).array()); }
     @Override public void sendMouseHighResScroll(short amount) {
         sink.send(packet(10, 6).putShort(amount).putShort(amount).putShort((short) 0).array());
+    }
+    void sendKey(short key, boolean down, byte modifiers, byte flags) {
+        sink.send(packet(down ? 3 : 4, 6).order(ByteOrder.LITTLE_ENDIAN)
+                .put(flags).putShort(key).put(modifiers).putShort((short) 0).array());
     }
 }

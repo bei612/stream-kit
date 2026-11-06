@@ -8,7 +8,7 @@ The Android fork lives in `third_party/moonlight-android`, pinned to official v1
 
 Upstream `NvConnection` directly creates a GameStream connection and cannot be used as the platform admission path. Managed Android playback will use the existing gateway's WebRTC endpoint and shared upstream. The gateway already rejects legacy WebSocket streaming in managed mode; that restriction remains. No new Android-only renderer, bypass pairing endpoint, or second upstream is added.
 
-Reuse the official Android native platform and gesture implementation through transport interfaces. `PointerInput` decouples the existing absolute/relative touch recognizers from `NvConnection`; `ManagedPointer` adapts them to the existing gateway input packets. The pinned native WebRTC library handles peer negotiation, secure RTP and audio capture/playout. No WebView streaming wrapper is used.
+Reuse the official Android native platform and gesture implementation through transport interfaces. `PointerInput` decouples the existing absolute/relative touch recognizers from `NvConnection`; `ManagedInput` adapts them and upstream `KeyboardTranslator` to the existing gateway input packets. Pressed keys are released on loss of window focus or stop. The pinned native WebRTC library handles peer negotiation, secure RTP and audio capture/playout. No WebView streaming wrapper is used.
 
 ## Admission and authority
 
@@ -26,7 +26,11 @@ Reuse the official Android native platform and gesture implementation through tr
 
 Use a distinct Stream Kit application ID, durable release signing key and version code for upgrades. Release TLS validates certificates and hostnames; private LAN CA trust needs explicit provision. Any development HTTP access is restricted to an explicit debug policy. No fake audio, Example, probing components, SDK tools or signing secrets are packaged with the production App.
 
-The management page must identify Android versus Web while sharing connection lease and control policies. Address changes must resolve to a verified server identity before sending stored capabilities; numeric-IP bookmarks do not rewrite themselves. The existing pending LAN TLS/IP-change delivery items remain open.
+Android and Web join with bounded `client_type` metadata; the management page labels their connections. Missing metadata remains `unknown` for compatibility. This client-reported label never grants authority and survives connection persistence/resume. No separate account or session registry is introduced.
+
+One bookmark is encrypted using Android Keystore AES-GCM in the application's no-backup directory. Storage runs off the UI thread. The editor clears the capability after connecting and displays only the origin; process relaunch loads the bookmark but waits for a connect gesture. Users can clear the saved link. Android versions before API 23 or unavailable keys retain only an in-memory link with an explicit notice; no plaintext persistence fallback exists. Key invalidation/ciphertext authentication failure requires re-entry. This follows the [Android Keystore guidance](https://developer.android.com/privacy-and-security/keystore); hardware-backed key storage is not assumed on every device.
+
+Address changes must resolve to a verified server identity before sending stored capabilities; numeric-IP bookmarks do not rewrite themselves. The existing pending LAN TLS/IP-change delivery items remain open.
 
 ## Verification
 
@@ -34,4 +38,4 @@ The management page must identify Android versus Web while sharing connection le
 
 `./gradlew :app:testNonRootDebugUnitTest :app:assembleNonRootDebug` compiles the native client and exercises the HTTP adapter using OkHttp MockWebServer in test scope only. Eleven JVM tests cover credential isolation, redirects, mismatched-identity cleanup, media-resource isolation, authority decoding, ICE quoting and input wire packets. Valid upstream `StreamConfiguration` construction loads Android JNI and is exercised on the emulator, not in the Windows JVM.
 
-The local official Android 16 x86_64 AVD `StreamKit_API_36` runs with WHPX. A native debug APK opened the existing Example permanent link, started the application and displayed actual decoded frames. A confirmed HOME/background/foreground transition returned to viewing with microphone disabled and the link entry hidden on the new peer's first frame. See `docs/evidence/android-native-viewer-20261106.json`. This used debug HTTP through the emulator host alias; it does not prove release TLS, audio, controller input or physical-device behavior. Mixed Android/Web control transfer and audio, durable credential storage, release signing and downloadable artifacts remain required. No repeated user speech session is imposed.
+The local official Android 16 x86_64 AVD `StreamKit_API_36` runs with WHPX. A native debug APK opened the existing Example permanent link, started the application and displayed actual decoded frames. A confirmed HOME/background/foreground transition returned to viewing with microphone disabled and the link entry hidden on the new peer's first frame. See `docs/evidence/android-native-viewer-20261106.json`. A later bookmark build survived force-stop/relaunch and connected again through its saved encrypted entry. This used debug HTTP through the emulator host alias; it does not prove release TLS, audio, controller input or physical-device behavior. Mixed Android/Web control transfer and audio, release signing and downloadable artifacts remain required. No repeated user speech session is imposed.

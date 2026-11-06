@@ -15,7 +15,18 @@ import java.util.concurrent.Executors;
 
 /** Main-thread session owner; network calls never block capture revocation or UI lifecycle. */
 public final class ManagedSession implements AutoCloseable {
-    public interface Listener { void changed(String status, boolean control, boolean microphone, boolean videoReady); }
+    public interface Listener { void changed(ViewState state); }
+    /** One immutable projection prevents UI from inventing authority or capture state. */
+    public static final class ViewState {
+        public final String status;
+        public final boolean running, control, microphoneAllowed, microphoneRequested, microphoneLive, videoReady;
+        ViewState(String status, boolean running, boolean control, boolean microphoneAllowed,
+                  boolean microphoneRequested, boolean microphoneLive, boolean videoReady) {
+            this.status = status; this.running = running; this.control = control;
+            this.microphoneAllowed = microphoneAllowed; this.microphoneRequested = microphoneRequested;
+            this.microphoneLive = microphoneLive; this.videoReady = videoReady;
+        }
+    }
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService network = Executors.newFixedThreadPool(3);
     private final Context context;
@@ -239,6 +250,7 @@ public final class ManagedSession implements AutoCloseable {
     public boolean sendInput(byte[] packet) { checkThread(); return peer != null && peer.sendControl(packet); }
     public boolean isRunning() { return running; }
     public boolean canControl() { return authority.canSendInput(); }
+    public boolean microphoneRequested() { return authority.canSendMicrophone(); }
     public void audioFocus(boolean granted) {
         checkThread();
         audible = granted;
@@ -280,7 +292,12 @@ public final class ManagedSession implements AutoCloseable {
     private boolean valid(long op) { return running && !closed && operation == op; }
     private void fail(String message) { stop(); show(message); }
     private void show(String value) { status = value; publish(); }
-    private void publish() { listener.changed(status, authority.canSendInput(), microphoneLive, videoReady); }
+    private void publish() {
+        ConnectionAuthority current = authority.snapshot();
+        boolean control = authority.canSendInput();
+        listener.changed(new ViewState(status, running, control, control && current != null && current.microphoneEnabled,
+                authority.canSendMicrophone(), microphoneLive, videoReady));
+    }
     private void submit(Runnable task) {
         checkThread();
         pendingWork++;
