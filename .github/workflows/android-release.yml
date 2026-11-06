@@ -53,7 +53,7 @@ jobs:
           umask 077
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$STREAM_KIT_ANDROID_KEYSTORE"
           unset KEYSTORE_BASE64
-          ./gradlew :app:assembleNonRootRelease :app:assembleNonRootReleaseAndroidTest :app:writeManagedRuntimeInventory \
+          ./gradlew :app:testNonRootReleaseUnitTest :app:assembleNonRootRelease :app:assembleNonRootReleaseAndroidTest :app:writeManagedRuntimeInventory \
             "-PstreamKitVersionName=$RELEASE_VERSION" "-PstreamKitVersionCode=$RELEASE_CODE" \
             "-PstreamKitSourceCommit=$GITHUB_SHA" -PstreamKitSourceDirty=false \
             --no-daemon --max-workers=2 --console=plain

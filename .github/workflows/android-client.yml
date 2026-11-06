@@ -41,7 +41,7 @@ jobs:
       - run: python3 scripts/android/test-release-inventory.py
 
   native-debug-build:
-    name: Android debug build and managed HTTP tests
+    name: Android debug build and release managed HTTP tests
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -59,10 +59,10 @@ jobs:
         run: android --sdk="$ANDROID_HOME" sdk install 'platforms;android-37' 'build-tools;37.0.0' 'ndk;29.0.14206865'
       - name: Build native client and test managed HTTP boundaries
         working-directory: third_party/moonlight-android
-        run: ./gradlew :app:testNonRootDebugUnitTest :app:assembleNonRootDebug --no-daemon --max-workers=2 --console=plain
+        run: ./gradlew :app:testNonRootReleaseUnitTest :app:assembleNonRootDebug --no-daemon --max-workers=2 --console=plain
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: android-unit-test-reports
-          path: third_party/moonlight-android/app/build/test-results/testNonRootDebugUnitTest/
+          path: third_party/moonlight-android/app/build/test-results/testNonRootReleaseUnitTest/
           if-no-files-found: warn

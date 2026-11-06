@@ -124,6 +124,7 @@ public final class NativePeer implements AutoCloseable {
                 "a=x-moonlight-app-id:" + appId + "\r\n" +
                 "a=x-moonlight-mode:" + settings.getWidth() + "x" + settings.getHeight() + "x" + settings.getRefreshRate() + "\r\n" +
                 "a=x-moonlight-bitrate:" + settings.getBitrate() + "\r\n" +
+                "a=x-moonlight-preferred-codec:" + settings.getSupportedVideoFormats() + "\r\n" +
                 "a=x-moonlight-hdr:0\r\n" +
                 "a=x-moonlight-local-audio-play-mode:" + (settings.getPlayLocalAudio() ? "1" : "0") + "\r\n";
         peer.createOffer(new SdpCallbacks() {

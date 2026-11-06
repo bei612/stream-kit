@@ -32,8 +32,21 @@ final class MediaProfile {
         if (width < 16 || height < 16 || width > 8192 || height > 8192 || fps < 1 || fps > 240 || bitrate < 1) {
             throw new IllegalArgumentException("Invalid server media profile");
         }
+        int formats = preferredVideoFormats(defaults);
         return new StreamConfiguration.Builder().setResolution(width, height).setRefreshRate(fps)
+                .setSupportedVideoFormats(formats)
                 .setBitrate(bitrate).enableLocalAudioPlayback(defaults.optBoolean("playAudioLocal", false)).build();
+    }
+
+    /** Same x-moonlight-preferred-codec mask as Web getVideoCodecHint and Rust VideoFormats. */
+    static int preferredVideoFormats(JSONObject defaults) {
+        switch (defaults.optString("videoCodec", "h264")) {
+            case "h264": return 0x0005;
+            case "h265": return 0x0f00;
+            case "av1": return 0xf000;
+            case "auto": return 0xff05;
+            default: throw new IllegalArgumentException("Unsupported server video codec preference");
+        }
     }
 
     /** Parse quoted Link parameters without splitting TURN credentials at embedded commas. */
