@@ -9,7 +9,16 @@ function androidParticipant({adb,serial}) {
   assert.match(serial,/^emulator-[0-9]+$/);
   const run=(...args)=>{
     try{return execFileSync(adb,['-s',serial,...args],{encoding:'utf8',windowsHide:true,timeout:20000,stdio:['ignore','pipe','pipe']});}
-    catch{throw Error('Android acceptance command failed: '+args.slice(0,2).join(' '));}
+    catch(error){
+      // Never include command arguments or general adb output: an Activity
+      // launch contains the durable watching capability. UI dump diagnostics
+      // are restricted to known, non-content-bearing failure classifications.
+      const stderr=String(error.stderr||'');
+      const reason=/could not get idle state/i.test(stderr)?'accessibility_not_idle'
+        :/null root node/i.test(stderr)?'accessibility_root_unavailable'
+        :/device offline/i.test(stderr)?'device_offline':'command_failed';
+      throw Error(`Android acceptance command failed: ${args.slice(0,2).join(' ')}; reason=${reason}; code=${error.code||'none'}; exit=${error.status}; signal=${error.signal||'none'}`);
+    }
   };
   const hierarchy=()=>{
     run('shell','uiautomator','dump','/sdcard/stream-kit-input.xml');
