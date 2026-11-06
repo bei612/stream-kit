@@ -20,7 +20,7 @@ on:
         default: auto
         options:
           - auto
-          - off
+          - 'off'
 
 permissions:
   contents: read
