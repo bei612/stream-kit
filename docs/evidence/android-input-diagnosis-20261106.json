@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-06",
+  "passed": false,
+  "source_commit": "6e9b22493ff69a5ad40485ec1e8d41d11d9dced2",
+  "apk_kind": "clean local signed build, not downloaded CI artifact",
+  "apk_sha256": "fbc4cdc67003b56e6de4b860e2fb98d295cd3f9e794b5952de068efeb2d1ab5e",
+  "host_media_commit": "66249387b32975e79d56b19fdf98d4bc7d414da0",
+  "application": "Existing standalone Example only; no business UE application changed",
+  "observations": {
+    "android_translator_bug_fixed": true,
+    "all_six_browser_input_channels_registered": true,
+    "host_received_keyboard_down_up": [
+      "A from authorized Android controller",
+      "C from authorized Web controller"
+    ],
+    "host_did_not_receive": [
+      "B from revoked Android client",
+      "D from released Web client"
+    ],
+    "remote_key_counts": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "remote_click_counts": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "foreground_before_android": {
+      "foreground_pid": 35636,
+      "request_granted": true,
+      "foreground_window": 1771842,
+      "previous_window": 1771842,
+      "previous_process": "checkerboard",
+      "foreground_process": "checkerboard"
+    },
+    "foreground_before_web": {
+      "foreground_pid": 35636,
+      "request_granted": true,
+      "foreground_window": 1771842,
+      "previous_window": 1771842,
+      "previous_process": "checkerboard",
+      "foreground_process": "checkerboard"
+    },
+    "observer_self_check": "A separate run used local PostMessage F24 to verify the Example counter; it incremented once. This was explicitly not remote-input proof and is absent from this run.",
+    "interpretation": "Input reaches the native host. Effective delivery into the application remains unresolved. Do not infer locked desktop as the only cause, and do not claim hostile-client rejection from cooperative-client suppression."
+  },
+  "diagnostic_controls": {
+    "temporary_encoder_debug_logging": true,
+    "original_log_setting_restored_and_loaded": true,
+    "installed_host_binaries_updated": false,
+    "trust_or_network_changed": false,
+    "audio_repeated": false
+  },
+  "isolated_source_followup": {
+    "production_service_replaced": false,
+    "diagnostic_binary_sha256": "25ad02a876845db00f4b470a5889a53f0ce23cd157fc21bb76973e8077d131f4",
+    "result": "Foreground acquisition failed for the owned Example before remote input. The isolated follow-up did not produce a positive input result. No OS security/focus policy was disabled.",
+    "source_instrumentation_removed": true
+  },
+  "evidence": [
+    {
+      "path": ".local/validation/android-input-host-debug/result.json",
+      "sha256": "5840bfae8b5e07ffbd70b75d10521020bffccb5843ad98774b5f5c46c4f6490e"
+    },
+    {
+      "path": ".local/validation/android-input-host-debug/sunshine-logs.json",
+      "sha256": "cd2f122b45d029e58fda493ed9ef330a5dbf5ff1c54669d9ca9094966b2f6946"
+    },
+    {
+      "path": ".local/validation/android-input-host-debug/00-both-viewers.png",
+      "sha256": "a1d9dfdf4ad9c806a89b57770e6f0a708d39cff0c61b72a95312c4ce3a43bc3d"
+    },
+    {
+      "path": ".local/validation/android-input-host-debug/01-android-controller-key-a.png",
+      "sha256": "2b57b7ff21c155fb409b690bd85d5e5c9107717c69b4ff268d7a94a18c5e912c"
+    },
+    {
+      "path": ".local/validation/android-input-host-debug/02-old-android-key-b-denied.png",
+      "sha256": "a439bfe5604884a7f45ab59eb1e065d9ea15163e53e1444e3655a79e0180602e"
+    },
+    {
+      "path": ".local/validation/android-input-host-debug/03-web-controller-key-c.png",
+      "sha256": "b9a41c95e9156f2f6e095f096bc50a626c0e8f6c15384d20240e6f1757c6f78a"
+    },
+    {
+      "path": ".local/validation/android-input-host-debug/04-released-web-key-d-denied.png",
+      "sha256": "17c1a3e3b679d71a3fd3c61c2c26ce4fa22ebff26cf0890384dbcfb9a3154c6b"
+    }
+  ],
+  "remaining": "Resolve Windows focus/input-injection delivery, then verify actual positive input before interpreting revoked-client phases as isolation acceptance."
+}

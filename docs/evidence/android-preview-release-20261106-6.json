@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-06",
+  "release_url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261106.6",
+  "prerelease": true,
+  "production_acceptance_complete": false,
+  "source_commit": "6e9b22493ff69a5ad40485ec1e8d41d11d9dced2",
+  "version": "0.1.0-preview.20261106.6",
+  "version_code": 1000006,
+  "apk_sha256": "6126a54ab076faca41699471656ef6dd5e94b94ddd0869dcad28b3e743e758f6",
+  "signing_certificate_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f",
+  "ci": {
+    "signed_release": 42198541128,
+    "android_client": 42198366219,
+    "conclusion": "success",
+    "release_jvm_tests": 13
+  },
+  "distribution_checksums_verified": 21,
+  "release_asset_digests_verified": true,
+  "assets": [
+    {
+      "name": "distribution.zip",
+      "bytes": 33144299,
+      "sha256": "aab82015639b6cae4da1776a8d10d9262eb033b2cfaf2db52d3d59cba91c7d0a",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261106.6/distribution.zip"
+    },
+    {
+      "name": "DOWNLOAD-SHA256SUMS.txt",
+      "bytes": 359,
+      "sha256": "016f2344f308f1164c0f63944dc36e13b900777c3062557bbb440d936da69101",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261106.6/DOWNLOAD-SHA256SUMS.txt"
+    },
+    {
+      "name": "provenance.json",
+      "bytes": 4836,
+      "sha256": "6009fdd1b0149e044f805f022fbc1d60b56bcd19bb002fb941056fbb886c20d7",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261106.6/provenance.json"
+    },
+    {
+      "name": "sbom.cdx.json",
+      "bytes": 20084,
+      "sha256": "1b3e1e036fefae520e296b87fb9526d22adf2a3fb3dd8ffafc6d4ee7ccd56dd8",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261106.6/sbom.cdx.json"
+    },
+    {
+      "name": "stream-kit-android-0.1.0-preview.20261106.6.apk",
+      "bytes": 33144576,
+      "sha256": "6126a54ab076faca41699471656ef6dd5e94b94ddd0869dcad28b3e743e758f6",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261106.6/stream-kit-android-0.1.0-preview.20261106.6.apk"
+    }
+  ],
+  "emulator": {
+    "avd": "StreamKit_API_36",
+    "api_level": 36,
+    "acceleration": "WHPX",
+    "native_windows": true,
+    "downloaded_ci_apk_installed": true,
+    "install_command": "adb install -r",
+    "same_signer_verified": true
+  },
+  "change": "Normalize upstream GFE-prefixed keyboard codes at the managed Android boundary; preserve flags/modifiers and reject invalid codes. Existing server validation remains unchanged.",
+  "local_source_matched_input_evidence": "docs/evidence/android-input-diagnosis-20261106.json",
+  "previous_release_evidence": "docs/evidence/android-preview-release-20261106.json",
+  "scope_note": "New CI APK installed and verified separately. Actual host input packets were observed using the clean local APK of the same source with a distinct hash. Prior audio/lifecycle evidence belongs to .5; these unchanged paths were not rerun.",
+  "installed_host_binaries_updated": false,
+  "remaining": [
+    "Effective host keyboard/touch delivery and revoked-input denial",
+    "Production LAN HTTPS deployment",
+    "Actual host IP change and recovery"
+  ]
+}

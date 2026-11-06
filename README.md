@@ -4,7 +4,7 @@ Stream-Kit 将管理服务、Sunshine 渲染端和 Moonlight Web 媒体网关集
 
 服务端支持 Windows/Linux，客户端提供 Web/PWA 和 Android 原生 App。手机和平板也可直接使用浏览器；浏览器采集麦克风需要安全上下文和用户授权。当前发布渠道为预发布，不能把构建成功视为全部生产验收完成。
 
-基于官方 Moonlight Android 源码二开的 [Android 签名 APK 20261106.5](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261106.5) 已发布，接入同一会话、控制权和音频链路。本机采用官方 Android Emulator，已验证共享视频、程序音、麦克风回传与撤权、断线及前后台恢复；有效输入及撤权后的输入隔离仍待验收。App 要求证书有效且受信任的 HTTPS 观看链接，不能直接连接默认 HTTP 入口。完整范围和完成条件见 [当前 Goal](docs/goal-current.md)，具体版本与验收边界见 [Android 交付证据](docs/evidence/android-preview-release-20261106.json)。
+基于官方 Moonlight Android 源码二开的 [Android 签名 APK 20261106.6](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261106.6) 已发布，接入同一会话、控制权和音频链路，并修复上游键盘翻译器的键码格式差异。本机采用官方 Android Emulator；`.5` 版本已有共享视频、程序音、麦克风回传与撤权、断线及前后台恢复证据。`.6` 的按键已到达 Windows 编码器，但目标程序的有效输入及撤权后的输入隔离仍待完成验收，不能视为已经可用。App 要求证书有效且受信任的 HTTPS 观看链接，不能直接连接默认 HTTP 入口。完整范围和完成条件见 [当前 Goal](docs/goal-current.md)，具体版本与验收边界见 [Android .6 交付证据](docs/evidence/android-preview-release-20261106-6.json)及[输入定位记录](docs/evidence/android-input-diagnosis-20261106.json)。
 
 ## 安装与访问
 
