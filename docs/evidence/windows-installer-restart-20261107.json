@@ -10,6 +10,20 @@
   "replacement_source": "47c02726c0161ebdec50911422d62845a9b6e59a",
   "replacement_product_run": 42280613810,
   "replacement_source_ci_run": 42280610396,
+  "replacement_source_ci": {
+    "conclusion": "success",
+    "source_commit": "47c02726c0161ebdec50911422d62845a9b6e59a",
+    "snapshot_sha256": "de84354c55eda44caaca0201e2b58cbc2b9ac13ebda63aea49547b5640f92b6f",
+    "passed_jobs": [
+      "Management Web",
+      "Orchestrator (ubuntu-latest)",
+      "Orchestrator (windows-latest)",
+      "Moonlight Web (ubuntu-latest)",
+      "Moonlight Web (windows-latest)",
+      "Source SBOM"
+    ],
+    "scope": "Source tests, native control/gateway bundles and browser checks. This does not replace exact unified-installer lifecycle acceptance or prove a host reboot."
+  },
   "replacement_audio_provisioning_run": 42280610471,
   "replacement_status": "in_progress",
   "replacement_actual_silent_outcome_ci": "passed",

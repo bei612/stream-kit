@@ -43,6 +43,7 @@
       "replacement_source": "47c02726c0161ebdec50911422d62845a9b6e59a",
       "replacement_product_run": 42280613810,
       "replacement_source_ci_run": 42280610396,
+      "replacement_source_ci": "success",
       "replacement_audio_provisioning_run": 42280610471,
       "native_linux_pairing_fingerprint_tests": "passed",
       "source_ci_run": 42273640023,
