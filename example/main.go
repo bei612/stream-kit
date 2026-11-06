@@ -140,6 +140,9 @@ func wndProc(hwnd syscall.Handle, msg uint32, wParam uintptr, lParam unsafe.Poin
 		return 0
 	case 0x0201, 0x0204, 0x0207: // Pointer buttons on the test canvas.
 		pointerCount++
+		emitInputEvent("pointer_down", uintptr(hwnd))
+	case 0x0007, 0x0008, 0x0006: // Focus and activation; no input is synthesized.
+		emitInputEvent("focus_changed", uintptr(hwnd))
 	case WM_PAINT:
 		var ps PAINTSTRUCT
 		hdc, _, _ := pBeginPaint.Call(uintptr(hwnd), uintptr(unsafe.Pointer(&ps)))
@@ -249,6 +252,7 @@ func wndProc(hwnd syscall.Handle, msg uint32, wParam uintptr, lParam unsafe.Poin
 	case 0x0010: // WM_CLOSE; preserve normal system close handling below.
 		lifecycle("window_close", nil)
 	case WM_DESTROY:
+		emitInputEvent("closed", uintptr(hwnd))
 		lifecycle("window_destroyed", nil)
 		pKillTimer.Call(uintptr(hwnd), 1)
 		pPostQuitMessage.Call(0)
@@ -281,6 +285,8 @@ func runExample() error {
 	for _, arg := range os.Args[1:] {
 		if arg == "-fullscreen" || arg == "--fullscreen" {
 			fullscreen = true
+		} else if arg == "--input-events" {
+			inputEventsEnabled = true
 		} else if strings.HasPrefix(arg, "--tone-output=") {
 			initialToneOutput = strings.TrimPrefix(arg, "--tone-output=")
 		} else if strings.HasPrefix(arg, "--input-device=") {
@@ -365,6 +371,7 @@ func runExample() error {
 	defer pDeleteObject.Call(audioFont)
 	defer pDeleteObject.Call(audioBackground)
 	pUpdateWindow.Call(hwnd)
+	emitInputEvent("ready", hwnd)
 
 	var msg MSG
 	for {
@@ -385,6 +392,7 @@ func runExample() error {
 		}
 		if msg.Message == WM_KEYDOWN {
 			inputCount++
+			emitInputEvent("key_down", hwnd)
 		}
 		if handled, _, _ := user32.NewProc("IsDialogMessageW").Call(hwnd, uintptr(unsafe.Pointer(&msg))); handled != 0 {
 			continue

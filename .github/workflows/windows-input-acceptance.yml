@@ -1,0 +1,31 @@
+name: windows-native-input-acceptance
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  owned-example-input:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.3'
+          cache: false
+      - name: Build the standalone development observer
+        shell: pwsh
+        run: go -C example build -trimpath -ldflags '-H=windowsgui' -o ../artifacts/input-example/checkerboard.exe .
+      - name: Verify actual Windows keyboard and pointer delivery
+        shell: pwsh
+        run: ./scripts/accept-example-input.ps1 -ExamplePath artifacts/input-example/checkerboard.exe -OutputDirectory artifacts/windows-native-input
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-native-input-evidence
+          path: artifacts/windows-native-input/
+          if-no-files-found: error
+          retention-days: 14

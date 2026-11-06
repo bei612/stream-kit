@@ -2,6 +2,10 @@
 
 Windows 原生窗口保留棋盘格、分辨率与全屏测试，并增加实时画面计数、键盘/画布鼠标计数和音频测试面板。窗口缩放、关闭按钮和 Esc 均可使用；焦点在音频控件时 Esc 仍关闭整个程序。
 
+自动输入验收可使用 `--input-events`：标准输出按行写入 `type=stream-kit-example-input`、`schema_version=1` 的 JSON，包含进程 ID、事件类型、时间、累计按键/画布点击次数、前台及键盘焦点状态。只在本窗口收到输入或焦点变化时输出，不采集全局输入，不记录文字、键值或声音；默认关闭，也不会修改系统焦点策略。`key_down` 必须以实际计数变化判断，不能把发送端 `SendInput` 成功或后台“控制中”当作接收成功。该输出不区分本地物理输入与远程注入，验收需使用独立窗口并排除其他操作。Example 及此观察能力不进入生产安装包。
+
+Windows 本机输入基线使用 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/accept-example-input.ps1 -ExamplePath <checkerboard.exe> -OutputDirectory <新的证据目录>`。它创建并关闭自己的可见窗口，只有确认该窗口在前台时才发送一次 F24 和一次画布点击，并要求程序报告对应计数；无法获得焦点时直接报告环境前置条件不满足，不向其他窗口发按键，不关闭远控软件或修改系统策略。`-ObserveOnly` 仅验证观察输出和正常退出，不代表输入验收。手动 GitHub workflow `windows-native-input-acceptance` 可在隔离 Windows runner 上运行此基线；该结果也不能单独证明 Android/Web 端到端输入通过。
+
 ## 音频测试
 
 录音和播放使用独立的原生流，可以在 **Record input** 录音期间点击 **Play test tone**，同时检验客户端麦克风接收和程序音输出。界面分别显示 Input/Output 状态；**Stop recording**、**Stop playback** 只停止对应方向，**Stop all** 同时停止。一个方向结束或设备出错不会自动终止另一个方向。录音回放仍要求先结束录音，避免复制正在采集的数据；测试音不受该限制。该能力不代替专用虚拟输入设备的部署或端到端实录验收。
