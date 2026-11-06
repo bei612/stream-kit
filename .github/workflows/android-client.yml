@@ -50,9 +50,10 @@ jobs:
       - uses: android-actions/setup-android@v3
         with:
           packages: platform-tools
+          cmdline-tools-version: '16111833'
           log-accepted-android-sdk-licenses: false
       - name: Install pinned build SDK
-        run: sdkmanager 'platforms;android-37' 'build-tools;37.0.0' 'ndk;29.0.14206865'
+        run: android --sdk="$ANDROID_HOME" sdk install 'platforms;android-37' 'build-tools;37.0.0' 'ndk;29.0.14206865'
       - name: Build native client and test managed HTTP boundaries
         working-directory: third_party/moonlight-android
         run: ./gradlew :app:testNonRootDebugUnitTest :app:assembleNonRootDebug --no-daemon --max-workers=2 --console=plain
