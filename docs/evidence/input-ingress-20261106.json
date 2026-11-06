@@ -84,7 +84,87 @@
   "followup": {
     "source_commit": "e29b824da2e9b9ed6b1184f69c0c465abba9555e",
     "run": "https://github.com/bei612/stream-kit/actions/runs/42209334110",
-    "status": "pending",
-    "ci_change": "Move format and strict Clippy checks ahead of release/WASM builds; retain all checks"
+    "status": "native_format_strict_lint_and_tests_passed_full_ci_in_progress",
+    "ci_change": "Move format and strict Clippy checks ahead of release/WASM builds; retain all checks",
+    "native_gates": [
+      {
+        "job": 127863810603,
+        "name": "Moonlight Web (windows-latest)",
+        "checks": [
+          {
+            "name": "Run cargo fmt --all -- --check",
+            "conclusion": "success",
+            "completedAt": "2026-11-06T11:20:40Z"
+          },
+          {
+            "name": "Run cargo clippy --locked --all-targets -- -D warnings",
+            "conclusion": "success",
+            "completedAt": "2026-11-06T11:21:13Z"
+          },
+          {
+            "name": "Run cargo test --locked",
+            "conclusion": "success",
+            "completedAt": "2026-11-06T11:23:57Z"
+          }
+        ]
+      },
+      {
+        "job": 127863810637,
+        "name": "Moonlight Web (ubuntu-latest)",
+        "checks": [
+          {
+            "name": "Run cargo fmt --all -- --check",
+            "conclusion": "success",
+            "completedAt": "2026-11-06T11:46:19Z"
+          },
+          {
+            "name": "Run cargo clippy --locked --all-targets -- -D warnings",
+            "conclusion": "success",
+            "completedAt": "2026-11-06T11:46:30Z"
+          },
+          {
+            "name": "Run cargo test --locked",
+            "conclusion": "success",
+            "completedAt": "2026-11-06T11:48:23Z"
+          }
+        ]
+      }
+    ],
+    "windows_gateway_job": {
+      "job": 127863810603,
+      "conclusion": "success",
+      "scope": "Native tests, strict lint, release compilation, API/media contract, Chromium/Firefox viewer assets and audio lifecycle; not target application input delivery"
+    },
+    "management_browser_job": {
+      "job": 127863810555,
+      "conclusion": "cancelled",
+      "cause": "Ubuntu dependency downloads exceeded the 30-minute job deadline before browser interaction tests could start",
+      "retry": "pending workflow completion; no passed job is intentionally restarted"
+    },
+    "current_product_candidate": {
+      "source_commit": "d36cead6fd856925b283daddcc4af6cd1cdb7dd0",
+      "run": "https://github.com/bei612/stream-kit/actions/runs/42211313164",
+      "status": "windows_build_in_progress_linux_build_succeeded",
+      "source_difference_from_tested_commit": "Only docs/evidence/goal-delivery-audit-20261104.json and docs/evidence/input-ingress-20261106.json",
+      "linux": {
+        "installer": {
+          "file": "stream-kit-preview-d36cead6fd85-ubuntu24.04-amd64-setup.run",
+          "bytes": 62362543,
+          "sha256": "6df089ad4f46ef9628d1299ac7392dae6baa9604f1e60764ef286785eec55a62"
+        },
+        "acceptance_log_sha256": "c362badaddbf6052377d855b217e5f315589aac483a26a586bc54d41e2189d66",
+        "scope": "Native extraction, offline user-service enablement, configuration initialization and data preservation; no actual media session or host IP change."
+      },
+      "sbom": {
+        "file": "stream-kit-sbom.spdx.json",
+        "bytes": 7453600,
+        "sha256": "f19f2eac968c5340821875de17c9c0d8190294e314377b70f0b3ca1340831efc",
+        "format": "SPDX-2.3",
+        "packages": 3123
+      },
+      "published": false,
+      "installed": false,
+      "installer_acceptance": "pending automatic workflow after successful product build"
+    }
   }
 }
