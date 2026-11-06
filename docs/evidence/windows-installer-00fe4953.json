@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "source_commit": "00fe4953751e52dd38f0d707e9ba721d5374cb81",
+  "product_run": 42259797123,
+  "windows_installer_acceptance_run": 42270058475,
+  "passed": true,
+  "published": false,
+  "installer_sha256": "ad20ea171f373d4dcacc7a39efc0b67f4903c1f53ea825c0dbbf436dc2604f05",
+  "acceptance_result_sha256": "4bc1584b5431db58431ff93550b6fc074c8c874f72445f92241a58a92ed49fce",
+  "install_exit": 0,
+  "administrator_login": true,
+  "service": {
+    "state": "Running",
+    "start_mode": "Auto",
+    "account": "LocalSystem"
+  },
+  "gateway_restarted": true,
+  "scm_restarted": true,
+  "audio": {
+    "passed": true,
+    "captured_frames": 144000,
+    "dropped_frames": 0,
+    "xruns": 0
+  },
+  "defaults_preserved": true,
+  "uninstall_exit": 0,
+  "service_removed": true,
+  "data_preserved": true,
+  "finished_at": "2026-11-06T18:24:30.577Z",
+  "limits": [
+    "Superseded candidate: does not include automatic fresh-install renderer enrollment added in 3aa0bf7b and corrected in 928c012a.",
+    "Hosted Windows Server 2022 install/service restart, not a physical host reboot or local Windows 11 deployment.",
+    "No browser streaming or new human speech claim. The native network fixture for this candidate paired the renderer explicitly."
+  ]
+}

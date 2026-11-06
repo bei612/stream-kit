@@ -28,7 +28,8 @@
       "source_ci_run": 42259794077,
       "windows_installer_acceptance_run": 42270058475,
       "windows_installer_acceptance": "success",
-      "production_blocker": "Fresh-install renderer enrollment was missing; integrated source fix under validation."
+      "production_blocker": "Fresh-install renderer enrollment was missing; integrated source fix under validation.",
+      "windows_installer_evidence": "docs/evidence/windows-installer-00fe4953.json"
     }
   },
   "installed_source": "66249387b32975e79d56b19fdf98d4bc7d414da0",
@@ -115,7 +116,25 @@
       "item": "Automatic renderer enrollment on a fresh installation",
       "state": "implemented_pending_native_runtime_acceptance",
       "finding": "init-platform starts with no gateway hosts. Prior runtime fixtures explicitly paired the renderer; they do not prove automatic first-install launch. Product LaunchApp now enrolls only its configured renderer via exact certificate fingerprint correlation and normal authenticated GameStream pairing. Updated fixture removes all test-side host creation and PIN approval.",
-      "next": "Run source CI and build the integrated native components, then open the permanent link on a pristine deployment. Publish only source-matched verified installers."
+      "next": "Run source CI and build the integrated native components, then open the permanent link on a pristine deployment. Publish only source-matched verified installers.",
+      "source_commit": "928c012a",
+      "source_ci_run": 42272883974,
+      "product_run": 42273134264,
+      "android_ci_run": 42272884130,
+      "android_release_candidate_run": 42273144637,
+      "known_corrected_build_failure": {
+        "source": "3aa0bf7b",
+        "run": 42272178485,
+        "cause": "Admin implements Deref but not DerefMut; clone its already-authorized AuthenticatedUser for the pairing operation.",
+        "corrected_in": "928c012a"
+      },
+      "local_checks": [
+        "Go orchestrator: go test ./... passed",
+        "Management TypeScript: tsc -b passed",
+        "Rust workspace formatting check passed",
+        "Fixture JavaScript syntax and modified workflow YAML parse passed"
+      ],
+      "client_startup_deadline": "Management launch and Android watch admission now allow 60 seconds for the bounded first-launch enrollment; Android authority heartbeat deadlines are unchanged."
     },
     {
       "item": "Trusted LAN HTTPS deployment",
