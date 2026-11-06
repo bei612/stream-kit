@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-06",
+  "source_commit": "902798f02d6e5746e9237d5ab92867a6496818bd",
+  "ci_run": "https://github.com/bei612/stream-kit/actions/runs/42189035929",
+  "job": "Management Web",
+  "job_conclusion": "success",
+  "before_fix": "The delayed initial read left the enable button active; the browser assertion failed (true !== false).",
+  "fix": "Application-scoped view state and operation revisions prevent mutations before loading, late completion publication and exposing obsolete URLs after an uncertain mutation. Recovery reads current server state.",
+  "results": [
+    {
+      "passed": true,
+      "engine": "chromium",
+      "read_before_mutation": true,
+      "late_other_app_ignored": true,
+      "unknown_mutation_requires_authoritative_read": true,
+      "disable_clears_url": true,
+      "scope": "Built UI with delayed isolated API responses, not actual application launch",
+      "evidence_path": ".local/ci-watch-link-902798f0/admin-watch-link/result.json",
+      "sha256": "e22ffdcb3cdac93f3f6a67617bb032608406c6017b6b2e1832aa5ef4a3b3ea57"
+    },
+    {
+      "passed": true,
+      "engine": "firefox",
+      "read_before_mutation": true,
+      "late_other_app_ignored": true,
+      "unknown_mutation_requires_authoritative_read": true,
+      "disable_clears_url": true,
+      "scope": "Built UI with delayed isolated API responses, not actual application launch",
+      "evidence_path": ".local/ci-watch-link-902798f0/admin-watch-link/firefox/result.json",
+      "sha256": "ac1d10b083bbb2e8ef79c4cde84ac21a9eaebb0ce3e2c882a6e4e0cb00c1934d"
+    },
+    {
+      "passed": true,
+      "engine": "webkit",
+      "read_before_mutation": true,
+      "late_other_app_ignored": true,
+      "unknown_mutation_requires_authoritative_read": true,
+      "disable_clears_url": true,
+      "scope": "Built UI with delayed isolated API responses, not actual application launch",
+      "evidence_path": ".local/ci-watch-link-902798f0/admin-watch-link/webkit/result.json",
+      "sha256": "3fda7dc748b72a58dcf72efddfd885a667a931572a7b35b5895e98c9f675b1d4"
+    }
+  ],
+  "limits": [
+    "Isolated API fixture with built management assets, not a real permanent-link rotation against the installed server",
+    "Product installer build 42189092709 is separate and must pass installation acceptance before publication"
+  ]
+}
