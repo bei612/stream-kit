@@ -237,10 +237,24 @@ public final class ManagedSession implements AutoCloseable {
         });
     }
 
-    public void microphone(boolean enabled, boolean permissionGranted) {
+    public AuthorityState.MicrophoneRequest beginMicrophoneRequest() {
         checkThread();
-        if (!enabled) authority.muteMicrophone();
-        else authority.requestMicrophone(permissionGranted && audible);
+        return authority.beginMicrophoneRequest();
+    }
+
+    public void microphone(AuthorityState.MicrophoneRequest request, boolean permissionGranted) {
+        checkThread();
+        authority.completeMicrophoneRequest(request, permissionGranted && audible);
+        synchronizeMicrophone();
+    }
+
+    public void muteMicrophone() {
+        checkThread();
+        authority.muteMicrophone();
+        synchronizeMicrophone();
+    }
+
+    private void synchronizeMicrophone() {
         if (peer != null) peer.setMicrophone(authority.canSendMicrophone());
         if (!authority.canSendMicrophone()) microphoneLive = false;
         nextHeartbeat = 0;
@@ -254,7 +268,7 @@ public final class ManagedSession implements AutoCloseable {
     public void audioFocus(boolean granted) {
         checkThread();
         audible = granted;
-        if (!granted) microphone(false, false);
+        if (!granted) muteMicrophone();
         if (peer != null) peer.audible(granted);
     }
 

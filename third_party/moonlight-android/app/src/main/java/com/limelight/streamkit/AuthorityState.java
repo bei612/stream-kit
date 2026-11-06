@@ -12,6 +12,16 @@ public final class AuthorityState {
     private boolean microphoneConsent;
     private boolean authorityFresh;
     private long generation;
+    private long microphoneRequestSequence;
+
+    /** Opaque, single-use UI request bound to this connection's current authority. */
+    public static final class MicrophoneRequest {
+        private final AuthorityState owner;
+        private final long generation, sequence;
+        private MicrophoneRequest(AuthorityState owner, long generation, long sequence) {
+            this.owner = owner; this.generation = generation; this.sequence = sequence;
+        }
+    }
 
     /** Invalidates every outstanding callback and clears previous session consent. */
     public synchronized long begin() {
@@ -19,6 +29,7 @@ public final class AuthorityState {
         transportReady = false;
         microphoneConsent = false;
         authorityFresh = false;
+        ++microphoneRequestSequence;
         return ++generation;
     }
 
@@ -43,7 +54,8 @@ public final class AuthorityState {
                 suspend();
                 throw new IllegalArgumentException("Inconsistent connection authority version");
             }
-            if (next.controlEpoch != current.controlEpoch) microphoneConsent = false;
+            if (next.controlEpoch != current.controlEpoch || next.role != current.role ||
+                    next.microphoneEnabled != current.microphoneEnabled) muteMicrophone();
         }
         current = next;
         authorityFresh = true;
@@ -69,17 +81,31 @@ public final class AuthorityState {
         transportReady = false;
         microphoneConsent = false;
         authorityFresh = false;
+        ++microphoneRequestSequence;
         // Late successes from before interruption cannot reactivate capture or input.
         ++generation;
     }
 
     /** Only an explicit UI action with RECORD_AUDIO granted may call this method. */
     public synchronized boolean requestMicrophone(boolean permissionGranted) {
+        return completeMicrophoneRequest(beginMicrophoneRequest(), permissionGranted);
+    }
+
+    public synchronized MicrophoneRequest beginMicrophoneRequest() {
+        if (!canSendInput() || !current.microphoneEnabled) return null;
+        return new MicrophoneRequest(this, generation, ++microphoneRequestSequence);
+    }
+
+    /** A delayed Android permission result cannot grant consent to a later controller/session. */
+    public synchronized boolean completeMicrophoneRequest(MicrophoneRequest request, boolean permissionGranted) {
+        if (request == null || request.owner != this || request.generation != generation ||
+                request.sequence != microphoneRequestSequence) return false;
+        ++microphoneRequestSequence;
         microphoneConsent = permissionGranted && canSendInput() && current.microphoneEnabled;
         return microphoneConsent;
     }
 
-    public synchronized void muteMicrophone() { microphoneConsent = false; }
+    public synchronized void muteMicrophone() { microphoneConsent = false; ++microphoneRequestSequence; }
 
     public synchronized boolean canSendInput() {
         return foreground && transportReady && authorityFresh && current != null &&

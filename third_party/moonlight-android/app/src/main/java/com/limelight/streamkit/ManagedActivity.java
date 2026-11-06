@@ -40,6 +40,8 @@ public final class ManagedActivity extends Activity {
     private WatchLinkStore bookmarks;
     private int entryGeneration;
     private boolean resumeOnStart;
+    private AuthorityState.MicrophoneRequest pendingMicrophoneRequest;
+    private int microphonePermissionCode = 100;
     private AbsoluteTouchContext touch;
     private FrameLayout mediaArea;
     private int frameWidth, frameHeight;
@@ -118,7 +120,7 @@ public final class ManagedActivity extends Activity {
         session = new ManagedSession(this, egl.getEglBaseContext(), video, width, height, BuildConfig.DEBUG,
                 stateView -> {
                     status.setText(stateView.status);
-                    microphone.setEnabled(stateView.microphoneAllowed);
+                    microphone.setEnabled(stateView.microphoneAllowed && pendingMicrophoneRequest == null);
                     if (!stateView.control) { pressedKeys.clear(); if (touch != null) touch.cancelTouch(); }
                     microphone.setText(stateView.microphoneLive ? "麦克风开启中" : stateView.microphoneRequested ? "正在开启麦克风…" : "麦克风已关闭");
                     connect.setEnabled(!stateView.running);
@@ -168,10 +170,15 @@ public final class ManagedActivity extends Activity {
         });
         microphone.setEnabled(false);
         microphone.setOnClickListener(view -> {
-            if (session.microphoneRequested()) { session.microphone(false, false); return; }
-            if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED)
-                requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 1);
-            else enableMicrophone();
+            if (session.microphoneRequested()) { session.muteMicrophone(); return; }
+            AuthorityState.MicrophoneRequest request = session.beginMicrophoneRequest();
+            if (request == null) return;
+            if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                pendingMicrophoneRequest = request;
+                microphone.setEnabled(false);
+                microphonePermissionCode = microphonePermissionCode == 65535 ? 100 : microphonePermissionCode + 1;
+                requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, microphonePermissionCode);
+            } else enableMicrophone(request);
         });
         readIntent(getIntent());
     }
@@ -196,14 +203,19 @@ public final class ManagedActivity extends Activity {
         }
     }
     private void savedLinkHint() { address.setHint("当前应用 · " + currentLink.origin()); }
-    private void enableMicrophone() {
-        if (!session.canControl()) return;
-        if (!acquireAudioFocus()) { Toast.makeText(this, "音频正在被其他应用使用", Toast.LENGTH_SHORT).show(); return; }
-        session.microphone(true, true);
+    private void enableMicrophone(AuthorityState.MicrophoneRequest request) {
+        if (!session.canControl()) { session.microphone(request, false); return; }
+        if (!acquireAudioFocus()) { session.microphone(request, false); Toast.makeText(this, "音频正在被其他应用使用", Toast.LENGTH_SHORT).show(); return; }
+        session.microphone(request, true);
     }
     @Override public void onRequestPermissionsResult(int request, String[] permissions, int[] results) {
         super.onRequestPermissionsResult(request, permissions, results);
-        if (request == 1 && results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) enableMicrophone();
+        if (request == microphonePermissionCode && pendingMicrophoneRequest != null) {
+            AuthorityState.MicrophoneRequest pending = pendingMicrophoneRequest;
+            pendingMicrophoneRequest = null;
+            if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) enableMicrophone(pending);
+            else session.microphone(pending, false);
+        }
     }
     @Override protected void onNewIntent(Intent intent) { super.onNewIntent(intent); setIntent(intent); readIntent(intent); }
     private void readIntent(Intent intent) {
@@ -224,6 +236,7 @@ public final class ManagedActivity extends Activity {
         if (sessionRunning()) acquireAudioFocus();
     }
     @Override protected void onStop() {
+        pendingMicrophoneRequest = null;
         resumeOnStart = sessionRunning();
         touch.cancelTouch();
         releaseKeys();

@@ -87,6 +87,46 @@ public final class ManagedProtocolTest {
         state.stop();
         check(!state.apply(run, authority(9, 4, Role.CONTROLLER)) && state.snapshot() == null,
                 "Late response revived stopped session");
+        permissionResultRaces();
         System.out.println("Android managed protocol: " + checks + " checks passed");
+    }
+
+    private static void permissionResultRaces() {
+        AuthorityState state = new AuthorityState();
+        long run = state.begin();
+        state.setForeground(true);
+        state.apply(run, authority(1, 1, Role.CONTROLLER));
+        state.setTransportReady(run, true);
+        AuthorityState.MicrophoneRequest pending = state.beginMicrophoneRequest();
+        // Ordinary heartbeats must not force the user to repeat the permission gesture.
+        state.apply(run, authority(2, 1, Role.CONTROLLER));
+        check(state.completeMicrophoneRequest(pending, true), "Benign heartbeat invalidated pending permission");
+        check(!state.completeMicrophoneRequest(pending, false) && state.canSendMicrophone(), "Repeated permission result mutated consent");
+        state.muteMicrophone();
+        pending = state.beginMicrophoneRequest();
+        state.apply(run, authority(3, 2, Role.VIEWER));
+        state.apply(run, authority(4, 3, Role.CONTROLLER));
+        check(!state.completeMicrophoneRequest(pending, true) && !state.canSendMicrophone(), "Old permission result enabled new controller epoch");
+        pending = state.beginMicrophoneRequest();
+        state.apply(run, new ConnectionAuthority("session-1", "connection-1", "private-token", 5, 3, Role.CONTROLLER, false));
+        state.apply(run, authority(6, 3, Role.CONTROLLER));
+        check(!state.completeMicrophoneRequest(pending, true) && !state.canSendMicrophone(), "Policy disable/enable resurrected pending consent");
+        pending = state.beginMicrophoneRequest();
+        state.muteMicrophone();
+        check(!state.completeMicrophoneRequest(pending, true), "Audio-focus loss did not invalidate pending consent");
+        pending = state.beginMicrophoneRequest();
+        state.stop();
+        run = state.generation();
+        state.apply(run, authority(7, 4, Role.CONTROLLER));
+        state.setTransportReady(run, true);
+        check(!state.completeMicrophoneRequest(pending, true) && !state.canSendMicrophone(), "Stopped session's permission enabled reconnected microphone");
+        pending = state.beginMicrophoneRequest();
+        check(state.completeMicrophoneRequest(pending, true), "New explicit permission denied");
+        AuthorityState other = new AuthorityState();
+        long otherRun = other.begin();
+        other.setForeground(true);
+        other.apply(otherRun, authority(7, 4, Role.CONTROLLER));
+        other.setTransportReady(otherRun, true);
+        check(!other.completeMicrophoneRequest(pending, true), "Permission request crossed session owner");
     }
 }

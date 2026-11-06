@@ -22,6 +22,8 @@ Reuse the official Android native platform and gesture implementation through tr
 
 `ManagedSession` owns asynchronous admission, heartbeat, authority expiry, reconnect and late-result cleanup. `ManagedActivity` presents native video, permission controls and the upstream absolute-touch recognizer. Backgrounding leaves the connection and releases capture; returning rejoins as a viewer. Audio-focus loss disables capture and playout. Microphone capture requires an explicit user action, Android permission and current controller authority. Returning to foreground or reconnecting does not automatically restore recording consent. First-frame visibility is tracked per peer so a reused renderer cannot leave the link editor visible after reconnect.
 
+Android permission dialogs are asynchronous. Each microphone gesture now creates an opaque, single-use authority request; the returning permission result must match its session owner, generation and consent sequence. Control transfer, policy disable/enable, audio-focus loss, backgrounding and reconnect invalidate pending requests. Ordinary unchanged-authority heartbeats do not. A stale permission denial also cannot turn off a newer valid request. The Activity correlates Android request codes and discards pending permission requests on stop.
+
 ## Configuration and product boundary
 
 Use a distinct Stream Kit application ID, durable release signing key and version code for upgrades. Release TLS validates certificates and hostnames; private LAN CA trust needs explicit provision. Any development HTTP access is restricted to an explicit debug policy. No fake audio, Example, probing components, SDK tools or signing secrets are packaged with the production App.
