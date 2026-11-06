@@ -30,7 +30,10 @@ function androidParticipant({adb,serial}) {
     assert.ok(role&&bounds,'Incomplete Android UI snapshot');
     return {role:role[1],bounds:bounds.slice(1).map(Number)};
   };
-  const role=controller=>until(()=>snapshot().role===(controller?'controller':'viewer'),'Android role update',30000);
+  const role=controller=>until(()=>{
+    const view=snapshot(),[left,top,right,bottom]=view.bounds;
+    return view.role===(controller?'controller':'viewer')&&right>left&&bottom>top?view:false;
+  },'Android role update',30000);
   return {
     async connect(link){
       const parsed=new URL(link);assert.equal(parsed.protocol,'https:');assert.equal(parsed.hostname,'10.0.2.2');
@@ -39,9 +42,10 @@ function androidParticipant({adb,serial}) {
     },
     role,
     key(){run('shell','input','keyevent','KEYCODE_A');},
-    tap(){
-      const {role,bounds:[left,top,right,bottom]}=snapshot();
-      assert.ok(role!=='other'&&right>left&&bottom>top,'Expected active Android streaming window');
+    async tap(controller){
+      // Connecting accessibility can briefly return no active root. Wait for
+      // the expected visible role just as connection/transfer checks already do.
+      const {bounds:[left,top,right,bottom]}=await role(controller);
       // The published Activity centers the video in its main area. Exercise an
       // ordinary center-window tap, independent of SurfaceView accessibility.
       // Success still requires an actual pointer-down event at the remote target.
@@ -63,7 +67,7 @@ async function verifyAndroidInput({android,page,api,sessionId,app,example,report
   async function nativeInput(label,allowed) {
     await android.role(allowed);focus();const before=snapshot();android.key();
     if(allowed)await until(()=>snapshot().keys>before.keys,'Android key delivered');
-    android.tap();
+    await android.tap(allowed);
     if(allowed)await until(()=>snapshot().clicks>before.clicks,'Android touch delivered');
     else await delay(1000);
     focus();const after=snapshot();
