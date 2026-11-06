@@ -81,6 +81,36 @@
         "read_only": true
       },
       "interpretation": "At the recorded time, the tool process was in WinSta0/Default with an input-receiving desktop, no mouse capture/menu/move-size loop and no held mouse/modifier keys. This does not prove earlier input delivery or its cause. Existing ToDesk UI automation did not expose runtime input-blocking state; persisted settings alone are not causal evidence."
+    },
+    "privacy_window_observation": {
+      "observed_at": "2026-11-06T14:29:45.963Z",
+      "window": {
+        "pid": 30976,
+        "title": "ToDesk_Private_Screen",
+        "visible": true,
+        "enabled": true,
+        "minimized": false,
+        "bounds": {
+          "Left": 0,
+          "Top": 0,
+          "Right": 1920,
+          "Bottom": 1080
+        },
+        "extended_style": 168296616
+      },
+      "settings_changed": false,
+      "remote_connection_stopped": false,
+      "window_capture": "PrintWindow returned false; no capture restriction bypass attempted",
+      "interpretation": "A visible, enabled, non-minimized 1920x1080 ToDesk privacy window is present. This is a concrete potential interference source, not yet proof of the input failure cause. Controller-side privacy/input-blocking state must be changed through supported controls before a causal comparison.",
+      "vendor_sources": [
+        "https://www.todesk.com/helpcenter/solo-59.html",
+        "https://www.todesk.com/news/477.html?v=5"
+      ]
+    },
+    "standard_uia_focus_probe": {
+      "result": ".local/validation/example-uia-input-v2-20261106/result.json",
+      "focusable_control_exposed": false,
+      "scope": "The test-owned custom drawing window exposes no focusable UI Automation control; the diagnostic ended before injecting input and exited cleanly. This is not evidence of a new product failure."
     }
   },
   "observer": {
@@ -121,6 +151,14 @@
     {
       "path": ".local/validation/input-state-readonly-20261106.json",
       "sha256": "e9c66bd225daccb2f22df69f1703f08610479fe31b574cf3244fd081070abf83"
+    },
+    {
+      "path": ".local/validation/todesk-window-state-20261106.json",
+      "sha256": "fa697779ca2ca005ae2d5b34f1397d8430c6a5adee6c957edc573ae8d9916ce6"
+    },
+    {
+      "path": ".local/validation/example-uia-input-v2-20261106/result.json",
+      "sha256": "8fc4d007efa5e5892c4ddc1e8a8e7e30c7d0f191315e3d69633358a9107c7616"
     }
   ],
   "remaining": "Resolve local input delivery without bypassing OS policy or disrupting remote control; then verify effective Android/Web input and revocation with the owned Example event stream. No additional audio or stability rerun required."
