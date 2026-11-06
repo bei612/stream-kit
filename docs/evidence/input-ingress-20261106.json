@@ -38,7 +38,7 @@
         }
       }
     ],
-    "overall_workflow": "in_progress_at_recording",
+    "overall_workflow": "Failed Linux strict Clippy checks after passing Rust tests; remaining obsolete jobs cancelled",
     "regressions": [
       "subscribers_reuse_transport_until_last_peer_leaves: viewer denial, input generation preserved across transfer, queue saturation and weak-handle lifetime",
       "truncated_input_is_rejected_without_panicking",
@@ -57,11 +57,21 @@
         "path": "third_party/moonlight-common-rust/src/stream/proto/control/packet.rs",
         "sha256": "9a126b153e26f403df9043f60e9d6781e8ec194ee656b850da363da532276a9c"
       }
-    ]
+    ],
+    "strict_lint_failure": {
+      "job": 127858705858,
+      "issues": [
+        "unused can_control method after ingress consolidation",
+        "collapsible nested condition",
+        "items after test module"
+      ],
+      "fixed_by": "8e3c1f1e505f7c699cf1a3cd02086c9d08f6949a",
+      "log": ".local/validation/ci-88ff24b2/linux-gateway.log"
+    }
   },
   "product_candidate": {
     "run": "https://github.com/bei612/stream-kit/actions/runs/42208552631",
-    "status": "started_not_published",
+    "status": "cancelled_after_strict_lint_failure_not_published",
     "installer_acceptance": "pending"
   },
   "installed_services_changed": false,
@@ -70,5 +80,11 @@
     "The input authority guarantee covers application queuing after data-channel polling; it does not assert client generation tagging for network-delayed packets.",
     "Native unit tests do not establish actual Android/Web input delivery or revocation in the target application.",
     "Local input/focus interference, trusted LAN HTTPS cutover and actual host IP-change recovery remain unresolved."
-  ]
+  ],
+  "followup": {
+    "source_commit": "e29b824da2e9b9ed6b1184f69c0c465abba9555e",
+    "run": "https://github.com/bei612/stream-kit/actions/runs/42209334110",
+    "status": "pending",
+    "ci_change": "Move format and strict Clippy checks ahead of release/WASM builds; retain all checks"
+  }
 }
