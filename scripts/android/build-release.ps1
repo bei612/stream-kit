@@ -1,7 +1,8 @@
 param(
     [Parameter(Mandatory=$true)][ValidatePattern('^[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?$')][string]$Version,
     [Parameter(Mandatory=$true)][ValidateRange(1,999999999)][int]$VersionCode,
-    [string]$KeyDirectory = (Join-Path $env:LOCALAPPDATA 'StreamKitKeys\android')
+    [string]$KeyDirectory = (Join-Path $env:LOCALAPPDATA 'StreamKitKeys\android'),
+    [switch]$IncludeNativeSmoke
 )
 $ErrorActionPreference = 'Stop'
 $repository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
@@ -28,6 +29,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Unable to identify source revision' }
         $sourceDirty = if (& git status --porcelain) { 'true' } else { 'false' }
         $buildArgs = @(':app:assembleNonRootRelease', ':app:writeManagedRuntimeInventory', "-PstreamKitVersionName=$Version", "-PstreamKitVersionCode=$VersionCode", "-PstreamKitSourceCommit=$sourceCommit", "-PstreamKitSourceDirty=$sourceDirty", '--no-daemon','--max-workers=2','--console=plain')
+        if ($IncludeNativeSmoke) { $buildArgs += ':app:assembleNonRootReleaseAndroidTest' }
         # Windows PowerShell 5 turns redirected native stderr (including javac
         # warnings) into ErrorRecords. The process exit code is authoritative.
         try {

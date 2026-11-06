@@ -6,6 +6,7 @@ on:
     paths:
       - 'third_party/moonlight-android/**'
       - 'third_party-manifests/moonlight-android.json'
+      - 'third_party-manifests/android-*.json'
       - 'scripts/android/**'
       - 'scripts/test-android-protocol.mjs'
       - '.github/workflows/android-client.yml'
@@ -13,6 +14,7 @@ on:
     paths:
       - 'third_party/moonlight-android/**'
       - 'third_party-manifests/moonlight-android.json'
+      - 'third_party-manifests/android-*.json'
       - 'scripts/android/**'
       - 'scripts/test-android-protocol.mjs'
       - '.github/workflows/android-client.yml'

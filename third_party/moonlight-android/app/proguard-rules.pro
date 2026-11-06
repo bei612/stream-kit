@@ -7,6 +7,18 @@
 # Moonlight common
 -keep class com.limelight.nvstream.jni.* {*;}
 
+# The pinned WebRTC AAR does not supply consumer rules. Its native library
+# resolves these Java ABI classes and callbacks at runtime, outside R8's Java
+# reachability graph (including org.jni_zero.JniZero during JNI_OnLoad).
+# Preserve the SDK boundary; application/resource shrinking remains enabled.
+-keep class org.webrtc.** { *; }
+-keepclasseswithmembers,includedescriptorclasses class org.jni_zero.** {
+    @org.jni_zero.CalledByNative <methods>;
+}
+-keepclasseswithmembers,includedescriptorclasses class org.jni_zero.** {
+    @org.jni_zero.CalledByNativeUnchecked <methods>;
+}
+
 # Okio
 -keep class sun.misc.Unsafe {*;}
 -dontwarn java.nio.file.*

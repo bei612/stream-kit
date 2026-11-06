@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-06",
+  "scope": "Release TLS/native-video and minified JNI acceptance; not controller/audio acceptance",
+  "initial_candidate": {
+    "source": "48889cf05a5a9f9e6edaff74237ec53f33ed52ff",
+    "ci_run": 42172440512,
+    "apk_sha256": "992179af7280eb11dba856a0597c826cbcba12d0ea6a2d8fa0b97cb547dfbfde",
+    "outcome": "FAILED native media initialization",
+    "cause": "R8 removed org.jni_zero.JniZero because the pinned WebRTC AAR has no consumer rules; JNI_OnLoad aborted"
+  },
+  "fixed_candidate": {
+    "version": "0.1.0-preview.20261106.2",
+    "version_code": 1000002,
+    "apk_sha256": "03d6efe2e31745c0ab2237a4abd7fa6c53af78204928787b4928c642ee40efec",
+    "rules_sha256": "5d8f5be9c880705729498ac8d7fb7cbab223e234b904451d4551378d7e616f95",
+    "application_id": "io.github.bei612.streamkit",
+    "debuggable": false,
+    "signature_schemes": [
+      "v1",
+      "v2",
+      "v3"
+    ],
+    "certificate_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f"
+  },
+  "tls": {
+    "client_transport": "HTTPS with normal hostname/certificate verification",
+    "trust": "Seven-day isolated test CA installed using Android Settings user certificate UI",
+    "certificate_san": [
+      "10.0.2.2",
+      "127.0.0.1"
+    ],
+    "fixture": "scripts/android/emulator-tls-proxy.cjs",
+    "fixture_scope": "Loopback-only TLS termination to unchanged installed control/gateway; gateway URL rewritten only in fixture admission response",
+    "host_trust_changed": false,
+    "installed_services_changed": false,
+    "production_lan_tls_proven": false
+  },
+  "observed": [
+    "Release app rejects HTTP viewing link",
+    "Same release signing identity accepts versionCode 1000002 upgrade",
+    "HTTPS admission and native WHEP offer completed",
+    "Decoded Example video visible; viewer microphone disabled",
+    "Separate native instrumentation APK: stream_kit_native_smoke=passed; INSTRUMENTATION_CODE=-1"
+  ],
+  "private_screenshot": ".local/android-release-tls/release-frame.png",
+  "screenshot_sha256": "bcd282a0e7c1316370b00ee5fd3a463780c2458f3ea2617d1e6aad3285fd421f",
+  "not_proven": [
+    "Android/Web controller transfer and effective input",
+    "Android microphone delivery and audience/program audio",
+    "Production host TLS cutover and physical IP change",
+    "Physical device behavior"
+  ],
+  "published": false
+}

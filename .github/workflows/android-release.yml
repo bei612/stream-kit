@@ -34,7 +34,7 @@ jobs:
           cmdline-tools-version: '16111833'
           packages: platform-tools
           log-accepted-android-sdk-licenses: false
-      - run: android --sdk="$ANDROID_HOME" sdk install 'platforms;android-37' 'build-tools;37.0.0' 'ndk;29.0.14206865'
+      - run: android --sdk="$ANDROID_HOME" sdk install 'platforms;android-37' 'build-tools;37.0.0' 'ndk;29.0.14206865' 'emulator' 'system-images;android-36;google_apis;x86_64'
       - name: Build with the durable project signing identity
         working-directory: third_party/moonlight-android
         env:
@@ -51,12 +51,14 @@ jobs:
           umask 077
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$STREAM_KIT_ANDROID_KEYSTORE"
           unset KEYSTORE_BASE64
-          ./gradlew :app:assembleNonRootRelease :app:writeManagedRuntimeInventory \
+          ./gradlew :app:assembleNonRootRelease :app:assembleNonRootReleaseAndroidTest :app:writeManagedRuntimeInventory \
             "-PstreamKitVersionName=$RELEASE_VERSION" "-PstreamKitVersionCode=$RELEASE_CODE" \
             "-PstreamKitSourceCommit=$GITHUB_SHA" -PstreamKitSourceDirty=false \
             --no-daemon --max-workers=2 --console=plain
       - name: Verify and inventory the candidate
         run: python3 scripts/android/package-release.py
+      - name: Exercise minified native JNI on an official emulator
+        run: bash scripts/android/ci-native-smoke.sh
       - uses: actions/upload-artifact@v4
         with:
           name: stream-kit-android-release-candidate

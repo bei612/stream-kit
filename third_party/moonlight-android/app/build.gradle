@@ -41,12 +41,14 @@ android {
 
         versionName streamKitVersion
         versionCode = streamKitCode.toInteger()
+        testInstrumentationRunner 'com.limelight.streamkit.NativeLibrarySmoke'
 
         // Generate native debug symbols to allow Google Play to symbolicate our native crashes
         ndk.debugSymbolLevel = 'FULL'
     }
 
     flavorDimensions.add("root")
+    testBuildType 'release'
 
     buildFeatures {
         buildConfig = true

@@ -4,6 +4,14 @@ on:
   push:
     branches: [main]
     paths-ignore:
+      # Android has its own native build, protocol and release pipelines.
+      - 'third_party/moonlight-android/**'
+      - 'third_party-manifests/moonlight-android.json'
+      - 'third_party-manifests/android-*.json'
+      - 'scripts/android/**'
+      - 'scripts/test-android-protocol.mjs'
+      - '.github/workflows/android-client.yml'
+      - '.github/workflows/android-release.yml'
       - 'docs/**'
       - '.github/workflows/windows-product-release.yml'
       - '.github/workflows/linux-sunshine-build.yml'
@@ -17,6 +25,13 @@ on:
   pull_request:
     branches: [main]
     paths-ignore:
+      - 'third_party/moonlight-android/**'
+      - 'third_party-manifests/moonlight-android.json'
+      - 'third_party-manifests/android-*.json'
+      - 'scripts/android/**'
+      - 'scripts/test-android-protocol.mjs'
+      - '.github/workflows/android-client.yml'
+      - '.github/workflows/android-release.yml'
       - 'docs/**'
       - '.github/workflows/windows-product-release.yml'
       - '.github/workflows/linux-sunshine-build.yml'
