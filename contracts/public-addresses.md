@@ -2,7 +2,9 @@
 
 Native component-to-component addresses use loopback and do not follow the physical NIC address. Browser addresses are separate: an empty gateway `public_url` generates viewing links from the management page's actual hostname and the gateway port. An explicit external public URL remains an administrator override for reverse proxies and separately hosted gateways.
 
-The gateway's `config.js` replaces a loopback/unspecified control-plane hostname with the hostname used to request the viewer. It retains the control port, scheme and path. An explicitly configured external control-plane hostname is preserved. Forwarded host headers are not used for this automatic mapping.
+The gateway's `config.js` replaces a loopback/unspecified control-plane hostname with the hostname used to request the viewer. It retains the control port, scheme and path. An explicitly configured external control-plane hostname is preserved. Request URI authority takes precedence, including HTTP/2 `:authority`; origin-form HTTP/1 requests fall back to `Host`. Forwarded host headers are not used for this automatic mapping.
+
+The published 20261106.2 server has a confirmed HTTP/2 defect: native HTTPS can return the internal loopback control URL when only `:authority` is present. Source commit `00fe4953751e52dd38f0d707e9ba721d5374cb81` corrects this and adds HTTP/2, IPv6 and HTTP/1 regression cases. Do not treat the older published installer as containing this fix; see [network evidence](../docs/evidence/lan-http2-address-20261107.json) for the exact affected bytes and subsequent acceptance status.
 
 Management CORS can use `http://{host}:8080` (substitute the actual gateway scheme and port). The placeholder matches only the management request hostname, including IPv6 brackets. It does not allow unrelated hosts, schemes or ports. Existing literal origin entries remain supported. Native installation selects this same-host template and leaves the public gateway override empty.
 

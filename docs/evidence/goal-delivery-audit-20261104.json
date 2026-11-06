@@ -104,9 +104,10 @@
     },
     {
       "item": "Actual host IP change and recovery",
-      "state": "not_exercised",
-      "finding": "Dynamic URL/ICE behavior and stable-hostname LAN access have evidence; the shared host's physical network has not been deliberately disrupted. Saved numeric-IP URLs cannot update themselves.",
-      "next": "Validate during an agreed network-change window or on an isolated deployment, preserving the other projects and remote sessions on this host."
+      "state": "isolated_lan_http2_defect_fixed_pending_runtime_acceptance",
+      "finding": "Independent client network/Avahi namespaces resolved the published renderer via multicast and verified native HTTPS. They exposed a real gateway HTTP/2 bug: config.js returned loopback instead of the browser hostname; HTTP/1.1 returned the correct hostname. Source 00fe4953 fixes URI authority extraction. Replacement installers and actual network/media recovery acceptance are pending. The shared Windows host network remains unchanged; saved numeric-IP URLs cannot update themselves.",
+      "next": "Use the exact new installer in the isolated LAN fixture to verify discovery, HTTPS and browser WebRTC after an actual owned-interface address change, without changing ToDesk or the shared host network.",
+      "evidence": "docs/evidence/lan-http2-address-20261107.json"
     }
   ],
   "distribution_boundary": "Public v0.1.0-preview.20261106.2 contains Windows and Ubuntu 24.04 runtime installers and SPDX SBOM at source d36cead6. All seven published asset sizes and server SHA-256 digests match locally downloaded build artifacts, and unauthenticated download HEAD requests return 200 with matching content lengths. Exact Windows installer acceptance verified automatic SCM startup without manual repair, native PCM, default audio preservation, gateway/SCM restart and uninstall. Linux native extraction, initialization, offline user-service enablement and data preservation passed. Local control remains 70ea6f70 with media 66249387. See docs/evidence/unified-installers-d36cead6.json. Android preview 20261106.6 separately provides the signed APK, archive, provenance, SBOM and checksums at 6e9b2249. It requires verified HTTPS; the installed HTTP host remains unchanged.",

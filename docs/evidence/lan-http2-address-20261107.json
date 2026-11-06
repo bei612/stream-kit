@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "status": "confirmed_product_defect_fix_submitted",
+  "runtime_source": "d36cead6fd856925b283daddcc4af6cd1cdb7dd0",
+  "runtime_release": "v0.1.0-preview.20261106.2",
+  "runtime_installer_sha256": "6df089ad4f46ef9628d1299ac7392dae6baa9604f1e60764ef286785eec55a62",
+  "acceptance_source": "7d4aceaf848b6de4270e2c620fd839d900b51eb6",
+  "acceptance_run": "https://github.com/bei612/stream-kit/actions/runs/42258739390",
+  "artifact": "lan-address-change-evidence",
+  "observations": {
+    "independent_client_network_namespace": true,
+    "independent_client_avahi_and_dbus": true,
+    "server_ip": "198.18.31.1",
+    "client_ip": "198.18.31.100",
+    "mdns_hostname": "stream-kit-server.local",
+    "renderer_discovery_port": 47989,
+    "hostname_resolved_over_multicast": true,
+    "control_and_gateway_tls_verified": true,
+    "http2_control_plane_url": "https://127.0.0.1:19000",
+    "http1_control_plane_url": "https://stream-kit-server.local:19000/",
+    "ip_change_executed": false
+  },
+  "cause": "Gateway config.js read only the Host header. Actix exposes HTTP/2 :authority on the request URI, so the existing URL mapper received no client-visible hostname.",
+  "fix_source": "00fe4953751e52dd38f0d707e9ba721d5374cb81",
+  "fix": "Prefer actual request URI authority, fall back to Host for HTTP/1 origin-form; preserve IPv6 and explicit public control URL, and ignore forwarded host metadata.",
+  "candidate_build_run": "https://github.com/bei612/stream-kit/actions/runs/42259797123",
+  "fixed_installer_network_acceptance": "pending",
+  "boundary": "No ToDesk changes, shared-host network interruption, installed runtime replacement or local TLS trust cutover. Discovery/TLS reachability on the old installer is not proof of media recovery. The first failing observation prevented the fixture IP change."
+}

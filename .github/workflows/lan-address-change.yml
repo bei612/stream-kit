@@ -1,48 +1,94 @@
 name: lan-address-change-acceptance
 on:
   workflow_dispatch:
+    inputs:
+      product_run_id:
+        description: 'Successful owned product build to accept; blank uses the pinned published runtime'
+        type: string
+        required: false
 permissions:
   contents: read
+  actions: read
 jobs:
   native-lan-address-change:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}
+      PRODUCT_RUN_ID: ${{ inputs.product_run_id }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '26.4.0'
-      - name: Verify and extract existing published runtime
+      - name: Download existing runtime without rebuilding
         run: |
           set -euo pipefail
-          gh release download v0.1.0-preview.20261106.2 --pattern '*ubuntu24.04-amd64-setup.run' --pattern linux-installer-manifest.json --dir artifacts/network-download
+          if [[ -z "$PRODUCT_RUN_ID" ]]; then
+            gh release download v0.1.0-preview.20261106.2 --pattern '*ubuntu24.04-amd64-setup.run' --pattern linux-installer-manifest.json --dir artifacts/network-download
+            mv artifacts/network-download/linux-installer-manifest.json artifacts/network-download/installer-manifest.json
+          else
+            [[ "$PRODUCT_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+            mkdir -p artifacts/network-download
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PRODUCT_RUN_ID" > artifacts/network-download/product-run.json
+            commit=$(node <<'JS'
+          const fs=require('fs'),a=require('assert/strict'),r=JSON.parse(fs.readFileSync('artifacts/network-download/product-run.json'));
+          a.equal(r.status,'completed');a.equal(r.conclusion,'success');
+          a.equal(r.path,'.github/workflows/windows-product-release.yml');
+          a.equal(r.head_repository.full_name,process.env.GITHUB_REPOSITORY);
+          a.match(r.head_sha,/^[a-f0-9]{40}$/);console.log(r.head_sha);
+          JS
+            )
+            gh run download "$PRODUCT_RUN_ID" --name "linux-product-installer-$commit" --dir artifacts/network-product
+            cp artifacts/network-product/installer/installer-manifest.json artifacts/network-download/
+            cp artifacts/network-product/installer/*-setup.run artifacts/network-download/
+          fi
+      - name: Verify provenance and extract native runtime
+        run: |
+          set -euo pipefail
           node <<'JS'
           const fs=require('fs'),crypto=require('crypto'),assert=require('assert/strict');
-          const m=JSON.parse(fs.readFileSync('artifacts/network-download/linux-installer-manifest.json'));
-          assert.equal(m.commit,'d36cead6fd856925b283daddcc4af6cd1cdb7dd0');
-          assert.equal(m.installer.sha256,'6df089ad4f46ef9628d1299ac7392dae6baa9604f1e60764ef286785eec55a62');
-          assert.equal(crypto.createHash('sha256').update(fs.readFileSync('artifacts/network-download/'+m.installer.file)).digest('hex'),m.installer.sha256);
+          const dir='artifacts/network-download/',m=JSON.parse(fs.readFileSync(dir+'installer-manifest.json'));
+          if(process.env.PRODUCT_RUN_ID){
+            assert.equal(m.commit,JSON.parse(fs.readFileSync(dir+'product-run.json')).head_sha);
+          }else{
+            assert.equal(m.commit,'d36cead6fd856925b283daddcc4af6cd1cdb7dd0');
+            assert.equal(m.installer.sha256,'6df089ad4f46ef9628d1299ac7392dae6baa9604f1e60764ef286785eec55a62');
+          }
+          assert.equal(m.platform,'linux');assert.equal(m.payload_profile,'runtime');assert.equal(m.architecture,'amd64');
+          assert.match(m.installer.file,/^stream-kit-[a-z0-9.-]+-ubuntu24\.04-amd64-setup\.run$/);
+          assert.match(m.payload.sha256,/^[a-f0-9]{64}$/);
+          const bytes=fs.readFileSync(dir+m.installer.file);assert.equal(bytes.length,m.installer.bytes);
+          assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),m.installer.sha256);
           fs.mkdirSync('artifacts/network-address-evidence',{recursive:true});
-          fs.writeFileSync('artifacts/network-address-evidence/provenance.json',JSON.stringify({runtime_commit:m.commit,installer_sha256:m.installer.sha256,acceptance_commit:process.env.GITHUB_SHA,runtime_rebuilt:false},null,2));
+          fs.writeFileSync('artifacts/network-address-evidence/provenance.json',JSON.stringify({runtime_commit:m.commit,installer_sha256:m.installer.sha256,product_run_id:process.env.PRODUCT_RUN_ID||null,acceptance_commit:process.env.GITHUB_SHA,runtime_rebuilt:false},null,2));
           JS
           installer=artifacts/network-download/*-setup.run
           line=$(awk '/^__STREAM_KIT_PAYLOAD__$/ {print NR+1;exit}' $installer)
           test -n "$line"
           tail -n +"$line" $installer > artifacts/network-download/runtime.deb
-          echo 'd44795e51a9eeba0484e429c8e0e0ddfe901c9161a1f8ee9803a6ef7888785a0  artifacts/network-download/runtime.deb' | sha256sum -c -
+          node <<'JS'
+          const fs=require('fs'),crypto=require('crypto'),a=require('assert/strict'),dir='artifacts/network-download/';
+          const m=JSON.parse(fs.readFileSync(dir+'installer-manifest.json'));
+          a.equal(crypto.createHash('sha256').update(fs.readFileSync(dir+'runtime.deb')).digest('hex'),m.payload.sha256);
+          JS
           dpkg-deb -x artifacts/network-download/runtime.deb artifacts/network-runtime
+          node <<'JS'
+          const fs=require('fs'),a=require('assert/strict');
+          a.equal(JSON.parse(fs.readFileSync('artifacts/network-runtime/opt/stream-kit/platform-manifest.json')).commit,
+            JSON.parse(fs.readFileSync('artifacts/network-download/installer-manifest.json')).commit);
+          JS
       - name: Prepare disposable LAN and native runtime dependencies
         run: |
           set -euo pipefail
           mapfile -t dependencies < <(dpkg-deb -f artifacts/network-download/runtime.deb Depends | tr ',' '\n' | sed -E 's/^[[:space:]]*([a-z0-9+.-]+).*/\1/')
           for dependency in "${dependencies[@]}"; do [[ "$dependency" =~ ^[a-z0-9][a-z0-9+.-]*$ ]]; done
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends "${dependencies[@]}" avahi-utils dbus iproute2 util-linux curl xvfb x11-utils pulseaudio pulseaudio-utils
+          sudo apt-get install -y --no-install-recommends "${dependencies[@]}" avahi-utils dbus iproute2 util-linux curl xvfb x11-utils pulseaudio pulseaudio-utils libnss3-tools
           artifacts/network-runtime/opt/stream-kit/orchestrator/orchestrator verify-platform artifacts/network-runtime/opt/stream-kit
-      - name: Verify native HTTPS and multicast discovery across actual fixture IP change
-        timeout-minutes: 6
+          npm ci --prefix third_party/moonlight-web-stream --ignore-scripts --no-audit --no-fund
+      - name: Verify native HTTPS, discovery and WebRTC across actual fixture IP change
+        timeout-minutes: 8
         run: bash tools/network-acceptance/run.sh
       - uses: actions/upload-artifact@v4
         if: always()

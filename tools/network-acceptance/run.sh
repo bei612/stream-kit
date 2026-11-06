@@ -77,6 +77,9 @@ openssl x509 -req -in "$tls/server.csr" -CA "$tls/ca.crt" -CAkey "$tls/ca.key" -
   -days 1 -sha256 -extfile "$tls/leaf.ext" -out "$tls/server.crt" >/dev/null 2>&1
 sudo install -m 644 "$tls/ca.crt" /usr/local/share/ca-certificates/stream-kit-isolated-network.crt
 sudo update-ca-certificates >/dev/null
+mkdir -p "$HOME/.pki/nssdb"
+if [[ ! -f "$HOME/.pki/nssdb/cert9.db" ]]; then certutil -N -d "sql:$HOME/.pki/nssdb" --empty-password; fi
+certutil -A -d "sql:$HOME/.pki/nssdb" -n StreamKitIsolatedNetwork -t 'C,,' -i "$tls/ca.crt"
 export NODE_EXTRA_CA_CERTS="$tls/ca.crt" DISPLAY=:92
 Xvfb "$DISPLAY" -screen 0 1280x720x24 -nolisten tcp > "$scratch/xvfb.log" 2>&1 &
 display_pid=$!
