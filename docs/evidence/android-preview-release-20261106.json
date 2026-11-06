@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-06",
+  "release_url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261106.5",
+  "prerelease": true,
+  "production_acceptance_complete": false,
+  "source_commit": "04e5cea5ba30a13af6bee01d25d6347be0aaed08",
+  "version": "0.1.0-preview.20261106.5",
+  "version_code": 1000005,
+  "ci": {
+    "signed_release": 42181739280,
+    "android_client": 42180553696,
+    "conclusion": "success"
+  },
+  "distribution_checksums_verified": 21,
+  "release_asset_digests_verified": true,
+  "assets": [
+    {
+      "name": "distribution.zip",
+      "bytes": 33144276,
+      "sha256": "f1fed2efb444ba9315d9b80295a5acde42fc3682ec3d788dc70c43ab729d24fa",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261106.5/distribution.zip"
+    },
+    {
+      "name": "DOWNLOAD-SHA256SUMS.txt",
+      "bytes": 363,
+      "sha256": "c52cba5b20e630dded82168950181937e7f055142ddddfa0df1e0599bddb5fff",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261106.5/DOWNLOAD-SHA256SUMS.txt"
+    },
+    {
+      "name": "provenance.json",
+      "bytes": 4836,
+      "sha256": "9f3b78af53e5c0dbb16318593ea20832cb402a2f39778ac713e9d7ac3e0886b1",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261106.5/provenance.json"
+    },
+    {
+      "name": "sbom.cdx.json",
+      "bytes": 20084,
+      "sha256": "0142eee076361bdfc30df0b28411df17764625835a5b77052e5a4b7f8a464a41",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261106.5/sbom.cdx.json"
+    },
+    {
+      "name": "stream-kit-android-0.1.0-preview.20261106.5.apk",
+      "bytes": 33144516,
+      "sha256": "dfa2ff9487ff907a36b05a7f2d2694a571b29afa1097161c92e35132b05e4f14",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261106.5/stream-kit-android-0.1.0-preview.20261106.5.apk"
+    }
+  ],
+  "emulator": {
+    "avd": "StreamKit_API_36",
+    "api_level": 36,
+    "acceleration": "WHPX",
+    "native_windows": true,
+    "downloaded_ci_apk_installed": true,
+    "normal_https_video_observed": true,
+    "visible_example_tick": 11689,
+    "screenshot": ".local/android-release-tls/ci-release-5-frame.png",
+    "screenshot_sha256": "fafeb588ebd67d0e7ea73119be8b371876bcdcdcf7034daff816d205636632007",
+    "final_configuration": "Standard reusable AVD; temporary gRPC port removed; application backgrounded"
+  },
+  "source_matched_local_build_evidence": [
+    "docs/evidence/android-shared-authority-20261106.json",
+    "docs/evidence/android-microphone-route-20261106.json"
+  ],
+  "scope_note": "Control and microphone route acceptance used a clean local signed build of the identical source with a distinct APK hash. Downloaded CI artifact separately passed native viewing; do not conflate binary hashes.",
+  "installed_host_updated": false,
+  "remaining": [
+    "Effective keyboard/touch delivery while host unlocked",
+    "Android program audio playout",
+    "Non-silent source revocation signal suppression",
+    "Production LAN HTTPS deployment",
+    "Actual host IP change and recovery"
+  ]
+}

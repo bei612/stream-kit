@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-06",
+  "source_commit": "04e5cea5ba30a13af6bee01d25d6347be0aaed08",
+  "apk_version": "0.1.0-preview.20261106.5",
+  "apk_sha256": "5d9a4765a611d11cacf1c105bfc4fe7cf439dc41e6b4277b1942cf35843958fa",
+  "build": "Clean local signed release; subsequent CI artifact has a separate hash",
+  "installed_host_control": "70ea6f7090097af5e6e3b7dca0185a712d5fc37f",
+  "installed_host_media": "66249387b32975e79d56b19fdf98d4bc7d414da0",
+  "overall_passed": false,
+  "verified": {
+    "two_clients_one_upstream": true,
+    "android_and_web_video": true,
+    "administrator_transfer_android_to_web": true,
+    "android_permission_denied": true,
+    "android_capture_started": true,
+    "android_capture_stopped_after_revocation": true,
+    "controller_released": true
+  },
+  "input": {
+    "keys": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clicks": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "result": "No positive input response. The host was at Windows lock screen; do not count denied-input phases as proof either."
+  },
+  "host_foreground": {
+    "process": "LockApp",
+    "pid": 6616
+  },
+  "audio_target": "unconfigured upstream route in this run; subsequent explicit route acceptance is recorded separately in android-microphone-route-20261106.json",
+  "media_transport": {
+    "android": "HTTPS through isolated loopback fixture with normally verified emulator user CA",
+    "web": "HTTP loopback; installed Web build"
+  },
+  "images": [
+    {
+      "phase": "00-both-viewers",
+      "path": ".local/validation/android-authority/00-both-viewers.png",
+      "sha256": "1d462695b8535fed15a5b06b38da3e84f8149388624b19c43f603382066cb029"
+    },
+    {
+      "phase": "01-android-controller-key-a",
+      "path": ".local/validation/android-authority/01-android-controller-key-a.png",
+      "sha256": "7f2a648a34be681718eecb8a99a1a8d1d4ddf33a53b92bf51e3af6a837e3cd75"
+    },
+    {
+      "phase": "02-old-android-key-b-denied",
+      "path": ".local/validation/android-authority/02-old-android-key-b-denied.png",
+      "sha256": "504d0797475144cc8d43533a463e4f90a49fb5155486e683962d591387377da0"
+    },
+    {
+      "phase": "03-web-controller-key-c",
+      "path": ".local/validation/android-authority/03-web-controller-key-c.png",
+      "sha256": "8460cfb21ceeafa35be84f344c02df2abc3a47225ebdb70946653fcb01cd68b3"
+    },
+    {
+      "phase": "04-released-web-key-d-denied",
+      "path": ".local/validation/android-authority/04-released-web-key-d-denied.png",
+      "sha256": "b111bacad4c253065d4578081cf1e327dd049615615c74f69e1a6cdab9d090b3"
+    }
+  ],
+  "not_proven": [
+    "Effective keyboard/touch delivery and hostile-input suppression while the host is unlocked",
+    "Non-silent Android microphone delivery to target and audiences",
+    "Program audio received by Android",
+    "Production LAN HTTPS and physical host IP change",
+    "Physical mobile behavior"
+  ],
+  "original_codec_failure": ".local/validation/android-authority/codec-failure.json",
+  "admin_access": "Existing user-supplied application administrator credentials succeeded; protected-file/UAC preparation no longer required. Token remains in ACL-restricted ignored local storage.",
+  "host_settings_changed": false
+}

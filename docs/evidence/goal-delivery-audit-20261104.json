@@ -68,10 +68,15 @@
   "remaining_acceptance": [
     {
       "item": "Integrated native Android application",
-      "state": "signed_native_https_viewer_verified_integration_in_progress",
+      "state": "signed_preview_published_shared_video_microphone_route_verified",
       "scope": "docs/goal-current.md",
-      "finding": "Official Android sources, unified managed session, native video/input/microphone gates, encrypted bookmark and durable project signing are implemented. The corrected minified release passed native JNI CI on an official emulator (42175104280). The byte-identical downloaded CI APK installed locally and displayed Example video using normal HTTPS verification with an isolated emulator CA. Debug background/resume and encrypted-bookmark evidence remain separately scoped. See docs/evidence/android-release-tls-20261106.json. No production host TLS change was applied; controller/audio acceptance is still open.",
-      "next": "Complete actual Android/Web authority and audio acceptance, finish dependency notices/source inventory and publish the APK. Installed-service admin preparation is waiting on the existing Windows UAC dialog; do not repeatedly request human speech. Official Windows emulator gRPC audio injection blocked the test AVD and was removed from the running configuration; it is not a passing audio result. Preserve pending LAN HTTPS/IP-change acceptance."
+      "finding": "Official native Android fork uses the managed shared session. Source 04e5cea5 signed CI and Android client CI passed; version 0.1.0-preview.20261106.5 is the downloadable preview. Android and Web received one shared upstream; administrative transfer and microphone permission/capture stop passed. A synthetic Android microphone reached the explicit server recorder and Web audience with zero recording drops. Actual input under an unlocked host, Android program playout and non-silent revocation still require evidence. Production LAN TLS/IP-change remain separate open items.",
+      "next": "Complete effective input when the host is unlocked, program audio received by Android and non-silent revocation using isolated automated fixtures. Do not repeat completed speech or unchanged packaging tests.",
+      "evidence": [
+        "docs/evidence/android-shared-authority-20261106.json",
+        "docs/evidence/android-microphone-route-20261106.json",
+        "docs/evidence/android-preview-release-20261106.json"
+      ]
     },
     {
       "item": "Trusted LAN HTTPS deployment",
@@ -91,6 +96,6 @@
       "next": "Validate during an agreed network-change window or on an isolated deployment, preserving the other projects and remote sessions on this host."
     }
   ],
-  "distribution_boundary": "Public v0.1.0-preview.20261104.1 contains Windows and Ubuntu 24.04 runtime installers and SBOM at source 05baccd8. All seven published asset sizes and server SHA-256 digests match locally verified build artifacts. Clean Windows silent installation verified automatic SCM startup without manual repair, native PCM, gateway/SCM restart and uninstall; Linux native package initialization and offline user-service enablement passed. Installed local control remains 70ea6f70 with media baseline 66249387; this publication did not replace the local installation. See docs/evidence/unified-installers-05baccd8.json.",
+  "distribution_boundary": "Public v0.1.0-preview.20261104.1 contains Windows and Ubuntu 24.04 runtime installers and SBOM at source 05baccd8. All seven published asset sizes and server SHA-256 digests match locally verified build artifacts. Clean Windows silent installation verified automatic SCM startup without manual repair, native PCM, gateway/SCM restart and uninstall; Linux native package initialization and offline user-service enablement passed. Installed local control remains 70ea6f70 with media baseline 66249387; this publication did not replace the local installation. See docs/evidence/unified-installers-05baccd8.json. Android preview v0.1.0-android-preview.20261106.5 separately supplies signed APK, full distribution archive, provenance, SBOM and checksums from source 04e5cea5. It requires verified HTTPS; the installed HTTP host was not changed.",
   "completion_decision": "Goal remains incomplete. Current installed operation and permanent-link delivery do not substitute for the remaining acceptance conditions."
 }

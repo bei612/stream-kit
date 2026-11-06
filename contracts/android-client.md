@@ -1,6 +1,6 @@
 # Android managed client integration
 
-Status: implementation in progress, not an APK delivery claim. Scope: [current goal](../docs/goal-current.md).
+Status: signed Android preview available; production acceptance remains incomplete. Scope: [current goal](../docs/goal-current.md).
 
 ## One managed session and transport
 
@@ -56,4 +56,10 @@ CI run `42175104280` passed that gate and produced signed version `0.1.0-preview
 
 `scripts/android/start-emulator.ps1` reuses the installed official SDK and the `StreamKit_API_36` AVD, refusing an occupied or mismatched device port. By default it runs headlessly; pass `-ShowWindow` when starting a new instance for interactive debugging. An already running instance is reused without restart. It does not download additional images, wipe device data, enable gRPC, modify host virtualization or alter the installed Stream Kit services. ADB serial is `emulator-5580`; boot readiness is `adb -s emulator-5580 shell getprop sys.boot_completed` returning `1`.
 
-The Windows emulator's experimental gRPC microphone control/injection stalled the isolated AVD during automated audio preparation. It was removed from the running configuration and no microphone pass is claimed. The standard AVD was restored and the CI APK's actual native viewing was verified afterwards. Do not ship emulator tools, synthetic sources or instrumentation APKs with the product.
+The Windows emulator's experimental gRPC microphone control/injection initially stalled the isolated AVD when capture was not active. A later bounded test first established native microphone capture, then used authenticated loopback `injectAudio` without `setMicrophoneState`. Its 997 Hz source reached the explicit server virtual recording endpoint and the Web audience; 254880 frames were captured with no drops. This proves the synthetic Android-to-target-and-audience route, not physical speech, Android program playout or non-silent revocation. The original target was restored and the emulator returned to its normal configuration without gRPC. See [audio route evidence](../docs/evidence/android-microphone-route-20261106.json). Do not ship emulator tools, synthetic sources or instrumentation APKs with the product.
+
+## Current downloadable preview
+
+[Android 0.1.0-preview.20261106.5](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261106.5) is built from `04e5cea5ba30a13af6bee01d25d6347be0aaed08`, versionCode `1000005`. Both Android client CI `42180553696` and signed release CI `42181739280` passed. The downloaded CI APK was installed on the official AVD and displayed Example video through verified HTTPS. All 21 distribution file hashes were checked; the archive includes licenses, source provenance and the build-input SBOM.
+
+Mixed Android/Web shared video, administrative control transfer and Android permission/capture lifecycle have [separate evidence](../docs/evidence/android-shared-authority-20261106.json). Effective keyboard/touch delivery remains unproven because the host was at the Windows lock screen; zero input counts are not counted as successful denial checks. Program audio received by Android and non-silent revocation remain open. The production host still uses its existing HTTP deployment: the preview requires verified HTTPS, and its isolated emulator fixture is not a production LAN TLS cutover. This release does not update the installed Windows services or close the IP-change requirement.

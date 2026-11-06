@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-06",
+  "source_commit": "04e5cea5ba30a13af6bee01d25d6347be0aaed08",
+  "apk_version": "0.1.0-preview.20261106.5",
+  "apk_sha256": "5d9a4765a611d11cacf1c105bfc4fe7cf439dc41e6b4277b1942cf35843958fa",
+  "passed": true,
+  "scope": "Signed native Android microphone to installed gateway, explicit server recording endpoint and a Web audience on the same Example upstream. Synthetic source, not human speech or physical mobile acceptance.",
+  "source": {
+    "avd": "StreamKit_API_36",
+    "api_level": 36,
+    "emulator": "37.2.13",
+    "mechanism": "Official emulator authenticated loopback gRPC injectAudio, started only after native microphone_live became true",
+    "frequency_hz": 997,
+    "format": "mono PCM16LE, 48000 Hz, -18 dBFS, paced 20ms packets for 5 seconds",
+    "host_microphone_enabled": false,
+    "injection_completed": true,
+    "avd_responsive_after_injection": true
+  },
+  "target": {
+    "name": "Stream Kit Virtual Audio",
+    "route": "Explicit session local render/capture pair, no default-device changes",
+    "baseline_997_peak": 0.0000002720257630747304,
+    "signal_997_peak": 0.5359526721837796,
+    "signal_997_mean": 0.09857866808984689,
+    "foreign_1499_mean": 0.0008306131984038189,
+    "captured_frames": 254880,
+    "dropped_frames": 0,
+    "error": null,
+    "recorder": "Existing native diagnostic recorder; no claim that UE itself opened this endpoint"
+  },
+  "web_audience": {
+    "received_audio_track": true,
+    "median_997_bin_db": -37.917694091796875,
+    "threshold_db": -60
+  },
+  "cleanup": {
+    "controller_released": true,
+    "original_audio_target_restored": true,
+    "owned_browser_and_recorder_closed": true,
+    "android_backgrounded": true,
+    "audio_files_saved": false
+  },
+  "raw_result": ".local/validation/android-audio/result.json",
+  "fixture": ".local/android-audio-acceptance.cjs (development only, not shipped)",
+  "earlier_failure": "Injecting before active Android capture stalled the isolated AVD; retained as a fixture limitation, not a product pass. This successful run established active native capture first and did not call setMicrophoneState.",
+  "not_proven": [
+    "Program audio playback in Android",
+    "Non-silent signal suppression after control transfer (capture stop has separate evidence)",
+    "Physical device or human microphone behavior",
+    "Production LAN HTTPS and physical host IP change"
+  ]
+}
