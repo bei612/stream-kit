@@ -282,6 +282,7 @@ mod managed_pair_tests {
             .to_string_lossy()
             .into_owned();
         config.web_server.media_ticket_secret = Some("test-only-secret-at-least-32-bytes".into());
+        config.web_server.control_plane_url = Some("https://control.example".into());
         let app = Data::new(App::new(config).await.expect("app"));
         let admin = app
             .try_add_first_login("owner".into(), "test-password".into())
