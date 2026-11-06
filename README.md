@@ -4,13 +4,13 @@ Stream-Kit 将管理服务、Sunshine 渲染端和 Moonlight Web 媒体网关集
 
 服务端支持 Windows/Linux，客户端提供 Web/PWA 和 Android 原生 App。手机和平板也可直接使用浏览器；浏览器采集麦克风需要安全上下文和用户授权。当前发布渠道为预发布，不能把构建成功视为全部生产验收完成。
 
-基于官方 Moonlight Android 源码二开的 [Android 签名 APK 20261106.6](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261106.6) 已发布，接入同一会话、控制权和音频链路，并修复上游键盘翻译器的键码格式差异。本机采用官方 Android Emulator；`.5` 版本已有共享视频、程序音、麦克风回传与撤权、断线及前后台恢复证据。`.6` 的按键已到达 Windows 编码器，但目标程序的有效输入及撤权后的输入隔离仍待完成验收，不能视为已经可用。App 要求证书有效且受信任的 HTTPS 观看链接，不能直接连接默认 HTTP 入口。完整范围和完成条件见 [当前 Goal](docs/goal-current.md)，具体版本与验收边界见 [Android .6 交付证据](docs/evidence/android-preview-release-20261106-6.json)及[输入定位记录](docs/evidence/android-input-diagnosis-20261106.json)。
+基于官方 Moonlight Android 源码二开的 [Android 签名 APK 20261106.6](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261106.6) 已发布，接入同一会话、控制权和音频链路，并修复上游键盘翻译器的键码格式差异。`.6` 已在独立官方 Android 模拟器与 Linux 渲染端完成真实按键、触摸、与 Web 移交控制权、撤销及重新授权验收，见[目标程序事件证据](docs/evidence/android-stream-input-20261107.json)。`.5` 版本的共享视频、程序音、麦克风回传与撤权、断线及前后台恢复证据保留各自版本边界。本机 Windows 输入问题仍未查明，独立环境通过不等于该环境已通过。App 要求证书有效且受信任的 HTTPS 观看链接，不能直接连接默认 HTTP 入口。完整范围见 [当前 Goal](docs/goal-current.md)，发布文件见 [Android .6 交付证据](docs/evidence/android-preview-release-20261106-6.json)。
 
 ## 安装与访问
 
 从 [GitHub Releases](https://github.com/bei612/stream-kit/releases) 获取当前可下载版本，查看该版本说明和 SHA-256。Windows 使用版本中的单个 `*-windows-amd64-setup.exe` 安装三个核心组件；无需另外安装官方 Sunshine 或 Moonlight Web，也不要再注册独立 Sunshine 服务。
 
-当前统一安装预发布版为 [20261106.1](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261106.1)，提供源码 `902798f0` 构建的 Windows 单 EXE 和 Ubuntu 24.04 单文件安装包。本版补齐 Linux 局域网发现依赖，并修复管理页固定链接读取与修改的并发状态。Windows 已集成开源虚拟音频实现及签名控制器驱动。只安装三个运行组件及必需运行库，开发示例和验收工具均不随包交付；安装及运行无需宿主机另行安装 Node.js/npm。六项跨平台 CI、Linux 安装包初始化，以及 Windows 整包静默安装、自启动、原生音频、网关与系统服务重启、卸载检查已通过。文件清单和验证范围见 [本版交付状态](deploy/releases/0.1.0-preview.20261106.1.md)。发布不会自动替换已有部署。
+当前统一安装预发布版为 [20261106.2](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261106.2)，提供源码 `d36cead6` 构建的 Windows 单 EXE 和 Ubuntu 24.04 单文件安装包。本版修复输入排队期间权限移交、异常控制报文与连接任务清理，保留前版的局域网发现依赖和固定链接状态修复。Windows 已集成开源虚拟音频实现及签名控制器驱动。只安装三个运行组件及必需运行库，开发示例和验收工具均不随包交付；安装及运行无需宿主机另行安装 Node.js/npm。跨平台 CI、Linux 安装包初始化，以及 Windows 整包静默安装、自启动、原生音频、网关与系统服务重启、卸载检查已通过。文件清单和验证范围见 [本版交付状态](deploy/releases/0.1.0-preview.20261106.2.md)。发布不会自动替换已有部署，也不代表已完成本机 HTTPS 切换及实际 IP 变化恢复验收。
 
 Windows 安装器支持向导和静默模式。以管理员终端执行，将文件名替换为实际下载的名称：
 
