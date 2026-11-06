@@ -211,6 +211,7 @@ jobs:
             BROWSER_ENGINE="$engine" node scripts/test-admin-worker-configuration.cjs
             BROWSER_ENGINE="$engine" node scripts/test-admin-render-nodes.cjs
             BROWSER_ENGINE="$engine" node scripts/test-admin-app-lifecycle.cjs
+              BROWSER_ENGINE="$engine" node scripts/test-admin-watch-link.cjs
           done
       - uses: actions/upload-artifact@v4
         if: always()
@@ -221,6 +222,7 @@ jobs:
             artifacts/encoder-configuration/
             artifacts/admin-render-nodes/
             artifacts/admin-app-lifecycle/
+              artifacts/admin-watch-link/
             artifacts/admin-worker-configuration/
           if-no-files-found: warn
 
