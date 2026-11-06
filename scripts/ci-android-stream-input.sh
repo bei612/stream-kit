@@ -79,6 +79,7 @@ adb -s "$serial" unroot
 timeout 30s adb -s "$serial" wait-for-device
 [[ $(adb -s "$serial" shell id -u | tr -d '\r') == 2000 ]]
 adb -s "$serial" install artifacts/input-download/*.apk
+adb -s "$serial" install -t artifacts/input-example/android/observer.apk
 adb -s "$serial" shell input keyevent KEYCODE_WAKEUP
 adb -s "$serial" shell wm dismiss-keyguard
 export DISPLAY=:91

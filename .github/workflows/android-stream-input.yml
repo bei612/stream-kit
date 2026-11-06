@@ -56,9 +56,10 @@ jobs:
           sudo apt-get install -y --no-install-recommends "${dependencies[@]}" libx11-dev x11-utils xvfb xauth xdotool openbox pulseaudio libnss3-tools
           artifacts/input-runtime/opt/stream-kit/orchestrator/orchestrator verify-platform artifacts/input-runtime/opt/stream-kit
           npm ci --prefix third_party/moonlight-web-stream --ignore-scripts --no-audit --no-fund
-          android --sdk="$ANDROID_HOME" sdk install 'emulator' 'system-images;android-36;google_apis;x86_64'
+          android --sdk="$ANDROID_HOME" sdk install 'emulator' 'system-images;android-36;google_apis;x86_64' 'platforms;android-36' 'build-tools;36.0.0'
           mkdir -p artifacts/input-example
           cc -std=c11 -O2 -Wall -Wextra -Werror tools/input-acceptance/x11-observer.c -lX11 -o artifacts/input-example/x11-observer
+          bash tools/input-acceptance/android/build.sh
       - name: Verify Android and Web input in the same real renderer
         timeout-minutes: 12
         run: bash scripts/ci-android-stream-input.sh

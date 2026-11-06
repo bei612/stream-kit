@@ -1,5 +1,6 @@
 // Uses the published native APK through its ordinary Activity/HTTPS APIs.
-// No instrumentation APK, alternate transport, input mocks or product hooks.
+// A separate testOnly UI observer reads roles/bounds through public Android
+// instrumentation APIs. No product hooks, alternate transport or input mocks.
 const assert=require('node:assert/strict');
 const {execFileSync}=require('node:child_process');
 const {setTimeout:delay}=require('node:timers/promises');
@@ -20,14 +21,16 @@ function androidParticipant({adb,serial}) {
       throw Error(`Android acceptance command failed: ${args.slice(0,2).join(' ')}; reason=${reason}; code=${error.code||'none'}; exit=${error.status}; signal=${error.signal||'none'}`);
     }
   };
-  const hierarchy=()=>{
-    const output=run('shell','uiautomator','dump','/sdcard/stream-kit-input.xml');
-    // AOSP dump can return exit 0 after a null-root/idle failure. Require its
-    // completion marker so a previous hierarchy can never stand in for a new one.
-    assert.ok(output.includes('UI hierchary dumped to: /sdcard/stream-kit-input.xml'),'Android hierarchy dump did not complete');
-    return run('shell','cat','/sdcard/stream-kit-input.xml');
+  const snapshot=()=>{
+    const output=run('shell','am','instrument','-w','io.github.bei612.streamkit.inputobserver/.Observer');
+    assert.match(output,/INSTRUMENTATION_CODE: -1/,'Android UI observer failed');
+    assert.match(output,/INSTRUMENTATION_RESULT: snapshot=complete/);
+    const role=output.match(/INSTRUMENTATION_RESULT: role=(controller|viewer|other)\b/);
+    const bounds=output.match(/INSTRUMENTATION_RESULT: surface=(\d+),(\d+),(\d+),(\d+)/);
+    assert.ok(role&&bounds,'Incomplete Android UI snapshot');
+    return {role:role[1],bounds:bounds.slice(1).map(Number)};
   };
-  const role=controller=>until(()=>hierarchy().includes(controller?'已连接 · 控制中':'已连接 · 观看中'),'Android role update',30000);
+  const role=controller=>until(()=>snapshot().role===(controller?'controller':'viewer'),'Android role update',30000);
   return {
     async connect(link){
       const parsed=new URL(link);assert.equal(parsed.protocol,'https:');assert.equal(parsed.hostname,'10.0.2.2');
@@ -37,10 +40,9 @@ function androidParticipant({adb,serial}) {
     role,
     key(){run('shell','input','keyevent','KEYCODE_A');},
     tap(){
-      const node=(hierarchy().match(/<node\b[^>]*>/g)||[]).find(n=>n.includes('class="android.view.SurfaceView"'));
-      assert.ok(node,'Native Android video surface missing');
-      const bounds=node.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);assert.ok(bounds);
-      run('shell','input','tap',String(Math.floor((+bounds[1]+ +bounds[3])/2)),String(Math.floor((+bounds[2]+ +bounds[4])/2)));
+      const {bounds:[left,top,right,bottom]}=snapshot();
+      assert.ok(right>left&&bottom>top,'Native Android video surface missing');
+      run('shell','input','tap',String(Math.floor((left+right)/2)),String(Math.floor((top+bottom)/2)));
     },
     close(){run('shell','input','keyevent','KEYCODE_HOME');},
   };
