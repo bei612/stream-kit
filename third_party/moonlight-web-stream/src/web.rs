@@ -41,12 +41,7 @@ async fn config_js(app: Data<App>, request: HttpRequest) -> HttpResponse {
             .web_server
             .control_plane_url
             .as_deref()
-            .map(|address| {
-                browser_control_url(
-                    address,
-                    request.headers().get("host").and_then(|v| v.to_str().ok()),
-                )
-            }),
+            .map(|address| browser_control_url(address, request_authority(&request))),
     }) {
         Ok(value) => value,
         Err(err) => {
@@ -62,6 +57,18 @@ async fn config_js(app: Data<App>, request: HttpRequest) -> HttpResponse {
     HttpResponse::Ok()
         .append_header(("Content-Type", "text/javascript"))
         .body(config_js)
+}
+
+// HTTP/2 carries :authority in the request URI rather than a Host header.
+// Absolute-form HTTP/1 requests also supply URI authority. Use the actual
+// request target, falling back to Host for origin-form HTTP/1 requests; never
+// trust Forwarded/X-Forwarded-Host for this automatic same-host mapping.
+fn request_authority(request: &HttpRequest) -> Option<&str> {
+    request
+        .uri()
+        .authority()
+        .map(|authority| authority.as_str())
+        .or_else(|| request.headers().get("host").and_then(|v| v.to_str().ok()))
 }
 
 fn browser_control_url(address: &str, request_host: Option<&str>) -> String {
@@ -103,7 +110,54 @@ fn browser_control_url(address: &str, request_host: Option<&str>) -> String {
 
 #[cfg(test)]
 mod address_tests {
-    use super::browser_control_url;
+    use super::{browser_control_url, request_authority};
+    use actix_web::{http::Version, test::TestRequest};
+
+    #[test]
+    fn native_https_http2_uses_authority_without_a_host_header() {
+        let request = TestRequest::get()
+            .version(Version::HTTP_2)
+            .uri("https://renderer.local:18080/config.js")
+            .to_http_request();
+        assert!(request.headers().get("host").is_none());
+        assert_eq!(
+            browser_control_url("https://127.0.0.1:19000", request_authority(&request)),
+            "https://renderer.local:19000/"
+        );
+    }
+
+    #[test]
+    fn request_authority_preserves_ipv6_and_ignores_forwarded_hosts() {
+        let request = TestRequest::get()
+            .version(Version::HTTP_2)
+            .uri("https://[fd00::2]:18080/config.js")
+            .insert_header(("host", "other.local:18080"))
+            .insert_header(("forwarded", "host=untrusted.example"))
+            .insert_header(("x-forwarded-host", "untrusted.example"))
+            .to_http_request();
+        assert_eq!(
+            browser_control_url("https://127.0.0.1:19000", request_authority(&request)),
+            "https://[fd00::2]:19000/"
+        );
+        let missing = TestRequest::get()
+            .uri("/config.js")
+            .insert_header(("x-forwarded-host", "untrusted.example"))
+            .to_http_request();
+        assert_eq!(request_authority(&missing), None);
+    }
+
+    #[test]
+    fn origin_form_http1_keeps_the_host_header_mapping() {
+        let request = TestRequest::get()
+            .uri("/config.js")
+            .insert_header(("host", "192.168.3.77:18080"))
+            .to_http_request();
+        assert_eq!(
+            browser_control_url("https://127.0.0.1:19000", request_authority(&request)),
+            "https://192.168.3.77:19000/"
+        );
+    }
+
     #[test]
     fn local_control_addresses_follow_the_browser_host() {
         for host in [
