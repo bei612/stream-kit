@@ -62,8 +62,25 @@
   ],
   "limits": [
     "No new full media/input/microphone acceptance on this APK; prior results retain their exact source and artifact boundaries.",
-    "Server first-install enrollment is implemented and its native runtime acceptance is still pending.",
+    "Server first-install enrollment subsequently passed with the exact 928c012a Linux installer in run 42275950549; see managed-enrollment-20261107.json. Matching Windows installer acceptance is separate.",
     "Installed local Windows services, HTTPS trust and ToDesk unchanged."
   ],
-  "distribution_correction": "Replaced the initial Windows-created ZIP, which used backslashes for nested notices, with standard forward-slash ZIP entries. APK, provenance, signer, version code and SBOM are unchanged. Updated download checksum asset verified against GitHub digests. Future CI packaging now creates the distribution archive directly."
+  "distribution_correction": "Replaced the initial Windows-created ZIP, which used backslashes for nested notices, with standard forward-slash ZIP entries. APK, provenance, signer, version code and SBOM are unchanged. Updated download checksum asset verified against GitHub digests. Future CI packaging now creates the distribution archive directly.",
+  "local_emulator_deployment": {
+    "date": "2026-11-07",
+    "device": "emulator-5580",
+    "api_level": 36,
+    "previous_version_code": 1000006,
+    "installed_version_code": 1000007,
+    "installed_version_name": "0.1.0-preview.20261107.1",
+    "apk_sha256_verified_before_install": true,
+    "install_mode": "adb install -r; application data retained",
+    "install_result": "Success",
+    "launch_activity": "com.limelight.streamkit.ManagedActivity",
+    "launch_status": "ok",
+    "launch_state": "COLD",
+    "launch_total_ms": 1091,
+    "process_present_after_launch": true,
+    "scope": "Updated the existing official local emulator using the published APK without rebuilding. Installation and launcher startup only; no new media, input, microphone, TLS-trust or physical-device claim. ToDesk and installed Windows services were not changed."
+  }
 }

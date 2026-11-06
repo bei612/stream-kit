@@ -145,8 +145,11 @@ Evidence: `docs/evidence/browser-native-audio-ue5-20261101.json`.
 
 The matching installer and complete LocalSystem service lifecycle acceptance are
 recorded in `docs/evidence/windows-installer-509c94cf.json`. The shared Audio class
-release identity is selected and verified. Physical human speech acceptance is
-deferred separately; generated PCM does not establish it. The published
+release identity is selected and verified. Physical human speech acceptance for
+that historical candidate was deferred separately; generated PCM does not
+establish it. Subsequent local human-speech evidence is recorded in
+`docs/evidence/human-voice-installed-20261105.json`, with its own version and
+environment boundaries. The published
 `v0.1.0-rc.1` candidate includes this provider and retains that acceptance limit;
 older preview assets remain unchanged.
 
@@ -155,8 +158,20 @@ single administrator's credentials. Internal media credentials and the shared
 media ticket key are generated independently. Initial listeners are private:
 control `127.0.0.1:9000`, gateway `127.0.0.1:8080`, Sunshine base port `47989`.
 Configure browser-accessible HTTPS and media networking in the management page
-before remote use. Application selection, host pairing and audio routing remain
-deployment settings; installing files does not constitute media acceptance.
+before remote use. Application selection and audio routing remain deployment
+settings; installing files does not constitute media acceptance.
+
+From source `928c012a`, the first managed application launch automatically
+enrolls the configured local renderer when the gateway host catalog is empty.
+This also applies when opening a permanent application link. The orchestrator
+approves only the pending pairing request whose fresh client certificate
+fingerprint matches the administrator-authorized gateway challenge. Subsequent
+launches reuse the paired renderer; no separate Sunshine PIN page is required.
+An offline renderer, ambiguous matching hosts or rejected pairing still causes
+an explicit launch failure. The configured renderer address and credentials must
+remain valid. Existing manually paired deployments retain their host identity.
+See `docs/evidence/managed-enrollment-20261107.json` for the exact Linux runtime
+acceptance scope; that record does not establish a local Windows deployment.
 
 Native initialization verifies all three component inventories and matching
 source revisions before invoking binaries. It resolves the desktop session's

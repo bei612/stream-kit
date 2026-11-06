@@ -24,6 +24,8 @@ sudo bash INSTALLER.run --user RENDER_USER
 
 通过统一管理页面配置渲染主机，上传应用压缩包或选择已有可执行程序，设置程序窗口或桌面采集，并管理观看会话和控制权。远程浏览器麦克风需要可信 HTTPS 和浏览器录音授权；默认监听地址仅供本机访问，远程接入前需配置相应监听地址、公开媒体地址和 TLS。
 
+从源码 `928c012a` 起，首次启动应用（包括打开永久观看链接）会自动将配置的渲染主机注册并配对到媒体网关，无需另外打开 Sunshine 页面提交 PIN。审批只匹配网关本次生成的客户端证书指纹；后续启动复用已配对主机。渲染主机离线、配置凭据失效或存在多个相同端点时会明确报错。完整安装包已在独立环境验证空主机目录下自动配对出画面及 IP 变化后的恢复，见 `docs/evidence/managed-enrollment-20261107.json`；不代表物理设备或本机 Windows 验收。
+
 服务启动时在该用户的音频服务中准备专用虚拟麦克风。管理页选择输出 `pulseaudio:stream_kit_microphone` 和输入 `pulseaudio:stream_kit_microphone_capture`；目标录音程序选择 **StreamKit-Microphone**。平台不将其设为系统默认设备。
 
 音频服务重启后可执行 `/opt/stream-kit/orchestrator/orchestrator prepare-audio` 重新准备端点，或重启平台服务。服务停止时释放本平台创建的虚拟端点。
