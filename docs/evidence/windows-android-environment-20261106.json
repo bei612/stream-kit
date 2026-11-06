@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-06",
+  "scope": "Official Android emulator environment qualification on disposable Windows Server 2022 runners, not product input acceptance",
+  "qualified": false,
+  "hardware": {
+    "run": "https://github.com/bei612/stream-kit/actions/runs/42239219720",
+    "source_commit": "c3ec55fab0ef97a50fa1ef29a58de8b14ee4d4c8",
+    "conclusion": "failure",
+    "emulator_version": "Android emulator version 37.2.13.0 (build_id 16740729) (CL:N/A)",
+    "acceleration_check": [
+      "accel:",
+      "0",
+      "WHPX(10.0.20348) is installed and usable.",
+      "accel"
+    ],
+    "actual_failure": "WHPX: Failed to setup partition, hr=c0350005; failed to initialize WHPX: Invalid argument"
+  },
+  "software": {
+    "run": "https://github.com/bei612/stream-kit/actions/runs/42239798902",
+    "source_commit": "8cd11888781c258d6d552c5b21f555c0df81b23a",
+    "conclusion": "cancelled",
+    "job_started_at": "2026-11-06T15:05:41Z",
+    "job_completed_at": "2026-11-06T15:20:52Z",
+    "job_timeout_minutes": 15,
+    "boot_success_recorded": false,
+    "final_result_available": false,
+    "interpretation": "The job reached its overall time limit without a successful boot result. Retained emulator logs alone do not distinguish a slow guest from a stalled adb request. Do not infer impossibility or product failure."
+  },
+  "followup": "Qualification now bounds each adb client request and persists intermediate state. No repeat Windows emulator attempt is scheduled. Android/Web actual input acceptance uses the existing hardware-accelerated Linux CI path and unchanged published runtime/APK.",
+  "files": [
+    {
+      "path": ".local/validation/windows-android-env-c3ec55fa/result.json",
+      "sha256": "8c66cae2d1b09f47321d70657df817985737d4c7b18e28b9b57b16de4b2af88e"
+    },
+    {
+      "path": ".local/validation/windows-android-env-c3ec55fa/emulator.stderr.log",
+      "sha256": "d487929c92e4aca2888cdb67a1b16c8e293eb55ec60b8c5c26a2c6838f1cee55"
+    },
+    {
+      "path": ".local/validation/windows-android-env-8cd11888/emulator.stdout.log",
+      "sha256": "3eba5aefd5c2c1aebd7025596f07920958f4b317162f728567e39c9e69a367ff"
+    },
+    {
+      "path": ".local/validation/windows-android-env-8cd11888/emulator.stderr.log",
+      "sha256": "4820f0323364834d074157a2a15085ab12f99e7e98c6f8e27a2a4261f829a072"
+    }
+  ],
+  "local_host_changed": false,
+  "todesk_changed": false,
+  "production_packages_changed": false
+}

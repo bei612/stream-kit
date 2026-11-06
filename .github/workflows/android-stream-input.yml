@@ -53,7 +53,7 @@ jobs:
           mapfile -t dependencies < <(dpkg-deb -f artifacts/input-download/runtime.deb Depends | tr ',' '\n' | sed -E 's/^[[:space:]]*([a-z0-9+.-]+).*/\1/')
           for dependency in "${dependencies[@]}"; do [[ "$dependency" =~ ^[a-z0-9][a-z0-9+.-]*$ ]]; done
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends "${dependencies[@]}" libx11-dev xvfb xauth xdotool openbox pulseaudio libnss3-tools
+          sudo apt-get install -y --no-install-recommends "${dependencies[@]}" libx11-dev x11-utils xvfb xauth xdotool openbox pulseaudio libnss3-tools
           artifacts/input-runtime/opt/stream-kit/orchestrator/orchestrator verify-platform artifacts/input-runtime/opt/stream-kit
           npm ci --prefix third_party/moonlight-web-stream --ignore-scripts --no-audit --no-fund
           android --sdk="$ANDROID_HOME" sdk install 'emulator' 'system-images;android-36;google_apis;x86_64'
