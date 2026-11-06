@@ -14,7 +14,9 @@ const outputDevice = verifyInput ? null : option('--example-output');
 const serviceControl=process.argv.includes('--service-control');
 const managedEncoder=process.argv.includes('--apply-managed-encoder')||serviceControl;
 assert.ok(!managedEncoder||serviceControl||process.argv.includes('--edit-encoder-configuration'),'Managed encoder apply requires configuration editing');
-const scratch = fs.mkdtempSync(path.join(root, '.local/source-stream-'));
+const scratchParent = path.join(root, '.local');
+fs.mkdirSync(scratchParent, {recursive:true});
+const scratch = fs.mkdtempSync(path.join(scratchParent, 'source-stream-'));
 const output = path.join(root, 'artifacts/source-stream', new Date().toISOString().replace(/[:.]/g, '-'));
 fs.mkdirSync(output, { recursive:true });
 const sha = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
@@ -71,7 +73,7 @@ async function main() {
     pkey:nativePath('key.pem'), cert:nativePath('cert.pem'), log_path:nativePath('sunshine.log'), sunshine_name:'StreamKit source acceptance' };
   fs.writeFileSync(configFile,Object.entries(config).map(([key,value])=>`${key} = ${value}`).join('\n'));
   if(process.argv.includes('--edit-encoder-configuration'))fs.appendFileSync(configFile,'\nglobal_prep_cmd = [\n]\n');
-  try { execFileSync(encoder,[configFile,'--creds',credentials.username,credentials.password],{cwd:scratch,windowsHide:true,stdio:'ignore',timeout:30000}); }
+  try { execFileSync(encoder,[configFile,'--creds-stdin'],{cwd:scratch,windowsHide:true,input:JSON.stringify({name:credentials.username,password:credentials.password}),stdio:['pipe','ignore','ignore'],timeout:30000}); }
   catch { throw new Error('Failed to initialize isolated native credentials'); }
   const fd=fs.openSync(path.join(output,'sunshine.log'),'w');
   child=spawn(encoder,[configFile,...(process.argv.includes('--edit-encoder-configuration')?['sunshine_name=StreamKit startup override']:[])],{cwd:scratch,windowsHide:true,stdio:['ignore',fd,fd]}); fs.closeSync(fd); exited=once(child,'exit');

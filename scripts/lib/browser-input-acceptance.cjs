@@ -42,13 +42,31 @@ async function verifyBrowserInput({pages, api, sessionId, app, example, report, 
     for(let i=0;i<pages.length;i++)await pages[i].waitForFunction(role=>window.app.getStream().mediaAccess.role===role,
       ids[i]===controller?'controller':'viewer',{timeout:15000});
   }
+  async function replay(index) {
+    return pages[index].evaluate(async()=>{
+      const records=window.__inputReplay;
+      if(!records?.length || records.some(r=>r.length!==38))throw Error('Missing known WebState test packets');
+      const down=records.find(r=>r.slice(6).some(x=>x!==0)),up=records.find(r=>r.slice(6).every(x=>x===0));
+      if(!down || !up)throw Error('Both real key down and released snapshots are required');
+      const before=window.__inputReplaySent;
+      window.__inputReplayQueue=[down,down,down,up,up,up].map(r=>r.slice(6));
+      const deadline=Date.now()+5000;
+      try {
+        while(window.__inputReplaySent-before<6) {
+          if(Date.now()>deadline)throw Error('No fresh transport frames; denial is inconclusive');
+          await new Promise(resolve=>setTimeout(resolve,20));
+        }
+        return window.__inputReplaySent-before;
+      } finally { window.__inputReplayQueue=[]; }
+    });
+  }
   async function positive(index,label) {
     await roles(ids[index]); focus(); const before=snapshot(), page=pages[index];
     // Retain the real encoded keyboard messages only during this known test
     // key. Replaying them later challenges the server, bypassing the browser's
     // cooperative role check without changing the product transport.
     await page.evaluate(()=>{window.__inputReplay=[];window.__recordInputReplay=true;window.app.focusInput();});
-    await page.keyboard.down('a'); await delay(120); await page.keyboard.up('a');
+    await page.keyboard.down('a'); await delay(120); await page.keyboard.up('a'); await delay(80);
     await page.evaluate(()=>{window.__recordInputReplay=false;});
     await until(()=>snapshot().keys>before.keys,'controller key received');
     const video=page.locator('video'), box=await video.boundingBox(); assert.ok(box);
@@ -59,19 +77,14 @@ async function verifyBrowserInput({pages, api, sessionId, app, example, report, 
     assert.equal(after.clicks,before.clicks+1,'Unexpected extra pointer input');
     const recorded=await page.evaluate(()=>window.__inputReplay.length);
     assert.ok(recorded>=2 && recorded<=200,'Expected bounded actual key down/up transport messages');
-    state.phases.push({label,connection_id:ids[index],before,after,recorded_messages:recorded}); save();
+    const replayed=await replay(index);
+    await until(()=>snapshot().keys>after.keys,'known replay accepted while authorized');
+    const afterReplay=snapshot(); assert.equal(afterReplay.keys,after.keys+1); assert.equal(afterReplay.clicks,after.clicks);
+    state.phases.push({label,connection_id:ids[index],before,after,after_replay:afterReplay,recorded_messages:recorded,replayed_messages:replayed}); save();
   }
   async function denied(index,label) {
     focus(); const before=snapshot();
-    const sent=await pages[index].evaluate(async()=>{
-      const records=window.__inputReplay; if(!records?.length)throw Error('No actual input packets retained');
-      for(const record of records) {
-        if(record.channel.readyState!=='open')throw Error('Input channel is closed; denial would be inconclusive');
-        record.channel.send(new Uint8Array(record.bytes));
-        await new Promise(resolve=>setTimeout(resolve,20));
-      }
-      return records.length;
-    });
+    const sent=await replay(index);
     await delay(1000); focus(); const after=snapshot(); assert.deepEqual(after,before,'Revoked client reached the target');
     state.phases.push({label,connection_id:ids[index],sent_messages:sent,before,after}); save();
   }
@@ -91,7 +104,7 @@ async function verifyBrowserInput({pages, api, sessionId, app, example, report, 
     state.passed=true; save();
   } finally {
     await api(route+'/controller','DELETE');
-    await Promise.all(pages.map(p=>p.evaluate(()=>{window.__recordInputReplay=false;window.__inputReplay=[];})));
+    await Promise.all(pages.map(p=>p.evaluate(()=>{window.__recordInputReplay=false;window.__inputReplay=[];window.__inputReplayQueue=[];})));
   }
 }
 module.exports={verifyBrowserInput};
