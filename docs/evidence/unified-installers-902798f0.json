@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "source_commit": "902798f02d6e5746e9237d5ab92867a6496818bd",
+  "product_run": "https://github.com/bei612/stream-kit/actions/runs/42189092709",
+  "windows_acceptance_run": "https://github.com/bei612/stream-kit/actions/runs/42195134226",
+  "windows": {
+    "installer_sha256": "b42c86b3a3836f418973bb7803ca7bd47b9044f26e0f85d0003352a48b9a4860",
+    "installer_source_commit": "902798f02d6e5746e9237d5ab92867a6496818bd",
+    "acceptance_result_sha256": "f5820223dfc72574b42d2ea65838733881ef4892dfbf26b30d101ff9c0c7729f",
+    "passed": true,
+    "install_exit": 0,
+    "administrator_login": true,
+    "service_after_install": {
+      "name": "StreamKitOrchestrator",
+      "state": "Running",
+      "start_mode": "Auto",
+      "account": "LocalSystem",
+      "pid": 4300
+    },
+    "service_after_restart": {
+      "name": "StreamKitOrchestrator",
+      "state": "Running",
+      "start_mode": "Auto",
+      "account": "LocalSystem",
+      "pid": 7612
+    },
+    "component_autostart_configuration": "Acceptance asserts sunshine.auto_start and web_server.auto_start before any restart; no post-install startup repair.",
+    "gateway_restarted": true,
+    "scm_restarted": true,
+    "audio": {
+      "passed": true,
+      "captured_frames": 144000,
+      "dropped_frames": 0,
+      "xruns": 0
+    },
+    "defaults_preserved": true,
+    "uninstall_exit": 0,
+    "service_removed": true,
+    "data_preserved": true,
+    "installer": {
+      "name": "stream-kit-preview-902798f02d6e-windows-amd64-setup.exe",
+      "bytes": 97491739,
+      "sha256": "b42c86b3a3836f418973bb7803ca7bd47b9044f26e0f85d0003352a48b9a4860"
+    }
+  },
+  "linux": {
+    "installer": {
+      "file": "stream-kit-preview-902798f02d6e-ubuntu24.04-amd64-setup.run",
+      "bytes": 62349461,
+      "sha256": "90576da971050c2d58fe4956e3aa4b72bfee42508f14a3c3984991bd0d9a0a16"
+    },
+    "acceptance_log_sha256": "48f527dba0ccf51ebd92107dd3140b0a0dbb8698dfa0cb0087daebaa40a94a66",
+    "scope": "Native payload extraction, offline user-service enablement, initialization and data preservation; no real host media or LAN claim."
+  },
+  "sbom": {
+    "file": "stream-kit-sbom.spdx.json",
+    "bytes": 7447882,
+    "sha256": "5a31fdc6a45f9b0f109ecd7c71c21fd07971b935f0916f085e02d51658143e07",
+    "format": "SPDX-2.3"
+  },
+  "limits": [
+    "Windows acceptance used a disposable Windows Server 2022 runner; not a full-machine reboot.",
+    "Local installed control remains 70ea6f70 and media 66249387; publication does not upgrade this host.",
+    "Android effective input, production LAN HTTPS and physical host IP-change acceptance remain open.",
+    "Generated PCM does not replace human speech; previous accepted speech evidence remains separate."
+  ],
+  "local_downloads_verified": true,
+  "publication": {
+    "url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261106.1",
+    "tag": "v0.1.0-preview.20261106.1",
+    "prerelease": true,
+    "published_at": "2026-11-06T09:31:37Z",
+    "promotion_run": "https://github.com/bei612/stream-kit/actions/runs/42195634850",
+    "all_asset_bytes_and_digests_match": true,
+    "release_notes_match": true,
+    "assets": [
+      {
+        "name": "installer-manifest.json",
+        "bytes": 2312,
+        "sha256": "4d080695cf24f3ac5fc4a11d672c122554d68a67f3f0d3fdbeb428f3b0aeaaae",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261106.1/installer-manifest.json"
+      },
+      {
+        "name": "linux-installer-manifest.json",
+        "bytes": 1408,
+        "sha256": "ec7f3f7053a7e500b2c6634a3be96be7307329837d60454c83396630f4092906",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261106.1/linux-installer-manifest.json"
+      },
+      {
+        "name": "Linux-SHA256SUMS.txt",
+        "bytes": 126,
+        "sha256": "ca3dba87008e2dc7384c1d0eec7eb02ae1a0704d638c6aff8ae4235b26964280",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261106.1/Linux-SHA256SUMS.txt"
+      },
+      {
+        "name": "SHA256SUMS.txt",
+        "bytes": 122,
+        "sha256": "e3917568de4143c67d107fd81c877161f0bec53b1df1bee1c37720498ee13d6c",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261106.1/SHA256SUMS.txt"
+      },
+      {
+        "name": "stream-kit-preview-902798f02d6e-ubuntu24.04-amd64-setup.run",
+        "bytes": 62349461,
+        "sha256": "90576da971050c2d58fe4956e3aa4b72bfee42508f14a3c3984991bd0d9a0a16",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261106.1/stream-kit-preview-902798f02d6e-ubuntu24.04-amd64-setup.run"
+      },
+      {
+        "name": "stream-kit-preview-902798f02d6e-windows-amd64-setup.exe",
+        "bytes": 97491739,
+        "sha256": "b42c86b3a3836f418973bb7803ca7bd47b9044f26e0f85d0003352a48b9a4860",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261106.1/stream-kit-preview-902798f02d6e-windows-amd64-setup.exe"
+      },
+      {
+        "name": "stream-kit-sbom.spdx.json",
+        "bytes": 7447882,
+        "sha256": "5a31fdc6a45f9b0f109ecd7c71c21fd07971b935f0916f085e02d51658143e07",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261106.1/stream-kit-sbom.spdx.json"
+      }
+    ]
+  }
+}

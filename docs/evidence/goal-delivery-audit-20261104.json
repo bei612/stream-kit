@@ -6,25 +6,17 @@
   "latest_observation": {
     "control_commit": "70ea6f7090097af5e6e3b7dca0185a712d5fc37f",
     "actual_boot_evidence": "docs/evidence/windows-real-boot-20261104.json",
-    "source_candidate": "05baccd8aad19a32f427eeabadbc918866e882dd",
-    "product_build_run": 41818329279,
-    "note": "Unified Windows/Linux product build 41818329279 and clean Windows installer acceptance 41828402371 passed for 05baccd8. Automatic SCM startup was verified immediately after installation without manual repair. Installed local control remains 70ea6f70; hosted service restart is not full-machine reboot evidence.",
-    "linux_installer_evidence": "docs/evidence/linux-installer-autostart-05baccd8.json",
+    "source_candidate": "902798f02d6e5746e9237d5ab92867a6496818bd",
+    "product_build_run": 42189092709,
+    "note": "Unified Windows/Linux product build 42189092709 and exact Windows installer acceptance 42195134226 passed for 902798f0. Promotion 42195634850 published the existing bytes without rebuilding; all seven public asset sizes/digests and release notes match. Installer-created automatic SCM startup, component auto-start, audio PCM, service restart and uninstall passed. Local control remains 70ea6f70 and media 66249387; no local service/trust/network mutation.",
+    "linux_installer_evidence": "docs/evidence/linux-installer-902798f0.json",
     "lifecycle_and_startup_policy_evidence": "docs/evidence/lifecycle-and-autostart-ci-05baccd8.json",
-    "unified_installer_evidence": "docs/evidence/unified-installers-05baccd8.json",
-    "windows_installer_acceptance_run": 41828402371,
-    "release": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261104.1",
+    "unified_installer_evidence": "docs/evidence/unified-installers-902798f0.json",
+    "windows_installer_acceptance_run": 42195134226,
+    "release": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261106.1",
     "subsequent_ci_disk_fix": "docs/evidence/linux-build-disk-lifecycle-c5878b7d.json",
     "current_cross_platform_evidence": "docs/evidence/cross-platform-902798f0.json",
-    "pending_product_candidate": {
-      "source_commit": "902798f02d6e5746e9237d5ab92867a6496818bd",
-      "product_run_id": 42189092709,
-      "state": "windows_build_in_progress_linux_package_passed",
-      "target_tag": "v0.1.0-preview.20261106.1",
-      "linux_evidence": "docs/evidence/linux-installer-902798f0.json",
-      "watch_link_state_evidence": "docs/evidence/watch-link-state-902798f0.json",
-      "installed_host_updated": false
-    }
+    "current_watch_link_state_evidence": "docs/evidence/watch-link-state-902798f0.json"
   },
   "installed_source": "66249387b32975e79d56b19fdf98d4bc7d414da0",
   "historical_requirement_audit": "docs/evidence/goal-delivery-audit-20261101.json",
@@ -107,6 +99,6 @@
       "next": "Validate during an agreed network-change window or on an isolated deployment, preserving the other projects and remote sessions on this host."
     }
   ],
-  "distribution_boundary": "Public v0.1.0-preview.20261104.1 contains Windows and Ubuntu 24.04 runtime installers and SBOM at source 05baccd8. All seven published asset sizes and server SHA-256 digests match locally verified build artifacts. Clean Windows silent installation verified automatic SCM startup without manual repair, native PCM, gateway/SCM restart and uninstall; Linux native package initialization and offline user-service enablement passed. Installed local control remains 70ea6f70 with media baseline 66249387; this publication did not replace the local installation. See docs/evidence/unified-installers-05baccd8.json. Android preview v0.1.0-android-preview.20261106.5 separately supplies signed APK, full distribution archive, provenance, SBOM and checksums from source 04e5cea5. It requires verified HTTPS; the installed HTTP host was not changed.",
+  "distribution_boundary": "Public v0.1.0-preview.20261106.1 contains Windows and Ubuntu 24.04 runtime installers and SPDX SBOM at source 902798f0. All seven published asset sizes and server SHA-256 digests match locally downloaded build artifacts. Clean Windows silent installation verified automatic SCM startup without manual repair, native PCM, default audio preservation, gateway/SCM restart and uninstall. Linux native package extraction, initialization, offline user-service enablement and existing-data preservation passed. Local control remains 70ea6f70 with media 66249387; publication did not replace the local installation. See docs/evidence/unified-installers-902798f0.json. Android preview v0.1.0-android-preview.20261106.5 separately supplies the signed APK, distribution archive, provenance, SBOM and checksums from source 04e5cea5. It requires verified HTTPS; the installed HTTP host was not changed.",
   "completion_decision": "Goal remains incomplete. Current installed operation and permanent-link delivery do not substitute for the remaining acceptance conditions."
 }
