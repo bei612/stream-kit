@@ -46,11 +46,20 @@ async function main(){
     report.stage='resolve_'+address;save();
     const resolved=await until(()=>{const text=client('avahi-resolve-host-name','-4',host);return text.endsWith('\t'+address)?text:false;},'remote multicast resolution',60000);
     const records=await until(()=>{const text=client('avahi-browse','-rpt','_nvstream._tcp');return text.split('\n').find(x=>x.startsWith('=;')&&x.includes(';'+host+';'+address+';47989;'));},'renderer service discovery',60000);
-    const curl=(port,resource)=>client('curl','--noproxy','*','--fail','--silent','--show-error','--max-time','5','--cacert',path.join(tls,'ca.crt'),`https://${host}:${port}${resource}`);
+    const curl=(port,resource,...options)=>client('curl','--noproxy','*','--fail','--silent','--show-error','--max-time','5','--cacert',path.join(tls,'ca.crt'),...options,`https://${host}:${port}${resource}`);
     const health=JSON.parse(curl(19000,'/api/v1/health'));assert.ok(health);
-    const config=curl(18080,'/config.js');assert.ok(config.includes(`https://${host}:19000`),'Gateway leaked or retained the wrong control hostname');
-    assert.ok(!config.includes('https://127.0.0.1:19000'));
-    report.observations.push({address,resolved,renderer_service:records,control_https:true,gateway_https:true,public_control_host_correct:true});save();
+    const configs=[];
+    for(const mode of [[],['--http1.1']]){
+      const text=curl(18080,'/config.js',...mode,'--write-out','\nSK_HTTP:%{http_version}');
+      const index=text.lastIndexOf('\nSK_HTTP:');assert.ok(index>0);
+      const body=text.slice(0,index),prefix='window.__CONFIG_JS__ = ';assert.ok(body.startsWith(prefix));
+      const config=JSON.parse(body.slice(prefix.length));
+      configs.push({requested:mode.length?'http1.1':'default',http_version:text.slice(index+9),control_plane_url:config.control_plane_url});
+    }
+    const observation={address,resolved,renderer_service:records,control_https:true,gateway_https:true,configs,public_control_host_correct:false};
+    report.observations.push(observation);save();
+    assert.ok(configs.every(x=>x.control_plane_url===`https://${host}:19000`||x.control_plane_url===`https://${host}:19000/`),'Gateway leaked or retained the wrong control hostname');
+    observation.public_control_host_correct=true;save();
   }
   await observe('198.18.31.1');
   report.stage='change_owned_nic';save();
