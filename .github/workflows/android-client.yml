@@ -38,6 +38,7 @@ jobs:
         with:
           node-version: '26.4.0'
       - run: node scripts/test-android-protocol.mjs
+      - run: python3 scripts/android/test-release-inventory.py
 
   native-debug-build:
     name: Android debug build and managed HTTP tests

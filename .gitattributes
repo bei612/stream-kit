@@ -12,6 +12,8 @@
 third_party/sunshine/** text=auto eol=lf
 third_party/moonlight-android/** text=auto eol=lf
 third_party/moonlight-android/*.bat text eol=crlf
+# Distribution notice hashes cover exact upstream bytes, including jar-extracted CRLF.
+third_party/moonlight-android/app/src/main/assets/licenses/** -text
 # Go mod vendor copies module archive bytes, including upstream CRLF files.
 # Preserve those bytes across checkouts so regeneration is identical on both OSes.
 # Nested upstream attributes may re-enable text conversion; retain LF in that

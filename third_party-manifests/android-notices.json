@@ -1,0 +1,260 @@
+{
+  "schema_version": 1,
+  "scope": "APK notices, resolved JVM artifacts and imported native archives",
+  "notices": [
+    {
+      "name": "APACHE-2.0.txt",
+      "path": "third_party/moonlight-android/app/src/main/assets/licenses/APACHE-2.0.txt",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "source": "scripts/licenses/cargo/standard/LICENSE-APACHE-2.0"
+    },
+    {
+      "name": "BCPKIX.md",
+      "path": "third_party/moonlight-android/app/src/main/assets/licenses/BCPKIX.md",
+      "sha256": "0e01f1549c9022f406392ac2947d32223b7c2e977d21ea2f8c182fdeb4dae5fd",
+      "source": "META-INF license in the exact runtime artifact listed below"
+    },
+    {
+      "name": "BCPROV.md",
+      "path": "third_party/moonlight-android/app/src/main/assets/licenses/BCPROV.md",
+      "sha256": "0e01f1549c9022f406392ac2947d32223b7c2e977d21ea2f8c182fdeb4dae5fd",
+      "source": "META-INF license in the exact runtime artifact listed below"
+    },
+    {
+      "name": "BCUTIL.md",
+      "path": "third_party/moonlight-android/app/src/main/assets/licenses/BCUTIL.md",
+      "sha256": "0e01f1549c9022f406392ac2947d32223b7c2e977d21ea2f8c182fdeb4dae5fd",
+      "source": "META-INF license in the exact runtime artifact listed below"
+    },
+    {
+      "name": "CPUFEATURES.txt",
+      "path": "third_party/moonlight-android/app/src/main/assets/licenses/CPUFEATURES.txt",
+      "sha256": "4102cd5ae35cbdeb0638c350966185e028ea9da863859f70e231c3cb273118d1",
+      "source": "Android NDK 29.0.14206865 sources/android/cpufeatures/cpu-features.c (leading license comment)"
+    },
+    {
+      "name": "ENET.txt",
+      "path": "third_party/moonlight-android/app/src/main/assets/licenses/ENET.txt",
+      "sha256": "77f94e3be39938801163844b8bf9a4f12badcc0da136e9886e7da14a816d74d3",
+      "source": "third_party/moonlight-android/app/src/main/jni/moonlight-core/moonlight-common-c/enet/LICENSE"
+    },
+    {
+      "name": "JCODEC.txt",
+      "path": "third_party/moonlight-android/app/src/main/assets/licenses/JCODEC.txt",
+      "sha256": "8eacff112f76f32d03216c3076429384909ae6f45c0aad17d805e59d8af6cbc4",
+      "source": "https://raw.githubusercontent.com/jcodec/jcodec/4ba922aca445c4df59f99e183c79d0538e5cb53f/LICENSE"
+    },
+    {
+      "name": "MOONLIGHT-ANDROID.txt",
+      "path": "third_party/moonlight-android/app/src/main/assets/licenses/MOONLIGHT-ANDROID.txt",
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+      "source": "third_party/moonlight-android/LICENSE.txt"
+    },
+    {
+      "name": "MOONLIGHT-COMMON-C.txt",
+      "path": "third_party/moonlight-android/app/src/main/assets/licenses/MOONLIGHT-COMMON-C.txt",
+      "sha256": "589ed823e9a84c56feb95ac58e7cf384626b9cbf4fda2a907bc36e103de1bad2",
+      "source": "third_party/moonlight-android/app/src/main/jni/moonlight-core/moonlight-common-c/LICENSE.txt"
+    },
+    {
+      "name": "NANORS.txt",
+      "path": "third_party/moonlight-android/app/src/main/assets/licenses/NANORS.txt",
+      "sha256": "3fdda5f011d8490331950398e86427d67dfae05e048681476c2c6b8c34bdd033",
+      "source": "third_party/moonlight-android/app/src/main/jni/moonlight-core/moonlight-common-c/nanors/LICENSE"
+    },
+    {
+      "name": "OPENSSL.txt",
+      "path": "third_party/moonlight-android/app/src/main/assets/licenses/OPENSSL.txt",
+      "sha256": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a",
+      "source": "https://raw.githubusercontent.com/openssl/openssl/f089acdf4bc7ba94a79f4bf6eb7362c3e7d14aa9/LICENSE.txt"
+    },
+    {
+      "name": "OPUS.txt",
+      "path": "third_party/moonlight-android/app/src/main/assets/licenses/OPUS.txt",
+      "sha256": "01e1167d54a096d123cf6dfbbeb19587278845c6481d2d66d545669846079551",
+      "source": "https://raw.githubusercontent.com/xiph/opus/677070ed0c35fc52a634f4be845aa426ea3a1689/COPYING"
+    },
+    {
+      "name": "SHIELD.txt",
+      "path": "third_party/moonlight-android/app/src/main/assets/licenses/SHIELD.txt",
+      "sha256": "3ba5ba6226b8d435ddf8f45b8c1375d9671bd62aefb9a79acf6ab44cb82bf49b",
+      "source": "https://raw.githubusercontent.com/cgutman/ShieldControllerExtensions/48356a2263839949fdfdf0795b3d8cc38edeef9b/LICENSE"
+    },
+    {
+      "name": "SLF4J.txt",
+      "path": "third_party/moonlight-android/app/src/main/assets/licenses/SLF4J.txt",
+      "sha256": "226597f6ed1ff28910719f4c03264ec30d9c7e8636094649763c0166f6a02dcc",
+      "source": "META-INF license in the exact runtime artifact listed below"
+    },
+    {
+      "name": "WEBRTC.md",
+      "path": "third_party/moonlight-android/app/src/main/assets/licenses/WEBRTC.md",
+      "sha256": "d1f9382c6878ac024155fd6d44a5977329108bb8b0a01cea40e4a2f1d7de252e",
+      "source": "third_party-manifests/android-media.json"
+    }
+  ],
+  "runtime_dependencies": [
+    {
+      "coordinate": "androidx.annotation:annotation-jvm:1.10.0",
+      "file": "annotation-jvm-1.10.0.jar",
+      "sha256": "ddd072ddbb553178e205517ce777b2f05aa9e412982d9ecb4eedc74f1212f697",
+      "notice": "APACHE-2.0.txt"
+    },
+    {
+      "coordinate": "androidx.startup:startup-runtime:1.2.0",
+      "file": "startup-runtime-1.2.0.aar",
+      "sha256": "f51d361d17b30b09cfb9e2aebf301d113f99437cbf462a066092795fb60eddd2",
+      "notice": "APACHE-2.0.txt"
+    },
+    {
+      "coordinate": "androidx.tracing:tracing:1.0.0",
+      "file": "tracing-1.0.0.aar",
+      "sha256": "07b8b6139665b884a162eccf97891ca50f7f56831233bf25168ae04f7b568612",
+      "notice": "APACHE-2.0.txt"
+    },
+    {
+      "coordinate": "com.github.cgutman:ShieldControllerExtensions:1.0.1",
+      "file": "ShieldControllerExtensions-1.0.1.aar",
+      "sha256": "f53ddeedfa584db60d66e11ba675d322813b60706f9b213976bf95994fcb7384",
+      "notice": "SHIELD.txt"
+    },
+    {
+      "coordinate": "com.squareup.okhttp3:okhttp-android:5.5.0",
+      "file": "okhttp.aar",
+      "sha256": "6c7fd12f092e64ca2eae0b8a8023900c0d7ffec57888cf8abc8085c6f42e1dcc",
+      "notice": "APACHE-2.0.txt"
+    },
+    {
+      "coordinate": "com.squareup.okio:okio-jvm:3.18.1",
+      "file": "okio-jvm-3.18.1.jar",
+      "sha256": "b97b640557a650d15411f2be29aef558c4e422a83653cb18ba494311dbed18be",
+      "notice": "APACHE-2.0.txt"
+    },
+    {
+      "coordinate": "io.github.webrtc-sdk:android:150.7871.01",
+      "file": "android-150.7871.01.aar",
+      "sha256": "0a1627b1a48c2bc17d9a40d62fc47bd45166f44a311e95917f147c402de379b0",
+      "notice": "WEBRTC.md"
+    },
+    {
+      "coordinate": "org.bouncycastle:bcpkix-jdk18on:1.85",
+      "file": "bcpkix-jdk18on-1.85.jar",
+      "sha256": "c9f82b2d4e99c4bbdfccf684e52cc06ea06a0b567bfd0d08f9c5a3f417055996",
+      "notice": "BCPKIX.md"
+    },
+    {
+      "coordinate": "org.bouncycastle:bcprov-jdk18on:1.85.2",
+      "file": "bcprov-jdk18on-1.85.2.jar",
+      "sha256": "986b0fb92ec10e0c66b43e036ce0077e6150cfaecd1db9fb92b56672e157afe5",
+      "notice": "BCPROV.md"
+    },
+    {
+      "coordinate": "org.bouncycastle:bcutil-jdk18on:1.85",
+      "file": "bcutil-jdk18on-1.85.jar",
+      "sha256": "590f55ed5d68529239898a4a5c4f730b6e37f45d1cfa3fbe51f8485abe32c42d",
+      "notice": "BCUTIL.md"
+    },
+    {
+      "coordinate": "org.jcodec:jcodec:0.2.5",
+      "file": "jcodec-0.2.5.jar",
+      "sha256": "890329dad124e8b739c1d6602a59a53c8a474daddff265c2561e21c498496c81",
+      "notice": "JCODEC.txt"
+    },
+    {
+      "coordinate": "org.jetbrains.kotlin:kotlin-stdlib:2.2.21",
+      "file": "kotlin-stdlib-2.2.21.jar",
+      "sha256": "6558a3d233da56a20934b32159f9db5f86ed5816ef098f78a2c223dc6abb79dd",
+      "notice": "APACHE-2.0.txt"
+    },
+    {
+      "coordinate": "org.jetbrains:annotations:13.0",
+      "file": "annotations-13.0.jar",
+      "sha256": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+      "notice": "APACHE-2.0.txt"
+    },
+    {
+      "coordinate": "org.jmdns:jmdns:3.6.3",
+      "file": "jmdns-3.6.3.jar",
+      "sha256": "6b6eb1623cb1d9e51467312ea62c567da005c2aa5a95347f566a11b8703c0ef1",
+      "notice": "APACHE-2.0.txt"
+    },
+    {
+      "coordinate": "org.slf4j:slf4j-api:2.0.7",
+      "file": "slf4j-api-2.0.7.jar",
+      "sha256": "5d6298b93a1905c32cda6478808ac14c2d4a47e91535e53c41f7feeb85d946f4",
+      "notice": "SLF4J.txt"
+    }
+  ],
+  "native_archives": [
+    {
+      "component": "opus",
+      "abi": "arm64-v8a",
+      "path": "third_party/moonlight-android/app/src/main/jni/moonlight-core/opus/arm64-v8a/libopus.a",
+      "sha256": "d6c39b9135017ab76a42e364569f18622e6e3df691ac2d1d9d36ee4a02eb2e13",
+      "version_observation": "libopus unknown",
+      "notice": "OPUS.txt"
+    },
+    {
+      "component": "opus",
+      "abi": "armeabi-v7a",
+      "path": "third_party/moonlight-android/app/src/main/jni/moonlight-core/opus/armeabi-v7a/libopus.a",
+      "sha256": "3925fecb62e4a75095d658bcc1c4e309712a330699825b7790880cf21497719e",
+      "version_observation": "libopus unknown",
+      "notice": "OPUS.txt"
+    },
+    {
+      "component": "opus",
+      "abi": "x86",
+      "path": "third_party/moonlight-android/app/src/main/jni/moonlight-core/opus/x86/libopus.a",
+      "sha256": "ed39b86eee0868d911516c4034e8395af31aaa7bfb8ac7e4415846b59ee28d1f",
+      "version_observation": "libopus unknown",
+      "notice": "OPUS.txt"
+    },
+    {
+      "component": "opus",
+      "abi": "x86_64",
+      "path": "third_party/moonlight-android/app/src/main/jni/moonlight-core/opus/x86_64/libopus.a",
+      "sha256": "7d8214860fdab5a8bf0d15125a2ae7baf80169dc4e6ee1ffa2633bb2e7de7a8b",
+      "version_observation": "libopus unknown",
+      "notice": "OPUS.txt"
+    },
+    {
+      "component": "openssl",
+      "abi": "arm64-v8a",
+      "path": "third_party/moonlight-android/app/src/main/jni/moonlight-core/openssl/arm64-v8a/libcrypto.a",
+      "sha256": "d593ba8f576db9ff20d058bee7f0f154b4e000b447548533bc8f16eb95290b54",
+      "version_observation": "OpenSSL 4.0.2 25 Aug 2026",
+      "notice": "OPENSSL.txt"
+    },
+    {
+      "component": "openssl",
+      "abi": "armeabi-v7a",
+      "path": "third_party/moonlight-android/app/src/main/jni/moonlight-core/openssl/armeabi-v7a/libcrypto.a",
+      "sha256": "76abf9210207bb74d19c758e898090f5b4c45fdf1c9a9e8613431c7d9455d904",
+      "version_observation": "OpenSSL 4.0.2 25 Aug 2026",
+      "notice": "OPENSSL.txt"
+    },
+    {
+      "component": "openssl",
+      "abi": "x86",
+      "path": "third_party/moonlight-android/app/src/main/jni/moonlight-core/openssl/x86/libcrypto.a",
+      "sha256": "88699686084a5cf6068be378b86b7e90f9ea646f6aca09b17303d8cdbe933aff",
+      "version_observation": "OpenSSL 4.0.2 25 Aug 2026",
+      "notice": "OPENSSL.txt"
+    },
+    {
+      "component": "openssl",
+      "abi": "x86_64",
+      "path": "third_party/moonlight-android/app/src/main/jni/moonlight-core/openssl/x86_64/libcrypto.a",
+      "sha256": "8502529fe9992e4f67962a5c5d98139ec37cd9ccacac341622500bf399ad52ca",
+      "version_observation": "OpenSSL 4.0.2 25 Aug 2026",
+      "notice": "OPENSSL.txt"
+    }
+  ],
+  "limitations": [
+    "Native archives are pinned to the imported official Moonlight Android snapshot; not rebuilt locally.",
+    "Opus binary reports libopus unknown. The pinned Opus COPYING source identifies the notice only, not the archive source version.",
+    "JCodec license is from its pinned upstream repository; the 0.2.5 Maven POM identifies the FreeBSD license but provides no source tag.",
+    "Resolved JVM artifacts form a conservative build-input inventory; R8 may eliminate unused code."
+  ]
+}

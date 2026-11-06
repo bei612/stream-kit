@@ -25,6 +25,8 @@ jobs:
       RELEASE_CODE: ${{ inputs.version_code }}
     steps:
       - uses: actions/checkout@v4
+      - name: Check release inventory rejection boundaries
+        run: python3 scripts/android/test-release-inventory.py
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import zipfile
+from urllib.parse import quote
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "third_party/moonlight-android"
@@ -21,6 +22,60 @@ def run(*args):
 def sha(path):
     with path.open("rb") as source:
         return hashlib.file_digest(source, "sha256").hexdigest()
+
+
+def verify_dependency_inventory(root, archive, runtime):
+    """Fail closed on an unreviewed runtime, native archive or changed/missing notice."""
+    manifest = json.loads((root / "third_party-manifests/android-notices.json").read_text(encoding="utf-8"))
+    pinned = {item["coordinate"]: item for item in manifest["runtime_dependencies"]}
+    resolved = {item["coordinate"]: item for item in runtime["dependencies"]}
+    if len(pinned) != len(manifest["runtime_dependencies"]) or len(resolved) != len(runtime["dependencies"]) or pinned.keys() != resolved.keys():
+        raise RuntimeError("Release dependency set differs from reviewed inventory")
+    notices = {item["name"]: item for item in manifest["notices"]}
+    for coordinate, item in pinned.items():
+        if item["sha256"] != resolved[coordinate]["sha256"] or item["notice"] not in notices:
+            raise RuntimeError(f"Unreviewed dependency bytes/notice: {coordinate}")
+    for item in manifest["notices"]:
+        if sha(root / item["path"]) != item["sha256"] or hashlib.sha256(archive.read("assets/licenses/" + item["name"])).hexdigest() != item["sha256"]:
+            raise RuntimeError(f"Missing or changed distribution notice: {item['name']}")
+    for item in manifest["native_archives"]:
+        if sha(root / item["path"]) != item["sha256"] or item["notice"] not in notices:
+            raise RuntimeError(f"Unreviewed native archive: {item['path']}")
+    return manifest
+
+
+def write_sbom(output, manifest, version, source_commit, apk_hash):
+    """Conservative build-input inventory; does not invent the transitive dependency graph."""
+    components = []
+    for item in manifest["runtime_dependencies"]:
+        group, name, dependency_version = item["coordinate"].split(":")
+        purl = f"pkg:maven/{quote(group, safe='.')}/{quote(name, safe='')}@{quote(dependency_version, safe='')}"
+        components.append({"type": "library", "bom-ref": purl, "group": group, "name": name,
+                           "version": dependency_version, "purl": purl,
+                           "hashes": [{"alg": "SHA-256", "content": item["sha256"]}],
+                           "licenses": [{"license": {"name": "See licenses/" + item["notice"]}}]})
+    for item in manifest["native_archives"]:
+        components.append({"type": "file", "bom-ref": "source:" + item["path"], "name": item["path"],
+                           "hashes": [{"alg": "SHA-256", "content": item["sha256"]}],
+                           "licenses": [{"license": {"name": "See licenses/" + item["notice"]}}],
+                           "properties": [{"name": "stream-kit:abi", "value": item["abi"]},
+                                          {"name": "stream-kit:embedded-version-observation", "value": item["version_observation"]}]})
+    source_manifest = json.loads((ROOT / "third_party-manifests/moonlight-android.json").read_text(encoding="utf-8"))
+    for item in source_manifest["components"]:
+        components.append({"type": "library", "bom-ref": "upstream:" + item["name"], "name": item["name"],
+                           "version": item["commit"], "externalReferences": [{"type": "vcs", "url": item["repository"]}],
+                           "properties": [{"name": "stream-kit:source-path", "value": item["path"]},
+                                          {"name": "stream-kit:upstream-archive-sha256", "value": item["archive_sha256"]}]})
+    root_ref = "stream-kit-android:" + version
+    report = {"bomFormat": "CycloneDX", "specVersion": "1.5", "version": 1,
+              "metadata": {"component": {"type": "application", "bom-ref": root_ref,
+                           "name": "Stream Kit Android", "version": version,
+                           "hashes": [{"alg": "SHA-256", "content": apk_hash}]},
+                           "properties": [{"name": "stream-kit:source-commit", "value": source_commit},
+                                          {"name": "stream-kit:inventory-scope", "value": "Resolved JVM build inputs, imported static archives and upstream source snapshots. R8 may remove code; no claim of reconstructed transitive graph or local native archive rebuild."}]},
+              "components": components,
+              "dependencies": [{"ref": root_ref, "dependsOn": [item["bom-ref"] for item in components]}]}
+    (output / "sbom.cdx.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
 
 def main():
@@ -63,11 +118,16 @@ def main():
     runtime = json.loads(inventory.read_text(encoding="utf-8"))
     if any(re.search(r"mockwebserver|(^|:)junit:|androidx\.test", item["coordinate"]) for item in runtime["dependencies"]):
         raise RuntimeError("Test dependency present in release runtime configuration")
+    with zipfile.ZipFile(APK) as archive:
+        dependencies = verify_dependency_inventory(ROOT, archive, runtime)
+    if OUTPUT.exists() and any(OUTPUT.iterdir()):
+        raise RuntimeError("Release output must be empty; refusing to mix artifacts from different builds")
     OUTPUT.mkdir(parents=True, exist_ok=True)
     artifact = OUTPUT / f"stream-kit-android-{version}.apk"
     shutil.copy2(APK, artifact)
     shutil.copy2(inventory, OUTPUT / "runtime-dependencies.json")
-    (OUTPUT / "SHA256SUMS.txt").write_text(f"{sha(artifact)}  {artifact.name}\n", encoding="utf-8")
+    shutil.copy2(ROOT / "third_party-manifests/android-notices.json", OUTPUT / "dependency-notices.json")
+    write_sbom(OUTPUT, dependencies, version, source_commit, sha(artifact))
     source_url = f"https://github.com/bei612/stream-kit/tree/{source_commit}/third_party/moonlight-android"
     report = {"schema_version": 1, "kind": "signed-release-candidate", "version": version,
               "version_code": int(code), "application_id": "io.github.bei612.streamkit",
@@ -78,14 +138,8 @@ def main():
     (OUTPUT / "provenance.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     notices = OUTPUT / "licenses"
     notices.mkdir(exist_ok=True)
-    for name, source in {
-        "MOONLIGHT-ANDROID.txt": PROJECT / "LICENSE.txt",
-        "MOONLIGHT-COMMON-C.txt": PROJECT / "app/src/main/jni/moonlight-core/moonlight-common-c/LICENSE.txt",
-        "ENET.txt": PROJECT / "app/src/main/jni/moonlight-core/moonlight-common-c/enet/LICENSE",
-        "NANORS.txt": PROJECT / "app/src/main/jni/moonlight-core/moonlight-common-c/nanors/LICENSE",
-        "WEBRTC.md": PROJECT / "app/src/main/assets/licenses/WEBRTC.md",
-    }.items():
-        shutil.copy2(source, notices / name)
+    for item in dependencies["notices"]:
+        shutil.copy2(ROOT / item["path"], notices / item["name"])
     (OUTPUT / "README.txt").write_text(
         f"Stream Kit Android {version}\n\n"
         "Signed candidate; this artifact is not a completed production acceptance claim.\n"
@@ -98,6 +152,9 @@ def main():
         f"Corresponding source: {source_url}\n"
         "Native upstream archive provenance and other dependencies are recorded in third_party-manifests.\n",
         encoding="utf-8")
+    (OUTPUT / "SHA256SUMS.txt").write_text("".join(
+        f"{sha(file)}  {file.relative_to(OUTPUT).as_posix()}\n"
+        for file in sorted(OUTPUT.rglob("*")) if file.is_file() and file.name != "SHA256SUMS.txt"), encoding="utf-8")
     print(json.dumps({"artifact": artifact.name, "sha256": report["apk_sha256"], "source_commit": source_commit}))
 
 
