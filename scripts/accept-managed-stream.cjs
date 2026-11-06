@@ -30,6 +30,9 @@ for (const file of ['stream.html', 'stream.js', 'index.html']) {
 }
 const applicationExample = process.argv.includes('--example') ? argument('--example') : null;
 const verifyInput = process.argv.includes('--verify-input');
+const androidSerial = process.argv.includes('--android-serial') ? process.argv[process.argv.indexOf('--android-serial')+1] : null;
+const tlsDirectory = process.argv.includes('--tls-dir') ? argument('--tls-dir') : null;
+const androidAdb = process.argv.includes('--android-adb') ? argument('--android-adb') : 'adb';
 const exampleOutput = process.argv.includes('--example-output') ? process.argv[process.argv.indexOf('--example-output') + 1] : null;
 assert.ok(!applicationExample || verifyInput || exampleOutput, 'Audio application acceptance requires an explicit example output device');
 const numericOption = (name, fallback) => process.argv.includes(name) ? Number(process.argv[process.argv.indexOf(name) + 1]) : fallback;
@@ -92,7 +95,8 @@ assert.ok(!restartServices || !microphoneTest, 'Run recovery and microphone isol
 assert.ok(!microphoneTest || clientCount === 2, 'Microphone isolation acceptance uses two clients');
 assert.ok(Number.isInteger(clientCount) && clientCount >= 2 && clientCount <= 20);
 assert.ok(Number.isInteger(holdSeconds) && holdSeconds >= 0 && holdSeconds <= 86400);
-assert.ok(!verifyInput || (process.platform==='win32' && applicationExample && clientCount===2 && holdSeconds===0 && !microphoneTest && !restartServices && !applyManagedEncoder && !applyManagedGateway && !serviceControl), 'Input acceptance requires an isolated two-viewer Windows application case without other acceptance modes');
+assert.ok(!verifyInput || (['win32','linux'].includes(process.platform) && applicationExample && clientCount===2 && holdSeconds===0 && !microphoneTest && !restartServices && !applyManagedEncoder && !applyManagedGateway && !serviceControl), 'Input acceptance requires an isolated two-viewer native application case without other acceptance modes');
+assert.ok(!androidSerial || (verifyInput && tlsDirectory), 'Android input acceptance requires trusted native HTTPS and input mode');
 assert.ok(programToneCount<=30000,'Example tone budget must cover startup and the full hold interval');
 const scratch = process.argv.includes('--scratch') ? argument('--scratch') : path.join(root, '.local/managed-acceptance');
 const output = process.argv.includes('--output-dir') ? argument('--output-dir') : path.join(root, 'artifacts/managed-acceptance', new Date().toISOString().replace(/[:.]/g, '-'));
@@ -109,12 +113,14 @@ if (applicationExample) {
   if (!verifyInput) result.program_tone_count = programToneCount;
 }
 if (verifyInput) result.scope = 'Actual Web keyboard/pointer input into the owned native Example and transfer/revocation; no repeated audio or stability acceptance, no Android claim.';
+if (androidSerial) result.scope = 'Actual published Android/Web input into an isolated native target over trusted HTTPS; no repeated audio/stability or physical-device claim.';
 if (targetRecording) result.scope = 'Real browser test microphone uplink, shared broadcast and explicit target input recording with authorization/revocation checks requested; completion is recorded separately. No UE5, physical microphone or Linux capture claim.';
 if(ue5Build)result.scope='Browser-generated/file test microphone through the product route, shared audience broadcast and actual UE5 native recording, including authorization/revocation. No physical microphone, human speech or business UE project claim.';
 if(microphoneSource==='physical')result.scope='Physical browser microphone uplink, native target input recording, simultaneous program/audio broadcast and authority rejection requested; completion is recorded separately. No UE5, WAN or permission-prompt claim.';
 save();
 const children = [];
 let browser;
+let android;
 let cleanupRenderer;
 let cleanupManagedGateway;
 let cleanupManagedEncoder;
@@ -219,12 +225,14 @@ async function main() {
   }));
   const credentials = JSON.parse(fs.readFileSync(credentialsFile));
   const gatewayPort = await port(), controlPort = await port();
-  const gateway = `http://127.0.0.1:${gatewayPort}`, control = `http://127.0.0.1:${controlPort}`;
+  const scheme=tlsDirectory?'https':'http';
+  const gateway = `${scheme}://127.0.0.1:${gatewayPort}`, control = `${scheme}://127.0.0.1:${controlPort}`;
   const secret = crypto.randomBytes(32).toString('hex');
   const gatewayConfigFile = path.join(scratch, 'gateway-config.json');
   const config = JSON.parse(execFileSync(gatewayBinary, ['--config-path', path.join(scratch, 'defaults.json'), 'config', 'print'], { encoding: 'utf8', windowsHide: true }));
   config.web_server = { ...config.web_server, bind_address: `127.0.0.1:${gatewayPort}`, url_path_prefix: '', certificate: null,
     first_login_create_admin: true, session_cookie_secure: false, media_ticket_secret: secret, control_plane_url: control };
+  if(tlsDirectory){config.web_server.certificate={certificate_pem:path.join(tlsDirectory,'server.crt'),private_key_pem:path.join(tlsDirectory,'server.key')};config.web_server.session_cookie_secure=true;}
   config.data_storage.path = path.join(scratch, 'gateway-data.json');
   config.webrtc.ice_servers = [];
   config.local_audio_targets = [];
@@ -243,6 +251,8 @@ async function main() {
       max_extract_size_bytes: 10485760, max_file_count: 1000 },
     process: { monitor_interval_seconds: 2, graceful_shutdown_timeout_seconds: 5 },
     log: { level: 'info', file: { enabled: false }, access_log: { enabled: false } } };
+  if(tlsDirectory){controlConfig.server.tls_cert=path.join(tlsDirectory,'server.crt');controlConfig.server.tls_key=path.join(tlsDirectory,'server.key');}
+  if(androidSerial)controlConfig.moonlight_web.public_url=`https://10.0.2.2:${gatewayPort}`;
   const controlConfigFile = path.join(scratch, 'control', 'config.json');
   if (remoteTarget) {
     const targetPort = await port(), targetSecret = crypto.randomBytes(32).toString('hex');
@@ -395,6 +405,11 @@ async function main() {
     throw new Error('Sunshine did not return to its initial idle state');
   };
   const invite = await api('/stream-invitations', 'POST', { host_id: host.host_id, app_id: desktop.app_id });
+  if(androidSerial){
+    const watch=await api(`/apps/${ownedApp.id}/watch-link`,'POST');assert.ok(watch.enabled);
+    android=require('./lib/android-input-acceptance.cjs').androidParticipant({adb:androidAdb,serial:androidSerial});
+    await android.connect(new URL(watch.path,`https://10.0.2.2:${controlPort}`).href);
+  }
   if (targetRecording) {
     audioProbe=startAudioProbe(targetProbe);
     let catalog=await audioProbe.command('devices');
@@ -527,7 +542,7 @@ async function main() {
   const pages = [];
   const pageErrors = [];
   const videoFrames = page => page.evaluate(() => window.__presentedVideoFrames);
-  for (let i = 0; i < clientCount; i++) {
+  for (let i = 0; i < clientCount-(androidSerial?1:0); i++) {
     const page = await context.newPage(); pages.push(page);
     page.on('pageerror', error => pageErrors.push(error.message));
     await page.goto(`${gateway}/stream.html?hostId=${host.host_id}&appId=${desktop.app_id}#join=${invite.invitation}`);
@@ -590,6 +605,11 @@ async function main() {
   assert.equal(observed.upstream_active, true);
   result.shared_observation = observed;
   const current = await api(`/stream-sessions/${invite.session_id}`);
+  if(androidSerial){
+    await require('./lib/android-input-acceptance.cjs').verifyAndroidInput({android,page:pages[0],api,sessionId:invite.session_id,app:ownedApp,example:applicationExample,report:result,save});
+    result.gateway_sha256=sha(gatewayBinary);result.orchestrator_sha256=sha(orchestratorBinary);result.passed=true;
+    return; // This mode ends after its own cross-client assertions and common cleanup.
+  }
   if (verifyInput) await require('./lib/browser-input-acceptance.cjs').verifyBrowserInput({pages, api, sessionId:invite.session_id, app:ownedApp, example:applicationExample, report:result, save});
   const ids = Object.keys(current.connections);
   assert.equal(ids.length, clientCount);
@@ -1201,6 +1221,7 @@ async function main() {
   result.browser = browser.version();
 }
 main().catch(error => { result.error = error.message; process.exitCode = 1; }).finally(async () => {
+  if(android){try{android.close();}catch(error){result.android_cleanup_error=error.message;result.passed=false;process.exitCode=1;}}
   if(audioProbe) {
     try {await audioProbe.close()}
     catch(error){result.target_probe_cleanup_error=error.message;result.passed=false;process.exitCode=1}

@@ -1,0 +1,74 @@
+name: android-stream-input-acceptance
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-android-web-input:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.4.0'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: '16111833'
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - name: Download existing published runtime and signed APK
+        run: |
+          set -euo pipefail
+          gh release download v0.1.0-preview.20261106.2 --pattern '*ubuntu24.04-amd64-setup.run' --pattern linux-installer-manifest.json --dir artifacts/input-download
+          gh release download v0.1.0-android-preview.20261106.6 --pattern '*.apk' --dir artifacts/input-download
+          node <<'JS'
+          const fs=require('fs'),crypto=require('crypto'),assert=require('assert/strict');
+          const hash=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+          const m=JSON.parse(fs.readFileSync('artifacts/input-download/linux-installer-manifest.json'));
+          assert.equal(m.commit,'d36cead6fd856925b283daddcc4af6cd1cdb7dd0');
+          assert.equal(m.installer.sha256,'6df089ad4f46ef9628d1299ac7392dae6baa9604f1e60764ef286785eec55a62');
+          assert.equal(hash('artifacts/input-download/'+m.installer.file),m.installer.sha256);
+          const a=JSON.parse(fs.readFileSync('docs/evidence/android-preview-release-20261106-6.json'));
+          const apk=a.assets.find(x=>x.name.endsWith('.apk'));assert.equal(hash('artifacts/input-download/'+apk.name),a.apk_sha256);
+          fs.mkdirSync('artifacts/android-input-evidence',{recursive:true});
+          fs.writeFileSync('artifacts/android-input-evidence/provenance.json',JSON.stringify({runtime_commit:m.commit,installer_sha256:m.installer.sha256,apk_source_commit:a.source_commit,apk_sha256:a.apk_sha256,apk_signer_sha256:a.signing_certificate_sha256,acceptance_commit:process.env.GITHUB_SHA,runtime_rebuilt:false,apk_rebuilt:false},null,2));
+          JS
+          installer=artifacts/input-download/*-setup.run
+          line=$(awk '/^__STREAM_KIT_PAYLOAD__$/ {print NR+1;exit}' $installer)
+          test -n "$line"
+          tail -n +"$line" $installer > artifacts/input-download/runtime.deb
+          echo 'd44795e51a9eeba0484e429c8e0e0ddfe901c9161a1f8ee9803a6ef7888785a0  artifacts/input-download/runtime.deb' | sha256sum -c -
+          dpkg-deb -x artifacts/input-download/runtime.deb artifacts/input-runtime
+      - name: Prepare isolated capture, TLS and official Android dependencies
+        run: |
+          set -euo pipefail
+          # Dependency names come only from the verified published package.
+          mapfile -t dependencies < <(dpkg-deb -f artifacts/input-download/runtime.deb Depends | tr ',' '\n' | sed -E 's/^[[:space:]]*([a-z0-9+.-]+).*/\1/')
+          for dependency in "${dependencies[@]}"; do [[ "$dependency" =~ ^[a-z0-9][a-z0-9+.-]*$ ]]; done
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends "${dependencies[@]}" libx11-dev xvfb xauth xdotool openbox pulseaudio libnss3-tools
+          artifacts/input-runtime/opt/stream-kit/orchestrator/orchestrator verify-platform artifacts/input-runtime/opt/stream-kit
+          npm ci --prefix third_party/moonlight-web-stream --ignore-scripts --no-audit --no-fund
+          android --sdk="$ANDROID_HOME" sdk install 'emulator' 'system-images;android-36;google_apis;x86_64'
+          mkdir -p artifacts/input-example
+          cc -std=c11 -O2 -Wall -Wextra -Werror tools/input-acceptance/x11-observer.c -lX11 -o artifacts/input-example/x11-observer
+      - name: Verify Android and Web input in the same real renderer
+        timeout-minutes: 12
+        run: bash scripts/ci-android-stream-input.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-stream-input-evidence
+          path: |
+            artifacts/android-input-evidence/
+            artifacts/source-stream/**/result.json
+            artifacts/source-stream/**/example.log
+          if-no-files-found: warn
+          retention-days: 14
