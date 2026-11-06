@@ -68,10 +68,10 @@
   "remaining_acceptance": [
     {
       "item": "Integrated native Android application",
-      "state": "native_viewer_verified_integration_in_progress",
+      "state": "signed_native_https_viewer_verified_integration_in_progress",
       "scope": "docs/goal-current.md",
-      "finding": "Official Android sources, managed HTTP/native peer and Activity/session coordinator are implemented. Eleven HTTP/ICE/input JVM tests pass. Native debug APK on official Android 16 WHPX emulator wakes Example through its permanent link, displays decoded frames and resumes viewing after confirmed backgrounding with microphone disabled. Evidence: docs/evidence/android-native-viewer-20261106.json. This is debug HTTP, not release TLS/audio/controller acceptance or production APK delivery.",
-      "next": "Complete Android/Web authority and audio integration, durable encrypted entry, release signing and packaging; validate only changed or unproven paths and publish the APK. Preserve pending LAN HTTPS/IP-change acceptance."
+      "finding": "Official Android sources, unified managed session, native video/input/microphone gates, encrypted bookmark and durable project signing are implemented. The corrected minified release passed native JNI CI on an official emulator (42175104280). The byte-identical downloaded CI APK installed locally and displayed Example video using normal HTTPS verification with an isolated emulator CA. Debug background/resume and encrypted-bookmark evidence remain separately scoped. See docs/evidence/android-release-tls-20261106.json. No production host TLS change was applied; controller/audio acceptance is still open.",
+      "next": "Complete actual Android/Web authority and audio acceptance, finish dependency notices/source inventory and publish the APK. Installed-service admin preparation is waiting on the existing Windows UAC dialog; do not repeatedly request human speech. Official Windows emulator gRPC audio injection blocked the test AVD and was removed from the running configuration; it is not a passing audio result. Preserve pending LAN HTTPS/IP-change acceptance."
     },
     {
       "item": "Trusted LAN HTTPS deployment",

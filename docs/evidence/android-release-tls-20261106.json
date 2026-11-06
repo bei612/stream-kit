@@ -23,6 +23,21 @@
     ],
     "certificate_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f"
   },
+  "ci_candidate": {
+    "source": "170fb688dc64c1d163213c37ac6359cf0ea62cdb",
+    "run": "https://github.com/bei612/stream-kit/actions/runs/42175104280",
+    "result": "success",
+    "version": "0.1.0-preview.20261106.2",
+    "apk_sha256": "52015693144b317ea301e811ef098af0e4788bac0db0de95a0c3c9d93e63ffcb",
+    "bytes": 33102248,
+    "signed_packaging_gate": "passed",
+    "minified_native_jni_emulator_gate": "passed",
+    "local_same_signature_install": "passed",
+    "actual_tls_video": "passed on the local official emulator using the byte-identical downloaded CI artifact",
+    "private_screenshot": ".local/android-release-tls/ci-release-frame.png",
+    "screenshot_sha256": "e86aa9a5024e39d0596ffa18894f3dc06c45b838467cfc21c80d0330ab6bab8f",
+    "media_acceptance_note": "Example Tick 29866 visible through normal HTTPS verification; viewer microphone disabled. This does not establish Android controller or microphone delivery."
+  },
   "tls": {
     "client_transport": "HTTPS with normal hostname/certificate verification",
     "trust": "Seven-day isolated test CA installed using Android Settings user certificate UI",
