@@ -36,3 +36,26 @@ jobs:
         with:
           node-version: '26.4.0'
       - run: node scripts/test-android-protocol.mjs
+
+  native-debug-build:
+    name: Android debug build and managed HTTP tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - name: Install pinned build SDK
+        run: sdkmanager 'platforms;android-37' 'build-tools;37.0.0' 'ndk;29.0.14206865'
+      - name: Build native client and test managed HTTP boundaries
+        working-directory: third_party/moonlight-android
+        run: ./gradlew :app:testNonRootDebugUnitTest :app:assembleNonRootDebug --no-daemon --max-workers=2 --console=plain
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-unit-test-reports
+          path: third_party/moonlight-android/app/build/test-results/testNonRootDebugUnitTest/
+          if-no-files-found: warn

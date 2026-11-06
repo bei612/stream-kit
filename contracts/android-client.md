@@ -18,7 +18,9 @@ Reuse the official Android native platform and gesture implementation through tr
 4. Join the gateway using native WebRTC with its existing SDP extensions, media-ticket authentication and `moonlight.control` data channel. Program audio and authorized microphone use the existing shared mixer and target routing.
 5. Both server-side guards and native input/microphone gates apply. Revoke input and release physical recording on permission denial, authority loss, disconnect, background transition or stop. Ignore stale revisions and callbacks belonging to an interrupted session attempt. A resumed viewer never inherits controller authority.
 
-`WatchLink`, `ConnectionAuthority` and `AuthorityState` implement the initial pure-Java boundary. They are not yet wired to an Activity, HTTP loop or transport. The network owner must drive authority refresh and expiry; a green reducer test does not prove capture is stopped on a device. Microphone capture requires an explicit user action, Android permission and current controller authority. Returning to foreground or reconnecting does not automatically restore recording consent.
+`WatchLink`, `ConnectionAuthority` and `AuthorityState` implement the pure-Java authority boundary. `ManagedApi` now implements the admission, heartbeat, resume, ticket, leave and WHEP HTTP adapter with isolated credentials, disabled redirects, bounded responses and same-gateway resource checks. `NativePeer` implements native WebRTC receive tracks, a microphone sender and a gated control data channel, reusing upstream `StreamConfiguration`. It disables both physical recording and the sending track on microphone stop. The native library and notices are pinned in `third_party-manifests/android-media.json`.
+
+The Activity/session coordinator is still pending: it must drive authority refresh/expiry, call microphone stop on every authority/lifecycle change, reclaim late HTTP admissions/media resources and implement reconnect. These compiled adapters are not yet evidence of an operational App. Microphone capture requires an explicit user action, Android permission and current controller authority. Returning to foreground or reconnecting does not automatically restore recording consent.
 
 ## Configuration and product boundary
 
@@ -29,5 +31,7 @@ The management page must identify Android versus Web while sharing connection le
 ## Verification
 
 `JAVA_HOME=... node scripts/test-android-protocol.mjs` checks link credential isolation, viewer denial, permission denial, revision/epoch ordering, revocation, consent and stale callback suppression with JDK 17+. These are protocol unit checks, not Android integration acceptance.
+
+`./gradlew :app:testNonRootDebugUnitTest :app:assembleNonRootDebug` compiles the native client and exercises the HTTP adapter using OkHttp MockWebServer in test scope only. It covers separate credentials for each endpoint, redirect rejection, cleanup after mismatched application identity, foreign media-location rejection and strict authority decoding. It does not prove native media on an emulator.
 
 The local official Android 16 x86_64 AVD `StreamKit_API_36` is for debug APK installation and end-to-end streaming/lifecycle checks. Native APK builds, on-emulator media, mixed Android/Web control transfer and audio, release signing and downloadable artifacts remain required. No physical mobile acceptance or repeated user speech session is imposed.

@@ -70,7 +70,7 @@
       "item": "Integrated native Android application",
       "state": "source_imported_protocol_core_in_progress",
       "scope": "docs/goal-current.md",
-      "finding": "Official Moonlight Android v12.2 and nested source dependencies are imported as ordinary files. Native authority/link core passes 28 checks; upstream touch recognizers use a transport-independent pointer interface. Official Android 16 AVD boots with WHPX. No integrated Android APK has been delivered; Activity, network/media wiring, emulator streaming acceptance and release packaging remain outstanding. Existing Web and local speech evidence does not establish Android functionality.",
+      "finding": "Official Moonlight Android v12.2 and nested source dependencies are imported as ordinary files. Native authority/link core passes 28 checks; upstream touch recognizers use a transport-independent pointer interface. Official Android 16 AVD boots with WHPX. Managed HTTP admission/heartbeat/resume/ticket/leave and native WebRTC adapters compile; six local HTTP boundary tests pass. The Activity/session coordinator, emulator streaming acceptance and release packaging remain outstanding. No integrated Android APK has been delivered. Existing Web and local speech evidence does not establish Android functionality.",
       "next": "Vendor pinned official sources without submodules; review native/GameStream versus gateway/WebRTC transport and reuse native platform capabilities with one shared managed upstream; implement permanent entry, unified session authority, microphone and audience audio, lifecycle and reconnect; validate on an emulator and publish a release-signed APK. Physical mobile acceptance remains outside this round."
     },
     {

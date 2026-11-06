@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "dependency": "io.github.webrtc-sdk:android:150.7871.01",
+  "distribution_repository": "https://github.com/webrtc-sdk/android",
+  "distribution_commit": "7b6390fb098303b31af76906bf15f7decaa4ef95",
+  "artifact_url": "https://repo.maven.apache.org/maven2/io/github/webrtc-sdk/android/150.7871.01/android-150.7871.01.aar",
+  "artifact_sha256": "0a1627b1a48c2bc17d9a40d62fc47bd45166f44a311e95917f147c402de379b0",
+  "license": "BSD-3-Clause and bundled third-party notices",
+  "notice_file": "third_party/moonlight-android/app/src/main/assets/licenses/WEBRTC.md",
+  "notice_sha256": "d1f9382c6878ac024155fd6d44a5977329108bb8b0a01cea40e4a2f1d7de252e",
+  "mode": "Pinned native WebRTC library, not an application binary or WebView",
+  "limits": "Distribution commit identifies the SDK packaging repository, not a claim of a local libwebrtc rebuild. Final APK provenance and complete dependency/SBOM verification remain pending."
+}
