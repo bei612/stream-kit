@@ -15,7 +15,7 @@
     "windows_installer_acceptance_run": 41828402371,
     "release": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261104.1",
     "subsequent_ci_disk_fix": "docs/evidence/linux-build-disk-lifecycle-c5878b7d.json",
-    "current_cross_platform_evidence": "docs/evidence/cross-platform-371db435.json"
+    "current_cross_platform_evidence": "docs/evidence/cross-platform-c5dade6d.json"
   },
   "installed_source": "66249387b32975e79d56b19fdf98d4bc7d414da0",
   "historical_requirement_audit": "docs/evidence/goal-delivery-audit-20261101.json",
@@ -41,18 +41,18 @@
     },
     {
       "item": "Current cross-platform CI",
-      "run": "https://github.com/bei612/stream-kit/actions/runs/41995016831",
+      "run": "https://github.com/bei612/stream-kit/actions/runs/42185352788",
       "conclusion": "success",
       "successful_jobs": [
         "Management Web",
-        "Orchestrator (ubuntu-latest)",
-        "Orchestrator (windows-latest)",
+        "Moonlight Web (ubuntu-latest)",
         "Source SBOM",
+        "Orchestrator (windows-latest)",
         "Moonlight Web (windows-latest)",
-        "Moonlight Web (ubuntu-latest)"
+        "Orchestrator (ubuntu-latest)"
       ],
       "limit": "Automated Windows/Linux builds and browser-engine checks do not establish physical mobile operation or LAN certificate trust. Human speech has separate local evidence.",
-      "evidence": "docs/evidence/cross-platform-371db435.json"
+      "evidence": "docs/evidence/cross-platform-c5dade6d.json"
     },
     {
       "item": "Physical human microphone to native target and audience",
