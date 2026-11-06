@@ -329,6 +329,18 @@ async function main() {
   let cookie = await gatewayLogin();
   const native = (resource, method = 'GET', body) => json(gateway + '/api' + resource, {
     method, headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+  if(androidSerial){
+    // Web acceptance already requests 720p30. Give the first Android subscriber
+    // the same ordinary server profile: a software-only CI renderer must not
+    // accidentally start a 1080p60 upstream before the Web participant joins.
+    const {id}=await native('/role/default');
+    const {role}=await native(`/role?id=${id}`);
+    const settings={...role.default_settings,videoSize:'720p',fps:30,bitrate:8000,videoCodec:'h264'};
+    const changed=await fetch(gateway+'/api/role',{method:'PATCH',headers:{Cookie:cookie,'Content-Type':'application/json'},body:JSON.stringify({id,ty:role.ty,default_settings:settings})});
+    assert.equal(changed.status,200,'Cannot configure isolated input media profile');
+    assert.deepEqual((await native(`/role?id=${id}`)).role.default_settings,settings);
+    result.input_media_profile={videoSize:'720p',fps:30,bitrate:8000,videoCodec:'h264'};save();
+  }
   const known = await fetch(gateway + '/api/hosts', { headers: { Cookie: cookie } });
   assert.equal(known.status, 200);
   let host = JSON.parse((await known.text()).split('\n')[0]).hosts[0];

@@ -16,6 +16,7 @@ cleanup() {
   # logcat, UI contents or credentials. These remain test artifacts only.
   if [[ -n "$emulator_pid" ]]; then
     timeout 5s adb -s "$serial" shell cat /proc/meminfo > "$evidence/android-memory.txt" 2>/dev/null || true
+    timeout 5s adb -s "$serial" shell dumpsys cpuinfo > "$evidence/android-cpu.txt" 2>/dev/null || true
     timeout 5s adb -s "$serial" logcat -d -b events -s am_kill:I am_proc_died:I '*:S' > "$evidence/android-process-exits.txt" 2>/dev/null || true
     timeout 5s adb -s "$serial" logcat -d -s lowmemorykiller:I lmkd:I '*:S' > "$evidence/android-memory-kills.txt" 2>/dev/null || true
   fi
@@ -78,6 +79,9 @@ adb -s "$serial" shell restorecon -R /data/misc/user/0/cacerts-added
 adb -s "$serial" unroot
 timeout 30s adb -s "$serial" wait-for-device
 [[ $(adb -s "$serial" shell id -u | tr -d '\r') == 2000 ]]
+# Bound software rasterization cost independently of the 720p30 stream profile.
+adb -s "$serial" shell wm size 720x1280
+adb -s "$serial" shell wm density 240
 adb -s "$serial" install artifacts/input-download/*.apk
 adb -s "$serial" install -t artifacts/input-example/android/observer.apk
 adb -s "$serial" shell input keyevent KEYCODE_WAKEUP
