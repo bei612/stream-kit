@@ -1,0 +1,52 @@
+name: lan-address-change-acceptance
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-lan-address-change:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.4.0'
+      - name: Verify and extract existing published runtime
+        run: |
+          set -euo pipefail
+          gh release download v0.1.0-preview.20261106.2 --pattern '*ubuntu24.04-amd64-setup.run' --pattern linux-installer-manifest.json --dir artifacts/network-download
+          node <<'JS'
+          const fs=require('fs'),crypto=require('crypto'),assert=require('assert/strict');
+          const m=JSON.parse(fs.readFileSync('artifacts/network-download/linux-installer-manifest.json'));
+          assert.equal(m.commit,'d36cead6fd856925b283daddcc4af6cd1cdb7dd0');
+          assert.equal(m.installer.sha256,'6df089ad4f46ef9628d1299ac7392dae6baa9604f1e60764ef286785eec55a62');
+          assert.equal(crypto.createHash('sha256').update(fs.readFileSync('artifacts/network-download/'+m.installer.file)).digest('hex'),m.installer.sha256);
+          fs.mkdirSync('artifacts/network-address-evidence',{recursive:true});
+          fs.writeFileSync('artifacts/network-address-evidence/provenance.json',JSON.stringify({runtime_commit:m.commit,installer_sha256:m.installer.sha256,acceptance_commit:process.env.GITHUB_SHA,runtime_rebuilt:false},null,2));
+          JS
+          installer=artifacts/network-download/*-setup.run
+          line=$(awk '/^__STREAM_KIT_PAYLOAD__$/ {print NR+1;exit}' $installer)
+          test -n "$line"
+          tail -n +"$line" $installer > artifacts/network-download/runtime.deb
+          echo 'd44795e51a9eeba0484e429c8e0e0ddfe901c9161a1f8ee9803a6ef7888785a0  artifacts/network-download/runtime.deb' | sha256sum -c -
+          dpkg-deb -x artifacts/network-download/runtime.deb artifacts/network-runtime
+      - name: Prepare disposable LAN and native runtime dependencies
+        run: |
+          set -euo pipefail
+          mapfile -t dependencies < <(dpkg-deb -f artifacts/network-download/runtime.deb Depends | tr ',' '\n' | sed -E 's/^[[:space:]]*([a-z0-9+.-]+).*/\1/')
+          for dependency in "${dependencies[@]}"; do [[ "$dependency" =~ ^[a-z0-9][a-z0-9+.-]*$ ]]; done
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends "${dependencies[@]}" avahi-utils dbus iproute2 util-linux curl xvfb x11-utils pulseaudio pulseaudio-utils
+          artifacts/network-runtime/opt/stream-kit/orchestrator/orchestrator verify-platform artifacts/network-runtime/opt/stream-kit
+      - name: Verify native HTTPS and multicast discovery across actual fixture IP change
+        timeout-minutes: 6
+        run: bash tools/network-acceptance/run.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lan-address-change-evidence
+          path: artifacts/network-address-evidence/
+          retention-days: 14
