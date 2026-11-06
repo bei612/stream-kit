@@ -24,19 +24,21 @@
     "apk_signature_verified": true,
     "same_project_signer": true,
     "all_remote_asset_sizes_and_digests_match": true,
-    "release_notes_match": true
+    "release_notes_match": true,
+    "distribution_standard_zip_paths": true,
+    "distribution_entry_checksums": 22
   },
   "assets": [
     {
       "name": "distribution.zip",
       "bytes": 33144869,
-      "sha256": "461fc9585247e62d62f7f20666506822ea19d7e5bcb4df98a8a0780556a2213d",
+      "sha256": "075f427b0cab327b24dc5256b6eb2e2c8ea9d630d8110741e46f3a7b27bc9e46",
       "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261107.1/distribution.zip"
     },
     {
       "name": "DOWNLOAD-SHA256SUMS.txt",
       "bytes": 359,
-      "sha256": "570db5d37b803c7f3452012609237efd0849a6b69aa7d0f733e3c0ba4c54d6ed",
+      "sha256": "5bc80390ada80abb262edd1535398755d29b7071469a1e1c97c19272af529ab7",
       "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261107.1/DOWNLOAD-SHA256SUMS.txt"
     },
     {
@@ -62,5 +64,6 @@
     "No new full media/input/microphone acceptance on this APK; prior results retain their exact source and artifact boundaries.",
     "Server first-install enrollment is implemented and its native runtime acceptance is still pending.",
     "Installed local Windows services, HTTPS trust and ToDesk unchanged."
-  ]
+  ],
+  "distribution_correction": "Replaced the initial Windows-created ZIP, which used backslashes for nested notices, with standard forward-slash ZIP entries. APK, provenance, signer, version code and SBOM are unchanged. Updated download checksum asset verified against GitHub digests. Future CI packaging now creates the distribution archive directly."
 }

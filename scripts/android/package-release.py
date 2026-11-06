@@ -78,6 +78,18 @@ def write_sbom(output, manifest, version, source_commit, apk_hash):
     (output / "sbom.cdx.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
 
+def write_distribution(output, artifact):
+    """Produce portable download assets from the already verified candidate files."""
+    files = sorted(file for file in output.rglob("*") if file.is_file())
+    archive_path = output / "distribution.zip"
+    with zipfile.ZipFile(archive_path, "x", compression=zipfile.ZIP_DEFLATED) as archive:
+        for file in files:
+            archive.write(file, arcname=file.relative_to(output).as_posix())
+    downloads = [archive_path, artifact, output / "provenance.json", output / "sbom.cdx.json"]
+    (output / "DOWNLOAD-SHA256SUMS.txt").write_text("".join(
+        f"{sha(file)}  {file.name}\n" for file in downloads), encoding="utf-8")
+
+
 def main():
     version = os.environ["RELEASE_VERSION"]
     code = os.environ["RELEASE_CODE"]
@@ -155,6 +167,7 @@ def main():
     (OUTPUT / "SHA256SUMS.txt").write_text("".join(
         f"{sha(file)}  {file.relative_to(OUTPUT).as_posix()}\n"
         for file in sorted(OUTPUT.rglob("*")) if file.is_file() and file.name != "SHA256SUMS.txt"), encoding="utf-8")
+    write_distribution(OUTPUT, artifact)
     print(json.dumps({"artifact": artifact.name, "sha256": report["apk_sha256"], "source_commit": source_commit}))
 
 

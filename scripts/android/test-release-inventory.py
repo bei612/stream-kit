@@ -6,12 +6,36 @@ from pathlib import Path
 import tempfile
 import unittest
 import sys
+import zipfile
 
 sys.dont_write_bytecode = True
 
 spec = importlib.util.spec_from_file_location("android_release", Path(__file__).with_name("package-release.py"))
 release = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(release)
+
+
+class DistributionTest(unittest.TestCase):
+    def test_nested_notices_use_portable_paths_and_downloads_match(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "licenses").mkdir()
+            (root / "licenses/LICENSE.txt").write_bytes(b"notice")
+            artifact = root / "client.apk"
+            artifact.write_bytes(b"unchanged signed artifact")
+            for name in ("provenance.json", "sbom.cdx.json", "SHA256SUMS.txt"):
+                (root / name).write_bytes(b"fixture")
+            release.write_distribution(root, artifact)
+            with zipfile.ZipFile(root / "distribution.zip") as archive:
+                self.assertIn("licenses/LICENSE.txt", archive.namelist())
+                self.assertTrue(all("\\" not in name for name in archive.namelist()))
+                self.assertEqual(archive.read("client.apk"), artifact.read_bytes())
+                self.assertNotIn("distribution.zip", archive.namelist())
+            lines = (root / "DOWNLOAD-SHA256SUMS.txt").read_text().splitlines()
+            self.assertEqual(len(lines), 4)
+            for line in lines:
+                digest, name = line.split("  ", 1)
+                self.assertEqual(digest, release.sha(root / name))
 
 
 class Archive:
