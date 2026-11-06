@@ -9,8 +9,14 @@ assert.equal(process.env.GITHUB_ACTIONS,'true');
 assert.equal(process.env.RUNNER_ENVIRONMENT,'github-hosted');
 assert.equal(process.platform,'linux');assert.notEqual(process.getuid(),0);
 let browser,page,initialPeerCount;
+function viewer(){
+  return page?.frames().find(frame=>{
+    try{const url=new URL(frame.url());return url.origin==='https://stream-kit-server.local:18080'&&url.pathname==='/stream.html';}catch{return false;}
+  });
+}
 async function snapshot(){
-  return page.evaluate(async()=>{
+  const frame=viewer();if(!frame)return {peer_count:0,viewer_frame:false};
+  return frame.evaluate(async()=>{
     const peers=window.__networkPeers||[],peer=peers.at(-1),video=document.querySelector('video');
     if(!peer)return {peer_count:0};
     const stats=await peer.getStats(),items=[...stats.values()];
@@ -27,11 +33,11 @@ async function snapshot(){
 async function waitMedia(address,minPeers){
   const end=Date.now()+120000;
   while(Date.now()<end){
-    // Opening a permanent entry navigates from control to the viewer. Allow
-    // that ordinary document transition without treating it as media failure.
+    // The permanent entry owns a cross-origin viewer iframe. Observe that
+    // renderer's real peers, not the top-level management document.
     const state=await snapshot().catch(()=>({}));
     if(state.state==='connected'&&state.peer_count>=minPeers&&state.frames>=30&&state.remote_address===address&&state.width>0){
-      await waitForPageCondition(page,frames=>window.__networkFrames>frames+10,state.presented_frames,{timeout:15000});
+      await waitForPageCondition(viewer(),frames=>window.__networkFrames>frames+10,state.presented_frames,{timeout:15000});
       return snapshot();
     }
     await new Promise(resolve=>setTimeout(resolve,300));
@@ -68,11 +74,12 @@ async function command(message){
   for await(const line of readline.createInterface({input:process.stdin})){
     const message=JSON.parse(line);
     try{process.stdout.write(JSON.stringify({id:message.id,result:await command(message)})+'\n');}
-    catch{
+    catch(error){
       // Playwright exceptions may contain the capability URL. Retain only
       // public media counters, never raw errors, URL, cookies or page text.
       const state=page?await snapshot().catch(()=>null):null;
-      process.stdout.write(JSON.stringify({id:message.id,error:'Browser '+message.action+' failed',state})+'\n');
+      const reason=String(error.message).match(/net::ERR_[A-Z_]+/)?.[0]||(error.name==='TimeoutError'?'TimeoutError':'Media readiness failed');
+      process.stdout.write(JSON.stringify({id:message.id,error:'Browser '+message.action+' failed: '+reason,state})+'\n');
     }
   }
 })().finally(async()=>{await browser?.close();});
