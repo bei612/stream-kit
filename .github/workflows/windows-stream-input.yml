@@ -1,0 +1,71 @@
+name: windows-stream-input-acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      product_run_id:
+        description: 'Successful owned windows-product-release build; reuse its exact payload without rebuilding'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  real-web-input:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PRODUCT_RUN_ID: ${{ inputs.product_run_id }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.4.0'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.3'
+          cache: false
+      - name: Reuse and verify the existing native runtime payload
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:PRODUCT_RUN_ID -notmatch '^[1-9][0-9]*$') { throw 'Invalid product run ID' }
+          $run = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:PRODUCT_RUN_ID" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot read product run' }
+          if ($run.status -ne 'completed' -or $run.conclusion -ne 'success' -or $run.path -ne '.github/workflows/windows-product-release.yml' -or $run.head_repository.full_name -ne $env:GITHUB_REPOSITORY) { throw 'Expected successful owned product build' }
+          gh run download $env:PRODUCT_RUN_ID --name "windows-product-payload-$($run.head_sha)" --dir artifacts/input-runtime
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $manifest = Get-Content artifacts/input-runtime/platform-manifest.json -Raw | ConvertFrom-Json
+          if ($manifest.commit -ne $run.head_sha -or $manifest.platform -ne 'windows') { throw 'Unexpected runtime provenance' }
+          & ./artifacts/input-runtime/orchestrator/orchestrator.exe verify-platform artifacts/input-runtime
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item artifacts/input-evidence -ItemType Directory | Out-Null
+          [ordered]@{product_run_id=$env:PRODUCT_RUN_ID;runtime_commit=$run.head_sha;acceptance_commit=$env:GITHUB_SHA;runtime_rebuilt=$false} | ConvertTo-Json | Set-Content artifacts/input-evidence/provenance.json -Encoding utf8
+      - name: Prepare the development observer and browser
+        run: |
+          $ErrorActionPreference = 'Stop'
+          go -C example build -trimpath -ldflags '-H=windowsgui' -o ../artifacts/input-example/checkerboard.exe .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm ci --prefix third_party/moonlight-web-stream --ignore-scripts --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Start-Service AudioEndpointBuilder
+          Start-Service Audiosrv
+          if ((Get-Process -Id $PID).SessionId -eq 0) { throw 'Interactive Windows session required' }
+      - name: Verify real stream input and revoked packet rejection
+        run: |
+          node scripts/accept-source-stream.cjs --sunshine artifacts/input-runtime/sunshine/sunshine.exe --gateway artifacts/input-runtime/media-gateway/web-server.exe --orchestrator artifacts/input-runtime/orchestrator/orchestrator.exe --web-assets artifacts/input-runtime/media-gateway/dist --example artifacts/input-example/checkerboard.exe --verify-input --clients 2 --hold-seconds 0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-stream-input-evidence
+          path: |
+            artifacts/input-evidence/
+            artifacts/source-stream/**/result.json
+            artifacts/source-stream/**/example.log
+          if-no-files-found: warn
+          retention-days: 14

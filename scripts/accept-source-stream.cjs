@@ -9,7 +9,8 @@ const root = path.resolve(__dirname, '..');
 function option(name) { const i = process.argv.indexOf(name); assert.ok(i >= 0 && process.argv[i+1], `Required ${name}`); return process.argv[i+1]; }
 const encoder = path.resolve(option('--sunshine')), gateway = path.resolve(option('--gateway'));
 const control = path.resolve(option('--orchestrator')), example = path.resolve(option('--example'));
-const outputDevice = option('--example-output');
+const verifyInput = process.argv.includes('--verify-input');
+const outputDevice = verifyInput ? null : option('--example-output');
 const serviceControl=process.argv.includes('--service-control');
 const managedEncoder=process.argv.includes('--apply-managed-encoder')||serviceControl;
 assert.ok(!managedEncoder||serviceControl||process.argv.includes('--edit-encoder-configuration'),'Managed encoder apply requires configuration editing');
@@ -92,8 +93,9 @@ async function main() {
   console.log('Source-built Sunshine ready; starting program browser acceptance');
   const fd2=fs.openSync(path.join(output,'acceptance.log'),'w');
   const probe=spawn(process.execPath,[path.join(__dirname,'accept-managed-stream.cjs'),'--gateway',gateway,'--orchestrator',control,
-    '--runtime-config',runtime,'--scratch',path.join(scratch,'media'),'--output-dir',path.join(output,'browser'),'--example',example,'--example-output',outputDevice,
-    ...['--microphone-tone','--service-control','--remote-target','--target-switch','--stop-active','--delete-active','--restart-services','--expire-client-lease','--edit-gateway-configuration','--edit-encoder-configuration','--edit-vulkan','--apply-managed-gateway','--apply-managed-encoder'].filter(flag => process.argv.includes(flag)),
+    '--runtime-config',runtime,'--scratch',path.join(scratch,'media'),'--output-dir',path.join(output,'browser'),'--example',example,
+    ...(outputDevice ? ['--example-output',outputDevice] : []),
+    ...['--verify-input','--microphone-tone','--service-control','--remote-target','--target-switch','--stop-active','--delete-active','--restart-services','--expire-client-lease','--edit-gateway-configuration','--edit-encoder-configuration','--edit-vulkan','--apply-managed-gateway','--apply-managed-encoder'].filter(flag => process.argv.includes(flag)),
     ...['--web-assets','--audio-probe','--target-render-device','--target-capture-device','--virtual-audio-identity','--ue5-editor','--ue5-project','--clients','--hold-seconds','--microphone-source','--physical-device-label'].flatMap(flag=>process.argv.includes(flag)?[flag,option(flag)]:[])],
     {cwd:root,windowsHide:true,stdio:['ignore',fd2,fd2]}); fs.closeSync(fd2);
   const [code]=await once(probe,'exit');

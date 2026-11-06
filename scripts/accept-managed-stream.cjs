@@ -29,8 +29,9 @@ for (const file of ['stream.html', 'stream.js', 'index.html']) {
   assert.ok(fs.statSync(path.join(webAssets, file)).isFile(), `Missing built viewer asset: ${file}`);
 }
 const applicationExample = process.argv.includes('--example') ? argument('--example') : null;
+const verifyInput = process.argv.includes('--verify-input');
 const exampleOutput = process.argv.includes('--example-output') ? process.argv[process.argv.indexOf('--example-output') + 1] : null;
-assert.ok(!applicationExample || exampleOutput, 'Application acceptance requires an explicit example output device');
+assert.ok(!applicationExample || verifyInput || exampleOutput, 'Audio application acceptance requires an explicit example output device');
 const numericOption = (name, fallback) => process.argv.includes(name) ? Number(process.argv[process.argv.indexOf(name) + 1]) : fallback;
 const clientCount = numericOption('--clients', 2);
 const holdSeconds = numericOption('--hold-seconds', 5);
@@ -91,6 +92,7 @@ assert.ok(!restartServices || !microphoneTest, 'Run recovery and microphone isol
 assert.ok(!microphoneTest || clientCount === 2, 'Microphone isolation acceptance uses two clients');
 assert.ok(Number.isInteger(clientCount) && clientCount >= 2 && clientCount <= 20);
 assert.ok(Number.isInteger(holdSeconds) && holdSeconds >= 0 && holdSeconds <= 86400);
+assert.ok(!verifyInput || (process.platform==='win32' && applicationExample && clientCount===2 && holdSeconds===0 && !microphoneTest && !restartServices && !applyManagedEncoder && !applyManagedGateway && !serviceControl), 'Input acceptance requires an isolated two-viewer Windows application case without other acceptance modes');
 assert.ok(programToneCount<=30000,'Example tone budget must cover startup and the full hold interval');
 const scratch = process.argv.includes('--scratch') ? argument('--scratch') : path.join(root, '.local/managed-acceptance');
 const output = process.argv.includes('--output-dir') ? argument('--output-dir') : path.join(root, 'artifacts/managed-acceptance', new Date().toISOString().replace(/[:.]/g, '-'));
@@ -104,8 +106,9 @@ const result = { passed: false, status: 'running', browser_engine: engine, clien
 const save = () => fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(result, null, 2));
 if (applicationExample) {
   result.scope = 'Source-built application capture through native Sunshine, shared gateway and real browsers, including program tone and scoped stop. No physical microphone, target recording or Linux capture claim.';
-  result.program_tone_count = programToneCount;
+  if (!verifyInput) result.program_tone_count = programToneCount;
 }
+if (verifyInput) result.scope = 'Actual Web keyboard/pointer input into the owned native Example and transfer/revocation; no repeated audio or stability acceptance, no Android claim.';
 if (targetRecording) result.scope = 'Real browser test microphone uplink, shared broadcast and explicit target input recording with authorization/revocation checks requested; completion is recorded separately. No UE5, physical microphone or Linux capture claim.';
 if(ue5Build)result.scope='Browser-generated/file test microphone through the product route, shared audience broadcast and actual UE5 native recording, including authorization/revocation. No physical microphone, human speech or business UE project claim.';
 if(microphoneSource==='physical')result.scope='Physical browser microphone uplink, native target input recording, simultaneous program/audio broadcast and authority rejection requested; completion is recorded separately. No UE5, WAN or permission-prompt claim.';
@@ -363,9 +366,9 @@ async function main() {
   };
   let ownedApp;
   if (applicationExample) {
-    assert.ok(!exampleOutput.includes('"') && !/[\r\n]/.test(exampleOutput), 'Invalid output device name');
+    if (!verifyInput) assert.ok(!exampleOutput.includes('"') && !/[\r\n]/.test(exampleOutput), 'Invalid output device name');
     ownedApp = await api('/apps/local', 'POST', { name: 'Source capture acceptance', exe_path: applicationExample,
-      capture_mode: 'application', args: `"--tone-output=${exampleOutput}" --tone-count=${programToneCount}` });
+      capture_mode: 'application', args: verifyInput ? '--input-events -fullscreen' : `"--tone-output=${exampleOutput}" --tone-count=${programToneCount}` });
     assert.equal(ownedApp.status, 'ready');
     assert.ok(ownedApp.sunshine_app_id > 0);
     result.application = { id: ownedApp.id, native_id: ownedApp.sunshine_app_id, capture_mode: ownedApp.capture_mode, example_sha256: sha(applicationExample) };
@@ -440,6 +443,17 @@ async function main() {
   browser = await launchBrowser({ args: browserArgs, firefoxUserPrefs: { 'media.autoplay.default': 0 } });
   result.browser = browser.version();
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  if (verifyInput) await context.addInitScript(() => {
+    window.__recordInputReplay=false; window.__inputReplay=[];
+    const original=RTCDataChannel.prototype.send;
+    RTCDataChannel.prototype.send=function(data) {
+      if(window.__recordInputReplay && this.label==='moonlight.control.keysCompact') {
+        const bytes=data instanceof ArrayBuffer?new Uint8Array(data):ArrayBuffer.isView(data)?new Uint8Array(data.buffer,data.byteOffset,data.byteLength):null;
+        if(bytes && window.__inputReplay.length<200)window.__inputReplay.push({channel:this,bytes:Array.from(bytes)});
+      }
+      return original.call(this,data);
+    };
+  });
   if(microphoneTest&&microphoneSource!=='generated')await context.grantPermissions(['microphone'],{origin:gateway});
   const capabilityPage = await context.newPage();
   // MediaDevices is origin-bound and absent on about:blank. Use a real local
@@ -528,7 +542,7 @@ async function main() {
     assert.equal(await page.locator('#ml-api-name').count(), 0);
     console.log(`Viewer ${i + 1}/${clientCount} is decoding`);
   }
-  if (applicationExample) {
+  if (applicationExample && !verifyInput) {
     result.program_audio_db = await Promise.all(pages.map(page => measureReceivedTone(page)));
     result.program_audio_diagnostics = await Promise.all(pages.map(page => page.evaluate(async () => {
       const peer = window.__acceptancePeers.at(-1);
@@ -568,6 +582,7 @@ async function main() {
   assert.equal(observed.upstream_active, true);
   result.shared_observation = observed;
   const current = await api(`/stream-sessions/${invite.session_id}`);
+  if (verifyInput) await require('./lib/browser-input-acceptance.cjs').verifyBrowserInput({pages, api, sessionId:invite.session_id, app:ownedApp, example:applicationExample, report:result, save});
   const ids = Object.keys(current.connections);
   assert.equal(ids.length, clientCount);
   const claimed = await api(`/stream-sessions/${invite.session_id}/controller/${ids[0]}`, 'POST');
