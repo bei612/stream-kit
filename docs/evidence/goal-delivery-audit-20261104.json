@@ -21,7 +21,7 @@
   "installed_source": "66249387b32975e79d56b19fdf98d4bc7d414da0",
   "historical_requirement_audit": "docs/evidence/goal-delivery-audit-20261101.json",
   "scope_preserved": {
-    "local_demo_protection": "On 2026-11-04 the user requested that the afternoon demonstration not be affected. Keep the installed Windows services, configuration, application and durable-link capability unchanged. Release publication and isolated hosted-runner work may continue; do not apply local TLS, installers or service restarts during this protection window.",
+    "local_demo_protection": "Preserve the installed application data, durable links and other projects. User has since authorized Stream Kit service restarts; local entry URL/trust changes and deliberate host network interruption retain the pending confirmation boundary. ToDesk settings, processes, privacy controls and connection must remain unchanged.",
     "accounts": "One administrator, with viewer/controller connection authority; no additional user-account system.",
     "stability": "Previously accepted four-hour, 20-client result remains accepted. Do not restart a 24-hour gate.",
     "physical_linux_and_mobile": "Physical-device acceptance excluded from this round by the user; native build and browser compatibility checks retained.",
@@ -64,6 +64,11 @@
       "item": "Updated local Example audio capture",
       "evidence": "docs/evidence/local-example-audio-update-20261105.json",
       "finding": "Replaced the old demonstration bundle with a clean source-matched build using the vendored WASAPI correction. Explicit virtual input captured 120480 frames with no drops/errors; application ID/path and existing platform services preserved. No additional human speech test."
+    },
+    {
+      "item": "Actual Web target input and server-side revocation",
+      "evidence": "docs/evidence/windows-stream-input-20261106.json",
+      "finding": "Hosted Windows CI 42237991161 reused verified d36cead6 runtime bytes. Two real Chromium viewers shared one upstream. Native Example received six key-down events and three canvas clicks across first/second/regranted controller phases. Previously valid key states sent with fresh transport sequences were rejected after transfer and revocation; authorized replay positive controls passed. Example closed cleanly and encoder returned idle. No Android or local ToDesk coexistence claim."
     }
   ],
   "remaining_acceptance": [
@@ -71,8 +76,8 @@
       "item": "Integrated native Android application",
       "state": "signed_preview_key_format_fixed_host_input_delivery_unresolved",
       "scope": "docs/goal-current.md",
-      "finding": "Signed Android APK 0.1.0-preview.20261106.6 at source 6e9b2249 is published and installed on the official Windows emulator. Android CI, 13 release JVM tests, inventory/minified JNI checks and public artifact verification passed. Source-matched local .6 keyboard packets reach Sunshine, but Example receives no effective input. Existing .5 media, microphone and reconnect evidence remains scoped to that version. Independent Windows CI delivered a real key and click to Example; a separate native Win32 window on this host received no injected clicks. The local cause remains unproven. Gateway input authorization at queue entry, control-task ownership and malformed-packet fixes passed complete Windows/Linux CI at e29b824d; source-equivalent d36cead6 runtime installers passed installation acceptance and are published as 20261106.2. Publication did not replace the local installation or establish target application input delivery. A later read-only window inspection identified an active visible ToDesk_Private_Screen window covering 1920x1080. Official ToDesk documentation associates privacy/input-control features with restricted input; causality still needs a controlled comparison. No ToDesk setting or connection was changed.",
-      "next": "The user explicitly prohibits ToDesk changes. Preserve its settings, processes, privacy controls and remote connection; do not request that they be disabled again. Verify actual Android/Web target input and revocation using a suitable independent environment or further project-local diagnosis. Read-only inventory found only the primary render node and no ready separate Windows test environment. Existing hosted Windows native-input CI is not end-to-end acceptance and does not prove coexistence on this host. Do not repeat accepted audio checks. Stream Kit service restarts remain authorized.",
+      "finding": "Signed Android APK 0.1.0-preview.20261106.6 at source 6e9b2249 is published and installed on the official Windows emulator. Android CI, 13 release JVM tests, inventory/minified JNI checks and public artifact verification passed. Source-matched local .6 keyboard packets reach Sunshine, but Example receives no effective input. Existing .5 media, microphone and reconnect evidence remains scoped to that version. Independent Windows CI delivered a real key and click to Example; a separate native Win32 window on this host received no injected clicks. The local cause remains unproven. Gateway input authorization at queue entry, control-task ownership and malformed-packet fixes passed complete Windows/Linux CI at e29b824d; source-equivalent d36cead6 runtime installers passed installation acceptance and are published as 20261106.2. Publication did not replace the local installation or establish target application input delivery. A later read-only window inspection identified an active visible ToDesk_Private_Screen window covering 1920x1080. Official ToDesk documentation associates privacy/input-control features with restricted input; causality still needs a controlled comparison. No ToDesk setting or connection was changed. Subsequent independent hosted Windows stream-input CI now verifies actual Web target input and revoked-packet rejection with d36cead6 runtime; see windows-stream-input-20261106.json. Android remains unverified for effective target input.",
+      "next": "Preserve ToDesk unchanged. Reuse the newly proven independent Windows streaming environment to close Android target-input and cross-client control transfer/revocation acceptance if an official Android emulator can operate there. Do not repeat the passed Web-only input, audio or stability checks. No ready independent local Windows renderer was found; hosted CI does not establish local ToDesk coexistence.",
       "evidence": [
         "docs/evidence/android-shared-authority-20261106.json",
         "docs/evidence/android-microphone-route-20261106.json",
@@ -83,7 +88,8 @@
         "docs/evidence/android-input-diagnosis-20261106.json",
         "docs/evidence/windows-native-input-20261106.json",
         "docs/evidence/input-ingress-20261106.json",
-        "docs/evidence/unified-installers-d36cead6.json"
+        "docs/evidence/unified-installers-d36cead6.json",
+        "docs/evidence/windows-stream-input-20261106.json"
       ]
     },
     {

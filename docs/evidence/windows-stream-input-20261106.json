@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-06",
+  "run": "https://github.com/bei612/stream-kit/actions/runs/42237991161",
+  "conclusion": "success",
+  "product_run_id": "42211313164",
+  "runtime_commit": "d36cead6fd856925b283daddcc4af6cd1cdb7dd0",
+  "acceptance_commit": "17538aef2e52eeae14137856bd5ecdd19b1ffc04",
+  "runtime_rebuilt": false,
+  "scope": "Two real Web viewers, native target key/click delivery and server rejection of replayed input after transfer/revocation. Not Android or local ToDesk coexistence acceptance.",
+  "checks": {
+    "two_viewers_one_active_upstream": true,
+    "actual_keyboard_and_pointer_delivery": true,
+    "previous_controller_replayed_input_rejected": true,
+    "revoked_controller_replayed_input_rejected": true,
+    "authorized_replay_positive_control": true,
+    "fresh_transport_sequence_preserved": true,
+    "regrant_restores_delivery": true,
+    "owned_renderer_stopped": true
+  },
+  "phases": [
+    {
+      "label": "first_controller",
+      "connection_id": "c524b901-7961-4c19-91df-61956df32125",
+      "before": {
+        "keys": 0,
+        "clicks": 0
+      },
+      "after": {
+        "keys": 1,
+        "clicks": 1
+      },
+      "after_replay": {
+        "keys": 2,
+        "clicks": 1
+      },
+      "recorded_messages": 15,
+      "replayed_messages": 6
+    },
+    {
+      "label": "previous_controller_rejected",
+      "connection_id": "c524b901-7961-4c19-91df-61956df32125",
+      "sent_messages": 6,
+      "before": {
+        "keys": 2,
+        "clicks": 1
+      },
+      "after": {
+        "keys": 2,
+        "clicks": 1
+      }
+    },
+    {
+      "label": "second_controller",
+      "connection_id": "b3664625-49ee-4026-8e1a-18fffbd2b569",
+      "before": {
+        "keys": 2,
+        "clicks": 1
+      },
+      "after": {
+        "keys": 3,
+        "clicks": 2
+      },
+      "after_replay": {
+        "keys": 4,
+        "clicks": 2
+      },
+      "recorded_messages": 15,
+      "replayed_messages": 6
+    },
+    {
+      "label": "revoked_controller_rejected",
+      "connection_id": "b3664625-49ee-4026-8e1a-18fffbd2b569",
+      "sent_messages": 6,
+      "before": {
+        "keys": 4,
+        "clicks": 2
+      },
+      "after": {
+        "keys": 4,
+        "clicks": 2
+      }
+    },
+    {
+      "label": "regranted_controller",
+      "connection_id": "c524b901-7961-4c19-91df-61956df32125",
+      "before": {
+        "keys": 4,
+        "clicks": 2
+      },
+      "after": {
+        "keys": 5,
+        "clicks": 3
+      },
+      "after_replay": {
+        "keys": 6,
+        "clicks": 3
+      },
+      "recorded_messages": 15,
+      "replayed_messages": 6
+    }
+  ],
+  "binary_sha256": {
+    "encoder": "19143f88d6501ee9c8f873fdc39fdc9943563ab3d689f3542ee1d72164b1bf4a",
+    "gateway": "d0cc64f5b79ee1d5f4d98cb11a33bf79373fd9b0d0d314a9c252698bd09f47e6",
+    "control": "0bec827813f93595ad4eeb8437b52b677a89af7a34b62a510cf613248c21f11c",
+    "example": "0940512a9ce7419c702c4b7d5e45839ab198fb6604d15d789694006acb47a056"
+  },
+  "runtime_hashes_match_published_d36cead6_manifests": true,
+  "browser": "156.0.8078.80",
+  "files": [
+    {
+      "path": ".local/validation/windows-stream-input-ci-17538aef/input-evidence/provenance.json",
+      "sha256": "85d36b4a8ae4da022ffa523e41119a2dcabaf64a105f8ddbd2a1cf5762362e5c"
+    },
+    {
+      "path": ".local/validation/windows-stream-input-ci-17538aef/source-stream/2026-11-06T14-55-08-110Z/result.json",
+      "sha256": "f7af0542dde32b2308186b020367171bb2615365124afd58cac9cb4118a5791c"
+    },
+    {
+      "path": ".local/validation/windows-stream-input-ci-17538aef/source-stream/2026-11-06T14-55-08-110Z/browser/result.json",
+      "sha256": "6dc553d8673fae54d86c378bf01e56115ed908685be53fc8f50ab39da7b98454"
+    },
+    {
+      "path": ".local/validation/windows-stream-input-ci-17538aef/source-stream/2026-11-06T14-55-08-110Z/browser/example.log",
+      "sha256": "705dbc4ac141ededf3ac1b199249451c1258f0481b93769542a12828fbaee7f6"
+    }
+  ],
+  "limits": [
+    "Hosted Windows Server 2022 with Chromium; not Android input or local ToDesk coexistence acceptance.",
+    "No physical microphone, repeated audio quality or stability acceptance.",
+    "No local installed services, network, credentials, trust or remote-control settings changed.",
+    "The test-owned Example and test scripts are excluded from runtime installers."
+  ]
+}

@@ -168,10 +168,12 @@
       "host_os": "Windows 11 Home China, build 26200",
       "existing_windows_sandbox_executable": false,
       "existing_hyper_v_management_command": false,
-      "configured_render_nodes": ["primary"],
+      "configured_render_nodes": [
+        "primary"
+      ],
       "separate_ready_render_target_found": false,
       "scope": "Read-only inventory; no virtualization features installed and no remote-control, network or service settings changed. Existing hosted Windows CI proves native input only, not Android/Web end-to-end delivery or coexistence on this host."
     }
   },
-  "remaining": "Verify effective Android/Web target input and revocation without modifying ToDesk, bypassing OS policy or disrupting remote control. An independent end-to-end environment has not yet been established; do not claim the existing native CI baseline closes this gap. No additional audio or stability rerun required."
+  "remaining": "Independent hosted Windows Web end-to-end input and server-side revocation now pass; see docs/evidence/windows-stream-input-20261106.json. Effective Android target input and local input/focus delivery remain unverified. Preserve ToDesk and OS policy unchanged. No additional accepted audio or stability rerun required."
 }
