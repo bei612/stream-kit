@@ -7,6 +7,12 @@
   "installer_acceptance": "failure",
   "installer_sha256": "e1ad4bf93673d00ef841fccb7c8afc5876d9e99c477cde0b17586b1e9387b738",
   "server_candidate_published": false,
+  "replacement_source": "47c02726c0161ebdec50911422d62845a9b6e59a",
+  "replacement_product_run": 42280613810,
+  "replacement_source_ci_run": 42280610396,
+  "replacement_audio_provisioning_run": 42280610471,
+  "replacement_status": "in_progress",
+  "redundant_standalone_linux_run_cancelled": 42280610716,
   "findings": [
     "During first service startup Windows requested a manual restart from the Microsoft inbox audio driver refresh. The gateway therefore did not start.",
     "Installer waited for readiness, then removed the just-created service. Its suppressed ssPostInstall exception nevertheless produced exit code 0.",
