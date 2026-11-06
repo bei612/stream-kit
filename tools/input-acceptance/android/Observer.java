@@ -2,6 +2,8 @@ package io.github.bei612.streamkit.inputobserver;
 
 import android.app.Activity;
 import android.app.Instrumentation;
+import android.app.UiAutomation;
+import android.accessibilityservice.AccessibilityServiceInfo;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.view.accessibility.AccessibilityNodeInfo;
@@ -20,7 +22,13 @@ public final class Observer extends Instrumentation {
         try {
             // A streaming UI need not become globally idle. Observe its current
             // accessibility tree through the public instrumentation API instead.
-            AccessibilityNodeInfo root = getUiAutomation().getRootInActiveWindow();
+            UiAutomation automation = getUiAutomation();
+            AccessibilityServiceInfo service = automation.getServiceInfo();
+            // SurfaceView carries pixels rather than accessible text, so Android
+            // may omit it from the default compressed accessibility hierarchy.
+            service.flags |= AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS;
+            automation.setServiceInfo(service);
+            AccessibilityNodeInfo root = automation.getRootInActiveWindow();
             if (root != null) {
                 try { if (CLIENT.contentEquals(String.valueOf(root.getPackageName()))) inspect(root, 0); }
                 finally { root.recycle(); }
