@@ -5,8 +5,15 @@ on:
     inputs:
       product_run_id:
         description: 'Successful owned windows-product-release build; reuse its exact payload without rebuilding'
-        required: true
+        required: false
         type: string
+      mode:
+        description: 'Run input acceptance, or qualify the separate Android environment without repeating Web acceptance'
+        type: choice
+        default: web_input
+        options:
+          - web_input
+          - android_environment
 
 permissions:
   contents: read
@@ -14,6 +21,7 @@ permissions:
 
 jobs:
   real-web-input:
+    if: inputs.mode != 'android_environment'
     runs-on: windows-2022
     timeout-minutes: 15
     env:
@@ -67,5 +75,25 @@ jobs:
             artifacts/input-evidence/
             artifacts/source-stream/**/result.json
             artifacts/source-stream/**/example.log
+          if-no-files-found: warn
+          retention-days: 14
+  android-environment:
+    if: inputs.mode == 'android_environment'
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Qualify official Android emulator without host virtualization changes
+        shell: pwsh
+        run: ./scripts/check-windows-android-environment.ps1 -OutputDirectory artifacts/windows-android-environment
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-android-environment
+          path: artifacts/windows-android-environment/
           if-no-files-found: warn
           retention-days: 14
