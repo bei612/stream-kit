@@ -205,10 +205,11 @@ struct ManagedPairChallenge {
 /// a device name or a newly appearing request alone is never approval evidence.
 #[post("/host/pair/managed")]
 async fn pair_managed_host(
-    mut admin: Admin,
+    admin: Admin,
     Json(request): Json<PostPairRequest>,
 ) -> Result<StreamedResponse<ManagedPairChallenge, PostPairResponse2>, AppError> {
-    let mut host = admin.host(HostId(request.host_id)).await?;
+    let mut user = (*admin).clone();
+    let mut host = user.host(HostId(request.host_id)).await?;
     let pin = PairPin::new_random(&RustCryptoBackend)?;
     let identity = RustCryptoBackend.generate_client_identity()?;
     let challenge = ManagedPairChallenge {
@@ -219,8 +220,8 @@ async fn pair_managed_host(
     let (response, sender) = StreamedResponse::new(challenge);
     spawn(async move {
         let pairing = tokio::time::timeout(std::time::Duration::from_secs(30), async {
-            host.pair_with_identity(&mut admin, pin, identity).await?;
-            host.detailed_host(&mut admin).await
+            host.pair_with_identity(&mut user, pin, identity).await?;
+            host.detailed_host(&mut user).await
         });
         let result = tokio::select! {
             result = pairing => result,

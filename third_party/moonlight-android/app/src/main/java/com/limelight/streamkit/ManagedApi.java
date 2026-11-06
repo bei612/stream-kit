@@ -22,6 +22,7 @@ public final class ManagedApi {
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
     private static final MediaType SDP = MediaType.get("application/sdp");
     private final OkHttpClient http;
+    private final OkHttpClient startupHttp;
     private final HttpUrl control;
     private final boolean developmentHttp;
 
@@ -70,6 +71,10 @@ public final class ManagedApi {
                 .connectTimeout(8, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS)
                 .callTimeout(15, TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false)
                 .retryOnConnectionFailure(false).build();
+        // First launch may enroll the configured renderer (40 seconds), then
+        // admit the viewer. Heartbeats retain the short authority deadline.
+        this.startupHttp = http.newBuilder().readTimeout(60, TimeUnit.SECONDS)
+                .callTimeout(60, TimeUnit.SECONDS).build();
         validateTransport(control);
     }
 
@@ -78,7 +83,7 @@ public final class ManagedApi {
         try {
             JSONObject invitation;
             String streamPort;
-            try (Response response = execute(controlRequest("/api/v1/watch/open", link.admissionAuthorization())
+            try (Response response = execute(startupHttp, controlRequest("/api/v1/watch/open", link.admissionAuthorization())
                     .post(RequestBody.create("", JSON)).build())) {
                 streamPort = response.header("X-Stream-Port");
                 invitation = data(response);
@@ -225,8 +230,12 @@ public final class ManagedApi {
     }
 
     private Response execute(Request request) throws IOException {
+        return execute(http, request);
+    }
+
+    private Response execute(OkHttpClient client, Request request) throws IOException {
         // Do not propagate an exception containing request URLs or header values to UI/logging.
-        try { return http.newCall(request).execute(); }
+        try { return client.newCall(request).execute(); }
         catch (IOException exception) { throw new Failure(0, "TRANSPORT_UNAVAILABLE"); }
     }
 

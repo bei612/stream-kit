@@ -10,6 +10,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.*;
 
 public class ManagedApiTest {
@@ -18,6 +19,7 @@ public class ManagedApiTest {
     private final List<String> requests = new ArrayList<>();
     private String base;
     private boolean redirect;
+    private boolean slowStartup;
     private String mediaLocation = "/api/host/stream/webrtc/42";
     private String joinedHost = "17";
     private String revision = "2";
@@ -49,6 +51,7 @@ public class ManagedApiTest {
         String response = "{}";
         int code = 200;
         if (path.equals("/api/v1/watch/open")) {
+            if (slowStartup) result.setHeadersDelay(13, TimeUnit.SECONDS);
             if (!("Bearer " + KEY).equals(exchange.getHeader("Authorization"))) code = 401;
             if (redirect) { code = 302; result.addHeader("Location", base + "/redirected"); }
             result.addHeader("X-Stream-Port", String.valueOf(server.getPort()));
@@ -98,6 +101,16 @@ public class ManagedApiTest {
         try { new ManagedApi(link(), true).open(link()); fail("Redirect accepted"); }
         catch (ManagedApi.Failure error) { assertEquals(302, error.status); }
         assertEquals(List.of("POST /api/v1/watch/open"), requests);
+    }
+
+    @Test public void firstLaunchCanWaitForRendererEnrollment() throws Exception {
+        slowStartup = true;
+        ManagedApi api = new ManagedApi(link(), true);
+        ManagedApi.Admission admission = api.open(link());
+        assertEquals(17, admission.hostId);
+        api.leave(admission.authority);
+        assertEquals(List.of("POST /api/v1/watch/open", "POST /api/v1/client-sessions/join",
+                "DELETE /api/v1/client-sessions/session-1/connections/connection-1"), requests);
     }
 
     @Test public void mismatchedApplicationReleasesJoinedConnection() throws Exception {

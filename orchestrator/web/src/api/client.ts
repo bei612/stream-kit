@@ -157,7 +157,7 @@ export const api = {
     request<any>(`/apps/${id}/exe`, { method: 'PUT', body: JSON.stringify({ exe_path: exePath }) }),
   retryRegister: (id: string) => request<any>(`/apps/${id}/register`, { method: 'POST' }),
   uploadStatus: () => request<any>('/apps/upload-status'),
-  launchApp: (id: string) => request<any>(`/apps/${id}/launch`, { method: 'POST' }),
+  launchApp: (id: string) => request<any>(`/apps/${id}/launch`, { method: 'POST' }, 60000),
   stopApp: (id: string) => request<any>(`/apps/${id}/stop`, { method: 'POST' }),
   getAppStatus: (id: string) => request<any>(`/apps/${id}/status`),
   getAppLogs: (id: string, lines = 200) => request<any>(`/apps/${id}/logs?lines=${lines}`),
