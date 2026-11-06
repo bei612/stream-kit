@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "objective": "docs/goal-current.md",
+  "candidate_source": "47c02726c0161ebdec50911422d62845a9b6e59a",
+  "overall_completion_proven": false,
+  "purpose": "Working index against all 18 current goal clauses, preserving historical version/environment boundaries. This is not a production-completion certificate or a new test run.",
+  "requirements": [
+    {
+      "id": 1,
+      "state": "implemented_with_scoped_acceptance",
+      "finding": "Web/PWA and a native Android fork exist. Signed Android preview 20261107.1 is published and installed on the existing official API 36 emulator. No iOS native app is claimed.",
+      "evidence": ["docs/evidence/android-preview-release-20261107-1.json", "docs/evidence/android-stream-input-20261107.json", "docs/evidence/windows-installer-restart-20261107.json"],
+      "limit": "Browser-engine and emulator results do not establish physical mobile performance. Android release requires trusted HTTPS."
+    },
+    {
+      "id": 2,
+      "state": "implementation_verified_current_windows_delivery_pending",
+      "finding": "Windows/Linux control and gateway CI pass at 47c02726. Unified management and the single-administrator scope remain. The matching Linux installer built successfully; matching Windows installer acceptance remains pending.",
+      "evidence": ["docs/evidence/windows-installer-restart-20261107.json", "docs/evidence/unified-installers-d36cead6.json"],
+      "implementation": ["orchestrator/internal/server/handlers/auth.go", "orchestrator/internal/component/manager.go"]
+    },
+    {
+      "id": 3,
+      "state": "vendored_and_traced",
+      "finding": "Git index has no mode-160000 entries. Required upstream sources are tracked directly with pinned revisions and licensing metadata. Android integration is released despite the older informational integration_status field in upstream-lock.json.",
+      "evidence": ["third_party-manifests/upstream-lock.json", "third_party-manifests/moonlight-android.json", "docs/evidence/android-preview-release-20261107-1.json"],
+      "limit": "Published and candidate SBOMs retain their exact source revisions; new metadata does not change old artifact provenance."
+    },
+    {
+      "id": 4,
+      "state": "scoped_runtime_acceptance_passed",
+      "finding": "Android and Web shared one upstream while actual target key/click counts proved transfer, revocation and regrant. Independent Windows Web target-input acceptance also passed.",
+      "evidence": ["docs/evidence/android-stream-input-20261107.json", "docs/evidence/windows-stream-input-20261106.json", "contracts/client-connections/README.md"],
+      "limit": "Local Windows input/focus cause remains unproven; these independent runs do not establish local ToDesk coexistence."
+    },
+    {
+      "id": 5,
+      "state": "scoped_audio_acceptance_passed",
+      "finding": "Android microphone reached the explicit server recorder and Web audience; Android received program audio; continuous synthetic source fell below recorded floors after revocation. Permission denial and lifecycle stop have separate evidence. Earlier physical browser speech and UE5 capture results remain accepted. Audio-focus handling is present in the native activity/session.",
+      "evidence": ["docs/evidence/android-microphone-route-20261106.json", "docs/evidence/android-program-audio-revocation-20261106.json", "docs/evidence/android-shared-authority-20261106.json", "docs/evidence/android-release-reconnect-20261106.json", "docs/evidence/human-voice-installed-20261105.json", "docs/evidence/browser-native-audio-ue5-20261101.json"],
+      "implementation": ["third_party/moonlight-android/app/src/main/java/com/limelight/streamkit/ManagedActivity.java", "third_party/moonlight-android/app/src/main/java/com/limelight/streamkit/ManagedSession.java"],
+      "limit": "The original shared-authority run did not pass input/audio overall; only its explicitly verified permission/lifecycle observations are used. Later independent records close those specific gaps. No physical Android acoustic-quality claim."
+    },
+    {
+      "id": 6,
+      "state": "implemented_with_scoped_acceptance",
+      "finding": "Permanent entry is visible before launch, persists and can be rotated. First-install normal entry automatically pairs the configured renderer and starts media on the exact 928c012a Linux installer. Android stores entries using Keystore-backed encryption and accepts the same entry protocol.",
+      "evidence": ["docs/evidence/durable-watch-link-20261104.json", "docs/evidence/managed-enrollment-20261107.json", "docs/evidence/android-encrypted-entry-20261106.json", "contracts/application-watch-links.md", "contracts/android-client.md"],
+      "limit": "Startup arguments are administrator-saved parameters, not arbitrary executable parameters supplied by the viewer."
+    },
+    {
+      "id": 7,
+      "state": "isolated_recovery_passed_local_deployment_pending",
+      "finding": "Exact Linux installer passed real isolated NIC address change, mDNS discovery, normal HTTPS verification, HTTP/2 and WebRTC recovery without identity/configuration changes. Installed Windows remains on its previous HTTP deployment.",
+      "evidence": ["docs/evidence/managed-enrollment-20261107.json", "docs/evidence/lan-address-recovery-20261107.json", "contracts/public-addresses.md"],
+      "remaining": "Verified Windows runtime deployment and separately confirmed local HTTPS entry/trust cutover. Numeric IP bookmarks do not rewrite themselves."
+    },
+    {
+      "id": 8,
+      "state": "implemented_with_source_and_historical_runtime_coverage",
+      "finding": "ZIP, 7z, RAR, TAR and gzip/bzip2/xz/zstd TAR variants share confined extraction and resource limits. Local executable registration preserves externally owned files. Application capture requires renderer capabilities and rejects unavailable scope rather than falling back to desktop.",
+      "implementation": ["orchestrator/internal/app/archive.go", "orchestrator/internal/app/extract_sink.go", "orchestrator/internal/app/local.go", "orchestrator/internal/app/capture.go"],
+      "evidence": ["orchestrator/internal/app/archive_test.go", "orchestrator/internal/app/local_test.go", "orchestrator/internal/app/capture_test.go", "docs/evidence/android-program-audio-revocation-20261106.json", "docs/evidence/windows-installer-restart-20261107.json", "contracts/audio-devices/linux-application-capture.md"],
+      "limit": "Application-mode capability depends on the supported OS/session capture backend; unsupported capabilities fail explicitly."
+    },
+    {
+      "id": 9,
+      "state": "implemented_with_browser_and_protocol_coverage",
+      "finding": "Control, encoder and gateway configuration contracts distinguish desired/loaded revisions and application policy. Existing browser tests exercise stale writes and managed restart. Web and Android use explicit connection/authority lifecycle state.",
+      "evidence": ["contracts/encoder-configuration.md", "contracts/gateway-configuration.md", "contracts/management-events/README.md", "deploy/README.md", "docs/evidence/windows-installer-restart-20261107.json"],
+      "implementation": ["orchestrator/internal/config/settings.go", "orchestrator/internal/server/handlers/configuration_test.go", "scripts/test-admin-encoder-configuration.cjs", "scripts/test-admin-worker-configuration.cjs", "scripts/review-web-ui.cjs", "third_party/moonlight-android/app/src/main/java/com/limelight/streamkit/ManagedSession.java"],
+      "limit": "This index does not substitute automated checks for a new subjective visual review or certify unsupported upstream parameters."
+    },
+    {
+      "id": 10,
+      "state": "separated_from_runtime_delivery",
+      "finding": "Example has target video/input, generated program sound and explicit recording support. Package inventory rejects Example, probes, test media and development tooling from runtime installers.",
+      "evidence": ["docs/evidence/local-example-audio-update-20261105.json", "docs/evidence/android-program-audio-revocation-20261106.json", "scripts/test-installer-payload.mjs"],
+      "implementation": ["scripts/lib/installer-payload.mjs", "scripts/build-example-release.mjs"]
+    },
+    {
+      "id": 11,
+      "state": "replacement_windows_installer_acceptance_pending",
+      "finding": "Previous source-matched installers established automatic SCM startup and component/service restart, with no host Node.js or VB-CABLE dependency. The 928c012a candidate was rejected after a real installation failure. 47c02726 fixes pre-service audio preparation and explicit failure/restart exits; its exact installer must still pass.",
+      "evidence": ["docs/evidence/windows-installer-restart-20261107.json", "docs/evidence/unified-installers-d36cead6.json", "docs/evidence/windows-real-boot-20261104.json"],
+      "limit": "Historical actual reboot belongs to the installed historical revision. A new green build alone does not prove installation or reboot behavior."
+    },
+    {
+      "id": 12,
+      "state": "local_official_emulator_in_use",
+      "finding": "Official SDK/API 36 emulator reused on native Windows; published 20261107.1 APK updated in place and launched successfully. No WSL, host reboot, ToDesk changes or emulator tooling added to the APK.",
+      "evidence": ["docs/evidence/android-preview-release-20261107-1.json", "docs/evidence/windows-android-environment-20261106.json"]
+    },
+    {
+      "id": 13,
+      "state": "android_published_replacement_server_pending",
+      "finding": "Android APK, portable archive, checksums, provenance, license inventory and SBOM are published with the persistent project signer. Server replacement remains gated by exact Windows installer acceptance; existing published server preview explicitly documents its known limits.",
+      "evidence": ["docs/evidence/android-preview-release-20261107-1.json", "docs/evidence/unified-installers-d36cead6.json", "docs/evidence/windows-installer-restart-20261107.json"],
+      "limit": "Fresh-install server packages do not claim in-place upgrade support."
+    },
+    {
+      "id": 14,
+      "state": "accepted_evidence_preserved",
+      "finding": "User-accepted four-hour/20-client stability and completed 2026-11-05 physical speech measurements remain accepted. Neither was repeated for these installation-only changes.",
+      "evidence": ["deploy/README.md", "docs/evidence/human-voice-installed-20261105.json"]
+    },
+    {
+      "id": 15,
+      "state": "emulator_acceptance_scoped_and_recorded",
+      "finding": "Official emulator evidence covers installation/launch, native video/program audio, microphone permission and delivery/revocation, effective input transfer and reconnect/background behavior across recorded release versions. Physical Linux/mobile acceptance remains excluded.",
+      "evidence": ["docs/evidence/android-preview-release-20261107-1.json", "docs/evidence/android-stream-input-20261107.json", "docs/evidence/android-program-audio-revocation-20261106.json", "docs/evidence/android-release-reconnect-20261106.json"],
+      "limit": "Later APK startup-timeout changes have focused JVM/JNI checks; old full-media runs are not relabelled as new-version reruns."
+    },
+    {
+      "id": 16,
+      "state": "pending_local_cutover",
+      "finding": "Local runtime/configuration backup and rollback steps are prepared. Existing TLS proposal remains unapplied; the new runtime will require fresh bound preflights. Existing entry/trust changes and deliberate host-network interruption retain their explicit confirmation boundary.",
+      "evidence": ["docs/evidence/goal-delivery-audit-20261104.json"],
+      "remaining": "Finish candidate installer delivery, prepare its concrete local update/TLS cutover, obtain the pending confirmation, and validate the resulting local deployment without touching ToDesk."
+    },
+    {
+      "id": 17,
+      "state": "active_execution",
+      "finding": "Single-agent work; fixes, review records and release notes committed/pushed. Failed installer retained as evidence, not promoted. Product run 42280613810 remains the only replacement product build; redundant standalone Linux build cancelled.",
+      "evidence": ["docs/evidence/windows-installer-restart-20261107.json", "contracts/android-client.md"]
+    },
+    {
+      "id": 18,
+      "state": "not_complete",
+      "finding": "Replacement server installation/publication and local trusted deployment are not complete. Repository, APK, server release and installed versions remain explicitly distinct. Goal must remain active.",
+      "evidence": ["docs/evidence/goal-delivery-audit-20261104.json", "docs/evidence/windows-installer-restart-20261107.json"]
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "current_scope": "docs/goal-current.md",
+  "current_requirement_index": "docs/evidence/goal-requirements-20261107.json",
   "scope_updated_at": "2026-11-07",
   "overall_completion_proven": false,
   "latest_observation": {
