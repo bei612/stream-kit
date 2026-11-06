@@ -212,10 +212,6 @@ impl MediaSessionRegistry {
             .map_err(|_| AppError::StreamClosed)
     }
 
-    pub async fn can_control(&self, key: &MediaSessionKey, peer_id: &str) -> bool {
-        self.with_controller(key, peer_id, |_| ()).await.is_some()
-    }
-
     pub async fn with_controller<T>(
         &self,
         key: &MediaSessionKey,
@@ -462,13 +458,28 @@ mod tests {
             .await
             .expect("media authority test setup must succeed");
         assert!(registry.claim_controller(&key(), "b", false).await.is_err());
-        assert!(!registry.can_control(&key(), "b").await);
+        assert!(
+            registry
+                .with_controller(&key(), "b", |_| ())
+                .await
+                .is_none()
+        );
         registry
             .claim_controller(&key(), "b", true)
             .await
             .expect("media authority test setup must succeed");
-        assert!(registry.can_control(&key(), "b").await);
-        assert!(!registry.can_control(&key(), "a").await);
+        assert!(
+            registry
+                .with_controller(&key(), "b", |_| ())
+                .await
+                .is_some()
+        );
+        assert!(
+            registry
+                .with_controller(&key(), "a", |_| ())
+                .await
+                .is_none()
+        );
     }
 
     #[tokio::test]
