@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "source_commit": "47c02726c0161ebdec50911422d62845a9b6e59a",
+  "product_run": "https://github.com/bei612/stream-kit/actions/runs/42280613810",
+  "source_ci_run": "https://github.com/bei612/stream-kit/actions/runs/42280610396",
+  "windows_acceptance_run": "https://github.com/bei612/stream-kit/actions/runs/42286667294",
+  "windows": {
+    "passed": true,
+    "installer": {
+      "name": "stream-kit-preview-47c02726c016-windows-amd64-setup.exe",
+      "bytes": 97553532,
+      "sha256": "089e7207881b63c75db54009afe2480b4b1e8ccd73a8ffb92d5b594b94851e25"
+    },
+    "installer_source_commit": "47c02726c0161ebdec50911422d62845a9b6e59a",
+    "acceptance_result_sha256": "bfacd1d14dd7a084aeab2240bc1bf9596274eeb3508d3f0f3350d6f1c41329ad",
+    "install_exit": 0,
+    "administrator_login": true,
+    "service_after_install": {
+      "state": "Running",
+      "start_mode": "Auto",
+      "account": "LocalSystem",
+      "pid": 644
+    },
+    "service_after_restart": {
+      "state": "Running",
+      "start_mode": "Auto",
+      "account": "LocalSystem",
+      "pid": 7820
+    },
+    "component_autostart": "Acceptance asserts both component auto_start settings before restarting; no manual startup repair.",
+    "gateway_restarted": true,
+    "scm_restarted": true,
+    "audio": {
+      "passed": true,
+      "captured_frames": 144000,
+      "dropped_frames": 0,
+      "xruns": 0
+    },
+    "defaults_preserved": true,
+    "default_scope": "Existing output and input defaults retained. A previously absent input default may be supplied by the first installed recording endpoint; uninstall restores the original empty defaults.",
+    "uninstall_exit": 0,
+    "service_removed": true,
+    "data_preserved": true,
+    "finished_at": "2026-11-06T20:16:43.642Z"
+  },
+  "linux": {
+    "installer": {
+      "file": "stream-kit-preview-47c02726c016-ubuntu24.04-amd64-setup.run",
+      "bytes": 62412685,
+      "sha256": "aa04a5ef7a9423ddb7a2c5d27820cda430bed61591b1e41a71d063a22c3221e4"
+    },
+    "acceptance_log_sha256": "0a65c99854585c21327af0eb5f5162a73cc8619ea64765197a800020aac624c3",
+    "scope": "Native extraction, user-service offline enablement, initialization, configuration and existing-data protection passed. Earlier 928c012a automatic-enrollment/media/IP-recovery evidence is retained separately; no new media run claimed."
+  },
+  "sbom": {
+    "file": "stream-kit-sbom.spdx.json",
+    "bytes": 7479449,
+    "sha256": "8d7e4cf4a0e55aa0c8c2e8e9c7ec770e0f887b28a2a65084ad6b317d5c233204",
+    "format": "SPDX-2.3",
+    "packages": 3136
+  },
+  "local_downloads_verified": true,
+  "native_windows_three_component_inventory_verified": true,
+  "published": false,
+  "limits": [
+    "Windows acceptance used hosted Windows Server 2022, including SCM restart, not a full host reboot. Restart-required exit handling has separate actual Inno fixture coverage.",
+    "Fresh-install packages do not establish in-place upgrade support.",
+    "Installed local control remains 70ea6f70 and media 66249387; no local runtime, TLS trust, network or ToDesk changes.",
+    "Synthetic installed PCM does not replace physical human speech; previously accepted speech and stability evidence remain separate."
+  ]
+}

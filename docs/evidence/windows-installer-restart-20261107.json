@@ -25,7 +25,9 @@
     "scope": "Source tests, native control/gateway bundles and browser checks. This does not replace exact unified-installer lifecycle acceptance or prove a host reboot."
   },
   "replacement_audio_provisioning_run": 42280610471,
-  "replacement_status": "in_progress",
+  "replacement_status": "build_and_installer_acceptance_passed",
+  "replacement_installer_acceptance_run": 42286667294,
+  "replacement_installer_evidence": "docs/evidence/unified-installers-47c02726.json",
   "replacement_actual_silent_outcome_ci": "passed",
   "replacement_linux_audio_provisioning": "passed",
   "redundant_standalone_linux_run_cancelled": 42280610716,
@@ -51,5 +53,5 @@
     "fixture_scope": "Official Inno 7.1.1 compiled the actual production exit-code handler. Private non-admin fixtures changed no services, drivers, registry entries or application files.",
     "source_reference": "https://jrsoftware.org/ishelp/topic_scriptevents.htm"
   },
-  "remaining": "Build and accept a matching replacement installer; do not promote the failed 928c012a Windows installer. No local Windows runtime, TLS trust or ToDesk changes were made."
+  "remaining": "Publish the verified replacement bytes; do not promote the failed 928c012a Windows installer. No local Windows runtime, TLS trust or ToDesk changes were made."
 }
