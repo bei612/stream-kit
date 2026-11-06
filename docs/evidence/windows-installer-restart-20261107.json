@@ -12,6 +12,8 @@
   "replacement_source_ci_run": 42280610396,
   "replacement_audio_provisioning_run": 42280610471,
   "replacement_status": "in_progress",
+  "replacement_actual_silent_outcome_ci": "passed",
+  "replacement_linux_audio_provisioning": "passed",
   "redundant_standalone_linux_run_cancelled": 42280610716,
   "findings": [
     "During first service startup Windows requested a manual restart from the Microsoft inbox audio driver refresh. The gateway therefore did not start.",
