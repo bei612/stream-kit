@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "source_commit": "928c012a3dae3a4be658caf56f25eae9389b447a",
+  "release_url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261107.1",
+  "published_at": "2026-11-06T18:51:51Z",
+  "prerelease": true,
+  "production_acceptance_complete": false,
+  "version_code": 1000007,
+  "signing_certificate_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f",
+  "change": "Allow 60 seconds for first watch admission while retaining 12-second heartbeat reads and 15-second ordinary call deadlines.",
+  "android_ci": {
+    "run": 42272884130,
+    "conclusion": "success",
+    "release_jvm_tests": 14,
+    "slow_startup_headers_seconds": 13
+  },
+  "signed_release": {
+    "run": 42273144637,
+    "conclusion": "success",
+    "official_api36_minified_jni_smoke": true
+  },
+  "verification": {
+    "candidate_file_checksums": 21,
+    "apk_signature_verified": true,
+    "same_project_signer": true,
+    "all_remote_asset_sizes_and_digests_match": true,
+    "release_notes_match": true
+  },
+  "assets": [
+    {
+      "name": "distribution.zip",
+      "bytes": 33144869,
+      "sha256": "461fc9585247e62d62f7f20666506822ea19d7e5bcb4df98a8a0780556a2213d",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261107.1/distribution.zip"
+    },
+    {
+      "name": "DOWNLOAD-SHA256SUMS.txt",
+      "bytes": 359,
+      "sha256": "570db5d37b803c7f3452012609237efd0849a6b69aa7d0f733e3c0ba4c54d6ed",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261107.1/DOWNLOAD-SHA256SUMS.txt"
+    },
+    {
+      "name": "stream-kit-android-0.1.0-preview.20261107.1.apk",
+      "bytes": 33144952,
+      "sha256": "b0bf538288ddac44d3c920d3b0e26fa2c2447f28d68ddf062784cae580b3a6ee",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261107.1/stream-kit-android-0.1.0-preview.20261107.1.apk"
+    },
+    {
+      "name": "provenance.json",
+      "bytes": 4836,
+      "sha256": "532a036830cc21de83c587c48636aae12a36a460eb8041af0f11a4c3f36ed422",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261107.1/provenance.json"
+    },
+    {
+      "name": "sbom.cdx.json",
+      "bytes": 20084,
+      "sha256": "2952df0f2778e2ed830502bfa36d2f0ce945f3758a848292feb5f44314240482",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261107.1/sbom.cdx.json"
+    }
+  ],
+  "limits": [
+    "No new full media/input/microphone acceptance on this APK; prior results retain their exact source and artifact boundaries.",
+    "Server first-install enrollment is implemented and its native runtime acceptance is still pending.",
+    "Installed local Windows services, HTTPS trust and ToDesk unchanged."
+  ]
+}

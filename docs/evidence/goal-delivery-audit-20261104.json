@@ -30,7 +30,9 @@
       "windows_installer_acceptance": "success",
       "production_blocker": "Fresh-install renderer enrollment was missing; integrated source fix under validation.",
       "windows_installer_evidence": "docs/evidence/windows-installer-00fe4953.json"
-    }
+    },
+    "android_release": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261107.1",
+    "android_release_evidence": "docs/evidence/android-preview-release-20261107-1.json"
   },
   "installed_source": "66249387b32975e79d56b19fdf98d4bc7d414da0",
   "historical_requirement_audit": "docs/evidence/goal-delivery-audit-20261101.json",
@@ -118,7 +120,7 @@
       "finding": "init-platform starts with no gateway hosts. Prior runtime fixtures explicitly paired the renderer; they do not prove automatic first-install launch. Product LaunchApp now enrolls only its configured renderer via exact certificate fingerprint correlation and normal authenticated GameStream pairing. Updated fixture removes all test-side host creation and PIN approval.",
       "next": "Run source CI and build the integrated native components, then open the permanent link on a pristine deployment. Publish only source-matched verified installers.",
       "source_commit": "928c012a",
-      "source_ci_run": 42272883974,
+      "source_ci_run": 42273640023,
       "product_run": 42273134264,
       "android_ci_run": 42272884130,
       "android_release_candidate_run": 42273144637,
@@ -134,7 +136,11 @@
         "Rust workspace formatting check passed",
         "Fixture JavaScript syntax and modified workflow YAML parse passed"
       ],
-      "client_startup_deadline": "Management launch and Android watch admission now allow 60 seconds for the bounded first-launch enrollment; Android authority heartbeat deadlines are unchanged."
+      "client_startup_deadline": "Management launch and Android watch admission now allow 60 seconds for the bounded first-launch enrollment; Android authority heartbeat deadlines are unchanged.",
+      "source_ci_commit": "2da0b2ed",
+      "source_ci_scope": "Candidate 928c012a production code plus a test-only required control-plane URL in the admin-auth fixture; no runtime change or installer rebuild.",
+      "android_release_published": true,
+      "android_release_evidence": "docs/evidence/android-preview-release-20261107-1.json"
     },
     {
       "item": "Trusted LAN HTTPS deployment",
