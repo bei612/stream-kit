@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-06",
+  "source_commit": "902798f02d6e5746e9237d5ab92867a6496818bd",
+  "product_run_id": 42189092709,
+  "installer": {
+    "file": "stream-kit-preview-902798f02d6e-ubuntu24.04-amd64-setup.run",
+    "bytes": 62349461,
+    "sha256": "90576da971050c2d58fe4956e3aa4b72bfee42508f14a3c3984991bd0d9a0a16"
+  },
+  "acceptance_log_sha256": "48f527dba0ccf51ebd92107dd3140b0a0dbb8698dfa0cb0087daebaa40a94a66",
+  "verified_download": true,
+  "scope": "Native Linux payload extraction, initialization, offline service enablement and existing-data preservation; no host media or physical LAN claim",
+  "job_id": 127797044686,
+  "job_conclusion": "success",
+  "workflow_url": "https://github.com/bei612/stream-kit/actions/runs/42189092709",
+  "product_run_state_at_receipt": "in_progress",
+  "not_release_publication": true
+}

@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-06",
+  "source_commit": "902798f02d6e5746e9237d5ab92867a6496818bd",
+  "run": "https://github.com/bei612/stream-kit/actions/runs/42189035929",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "name": "Source SBOM",
+      "conclusion": "success",
+      "job_id": 127796206482
+    },
+    {
+      "name": "Management Web",
+      "conclusion": "success",
+      "job_id": 127796206558
+    },
+    {
+      "name": "Orchestrator (windows-latest)",
+      "conclusion": "success",
+      "job_id": 127796206597
+    },
+    {
+      "name": "Orchestrator (ubuntu-latest)",
+      "conclusion": "success",
+      "job_id": 127796206619
+    },
+    {
+      "name": "Moonlight Web (windows-latest)",
+      "conclusion": "success",
+      "job_id": 127796206646
+    },
+    {
+      "name": "Moonlight Web (ubuntu-latest)",
+      "conclusion": "success",
+      "job_id": 127796206746
+    }
+  ],
+  "limits": [
+    "Automated browser and native build checks, not physical device or production LAN acceptance",
+    "Windows installer is built and accepted separately; this receipt does not prove installation",
+    "Published Android APK remains source 04e5cea5 with separate media and lifecycle evidence"
+  ]
+}
