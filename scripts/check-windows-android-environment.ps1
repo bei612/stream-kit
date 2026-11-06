@@ -1,4 +1,7 @@
-param([Parameter(Mandatory = $true)][string]$OutputDirectory)
+param(
+    [Parameter(Mandatory = $true)][string]$OutputDirectory,
+    [ValidateSet('auto','off')][string]$Acceleration = 'auto'
+)
 # Hosted CI environment qualification, not product acceptance. Do not execute
 # on a developer's shared host or change Windows virtualization features.
 $ErrorActionPreference = 'Stop'
@@ -23,7 +26,7 @@ $owned = $null
 try {
     $result.emulator_version = @(& $emulator -version 2>&1 | ForEach-Object {"$_"})
     $result.acceleration_check = @(& $emulator -accel-check 2>&1 | ForEach-Object {"$_"})
-    $accel = if ($LASTEXITCODE -eq 0) {'auto'} else {'off'}
+    $accel = if ($Acceleration -eq 'off' -or $LASTEXITCODE -ne 0) {'off'} else {'auto'}
     $result.acceleration_mode = $accel
     $existing = @(& $adb devices)
     if ($LASTEXITCODE -ne 0 -or ($existing -match '^emulator-5580\s')) { throw 'Selected emulator port is unavailable' }
