@@ -175,5 +175,5 @@
       "scope": "Read-only inventory; no virtualization features installed and no remote-control, network or service settings changed. Existing hosted Windows CI proves native input only, not Android/Web end-to-end delivery or coexistence on this host."
     }
   },
-  "remaining": "Independent hosted Windows Web end-to-end input and server-side revocation now pass; see docs/evidence/windows-stream-input-20261106.json. Effective Android target input and local input/focus delivery remain unverified. Preserve ToDesk and OS policy unchanged. No additional accepted audio or stability rerun required."
+  "remaining": "Independent Windows Web input and Linux Android/Web effective input now pass; see windows-stream-input-20261106.json and android-stream-input-20261107.json. Local Windows input/focus delivery remains unresolved, its cause unproven; this is not local ToDesk coexistence acceptance. Preserve ToDesk and OS policy unchanged. No accepted audio/stability rerun required."
 }

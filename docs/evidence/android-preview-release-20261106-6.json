@@ -67,5 +67,13 @@
     "Effective host keyboard/touch delivery and revoked-input denial",
     "Production LAN HTTPS deployment",
     "Actual host IP change and recovery"
-  ]
+  ],
+  "subsequent_target_input": {
+    "date": "2026-11-07",
+    "run": "https://github.com/bei612/stream-kit/actions/runs/42253644366",
+    "passed": true,
+    "evidence": "docs/evidence/android-stream-input-20261107.json",
+    "published_apk_unchanged": true,
+    "scope": "Independent Linux native renderer and official Android emulator; target key/touch, shared Web control transfer, revocation and regrant. Not local Windows input or physical-device acceptance."
+  }
 }

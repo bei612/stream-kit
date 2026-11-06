@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "current_scope": "docs/goal-current.md",
-  "scope_updated_at": "2026-11-06",
+  "scope_updated_at": "2026-11-07",
   "overall_completion_proven": false,
   "latest_observation": {
     "control_commit": "70ea6f7090097af5e6e3b7dca0185a712d5fc37f",
@@ -69,16 +69,12 @@
       "item": "Actual Web target input and server-side revocation",
       "evidence": "docs/evidence/windows-stream-input-20261106.json",
       "finding": "Hosted Windows CI 42237991161 reused verified d36cead6 runtime bytes. Two real Chromium viewers shared one upstream. Native Example received six key-down events and three canvas clicks across first/second/regranted controller phases. Previously valid key states sent with fresh transport sequences were rejected after transfer and revocation; authorized replay positive controls passed. Example closed cleanly and encoder returned idle. No Android or local ToDesk coexistence claim."
-    }
-  ],
-  "remaining_acceptance": [
+    },
     {
-      "item": "Integrated native Android application",
-      "state": "signed_preview_key_format_fixed_host_input_delivery_unresolved",
-      "scope": "docs/goal-current.md",
-      "finding": "Signed Android APK 0.1.0-preview.20261106.6 at source 6e9b2249 is published and installed on the official Windows emulator. Android CI, 13 release JVM tests, inventory/minified JNI checks and public artifact verification passed. Source-matched local .6 keyboard packets reach Sunshine, but Example receives no effective input. Existing .5 media, microphone and reconnect evidence remains scoped to that version. Independent Windows CI delivered a real key and click to Example; a separate native Win32 window on this host received no injected clicks. The local cause remains unproven. Gateway input authorization at queue entry, control-task ownership and malformed-packet fixes passed complete Windows/Linux CI at e29b824d; source-equivalent d36cead6 runtime installers passed installation acceptance and are published as 20261106.2. Publication did not replace the local installation or establish target application input delivery. A later read-only window inspection identified an active visible ToDesk_Private_Screen window covering 1920x1080. Official ToDesk documentation associates privacy/input-control features with restricted input; causality still needs a controlled comparison. No ToDesk setting or connection was changed. Subsequent independent hosted Windows stream-input CI now verifies actual Web target input and revoked-packet rejection with d36cead6 runtime; see windows-stream-input-20261106.json. Android remains unverified for effective target input.",
-      "next": "Preserve ToDesk settings, processes and connection unchanged; no user action on ToDesk is required. Hosted Windows official-emulator hardware and software qualification did not establish a bootable environment (windows-android-environment-20261106.json). Continue effective Android/Web target-input acceptance in disposable Linux CI using the exact already-published runtime and APK, official hardware-accelerated emulator, trusted test-only HTTPS and an independent native X11 target. This does not establish local ToDesk coexistence. Do not repeat accepted Web-only, audio or stability checks.",
-      "evidence": [
+      "item": "Android and Web actual target input and authority transfer",
+      "evidence": "docs/evidence/android-stream-input-20261107.json",
+      "finding": "Hosted CI 42253644366 passed with unchanged published Android 20261106.6 APK and d36cead6 Linux runtime. Both clients shared one upstream. Target counts progressed 0/0 to 1/1 for Android, stayed 1/1 after transfer, reached 2/2 for Web, stayed 2/2 after revocation, reached 3/3 after Android regrant and stayed 3/3 after final revocation. Owned target stopped and renderer returned idle. This closes independent Android input acceptance, not local Windows/ToDesk coexistence.",
+      "related_evidence": [
         "docs/evidence/android-shared-authority-20261106.json",
         "docs/evidence/android-microphone-route-20261106.json",
         "docs/evidence/android-preview-release-20261106.json",
@@ -92,7 +88,9 @@
         "docs/evidence/windows-stream-input-20261106.json",
         "docs/evidence/windows-android-environment-20261106.json"
       ]
-    },
+    }
+  ],
+  "remaining_acceptance": [
     {
       "item": "Trusted LAN HTTPS deployment",
       "state": "prepared_awaiting_cutover_confirmation",
@@ -112,5 +110,6 @@
     }
   ],
   "distribution_boundary": "Public v0.1.0-preview.20261106.2 contains Windows and Ubuntu 24.04 runtime installers and SPDX SBOM at source d36cead6. All seven published asset sizes and server SHA-256 digests match locally downloaded build artifacts, and unauthenticated download HEAD requests return 200 with matching content lengths. Exact Windows installer acceptance verified automatic SCM startup without manual repair, native PCM, default audio preservation, gateway/SCM restart and uninstall. Linux native extraction, initialization, offline user-service enablement and data preservation passed. Local control remains 70ea6f70 with media 66249387. See docs/evidence/unified-installers-d36cead6.json. Android preview 20261106.6 separately provides the signed APK, archive, provenance, SBOM and checksums at 6e9b2249. It requires verified HTTPS; the installed HTTP host remains unchanged.",
-  "completion_decision": "Goal remains incomplete. Current installed operation and permanent-link delivery do not substitute for the remaining acceptance conditions."
+  "completion_decision": "Goal remains incomplete: local trusted LAN HTTPS deployment and actual IP-change recovery are not yet accepted. Independent Android/Web input and control transfer/revocation now pass; preserve prior version-scoped media/audio/reconnect evidence. Published and local installed versions remain distinct, and the local Windows input caveat remains explicit.",
+  "local_input_caveat": "Earlier local Windows input/focus failure remains unresolved; its cause is unproven. Independent Windows Web and Linux Android/Web target-input checks now pass. No local ToDesk coexistence claim is made. Preserve ToDesk settings, processes and remote connection unchanged; do not require the user to operate ToDesk."
 }

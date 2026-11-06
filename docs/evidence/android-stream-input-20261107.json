@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-07",
+  "run": "https://github.com/bei612/stream-kit/actions/runs/42253644366",
+  "conclusion": "success",
+  "runtime_commit": "d36cead6fd856925b283daddcc4af6cd1cdb7dd0",
+  "installer_sha256": "6df089ad4f46ef9628d1299ac7392dae6baa9604f1e60764ef286785eec55a62",
+  "apk_source_commit": "6e9b22493ff69a5ad40485ec1e8d41d11d9dced2",
+  "apk_sha256": "6126a54ab076faca41699471656ef6dd5e94b94ddd0869dcad28b3e743e758f6",
+  "apk_signer_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f",
+  "acceptance_commit": "be08af39328907c49d967fded09867b2dc38c2ac",
+  "runtime_rebuilt": false,
+  "apk_rebuilt": false,
+  "environment": {
+    "host": "GitHub-hosted Ubuntu 24.04",
+    "android": "Official API 36 Google APIs x86_64 emulator, KVM, 4096 MB",
+    "display": "720x1280 at 240 dpi",
+    "browser": "156.0.8078.79",
+    "media_profile": {
+      "videoSize": "720p",
+      "fps": 30,
+      "bitrate": 8000,
+      "videoCodec": "h264"
+    }
+  },
+  "scope": "Published Android APK and Web share one real Linux application renderer. Actual target key/click delivery, cooperative authority transfer, revocation and regrant. Separate Windows Web evidence covers hostile fresh-sequence packet replay.",
+  "checks": {
+    "shared_two_clients_one_upstream": true,
+    "android_real_key_and_touch": true,
+    "web_real_key_and_click_after_transfer": true,
+    "old_android_no_effect": true,
+    "revoked_web_no_effect": true,
+    "android_regrant_restores_input": true,
+    "revoked_android_no_effect": true,
+    "owned_target_stopped": true,
+    "encoder_restored_idle": true
+  },
+  "phases": [
+    {
+      "label": "android_controller",
+      "before": {
+        "keys": 0,
+        "clicks": 0
+      },
+      "after": {
+        "keys": 1,
+        "clicks": 1
+      }
+    },
+    {
+      "label": "old_android_denied",
+      "before": {
+        "keys": 1,
+        "clicks": 1
+      },
+      "after": {
+        "keys": 1,
+        "clicks": 1
+      }
+    },
+    {
+      "label": "web_controller",
+      "before": {
+        "keys": 1,
+        "clicks": 1
+      },
+      "after": {
+        "keys": 2,
+        "clicks": 2
+      }
+    },
+    {
+      "label": "web_revoked",
+      "before": {
+        "keys": 2,
+        "clicks": 2
+      },
+      "after": {
+        "keys": 2,
+        "clicks": 2
+      }
+    },
+    {
+      "label": "android_regranted",
+      "before": {
+        "keys": 2,
+        "clicks": 2
+      },
+      "after": {
+        "keys": 3,
+        "clicks": 3
+      }
+    },
+    {
+      "label": "android_revoked",
+      "before": {
+        "keys": 3,
+        "clicks": 3
+      },
+      "after": {
+        "keys": 3,
+        "clicks": 3
+      }
+    }
+  ],
+  "fixture_boundary": {
+    "client_apk_unmodified": true,
+    "external_test_only_ui_observer": "io.github.bei612.streamkit.inputobserver; self-targeting instrumentation reads only current role and window geometry",
+    "native_target": "Standalone X11 window counts real KeyPress/ButtonPress; XSendEvent messages excluded",
+    "tls": "Disposable CI CA trusted by the hosted OS, browser and official AVD user store; no client certificate-error overrides",
+    "production_packages_changed": false,
+    "local_host_changed": false,
+    "todesk_changed": false
+  },
+  "limits": [
+    "No local Windows/ToDesk coexistence acceptance. The previously observed local input failure remains unresolved and its cause unproven; do not change ToDesk.",
+    "No physical-device or audio-quality claim; earlier accepted audio/reconnect/stability evidence retains its own versions.",
+    "This does not complete local LAN HTTPS cutover or actual host IP-change recovery.",
+    "Android denial phases exercise the normal client; hostile Web packet rejection is separately recorded in windows-stream-input-20261106.json."
+  ],
+  "prior_attempts": [
+    {
+      "run": 42243625538,
+      "outcome": "Missing CI x11-utils dependency; no input assertion reached."
+    },
+    {
+      "run": 42244864635,
+      "outcome": "Two subscribers and native capture established; shell uiautomator failed before input assertions."
+    },
+    {
+      "run": 42246157302,
+      "outcome": "Shell uiautomator exit 137; cause not established."
+    },
+    {
+      "run": 42247065116,
+      "outcome": "No completed shell UI hierarchy; no successful input acceptance."
+    },
+    {
+      "run": 42248522491,
+      "outcome": "Actual Android key reached target; observer did not resolve video surface."
+    },
+    {
+      "run": 42249417932,
+      "outcome": "Cancelled after source review found incorrect accessibility-class matching; no acceptance claim."
+    },
+    {
+      "run": 42249622383,
+      "outcome": "UI instrumentation request timed out; no complete input acceptance."
+    },
+    {
+      "run": 42250984658,
+      "outcome": "adbd transport closed while requesting root on disposable AVD; product test not reached."
+    },
+    {
+      "run": 42251726747,
+      "outcome": "720p30 profile verified and Android key delivered; video-surface lookup still failed."
+    },
+    {
+      "run": 42252684024,
+      "outcome": "Android key and touch delivered; a later UI snapshot was unavailable. Not a complete transfer acceptance."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".local/validation/android-stream-input-be08af39/android-input-evidence/provenance.json",
+      "sha256": "d782011a3458de3f92a51e64543b636951be91ad4c9d31409e2b353cbb5b4775"
+    },
+    {
+      "path": ".local/validation/android-stream-input-be08af39/source-stream/2026-11-06T16-37-51-852Z/result.json",
+      "sha256": "9be41a24d74f17d5abb21baee4aefe19b5358ab280b33442f6f26b48cff479d2"
+    },
+    {
+      "path": ".local/validation/android-stream-input-be08af39/source-stream/2026-11-06T16-37-51-852Z/browser/result.json",
+      "sha256": "cbc6175538d0445a0aa6bd6b5fed056278b9f78ed4b4dcdb8a99076e5b2724ed"
+    },
+    {
+      "path": ".local/validation/android-stream-input-be08af39/source-stream/2026-11-06T16-37-51-852Z/browser/example.log",
+      "sha256": "0d19e927015f3be9eed9c22f112216afec35ca83be1408ef5d4db9a571eb3f2c"
+    }
+  ]
+}
