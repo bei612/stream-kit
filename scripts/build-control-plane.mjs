@@ -80,6 +80,7 @@ const manifest={schema_version:1,component:'orchestrator',version,commit,source_
 manifest.verification_version=1
 manifest.platform_initialization_version=1
 manifest.virtual_audio_configuration_version=2
+manifest.native_audio_preparation_version=1
 fs.writeFileSync(path.join(output,'bundle-manifest.json'),JSON.stringify(manifest,null,2)+'\n')
 if(target.canExecute&&!dirty)execFileSync(binary,['verify-bundle',output],{stdio:'inherit',windowsHide:true})
 console.log(JSON.stringify({output,version,source_dirty:dirty,files:files.length}))

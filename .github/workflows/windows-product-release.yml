@@ -91,6 +91,10 @@ jobs:
           cache-on-failure: 'true'
       - name: Prepare official release tools
         run: ./scripts/prepare-windows-release-tools.ps1
+      - name: Verify actual silent setup failure and restart exit codes
+        run: |
+          node scripts/accept-installer-exit-codes.cjs "$env:INNO_ISCC" artifacts/installer-outcome-acceptance
+          if ($LASTEXITCODE -ne 0) { throw 'Silent setup outcome regression' }
       - name: Install locked frontend and binding build dependencies
         run: |
           Push-Location orchestrator/web

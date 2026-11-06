@@ -5,11 +5,17 @@ import (
 	_ "embed"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 )
+
+// ErrRestartRequired means Windows accepted an owned device change but requires
+// a manual restart before it can be used. Installers must retain autostart and
+// report this separately from both readiness and failed installation.
+var ErrRestartRequired = errors.New("audio device preparation requires a manual reboot; no restart performed")
 
 // The native installer and packaging tools share this exact reviewed inventory.
 // Both the host controller and its companion filter are required: the latter

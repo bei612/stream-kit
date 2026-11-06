@@ -342,7 +342,7 @@ func refreshInboxAudioDriver(set windows.DevInfo, device *windows.DevInfoData) e
 		return fmt.Errorf("refresh configured inbox audio driver: %w", callErr)
 	}
 	if reboot != 0 {
-		return errors.New("audio device preparation requires a manual reboot; no restart performed")
+		return ErrRestartRequired
 	}
 	return nil
 }

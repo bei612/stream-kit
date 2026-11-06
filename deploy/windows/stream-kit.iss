@@ -224,12 +224,13 @@ begin
   ConfigFile := Quoted(AddBackslash(DataDirectory('')) + 'orchestrator.json');
 #ifdef UsbAudioDriverRoot
   InstallBundledAudioDriver;
+  PrepareBundledAudioDevice(ConfigFile);
 #endif
   if not NativeCommand('service install --config ' + ConfigFile) then
     RaiseException('服务注册失败，配置已保留。');
 #ifdef UsbAudioDriverRoot
   if AudioDriverRestartRequired then begin
-    Log('Audio driver installed; platform service startup deferred until manual restart.');
+    Log('Audio device preparation requires restart; automatic platform service retained for manual restart.');
     WizardForm.FinishedLabel.Caption := '安装已完成。新音频驱动需要手动重启电脑；重启后登录配置的 Windows 用户，再检查管理页面中的服务与音频设备。安装程序不会自动重启。';
     PlatformSetupCompleted := True;
     Exit;
@@ -246,8 +247,12 @@ end;
 
 function GetCustomSetupExitCode: Integer;
 begin
-  Result := 0;
-  if PlatformSetupCompleted and AudioDriverRestartRequired then Result := 3010;
+  { ssPostInstall exceptions can otherwise finish silent setup with exit code 0. }
+  Result := 1;
+  if PlatformSetupCompleted then begin
+    Result := 0;
+    if AudioDriverRestartRequired then Result := 3010;
+  end;
 end;
 
 function InitializeUninstall: Boolean;

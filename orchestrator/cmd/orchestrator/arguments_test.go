@@ -49,6 +49,8 @@ func TestCommandArgumentExit(t *testing.T) {
 		{[]string{"unknown-command"}, 2},
 		{[]string{"verify-platform"}, 2},
 		{[]string{"verify-platform", "missing-platform"}, 1},
+		{[]string{"audio-driver", "prepare"}, 1},
+		{[]string{"audio-driver", "prepare", "--config", "missing.json"}, 1},
 		{[]string{"--help"}, 0},
 		{[]string{"version"}, 0},
 	} {

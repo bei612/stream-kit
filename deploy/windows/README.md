@@ -185,6 +185,13 @@ place. Failed staging directories remain protected for diagnosis.
 
 Existing program/data directories or service registrations are refused. This
 installer does not yet implement in-place upgrades or database rollback.
+Setup prepares the configured virtual audio endpoint through the same native
+operation used by service startup, before registering the service. A Windows
+request to restart during either driver installation or endpoint preparation
+retains the automatic service and returns `3010`; it does not claim the platform
+is ready or restart the computer. Other post-install failures return a nonzero
+failure code even when silent mode suppresses the error dialog. Exit code `0`
+requires completed initialization and verified service readiness.
 Uninstall stops and removes only its matching native service and retains runtime
 data. Native `service start` waits for SCM Running and then up to 90 seconds for
 the control health response to match the installed build, with every configured

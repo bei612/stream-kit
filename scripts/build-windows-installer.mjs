@@ -33,6 +33,7 @@ if(!/^[a-f0-9]{40}$/.test(commit)||(!reusePayload&&commit!==installerCommit)||ma
 const control=JSON.parse(fs.readFileSync(path.join(payload,'orchestrator','bundle-manifest.json'),'utf8'))
 if(control.platform_initialization_version!==1)throw Error('Payload does not declare unified native initialization support')
 if(usbAudio&&![1,2].includes(control.virtual_audio_configuration_version))throw Error('Payload does not support unified virtual audio initialization')
+if(usbAudio&&control.native_audio_preparation_version!==1)throw Error('Payload does not support native pre-service audio preparation')
 if(usbIdentity?.serial_prefix&&control.virtual_audio_configuration_version!==2)throw Error('Payload does not support namespaced virtual audio identity')
 const hash=file=>createHash('sha256').update(fs.readFileSync(file)).digest('hex')
 const expected=new Map()

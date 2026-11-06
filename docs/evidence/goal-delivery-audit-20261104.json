@@ -36,7 +36,10 @@
     "enrollment_candidate": {
       "source": "928c012a3dae3a4be658caf56f25eae9389b447a",
       "product_run": 42273134264,
-      "product_status": "in_progress",
+      "product_status": "success",
+      "windows_installer_acceptance_run": 42278598065,
+      "windows_installer_acceptance": "failure",
+      "windows_installer_failure_evidence": "docs/evidence/windows-installer-restart-20261107.json",
       "native_linux_pairing_fingerprint_tests": "passed",
       "source_ci_run": 42273640023,
       "source_ci_commit": "2da0b2ed",
@@ -181,6 +184,6 @@
     }
   ],
   "distribution_boundary": "Public v0.1.0-preview.20261106.2 contains Windows and Ubuntu 24.04 runtime installers and SPDX SBOM at source d36cead6. All seven published asset sizes and server SHA-256 digests match locally downloaded build artifacts, and unauthenticated download HEAD requests return 200 with matching content lengths. Exact Windows installer acceptance verified automatic SCM startup without manual repair, native PCM, default audio preservation, gateway/SCM restart and uninstall. Linux native extraction, initialization, offline user-service enablement and data preservation passed. Local control remains 70ea6f70 with media 66249387. See docs/evidence/unified-installers-d36cead6.json. Android preview 20261106.6 separately provides the signed APK, archive, provenance, SBOM and checksums at 6e9b2249. It requires verified HTTPS; the installed HTTP host remains unchanged.",
-  "completion_decision": "Goal remains incomplete: matching Windows installer build/acceptance and server release remain in progress; trusted local HTTPS/entry deployment awaits its pending confirmation. Automatic first-install renderer enrollment and isolated LAN recovery now pass on exact 928c012a Linux runtime. Android startup-timeout APK 20261107.1 is published. Local Windows input cause remains unproven and ToDesk unchanged.",
+  "completion_decision": "Goal remains incomplete: 928c012a Windows installation acceptance found an audio endpoint restart outcome and incorrect success exit code. The candidate was not published; native preparation and installer outcome handling have been fixed and require a matching replacement build/acceptance. Trusted local HTTPS/entry deployment awaits its pending confirmation. Automatic renderer enrollment and isolated LAN recovery pass on exact 928c012a Linux runtime. Android APK 20261107.1 is published and installed on the existing local emulator. Local Windows input cause remains unproven and ToDesk unchanged.",
   "local_input_caveat": "Earlier local Windows input/focus failure remains unresolved; its cause is unproven. Independent Windows Web and Linux Android/Web target-input checks now pass. No local ToDesk coexistence claim is made. Preserve ToDesk settings, processes and remote connection unchanged; do not require the user to operate ToDesk."
 }

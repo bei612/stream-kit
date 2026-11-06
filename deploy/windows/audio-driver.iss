@@ -1,11 +1,11 @@
 { Included in the same elevated setup process. No extra elevation, helper
   supervisor, online download or automatic driver removal is introduced. }
 #ifdef UsbAudioDriverRoot
-procedure InstallBundledAudioDriver;
+procedure RunAudioSetupCommand(Arguments: String);
 var ExitCode, I: Integer; Output: TExecOutput; Line: String;
 begin
   if not ExecAndCaptureOutput(ExpandConstant('{app}\orchestrator\orchestrator.exe'),
-    'audio-driver install ' + Quoted(ExpandConstant('{app}\drivers\usbip')),
+    'audio-driver ' + Arguments,
     ExpandConstant('{app}\orchestrator'), SW_HIDE, ewWaitUntilTerminated, ExitCode, Output) then
     RaiseException('无法启动内置音频设备部署。');
   if (ExitCode <> 0) and (ExitCode <> 3010) then begin
@@ -16,5 +16,16 @@ begin
     RaiseException('音频设备部署失败，退出码：' + IntToStr(ExitCode));
   end;
   AudioDriverRestartRequired := ExitCode = 3010;
+end;
+
+procedure InstallBundledAudioDriver;
+begin
+  RunAudioSetupCommand('install ' + Quoted(ExpandConstant('{app}\drivers\usbip')));
+end;
+
+procedure PrepareBundledAudioDevice(ConfigFile: String);
+begin
+  if not AudioDriverRestartRequired then
+    RunAudioSetupCommand('prepare --config ' + ConfigFile);
 end;
 #endif

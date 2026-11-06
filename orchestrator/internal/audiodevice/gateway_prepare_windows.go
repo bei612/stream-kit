@@ -55,7 +55,14 @@ func PrepareWindowsGateway(parent context.Context, executable string, args []str
 	defer func() {
 		in.Close() // EOF releases the owned native attachment even after a failure.
 		if waitErr := cmd.Wait(); waitErr != nil {
-			err = errors.Join(err, fmt.Errorf("native audio preparation exited unsuccessfully: %w", waitErr))
+			// A failed provider cleanup is a failure, even if Windows also asked
+			// for a reboot. Do not let errors.Is classify the combined failure
+			// as a successful installation awaiting restart.
+			if err != nil {
+				err = fmt.Errorf("%v; native audio preparation exited unsuccessfully: %w", err, waitErr)
+			} else {
+				err = fmt.Errorf("native audio preparation exited unsuccessfully: %w", waitErr)
+			}
 		}
 		if release != nil {
 			release()

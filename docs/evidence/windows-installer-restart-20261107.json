@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "candidate_source": "928c012a3dae3a4be658caf56f25eae9389b447a",
+  "product_run": 42273134264,
+  "product_build": "success",
+  "installer_acceptance_run": 42278598065,
+  "installer_acceptance": "failure",
+  "installer_sha256": "e1ad4bf93673d00ef841fccb7c8afc5876d9e99c477cde0b17586b1e9387b738",
+  "server_candidate_published": false,
+  "findings": [
+    "During first service startup Windows requested a manual restart from the Microsoft inbox audio driver refresh. The gateway therefore did not start.",
+    "Installer waited for readiness, then removed the just-created service. Its suppressed ssPostInstall exception nevertheless produced exit code 0.",
+    "The acceptance helper subsequently failed its first health fetch; this was not a network or ToDesk diagnosis. Uninstall completed and runtime data was preserved."
+  ],
+  "fix": [
+    "Run configured endpoint preparation through the same native audio operation before service registration, within the existing elevated installer.",
+    "Propagate a typed manual-restart outcome from device preparation. Retain automatic service registration and return 3010 without claiming readiness or rebooting automatically.",
+    "Do not classify a failed native provider cleanup as restart-only success.",
+    "Return nonzero when post-install work has not completed, including suppressed exceptions.",
+    "Require the native audio preparation capability in the bundled control inventory before building an installer."
+  ],
+  "local_checks": {
+    "go_command_and_audio_packages": "passed",
+    "actual_inno_silent_outcomes": [
+      {"scenario": "post-install exception", "exit_code": 1},
+      {"scenario": "completed", "exit_code": 0},
+      {"scenario": "completed requiring manual restart", "exit_code": 3010}
+    ],
+    "fixture_scope": "Official Inno 7.1.1 compiled the actual production exit-code handler. Private non-admin fixtures changed no services, drivers, registry entries or application files.",
+    "source_reference": "https://jrsoftware.org/ishelp/topic_scriptevents.htm"
+  },
+  "remaining": "Build and accept a matching replacement installer; do not promote the failed 928c012a Windows installer. No local Windows runtime, TLS trust or ToDesk changes were made."
+}
