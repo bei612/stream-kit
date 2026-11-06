@@ -263,6 +263,14 @@ impl ControlChannel {
             }
 
             select! {
+                completed = self.tasks.join_next() => {
+                    if let Some(Err(error)) = completed {
+                        warn!(%error, "control channel task failed");
+                    }
+                    // A closed input channel or failed poller may have lost a
+                    // release event. End the attachment and reconcile held input.
+                    return Ok(ControlChannelEvent::Closed);
+                },
                 _ = self.on_failure.recv() => {
                     return Ok(ControlChannelEvent::Closed);
                 },
