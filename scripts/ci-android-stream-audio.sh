@@ -123,9 +123,12 @@ adb -s "$serial" shell restorecon -R /data/misc/user/0/cacerts-added
 adb_identity unroot 2000
 # Calibrate only this disposable official AVD's STREAM_MUSIC gain before the
 # release APK starts. Keep the PCM acceptance threshold unchanged. AOSP's
-# MediaShellCommand delegates to VolumeCtrl: --get reports current/min/max,
-# and --set applies that stream's index (no host/device-volume fallback).
+# MediaShellCommand's --get reports current/min/max. Set through AudioService's
+# own official shell command, retaining its MANAGE_AUDIO_POLICY check. Unlike
+# VolumeCtrl, this uses the service's AudioManager context for attribution.
+# No permission changes, alternate setters or host/device-volume fallback.
 # https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/services/core/java/com/android/server/media/VolumeCtrl.java
+# https://android.googlesource.com/platform/frameworks/base/+/refs/heads/android16-release/services/core/java/com/android/server/audio/AudioManagerShellCommand.java
 node - "$serial" "$evidence/media-volume.json" <<'NODE'
 const fs = require('node:fs');
 const {spawnSync} = require('node:child_process');
@@ -140,6 +143,8 @@ const started = performance.now();
 const result = {
   schemaVersion: 2, fixture_only: true, host_changed: false, avd_serial: serial,
   stream: 3, before: null, after: null, min: null, max: null, set_attempts: 0,
+  set_interface: 'cmd audio set-volume', get_interface: 'cmd media_session volume --get',
+  shell_uid: null, set_command_supported: false,
   timeout_ms: 5000, elapsed_ms: 0, observation_attempts: 0, observations_count: 0, observations: [],
   phase: 'avd_identity',
   status: 'pending', failure_class: null,
@@ -157,7 +162,7 @@ function fail(code) {
 function commandFailure(text) {
   if (/SecurityException|Permission Denial|Permission denied|requires .*permission|Not allowed to change Do Not Disturb/i.test(text))
     return 'MEDIA_VOLUME_PERMISSION_DENIED';
-  if (/safe (?:media )?volume|sound dose|hearing safety/i.test(text))
+  if (/(?:safe (?:media )?volume|sound dose|hearing safety).*(?:blocked|denied|rejected|exceeded|warning)/i.test(text))
     return 'MEDIA_VOLUME_SAFETY_POLICY';
   if (/unknown command|unknown option|not found|inaccessible|can.t connect|can(?:not|'t) find service/i.test(text))
     return 'MEDIA_VOLUME_COMMAND_UNAVAILABLE';
@@ -191,6 +196,13 @@ async function calibrate() {
   try {
     assert.deepEqual(adb(['emu', 'avd', 'name']).trim().split('\n').filter(line => line !== 'OK'),
       ['StreamKit_Audio_CI']);
+    result.shell_uid = Number(adb(['shell', 'id', '-u']).trim());
+    if (result.shell_uid !== 2000) fail('MEDIA_VOLUME_FIXTURE_IDENTITY_INVALID');
+    result.phase = 'set_interface_check';
+    const help = adb(['shell', 'cmd', 'audio', 'help']);
+    if (!/^\s*set-volume\s+STREAM_TYPE\s+VOLUME_INDEX\s*$/m.test(help))
+      fail('MEDIA_VOLUME_COMMAND_UNAVAILABLE');
+    result.set_command_supported = true;
     result.phase = 'before_get';
     const before = getVolume();
     Object.assign(result, {before: before.current, min: before.min, max: before.max});
@@ -200,7 +212,7 @@ async function calibrate() {
     result.set_attempts = 1;
     result.phase = 'set';
     save();
-    adb(['shell', 'cmd', 'media_session', 'volume', '--stream', '3', '--set', String(before.max)]);
+    adb(['shell', 'cmd', 'audio', 'set-volume', '3', String(before.max)]);
     const observedAt = performance.now(), deadline = observedAt + result.timeout_ms;
     result.phase = 'after_get';
     while (performance.now() < deadline) {
