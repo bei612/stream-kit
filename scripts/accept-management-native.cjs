@@ -142,6 +142,7 @@ function copyAssets(source, destination) {
       const failed = page.waitForResponse(response => response.url().endsWith('/components/unavailable_runtime/start') && response.request().method() === 'POST');
       await unavailable.getByRole('button', { name: '启动', exact: true }).click(); assert.equal((await failed).status(), 500);
       await unavailable.getByRole('alert').filter({ hasText: 'missing-native-program' }).waitFor();
+      assert.equal(((await unavailable.innerText()).match(/missing-native-program/g) || []).length, 1, 'The same component error is displayed twice');
       assert.equal((await api('/components/unavailable_runtime')).body.data.status, 'error');
       assert.equal((await api('/components/owned_runtime')).body.data.status, 'running', 'Other resource failure affected owned component');
       await screenshot('components-real-running-and-error');
@@ -151,13 +152,16 @@ function copyAssets(source, destination) {
       await owned.getByRole('button', { name: '停止', exact: true }).evaluate(button => { button.dispatchEvent(new MouseEvent('click', { bubbles: true })); button.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
       await page.waitForFunction(() => { const card = document.querySelector('#owned_runtime'); return card?.textContent.includes('已停止') && !card.textContent.includes('正在停止'); });
       const stopped = (await api('/components/owned_runtime')).body.data; assert.equal(stopped.status, 'stopped'); assert.equal(stopped.pid, 0);
+      await owned.getByText(/^运行时长:\s*-$/).waitFor();
       const componentDatabase = fs.readFileSync(path.join(workspace, 'owned-component', 'state.sqlite'));
       report.component_database = { format: componentDatabase.subarray(0, 16).toString('binary'), bytes: componentDatabase.length, sha256: crypto.createHash('sha256').update(componentDatabase).digest('hex') };
       assert.equal(report.component_database.format, 'SQLite format 3\u0000');
       assert.equal(report.request_timeline.filter(item => item.event === 'started' && item.method === 'POST' && item.path === '/api/v1/components/owned_runtime/stop').length, 1);
       await page.setViewportSize({ width: 390, height: 844 }); await screenshot('components-real-stopped-mobile');
+      assert.equal(await owned.getByText(/^运行时长:\s*-$/).count(), 1, 'Stopped component retained an active uptime');
+      assert.equal(((await unavailable.innerText()).match(/missing-native-program/g) || []).length, 1, 'Mobile layout duplicated the command error');
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false); await page.setViewportSize({ width: 1440, height: 1000 });
-      report.cases.push('Real owned native component start/restart/stop via SPA, actual health/PID transitions, same-frame repeated start and stop each produce one HTTP request, separate missing-executable HTTP500 is shown without affecting running resource');
+      report.cases.push('Real owned native component start/restart/stop via SPA, actual health/PID transitions, same-frame repeated start and stop each produce one HTTP request, separate missing-executable HTTP500 is shown once without affecting running resource, stopped uptime is a dash on desktop/mobile');
     }
     await navigate('应用管理', '/apps'); await page.getByText('暂无应用', { exact: true }).waitFor();
     assert.equal((await api('/apps')).body.data.length, 0); await screenshot('apps-empty-desktop');

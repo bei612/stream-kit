@@ -90,6 +90,10 @@ Sunshine 原生编译入口见 [build-sunshine.sh](scripts/build-sunshine.sh)。
 
 ## 验收与协议
 
+管理端应用和组件共用 `useResourceCommand` 命令边界，`useAppCommand` 保留应用命令的类型封装。同一资源的命令从同步点击到操作后刷新完成持续互斥，不同资源可分别操作；组件页按资源显示进行中及真实失败，刷新失败也保留提示。启动应用的任务仍在浏览器点击事件内同步调用，避免抽象破坏弹窗打开时机。工作台仅展示组件概览并直达组件管理页，启停操作集中在组件管理页。
+
+源码侧隔离管理验收入口为 `node scripts/accept-management-native.cjs --binary REAL_ORCHESTRATOR --dist PRODUCTION_DIST --output NEW_DIRECTORY`，默认配置不启动任何编码器或网关。追加 `--component-commands` 后，脚本在独立临时配置、SQLite 和端口中，将同一个真实 Orchestrator 程序作为受管组件启动、重启及停止，并使用实际不存在的程序路径验证失败反馈；同帧重复点击必须各只产生一次启停请求，停止态运行时长显示为 `-`，同一错误只显示一份。原来的空组件、配置版本冲突及桌面/手机布局检查继续保留。该模式不替换 React、HTTP 响应或进程实现，结束时停止并清理自己创建的进程和临时目录；CI 保留默认跨浏览器检查，并额外执行一次 Chromium 组件命令检查。本机已用真实 `98e419f7` 控制程序验证这一范围；这不代表生产安装、自启动、应用弹窗、原生 App 或媒体链路验收通过，最终部署仍需独立 live 检查。历史 `test-app-command.mjs` 的 fake React/VM 检查仅归档保留，已退出当前验收门槛。
+
 新版 Android 音频回归入口为 `android-stream-audio-acceptance` 工作流，显式选择已完成的产品构建和已发布 APK；默认选择运行时构建 `42599646248` 与 APK `v0.1.0-android-preview.20261109.2`。它在独立 GitHub Linux 环境复用真实 Sunshine/网关/管理服务、官方 Android 模拟器及可信 HTTPS，通过官方 `injectAudio`/`streamAudio`、真实 PulseAudio 目标录音及 Web 观看端核对程序音、麦克风广播和持续注入期间的撤权。默认 AEC/NS/AGC 保持开启，不替换 `getUserMedia`，只保留 PCM 数量和频谱指标，不保存声音；结果必须以该次实际工作流输出为准。此项与输入验收分开，不代表实体设备、真人语音质量或本机部署已验收。
 
 已部署环境的管理端验收使用 `node scripts/accept-management-live.cjs --config PRIVATE.json --execute`，通过 `playwright-cli` 操作真实页面和 API，不替换网络响应。省略 `--execute` 只校验本地配置，不启动浏览器或应用。私有 JSON 配置需要填写 `base`（HTTPS 管理入口）、`ca_cert`（已有公开 CA 文件）、`auth_storage_state`（该入口管理员的 Playwright storage state）、`playwright_cli`（CLI 可执行文件）、`owned_example: true`、`example_app_id`、`expected_control_commit`（本机实际部署的完整 40 位提交）和 `output`（父目录已存在、目标尚不存在的新证据目录）。这些配置和证据放在被忽略的本地目录，不提交管理员凭据。
