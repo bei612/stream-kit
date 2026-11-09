@@ -1,0 +1,421 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-10",
+  "passed": true,
+  "runtime_commit": "15673e5aa45c3c6e09f37d7be1bfdde9fc405c75",
+  "acceptance_commit": "3d4f248c00cce003e4649a1d3e6b5f907dcfee39",
+  "acceptance_run": "https://github.com/bei612/stream-kit/actions/runs/42675621263",
+  "environment": "Isolated GitHub-hosted Ubuntu 24.04 deployment with trusted temporary TLS, native Sunshine/X11 owned visual Example and official playwright-cli",
+  "playwright_cli": "0.1.22",
+  "scope": "Existing real playwright-cli management acceptance against an isolated Linux deployment of verified production runtime; no local Windows, native-exit, Android, audio, target-input or stability acceptance",
+  "canonical_catalog_languages": [
+    "en",
+    "zh-CN"
+  ],
+  "observed_viewer_language_groups": [
+    "en"
+  ],
+  "excluded_scope": [
+    "Chinese or other non-English viewer locale runtime acceptance",
+    "Local Windows installation or maintenance",
+    "Android native client",
+    "Audio or physical microphone transmission",
+    "Actual target keyboard/mouse delivery",
+    "IP changes or whole-system reboot",
+    "Long-running stability",
+    "Acceptance of a different unified product source or installer artifact"
+  ],
+  "source": {
+    "producer_profile": "standalone-linux",
+    "workflow": ".github/workflows/linux-sunshine-build.yml",
+    "event": "push",
+    "product_run_id": 42673185938,
+    "parent_run_at_source_sampling": {
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "linux_job_id": 129350210530,
+    "linux_job_name": "Source-built Linux unified installer",
+    "installer_sha256": "e8c80a9de33c590b994418383b040a953c37d5704fbe3bb4da5e234da04876a2",
+    "payload_sha256": "8a0a73459d5bb9d09c185f583a0117c20e4723b411cf2ffb3b64eb238c1cff0d",
+    "runtime_rebuilt": false,
+    "gateway_sha256": "12dc46e85881e3b3907fdaefa61ff42d904df329f4504ecf62f48ef9828daf62",
+    "orchestrator_sha256": "25cc78beddf7ecafcd5e3e9b3b74551363f8c4590a6e87d65667ae4c688e8adb",
+    "renderer_sha256": "a668790ac9b9ea6e1662b39137afeb70d84953caa5f6cbe105898450df6c87e4",
+    "owned_example_sha256": "e59f3c4e34c1e7f501462d8ca72d7747a401e10abba8d0f70a7d2579e2afde9f",
+    "assets_source": "Complete original standalone Linux runtime, including its shipped orchestrator/dist and media-gateway/dist; no replacement JavaScript"
+  },
+  "preflight": {
+    "exact_control_commit": "15673e5aa45c3c6e09f37d7be1bfdde9fc405c75",
+    "owned_application_status": "ready",
+    "other_active_applications": 0
+  },
+  "checks": [
+    "trusted HTTPS and exact deployed control commit",
+    "permanent link visible before launch",
+    "real Example launch and two decoded WebRTC viewers",
+    "UI grant, transfer and revoke with server authority checks",
+    "canonical en/zh viewer authority, lifecycle-only connection prompts and ready UI pipelines",
+    "ended viewers have no stale permission notifications",
+    "Example stop; UI argument edit/save and original argument restoration with actual API agreement; read-only history",
+    "desktop/mobile screenshots and console errors"
+  ],
+  "decoded_video_metrics": [
+    {
+      "viewer": "first",
+      "samples": [
+        {
+          "bytes": 110530,
+          "frames": 13
+        },
+        {
+          "bytes": 162845,
+          "frames": 28
+        }
+      ]
+    },
+    {
+      "viewer": "second",
+      "samples": [
+        {
+          "bytes": 117970,
+          "frames": 16
+        },
+        {
+          "bytes": 177787,
+          "frames": 31
+        }
+      ]
+    }
+  ],
+  "viewer_role_observations": [
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "controller",
+      "verified": true,
+      "control": true,
+      "ended": false,
+      "data_control": "true"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "controller",
+      "verified": true,
+      "control": true,
+      "ended": false,
+      "data_control": "true"
+    },
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    }
+  ],
+  "loading_modal_observations": [
+    {
+      "owner": 1,
+      "locale": "en",
+      "phase": "connecting"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "phase": "connecting"
+    }
+  ],
+  "ui_pipeline_ready": [
+    {
+      "owner": 1,
+      "locale": "en",
+      "original_frame_present": true,
+      "video_renderer_available": true,
+      "width": 1280,
+      "height": 720,
+      "blocking_overlay_visible": false
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "original_frame_present": true,
+      "video_renderer_available": true,
+      "width": 1280,
+      "height": 720,
+      "blocking_overlay_visible": false
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "original_frame_present": true,
+      "video_renderer_available": true,
+      "width": 1280,
+      "height": 720,
+      "blocking_overlay_visible": false
+    }
+  ],
+  "ended_permission_notifications": [
+    {
+      "owner": 1,
+      "canonical_permission_notification_count": 0
+    },
+    {
+      "owner": 2,
+      "canonical_permission_notification_count": 0
+    }
+  ],
+  "presentation_gate_scope": "Role labels, data-control and actual verified/control/ended authority must agree within one canonical language group per viewer. Observed visible loading text must match its catalog lifecycle labels. Before viewer screenshots the original decoded frame must retain a real renderer with positive dimensions and no blocking overlay. Immediately after actual ended authority and closed RTC, visible canonical permission notifications must be absent. Unknown console/network errors remain failures.",
+  "metadata_options": [
+    {
+      "viewer": 1,
+      "resource_type": "fetch",
+      "status": 200,
+      "content_length": 0,
+      "transfer_encoding": "absent"
+    },
+    {
+      "viewer": 2,
+      "resource_type": "fetch",
+      "status": 200,
+      "content_length": 0,
+      "transfer_encoding": "absent"
+    }
+  ],
+  "lifecycle": {
+    "stopped_viewers": {
+      "1": {
+        "original_frame_present": true,
+        "frames": [
+          {
+            "original": true,
+            "peers": [
+              "closed"
+            ],
+            "ended": true,
+            "verified": false,
+            "control": false,
+            "microphone": false,
+            "data_control": "false",
+            "badge_visible": true,
+            "locale": "en"
+          }
+        ]
+      },
+      "2": {
+        "original_frame_present": true,
+        "frames": [
+          {
+            "original": true,
+            "peers": [
+              "closed"
+            ],
+            "ended": true,
+            "verified": false,
+            "control": false,
+            "microphone": false,
+            "data_control": "false",
+            "badge_visible": true,
+            "locale": "en"
+          }
+        ]
+      }
+    },
+    "pending_viewer_api_requests": 0,
+    "terminal_followup_request_count": 0,
+    "network_failure_count": 0,
+    "raw_console_error_count": 2,
+    "unexpected_console_error_count": 0,
+    "http_failures": [
+      {
+        "viewer": 1,
+        "method": "POST",
+        "status": 410,
+        "code": "CONNECTION_TERMINATED",
+        "classification": "terminal_heartbeat"
+      },
+      {
+        "viewer": 2,
+        "method": "POST",
+        "status": 410,
+        "code": "CONNECTION_TERMINATED",
+        "classification": "terminal_heartbeat"
+      }
+    ],
+    "expected_http_scope": "Only the first in-flight heartbeat rejection for each owned connection was classified as CONNECTION_TERMINATED. Original response statuses were retained; no API network failure was exempted.",
+    "stopped_argument_edit": {
+      "saved_via_ui": true,
+      "restored_via_ui": true,
+      "api_ui_agreement": true
+    },
+    "argument_restoration": {
+      "values_in_evidence": false,
+      "args_restored": true,
+      "idle_state_confirmed": true
+    },
+    "owned_renderer_restored_idle": true
+  },
+  "screenshot_review": {
+    "manually_reviewed_count": 4,
+    "observations": [
+      "The pre-grant viewer shows the real owned checkerboard/moving rectangle and Viewer only badge, with no raw data-channel modal",
+      "Transferred control shows Controller with the real program frame",
+      "Ended viewer shows Viewing ended with no stale permission toast",
+      "Narrow management session page shows one controller and one viewer, with live streaming/configuration-applied state"
+    ],
+    "files": [
+      {
+        "file": "source-stream/2026-11-09T18-38-26-208Z/browser/management-live/viewer-before-grant.png",
+        "sha256": "0af921b43a993fde80ac4d3f000b887e16996650401d360fe6b1dd9eae4af33f"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-38-26-208Z/browser/management-live/viewer-after-transfer.png",
+        "sha256": "48b2e3cf1a928e1297dfc40f5e67e430640adba1991a6b8ffb0844635e0c303b"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-38-26-208Z/browser/management-live/viewer-ended.png",
+        "sha256": "2c1326f3bcf223f6f520b101c32b217fa7ab16651b798a0eca5bc730d422fe2e"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-38-26-208Z/browser/management-live/sessions-transfer-mobile.png",
+        "sha256": "eb61e64e5ee1df14c8af45e0108d6a66bbe45ebc2d610a87b50ad7a7c565ce09"
+      }
+    ],
+    "scope": "Four representative real screenshots were manually reviewed. The complete screenshot artifact inventory below is not a claim of all-language or all-device UI acceptance."
+  },
+  "artifact": {
+    "name": "management-live-cli-evidence",
+    "files": [
+      {
+        "file": "management-live-evidence/provenance.json",
+        "sha256": "d18209888cb9a778b79d08ac4f71d3ca1a289bfb8b2b85da20e61f22ed9d8eb5"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-38-26-208Z/browser/management-live/result.json",
+        "sha256": "5f01932252d5bc049c513b5bed75782bddbb746160951559e12ecb8c8282b420"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-38-26-208Z/browser/management-live/cli.log",
+        "sha256": "d0e0f31f9be3490f6a6c926c552baaa37b87d7bc0f4f205be0a3950d4df10196"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-38-26-208Z/browser/result.json",
+        "sha256": "15128041d2099b1c270c6f9189ab47194f0b9d7ec7b18dce1e82639e8e37f905"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-38-26-208Z/result.json",
+        "sha256": "8a57459d01f5cf899aa9583d931c2cad991480d18e8f0d25f3b935cc4e215970"
+      }
+    ],
+    "screenshots": [
+      {
+        "file": "source-stream/2026-11-09T18-38-26-208Z/browser/management-live/app-before-launch-desktop.png",
+        "sha256": "a0e82e8596bf8f28a4d174ee133c6da1858f6ca7ba99ada8f66fe5fff5846c4d"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-38-26-208Z/browser/management-live/app-before-launch-mobile.png",
+        "sha256": "d8cf56f42ad41593f84b710bb324deb848632b58bfe209fc90f287f7417099f8"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-38-26-208Z/browser/management-live/history-desktop.png",
+        "sha256": "c31af25334123990c226ca060fa6553de6686415b24bc4c3622ff4f2a7cc72ad"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-38-26-208Z/browser/management-live/history-mobile.png",
+        "sha256": "277f6ec605541cb39745d9398e51242db45f090e3804e81cedd7496acc383812"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-38-26-208Z/browser/management-live/sessions-transfer-desktop.png",
+        "sha256": "f312eaaeb0fa652a5232b5cce390ba9f4958944cef81dadc4e5945a8c6ecd25c"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-38-26-208Z/browser/management-live/sessions-transfer-mobile.png",
+        "sha256": "eb61e64e5ee1df14c8af45e0108d6a66bbe45ebc2d610a87b50ad7a7c565ce09"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-38-26-208Z/browser/management-live/stopped-arguments-restored.png",
+        "sha256": "3c3b7c1c4a5cdf31e667a546290d7e9f46293892a9bb718301ad18cdb1264541"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-38-26-208Z/browser/management-live/stopped-arguments-saved.png",
+        "sha256": "3c3b7c1c4a5cdf31e667a546290d7e9f46293892a9bb718301ad18cdb1264541"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-38-26-208Z/browser/management-live/viewer-after-transfer.png",
+        "sha256": "48b2e3cf1a928e1297dfc40f5e67e430640adba1991a6b8ffb0844635e0c303b"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-38-26-208Z/browser/management-live/viewer-before-grant.png",
+        "sha256": "0af921b43a993fde80ac4d3f000b887e16996650401d360fe6b1dd9eae4af33f"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-38-26-208Z/browser/management-live/viewer-ended.png",
+        "sha256": "2c1326f3bcf223f6f520b101c32b217fa7ab16651b798a0eca5bc730d422fe2e"
+      }
+    ],
+    "privacy": "This receipt excludes deployment addresses, session/connection/application IDs, watch keys, request/response bodies, SDP and credentials. Referenced management screenshots mask link and argument fields."
+  },
+  "related_results": [
+    {
+      "run": "https://github.com/bei612/stream-kit/actions/runs/42673185938",
+      "source_commit": "15673e5aa45c3c6e09f37d7be1bfdde9fc405c75",
+      "conclusion": "success",
+      "scope": "Completed successful standalone Linux build/package job; not a Windows unified installer build or local machine deployment."
+    }
+  ],
+  "earlier_evidence_preserved": {
+    "receipt": "docs/evidence/management-live-cli-92818fba.json",
+    "acceptance_run": "https://github.com/bei612/stream-kit/actions/runs/42670620703",
+    "scope": "Earlier runtime and its startup-modal/ended-toast observations remain recorded independently. This successful newer runtime does not rewrite that historical evidence or prove a different future installer artifact."
+  },
+  "started_at": "2026-11-09T18:38:28.839Z",
+  "finished_at": "2026-11-09T18:39:10.317Z"
+}

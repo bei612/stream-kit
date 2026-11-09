@@ -116,8 +116,20 @@ badge and actual verified connection state, using the canonical English/Chinese
 label catalog. Successful viewing also requires the original decoded frame, a
 real renderer with positive dimensions and no blocking modal. On termination it
 checks closed RTC, disabled authority and immediate removal of this stream's
-permission notices. These stronger presentation checks are subsequent work and
-do not retroactively extend the scope of the `92818fba` receipt above.
+permission notices. These stronger presentation checks passed against the
+complete standalone Linux runtime `15673e5a` in
+[run 42675621263](https://github.com/bei612/stream-kit/actions/runs/42675621263).
+Both viewers actually used the English label group; the acceptance catalog
+contains English/Chinese, but this run does not establish Chinese viewing.
+The observed connection prompts were canonical connecting text. Their real
+renderers measured 1280 by 720 with no blocking overlay, and both terminated
+viewers had zero remaining permission notices. The original network and
+terminal gates also passed, preserving the two expected heartbeat 410 responses.
+The [new sanitized receipt](../../docs/evidence/management-live-cli-15673e5a.json)
+records the standalone producer, exact runtime, role/modal/renderer/notification
+observations and actual screenshots. It does not extend the earlier `92818fba`
+receipt or establish Windows, Android, audio, actual target input or another
+unified installer artifact's acceptance.
 
 ## Authority snapshots and microphone recovery
 
