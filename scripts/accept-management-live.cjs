@@ -259,6 +259,10 @@ async function browserAcceptance(page, cfg) {
       if(frame===original) originalObserved = true;
       if (state.ended!==true || state.verified!==false || state.control!==false || state.microphone!==false || state.peers.some(value=>value!=='closed')) return false;
     } catch { observed.observation_unavailable=true; return false; } }
+    if (originalObserved) {
+      const owner=owners.get(target);
+      if (!owner.endedAt) owner.endedAt=++eventOrder;
+    }
     return originalObserved;
   };
   try {
@@ -388,7 +392,9 @@ async function browserAcceptance(page, cfg) {
         (value.status===410 && value.code==='CONNECTION_TERMINATED' && (exact(value,connection)||exact(value,connection+'/heartbeat')||exact(value,connection+'/resume')||exact(value,connection+'/ticket'))) ||
         (exact(value,connection+'/resume') && ((value.status===410 && value.code==='CONNECTION_EXPIRED')||(value.status===401 && value.code==='CONNECTION_UNAUTHORIZED')))
       ).map(value=>value.responseOrder);
-      const confirmedAt = confirmation.length ? Math.min(...confirmation) : Infinity;
+      // An actually observed ended viewer is also a terminal boundary, even
+      // when no rejected HTTP request was needed to reach that state.
+      const confirmedAt = Math.min(owner.endedAt || Infinity, ...confirmation);
       // Inspect requests regardless of response status. An erroneous successful
       // resume/offer after termination must fail just as a denied attempt does.
       for (const request of networkRequests.filter(value=>value.owner===owner.id && value.order>confirmedAt && value.method!=='OPTIONS')) {
