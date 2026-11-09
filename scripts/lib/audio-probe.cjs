@@ -26,6 +26,8 @@ function startAudioProbe(executable) {
     child.once('exit',(code,signal)=>{ended=true;fail(new Error(`Audio probe exited (${code ?? signal})`));resolve({code,signal})});
   });
   return {
+    get pid(){return child.pid},
+    get executable(){return executable},
     command(op, parameters={}) {
       if(ended || closing)return Promise.reject(new Error('Audio probe is closed'));
       return new Promise((resolve,reject)=>{

@@ -9,15 +9,21 @@ import android.view.accessibility.AccessibilityNodeInfo;
 /** External CI observer. No product instrumentation, target input injection or network access. */
 public final class Observer extends Instrumentation {
     private static final String CLIENT = "io.github.bei612.streamkit";
+    private static final java.util.regex.Pattern AUDIO_STATS = java.util.regex.Pattern.compile("^音频 · 接收 ([0-9]+) 包$");
+    private static final java.util.regex.Pattern VIDEO_STATS = java.util.regex.Pattern.compile("^视频 · 接收 ([0-9]+) 包 · 解码 ([0-9]+) 帧 · [0-9]+(?:\\.[0-9]+)? FPS$");
     private String role = "other";
     private String state = "unknown";
     private String rootKind = "no_root";
     private final Rect window = new Rect();
     private int visited;
     private String requestedClick;
+    private boolean diagnosticsRequested, toolbarVisible, statisticsVisible;
+    private String playback = "unknown", sound = "unknown";
+    private long audioPackets = -1, videoPackets = -1, videoFrames = -1;
 
     @Override public void onCreate(Bundle arguments) {
         super.onCreate(arguments);
+        diagnosticsRequested = arguments != null && "diagnostics".equals(arguments.getString("action"));
         if (arguments != null && "click".equals(arguments.getString("action"))) {
             requestedClick = arguments.getString("target");
             if (!"打开串流工具栏".equals(requestedClick) && !"麦克风已关闭".equals(requestedClick))
@@ -29,6 +35,12 @@ public final class Observer extends Instrumentation {
     @Override public void onStart() {
         Bundle result = new Bundle();
         try {
+            if (diagnosticsRequested) {
+                result = statistics();
+                result.putString("snapshot", "complete");
+                finish(Activity.RESULT_OK, result);
+                return;
+            }
             if (requestedClick != null) {
                 result.putString("clicked", String.valueOf(clickDescription(requestedClick)));
                 finish(Activity.RESULT_OK, result);
@@ -67,6 +79,11 @@ public final class Observer extends Instrumentation {
         role = "other";
         state = "unknown";
         rootKind = "no_root";
+        toolbarVisible = false;
+        statisticsVisible = false;
+        playback = "unknown";
+        sound = "unknown";
+        audioPackets = videoPackets = videoFrames = -1;
         window.setEmpty();
         AccessibilityNodeInfo root = getUiAutomation().getRootInActiveWindow();
         if (root == null) return;
@@ -109,18 +126,90 @@ public final class Observer extends Instrumentation {
         int children = node.getChildCount();
         if (node.isVisibleToUser()) {
             String text = String.valueOf(node.getText());
+            if ("收起工具栏".contentEquals(String.valueOf(node.getContentDescription()))) toolbarVisible = true;
+            if ("声音已开启".equals(text)) sound = "on";
+            if ("声音已关闭".equals(text)) sound = "off";
             if ("已连接 · 控制中".equals(text)) role = "controller";
             if ("已连接 · 观看中".equals(text)) role = "viewer";
             if ("控制者".equals(text)) role = "controller";
             if ("仅观看".equals(text)) role = "viewer";
             String classified = classifyState(text);
             if (classified != null) state = classified;
+            for (String line : text.split("\n")) {
+                java.util.regex.Matcher audio = AUDIO_STATS.matcher(line);
+                java.util.regex.Matcher video = VIDEO_STATS.matcher(line);
+                if (audio.matches()) { statisticsVisible = true; audioPackets = Math.max(0, audioPackets) + Long.parseLong(audio.group(1)); }
+                if (video.matches()) { statisticsVisible = true; videoPackets = Math.max(0, videoPackets) + Long.parseLong(video.group(1)); videoFrames = Math.max(0, videoFrames) + Long.parseLong(video.group(2)); }
+                if ("播放 · 正在播放".equals(line)) { statisticsVisible = true; playback = "playing"; }
+                if ("播放 · 已暂停".equals(line)) { statisticsVisible = true; playback = "paused"; }
+                if ("播放 · 等待播放".equals(line)) { statisticsVisible = true; playback = "waiting"; }
+                if ("播放 · 播放失败".equals(line)) { statisticsVisible = true; playback = "failed"; }
+                if ("尚未连接".equals(line) || "等待媒体数据".equals(line)) statisticsVisible = true;
+            }
         }
         for (int index = 0; index < children; index++) {
             AccessibilityNodeInfo child = node.getChild(index);
             if (child == null) continue;
             try { inspect(child, depth + 1); } finally { child.recycle(); }
         }
+    }
+
+    private boolean openToolbar() {
+        snapshot();
+        if (!"client".equals(rootKind)) return false;
+        if (toolbarVisible) return true;
+        if (!clickDescription("打开串流工具栏")) return false;
+        long deadline = android.os.SystemClock.elapsedRealtime() + 2000;
+        do {
+            snapshot();
+            if (toolbarVisible) return true;
+            android.os.SystemClock.sleep(50);
+        } while (android.os.SystemClock.elapsedRealtime() < deadline);
+        return false;
+    }
+
+    private Bundle statistics() {
+        Bundle result = new Bundle();
+        boolean closeStatistics = false;
+        result.putString("statistics_available", "false");
+        result.putString("reason", "root_unavailable");
+        try {
+            snapshot();
+            if (!"client".equals(rootKind)) return result;
+            closeStatistics = statisticsVisible;
+            if (!openToolbar()) { result.putString("reason", "toolbar_unavailable"); return result; }
+            result.putString("sound", sound);
+            if (!closeStatistics) {
+                if (!clickDescription("统计信息")) { result.putString("reason", "statistics_button_unavailable"); return result; }
+                closeStatistics = true;
+            }
+            long deadline = android.os.SystemClock.elapsedRealtime() + 2000;
+            do {
+                snapshot();
+                if (!"unknown".equals(playback) && audioPackets >= 0 && videoPackets >= 0) break;
+                android.os.SystemClock.sleep(50);
+            } while (android.os.SystemClock.elapsedRealtime() < deadline);
+            boolean available = !"unknown".equals(playback) && audioPackets >= 0 && videoPackets >= 0;
+            result.putString("statistics_available", String.valueOf(available));
+            result.putString("reason", available ? "complete" : "statistics_not_ready");
+            result.putString("playback", playback);
+            if (audioPackets >= 0) result.putLong("audio_packets", audioPackets);
+            if (videoPackets >= 0) result.putLong("video_packets", videoPackets);
+            if (videoFrames >= 0) result.putLong("video_frames", videoFrames);
+        } finally {
+            if (closeStatistics && openToolbar()) clickDescription("统计信息");
+            clickDescription("收起工具栏");
+            long deadline = android.os.SystemClock.elapsedRealtime() + 2000;
+            do {
+                snapshot();
+                if (!statisticsVisible && !toolbarVisible) break;
+                android.os.SystemClock.sleep(50);
+            } while (android.os.SystemClock.elapsedRealtime() < deadline);
+            result.putString("root", rootKind);
+            result.putString("statistics_closed", String.valueOf("client".equals(rootKind) && !statisticsVisible));
+            result.putString("toolbar_closed", String.valueOf("client".equals(rootKind) && !toolbarVisible));
+        }
+        return result;
     }
 
     // Exact literals only: never return arbitrary UI text, input contents,

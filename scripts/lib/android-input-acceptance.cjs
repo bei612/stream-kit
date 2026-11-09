@@ -2,7 +2,7 @@
 // A separate testOnly UI observer reads roles/bounds through public Android
 // instrumentation APIs. No product hooks, alternate transport or input mocks.
 const assert=require('node:assert/strict');
-const {execFileSync}=require('node:child_process');
+const {execFile,execFileSync}=require('node:child_process');
 const {setTimeout:delay}=require('node:timers/promises');
 const {targetInputObserver,untilInput:until}=require('./target-input-observer.cjs');
 
@@ -24,6 +24,7 @@ function androidParticipant({adb,serial,report,save=()=>{}}) {
       throw Error(`Android acceptance command failed: ${args.slice(0,2).join(' ')}; reason=${reason}; code=${error.code||'none'}; exit=${error.status}; signal=${error.signal||'none'}`);
     }
   };
+  const runDiagnostic=(...args)=>new Promise((resolve,reject)=>execFile(adb,['-s',serial,...args],{encoding:'utf8',windowsHide:true,timeout:20000},(error,output)=>error?reject(Error('Android diagnostic command failed')):resolve(output)));
   const snapshot=()=>{
     const output=run('shell','am','instrument','-w','io.github.bei612.streamkit.inputobserver/.Observer');
     assert.ok(/INSTRUMENTATION_CODE: -1/.test(output),'Android UI observer failed');
@@ -34,17 +35,17 @@ function androidParticipant({adb,serial,report,save=()=>{}}) {
     assert.ok(role&&bounds&&status&&root&&opened&&allowedStates.has(status[1]),'Incomplete Android UI snapshot');
     return {role:role[1],bounds:bounds.slice(1).map(Number),state:status[1],root:root[1],toolbar_opened:opened[1]==='true'};
   };
-  const playoutErrors=()=>{
+  const playoutErrors=async()=>{
     // These message prefixes and start-error enums are from the actual pinned
     // 150.7871.01 AAR. Only classified events and explicit integer codes leave
     // memory; no raw log message, stack, intent or UI content is retained.
     const diagnostics={started_at_ms:Date.now(),events:[]};
     try {
-      const pids=run('shell','pidof','io.github.bei612.streamkit').trim().split(/\s+/);
+      const pids=(await runDiagnostic('shell','pidof','io.github.bei612.streamkit')).trim().split(/\s+/);
       assert.ok(pids.length>0&&pids.every(pid=>/^[1-9][0-9]*$/.test(pid)),'Native client PID unavailable');
       diagnostics.application_pids=pids.map(Number);diagnostics.observed_error_count=0;
       for(const pid of pids){
-        const output=run('logcat','-d','--pid',pid,'-v','brief','-s','WebRtcAudioTrackExternal:E','WebRtcAudioTrack:E','org.webrtc.Logging:E','*:S');
+        const output=await runDiagnostic('logcat','-d','--pid',pid,'-v','brief','-s','WebRtcAudioTrackExternal:E','WebRtcAudioTrack:E','org.webrtc.Logging:E','*:S');
         for(const line of output.split(/\r?\n/)){
           const tagged=line.match(/^E\/(WebRtcAudioTrackExternal|WebRtcAudioTrack|org\.webrtc\.Logging)\s*\(\s*[0-9]+\):\s*(.*)$/);if(!tagged)continue;
           let message=tagged[2];
@@ -82,7 +83,7 @@ function androidParticipant({adb,serial,report,save=()=>{}}) {
       wait.completed_at_ms=Date.now();if(state)save();return result;
     } catch(error){
       wait.failed_at_ms=Date.now();wait.failure='role_wait_failed';if(state)save();
-      wait.playout_errors=playoutErrors();if(state)save();throw error;
+      wait.playout_errors=await playoutErrors();if(state)save();throw error;
     }
   };
   return {
@@ -92,6 +93,20 @@ function androidParticipant({adb,serial,report,save=()=>{}}) {
       await role(false);
     },
     role,
+    async diagnostics(){
+      const result={started_at_ms:Date.now()};
+      try {
+        const output=await runDiagnostic('shell','am','instrument','-w','-e','action','diagnostics','io.github.bei612.streamkit.inputobserver/.Observer');
+        assert.ok(/INSTRUMENTATION_CODE: -1/.test(output)&&/INSTRUMENTATION_RESULT: snapshot=complete/.test(output),'Statistics observer failed');
+        const field=(key,pattern)=>output.match(new RegExp('^INSTRUMENTATION_RESULT: '+key+'=('+pattern+')\\s*$','m'))?.[1];
+        const available=field('statistics_available','true|false'),reason=field('reason','complete|root_unavailable|toolbar_unavailable|statistics_button_unavailable|statistics_not_ready');
+        assert.ok(available&&reason,'Missing statistics classification');
+        result.ui={available:available==='true',reason,root:field('root','client|no_root|other_app'),playback:field('playback','playing|paused|waiting|failed|unknown'),sound:field('sound','on|off|unknown'),statistics_closed:field('statistics_closed','true|false')==='true',toolbar_closed:field('toolbar_closed','true|false')==='true'};
+        for(const key of ['audio_packets','video_packets','video_frames']){const value=field(key,'[0-9]+');if(value!==undefined){const count=Number(value);assert.ok(Number.isSafeInteger(count),'Invalid statistics count');result.ui[key]=count;}}
+      }catch{result.ui={available:false,reason:'statistics_observer_unavailable'};}
+      result.sdk=await playoutErrors();result.finished_at_ms=Date.now();
+      if(state){(state.diagnostics||=[]).push(result);save();}return result;
+    },
     key(){run('shell','input','keyevent','KEYCODE_A');},
     async tap(controller){
       // Connecting accessibility can briefly return no active root. Wait for
