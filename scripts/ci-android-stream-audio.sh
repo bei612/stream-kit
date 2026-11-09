@@ -269,23 +269,66 @@ adb -s "$serial" shell wm size 720x1280
 adb -s "$serial" shell wm density 240
 adb -s "$serial" install artifacts/input-download/*.apk
 adb -s "$serial" install -t artifacts/input-example/android/observer.apk
-# Installation success is not a queue barrier. Synchronize the public PM and
-# broadcast queues before the one system-tone control; this does not observe
-# completion of AudioService's separate executor or the native UID/package map.
+# Installation success is not a PM queue barrier. Check the target identities
+# and collect passive diagnostics without reprioritizing unrelated broadcasts;
+# none of these observations proves that the native UID/package map is ready.
 node - "$ANDROID_HOME/platform-tools/adb" "$serial" "$evidence/install-synchronization.json" <<'NODE'
 const fs = require('node:fs'), cp = require('node:child_process');
 const [adb, serial, output] = process.argv.slice(2);
 const result = { schema_version: 1, fixture_only: true, status: 'failed',
-  npc_package_table_readiness: 'not_observed', commands: [], package_uids: {} };
+  npc_package_table_readiness: 'not_observed', global_broadcast_barrier: 'not_used',
+  raw_dumps_retained: false, commands: [], package_uids: {} };
 function check(ok, code) { if (!ok) throw new Error(code); }
-function command(type, args) {
+function command(type, args, diagnosticOnly = false) {
   const run = cp.spawnSync(adb, ['-s', serial, 'shell', ...args], {
-    encoding: 'utf8', timeout: 15000, killSignal: 'SIGKILL', maxBuffer: 16384,
+    encoding: 'utf8', timeout: 15000, killSignal: 'SIGKILL',
+    maxBuffer: diagnosticOnly ? 524288 : 16384,
   });
+  const closed = !run.pid || Number.isInteger(run.status) || typeof run.signal === 'string';
   result.commands.push({ command_type: type, exit_code: run.status,
-    completed_at_ms: Date.now(), timed_out: run.error?.code === 'ETIMEDOUT' });
+    completed_at_ms: Date.now(), timed_out: run.error?.code === 'ETIMEDOUT',
+    signal: run.signal, diagnostic_only: diagnosticOnly, child_cleanup_confirmed: closed });
+  check(closed, 'OWNED_ADB_CLEANUP_UNCONFIRMED');
+  if (diagnosticOnly && (run.error || run.status !== 0)) return null;
   check(!run.error && run.status === 0, type.toUpperCase() + '_FAILED');
   return run.stdout.trim();
+}
+function broadcasts(text) {
+  const targets = Object.keys(result.package_uids);
+  const projection = Object.fromEntries(targets.map(name => [name, { status: 'unknown', records: [] }]));
+  if (!text?.includes('ACTIVITY MANAGER BROADCAST STATE')) return projection;
+  for (const block of text.split(/(?=^\s*BroadcastRecord\{)/m)) {
+    if (!/^\s*BroadcastRecord\{/.test(block) || !/\bact=android\.intent\.action\.PACKAGE_ADDED\b/.test(block)) continue;
+    const name = /\bdat=package:([A-Za-z0-9_.]+)(?=\s|\})/.exec(block)?.[1];
+    if (!targets.includes(name) || projection[name].records.length >= 12) continue;
+    const terminal = /\bterminalCount=([0-9]+)/.exec(block);
+    if (!terminal) continue;
+    const clock = field => new RegExp('\\b' + field + '=(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3})').exec(block)?.[1] ?? null;
+    const receiverStates = [...block.matchAll(/^\s*(PENDING|DELIVERED|SKIPPED|TIMEOUT|SCHEDULED|FAILURE|DEFERRED)\b[^\r\n]*#([0-9]+):/gm)]
+      .slice(0, 128).map(match => ({ index: Number(match[2]), state: match[1] }));
+    projection[name].status = 'observed';
+    projection[name].records.push({ enqueue_clock: clock('enqueueClockTime'),
+      dispatch_clock: clock('dispatchClockTime'), finish_time_present: /\bfinishTime=/.test(block),
+      terminal_count: Number(terminal[1]), receiver_states: receiverStates });
+  }
+  return projection;
+}
+function lifecycle(text) {
+  const lines = text?.split(/\r?\n/) ?? [];
+  const start = lines.findIndex(line => line.includes('audio services lifecycle'));
+  const events = [];
+  if (start >= 0) {
+    const labels = { 'AudioService()': 'service_created',
+      'Controller start task complete': 'controller_start_task_complete',
+      'onAudioServerDied() audioserver died': 'audioserver_died',
+      'onAudioServerDied() audioserver started': 'audioserver_started' };
+    for (const line of lines.slice(start + 1, start + 65)) {
+      const label = Object.keys(labels).find(value => line.trim().endsWith(value));
+      if (label) events.push({ event: labels[label],
+        device_clock: /\b(\d{2}-\d{2} \d{2}:\d{2}:\d{2}[:.]\d{3})\b/.exec(line)?.[1] ?? null });
+    }
+  }
+  return { status: events.length ? 'observed' : 'unknown', events };
 }
 try {
   check(process.platform === 'linux' && process.env.GITHUB_ACTIONS === 'true'
@@ -294,7 +337,6 @@ try {
   check(command('shell_identity', ['id', '-u']) === '2000', 'SHELL_IDENTITY_REQUIRED');
   check(command('package_handler_barrier', ['cmd', 'package', 'wait-for-handler',
     '--timeout', '10000']) === 'Success', 'PACKAGE_HANDLER_ACK_INVALID');
-  command('broadcast_queue_barrier', ['am', 'wait-for-broadcast-barrier']);
   for (const name of ['io.github.bei612.streamkit', 'io.github.bei612.streamkit.inputobserver']) {
     const lines = command('target_package_uid', ['cmd', 'package', 'list', 'packages',
       '--user', '0', '-U', name]).split(/\r?\n/);
@@ -306,6 +348,10 @@ try {
     result.package_uids[name] = uid;
   }
   check(new Set(Object.values(result.package_uids)).size === 2, 'TARGET_PACKAGE_UID_COLLISION');
+  result.target_package_broadcasts = broadcasts(command('target_broadcast_diagnostic',
+    ['dumpsys', 'activity', '-a', 'broadcasts', 'filter', '--action',
+      'android.intent.action.PACKAGE_ADDED'], true));
+  result.audio_service_lifecycle = lifecycle(command('audio_lifecycle_diagnostic', ['dumpsys', 'audio'], true));
   result.status = 'passed';
 } catch (error) {
   result.failure_class = /^[A-Z_]+$/.test(error.message) ? error.message : 'INSTALL_SYNCHRONIZATION_FAILED';
