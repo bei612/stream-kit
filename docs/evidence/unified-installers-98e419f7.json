@@ -50,11 +50,59 @@
     "scope": "Actual package extraction, three-component initialization, user-service configuration and existing-data protection in product job; Android/Web target input is recorded separately."
   },
   "local_downloads_verified": true,
-  "published": false,
+  "published": true,
   "limits": [
     "Windows hosted Server 2022 installation and SCM restart; no full host reboot claim.",
     "Local installation remains 47c02726 while an existing UAC request is pending.",
     "No in-place upgrade, physical speech, local Windows input or deployed playwright-cli acceptance is established by this receipt.",
     "No Example, audio probe, test source, test CA, acceptance credentials or SDK is included in the runtime installer."
-  ]
+  ],
+  "publication": {
+    "url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261109.1",
+    "tag": "v0.1.0-preview.20261109.1",
+    "source_commit": "98e419f7f85fa36a92651ee55396815386a233c4",
+    "prerelease": true,
+    "published_at": "2026-11-09T11:19:27Z",
+    "verified_at": "2026-11-09T11:20:41.067Z",
+    "promotion_run": "https://github.com/bei612/stream-kit/actions/runs/42608038089",
+    "all_public_asset_sizes_and_server_digests_match_local_verified_artifacts": true,
+    "release_notes_match": true,
+    "assets": [
+      {
+        "name": "installer-manifest.json",
+        "bytes": 2312,
+        "sha256": "31e36f5753525b89f40fe1c3ddbdaabf29b23c1a2d7989a7129d080d6c1e61cc"
+      },
+      {
+        "name": "linux-installer-manifest.json",
+        "bytes": 1408,
+        "sha256": "8ab9f8d60431578270d8e0268db2de5654899de7ded58b83f7b4d89844951788"
+      },
+      {
+        "name": "Linux-SHA256SUMS.txt",
+        "bytes": 126,
+        "sha256": "5d6c46b6fe7cafdbb925fbf2eb799df747360925495495b1e3cb46504dd7c9fd"
+      },
+      {
+        "name": "SHA256SUMS.txt",
+        "bytes": 122,
+        "sha256": "fe9d99d92141cc8b98aa89435cf8902f3cc3e7331e6bd8a1710615ae6f487eda"
+      },
+      {
+        "name": "stream-kit-preview-98e419f7f85f-ubuntu24.04-amd64-setup.run",
+        "bytes": 62462417,
+        "sha256": "0b9d8d4a51665907962e766b85f7e6b2f83b043669f534d82f9a1101a873f4bb"
+      },
+      {
+        "name": "stream-kit-preview-98e419f7f85f-windows-amd64-setup.exe",
+        "bytes": 97608302,
+        "sha256": "377aae5d26eb600f5ebbae76f10f8a12a8e33b518d8c67d3b1332d98597450c1"
+      },
+      {
+        "name": "stream-kit-sbom.spdx.json",
+        "bytes": 7479449,
+        "sha256": "87ecedc7b62ebbbd8dcb9e5b0f1b17a5ab024443deba16605229f469d6d41c0e"
+      }
+    ]
+  }
 }

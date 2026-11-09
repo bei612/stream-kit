@@ -6,7 +6,7 @@ Stream-Kit 将管理服务、Sunshine 渲染端和 Moonlight Web 媒体网关集
 
 基于官方 Moonlight Android 源码二开的 [Android 签名 APK 20261109.2](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261109.2) 已发布，使用原项目签名覆盖安装到实体平板与官方模拟器。本版保留可收起工具栏、键盘、鼠标/触屏模式和设置，补充常显“控制者 / 仅观看”身份、权限提示与服务器地址修改入口。平板、模拟器和 Web 同时接入 Example，依次交接及释放控制权，两端原生身份显示正确，见[三端实际检查记录](docs/evidence/android-exclusive-control-20261109.json)和[操作说明](docs/android-viewer-controls.md)。这些结果不代表 Windows 目标程序输入及物理麦克风全链路已完成新验收。
 
-本机管理服务与网关仍安装源码 `47c02726`；可信 LAN HTTPS 已部署。新源码已包含原 CA 下配置式服务证书更新、当前/历史会话分离、7 天/100 条历史上限，以及管理端与 Web 权限界面调整；统一安装包正在构建，尚未部署这些服务端改动。不能以源码页面预览代替真实页面验收。地址配置与验证边界见[局域网地址配置](docs/lan-address-configuration.md)，剩余交付范围见[当前 Goal](docs/goal-current.md)。
+本机管理服务与网关仍安装源码 `47c02726`；可信 LAN HTTPS 已部署。源码 `98e419f7` 的 Windows/Linux 统一安装包已完成构建、Windows 精确安装验收并[发布 20261109.1](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261109.1)，包含原 CA 下配置式服务证书更新、当前/历史会话分离、7 天/100 条历史上限、原生实例生命周期及管理端与 Web 权限界面调整。本机更新仍等待此前同一 Windows UAC 请求确认，尚未部署这些服务端改动；不能以源码页面或隔离检查代替本机真实页面验收。地址配置与验证边界见[局域网地址配置](docs/lan-address-configuration.md)，剩余交付范围见[当前 Goal](docs/goal-current.md)。
 
 2026-11-09 新版实际输入验收已通过：发布 APK `20261109.2` 与源码 `98e419f7` 的 Linux 安装包共用一个程序渲染会话，原生目标的按键/点击计数确认 Android 控制、Web 接管、旧控制者拒绝、撤权拒绝及重新授权均正确，最后目标实例停止得到确认。见[精确版本和六阶段结果](docs/evidence/android-stream-input-20261109.json)。本轮没有重复音频或长稳测试，也不代表本机 Windows 输入验收通过。
 
@@ -14,16 +14,16 @@ Stream-Kit 将管理服务、Sunshine 渲染端和 Moonlight Web 媒体网关集
 
 ## 安装与访问
 
-2026-11-07 交付进展：HTTP/2 回环地址缺陷与首次安装缺少自动配对的问题均已修复。`928c012a` Linux 安装包从空网关目录打开永久链接即可自动配对并串流，随后真实切换测试网卡 IP，同一观看页面自动恢复画面与音频 RTP，见[首次启动与网络恢复证据](docs/evidence/managed-enrollment-20261107.json)。该候选的 Windows 安装验收发现音频设备要求重启时的处理缺陷，未予发布；`47c02726` 已修复安装顺序与退出码，精确安装包验收通过并已发布，见[安装流程修复记录](docs/evidence/windows-installer-restart-20261107.json)。本机部署尚未替换。
+保留的历史验证：`928c012a` Linux 安装包从空网关目录打开永久链接即可自动配对并串流，随后真实切换测试网卡 IP，同一观看页面自动恢复画面与音频 RTP，见[首次启动与网络恢复证据](docs/evidence/managed-enrollment-20261107.json)。`47c02726` 修复了后续 Windows 安装验收发现的音频设备重启处理、安装顺序与退出码，见[安装流程修复记录](docs/evidence/windows-installer-restart-20261107.json)。当前发布和本机安装状态以上文为准；不将历史网络切换记录改写为新版本重新验收。
 
 从 [GitHub Releases](https://github.com/bei612/stream-kit/releases) 获取当前可下载版本，查看该版本说明和 SHA-256。Windows 使用版本中的单个 `*-windows-amd64-setup.exe` 安装三个核心组件；无需另外安装官方 Sunshine 或 Moonlight Web，也不要再注册独立 Sunshine 服务。
 
-当前统一安装预发布版为 [20261107.1](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261107.1)，提供源码 `47c02726` 构建的 Windows 单 EXE 和 Ubuntu 24.04 单文件安装包。本版包含自动主机配对、HTTP/2 地址修复及安装前音频端点准备，明确区分成功、失败和需要重启的退出码。Windows 已集成开源虚拟音频实现及签名控制器驱动。只安装三个运行组件及必需运行库，开发示例和验收工具均不随包交付；安装及运行无需宿主机另行安装 Node.js/npm。跨平台 CI、Linux 安装包初始化，以及 Windows 整包静默安装、自启动、原生音频、网关与系统服务重启、卸载检查已通过。本版 Windows 验收包含服务重启，不是整机重启。7 个公开附件的大小、SHA-256 与验收产物一致，见[发布核验](docs/evidence/unified-installers-47c02726.json)和[安装说明](deploy/releases/0.1.0-preview.20261107.1.md)。发布不会自动替换已有部署，也不代表已完成本机 HTTPS 切换及实际 IP 变化恢复验收。
+当前统一安装预发布版为 [20261109.1](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261109.1)，提供源码 `98e419f7` 构建的 Windows 单 EXE 和 Ubuntu 24.04 单文件安装包。保留自动主机配对、HTTP/2 地址修复及安装前音频端点准备，新增本页所述会话、权限和配置式证书能力。Windows 已集成开源虚拟音频实现及签名控制器驱动。只安装三个运行组件及必需运行库，开发示例和验收工具均不随包交付；安装及运行无需宿主机另行安装 Node.js/npm。Linux 安装包初始化，以及 Windows 整包静默安装、自动服务、原生音频、网关与系统服务重启、卸载检查已通过。本版 Windows 验收包含服务重启，不是整机重启。7 个公开附件的大小、服务端 SHA-256 与本机已核验构建产物一致，见[精确安装与发布证据](docs/evidence/unified-installers-98e419f7.json)和[安装说明](deploy/releases/0.1.0-preview.20261109.1.md)。发布不会自动替换已有部署，也不代表本机 Windows 输入或最终线上 playwright-cli 验收完成。
 
 Windows 安装器支持向导和静默模式。以管理员终端执行，将文件名替换为实际下载的名称：
 
 ```powershell
-.\stream-kit-preview-902798f02d6e-windows-amd64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART
+.\stream-kit-preview-98e419f7f85f-windows-amd64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART
 ```
 
 默认程序目录为 `C:\Program Files\StreamKit`，运行数据目录为 `C:\ProgramData\StreamKit`。静默模式自动生成独立管理员密码，管理员可从受保护的 `orchestrator.json` 中读取 `server.username` 与 `server.password`。自动化部署也可以通过 `/ADMINFILE` 提供凭据文件；密码不作为命令行参数传入。
@@ -31,7 +31,7 @@ Windows 安装器支持向导和静默模式。以管理员终端执行，将文
 Ubuntu 24.04 amd64 使用同一版本中的 `.run` 文件，明确指定实际拥有桌面和音频会话的非 root 用户：
 
 ```sh
-sudo bash stream-kit-preview-902798f02d6e-ubuntu24.04-amd64-setup.run --user RENDER_USER
+sudo bash stream-kit-preview-98e419f7f85f-ubuntu24.04-amd64-setup.run --user RENDER_USER
 ```
 
 数据位于该用户的 `~/.local/share/stream-kit/runtime`，管理员凭据同样保存在受保护的 `orchestrator.json` 中。没有桌面会话时可加 `--no-start`，登录桌面后再启动用户服务。系统运行库由 apt 安装；详细说明见 [Linux 部署说明](deploy/linux/README.md)。
@@ -46,7 +46,7 @@ sudo bash stream-kit-preview-902798f02d6e-ubuntu24.04-amd64-setup.run --user REN
 
 Windows 安装初始化检查各组件文件清单、版本及端口。服务启动命令等待控制端和自动启动的媒体组件就绪。已有程序目录、数据目录或其他 SCM 部署不会被覆盖；目前不支持 Windows 安装器原位升级。卸载移除匹配的服务和程序文件，保留运行数据。
 
-安装包当前未使用发行者证书签名，商业代码签名证书不作为本次交付要求；附带内核驱动已完成签名校验。本版 Windows 静默安装、管理员登录、LocalSystem 自动服务启动、音频端点、服务重启和卸载已在隔离 Windows Server 2022 中通过，且验收散列与公开下载文件一致，见 [整包安装证据](docs/evidence/unified-installers-902798f0.json)。服务重启检查不等于整机重启验收。产品不依赖 VB-CABLE。详细参数、会话身份和部署边界见 [Windows 安装说明](deploy/windows/README.md)。
+安装包当前未使用发行者证书签名，商业代码签名证书不作为本次交付要求；附带内核驱动已完成签名校验。本版 Windows 静默安装、管理员登录、LocalSystem 自动服务启动、音频端点、服务重启和卸载已在隔离 Windows Server 2022 中通过，且验收散列与公开下载文件一致，见[本版整包安装证据](docs/evidence/unified-installers-98e419f7.json)。服务重启检查不等于整机重启验收。产品不依赖 VB-CABLE。详细参数、会话身份和部署边界见 [Windows 安装说明](deploy/windows/README.md)。
 
 ## 使用流程
 
