@@ -7,6 +7,7 @@ import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.hardware.input.InputManager;
+import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -16,6 +17,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.*;
 import com.limelight.BuildConfig;
+import com.limelight.binding.audio.AndroidAudioRenderer;
 import com.limelight.binding.input.KeyboardTranslator;
 import java.util.HashMap;
 import java.util.Map;
@@ -50,19 +52,19 @@ public final class ManagedActivity extends Activity {
   private FrameLayout mediaArea;
   private int frameWidth, frameHeight;
   private AudioManager audio;
+  private AudioFocusApi26 audioFocusRequest;
+  private boolean resumed, audioFocusRequested;
   private ManagedInput input;
   private KeyboardTranslator keyboard;
   private InputManager devices;
   private final Map<Short, Byte> pressedKeys = new HashMap<>();
-  private final AudioManager.OnAudioFocusChangeListener audioFocus = change -> {
-    if (session == null)
-      return;
-    session.audioFocus(change == AudioManager.AUDIOFOCUS_GAIN);
-  };
+  private final AudioManager.OnAudioFocusChangeListener audioFocus =
+      change -> runOnUiThread(() -> handleAudioFocusChange(change));
 
   @Override
   public void onCreate(Bundle state) {
     super.onCreate(state);
+    setVolumeControlStream(AudioManager.STREAM_MUSIC);
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     getWindow().setSoftInputMode(Build.VERSION.SDK_INT >= 30
             ? WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
@@ -109,6 +111,8 @@ public final class ManagedActivity extends Activity {
         this, egl.getEglBaseContext(), video, width, height, BuildConfig.DEBUG, stateView -> {
           boolean firstVideo = entry.getVisibility() != View.GONE && stateView.videoReady;
           chrome.state(stateView);
+          if (!stateView.running && audioFocusRequested)
+            releaseAudioFocus();
           if (stateView.running && stateView.videoReady && previousControl != null
               && previousControl != stateView.control) {
             Toast
@@ -124,6 +128,8 @@ public final class ManagedActivity extends Activity {
             setFullscreen(true);
           if (!stateView.control && remoteKeyboard != null)
             remoteKeyboard.hideKeyboard();
+          if (!stateView.microphoneAllowed)
+            pendingMicrophoneRequest = null;
           microphone.setEnabled(stateView.microphoneAllowed && pendingMicrophoneRequest == null);
           if (!stateView.control) {
             pressedKeys.clear();
@@ -158,7 +164,9 @@ public final class ManagedActivity extends Activity {
       address.setHint("粘贴管理员提供的固定观看链接");
       bookmarks.clear();
       resumeOnStart = false;
+      pendingMicrophoneRequest = null;
       session.stop();
+      releaseAudioFocus();
       video.clearImage();
     });
     chrome.changeServer.setOnClickListener(view -> changeServerAddress());
@@ -178,13 +186,14 @@ public final class ManagedActivity extends Activity {
     connect.setOnClickListener(view -> connect());
     disconnect.setOnClickListener(view -> {
       resumeOnStart = false;
+      pendingMicrophoneRequest = null;
       touch.cancel();
       remoteKeyboard.hideKeyboard();
       if (Build.VERSION.SDK_INT >= 26)
         video.releasePointerCapture();
       releaseKeys();
       session.stop();
-      audio.abandonAudioFocus(audioFocus);
+      releaseAudioFocus();
       video.clearImage();
     });
     chrome.cancel.setOnClickListener(view -> disconnect.performClick());
@@ -216,6 +225,8 @@ public final class ManagedActivity extends Activity {
     return session != null && session.isRunning();
   }
   private void connect() {
+    // A newly supplied intent supersedes a pending resume of the old link.
+    resumeOnStart = false;
     try {
       String entered = address.getText().toString().trim();
       if (!entered.isEmpty() || currentLink == null) {
@@ -228,12 +239,28 @@ public final class ManagedActivity extends Activity {
       }
       address.setText("");
       savedLinkHint();
-      acquireAudioFocus();
-      session.viewerSettings(preferences.snapshot());
-      session.start(currentLink);
+      if (resumed)
+        startViewingSession();
+      else {
+        pendingMicrophoneRequest = null;
+        session.stop();
+        releaseAudioFocus();
+        resumeOnStart = true;
+      }
     } catch (IllegalArgumentException error) {
       status.setText(BuildConfig.DEBUG ? "观看链接格式不正确" : "请使用有效的 HTTPS 观看链接");
     }
+  }
+  private void startViewingSession() {
+    if (!resumed || currentLink == null)
+      return;
+    resumeOnStart = false;
+    pendingMicrophoneRequest = null;
+    session.viewerSettings(preferences.snapshot());
+    // start() first closes the previous generation. Acquire only after that
+    // teardown, so an old stopped callback cannot abandon the new focus owner.
+    session.start(currentLink);
+    acquireAudioFocus();
   }
   private void savedLinkHint() {
     address.setHint("当前应用 · " + currentLink.origin());
@@ -299,6 +326,10 @@ public final class ManagedActivity extends Activity {
   public void onRequestPermissionsResult(int request, String[] permissions, int[] results) {
     super.onRequestPermissionsResult(request, permissions, results);
     if (request == microphonePermissionCode && pendingMicrophoneRequest != null) {
+      // Permission results can precede onResume. Preserve only this original
+      // authority-bound request until we can legally acquire foreground focus.
+      if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED && !resumed)
+        return;
       AuthorityState.MicrophoneRequest pending = pendingMicrophoneRequest;
       pendingMicrophoneRequest = null;
       if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED)
@@ -322,26 +353,33 @@ public final class ManagedActivity extends Activity {
     }
   }
   @Override
-  protected void onStart() {
-    super.onStart();
-    if (resumeOnStart && currentLink != null) {
-      resumeOnStart = false;
-      acquireAudioFocus();
-      session.start(currentLink);
-    }
-  }
-  @Override
   protected void onResume() {
     super.onResume();
+    resumed = true;
     // Android 15+ requires a foreground app for audio-focus acquisition.
-    if (sessionRunning())
+    if (resumeOnStart && currentLink != null)
+      startViewingSession();
+    else if (sessionRunning())
       acquireAudioFocus();
+    if (pendingMicrophoneRequest != null && Build.VERSION.SDK_INT >= 23
+        && checkSelfPermission(Manifest.permission.RECORD_AUDIO)
+            == PackageManager.PERMISSION_GRANTED) {
+      AuthorityState.MicrophoneRequest pending = pendingMicrophoneRequest;
+      pendingMicrophoneRequest = null;
+      enableMicrophone(pending);
+    }
     chromeHandler.removeCallbacks(updateStatistics);
     if (statisticsVisible)
       chromeHandler.post(updateStatistics);
   }
   @Override
+  protected void onPause() {
+    resumed = false;
+    super.onPause();
+  }
+  @Override
   protected void onStop() {
+    resumed = false;
     pendingMicrophoneRequest = null;
     chromeHandler.removeCallbacks(updateStatistics);
     remoteKeyboard.hideKeyboard();
@@ -349,11 +387,15 @@ public final class ManagedActivity extends Activity {
     touch.cancel();
     releaseKeys();
     session.stop();
-    audio.abandonAudioFocus(audioFocus);
+    releaseAudioFocus();
     super.onStop();
   }
   @Override
   protected void onDestroy() {
+    resumed = false;
+    resumeOnStart = false;
+    pendingMicrophoneRequest = null;
+    releaseAudioFocus();
     devices.unregisterInputDeviceListener(keyboard);
     bookmarks.close();
     session.close();
@@ -388,6 +430,8 @@ public final class ManagedActivity extends Activity {
   @Override
   public void onWindowFocusChanged(boolean focused) {
     super.onWindowFocusChanged(focused);
+    if (focused && resumed && sessionRunning())
+      acquireAudioFocus();
     if (!focused) {
       releaseKeys();
       if (touch != null)
@@ -476,7 +520,7 @@ public final class ManagedActivity extends Activity {
         if (sessionRunning() && currentLink != null
             && ViewerSettings.requiresReconnect(before, preferences.snapshot())) {
           chrome.close();
-          session.start(currentLink);
+          startViewingSession();
         }
       });
     });
@@ -649,11 +693,65 @@ public final class ManagedActivity extends Activity {
     return (int) (value * getResources().getDisplayMetrics().density + .5f);
   }
   private boolean acquireAudioFocus() {
-    boolean granted =
-        audio.requestAudioFocus(audioFocus, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
-        == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
-    session.audioFocus(granted);
-    return granted;
+    if (!resumed || audio == null || !sessionRunning())
+      return false;
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && audioFocusRequest == null) {
+      audioFocusRequest = new AudioFocusApi26(audioFocus, chromeHandler);
+    }
+    audioFocusRequested = true;
+    int result = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+        ? audioFocusRequest.acquire(audio)
+        : audio.requestAudioFocus(
+              audioFocus, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+    if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+      releaseAudioFocus();
+      return false;
+    }
+    session.audioFocus(true);
+    return true;
+  }
+  private void releaseAudioFocus() {
+    boolean requested = audioFocusRequested;
+    audioFocusRequested = false;
+    pendingMicrophoneRequest = null;
+    if (requested && audio != null) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+        audioFocusRequest.release(audio);
+      else
+        audio.abandonAudioFocus(audioFocus);
+    }
+    if (session != null)
+      session.audioFocus(false);
+  }
+  private void handleAudioFocusChange(int change) {
+    if (!audioFocusRequested || !sessionRunning())
+      return;
+    if (change == AudioManager.AUDIOFOCUS_LOSS)
+      releaseAudioFocus();
+    else if (change != AudioManager.AUDIOFOCUS_GAIN || resumed) {
+      if (change != AudioManager.AUDIOFOCUS_GAIN)
+        pendingMicrophoneRequest = null;
+      session.audioFocus(change == AudioManager.AUDIOFOCUS_GAIN);
+    }
+  }
+  // Isolate newer framework types so API 21-25 never load AudioFocusRequest.
+  @android.annotation.TargetApi(Build.VERSION_CODES.O)
+  private static final class AudioFocusApi26 {
+    private final AudioFocusRequest request;
+    AudioFocusApi26(AudioManager.OnAudioFocusChangeListener listener, android.os.Handler handler) {
+      request = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                    .setAudioAttributes(AndroidAudioRenderer.createAudioAttributes(false))
+                    .setAcceptsDelayedFocusGain(false)
+                    .setWillPauseWhenDucked(true)
+                    .setOnAudioFocusChangeListener(listener, handler)
+                    .build();
+    }
+    int acquire(AudioManager manager) {
+      return manager.requestAudioFocus(request);
+    }
+    void release(AudioManager manager) {
+      manager.abandonAudioFocusRequest(request);
+    }
   }
   private void fitVideo() {
     if (frameWidth <= 0 || frameHeight <= 0 || mediaArea == null || mediaArea.getWidth() == 0

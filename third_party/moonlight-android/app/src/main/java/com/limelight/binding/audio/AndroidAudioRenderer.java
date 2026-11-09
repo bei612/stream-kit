@@ -25,26 +25,35 @@ public class AndroidAudioRenderer implements AudioRenderer {
         this.enableAudioFx = enableAudioFx;
     }
 
-    private AudioTrack createAudioTrack(int channelConfig, int sampleRate, int bufferSize, boolean lowLatency) {
+    // Shared by the native renderer, managed WebRTC playback and audio focus.
+    // Keep the upstream game/media routing policy independent of voice capture.
+    public static AudioAttributes createAudioAttributes(boolean lowLatency) {
         AudioAttributes.Builder attributesBuilder = new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_GAME);
+                .setUsage(AudioAttributes.USAGE_GAME)
+                // WebRTC treats CONTENT_TYPE_UNKNOWN as unspecified and keeps
+                // its SPEECH default. Explicit media content makes focus and
+                // both renderers use the same actual playback attributes.
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC);
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O && lowLatency) {
+            // Use FLAG_LOW_LATENCY on L through N.
+            attributesBuilder.setFlags(AudioAttributes.FLAG_LOW_LATENCY);
+        }
+        return attributesBuilder.build();
+    }
+
+    private AudioTrack createAudioTrack(int channelConfig, int sampleRate, int bufferSize, boolean lowLatency) {
+        AudioAttributes attributes = createAudioAttributes(lowLatency);
         AudioFormat format = new AudioFormat.Builder()
                 .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
                 .setSampleRate(sampleRate)
                 .setChannelMask(channelConfig)
                 .build();
 
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            // Use FLAG_LOW_LATENCY on L through N
-            if (lowLatency) {
-                attributesBuilder.setFlags(AudioAttributes.FLAG_LOW_LATENCY);
-            }
-        }
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             AudioTrack.Builder trackBuilder = new AudioTrack.Builder()
                     .setAudioFormat(format)
-                    .setAudioAttributes(attributesBuilder.build())
+                    .setAudioAttributes(attributes)
                     .setTransferMode(AudioTrack.MODE_STREAM)
                     .setBufferSizeInBytes(bufferSize);
 
@@ -56,7 +65,7 @@ public class AndroidAudioRenderer implements AudioRenderer {
             return trackBuilder.build();
         }
         else {
-            return new AudioTrack(attributesBuilder.build(),
+            return new AudioTrack(attributes,
                     format,
                     bufferSize,
                     AudioTrack.MODE_STREAM,
