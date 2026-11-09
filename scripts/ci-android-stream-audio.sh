@@ -128,43 +128,120 @@ adb_identity unroot 2000
 # https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/services/core/java/com/android/server/media/VolumeCtrl.java
 node - "$serial" "$evidence/media-volume.json" <<'NODE'
 const fs = require('node:fs');
-const {execFileSync} = require('node:child_process');
+const {spawnSync} = require('node:child_process');
 const assert = require('node:assert/strict');
+const {setTimeout: delay} = require('node:timers/promises');
 const [serial, evidence] = process.argv.slice(2);
 assert.equal(process.env.GITHUB_ACTIONS, 'true');
 assert.equal(process.env.RUNNER_ENVIRONMENT, 'github-hosted');
 assert.notEqual(process.getuid(), 0);
 assert.equal(serial, 'emulator-5580');
-function adb(args) {
-  try {
-    return execFileSync('adb', ['-s', serial, ...args], {
-      encoding: 'utf8', timeout: 10000, maxBuffer: 65536, stdio: ['ignore', 'pipe', 'pipe'],
-    }).replace(/\r/g, '');
-  } catch {
-    throw new Error('Owned AVD media-volume command failed; no fallback is permitted');
-  }
+const started = performance.now();
+const result = {
+  schemaVersion: 2, fixture_only: true, host_changed: false, avd_serial: serial,
+  stream: 3, before: null, after: null, min: null, max: null, set_attempts: 0,
+  timeout_ms: 5000, elapsed_ms: 0, observation_attempts: 0, observations_count: 0, observations: [],
+  phase: 'avd_identity',
+  status: 'pending', failure_class: null,
+};
+function save() {
+  result.elapsed_ms = Math.round(performance.now() - started);
+  result.observations_count = result.observations.length;
+  fs.writeFileSync(evidence, JSON.stringify(result, null, 2) + '\n', {mode: 0o600});
 }
-assert.deepEqual(adb(['emu', 'avd', 'name']).trim().split('\n').filter(line => line !== 'OK'),
-  ['StreamKit_Audio_CI'], 'Media-volume fixture must belong to the owned official AVD');
-function getVolume() {
-  const output = adb(['shell', 'cmd', 'media_session', 'volume', '--stream', '3', '--get']);
+function fail(code) {
+  const error = new Error(code);
+  error.fixtureCode = code;
+  throw error;
+}
+function commandFailure(text) {
+  if (/SecurityException|Permission Denial|Permission denied|requires .*permission|Not allowed to change Do Not Disturb/i.test(text))
+    return 'MEDIA_VOLUME_PERMISSION_DENIED';
+  if (/safe (?:media )?volume|sound dose|hearing safety/i.test(text))
+    return 'MEDIA_VOLUME_SAFETY_POLICY';
+  if (/unknown command|unknown option|not found|inaccessible|can.t connect|can(?:not|'t) find service/i.test(text))
+    return 'MEDIA_VOLUME_COMMAND_UNAVAILABLE';
+  if (/^\[E\]|^Error:|(?:java|android)\.[\w.]+Exception:/m.test(text))
+    return 'MEDIA_VOLUME_COMMAND_REJECTED';
+  return null;
+}
+function adb(args, timeout = 10000) {
+  const command = spawnSync('adb', ['-s', serial, ...args], {
+    encoding: 'utf8', timeout, maxBuffer: 65536, stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  // Some Android shell errors return zero; check both output streams without
+  // retaining raw text, device names or other unbounded diagnostics.
+  const code = commandFailure(String(command.stdout || '') + '\n' + String(command.stderr || ''));
+  if (code) fail(code);
+  if (command.error || command.status !== 0)
+    fail(command.error?.code === 'ETIMEDOUT' ? 'MEDIA_VOLUME_COMMAND_TIMEOUT' : 'MEDIA_VOLUME_COMMAND_FAILED');
+  return command.stdout.replace(/\r/g, '');
+}
+function getVolume(timeout) {
+  const output = adb(['shell', 'cmd', 'media_session', 'volume', '--stream', '3', '--get'], timeout);
   const matches = [...output.matchAll(/^\[V\] volume is (\d+) in range \[(\d+)\.\.(\d+)\]\s*$/gm)];
-  assert.equal(matches.length, 1, 'Official media-session volume range is unavailable');
+  if (matches.length !== 1) fail('MEDIA_VOLUME_RANGE_UNAVAILABLE');
   const [current, min, max] = matches[0].slice(1).map(Number);
-  assert.ok([current, min, max].every(Number.isSafeInteger));
-  assert.ok(min >= 0 && max > min && current >= min && current <= max);
+  if (![current, min, max].every(Number.isSafeInteger)
+      || min < 0 || max <= min || current < min || current > max)
+    fail('MEDIA_VOLUME_RANGE_INVALID');
   return {current, min, max};
 }
-const before = getVolume();
-adb(['shell', 'cmd', 'media_session', 'volume', '--stream', '3', '--set', String(before.max)]);
-const after = getVolume();
-assert.equal(after.min, before.min, 'AVD media-volume minimum changed');
-assert.equal(after.max, before.max, 'AVD media-volume maximum changed');
-assert.equal(after.current, before.max, 'AVD media-volume calibration did not take effect');
-fs.writeFileSync(evidence, JSON.stringify({
-  schemaVersion: 1, fixture_only: true, host_changed: false, avd_serial: serial,
-  stream: 3, before: before.current, after: after.current, min: after.min, max: after.max,
-}, null, 2) + '\n', {mode: 0o600});
+async function calibrate() {
+  try {
+    assert.deepEqual(adb(['emu', 'avd', 'name']).trim().split('\n').filter(line => line !== 'OK'),
+      ['StreamKit_Audio_CI']);
+    result.phase = 'before_get';
+    const before = getVolume();
+    Object.assign(result, {before: before.current, min: before.min, max: before.max});
+    save();
+    // Set once. Observe actual state until the deadline, rather than retrying
+    // writes or assuming that a successful shell status means volume changed.
+    result.set_attempts = 1;
+    result.phase = 'set';
+    save();
+    adb(['shell', 'cmd', 'media_session', 'volume', '--stream', '3', '--set', String(before.max)]);
+    const observedAt = performance.now(), deadline = observedAt + result.timeout_ms;
+    result.phase = 'after_get';
+    while (performance.now() < deadline) {
+      const remaining = Math.max(1, Math.floor(deadline - performance.now()));
+      result.observation_attempts++;
+      save();
+      const after = getVolume(Math.min(2000, remaining));
+      result.after = after.current;
+      result.observations.push({
+        index: result.observations.length + 1,
+        elapsed_ms: Math.round(performance.now() - observedAt),
+        value: after.current, min: after.min, max: after.max,
+      });
+      save();
+      if (after.min !== before.min || after.max !== before.max) fail('MEDIA_VOLUME_RANGE_CHANGED');
+      if (after.current === before.max) {
+        result.status = 'passed';
+        return;
+      }
+      const wait = Math.min(200, Math.floor(deadline - performance.now()));
+      if (wait > 0) await delay(wait);
+    }
+    // AudioService may reject a change without a shell error. This observation
+    // alone cannot distinguish policy rejection from a state/routing change.
+    fail('MEDIA_VOLUME_NOT_OBSERVED');
+  } catch (error) {
+    result.status = 'failed';
+    result.failure_class = error.fixtureCode || 'MEDIA_VOLUME_FIXTURE_INVALID';
+  } finally {
+    save();
+  }
+}
+calibrate().then(() => {
+  if (result.status !== 'passed') {
+    console.error('AVD media-volume calibration failed: ' + result.failure_class);
+    process.exitCode = 1;
+  }
+}).catch(() => {
+  console.error('AVD media-volume evidence could not be saved');
+  process.exitCode = 1;
+});
 NODE
 # Bound software rasterization cost independently of the 720p30 stream profile.
 adb -s "$serial" shell wm size 720x1280
