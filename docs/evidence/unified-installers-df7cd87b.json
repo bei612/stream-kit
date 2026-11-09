@@ -85,13 +85,61 @@
     "source_artifact_id": 13687628811
   },
   "local_downloads_verified": true,
-  "published": false,
+  "published": true,
   "publication": {
-    "state": "pending",
+    "state": "published",
+    "url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261109.3",
     "tag": "v0.1.0-preview.20261109.3",
     "source_commit": "df7cd87b3352a638aa3a6aa7073d39074c02a43c",
+    "tag_object_sha": "c96fa3776af98e6d44f65e013f6a951b2a1a8a05",
+    "tag_resolved_commit_verified": true,
     "prerelease": true,
-    "original_product_run": "https://github.com/bei612/stream-kit/actions/runs/42648530658"
+    "published_at": "2026-11-09T16:31:48Z",
+    "verified_at": "2026-11-09T16:33:31Z",
+    "promotion_run": "https://github.com/bei612/stream-kit/actions/runs/42655624486",
+    "promotion_workflow_commit": "23e5ad20315d50cae73f8ea4660b17273a11c14e",
+    "original_product_run": "https://github.com/bei612/stream-kit/actions/runs/42648530658",
+    "public_assets_verified": true,
+    "all_public_asset_sizes_and_server_digests_match_local_verified_artifacts": true,
+    "release_notes_match": true,
+    "release_notes_sha256": "5578588afab1a66ff6e0629d9f7e8bbf53b61e8aeb063bfebd6734fd58865313",
+    "assets": [
+      {
+        "name": "stream-kit-preview-df7cd87b3352-windows-amd64-setup.exe",
+        "bytes": 97614897,
+        "sha256": "8afca0be973946d1b5be6e673ef4fee05325d59cd93ea1ae5f038fc90e4fa501"
+      },
+      {
+        "name": "installer-manifest.json",
+        "bytes": 2312,
+        "sha256": "266fc672f6c4bf717284ec0fce790db8bed7b16438cfcb469292fada0477c1c7"
+      },
+      {
+        "name": "SHA256SUMS.txt",
+        "bytes": 122,
+        "sha256": "c2310e0a3b56e15aa12f8ae9b9b14151845b9b7d0c25559bf895a2f4958bf97d"
+      },
+      {
+        "name": "stream-kit-preview-df7cd87b3352-ubuntu24.04-amd64-setup.run",
+        "bytes": 62468105,
+        "sha256": "b7ab7cc3ae471a0930fef2ef8be11941629e602df48efb9323362e3cc2aed3fd"
+      },
+      {
+        "name": "linux-installer-manifest.json",
+        "bytes": 1408,
+        "sha256": "c1352c203204d950fcf834f6d521c534f37b5b2fe297caf67a3d51898a9f114f"
+      },
+      {
+        "name": "Linux-SHA256SUMS.txt",
+        "bytes": 126,
+        "sha256": "e93f4cb943c408a1848de12eec447e347a763f34be8faaf469f01dc3d807bcef"
+      },
+      {
+        "name": "stream-kit-sbom.spdx.json",
+        "bytes": 7559476,
+        "sha256": "2793e0f520b497e19b5f201776a7c5a5a764615d9dde507493e5d17b27fcefe3"
+      }
+    ]
   },
   "limits": [
     "Windows SCM and gateway restart are verified; this receipt does not establish a complete host reboot.",
@@ -99,6 +147,6 @@
     "The Windows default-device baseline was empty; this result does not cover existing nonempty device selections.",
     "Linux package initialization and user-service enablement do not establish an active Linux media session.",
     "No local installation, in-place upgrade, physical speech, Android audio, target input or deployed browser acceptance is established by this installer receipt.",
-    "Publication must be separately verified against the original build artifacts; it does not update the local installation."
+    "Publication was separately verified against the original build artifacts, public asset sizes/server digests and reviewed notes; it does not update the local installation."
   ]
 }
