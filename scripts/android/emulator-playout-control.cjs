@@ -100,6 +100,8 @@ function startTone() {
       if (numbers.has(match[2]) && /^[0-9]+$/.test(match[3]) && Number.isSafeInteger(Number(match[3]))) target[match[2]] = Number(match[3]);
       else if (['tone_started', 'tone_stopped', 'tone_released'].includes(match[2])) target[match[2]] = match[3] === 'true';
       else if (match[2] === 'tone_result' && ['complete', 'failed'].includes(match[3])) target.tone_result = match[3];
+      else if (match[2] === 'error_type' && ['tone_start_rejected', 'tone_runtime_failed',
+        'tone_stop_failed', 'tone_release_failed'].includes(match[3])) target.error_type = match[3];
     }
     if (!resolved && /^INSTRUMENTATION_STATUS_CODE:/.test(line) && status.tone_started === true) {
       resolved = true; resolveReady({...status,host_observed_at_ms: Date.now()});
