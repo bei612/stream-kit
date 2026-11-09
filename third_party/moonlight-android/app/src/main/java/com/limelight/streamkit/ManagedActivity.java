@@ -52,14 +52,13 @@ public final class ManagedActivity extends Activity {
   private FrameLayout mediaArea;
   private int frameWidth, frameHeight;
   private AudioManager audio;
-  private AudioFocusApi26 audioFocusRequest;
-  private boolean resumed, audioFocusRequested;
+  private AudioFocusOwner audioFocusOwner;
+  private long audioFocusGeneration;
+  private boolean resumed;
   private ManagedInput input;
   private KeyboardTranslator keyboard;
   private InputManager devices;
   private final Map<Short, Byte> pressedKeys = new HashMap<>();
-  private final AudioManager.OnAudioFocusChangeListener audioFocus =
-      change -> runOnUiThread(() -> handleAudioFocusChange(change));
 
   @Override
   public void onCreate(Bundle state) {
@@ -111,7 +110,7 @@ public final class ManagedActivity extends Activity {
         this, egl.getEglBaseContext(), video, width, height, BuildConfig.DEBUG, stateView -> {
           boolean firstVideo = entry.getVisibility() != View.GONE && stateView.videoReady;
           chrome.state(stateView);
-          if (!stateView.running && audioFocusRequested)
+          if (!stateView.running && audioFocusOwner != null)
             releaseAudioFocus();
           if (stateView.running && stateView.videoReady && previousControl != null
               && previousControl != stateView.control) {
@@ -695,43 +694,77 @@ public final class ManagedActivity extends Activity {
   private boolean acquireAudioFocus() {
     if (!resumed || audio == null || !sessionRunning())
       return false;
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && audioFocusRequest == null) {
-      audioFocusRequest = new AudioFocusApi26(audioFocus, chromeHandler);
-    }
-    audioFocusRequested = true;
-    int result = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-        ? audioFocusRequest.acquire(audio)
-        : audio.requestAudioFocus(
-              audioFocus, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+    if (audioFocusOwner != null && audioFocusOwner.granted)
+      return true;
+    // Replacing a system request does not grant or revoke microphone consent.
+    // In particular, a current explicit permission request must remain valid.
+    abandonAudioFocusOwner();
+    long generation = audioFocusGeneration;
+    AudioFocusOwner owner = new AudioFocusOwner(generation,
+        change -> runOnUiThread(() -> handleAudioFocusChange(generation, change)), chromeHandler);
+    audioFocusOwner = owner;
+    int result = owner.acquire(audio);
+    if (audioFocusOwner != owner)
+      return false;
     if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
       releaseAudioFocus();
       return false;
     }
+    owner.granted = true;
     session.audioFocus(true);
     return true;
   }
+  private void abandonAudioFocusOwner() {
+    AudioFocusOwner previous = audioFocusOwner;
+    audioFocusOwner = null;
+    ++audioFocusGeneration;
+    // Invalidate before abandon: callbacks already queued by Android still
+    // belong to the previous request even after a new connection starts.
+    if (previous != null && audio != null)
+      previous.release(audio);
+  }
   private void releaseAudioFocus() {
-    boolean requested = audioFocusRequested;
-    audioFocusRequested = false;
+    abandonAudioFocusOwner();
     pendingMicrophoneRequest = null;
-    if (requested && audio != null) {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-        audioFocusRequest.release(audio);
-      else
-        audio.abandonAudioFocus(audioFocus);
-    }
     if (session != null)
       session.audioFocus(false);
   }
-  private void handleAudioFocusChange(int change) {
-    if (!audioFocusRequested || !sessionRunning())
+  private void handleAudioFocusChange(long generation, int change) {
+    AudioFocusOwner owner = audioFocusOwner;
+    if (owner == null || owner.generation != generation || !sessionRunning())
       return;
     if (change == AudioManager.AUDIOFOCUS_LOSS)
       releaseAudioFocus();
     else if (change != AudioManager.AUDIOFOCUS_GAIN || resumed) {
+      owner.granted = change == AudioManager.AUDIOFOCUS_GAIN;
       if (change != AudioManager.AUDIOFOCUS_GAIN)
         pendingMicrophoneRequest = null;
-      session.audioFocus(change == AudioManager.AUDIOFOCUS_GAIN);
+      session.audioFocus(owner.granted);
+    }
+  }
+  private static final class AudioFocusOwner {
+    final long generation;
+    final AudioManager.OnAudioFocusChangeListener listener;
+    final AudioFocusApi26 modern;
+    boolean granted;
+    AudioFocusOwner(long generation, AudioManager.OnAudioFocusChangeListener listener,
+        android.os.Handler handler) {
+      this.generation = generation;
+      this.listener = listener;
+      modern = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+          ? new AudioFocusApi26(listener, handler)
+          : null;
+    }
+    int acquire(AudioManager manager) {
+      return modern != null ? modern.acquire(manager)
+                            : manager.requestAudioFocus(
+                                  listener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+    }
+    void release(AudioManager manager) {
+      if (modern != null)
+        modern.release(manager);
+      else
+        manager.abandonAudioFocus(listener);
     }
   }
   // Isolate newer framework types so API 21-25 never load AudioFocusRequest.
