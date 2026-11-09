@@ -81,7 +81,7 @@
     "format": "SPDX-2.3"
   },
   "local_downloads_verified": true,
-  "published": false,
+  "published": true,
   "management_runtime_acceptance": "docs/evidence/management-live-cli-3d4f248c.json",
   "limits": [
     "Service and gateway restarts do not establish a whole host reboot.",
@@ -91,48 +91,89 @@
     "No local Windows update, in-place upgrade, Android audio, physical speech, target input or IP-change acceptance is established by this installer receipt."
   ],
   "publication": {
-    "state": "prepared_not_published",
+    "state": "published",
+    "url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261110.2",
     "tag": "v0.1.0-preview.20261110.2",
     "source_commit": "3d4f248c00cce003e4649a1d3e6b5f907dcfee39",
-    "public_assets_verified": false,
-    "promotion_run": null,
-    "assets_prepared": [
+    "tag_object_sha": "6378168d3c272c809157ce6f2b9008a723e2e4d0",
+    "tag_resolved_commit_verified": true,
+    "prerelease": true,
+    "published_at": "2026-11-09T19:34:03Z",
+    "verified_at": "2026-11-09T19:35:56.799Z",
+    "promotion_run": "https://github.com/bei612/stream-kit/actions/runs/42684471877",
+    "promotion_workflow_commit": "bd604bdf6afe6a733ee70f69fb9d89734f8752b3",
+    "promotion_attempt": 1,
+    "build_jobs_skipped": true,
+    "original_product_run": "https://github.com/bei612/stream-kit/actions/runs/42676229242",
+    "public_assets_verified": true,
+    "all_public_asset_sizes_and_server_digests_match_local_verified_artifacts": true,
+    "release_notes_match": true,
+    "release_notes_comparison": "Normalize CRLF to LF only; no other whitespace normalization",
+    "release_notes_sha256": "760c6cebee34b7a74401b226765138a4d367ba2166b98dd865ea84ae45d55f6b",
+    "assets": [
       {
         "name": "stream-kit-preview-3d4f248c00cc-windows-amd64-setup.exe",
         "bytes": 97612840,
-        "sha256": "b0045d2a7bb8651b9157c19c2072ebe1f6bce330d7062aaf95517314821efe51"
+        "sha256": "b0045d2a7bb8651b9157c19c2072ebe1f6bce330d7062aaf95517314821efe51",
+        "server_digest": "sha256:b0045d2a7bb8651b9157c19c2072ebe1f6bce330d7062aaf95517314821efe51"
       },
       {
         "name": "installer-manifest.json",
         "bytes": 2312,
-        "sha256": "e311038de3d9ed0fa3442277165072ed9ab778eb32b811a58e8d4253cd2c7d35"
+        "sha256": "e311038de3d9ed0fa3442277165072ed9ab778eb32b811a58e8d4253cd2c7d35",
+        "server_digest": "sha256:e311038de3d9ed0fa3442277165072ed9ab778eb32b811a58e8d4253cd2c7d35"
       },
       {
         "name": "SHA256SUMS.txt",
         "bytes": 122,
-        "sha256": "4863169781765a306730069acc9fde586bff84821dcd760b4f92192d8b9b73d2"
+        "sha256": "4863169781765a306730069acc9fde586bff84821dcd760b4f92192d8b9b73d2",
+        "server_digest": "sha256:4863169781765a306730069acc9fde586bff84821dcd760b4f92192d8b9b73d2"
       },
       {
         "name": "stream-kit-preview-3d4f248c00cc-ubuntu24.04-amd64-setup.run",
         "bytes": 62480305,
-        "sha256": "a0e235c97831b43c790abd9fe3ab98b81b622839d26f567c57cec816101565da"
+        "sha256": "a0e235c97831b43c790abd9fe3ab98b81b622839d26f567c57cec816101565da",
+        "server_digest": "sha256:a0e235c97831b43c790abd9fe3ab98b81b622839d26f567c57cec816101565da"
       },
       {
         "name": "linux-installer-manifest.json",
         "bytes": 1408,
-        "sha256": "eb84ee5b9aaf24994adc8c0bb74a3e54005751158ed54798b28b6763871b7ff2"
+        "sha256": "eb84ee5b9aaf24994adc8c0bb74a3e54005751158ed54798b28b6763871b7ff2",
+        "server_digest": "sha256:eb84ee5b9aaf24994adc8c0bb74a3e54005751158ed54798b28b6763871b7ff2"
       },
       {
         "name": "Linux-SHA256SUMS.txt",
         "bytes": 126,
-        "sha256": "9f56f834eb0ab94a6ecc878d695974f0d17b0383cf14f0248e4eeaec83e33d2b"
+        "sha256": "9f56f834eb0ab94a6ecc878d695974f0d17b0383cf14f0248e4eeaec83e33d2b",
+        "server_digest": "sha256:9f56f834eb0ab94a6ecc878d695974f0d17b0383cf14f0248e4eeaec83e33d2b"
       },
       {
         "name": "stream-kit-sbom.spdx.json",
         "bytes": 7575028,
-        "sha256": "f4f80c4d6d4d03f0fc925fbd566c43fdfe2554cca90bca492e5094450b63aac0"
+        "sha256": "f4f80c4d6d4d03f0fc925fbd566c43fdfe2554cca90bca492e5094450b63aac0",
+        "server_digest": "sha256:f4f80c4d6d4d03f0fc925fbd566c43fdfe2554cca90bca492e5094450b63aac0"
       }
-    ]
+    ],
+    "anonymous_download_head_checks": {
+      "verified_at": "2026-11-09T19:35:56.799Z",
+      "scope": "Anonymous HTTPS HEAD requests followed public download redirects without an Authorization header; signed redirect URLs are not retained",
+      "assets": [
+        {
+          "name": "stream-kit-preview-3d4f248c00cc-ubuntu24.04-amd64-setup.run",
+          "http_status": 200,
+          "content_length": 62480305,
+          "authorization_header_sent": false,
+          "redirect_destination_retained": false
+        },
+        {
+          "name": "stream-kit-preview-3d4f248c00cc-windows-amd64-setup.exe",
+          "http_status": 200,
+          "content_length": 97612840,
+          "authorization_header_sent": false,
+          "redirect_destination_retained": false
+        }
+      ]
+    }
   },
   "acceptance_product_source_binding": {
     "producer_run_id": 42676229242,
