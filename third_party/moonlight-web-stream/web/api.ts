@@ -232,7 +232,7 @@ export class FetchError extends Error {
             return new FetchError(`failed to fetch ${method} at ${endpoint} because of timeout`)
         } else if (type == "failed") {
             const response = responseOrError as Response
-            const text = await response.text()
+            const text = await readResponseText(response, endpoint, method)
 
             return new FetchError(`failed to fetch ${method} at ${endpoint} with "${response.statusText}"(${response?.status}) ${text ? `and response ${text}` : ""} ${reason ? `because of ${reason}` : ""}`, response)
         } else if (type == "unknown") {
@@ -245,6 +245,16 @@ export class FetchError extends Error {
 
     getResponse(): Response | null {
         return this.response ?? null
+    }
+}
+
+async function readResponseText(response: Response, endpoint: string, method: string): Promise<string> {
+    try {
+        return await response.text()
+    } catch (error) {
+        // Preserve HTTP identity for existing auth/conflict handling even when
+        // reading the body fails. Never replace it with an unclassified error.
+        throw new FetchError(`failed to read ${method} response at ${endpoint} (${response.status} ${response.statusText}) because of ${error}`, response)
     }
 }
 
@@ -557,6 +567,7 @@ export async function apiWebRTCConfiguration(api: Api): Promise<WebRTCConfigurat
     const ENDPOINT = "/host/stream/webrtc"
 
     const [url, request] = await prepareRequest(api, ENDPOINT, OPTIONS)
+    request.signal = AbortSignal.timeout(API_TIMEOUT)
 
     let response
     try {
@@ -566,6 +577,9 @@ export async function apiWebRTCConfiguration(api: Api): Promise<WebRTCConfigurat
     }
 
     if (!response.ok) throw await FetchError.create("failed", ENDPOINT, OPTIONS, response)
+    // OPTIONS carries its configuration in headers, but the successful fetch
+    // still owns a body stream. Finish it before releasing the response.
+    await readResponseText(response, ENDPOINT, OPTIONS)
 
     const iceServers: Array<RTCIceServer> = []
 
@@ -607,12 +621,11 @@ export async function apiWebRTCOffer(api: Api, offerSdp: string): Promise<WebRTC
 
     // 201 == Created
     if (response.status != 201) {
-        const reason = await response.text()
-        throw await FetchError.create("failed", ENDPOINT, POST, response, reason)
+        throw await FetchError.create("failed", ENDPOINT, POST, response)
     }
 
     // Get sdp
-    const answerSdp = await response.text()
+    const answerSdp = await readResponseText(response, ENDPOINT, POST)
 
     // get location, if set
     let location = null
