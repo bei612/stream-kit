@@ -50,6 +50,22 @@ require an explicit new viewing action using a valid permanent link; ending a
 connection does not rotate that link. No invitation is retained in the URL or
 storage.
 
+## Media HTTP response ownership
+
+The Web client finishes reading a successful WHEP `OPTIONS` response before
+returning its header configuration. This metadata request uses the existing API
+timeout; it does not impose that timeout on the potentially longer stream-offer
+startup. The error factory alone reads a rejected offer's body, and the offer
+owner alone reads a successful SDP answer. Body-read failures retain the original
+HTTP response and status for the existing authorization/conflict handling.
+
+This ownership correction is implemented in `92818fba`. Earlier runtime
+`df7cd87b` observed two initial zero-length `200` OPTIONS responses followed by
+browser cancellation while its actual media/control/terminal operations
+completed. Those runs remain failed under the network gate. The correction
+requires a newly built runtime and real CLI verification; it is not established
+by changing error classifications or by compilation alone.
+
 ## Authority snapshots and microphone recovery
 
 Join, heartbeat and resume return the same connection authority snapshot,
