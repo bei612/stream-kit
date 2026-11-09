@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       product_run_id:
-        description: 'Successful owned product run; reuse its exact Linux runtime without rebuilding'
+        description: 'Owned product run with a completed successful Linux job; reuse its exact runtime without rebuilding'
         type: string
         required: true
         default: '42648530658'
