@@ -7,7 +7,7 @@
   "overall_runner_passed": false,
   "core_lifecycle_observations_completed": true,
   "remaining_runner_failure": "Actual SDK media teardown log required",
-  "failure_scope": "The runner reached its final optional SDK-log assertion after all video, authority, terminal UI and subsequent no-reentry observations. No matching SDK teardown entries were observed; the original failed result is preserved. Absence of those entries does not establish that release failed.",
+  "failure_scope": "The runner reached its additional required SDK-log assertion after all video, authority, terminal UI and subsequent no-reentry observations. No matching SDK teardown entries were observed; the original failed result is preserved. Absence of those entries does not establish that release failed.",
   "android": {
     "version": "0.1.0-preview.20261109.6",
     "version_code": 1000013,
@@ -104,7 +104,7 @@
   ],
   "limits": [
     "This is legacy 98e419f7 compatibility evidence, not deployed 4dd34943 or new CONNECTION_TERMINATED protocol acceptance.",
-    "The original runner is not reported as passed; optional direct SDK teardown-log evidence is absent.",
+    "The original runner is not reported as passed; direct SDK teardown-log evidence required by that runner is absent.",
     "No audio, active microphone release, target input, physical Android hardware or long-duration stability acceptance is established here.",
     "Only local-state/UI/API observations establish no reentry during the recorded follow-up window; no complete HTTP request trace is claimed.",
     "Existing CA trust and permanent-link credentials were reused without bypass or disclosure. Screenshots and whitelisted numerical results remain in the ignored local evidence directory."
