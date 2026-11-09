@@ -93,6 +93,32 @@ SBOM. The same-source Windows/Linux product build separately passed in
 Those build/source results have their own scope; the runtime CLI result above
 comes from the actual deployment run rather than compilation alone.
 
+## Live deployment verification sources
+
+The management CLI workflow explicitly selects a closed runtime producer profile.
+The default `unified` profile retains the original owned unified-product source
+restriction and requires its Linux product job to have completed successfully.
+The `standalone-linux` profile accepts only a completed successful owned Linux
+product workflow on `main`, triggered by push or manual dispatch, with its unique
+successful product job bound to the same run and source commit. Existing
+Android/input/native-exit consumers remain restricted to the default unified
+producer; selecting another management profile does not broaden them.
+
+Both profiles reuse the same installer/payload hash checks and platform inventory
+verification. The deployment uses the complete original runtime, including its
+shipped assets, rather than replacing frontend files in another version. The
+receipt records the actual producer profile, workflow/event, job and source
+identity. Publication independently requires the complete unified Windows/Linux
+product and exact Windows installer acceptance to succeed.
+
+The newer CLI checks semantic viewer/controller authority against the visible
+badge and actual verified connection state, using the canonical English/Chinese
+label catalog. Successful viewing also requires the original decoded frame, a
+real renderer with positive dimensions and no blocking modal. On termination it
+checks closed RTC, disabled authority and immediate removal of this stream's
+permission notices. These stronger presentation checks are subsequent work and
+do not retroactively extend the scope of the `92818fba` receipt above.
+
 ## Authority snapshots and microphone recovery
 
 Join, heartbeat and resume return the same connection authority snapshot,

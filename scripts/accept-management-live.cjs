@@ -5,6 +5,7 @@ const https = require('node:https');
 const cp = require('node:child_process');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
+const { pathToFileURL } = require('node:url');
 const privateText = new Set();
 
 function redact(value) {
@@ -64,9 +65,17 @@ async function main() {
     console.log('Configuration validated. No browser, application or service was changed. Add --execute to run live acceptance.');
     return;
   }
+  const [{ en }, { zhCN }] = await Promise.all([
+    import(pathToFileURL(path.join(__dirname, '../third_party/moonlight-web-stream/web/locales/en.ts')).href),
+    import(pathToFileURL(path.join(__dirname, '../third_party/moonlight-web-stream/web/locales/zh-CN.ts')).href),
+  ]);
+  const viewerLocales = [['en', en], ['zh-CN', zhCN]].map(([id, locale]) => ({ id,
+    ...Object.fromEntries(['viewer','controller','viewingEnded','connecting','connectionComplete','controlGranted','controlRevoked','controllerMicrophoneDisabled'].map(key => [key, locale.stream[key]])) }));
+  for (const locale of viewerLocales) assert.ok(Object.values(locale).every(value => typeof value === 'string' && value.length > 0), 'Canonical viewer locale labels are missing');
   fs.mkdirSync(output, { mode: 0o700 });
   const report = { passed: false, base: base.origin, expected_control_commit: configuration.expected_control_commit,
     example_app_id: configuration.example_app_id, started_at: new Date().toISOString(), operations: 'Only explicitly owned Example; no service or network changes' };
+  report.canonical_catalog_languages = viewerLocales.map(locale => locale.id);
   const api = (route, method = 'GET', payload) => new Promise((resolve, reject) => {
     const body = payload === undefined ? undefined : JSON.stringify(payload);
     const request = https.request(new URL('/api/v1' + route, base), { method, ca: fs.readFileSync(ca), headers: { Authorization: `Bearer ${token}`, ...(body === undefined ? {} : {'Content-Type':'application/json','Content-Length':Buffer.byteLength(body)}) }, timeout: 10000 }, response => {
@@ -114,7 +123,7 @@ async function main() {
     cliRun('open', 'about:blank', '--config', browserConfig); opened = true;
     const script = path.join(output, 'live-browser.js');
     const browserOptions = { base: base.origin, appId: example.id, name: example.name, host, app, output,
-      originalArgsSHA256:crypto.createHash('sha256').update(example.args).digest('hex'), candidateArgs:argumentSnapshot.candidate };
+      originalArgsSHA256:crypto.createHash('sha256').update(example.args).digest('hex'), candidateArgs:argumentSnapshot.candidate, viewerLocales };
     fs.writeFileSync(script, `async (page) => { const cfg = ${JSON.stringify(browserOptions)}; return await (${browserAcceptance.toString()})(page, cfg); }`, { mode: 0o600 });
     ownsRun = true;
     const result = cliRun('run-code', '--filename', script);
@@ -125,7 +134,7 @@ async function main() {
     assert.equal((await api('/health')).commit, configuration.expected_control_commit, 'Control source changed during acceptance');
     report.passed = true;
     report.checks = ['trusted HTTPS and exact deployed control commit', 'permanent link visible before launch', 'real Example launch and two decoded WebRTC viewers',
-      'UI grant, transfer and revoke with server authority checks', 'viewer permission projection', 'Example stop; UI argument edit/save and original argument restoration with actual API agreement; read-only history', 'desktop/mobile screenshots and console errors'];
+      'UI grant, transfer and revoke with server authority checks', 'canonical en/zh viewer authority, lifecycle-only connection prompts and ready UI pipelines', 'ended viewers have no stale permission notifications', 'Example stop; UI argument edit/save and original argument restoration with actual API agreement; read-only history', 'desktop/mobile screenshots and console errors'];
   } catch (error) { report.error = redact(error.message); }
   finally {
     if (opened) { try { cliRun('close'); } catch { report.browser_close_failed = true; report.passed = false; } }
@@ -170,6 +179,7 @@ async function main() {
 
 async function browserAcceptance(page, cfg) {
   const errors = [], viewers = [], contexts = [], metrics = [];
+  const viewerLocales = new Map(), roleObservations = [], loadingObservations = [], uiReadiness = [], endedNotifications = [];
   const httpFailures = [], networkFailures = [], responseReads = [], owners = new Map(), requests = new WeakMap(), pendingRequests = new Set(), networkRequests = [], mediaFrames = new Map(), endedStates = new Map(), expectedFailures = new Map();
   let eventOrder = 0, stopping;
   let responseCursor = 0;
@@ -245,10 +255,75 @@ async function browserAcceptance(page, cfg) {
     const matches = (await api('/stream-sessions')).filter(s => s.host_id === cfg.host && s.app_id === cfg.app && s.state !== 'stopped');
     requireTrue(matches.length === 1, 'Expected one shared Example session'); return matches[0];
   };
-  const role = async (target, expected) => waitFor(async () => {
-    for (const frame of target.frames()) { try { const badge = frame.locator('.viewer-authority'); if (await badge.count() && await badge.isVisible()) return badge.innerText(); } catch { /* Frame navigation is expected during entry. */ } }
-    return '';
-  }, text => text === expected, 'Viewer role ' + expected, 20000);
+  const retainLocale = (target, locale) => {
+    const previous = viewerLocales.get(target);
+    requireTrue(!previous || previous.id === locale.id, 'Viewer changed its canonical language group');
+    viewerLocales.set(target, locale);
+  };
+  const observeLoading = async target => {
+    let visible = false;
+    for (const frame of target.frames()) {
+      let text;
+      try {
+        const modal = frame.locator('.modal-video-connect');
+        if (!(await modal.count()) || !(await modal.isVisible())) continue;
+        visible = true; text = (await modal.locator(':scope > p').innerText()).trim();
+      } catch { continue; /* Entry may replace the initial frame. */ }
+      const locale = cfg.viewerLocales.find(value => [value.connecting, value.connectionComplete].includes(text));
+      requireTrue(locale, 'Connection text does not match the en/zh canonical acceptance catalog');
+      retainLocale(target, locale);
+      const observation = {owner:owners.get(target).id,locale:locale.id,phase:text===locale.connecting?'connecting':'complete'};
+      const previous = loadingObservations.filter(value=>value.owner===observation.owner).at(-1);
+      if (!previous || previous.locale!==observation.locale || previous.phase!==observation.phase) loadingObservations.push(observation);
+    }
+    return visible;
+  };
+  const role = async (target, expected) => {
+    requireTrue(['viewer','controller'].includes(expected), 'Unknown semantic viewer role');
+    const result = await waitFor(async () => {
+      await observeLoading(target);
+      for (const frame of target.frames()) {
+        let state;
+        try {
+          const badge = frame.locator('.viewer-authority');
+          if (!(await badge.count()) || !(await badge.isVisible())) continue;
+          state = await badge.evaluate(element => {
+            const authority = globalThis.app?.getStream?.()?.getAuthority?.();
+            return {label:element.textContent.trim(),dataControl:element.getAttribute('data-control'),verified:authority?.verified,control:authority?.control,ended:authority?.ended};
+          });
+        } catch { continue; /* Entry may replace the initial frame. */ }
+        const locale = cfg.viewerLocales.find(value=>state.label===value[expected]);
+        if (!locale) continue;
+        retainLocale(target, locale);
+        if (state.verified===true && state.control===(expected==='controller') && state.ended===false && state.dataControl===String(expected==='controller')) return {locale:locale.id,semantic:expected,verified:state.verified,control:state.control,ended:state.ended,data_control:state.dataControl};
+      }
+      return null;
+    }, Boolean, 'Verified semantic viewer role ' + expected, 20000);
+    roleObservations.push({owner:owners.get(target).id,...result});
+  };
+  const viewerReady = async target => {
+    const state = await waitFor(async () => {
+      if (await observeLoading(target)) return null;
+      const original = mediaFrames.get(target);
+      if (!original || original.isDetached() || !target.frames().includes(original)) return null;
+      const pipeline = await original.evaluate(()=>{
+        const renderer=globalThis.app?.getStream?.()?.getVideoRenderer?.(),rect=renderer?.getStreamRect?.();
+        return {video_renderer_available:!!renderer,width:rect?.width,height:rect?.height};
+      });
+      return {...pipeline,blocking_overlay_visible:await original.locator('#modal-overlay').isVisible()};
+    }, value=>value && value.video_renderer_available && Number.isFinite(value.width) && value.width>0 && Number.isFinite(value.height) && value.height>0 && !value.blocking_overlay_visible, 'Original viewer UI pipeline mounted with visible dimensions and no blocking overlay', 20000);
+    uiReadiness.push({owner:owners.get(target).id,locale:viewerLocales.get(target)?.id,original_frame_present:true,...state});
+  };
+  const noEndedPermissionNotifications = async target => {
+    const labels = cfg.viewerLocales.flatMap(locale=>[locale.controlGranted,locale.controlRevoked,locale.controllerMicrophoneDisabled]);
+    let remaining = 0;
+    for (const frame of target.frames()) {
+      const texts = await frame.locator('.notification-message:visible').allTextContents();
+      remaining += texts.filter(text=>labels.includes(text.trim())).length;
+    }
+    endedNotifications.push({owner:owners.get(target).id,canonical_permission_notification_count:remaining});
+    requireTrue(remaining===0, 'Ended viewer retains a stale canonical permission notification');
+  };
   const observePeers = () => {
     const NativePeer = globalThis.RTCPeerConnection; globalThis.__liveAcceptancePeers = [];
     globalThis.RTCPeerConnection = new Proxy(NativePeer, { construct(target, args) { const peer = Reflect.construct(target, args); globalThis.__liveAcceptancePeers.push(peer); return peer; } });
@@ -272,13 +347,17 @@ async function browserAcceptance(page, cfg) {
         const peers = globalThis.__liveAcceptancePeers || [];
         if (!peers.length) return null;
         const authority = globalThis.app?.getStream?.()?.getAuthority?.();
+        const badge = document.querySelector('.viewer-authority');
         const boolean=value=>typeof value==='boolean'?value:null;
-        return {peers:peers.map(peer=>peer.signalingState),ended:boolean(authority?.ended),verified:boolean(authority?.verified),control:boolean(authority?.control),microphone:boolean(authority?.microphone)};
+        return {peers:peers.map(peer=>peer.signalingState),ended:boolean(authority?.ended),verified:boolean(authority?.verified),control:boolean(authority?.control),microphone:boolean(authority?.microphone),label:badge?.textContent.trim(),data_control:badge?.getAttribute('data-control'),badge_visible:!!badge&&badge.getClientRects().length>0&&getComputedStyle(badge).visibility!=='hidden'};
       });
       if (!state) continue;
-      observed.frames.push({original:frame===original,...state});
+      const {label,...authority} = state;
+      const locale = cfg.viewerLocales.find(value=>label===value.viewingEnded);
+      observed.frames.push({original:frame===original,...authority,locale:locale?.id ?? 'unknown'});
       if(frame===original) originalObserved = true;
-      if (state.ended!==true || state.verified!==false || state.control!==false || state.microphone!==false || state.peers.some(value=>value!=='closed')) return false;
+      if (!locale || state.badge_visible!==true || state.data_control!=='false' || state.ended!==true || state.verified!==false || state.control!==false || state.microphone!==false || state.peers.some(value=>value!=='closed')) return false;
+      retainLocale(target, locale);
     } catch { observed.observation_unavailable=true; return false; } }
     if (originalObserved) {
       const owner=owners.get(target);
@@ -313,17 +392,18 @@ async function browserAcceptance(page, cfg) {
     await waitFor(async () => {
       const list = await api('/stream-sessions'); return list.find(s => s.host_id === cfg.host && s.app_id === cfg.app && s.state !== 'stopped');
     }, s => s && Object.values(s.connections).filter(c => c.state === 'connected').length === 1, 'First viewer');
-    await role(popup, '仅观看');
+    await role(popup, 'viewer');
     const firstDecoded = await waitFor(() => videoMetrics(popup), value => value.frames > 0 && value.bytes > 0, 'First real decoded WebRTC video');
     const firstAdvancing = await waitFor(() => videoMetrics(popup), value => value.frames > firstDecoded.frames && value.bytes > firstDecoded.bytes, 'First advancing video frames');
     metrics.push({ viewer: 'first', samples: [firstDecoded, firstAdvancing] });
+    await viewerReady(popup);
     const first = Object.values((await currentSession()).connections).find(c => c.state === 'connected');
     owners.get(popup).connectionId = first.connection_id;
     const browser = page.context().browser(); requireTrue(browser, 'CLI browser context unavailable');
     const context = await browser.newContext({ ignoreHTTPSErrors: false, viewport: { width: 1280, height: 800 } }); contexts.push(context);
     await context.addInitScript(observePeers);
     const secondPage = await context.newPage(); viewers.push(secondPage); watchErrors(secondPage); await secondPage.goto(watch);
-    await role(secondPage, '仅观看');
+    await role(secondPage, 'viewer');
     const live = await waitFor(currentSession, s => Object.values(s.connections).filter(c => c.state === 'connected').length === 2, 'Two viewers');
     const second = Object.values(live.connections).find(c => c.state === 'connected' && c.connection_id !== first.connection_id);
     requireTrue(second, 'Second independent connection missing');
@@ -331,21 +411,23 @@ async function browserAcceptance(page, cfg) {
     const decoded = await waitFor(() => videoMetrics(secondPage), value => value.frames > 0 && value.bytes > 0, 'Second real decoded WebRTC video');
     const advancing = await waitFor(() => videoMetrics(secondPage), value => value.frames > decoded.frames && value.bytes > decoded.bytes, 'Second advancing video frames');
     metrics.push({ viewer: 'second', samples: [decoded, advancing] });
+    await viewerReady(secondPage);
     await screenshot(secondPage, 'viewer-before-grant');
     await page.goto(cfg.base + '/stream-sessions?app=' + encodeURIComponent(cfg.appId));
     const clientCard = id => page.locator('.client-card').filter({ hasText: id.slice(0, 6).toUpperCase() });
     await clientCard(first.connection_id).getByRole('button', { name: '授予控制权', exact: true }).click();
     await waitFor(currentSession, s => s.controller_connection_id === first.connection_id, 'First controller');
-    await role(popup, '控制者'); await role(secondPage, '仅观看');
+    await role(popup, 'controller'); await role(secondPage, 'viewer');
     await clientCard(second.connection_id).getByRole('button', { name: '转移控制权', exact: true }).click();
     await waitFor(currentSession, s => s.controller_connection_id === second.connection_id, 'Transferred controller');
-    await role(popup, '仅观看'); await role(secondPage, '控制者');
+    await role(popup, 'viewer'); await role(secondPage, 'controller');
+    await viewerReady(secondPage);
     await screenshot(page, 'sessions-transfer-desktop'); await screenshot(secondPage, 'viewer-after-transfer');
     await page.setViewportSize({ width: 390, height: 844 }); await screenshot(page, 'sessions-transfer-mobile');
     requireTrue(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Session page overflows mobile viewport');
     await clientCard(second.connection_id).getByRole('button', { name: '释放控制权', exact: true }).click();
     await waitFor(currentSession, s => !s.controller_connection_id, 'Revoked controller');
-    await role(popup, '仅观看'); await role(secondPage, '仅观看');
+    await role(popup, 'viewer'); await role(secondPage, 'viewer');
     await page.goto(cfg.base + '/apps/' + cfg.appId);
     stopping = {sessionId:live.session_id,order:++eventOrder};
     await page.getByRole('button', { name: '停止串流（含程序）', exact: true }).click();
@@ -355,7 +437,9 @@ async function browserAcceptance(page, cfg) {
       return ended && ended.state === 'stopped' && !ended.controller_connection_id && Object.keys(ended.connections).length === 0;
     }, 'Stopped generation released all clients and authority');
     await waitFor(()=>endedViewer(popup), Boolean, 'First viewer ended with closed RTC and disabled authority', 20000);
+    await noEndedPermissionNotifications(popup);
     await waitFor(()=>endedViewer(secondPage), Boolean, 'Second viewer ended with closed RTC and disabled authority', 20000);
+    await noEndedPermissionNotifications(secondPage);
     await screenshot(secondPage, 'viewer-ended');
     const editor = page.locator('#application-args'), saveButton = page.getByRole('button', {name:'保存',exact:true});
     await waitFor(()=>api('/apps/'+cfg.appId), app=>app.lifecycle?.can_edit===true, 'Stopped Example is editable');
@@ -450,12 +534,12 @@ async function browserAcceptance(page, cfg) {
     requireTrue(networkFailures.length===0, 'Failed API network requests: '+JSON.stringify(networkFailures));
     requireTrue(httpFailures.every(value=>expected.has(value)), 'Unexpected HTTP failure: '+JSON.stringify(httpFailures.filter(value=>!expected.has(value))));
     requireTrue(unexpectedConsole.length===0, 'Unexpected browser console or JavaScript errors: '+JSON.stringify(unexpectedConsole));
-    return JSON.stringify({ result: 'LIVE_MANAGEMENT_ACCEPTANCE_OK', decoded_video_metrics: metrics, stopped_viewers:Object.fromEntries(endedStates), stopped_argument_edit:{saved_via_ui:true,restored_via_ui:true,api_ui_agreement:true}, raw_console_errors:errors.length,unexpected_console_errors:unexpectedConsole.length,pending_viewer_api_requests:viewerPending().length,terminal_followup_requests:followups,network_failures:networkFailures,http_failures:httpFailures.map(value=>({...value,classification:expected.get(value)||'unexpected'})),viewer_requests:networkRequests.filter(value=>value.owner!==owners.get(page).id) });
+    return JSON.stringify({ result: 'LIVE_MANAGEMENT_ACCEPTANCE_OK', decoded_video_metrics: metrics,viewer_role_observations:roleObservations,loading_modal_observations:loadingObservations,ui_pipeline_ready:uiReadiness,ended_permission_notifications:endedNotifications, stopped_viewers:Object.fromEntries(endedStates), stopped_argument_edit:{saved_via_ui:true,restored_via_ui:true,api_ui_agreement:true}, raw_console_errors:errors.length,unexpected_console_errors:unexpectedConsole.length,pending_viewer_api_requests:viewerPending().length,terminal_followup_requests:followups,network_failures:networkFailures,http_failures:httpFailures.map(value=>({...value,classification:expected.get(value)||'unexpected'})),viewer_requests:networkRequests.filter(value=>value.owner!==owners.get(page).id) });
   } catch(error) {
     await drainResponses();
     // Preserve actual partial observations even when an assertion fails. Query
     // strings, fragments, bodies and authentication headers are never recorded.
-    const trace={decoded_video_metrics:metrics,stopped_viewers:Object.fromEntries(endedStates),pending_viewer_api_requests:[...pendingRequests].map(request=>requests.get(request)).filter(value=>value?.owner!==owners.get(page).id),console_errors:errors,network_failures:networkFailures,http_failures:httpFailures.map(value=>({...value,classification:expectedFailures.get(value)||'unclassified'})),viewer_requests:networkRequests.filter(value=>value.owner!==owners.get(page).id)};
+    const trace={decoded_video_metrics:metrics,viewer_role_observations:roleObservations,loading_modal_observations:loadingObservations,ui_pipeline_ready:uiReadiness,ended_permission_notifications:endedNotifications,stopped_viewers:Object.fromEntries(endedStates),pending_viewer_api_requests:[...pendingRequests].map(request=>requests.get(request)).filter(value=>value?.owner!==owners.get(page).id),console_errors:errors,network_failures:networkFailures,http_failures:httpFailures.map(value=>({...value,classification:expectedFailures.get(value)||'unclassified'})),viewer_requests:networkRequests.filter(value=>value.owner!==owners.get(page).id)};
     throw Error(String(error.message)+'\nLive observations: '+JSON.stringify(trace));
   } finally {
     for (const viewer of viewers) await viewer.close().catch(() => {});
