@@ -74,9 +74,14 @@
   "audio_acceptance": {
     "run": 42625838764,
     "url": "https://github.com/bei612/stream-kit/actions/runs/42625838764",
-    "status_at_recording": "in_progress",
-    "passed": null,
-    "scope": "Independent actual Linux runtime, official Android emulator and published 1000010 APK audio-chain acceptance. Result is pending; release and compilation do not imply media acceptance."
+    "status_at_recording": "completed_failure",
+    "passed": false,
+    "failed_stage": "Android initial viewer-role readiness before audio measurement",
+    "failure": "Target input timeout: Android role update",
+    "audio_measurement_reached": false,
+    "owned_target_stop_acknowledged": true,
+    "renderer_restored_idle": true,
+    "scope": "Actual Linux runtime and published 1000010 APK failed the initial role gate; no new audio measurement was reached. Existing observer exported role and bounds only, so the failure does not establish a playback-device root cause. Fixed-state diagnostics are being added to the independent test observer without changing the role deadline or media thresholds."
   },
   "limits": [
     "No completed actual media, input or physical-device acceptance is recorded for this APK in this release receipt.",
