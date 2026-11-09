@@ -41,6 +41,7 @@ export interface RenderSession {
   host_id: number
   app_id: number
   state: 'starting' | 'running' | 'degraded' | 'stopping' | 'stopped'
+  admission_until?: string
   controller_connection_id?: string
   connections: Record<string, SessionConnection>
   audio: SessionAudio

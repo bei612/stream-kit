@@ -193,12 +193,13 @@ export default function StreamSessions() {
           const leaseValid = media.data?.lease_valid && media.data.lease_expires_at_ms > now
           const applied = leaseValid && appliedRevision >= session.revision
           const stopping = session.state === 'stopping'
-          const inactive = !apps.error && app?.status === 'stopped' && observation != null && !observation.upstream_active && online.length === 0
+          const pendingAdmission = session.state === 'starting' && Date.parse(session.admission_until ?? '') > now
+          const inactive = !pendingAdmission && !apps.error && app?.status === 'stopped' && observation != null && !observation.upstream_active && online.length === 0
           return <Card key={session.session_id}>
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4 mb-4">
               <div>
                 <div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-semibold text-card-foreground">{app ? <Link to={`/apps/${app.id}`} className="hover:text-primary">{app.name}</Link> : `应用 ${session.app_id}`}</h3>
-                  <Badge variant={stopping ? 'warning' : observation?.upstream_active ? 'success' : 'muted'}>{stopping ? '正在结束' : inactive ? '已停止 · 待结束' : observation?.upstream_active ? '正在串流' : observation ? '等待串流' : '串流状态待确认'}</Badge>
+                  <Badge variant={stopping ? 'warning' : observation?.upstream_active ? 'success' : 'muted'}>{stopping ? '正在结束' : inactive ? '已停止 · 待结束' : observation?.upstream_active ? '正在串流' : pendingAdmission ? online.length ? '正在建立串流' : '等待客户端接入' : observation ? '等待串流' : '串流状态待确认'}</Badge>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><span>应用状态</span>{app && !apps.error ? <StatusBadge status={app.status} /> : <span>待确认</span>}<span title={session.session_id}>会话 {session.session_id.slice(0, 8)}</span><span>创建于 {formatTime(session.created_at)}</span></div>
               </div>
