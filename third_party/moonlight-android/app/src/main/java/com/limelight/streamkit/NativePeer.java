@@ -8,6 +8,7 @@ import android.os.Handler;
 import android.os.Looper;
 import com.limelight.binding.audio.AndroidAudioRenderer;
 import com.limelight.nvstream.StreamConfiguration;
+import com.limelight.nvstream.jni.MoonBridge;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
@@ -119,6 +120,7 @@ public final class NativePeer implements AutoCloseable {
   private final VideoSink videoSink;
   private final VideoSink guardedSink;
   private final JavaAudioDeviceModule audio;
+  private final StreamConfiguration mediaSettings;
   private final PeerConnectionFactory factory;
   private final PeerConnection peer;
   private final DataChannel negotiationChannel;
@@ -136,13 +138,20 @@ public final class NativePeer implements AutoCloseable {
   private boolean playbackFailureReported;
 
   public NativePeer(Context context, EglBase.Context egl, VideoSink sink,
-      List<PeerConnection.IceServer> iceServers, AuthorityState authority, Listener listener) {
-    this(context, egl, sink, iceServers, authority, listener, new org.json.JSONObject());
+      List<PeerConnection.IceServer> iceServers, AuthorityState authority, Listener listener,
+      StreamConfiguration settings) {
+    this(context, egl, sink, iceServers, authority, listener, settings, new org.json.JSONObject());
   }
   public NativePeer(Context context, EglBase.Context egl, VideoSink sink,
       List<PeerConnection.IceServer> iceServers, AuthorityState authority, Listener listener,
-      org.json.JSONObject viewerSettings) {
+      StreamConfiguration settings, org.json.JSONObject viewerSettings) {
     requireMain();
+    MoonBridge.AudioConfiguration playback =
+        settings == null ? null : settings.getAudioConfiguration();
+    if (playback == null || playback.channelCount != MoonBridge.AUDIO_CONFIGURATION_STEREO.channelCount
+        || playback.channelMask != MoonBridge.AUDIO_CONFIGURATION_STEREO.channelMask)
+      throw new IllegalArgumentException("Managed media requires stereo audio output");
+    mediaSettings = settings;
     microphoneSettings = viewerSettings.optJSONObject("microphoneInput");
     if (microphoneSettings == null)
       microphoneSettings = new org.json.JSONObject();
@@ -169,6 +178,8 @@ public final class NativePeer implements AutoCloseable {
     audio =
         JavaAudioDeviceModule.builder(this.context)
             .setAudioAttributes(AndroidAudioRenderer.createAudioAttributes(false))
+            .setOutputSampleRate(MediaProfile.PLAYBACK_SAMPLE_RATE_HZ)
+            .setUseStereoOutput(mediaSettings.getAudioConfiguration().channelCount == 2)
             .setUseHardwareAcousticEchoCanceler(
                 microphoneSettings.optBoolean("echoCancellation", true)
                 && JavaAudioDeviceModule.isBuiltInAcousticEchoCancelerSupported())
@@ -276,8 +287,9 @@ public final class NativePeer implements AutoCloseable {
     negotiationChannel = peer.createDataChannel("dummy", new DataChannel.Init());
   }
 
-  public void createOffer(long hostId, long appId, StreamConfiguration settings) {
+  public void createOffer(long hostId, long appId) {
     requireMain();
+    StreamConfiguration settings = mediaSettings;
     if (closed || hostId < 1 || appId < 1 || hostId > 0xffffffffL || appId > 0xffffffffL) {
       throw new IllegalArgumentException("Invalid rendering application");
     }

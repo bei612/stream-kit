@@ -186,9 +186,9 @@ public final class ManagedSession implements AutoCloseable {
                 nextHeartbeat = 0;
                 publish();
               }
-            }, preferences);
+            }, settings, preferences);
             peer.audible(audible && playbackEnabled);
-            peer.createOffer(joined.hostId, joined.appId, settings);
+            peer.createOffer(joined.hostId, joined.appId);
           } catch (Exception error) {
             fail("无法初始化本机音视频设备");
           }

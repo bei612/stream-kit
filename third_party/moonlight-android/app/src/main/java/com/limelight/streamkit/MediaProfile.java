@@ -1,6 +1,7 @@
 package com.limelight.streamkit;
 
 import com.limelight.nvstream.StreamConfiguration;
+import com.limelight.nvstream.jni.MoonBridge;
 import org.json.JSONObject;
 import org.webrtc.PeerConnection;
 import java.util.ArrayList;
@@ -9,6 +10,10 @@ import java.util.List;
 import java.util.Map;
 
 final class MediaProfile {
+    // The managed gateway supplies stereo content PCM at this rate. Android
+    // remains responsible for adapting content playback to the output device.
+    static final int PLAYBACK_SAMPLE_RATE_HZ = 48000;
+
     static StreamConfiguration settings(JSONObject profile, int screenWidth, int screenHeight) {
         JSONObject defaults = profile.optJSONObject("default_settings");
         if (defaults == null) defaults = new JSONObject();
@@ -35,6 +40,7 @@ final class MediaProfile {
         int formats = preferredVideoFormats(defaults);
         return new StreamConfiguration.Builder().setResolution(width, height).setRefreshRate(fps)
                 .setSupportedVideoFormats(formats)
+                .setAudioConfiguration(MoonBridge.AUDIO_CONFIGURATION_STEREO)
                 .setBitrate(bitrate).enableLocalAudioPlayback(defaults.optBoolean("playAudioLocal", false)).build();
     }
 
