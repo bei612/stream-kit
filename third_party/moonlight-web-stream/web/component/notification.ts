@@ -30,13 +30,13 @@ export function showNotification(message: string, level: NotificationLevel = "er
 
     let error: NotificationComponent
     if (level == "error") {
-        error = new NotificationComponent(message, ERROR_IMAGE)
+        error = new NotificationComponent(message, ERROR_IMAGE, level)
     } else if (level == "warn") {
-        error = new NotificationComponent(message, WARN_IMAGE)
+        error = new NotificationComponent(message, WARN_IMAGE, level)
     } else if (level === "info") {
-        error = new NotificationComponent(message, INFO_IMAGE)
+        error = new NotificationComponent(message, INFO_IMAGE, level)
     } else {
-        error = new NotificationComponent(`Unknown notification level (\"${level}\") for message: ${message}`, ERROR_IMAGE)
+        error = new NotificationComponent(`Unknown notification level (\"${level}\") for message: ${message}`, ERROR_IMAGE, "error")
     }
 
     notificationListComponent.append(error)
@@ -60,7 +60,7 @@ class NotificationComponent implements Component {
     private messageElement: HTMLElement = document.createElement("p")
     private imageElement: HTMLImageElement = document.createElement("img")
 
-    constructor(message: string, image: string) {
+    constructor(message: string, image: string, private readonly level: NotificationLevel) {
         this.messageElement.innerText = message
         this.messageElement.classList.add("notification-message")
 
@@ -69,10 +69,12 @@ class NotificationComponent implements Component {
     }
 
     mount(parent: Element): void {
+        parent.setAttribute("data-notification-level", this.level)
         parent.appendChild(this.imageElement)
         parent.appendChild(this.messageElement)
     }
     unmount(parent: Element): void {
+        parent.removeAttribute("data-notification-level")
         parent.removeChild(this.imageElement)
         parent.removeChild(this.messageElement)
     }

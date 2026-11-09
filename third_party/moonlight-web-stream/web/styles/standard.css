@@ -496,9 +496,18 @@ input[type=number] {
 
     background: hsl(var(--sk-surface));
     border-radius: 8px;
-    border-left: 3px solid hsl(var(--sk-danger));
     border: 1px solid hsl(var(--sk-border));
+    border-left: 3px solid hsl(var(--sk-danger));
     color: hsl(var(--sk-danger));
+}
+
+.notification-element[data-notification-level="info"] {
+    border-left-color: hsl(var(--sk-primary));
+    color: hsl(var(--sk-text));
+}
+.notification-element[data-notification-level="warn"] {
+    border-left-color: hsl(var(--sk-warning));
+    color: hsl(var(--sk-warning));
 }
 
 .error-image {
