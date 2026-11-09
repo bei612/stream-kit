@@ -757,7 +757,7 @@ mod sdp_error_tests {
         let parser_error = Session::parse(input.as_bytes()).expect_err("invalid version");
         // Use the real parser variant that retains untrusted bytes, so the
         // regression would detect merely changing Display or the HTTP body.
-        assert!(format!("{parser_error:?}").contains(PRIVATE_MARKER));
+        assert!(parser_error.to_string().contains(PRIVATE_MARKER));
         let error = AppError::from(parser_error);
         assert_eq!(error.to_string(), "invalid session description");
         assert_eq!(format!("{error:?}"), "WebRTCSdp");
