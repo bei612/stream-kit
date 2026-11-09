@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-11-09T08:31:29.422Z",
+  "server_source": "47c02726c0161ebdec50911422d62845a9b6e59a",
+  "server_release": "v0.1.0-preview.20261107.1",
+  "android_release": "v0.1.0-android-preview.20261107.1",
+  "android_version_code": 1000007,
+  "apk_sha256": "b0bf538288ddac44d3c920d3b0e26fa2c2447f28d68ddf062784cae580b3a6ee",
+  "device": {
+    "model": "ERAZER M10 4G",
+    "android": 13,
+    "api": 33,
+    "architecture": "arm64-v8a",
+    "network": "physical WLAN, same LAN as server"
+  },
+  "runtime_update": {
+    "passed": true,
+    "scope": "Local three-component maintenance with protected stopped-state backups, not installer in-place-upgrade support.",
+    "first_attempt": "Directory replacement failed; automatic rollback restored prior service. Second attempt explicitly waited for captured owned process exit before moving components.",
+    "apps_preserved": true,
+    "health": {
+      "commit": "47c02726c0161ebdec50911422d62845a9b6e59a",
+      "components": {
+        "sunshine": "running",
+        "web_server": "running"
+      }
+    },
+    "trust_and_todesk_changed_during_runtime_update": false
+  },
+  "tls": {
+    "passed": true,
+    "management": "https://192.168.3.66:9000/",
+    "stable_hostname": "https://volcengine.local:9000/",
+    "root_sha256": "53:0D:8F:21:54:2F:DF:1F:9E:21:BF:F7:DF:9C:78:BC:38:0F:61:93:B6:30:4B:B2:10:99:58:3E:B1:E4:12:77",
+    "windows_machine_root_imported": true,
+    "android_user_ca_installed_through_system_ui": true,
+    "client_certificate_verification_enabled": true,
+    "control_and_gateway_https_ready": true
+  },
+  "media_ports": {
+    "previous": {
+      "min": 60000,
+      "max": 61000
+    },
+    "finding": "Direct Windows UDP bind probes at 60000/60500/61000 failed with 10048; OS-assigned port and 51000/51500/52000 succeeded. No owning UDP endpoint was listed for the original range; cause is not attributed to another product.",
+    "current": {
+      "min": 51000,
+      "max": 52000
+    },
+    "running_revision": "8205b480e84479d972d6bbca2d6636e85c7db336a68e46f0dabf4689c04d5be4",
+    "own_firewall_rule_updated": true,
+    "other_network_configuration_changed": false
+  },
+  "tablet": {
+    "apk_installed": true,
+    "cold_launch_ms": 373,
+    "example_permanent_link_reused": true,
+    "native_video_frame_rendered": true,
+    "upstream_active": true,
+    "upstreams_for_example": 1,
+    "subscribers": 1,
+    "controller_granted": true,
+    "target_mouse_click_count_before": 0,
+    "target_mouse_click_count_after": 2,
+    "keyboard_target_count": 0,
+    "microphone_test_completed": false,
+    "program_audio_test_completed": false
+  },
+  "screenshots": {
+    "connected": {
+      "local_path": ".local/validation/android-tablet-20261109/example-connected.png",
+      "sha256": "88c949a8aadd3b5ccb8f30de384f0ce12180763e1047353509defa7a6fb376fc"
+    },
+    "controller": {
+      "local_path": ".local/validation/android-tablet-20261109/example-control.png",
+      "sha256": "89304bcc45381727dcb759085a4a87d887633c5b21fe6909752defb3a21a3df2"
+    }
+  },
+  "constraints": {
+    "ue_application_not_launched": true,
+    "todesk_unchanged": true,
+    "no_test_payload_added_to_production": true
+  },
+  "remaining": [
+    "User rejected Android UI parity: implement Web-equivalent collapsible controls/settings, keyboard and pointer modes without permanent oversized bars.",
+    "Physical tablet keyboard and audio paths are not yet accepted.",
+    "Actual local host IP-change recovery remains untested; no local network disruption performed."
+  ],
+  "goal_complete": false
+}
