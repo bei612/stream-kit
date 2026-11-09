@@ -3,6 +3,7 @@ import { ERROR_IMAGE, INFO_IMAGE, WARN_IMAGE } from "../resources/index"
 import { ListComponent } from "./list"
 
 type NotificationLevel = "error" | "warn" | "info"
+export type NotificationHandle = { dismiss(): void }
 
 const ERROR_REMOVAL_TIME_MS = 10000
 
@@ -14,7 +15,7 @@ if (notificationListElement) {
 
 let alertedNotificationListNotFound = false
 
-export function showNotification(message: string, level: NotificationLevel = "error", errorObject?: any) {
+export function showNotification(message: string, level: NotificationLevel = "error", errorObject?: any): NotificationHandle {
     if (level === "info") console.info(message, errorObject)
     else if (level === "warn") console.warn(message, errorObject)
     else console.error(message, errorObject)
@@ -25,7 +26,7 @@ export function showNotification(message: string, level: NotificationLevel = "er
             alertedNotificationListNotFound = true
         }
         alert(message)
-        return;
+        return { dismiss() { } };
     }
 
     let error: NotificationComponent
@@ -39,11 +40,19 @@ export function showNotification(message: string, level: NotificationLevel = "er
         error = new NotificationComponent(`Unknown notification level (\"${level}\") for message: ${message}`, ERROR_IMAGE, "error")
     }
 
-    notificationListComponent.append(error)
-
-    setTimeout(() => {
+    let dismissed = false
+    let removalTimer: ReturnType<typeof setTimeout> | undefined
+    const dismiss = () => {
+        if (dismissed) return
+        dismissed = true
+        if (removalTimer !== undefined) clearTimeout(removalTimer)
+        error.removeDismissListener(dismiss)
         notificationListComponent.removeValue(error)
-    }, ERROR_REMOVAL_TIME_MS)
+    }
+    error.addDismissListener(dismiss)
+    notificationListComponent.append(error)
+    removalTimer = setTimeout(dismiss, ERROR_REMOVAL_TIME_MS)
+    return { dismiss }
 }
 
 function handleError(event: ErrorEvent) {
@@ -66,6 +75,15 @@ class NotificationComponent implements Component {
 
         this.imageElement.src = image
         this.imageElement.classList.add("notification-image")
+    }
+
+    addDismissListener(listener: () => void) {
+        this.messageElement.addEventListener("click", listener)
+        this.imageElement.addEventListener("click", listener)
+    }
+    removeDismissListener(listener: () => void) {
+        this.messageElement.removeEventListener("click", listener)
+        this.imageElement.removeEventListener("click", listener)
     }
 
     mount(parent: Element): void {

@@ -4,7 +4,7 @@ import { Component } from "./component/index"
 import { SelectComponent } from "./component/input"
 import { FormModal } from "./component/modal/form"
 import { getModalBackground, Modal, showMessage, showModal } from "./component/modal/index"
-import { showNotification } from "./component/notification"
+import { NotificationHandle, showNotification } from "./component/notification"
 import { getLocalStreamSettings, Settings, TransportType } from "./component/settings_menu"
 import { getSidebarRoot, setSidebar, setSidebarExtended, setSidebarStyle, Sidebar } from "./component/sidebar/index"
 import { adoptRoleDefaultLanguage, getCurrentLanguage, getTranslations, Language, normalizeLanguage } from "./i18n"
@@ -167,6 +167,8 @@ class ViewerApp implements Component {
     private localTouchCursorDiv = document.createElement("div")
     private authorityBadge = document.createElement("div")
     private previousAuthority: ViewerAuthority | null = null
+    private authorityNotification: NotificationHandle | null = null
+    private authorityNotificationOwner: Stream | null = null
     private stream: Stream
 
     private inputConfig: StreamInputConfig = defaultStreamInputConfig()
@@ -305,6 +307,9 @@ class ViewerApp implements Component {
     }
 
     private async startStream(settings: Settings) {
+        this.clearAuthorityNotification()
+        this.previousAuthority = null
+        this.authorityNotificationOwner = this.stream
         setSidebarStyle({
             edge: settings.sidebarEdge,
         })
@@ -352,6 +357,8 @@ class ViewerApp implements Component {
 
             this.armFullscreenOnNextInteraction()
         } else if (data.type == "streamEnded") {
+            this.authorityNotificationOwner = null
+            this.clearAuthorityNotification()
             if (data.graceful) {
                 await showMessage(data.message ?? "The stream was gracefully closed!")
 
@@ -369,17 +376,32 @@ class ViewerApp implements Component {
     private onAuthority(authority: ViewerAuthority) {
         const previous = this.previousAuthority
         this.previousAuthority = authority
-        if (authority.managed && authority.verified && previous?.verified && previous.control !== authority.control) {
-            showNotification(authority.control ? "已获得控制权，可操作应用。麦克风需主动开启。" : "控制权已收回，已停止输入和麦克风，仅可观看。", "info")
+        if (authority.ended) {
+            this.authorityNotificationOwner = null
+        }
+        if (authority.ended || !authority.verified) {
+            this.clearAuthorityNotification()
+        } else if (this.authorityNotificationOwner === this.stream && authority.managed && authority.verified && previous?.verified && previous.control !== authority.control) {
+            this.clearAuthorityNotification()
+            const message = authority.control
+                ? authority.microphone ? I.stream.controlGranted : I.stream.controllerMicrophoneDisabled
+                : I.stream.controlRevoked
+            this.authorityNotification = showNotification(message, "info")
         }
         this.authorityBadge.hidden = !authority.managed
-        this.authorityBadge.innerText = authority.ended ? "观看已结束" : !authority.verified ? "权限确认中" : authority.control ? "控制者" : "仅观看"
+        this.authorityBadge.innerText = authority.ended ? I.stream.viewingEnded : !authority.verified ? I.stream.authorityPending : authority.control ? I.stream.controller : I.stream.viewer
         this.authorityBadge.dataset.control = String(authority.control)
         this.sidebar.onAuthority(authority)
         if (!authority.control) {
             this.screenKeyboard?.setVisible(false)
             if (document.pointerLockElement) void document.exitPointerLock()
         }
+    }
+
+    private clearAuthorityNotification() {
+        const notification = this.authorityNotification
+        this.authorityNotification = null
+        notification?.dismiss()
     }
 
     private focusInput() {
@@ -916,6 +938,8 @@ class ViewerApp implements Component {
         parent.appendChild(this.screenKeyboard.getElement())
     }
     unmount(parent: HTMLElement): void {
+        this.authorityNotificationOwner = null
+        this.clearAuthorityNotification()
         parent.removeChild(this.div)
         parent.removeChild(this.screenKeyboard.getElement())
     }
@@ -937,6 +961,7 @@ class ConnectionInfoModal implements Modal<void> {
     private root = document.createElement("div")
 
     private textTy: LogMessageType | null = null
+    private conditionalErrorDescription: string | null = null
     private text = document.createElement("p")
 
     private options = document.createElement("div")
@@ -992,6 +1017,8 @@ class ConnectionInfoModal implements Modal<void> {
         if (data.type == "connectionComplete") {
             const text = I.stream.connectionComplete
             this.text.innerText = text
+            this.textTy = null
+            this.conditionalErrorDescription = null
             this.debugLog(text)
 
             showModal(null)
@@ -1000,16 +1027,32 @@ class ConnectionInfoModal implements Modal<void> {
             if (message) {
                 this.debugLog(message)
 
-                if (!this.textTy) {
-                    this.text.innerText = message
-                    this.textTy = data.additional?.type ?? null
-                } else if (data.additional?.type == "fatalDescription" || data.additional?.type == "ifErrorDescription") {
-                    if (this.text.innerText) {
+                const type = data.additional?.type
+                // Ordinary transport diagnostics belong in the log details,
+                // not in the lifecycle/error message shown to the viewer.
+                if (type == "fatal") {
+                    // A descriptive failure (for example codec guidance) can
+                    // precede the lower-level fatal. Keep that useful message.
+                    if (this.textTy != "fatalDescription") {
+                        this.text.innerText = message
+                        if (this.conditionalErrorDescription) this.text.innerText += "\n" + this.conditionalErrorDescription
+                        this.textTy = type
+                    }
+                } else if (type == "fatalDescription") {
+                    if (this.textTy == "fatal" || this.textTy == "fatalDescription") {
                         this.text.innerText += "\n" + message
                     } else {
                         this.text.innerText = message
+                        if (this.conditionalErrorDescription) this.text.innerText += "\n" + this.conditionalErrorDescription
                     }
-                    this.textTy = data.additional.type
+                    this.textTy = type
+                } else if (type == "ifErrorDescription") {
+                    this.conditionalErrorDescription = message
+                    if (this.textTy != "fatal" && this.textTy != "fatalDescription") this.text.innerText = I.stream.connecting
+                } else if (type == "recover") {
+                    this.text.innerText = I.stream.connecting
+                    this.textTy = null
+                    this.conditionalErrorDescription = null
                 }
             }
 
@@ -1169,12 +1212,12 @@ class ViewerSidebar implements Component, Sidebar, ScreenKeyboardListener {
 
     onAuthority(authority: ViewerAuthority) {
         this.authorityStatus.hidden = !authority.managed
-        this.authorityStatus.innerText = authority.ended ? "观看已结束，输入和麦克风已关闭。" : !authority.verified ? "正在确认权限，暂时仅观看。" : !authority.control
-            ? "仅观看 · 键盘、鼠标、触控和麦克风由管理员授权后可用。"
-            : authority.microphone ? "控制者 · 可操作应用。麦克风需主动开启。" : "控制者 · 可操作应用，管理员已关闭麦克风权限。"
+        this.authorityStatus.innerText = authority.ended ? I.stream.viewingEndedDetail : !authority.verified ? I.stream.authorityPendingDetail : !authority.control
+            ? I.stream.viewerDetail
+            : authority.microphone ? I.stream.controllerDetail : I.stream.controllerMicrophoneDisabled
         for (const button of [this.keyboardButton, this.sendKeycodeButton, this.lockMouseButton]) {
             button.disabled = !authority.control
-            button.title = authority.control ? "" : "需管理员授予控制权"
+            button.title = authority.control ? "" : I.stream.controlRequired
         }
         this.modes.disabled = !authority.control
         this.modes.inert = !authority.control

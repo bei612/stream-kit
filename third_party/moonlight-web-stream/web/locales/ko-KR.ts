@@ -1,4 +1,4 @@
-import type { Translations } from "./en"
+import { en, type Translations } from "./en"
 
 export const koKR: Translations = {
     index: {
@@ -10,6 +10,7 @@ export const koKR: Translations = {
         rootNotFound: "루트 요소를 찾을 수 없습니다.",
     },
     stream: {
+        ...en.stream,
         missingHostOrApp: "호스트 또는 앱 ID를 찾을 수 없습니다.",
         fullscreenUnsupported: "현재 브라우저에서 전체 화면을 지원하지 않습니다!",
         fullscreenEscapeHint: "전체 화면을 종료하려면 ESC 키를 몇 초간 길게 누르세요.",

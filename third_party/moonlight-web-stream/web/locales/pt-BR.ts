@@ -1,4 +1,4 @@
-import type { Translations } from "./en"
+import { en, type Translations } from "./en"
 
 export const ptBR: Translations = {
     index: {
@@ -10,6 +10,7 @@ export const ptBR: Translations = {
         rootNotFound: "elemento raiz não encontrado",
     },
     stream: {
+        ...en.stream,
         missingHostOrApp: "Nenhum Host ou ID de aplicativo encontrado",
         fullscreenUnsupported: "Tela cheia não é suportada pelo seu navegador!",
         fullscreenEscapeHint: "Para sair da tela cheia, segure ESC por alguns segundos.",

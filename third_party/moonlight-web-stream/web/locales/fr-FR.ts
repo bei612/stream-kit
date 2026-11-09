@@ -1,4 +1,4 @@
-import type { Translations } from "./en"
+import { en, type Translations } from "./en"
 
 export const frFr: Translations = {
     index: {
@@ -10,6 +10,7 @@ export const frFr: Translations = {
         rootNotFound: "Elément racine introuvalbe",
     },
     stream: {
+        ...en.stream,
         missingHostOrApp: "Aucun hôte ou identifiant d'application trouvé",
         fullscreenUnsupported: "Mode plein écran non supporté par votre navigateur !",
         fullscreenEscapeHint: "Pour quitter le mode plein écran, vous devrez maintenir la touche Echap appuyée quelques secondes.",
