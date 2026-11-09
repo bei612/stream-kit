@@ -9,7 +9,10 @@ import android.os.Looper;
 import com.limelight.binding.audio.AndroidAudioRenderer;
 import com.limelight.nvstream.StreamConfiguration;
 import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.webrtc.*;
 import org.webrtc.audio.JavaAudioDeviceModule;
@@ -33,6 +36,7 @@ public final class NativePeer implements AutoCloseable {
                                                   : "等待播放";
     peer.getStats(report -> {
       StringBuilder summary = new StringBuilder();
+      Map<String, Object> audioValues = null;
       for (RTCStats stat : report.getStatsMap().values()) {
         if (!"inbound-rtp".equals(stat.getType()))
           continue;
@@ -50,10 +54,62 @@ public final class NativePeer implements AutoCloseable {
               .append(values.getOrDefault("framesPerSecond", 0))
               .append(" FPS");
         summary.append("\n");
+        if (audioValues == null
+            && ("audio".equals(values.get("kind")) || "audio".equals(values.get("mediaType"))))
+          audioValues = values;
+      }
+      if (audioValues != null) {
+        Object codecId = audioValues.get("codecId");
+        RTCStats codec = codecId instanceof String ? report.getStatsMap().get(codecId) : null;
+        Map<String, Object> format = codec != null && "codec".equals(codec.getType())
+            ? codec.getMembers()
+            : Collections.emptyMap();
+        String codecName = "不可用";
+        Object mime = format.get("mimeType");
+        if (mime instanceof String) {
+          java.util.regex.Matcher name = java.util.regex.Pattern
+                                             .compile("^audio/([A-Za-z][A-Za-z0-9_-]{0,31})$",
+                                                 java.util.regex.Pattern.CASE_INSENSITIVE)
+                                             .matcher((String) mime);
+          if (name.matches())
+            codecName = name.group(1).toUpperCase(Locale.ROOT);
+        }
+        summary.append("音频编码 · ")
+            .append(codecName)
+            .append(" · 时钟 ")
+            .append(statisticCount(format.get("clockRate"), " Hz"))
+            .append(" · 声道 ")
+            .append(statisticCount(format.get("channels"), ""))
+            .append("\n音频样本 · 接收 ")
+            .append(statisticCount(audioValues.get("totalSamplesReceived"), ""))
+            .append(" · 补偿样本 ")
+            .append(statisticCount(audioValues.get("concealedSamples"), ""))
+            .append(" · 累计时长 ")
+            .append(statisticDecimal(audioValues.get("totalSamplesDuration"), "%.2f", " s"))
+            .append(" · 累计能量 ")
+            .append(statisticDecimal(audioValues.get("totalAudioEnergy"), "%.3g", ""))
+            .append("\n");
       }
       summary.append("播放 · ").append(playback);
-      post(() -> result.accept(summary.length() == 0 ? "等待媒体数据" : summary.toString().trim()));
+      post(() -> result.accept(summary.toString().trim()));
     });
+  }
+  private static String statisticCount(Object value, String unit) {
+    if (!(value instanceof Number))
+      return "不可用";
+    double count = ((Number) value).doubleValue();
+    if (Double.isNaN(count) || Double.isInfinite(count) || count < 0
+        || count > 9007199254740991d || count != Math.floor(count))
+      return "不可用";
+    return Long.toString(((Number) value).longValue()) + unit;
+  }
+  private static String statisticDecimal(Object value, String format, String unit) {
+    if (!(value instanceof Number))
+      return "不可用";
+    double number = ((Number) value).doubleValue();
+    if (Double.isNaN(number) || Double.isInfinite(number) || number < 0 || number > 1e12)
+      return "不可用";
+    return String.format(Locale.ROOT, format, number) + unit;
   }
   private static boolean initialized;
   private final Context context;
