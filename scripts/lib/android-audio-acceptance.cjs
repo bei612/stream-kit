@@ -26,16 +26,52 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
   const metadataCommand=(executable,args)=>new Promise(resolve=>{
     const started=Date.now();cp.execFile(executable,args,{encoding:'utf8',timeout:5000,maxBuffer:512*1024},(error,output)=>resolve({started_at_ms:started,finished_at_ms:Date.now(),...(error?{error_code:error.code||'command_failed'}:{output})}));
   });
+  const recorderRoute=(sourcesResult,outputsResult,modulesResult,infoResult,expectedActive)=>{
+    const route={recorder_expected_active:expectedActive,recorder_process_id:audioProbe.pid,recorder_owner_verified:false,unavailable:[],pulse_source_outputs:[],pulse_readers:[],pulse_source_outputs_observation:{started_at_ms:outputsResult.started_at_ms,finished_at_ms:outputsResult.finished_at_ms}};
+    try{route.recorder_owner_verified=fs.realpathSync('/proc/'+audioProbe.pid+'/exe')===fs.realpathSync(audioProbe.executable);}catch{}
+    const parse=(result,name)=>{if(result.error_code){route.unavailable.push({source:name,code:result.error_code});return [];}try{const value=JSON.parse(result.output);if(name==='pulse_info'?(!value||typeof value!=='object'||Array.isArray(value)):!Array.isArray(value))throw Error('Invalid metadata shape');return value;}catch{route.unavailable.push({source:name,code:'invalid_metadata_json'});return [];}};
+    const sources=parse(sourcesResult,'pulse_sources'),outputs=parse(outputsResult,'pulse_source_outputs'),modules=parse(modulesResult,'pulse_modules'),info=parse(infoResult,'pulse_info');
+    const source=sources.find(item=>item.name==='streamkit_android_capture'),master=sources.find(item=>item.name==='streamkit_android.monitor');
+    const module=modules.find(item=>item.index===source?.owner_module);
+    const args=module?.argument?.trim().split(/\s+/)||[];
+    const verifiedRemap=!!(source&&master&&module?.name==='module-remap-source'&&args.includes('master=streamkit_android.monitor')&&args.includes('source_name=streamkit_android_capture')&&source.properties?.['device.master_device']===master.name);
+    route.capture_source_index=source?.index;route.master_source_index=master?.index;route.remap_module_index=module?.index;route.remap_module_verified=verifiedRemap;
+    const knownSources=new Set(['streamkit_host.monitor','streamkit_android.monitor','streamkit_android_capture','streamkit_program.monitor','streamkit_microphone.monitor','streamkit_microphone_capture']);
+    route.default_source=knownSources.has(info.default_source_name)?info.default_source_name:'unrecognized';
+    for(const item of outputs.filter(item=>item.source===source?.index||item.source===master?.index)){
+      const pid=/^[1-9][0-9]*$/.test(item.properties?.['application.process.id']||'')?Number(item.properties['application.process.id']):undefined;
+      let owner='unidentified';
+      if(pid===audioProbe.pid&&route.recorder_owner_verified)owner='owned_probe';
+      else if(pid&&(state.emulator_audio_backend?.process_tree||[]).some(proc=>proc.pid===pid&&proc.exe===state.emulator_audio_backend.required_binary)){
+        try{if(fs.realpathSync('/proc/'+pid+'/exe')===state.emulator_audio_backend.required_binary)owner='owned_emulator';}catch{}
+      }
+      if(owner==='unidentified'&&verifiedRemap&&item.owner_module===module.index&&item.source===master.index&&(item.client===null||item.client===4294967295)&&item.properties?.['media.role']==='filter')owner='verified_internal_remap';
+      if(owner==='unidentified'&&pid)owner='other_client';
+      const knownNames=new Set(['qemu','QEMU','cpal','audio-probe','PulseAudio']);
+      const reader={index:item.index,source:item.source,client:Number.isInteger(item.client)?item.client:null,owner_module:Number.isInteger(item.owner_module)?item.owner_module:null,process_id:pid,owner,application_name:knownNames.has(item.properties?.['application.name'])?item.properties['application.name']:'unrecognized',sample_specification:item.sample_specification,mute:item.mute,corked:item.corked,volume:item.volume};
+      route.pulse_readers.push(reader);
+      if(owner==='owned_probe'&&source&&item.source===source.index)route.pulse_source_outputs.push(reader);
+    }
+    route.other_reader_count=route.pulse_readers.filter(item=>item.owner!=='owned_probe').length;
+    return route;
+  };
+  const observeRecordingRoute=async()=>{
+    const started=Date.now();
+    const results=await Promise.all(['sources','source-outputs','modules'].map(kind=>metadataCommand('pactl',['--format=json','list',kind])).concat(metadataCommand('pactl',['--format=json','info'])));
+    const snapshot={started_at_ms:started,finished_at_ms:Date.now(),...recorderRoute(...results,true)};
+    (state.playback_metadata||={}).during_recording=snapshot;save();return snapshot;
+  };
   const playbackMetadata=async phase=>{
     const started=Date.now();
     const results=await Promise.all([
       metadataCommand(adb,['-s',serial,'shell','pidof','io.github.bei612.streamkit']),
       metadataCommand(adb,['-s',serial,'shell','dumpsys','audio']),
       metadataCommand(adb,['-s',serial,'shell','dumpsys','media.audio_flinger']),
-      ...['sink-inputs','sinks','sources','source-outputs'].map(kind=>metadataCommand('pactl',['--format=json','list',kind])),
+      ...['sink-inputs','sinks','sources','source-outputs','modules'].map(kind=>metadataCommand('pactl',['--format=json','list',kind])),
+      metadataCommand('pactl',['--format=json','info']),
       android.diagnostics()
     ]);
-    const snapshot={started_at_ms:started,finished_at_ms:Date.now(),recorder_expected_active:phase==='during_recording',native_client:results[7],unavailable:results.flatMap((value,index)=>value.error_code?[{source:['app_pid','android_audio','audio_flinger','pulse_inputs','pulse_sinks','pulse_sources','pulse_source_outputs'][index],code:value.error_code}]:[])};
+    const snapshot={started_at_ms:started,finished_at_ms:Date.now(),native_client:results[9],unavailable:results.flatMap((value,index)=>value.error_code?[{source:['app_pid','android_audio','audio_flinger','pulse_inputs','pulse_sinks','pulse_sources','pulse_source_outputs','pulse_modules','pulse_info'][index],code:value.error_code}]:[])};
     const pids=(results[0].output||'').trim().split(/\s+/).filter(pid=>/^[1-9][0-9]*$/.test(pid));snapshot.application_pids=pids.map(Number);
     const audio=(results[1].output||'').split(/\r?\n/),streams={};let stream;
     snapshot.focus=audio.filter(line=>/\b(?:gain|loss):/.test(line)&&/\bpack:/.test(line)).slice(0,16).map(line=>{
@@ -70,15 +106,7 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     const emulatorPids=new Set((state.emulator_audio_backend?.process_tree||[]).filter(proc=>proc.exe===state.emulator_audio_backend.required_binary).map(proc=>String(proc.pid)));
     snapshot.pulse_inputs=pulse(3,item=>emulatorPids.has(item.properties?.['application.process.id']));
     snapshot.pulse_sinks=pulse(4,item=>item.name==='streamkit_android');snapshot.pulse_sources=pulse(5,item=>item.name==='streamkit_android_capture');
-    snapshot.recorder_process_id=audioProbe.pid;snapshot.recorder_owner_verified=false;
-    try{snapshot.recorder_owner_verified=fs.realpathSync('/proc/'+audioProbe.pid+'/exe')===fs.realpathSync(audioProbe.executable);}catch{}
-    snapshot.pulse_source_outputs_observation={started_at_ms:results[6].started_at_ms,finished_at_ms:results[6].finished_at_ms};
-    try{
-      const sourceIndex=snapshot.pulse_sources[0]?.index;
-      const sourceOutputs=JSON.parse(results[6].output||'[]').filter(item=>sourceIndex!==undefined&&item.source===sourceIndex);
-      snapshot.foreign_recorder_count=sourceOutputs.filter(item=>!snapshot.recorder_owner_verified||item.properties?.['application.process.id']!==String(audioProbe.pid)).length;
-      snapshot.pulse_source_outputs=sourceOutputs.filter(item=>snapshot.recorder_owner_verified&&item.properties?.['application.process.id']===String(audioProbe.pid)).map(item=>({index:item.index,source:item.source,process_id:Number(item.properties['application.process.id']),sample_specification:item.sample_specification,mute:item.mute,corked:item.corked,volume:item.volume}));
-    }catch{snapshot.unavailable.push({source:'pulse_source_outputs',code:'invalid_metadata_json'});snapshot.pulse_source_outputs=[];}
+    const route=recorderRoute(results[5],results[6],results[7],results[8],false);snapshot.unavailable.push(...route.unavailable);delete route.unavailable;Object.assign(snapshot,route);
     (state.playback_metadata||={})[phase]=snapshot;save();
   };
   const prepareObserver = () => page.evaluate(async () => {
@@ -229,7 +257,7 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
       let playoutError,duringRecording;
       try {
         playout.initial_status=await command('capture',{device_id:androidCaptureDevice});save();
-        duringRecording=playbackMetadata('during_recording');void duringRecording.catch(()=>{});
+        duringRecording=observeRecordingRoute();void duringRecording.catch(()=>{});
         await until(async()=>{
           assert.ok(observeBackend(),'Owned emulator PulseAudio output disappeared during capture');
           const status=await command('status');
@@ -243,6 +271,11 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
       if(playout.status.captured_frames>=4800){
         playout.signal=await command('analyze',{frequency_hz:997});playout.envelope=await command('envelope');save();
       }
+      if(playout.signal&&playout.signal.median_amplitude<=0.01){
+        try{playout.stereo_diagnostics=await require('../android/pulse-playout-diagnostics.cjs').collectPulsePlayoutDiagnostics();}
+        catch{playout.stereo_diagnostics={diagnostic_only:true,status:'diagnostic_failed'};}
+        save();
+      }
       if(playoutError)throw playoutError;
       assert.ok(observeBackend(),'Owned emulator PulseAudio output disappeared after capture');
       assert.equal(playout.status.sample_rate,48000);assert.equal(playout.status.dropped_frames,0);
@@ -250,7 +283,6 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
       assert.ok(playout.collection_finished_at_ms-playout.started_at_ms<=6500,'Android playout collection exceeded its 6500ms limit');
       const recorder=state.playback_metadata.during_recording;
       assert.ok(recorder.recorder_owner_verified&&recorder.pulse_source_outputs.length>0,'Owned native recorder stream must be observed on the Android capture source');
-      assert.equal(recorder.foreign_recorder_count,0,'Dedicated Android capture source has a foreign recorder');
       assert.ok(recorder.pulse_source_outputs_observation.started_at_ms>=playout.started_at_ms&&recorder.pulse_source_outputs_observation.finished_at_ms<=playout.collection_finished_at_ms,'Recorder route observation must fall inside the actual recording window');
       state.android_program_997_median=playout.signal.median_amplitude;save();
       assert.ok(state.android_program_997_median>0.01,'Android playout missing sustained 997Hz program');

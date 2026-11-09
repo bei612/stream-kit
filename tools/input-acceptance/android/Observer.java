@@ -174,7 +174,12 @@ public final class Observer extends Instrumentation {
         result.putString("statistics_available", "false");
         result.putString("reason", "root_unavailable");
         try {
-            snapshot();
+            long rootDeadline = android.os.SystemClock.elapsedRealtime() + 2000;
+            do {
+                snapshot();
+                if ("client".equals(rootKind)) break;
+                android.os.SystemClock.sleep(50);
+            } while (android.os.SystemClock.elapsedRealtime() < rootDeadline);
             if (!"client".equals(rootKind)) return result;
             closeStatistics = statisticsVisible;
             if (!openToolbar()) { result.putString("reason", "toolbar_unavailable"); return result; }
