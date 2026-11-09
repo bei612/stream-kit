@@ -144,7 +144,7 @@ const result = {
   schemaVersion: 2, fixture_only: true, host_changed: false, avd_serial: serial,
   stream: 3, before: null, after: null, min: null, max: null, set_attempts: 0,
   set_interface: 'cmd audio set-volume', get_interface: 'cmd media_session volume --get',
-  shell_uid: null, set_command_supported: false,
+  shell_uid: null, audio_service_before: null, set_command_supported: false,
   timeout_ms: 5000, elapsed_ms: 0, observation_attempts: 0, observations_count: 0, observations: [],
   phase: 'avd_identity',
   status: 'pending', failure_class: null,
@@ -198,21 +198,30 @@ async function calibrate() {
       ['StreamKit_Audio_CI']);
     result.shell_uid = Number(adb(['shell', 'id', '-u']).trim());
     if (result.shell_uid !== 2000) fail('MEDIA_VOLUME_FIXTURE_IDENTITY_INVALID');
-    result.phase = 'set_interface_check';
-    const help = adb(['shell', 'cmd', 'audio', 'help']);
-    if (!/^\s*set-volume\s+STREAM_TYPE\s+VOLUME_INDEX\s*$/m.test(help))
-      fail('MEDIA_VOLUME_COMMAND_UNAVAILABLE');
-    result.set_command_supported = true;
     result.phase = 'before_get';
     const before = getVolume();
     Object.assign(result, {before: before.current, min: before.min, max: before.max});
     save();
+    // Android 16's handler does not route an explicit "help" subcommand to
+    // onHelp. Query its real read-only API instead of treating empty help as
+    // evidence that the setter is missing. No privilege changes are attempted.
+    result.phase = 'audio_service_get';
+    const serviceOutput = adb(['shell', 'cmd', 'audio', 'get-stream-volume', '3']);
+    const serviceMatch = serviceOutput.match(/^AudioManager\.getStreamVolume\(3\) -> (\d+)\s*$/m);
+    if (!serviceMatch) fail('MEDIA_VOLUME_COMMAND_UNAVAILABLE');
+    result.audio_service_before = Number(serviceMatch[1]);
+    save();
+    if (result.audio_service_before !== before.current) fail('MEDIA_VOLUME_READERS_DISAGREE');
     // Set once. Observe actual state until the deadline, rather than retrying
     // writes or assuming that a successful shell status means volume changed.
     result.set_attempts = 1;
     result.phase = 'set';
     save();
-    adb(['shell', 'cmd', 'audio', 'set-volume', '3', String(before.max)]);
+    const setOutput = adb(['shell', 'cmd', 'audio', 'set-volume', '3', String(before.max)]);
+    if (setOutput.trim() !== 'calling AudioManager.setStreamVolume(3, ' + before.max + ', 0)')
+      fail('MEDIA_VOLUME_COMMAND_UNAVAILABLE');
+    result.set_command_supported = true;
+    save();
     const observedAt = performance.now(), deadline = observedAt + result.timeout_ms;
     result.phase = 'after_get';
     while (performance.now() < deadline) {
