@@ -15,7 +15,9 @@ if (notificationListElement) {
 let alertedNotificationListNotFound = false
 
 export function showNotification(message: string, level: NotificationLevel = "error", errorObject?: any) {
-    console.error(message, errorObject)
+    if (level === "info") console.info(message, errorObject)
+    else if (level === "warn") console.warn(message, errorObject)
+    else console.error(message, errorObject)
 
     if (!notificationListElement) {
         if (!alertedNotificationListNotFound) {
@@ -31,7 +33,7 @@ export function showNotification(message: string, level: NotificationLevel = "er
         error = new NotificationComponent(message, ERROR_IMAGE)
     } else if (level == "warn") {
         error = new NotificationComponent(message, WARN_IMAGE)
-    } else if (level = "info") {
+    } else if (level === "info") {
         error = new NotificationComponent(message, INFO_IMAGE)
     } else {
         error = new NotificationComponent(`Unknown notification level (\"${level}\") for message: ${message}`, ERROR_IMAGE)
