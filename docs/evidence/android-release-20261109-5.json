@@ -86,24 +86,78 @@
       "run": 42643666290,
       "url": "https://github.com/bei612/stream-kit/actions/runs/42643666290",
       "status_at_task_dispatch": "in_progress",
-      "completed_result_verified": false,
-      "passed": null,
+      "completed_result_verified": true,
+      "passed": false,
       "apk_sha256": "b1a17f2c3b3e5c1fa852af7ac68f7366558a2faae9a89abc5d6b29f63bf40802",
-      "scope": "Same published APK; a completed actual result must be reviewed before counting acceptance."
-    }
+      "scope": "The fixture read 5/15 throughout 13 successful observations. Its final deadline-limited read timed out. The APK was not installed or entered, so no actual audio-chain measurement was obtained.",
+      "status_at_recording": "completed",
+      "conclusion": "failure",
+      "app_entered": false,
+      "acoustic_result_available": false,
+      "audio_chain_passed": null,
+      "failure_phase": "disposable_avd_media_volume_fixture",
+      "failure_class": "MEDIA_VOLUME_COMMAND_TIMEOUT",
+      "acceptance_source_commit": "bd3d6d3284019a9a5a2dbd9ef7408bc02e89f8f2",
+      "volume_evidence_path": ".local/ci-android-audio-42643666290/android-audio-evidence/media-volume.json",
+      "volume_evidence_sha256": "9b80760f7c93ddd039eca6bb74c51ca4cd5ffe4622c1e0834c4b810a0f8f7404",
+      "fixture_summary": {
+        "before": 5,
+        "after": 5,
+        "min": 0,
+        "max": 15,
+        "set_attempts": 1,
+        "elapsed_ms": 5104,
+        "observation_attempts": 14,
+        "observations_count": 13,
+        "observed_values": [
+          5
+        ]
+      }
+    },
+    "same_apk_interface_probe": {
+      "run": 42648498466,
+      "url": "https://github.com/bei612/stream-kit/actions/runs/42648498466",
+      "status_at_recording": "completed",
+      "conclusion": "failure",
+      "passed": false,
+      "app_entered": false,
+      "acoustic_result_available": false,
+      "audio_chain_passed": null,
+      "apk_sha256": "b1a17f2c3b3e5c1fa852af7ac68f7366558a2faae9a89abc5d6b29f63bf40802",
+      "acceptance_source_commit": "df7cd87b3352a638aa3a6aa7073d39074c02a43c",
+      "failure_phase": "disposable_avd_audio_shell_capability_probe",
+      "failure_class": "MEDIA_VOLUME_COMMAND_UNAVAILABLE",
+      "volume_evidence_path": ".local/ci-android-audio-42648498466/android-audio-evidence/media-volume.json",
+      "volume_evidence_sha256": "60e30466335299fb41dc2156eae1e504cd60c6382a77b089d65cc687fe4778c6",
+      "fixture_summary": {
+        "shell_uid": 2000,
+        "set_attempts": 0,
+        "observations_count": 0
+      },
+      "scope": "The explicit cmd audio help probe returned no supported-command output; Android 16 does not route that subcommand to onHelp. This fixture defect prevented any setter call or APK entry. It was corrected separately to a real getter and setter acknowledgement; this failed run does not establish an APK audio failure."
+    },
+    "actual_in_app_audio_result_available": false
   },
   "limits": [
     "Publication and packaging checks do not prove that Android playback silence is fixed.",
     "Official disposable CI AVD volume calibration is acceptance-only; the production APK does not set system volume or force a speaker route.",
     "Older APK input, physical-device, human-speech and stability evidence does not replace this version acceptance.",
     "The separate server installer remains 6546792a; local maintenance is control/gateway 98e419f7 plus renderer 47c02726.",
-    "Example, probes, raw audio, emulator tools, credentials and signing private keys are excluded from the APK."
+    "Example, probes, raw audio, emulator tools, credentials and signing private keys are excluded from the APK.",
+    "All three recorded 1000012 attempts stopped in disposable CI volume fixtures before APK entry. Their job failures are preserved, but no in-app audio failure or success is attributed to this APK."
   ],
   "local_evidence_inputs": [
     ".local/validation/android-1000012-release.json",
     "artifacts/android-release/provenance.json",
     ".local/validation/android-1000012-sign-build.log",
     "deploy/releases/0.1.0-android-preview.20261109.5.md",
-    ".local/validation/android-audio-42637432848-job.log"
-  ]
+    ".local/validation/android-audio-42637432848-job.log",
+    ".local/ci-android-audio-42643666290/android-audio-evidence/media-volume.json",
+    ".local/ci-android-audio-42643666290/android-input-evidence/provenance.json",
+    ".local/ci-android-audio-42648498466/android-audio-evidence/media-volume.json",
+    ".local/ci-android-audio-42648498466/android-input-evidence/provenance.json",
+    ".local/validation/android-audio-42643666290-job.log",
+    ".local/validation/android-audio-42648498466-job.log"
+  ],
+  "last_updated_at": "2026-11-09T16:07:06.986Z"
 }
