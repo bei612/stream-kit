@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-11-09T09:15:34.710855+00:00",
+  "source_commit": "29a6c70874d2e75af9ffe3d49886e9d3b7c323b5",
+  "release": "v0.1.0-android-preview.20261109.1",
+  "version_code": 1000008,
+  "apk_sha256": "063e89d02522ec143ecbbafd1756cd71c58d561d2cada36e611fb9c59e265836",
+  "ci": {
+    "url": "https://github.com/bei612/stream-kit/actions/runs/42590943776",
+    "conclusion": "success",
+    "release_jvm_tests": 19,
+    "authority_link_protocol_checks": 36
+  },
+  "physical_device": {
+    "model": "ERAZER M10 4G",
+    "android": 13,
+    "release_apk_upgrade_installed": true,
+    "signed_with_existing_identity": true,
+    "example_native_video": true,
+    "permanent_bottom_bar_removed": true,
+    "collapsible_toolbar": true,
+    "mouse_and_touch_mode_selectors": true,
+    "local_cursor_drawn": true,
+    "native_ime_visible": true,
+    "entire_video_fits_above_ime_in_immersive_mode": true,
+    "settings_visible": true,
+    "saved_preferences_survive_upgrade": true,
+    "ui_settings_save_kept_connection_on_initial_candidate": true
+  },
+  "input_evidence_boundary": "Example key and click counters reached 1 during the initial candidate run; subsequent final-candidate attempts did not reliably increase both counters. Native Windows target delivery is not newly accepted by this UI receipt. Existing isolated CI input evidence retains its own source/environment boundary.",
+  "not_exercised": [
+    "Physical external mouse pointer capture and every gesture",
+    "All microphone devices and processing toggles",
+    "Physical tablet program-audio/microphone acceptance",
+    "Host IP change without client CA reinstall"
+  ],
+  "screenshots": {
+    "release-keyboard": {
+      "local_path": ".local/validation/android-viewer-20261109/release-keyboard.png",
+      "sha256": "7e32b481e7b51643284ee9ec77e770d75085bd90858e25c12172ff53a505f680"
+    },
+    "release-cursor-actual": {
+      "local_path": ".local/validation/android-viewer-20261109/release-cursor-actual.png",
+      "sha256": "d1e6873ea06b0044462a1c8d870e1a2425b51ff35d8730d1f0db202f3dbc777f"
+    },
+    "latest-state": {
+      "local_path": ".local/validation/android-viewer-20261109/latest-state.png",
+      "sha256": "2861c58fba989e933655e9d0bfe58b44279c126373a9815aa3379eed31fa8245"
+    }
+  },
+  "constraints": {
+    "ue_not_started": true,
+    "todesk_unchanged": true,
+    "test_payload_not_in_apk": true
+  },
+  "goal_complete": false
+}
