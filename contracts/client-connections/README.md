@@ -66,6 +66,11 @@ completed. Those runs remain failed under the network gate. The correction
 requires a newly built runtime and real CLI verification; it is not established
 by changing error classifications or by compilation alone.
 
+The six source CI jobs for `92818fba` passed in
+[run 42664556318](https://github.com/bei612/stream-kit/actions/runs/42664556318):
+management Web, Windows/Linux control, Windows/Linux media gateway and source
+SBOM. This source result does not close the outstanding runtime CLI gate.
+
 ## Authority snapshots and microphone recovery
 
 Join, heartbeat and resume return the same connection authority snapshot,
