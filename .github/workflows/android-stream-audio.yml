@@ -1,0 +1,98 @@
+name: android-stream-audio-acceptance
+on:
+  workflow_dispatch:
+    inputs:
+      product_run_id:
+        description: 'Owned product run with a completed successful Linux installer job'
+        type: string
+        required: true
+        default: '42599646248'
+      android_release_tag:
+        description: 'Published signed Android release tag to test without rebuilding'
+        type: string
+        required: true
+        default: 'v0.1.0-android-preview.20261109.2'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  native-android-web-audio:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PRODUCT_RUN_ID: ${{ inputs.product_run_id }}
+      ANDROID_RELEASE_TAG: ${{ inputs.android_release_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.4.0'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: dtolnay/rust-toolchain@1.99.0
+      - uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: '16111833'
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - name: Download explicitly selected owned runtime and published signed APK
+        run: |
+          set -euo pipefail
+          [[ "$PRODUCT_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$ANDROID_RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-android-preview\.[0-9]+(\.[0-9]+)*$ ]]
+          mkdir -p artifacts/input-download
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PRODUCT_RUN_ID" > artifacts/input-download/product-run.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PRODUCT_RUN_ID/jobs?filter=latest&per_page=100" > artifacts/input-download/product-jobs.json
+          commit=$(node scripts/verify-input-acceptance-sources.mjs product-run)
+          gh run download "$PRODUCT_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "linux-product-installer-$commit" --dir artifacts/input-product
+          cp artifacts/input-product/installer/installer-manifest.json artifacts/input-download/
+          cp artifacts/input-product/installer/*-setup.run artifacts/input-download/
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$ANDROID_RELEASE_TAG" > artifacts/input-download/android-release.json
+          gh api "repos/$GITHUB_REPOSITORY/commits/$ANDROID_RELEASE_TAG" > artifacts/input-download/android-source.json
+          gh release download "$ANDROID_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.apk' --pattern provenance.json --pattern sbom.cdx.json --dir artifacts/input-download
+          node scripts/verify-input-acceptance-sources.mjs downloads
+          dpkg-deb -x artifacts/input-download/runtime.deb artifacts/input-runtime
+          node -e "const fs=require('fs'),a=require('assert/strict');a.equal(JSON.parse(fs.readFileSync('artifacts/input-runtime/opt/stream-kit/platform-manifest.json')).commit,JSON.parse(fs.readFileSync('artifacts/input-download/installer-manifest.json')).commit)"
+      - name: Prepare isolated capture, TLS and official Android dependencies
+        run: |
+          set -euo pipefail
+          # Dependency names come only from the verified published package.
+          mapfile -t dependencies < <(dpkg-deb -f artifacts/input-download/runtime.deb Depends | tr ',' '\n' | sed -E 's/^[[:space:]]*([a-z0-9+.-]+).*/\1/')
+          for dependency in "${dependencies[@]}"; do [[ "$dependency" =~ ^[a-z0-9][a-z0-9+.-]*$ ]]; done
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends "${dependencies[@]}" libx11-dev x11-utils xvfb xauth xdotool openbox pulseaudio libnss3-tools libasound2-dev libpulse-dev pulseaudio-utils
+          artifacts/input-runtime/opt/stream-kit/orchestrator/orchestrator verify-platform artifacts/input-runtime/opt/stream-kit
+          npm ci --prefix third_party/moonlight-web-stream --ignore-scripts --no-audit --no-fund
+          npm ci --prefix scripts/android/emulator-audio --ignore-scripts --no-audit --no-fund
+          android --sdk="$ANDROID_HOME" sdk install 'emulator' 'system-images;android-36;google_apis;x86_64' 'platforms;android-36' 'build-tools;36.0.0'
+          node scripts/verify-input-acceptance-sources.mjs apk
+          mkdir -p artifacts/input-example
+          cc -std=c11 -O2 -Wall -Wextra -Werror tools/audio-acceptance/x11-program.c -lX11 -lm -o artifacts/input-example/x11-audio-program
+          cargo build --locked --release --manifest-path components/audio-target/Cargo.toml --bin audio-probe
+          probe_dir=$(cargo metadata --locked --no-deps --format-version 1 --manifest-path components/audio-target/Cargo.toml | python3 -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])')
+          cp "$probe_dir/release/audio-probe" artifacts/input-example/audio-probe
+          bash tools/input-acceptance/android/build.sh
+      - name: Verify real Android program audio, microphone routing and revocation
+        timeout-minutes: 12
+        run: bash scripts/ci-android-stream-audio.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-stream-audio-evidence
+          path: |
+            artifacts/android-audio-evidence/
+            artifacts/android-input-evidence/
+            artifacts/input-download/product-run.json
+            artifacts/input-download/product-jobs.json
+            artifacts/input-download/android-release.json
+            artifacts/input-download/android-source.json
+            artifacts/input-download/provenance.json
+            artifacts/input-download/sbom.cdx.json
+            artifacts/input-download/installer-manifest.json
+            artifacts/source-stream/**/result.json
+            artifacts/source-stream/**/example.log
+          if-no-files-found: warn
+          retention-days: 14

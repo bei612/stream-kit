@@ -12,12 +12,26 @@ public final class Observer extends Instrumentation {
     private String role = "other";
     private final Rect window = new Rect();
     private int visited;
+    private String requestedClick;
 
-    @Override public void onCreate(Bundle arguments) { super.onCreate(arguments); start(); }
+    @Override public void onCreate(Bundle arguments) {
+        super.onCreate(arguments);
+        if (arguments != null && "click".equals(arguments.getString("action"))) {
+            requestedClick = arguments.getString("target");
+            if (!"打开串流工具栏".equals(requestedClick) && !"麦克风已关闭".equals(requestedClick))
+                throw new IllegalArgumentException();
+        }
+        start();
+    }
 
     @Override public void onStart() {
         Bundle result = new Bundle();
         try {
+            if (requestedClick != null) {
+                result.putString("clicked", String.valueOf(clickDescription(requestedClick)));
+                finish(Activity.RESULT_OK, result);
+                return;
+            }
             // A streaming UI need not become globally idle. Observe its current
             // accessibility tree through the public instrumentation API instead.
             snapshot();
@@ -67,7 +81,8 @@ public final class Observer extends Instrumentation {
 
     private boolean clickDescription(AccessibilityNodeInfo node, String description, int depth) {
         if (++visited > 512 || depth > 32) throw new IllegalStateException();
-        if (node.isVisibleToUser() && node.isEnabled() && node.isClickable() && description.contentEquals(String.valueOf(node.getContentDescription())))
+        if (node.isVisibleToUser() && node.isEnabled() && node.isClickable()
+                && (description.contentEquals(String.valueOf(node.getContentDescription())) || description.contentEquals(String.valueOf(node.getText()))))
             return node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
         for (int index = 0; index < node.getChildCount(); index++) {
             AccessibilityNodeInfo child = node.getChild(index);

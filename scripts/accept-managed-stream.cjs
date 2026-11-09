@@ -30,6 +30,7 @@ for (const file of ['stream.html', 'stream.js', 'index.html']) {
 }
 const applicationExample = process.argv.includes('--example') ? argument('--example') : null;
 const verifyInput = process.argv.includes('--verify-input');
+const androidAudio = process.argv.includes('--android-audio');
 const androidSerial = process.argv.includes('--android-serial') ? process.argv[process.argv.indexOf('--android-serial')+1] : null;
 const tlsDirectory = process.argv.includes('--tls-dir') ? argument('--tls-dir') : null;
 const androidAdb = process.argv.includes('--android-adb') ? argument('--android-adb') : 'adb';
@@ -64,7 +65,7 @@ const ue5Build=ue5Project?verifiedUE5Build(ue5Project):null;
 assert.ok(microphoneSource!=='physical'||targetRecording,'Physical microphone acceptance requires native target recording');
 const remoteTarget = process.argv.includes('--remote-target');
 assert.ok(!remoteTarget || targetRecording, 'Remote target requires explicit recording endpoints');
-assert.ok(!targetRecording || (targetRender && targetCapture && targetProbe && microphoneTest), 'Target recording requires both explicit endpoint IDs, --audio-probe and --microphone-tone');
+assert.ok(!targetRecording || (targetRender && targetCapture && targetProbe && (microphoneTest || androidAudio)), 'Target recording requires both explicit endpoint IDs, --audio-probe and an audio acceptance mode');
 let virtualAudioIdentity = null;
 if (process.argv.includes('--virtual-audio-identity')) {
   assert.ok(process.platform === 'win32' && targetRecording, 'Virtual audio acceptance requires Windows and explicit recording endpoints');
@@ -96,7 +97,8 @@ assert.ok(!microphoneTest || clientCount === 2, 'Microphone isolation acceptance
 assert.ok(Number.isInteger(clientCount) && clientCount >= 2 && clientCount <= 20);
 assert.ok(Number.isInteger(holdSeconds) && holdSeconds >= 0 && holdSeconds <= 86400);
 assert.ok(!verifyInput || (['win32','linux'].includes(process.platform) && applicationExample && clientCount===2 && holdSeconds===0 && !microphoneTest && !restartServices && !applyManagedEncoder && !applyManagedGateway && !serviceControl), 'Input acceptance requires an isolated two-viewer native application case without other acceptance modes');
-assert.ok(!androidSerial || (verifyInput && tlsDirectory), 'Android input acceptance requires trusted native HTTPS and input mode');
+assert.ok(!androidSerial || ((verifyInput || androidAudio) && tlsDirectory), 'Android acceptance requires trusted native HTTPS and an explicit mode');
+assert.ok(!androidAudio || (androidSerial && !verifyInput && !microphoneTest && targetRecording && applicationExample && holdSeconds === 0 && clientCount === 2 && process.platform === 'linux' && !restartServices && !serviceControl && !targetSwitch && !remoteTarget && !stopActive && !applyManagedEncoder && !applyManagedGateway && !expireClientLease), 'Android audio requires an isolated Linux target/recorder, two clients, and no other input, microphone or recovery case');
 assert.ok(programToneCount<=30000,'Example tone budget must cover startup and the full hold interval');
 const scratch = process.argv.includes('--scratch') ? argument('--scratch') : path.join(root, '.local/managed-acceptance');
 const output = process.argv.includes('--output-dir') ? argument('--output-dir') : path.join(root, 'artifacts/managed-acceptance', new Date().toISOString().replace(/[:.]/g, '-'));
@@ -114,6 +116,7 @@ if (applicationExample) {
 }
 if (verifyInput) result.scope = 'Actual Web keyboard/pointer input into the owned native Example and transfer/revocation; no repeated audio or stability acceptance, no Android claim.';
 if (androidSerial) result.scope = 'Actual published Android/Web input into an isolated native target over trusted HTTPS; no repeated audio/stability or physical-device claim.';
+if (androidAudio) result.scope = 'Published Android default microphone, real Linux recorder and Web observer; program audio and revocation via official emulator audio RPCs; synthetic source, not physical speech';
 if (targetRecording) result.scope = 'Real browser test microphone uplink, shared broadcast and explicit target input recording with authorization/revocation checks requested; completion is recorded separately. No UE5, physical microphone or Linux capture claim.';
 if(ue5Build)result.scope='Browser-generated/file test microphone through the product route, shared audience broadcast and actual UE5 native recording, including authorization/revocation. No physical microphone, human speech or business UE project claim.';
 if(microphoneSource==='physical')result.scope='Physical browser microphone uplink, native target input recording, simultaneous program/audio broadcast and authority rejection requested; completion is recorded separately. No UE5, WAN or permission-prompt claim.';
@@ -449,7 +452,7 @@ async function main() {
       save();
     }
   }
-  if (microphoneTest) await api(`/stream-sessions/${invite.session_id}/audio`, 'PATCH', {
+  if (microphoneTest || androidAudio) await api(`/stream-sessions/${invite.session_id}/audio`, 'PATCH', {
     expected_audio: (await api(`/stream-sessions/${invite.session_id}`)).audio,
     program_gain_db: applicationExample ? 0 : -60, microphone_gain_db: 0, microphone_enabled: true,
     broadcast_controller_microphone: true, controller_monitor: false,
@@ -618,7 +621,15 @@ async function main() {
   result.shared_observation = observed;
   const current = await api(`/stream-sessions/${invite.session_id}`);
   if(androidSerial){
-    await require('./lib/android-input-acceptance.cjs').verifyAndroidInput({android,page:pages[0],api,sessionId:invite.session_id,app:ownedApp,example:applicationExample,report:result,save});
+    if(androidAudio) {
+      await require('./lib/android-audio-acceptance.cjs').verifyAndroidAudio({android,adb:androidAdb,serial:androidSerial,page:pages[0],api,sessionId:invite.session_id,app:ownedApp,example:applicationExample,audioProbe,captureDevice:targetCapture,grpcConfig:argument('--android-grpc-config'),sdk:process.env.ANDROID_HOME,report:result,save});
+      assert.equal(result.android_audio.passed,true);
+      result.target_recording.measurements={baseline:result.android_audio.baseline,android_controller:result.android_audio.authorized,android_revoked:result.android_audio.revoked};
+      result.target_recording.passed=true;
+      assert.deepEqual(pageErrors,[]);
+      result.upstream_connections=(fs.readFileSync(path.join(output,'gateway.log'),'utf8').match(/: connected control stream\r?\n/g)||[]).length;
+      assert.equal(result.upstream_connections,1,'Android and Web must share one actual upstream');
+    } else await require('./lib/android-input-acceptance.cjs').verifyAndroidInput({android,page:pages[0],api,sessionId:invite.session_id,app:ownedApp,example:applicationExample,report:result,save});
     result.gateway_sha256=sha(gatewayBinary);result.orchestrator_sha256=sha(orchestratorBinary);result.passed=true;
     return; // This mode ends after its own cross-client assertions and common cleanup.
   }
