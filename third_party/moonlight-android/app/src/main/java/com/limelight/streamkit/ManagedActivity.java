@@ -63,6 +63,9 @@ public final class ManagedActivity extends Activity {
   public void onCreate(Bundle state) {
     super.onCreate(state);
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    getWindow().setSoftInputMode(Build.VERSION.SDK_INT >= 30
+            ? WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
+            : WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
     preferences = new ViewerSettings(this);
     chrome = new ViewerChrome(this);
     chrome.configure(preferences);
@@ -354,7 +357,7 @@ public final class ManagedActivity extends Activity {
         sendKey(key);
       }
     });
-    chrome.root.addView(remoteKeyboard, new FrameLayout.LayoutParams(1, 1, Gravity.BOTTOM));
+    chrome.root.addView(remoteKeyboard, new FrameLayout.LayoutParams(1, 1, Gravity.TOP));
     chrome.keyboard.setOnClickListener(view -> {
       if (session.canControl()) {
         chrome.close();

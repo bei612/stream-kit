@@ -35,6 +35,16 @@ final class ViewerChrome {
     this.activity = activity;
     root = new FrameLayout(activity);
     root.setBackgroundColor(Color.BLACK);
+    if (Build.VERSION.SDK_INT >= 30) {
+      root.setOnApplyWindowInsetsListener((view, insets) -> {
+        // Resize the complete video viewport above the IME, including immersive mode.
+        // A one-pixel editor must not make Android pan the entire stream off screen.
+        int keyboard = insets.isVisible(android.view.WindowInsets.Type.ime())
+            ? insets.getInsets(android.view.WindowInsets.Type.ime()).bottom : 0;
+        view.setPadding(0, 0, 0, keyboard);
+        return insets;
+      });
+    }
     media = new FrameLayout(activity);
     root.addView(media, new FrameLayout.LayoutParams(-1, -1));
     entry = column();

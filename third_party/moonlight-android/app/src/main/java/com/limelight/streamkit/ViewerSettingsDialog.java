@@ -30,6 +30,15 @@ final class ViewerSettingsDialog {
     JSONObject custom = settings.snapshot().optJSONObject("videoSizeCustom");
     EditText width = number("自定义宽度", custom == null ? 0 : custom.optInt("width"));
     EditText height = number("自定义高度", custom == null ? 0 : custom.optInt("height"));
+    android.view.View[] customFields = {content.getChildAt(content.getChildCount()-4), width,
+        content.getChildAt(content.getChildCount()-2), height};
+    resolution.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+      public void onNothingSelected(AdapterView<?> parent) {}
+      public void onItemSelected(AdapterView<?> parent, android.view.View view, int position, long id) {
+        for(android.view.View field:customFields)
+          field.setVisibility("custom".equals(sizes[position])?android.view.View.VISIBLE:android.view.View.GONE);
+      }
+    });
     EditText fps = number("帧率（1–240 FPS，留空使用服务器配置）", settings.number("fps", 0));
     EditText bitrate = number("码率（Kbps，留空使用服务器配置）", settings.number("bitrate", 0));
     String[] codecs = {"", "h264", "h265", "av1", "auto"};
