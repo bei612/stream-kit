@@ -1,5 +1,8 @@
 //! Example-owned audio diagnostics. JSON-lines over inherited pipes only.
 //! No device opens until an explicit command; EOF releases every stream.
+#[path = "audio_probe/analysis.rs"]
+mod analysis;
+
 use cpal::{
     DeviceId, SampleFormat,
     traits::{DeviceTrait, HostTrait, StreamTrait},
@@ -303,7 +306,7 @@ impl Probe {
                     return Err("Stop recording before analyzing recorded audio".into());
                 }
                 let recording = self.recording.lock().map_err(|_| "Recording unavailable")?;
-                return stream_kit_audio_target::analysis::analyze_envelope(&recording.samples)
+                return analysis::analyze_envelope(&recording.samples)
                     .map(|analysis| json!(analysis))
                     .map_err(str::to_owned);
             }
@@ -316,8 +319,7 @@ impl Probe {
                     .ok_or("Specify an analysis frequency")?;
                 let recording = self.recording.lock().map_err(|_| "Recording unavailable")?;
                 let analysis =
-                    stream_kit_audio_target::analysis::analyze_tone(&recording.samples, frequency)
-                        .map_err(str::to_owned)?;
+                    analysis::analyze_tone(&recording.samples, frequency).map_err(str::to_owned)?;
                 return Ok(json!(analysis));
             }
             "stop" => {

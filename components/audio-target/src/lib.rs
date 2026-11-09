@@ -1,7 +1,6 @@
 //! Native rendering-node microphone output. A route names both sides of a
 //! provisioned virtual device; opening it never changes system default devices.
 pub mod admission;
-pub mod analysis;
 mod pcm;
 pub mod remote;
 #[cfg(feature = "network")]

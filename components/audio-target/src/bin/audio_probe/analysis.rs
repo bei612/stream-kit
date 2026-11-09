@@ -56,10 +56,13 @@ pub struct ToneAnalysis {
     pub windows: usize,
     pub peak_amplitude: f64,
     pub mean_amplitude: f64,
+    pub median_amplitude: f64,
 }
 
 /// Measures coherent tone amplitude in non-overlapping 100 ms Hann windows.
-/// Peak detects a short test signal; mean also includes recorded silence.
+/// Peak detects a short test signal; mean and median include recorded silence.
+/// Median measures the steady level without allowing a few loud windows to
+/// stand in for sustained output. Even counts average the two middle values.
 /// This is a diagnostic measurement, not automatic end-to-end acceptance.
 pub fn analyze_tone(samples: &[f32], frequency_hz: f64) -> Result<ToneAnalysis, &'static str> {
     if !frequency_hz.is_finite() || !(20.0..=20_000.0).contains(&frequency_hz) {
@@ -75,6 +78,7 @@ pub fn analyze_tone(samples: &[f32], frequency_hz: f64) -> Result<ToneAnalysis, 
     let mut peak: f64 = 0.0;
     let mut sum = 0.0;
     let mut windows = 0;
+    let mut amplitudes = Vec::with_capacity(samples.len() / WINDOW);
     for samples in samples.as_chunks::<WINDOW>().0 {
         let (mut previous, mut older, mut weight_sum) = (0.0, 0.0, 0.0);
         for (index, sample) in samples.iter().enumerate() {
@@ -89,8 +93,16 @@ pub fn analyze_tone(samples: &[f32], frequency_hz: f64) -> Result<ToneAnalysis, 
         let amplitude = 2.0 * power.sqrt() / weight_sum;
         peak = peak.max(amplitude);
         sum += amplitude;
+        amplitudes.push(amplitude);
         windows += 1;
     }
+    amplitudes.sort_by(f64::total_cmp);
+    let middle = windows / 2;
+    let median = if windows % 2 == 0 {
+        (amplitudes[middle - 1] + amplitudes[middle]) / 2.0
+    } else {
+        amplitudes[middle]
+    };
     Ok(ToneAnalysis {
         frequency_hz,
         sample_rate: RATE,
@@ -98,6 +110,7 @@ pub fn analyze_tone(samples: &[f32], frequency_hz: f64) -> Result<ToneAnalysis, 
         windows,
         peak_amplitude: peak,
         mean_amplitude: sum / windows as f64,
+        median_amplitude: median,
     })
 }
 
@@ -105,12 +118,45 @@ pub fn analyze_tone(samples: &[f32], frequency_hz: f64) -> Result<ToneAnalysis, 
 mod tests {
     use super::*;
     fn tone(hz: f64, amplitude: f64) -> Vec<f32> {
-        (0..RATE)
+        tone_frames(hz, amplitude, RATE)
+    }
+    fn tone_frames(hz: f64, amplitude: f64, frames: usize) -> Vec<f32> {
+        (0..frames)
             .map(|i| {
                 (amplitude * (std::f64::consts::TAU * hz * i as f64 / RATE as f64 + 0.37).sin())
                     as f32
             })
             .collect()
+    }
+
+    #[test]
+    fn four_seconds_of_steady_tone_has_the_expected_median() {
+        let result = analyze_tone(&tone_frames(997.0, 0.08, RATE * 4), 997.0).unwrap();
+        assert_eq!(result.windows, 40);
+        assert_eq!(result.analyzed_frames, RATE * 4);
+        assert!((result.median_amplitude - 0.08).abs() < 0.001);
+        assert!((result.mean_amplitude - 0.08).abs() < 0.001);
+    }
+
+    #[test]
+    fn a_few_loud_windows_do_not_satisfy_a_sustained_tone_measurement() {
+        let mut samples = vec![0.0; RATE * 4];
+        samples[..WINDOW * 5].copy_from_slice(&tone_frames(997.0, 0.08, WINDOW * 5));
+        let result = analyze_tone(&samples, 997.0).unwrap();
+        assert_eq!(result.windows, 40);
+        assert!(result.peak_amplitude > 0.079);
+        assert!(result.median_amplitude < 0.001);
+    }
+
+    #[test]
+    fn median_averages_even_middle_windows_and_selects_the_odd_middle() {
+        let mut samples = tone_frames(997.0, 0.04, WINDOW * 20);
+        samples.extend(tone_frames(997.0, 0.08, WINDOW * 20));
+        assert!((analyze_tone(&samples, 997.0).unwrap().median_amplitude - 0.06).abs() < 0.001);
+        let mut odd = tone_frames(997.0, 0.08, WINDOW);
+        odd.extend(tone_frames(997.0, 0.02, WINDOW));
+        odd.extend(tone_frames(997.0, 0.04, WINDOW));
+        assert!((analyze_tone(&odd, 997.0).unwrap().median_amplitude - 0.04).abs() < 0.001);
     }
 
     #[test]
