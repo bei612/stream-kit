@@ -1,3 +1,7 @@
+// Retired historical VM fixture with substituted input, statistics and media objects.
+// It bypasses the real Stream constructor and is retained for provenance only.
+// Actual pipeline/stop behavior requires version-matched running viewers; this
+// fixture is excluded from mandatory CI and is not production acceptance evidence.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'

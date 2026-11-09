@@ -257,9 +257,9 @@ jobs:
       - run: node --test ../../scripts/test-query-ordering.mjs ../../scripts/test-go-test-failures.mjs ../../scripts/test-go-notices.mjs ../../scripts/test-cargo-notices.mjs ../../scripts/test-windows-usb-audio-driver.mjs ../../scripts/test-control-build-target.mjs ../../scripts/test-platform-packaging.mjs ../../scripts/test-product-release.mjs
       - run: node --experimental-strip-types --test ../../scripts/test-frontend-notices.mjs
       - run: node --test ../../scripts/test-audio-playback-lifecycle.mjs ../../scripts/test-realtime-track-writer.mjs ../../scripts/test-opus-audio.mjs ../../scripts/test-audio-envelope.cjs
-      # Historical media-access/authority/bootstrap/WebRTC VM fixtures are
+      # Historical media-access/authority/bootstrap/WebRTC/pipeline VM fixtures are
       # archived, not conformance gates. Keep native Go and real browser checks.
-      - run: node --experimental-strip-types --test ../../scripts/test-microphone-capture.mjs ../../scripts/test-microphone-sender.mjs ../../scripts/test-media-observation.mjs ../../scripts/test-session-overview.mjs ../../scripts/test-websocket-lifecycle.mjs ../../scripts/test-management-websocket.mjs ../../scripts/test-canvas-lifecycle.mjs ../../scripts/test-stream-pipelines.mjs ../../scripts/test-decoder-lifecycle.mjs ../../scripts/test-browser-condition.cjs
+      - run: node --experimental-strip-types --test ../../scripts/test-microphone-capture.mjs ../../scripts/test-microphone-sender.mjs ../../scripts/test-media-observation.mjs ../../scripts/test-session-overview.mjs ../../scripts/test-websocket-lifecycle.mjs ../../scripts/test-management-websocket.mjs ../../scripts/test-canvas-lifecycle.mjs ../../scripts/test-decoder-lifecycle.mjs ../../scripts/test-browser-condition.cjs
       - name: Install locked browser test tooling
         run: npm ci --ignore-scripts
         working-directory: third_party/moonlight-web-stream
