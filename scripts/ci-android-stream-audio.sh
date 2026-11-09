@@ -55,6 +55,8 @@ export PULSE_RUNTIME_PATH="$scratch/pulse-runtime" PULSE_STATE_PATH="$scratch/pu
 export PULSE_SERVER="unix:$scratch/pulse.sock"
 cat > "$scratch/pulse.pa" <<EOF
 load-module module-null-sink sink_name=streamkit_host rate=48000 channels=2
+load-module module-null-sink sink_name=streamkit_android rate=48000 channels=2
+load-module module-remap-source master=streamkit_android.monitor source_name=streamkit_android_capture
 load-module module-null-sink sink_name=streamkit_program rate=48000 channels=2
 load-module module-null-sink sink_name=streamkit_microphone rate=48000 channels=2
 load-module module-remap-source master=streamkit_microphone.monitor source_name=streamkit_microphone_capture
@@ -79,7 +81,7 @@ wm_pid=$!
 
 sudo chmod a+rw /dev/kvm
 avdmanager create avd --name StreamKit_Audio_CI --package 'system-images;android-36;google_apis;x86_64' --device pixel_6 <<< no
-"$ANDROID_HOME/emulator/emulator" -avd StreamKit_Audio_CI -port 5580 -memory 4096 -no-snapshot -no-boot-anim -gpu swiftshader -grpc 8554 -grpc-use-token \
+PULSE_SINK=streamkit_android "$ANDROID_HOME/emulator/emulator" -avd StreamKit_Audio_CI -port 5580 -memory 4096 -no-snapshot -no-boot-anim -gpu swiftshader -grpc 8554 -grpc-use-token \
   > "$evidence/emulator.log" 2>&1 &
 emulator_pid=$!
 export STREAM_KIT_AUDIO_EMULATOR_ROOT_PID="$emulator_pid"

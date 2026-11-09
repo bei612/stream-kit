@@ -8,13 +8,4 @@ function assertContinuousInjection(source, previousPackets) {
   assert.ok(source.packets > previousPackets, 'Synthetic microphone packets did not advance during the measurement');
 }
 
-// AudioPacket may omit a repeated format; any explicitly supplied format must
-// agree with the requested mono S16LE/48kHz format before decoding its PCM.
-function validMonoPCM(packet) {
-  const format = packet.format;
-  return Buffer.isBuffer(packet.audio) && packet.audio.length % 2 === 0 &&
-    (!format || Number(format.samplingRate) === 0 ||
-      (Number(format.samplingRate) === 48000 && format.channels === 0 && format.format === 1));
-}
-
-module.exports = { assertContinuousInjection, validMonoPCM };
+module.exports = { assertContinuousInjection };

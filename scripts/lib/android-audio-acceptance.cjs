@@ -1,12 +1,12 @@
-// Official AVD microphone injection and output capture, with real native target
-// recording and a real Web observer. No capture/transport API is replaced.
+// Official AVD microphone injection, actual isolated PulseAudio playout and
+// native target recording, with a real Web observer. No product API is replaced.
 const fs = require('node:fs'), path = require('node:path'), cp = require('node:child_process');
 const assert = require('node:assert/strict');
 const { once } = require('node:events');
 const { setTimeout: delay } = require('node:timers/promises');
 const grpc = require('../android/emulator-audio/node_modules/@grpc/grpc-js');
 const loader = require('../android/emulator-audio/node_modules/@grpc/proto-loader');
-const { assertContinuousInjection, validMonoPCM } = require('./emulator-audio-evidence.cjs');
+const { assertContinuousInjection } = require('./emulator-audio-evidence.cjs');
 
 async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, app, example, audioProbe, captureDevice, grpcConfig, sdk, report, save }) {
   assert.equal(process.platform, 'linux'); assert.equal(process.env.GITHUB_ACTIONS, 'true');
@@ -81,14 +81,7 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     state[phase] = { started_at_ms:started, stopped_at_ms:stopped, injection_packets_at_start:packetsAtStart, injection_packets_at_stop:source.packets, signal, program_997: foreign, envelope, status }; save();
     if(measurementError)throw measurementError;return signal;
   };
-  let injection, sending = false, sender, injectionDone, injectionError, native, playback, playbackDone;
-  const cancelPlayback = async reason => {
-    if(!playback)return;
-    const rpc=state.android_playback_rpc;
-    if(!rpc.ended_at_ms){rpc.cancellation_requested=true;rpc.cancellation_reason=reason;rpc.cancellation_at_ms=Date.now();playback.cancel();}
-    if(playbackDone)await playbackDone;
-    save();
-  };
+  let injection, sending = false, sender, injectionDone, injectionError, native;
   const source = { packets: 0, senderEnded: false, rpcEnded: false, error: undefined };
   const stopWrites = new AbortController();
   try {
@@ -109,14 +102,14 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     state.program_process_tree = { parent_pid:owned.process_id, audio_pid:owned.audio_process_id, pulse_sink_input_index:stream[0].index, pulse_sink:stream[0].sink }; save();
     const sinkCatalog = JSON.parse(cp.execFileSync('pactl', ['--format=json','list','sinks'], { encoding:'utf8', timeout:5000 }));
     const sinkIndex = name => { const found=sinkCatalog.filter(s=>s.name===name); assert.equal(found.length,1,'Required isolated audio sink missing: '+name); return found[0].index; };
-    const hostSink=sinkIndex('streamkit_host'),programSink=sinkIndex('streamkit_program'),microphoneSink=sinkIndex('streamkit_microphone');
-    assert.equal(new Set([hostSink,programSink,microphoneSink]).size,3);
+    const hostSink=sinkIndex('streamkit_host'),androidSink=sinkIndex('streamkit_android'),programSink=sinkIndex('streamkit_program'),microphoneSink=sinkIndex('streamkit_microphone');
+    assert.equal(new Set([hostSink,androidSink,programSink,microphoneSink]).size,4);
     assert.equal(stream[0].sink,programSink,'Actual program child must render only to the program sink');
     const rootPid=process.env.STREAM_KIT_AUDIO_EMULATOR_ROOT_PID;
     assert.match(rootPid||'',/^[1-9][0-9]*$/,'Owned emulator launcher PID is required');
     const expectedEmulator=fs.realpathSync(path.join(sdk,'emulator/qemu/linux-x86_64/qemu-system-x86_64'));
-    state.emulator_audio_backend={required_binary:expectedEmulator,launcher_pid:Number(rootPid),required_sink:'streamkit_host',status:'waiting_for_real_pulse_output',started_at_ms:Date.now()};save();
-    try { await until(()=>{
+    state.emulator_audio_backend={required_binary:expectedEmulator,launcher_pid:Number(rootPid),required_sink:'streamkit_android',status:'waiting_for_real_pulse_output',started_at_ms:Date.now()};save();
+    const observeBackend=()=>{
       const processes=[];
       for(const entry of fs.readdirSync('/proc')){
         if(!/^[1-9][0-9]*$/.test(entry))continue;
@@ -134,59 +127,48 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
       const emulatorPids=new Set(tree.filter(proc=>proc.exe===expectedEmulator).map(proc=>String(proc.pid)));
       const actualInputs=JSON.parse(cp.execFileSync('pactl',['--format=json','list','sink-inputs'],{encoding:'utf8',timeout:5000}));
       const emulatorInputs=actualInputs.filter(item=>emulatorPids.has(item.properties?.['application.process.id']));
+      const androidInputs=actualInputs.filter(item=>item.sink===androidSink);
       state.emulator_audio_backend.sink_inputs=emulatorInputs.map(item=>({index:item.index,process_id:Number(item.properties['application.process.id']),sink:item.sink,sample_specification:item.sample_specification}));
+      state.emulator_audio_backend.android_sink_inputs=androidInputs.map(item=>({index:item.index,process_id:Number(item.properties?.['application.process.id']),sink:item.sink,sample_specification:item.sample_specification}));
+      state.emulator_audio_backend.observed_at_ms=Date.now();
       save();
-      assert.ok(emulatorInputs.every(item=>item.sink===hostSink),'Owned emulator audio must render only to the isolated host sink');
+      assert.ok(emulatorInputs.every(item=>item.sink===androidSink),'Owned emulator audio must render only to its dedicated Android sink');
+      assert.ok(androidInputs.every(item=>emulatorPids.has(item.properties?.['application.process.id'])),'A non-emulator process contaminated the dedicated Android sink');
       return emulatorPids.size>0&&emulatorInputs.length>0;
-    },ready=>ready,'full official emulator with an owned real PulseAudio output',5000); }
+    };
+    try { await until(observeBackend,ready=>ready,'full official emulator with an owned real PulseAudio output',5000); }
     catch(error){state.emulator_audio_backend.status='failed';state.emulator_audio_backend.error=error.message;state.emulator_audio_backend.failed_at_ms=Date.now();save();throw error;}
     state.emulator_audio_backend.status='verified_real_pulse_output';state.emulator_audio_backend.verified_at_ms=Date.now();save();
     state.web_program_997_db = report.program_audio_db?.[0];
     assert.ok(Number.isFinite(state.web_program_997_db) && state.web_program_997_db > -65, 'Real shared-harness Web program audio measurement missing');
     state.observer = await prepareObserver(); save();
-    const pcm = []; let size = 0;
-    const rpc=state.android_playback_rpc={started_at_ms:Date.now(),collection_limit_ms:6500,rpc_deadline_ms:8000,
-      requested:{sampling_rate:48000,channels:0,format:1},status:'opening',packet_count:0,received_bytes:0,accepted_bytes:0,packets:[],cancellation_requested:false};save();
-    try { playback = client.streamAudio({ samplingRate:'48000',channels:0,format:1 }, metadata, { deadline:rpc.started_at_ms+8000 }); }
-    catch(error) { rpc.status='creation_failed';rpc.creation_error_code=error.code;rpc.ended_at_ms=Date.now();save();throw error; }
-    playbackDone = new Promise(resolve => {
-      playback.on('error',error=>{rpc.grpc_error_code=error.code;rpc.ended_at_ms=Date.now();rpc.status=rpc.failure_reason?'rejected':rpc.cancellation_requested&&error.code===grpc.status.CANCELLED?'cancelled':'failed';save();resolve();});
-      playback.on('end',()=>{rpc.end_event_at_ms=Date.now();if(!rpc.ended_at_ms){rpc.ended_at_ms=rpc.end_event_at_ms;rpc.status=rpc.failure_reason?'rejected':'ended';}save();resolve();});
-    });
-    playback.on('data',packet=>{
-      const at=Date.now();rpc.packet_count++;rpc.first_packet_at_ms??=at;rpc.last_packet_at_ms=at;rpc.status=rpc.cancellation_requested?'cancelling':'receiving';
-      const bytes=Number.isSafeInteger(packet.audio?.byteLength)?packet.audio.byteLength:0;rpc.received_bytes+=bytes;
-      const summary={at_ms:at,bytes,audio_is_buffer:Buffer.isBuffer(packet.audio),format:packet.format?{sampling_rate:String(packet.format.samplingRate),channels:packet.format.channels,format:packet.format.format}:null};
-      if(rpc.packets.length<8)rpc.packets.push(summary);
-      if(rpc.cancellation_requested)return;
-      if(!validMonoPCM(packet)){rpc.failure_reason='incompatible_pcm_format';rpc.rejected_packet=summary;rpc.rejected_packet_at_ms=at;save();void cancelPlayback('format rejection');return;}
-      size+=bytes;rpc.accepted_bytes=size;
-      if(size>960000){rpc.failure_reason='pcm_memory_limit';save();void cancelPlayback('memory limit');return;}
-      pcm.push(packet.audio);if(rpc.packet_count<=2||rpc.packet_count%50===0)save();
-    });
+    const androidCaptureDevice='pulseaudio:streamkit_android_capture';
+    const devices=await command('devices');
+    assert.ok(devices.devices.some(device=>device.id===androidCaptureDevice&&device.input),'Dedicated Android playout capture endpoint is unavailable');
+    const playout=state.android_playout={capture_device_id:androidCaptureDevice,minimum_frames:192000,collection_limit_ms:6500,minimum_997_median_amplitude:0.01,started_at_ms:Date.now(),samples:[]};save();
+    let playoutError;
     try {
+      playout.initial_status=await command('capture',{device_id:androidCaptureDevice});save();
       await until(async()=>{
-        if(rpc.failure_reason)throw Error('Android playback rejected PCM: '+rpc.failure_reason);
-        if(rpc.ended_at_ms)throw Error('Android playback RPC ended before collection completed: '+rpc.status+'/'+(rpc.grpc_error_code??'OK'));
-        return size;
-      },value=>value>=384000,'Android native output PCM',6500);
-    } catch(error) {
-      rpc.collection_failed_at_ms=Date.now();rpc.collection_error=error.message;save();
-      throw error;
-    } finally {
-      rpc.collection_finished_at_ms=Date.now();save();await cancelPlayback('collection finished');
-      if(rpc.collection_error){
-        // Metadata only: no PCM, app intents, links, logcat or capture content.
-        try { state.playback_failure_android={pid:run(['shell','pidof','io.github.bei612.streamkit']).trim(),audio_flinger_summary:run(['shell','dumpsys','media.audio_flinger']).split(/\r?\n/).filter(line=>/thread|track|standby|rate|format|channel|frames|underrun|pid|active|session/i.test(line)).slice(0,180)}; }
-        catch { state.playback_failure_android={diagnostic_unavailable:true}; }
-        save();
-      }
+        assert.ok(observeBackend(),'Owned emulator PulseAudio output disappeared during capture');
+        const status=await command('status');
+        playout.samples.push({at_ms:Date.now(),...status,emulator_sink_inputs:state.emulator_audio_backend.sink_inputs});save();
+        assert.ok(!status.error,'Android playout recorder failed: '+status.error);
+        assert.equal(status.input_state,'capture');assert.equal(status.sample_rate,48000);assert.equal(status.dropped_frames,0);
+        return status.captured_frames;
+      },frames=>frames>=192000,'dedicated Android playout PCM',6500-(Date.now()-playout.started_at_ms));
+    } catch(error){playoutError=error;playout.collection_error=error.message;save();}
+    finally {playout.collection_finished_at_ms=Date.now();playout.status=await command('stop_capture');save();}
+    if(playout.status.captured_frames>=4800){
+      playout.signal=await command('analyze',{frequency_hz:997});playout.envelope=await command('envelope');save();
     }
-    assert.ok(!rpc.failure_reason);assert.ok(rpc.grpc_error_code===undefined||rpc.grpc_error_code===grpc.status.CANCELLED&&rpc.cancellation_requested);assert.ok(size<=960000);
-    const bytes=Buffer.concat(pcm), levels=[];
-    for(let offset=0;offset+9600<=bytes.length;offset+=9600){let re=0,im=0;for(let i=0;i<4800;i++){const sample=bytes.readInt16LE(offset+i*2)/32768;re+=sample*Math.cos(2*Math.PI*997*i/48000);im+=sample*Math.sin(2*Math.PI*997*i/48000);}levels.push(2*Math.hypot(re,im)/4800);}
-    levels.sort((a,b)=>a-b); state.android_program_pcm_bytes=bytes.length; state.android_program_997_median=levels[Math.floor(levels.length/2)]||0;
-    assert.ok(state.android_program_997_median>0.01, 'Android playout missing 997Hz program'); save();
+    if(playoutError)throw playoutError;
+    assert.ok(observeBackend(),'Owned emulator PulseAudio output disappeared after capture');
+    assert.equal(playout.status.sample_rate,48000);assert.equal(playout.status.dropped_frames,0);
+    assert.ok(playout.status.captured_frames>=192000);assert.ok(playout.signal.analyzed_frames>=192000);
+    assert.ok(playout.collection_finished_at_ms-playout.started_at_ms<=6500,'Android playout collection exceeded its 6500ms limit');
+    state.android_program_997_median=playout.signal.median_amplitude;save();
+    assert.ok(state.android_program_997_median>0.01,'Android playout missing sustained 997Hz program');
     const baseline = await capture('baseline'); assert.ok(baseline.peak_amplitude<0.001); assert.ok(state.baseline.program_997.peak_amplitude<0.005, 'Program audio leaked into microphone target');
     state.observer_before_injection = await webSample();
     assert.ok(state.observer_before_injection.program_997_db>-65,'Persistent Web observer must hear the real program before injection'); save();
@@ -224,7 +206,6 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
   } finally {
     sending=false;
     stopWrites.abort();
-    await cancelPlayback('helper cleanup');
     if(injection)injection.cancel();
     if (sender) await sender.catch(()=>{});
     client.close();

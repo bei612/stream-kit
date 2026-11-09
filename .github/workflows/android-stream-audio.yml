@@ -72,6 +72,7 @@ jobs:
           mkdir -p artifacts/input-example
           cc -std=c11 -O2 -Wall -Wextra -Werror tools/audio-acceptance/x11-program.c -lX11 -lm -o artifacts/input-example/x11-audio-program
           cargo build --locked --release --manifest-path components/audio-target/Cargo.toml --bin audio-probe
+          cargo test --locked --release --manifest-path components/audio-target/Cargo.toml --bin audio-probe analysis::tests
           probe_dir=$(cargo metadata --locked --no-deps --format-version 1 --manifest-path components/audio-target/Cargo.toml | python3 -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])')
           cp "$probe_dir/release/audio-probe" artifacts/input-example/audio-probe
           bash tools/input-acceptance/android/build.sh
