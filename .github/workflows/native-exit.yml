@@ -68,8 +68,5 @@ jobs:
             artifacts/input-download/installer-manifest.json
             artifacts/source-stream/**/result.json
             artifacts/source-stream/**/example.log
-            artifacts/source-stream/**/sunshine.log
-            artifacts/source-stream/**/browser/gateway.log
-            artifacts/source-stream/**/browser/control.log
           if-no-files-found: warn
           retention-days: 14
