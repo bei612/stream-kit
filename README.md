@@ -4,7 +4,7 @@ Stream-Kit 将管理服务、Sunshine 渲染端和 Moonlight Web 媒体网关集
 
 服务端支持 Windows/Linux，客户端提供 Web/PWA 和 Android 原生 App。手机和平板也可直接使用浏览器；浏览器采集麦克风需要安全上下文和用户授权。当前发布渠道为预发布，不能把构建成功视为全部生产验收完成。
 
-基于官方 Moonlight Android 源码二开的 [Android 签名 APK 20261109.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261109.3) 已发布，版本码 `1000010`、源码 `c8e677c6`，沿用项目持久签名，可覆盖安装此前版本。本版统一原生播放、音频焦点与音量键的媒体类别，修正前台启动及焦点交接，并明确处理本地音频设备失败。签名发布构建、现有 19 项 JVM 检查、APK 签名及封装校验已通过，见[精确发布记录](docs/evidence/android-release-20261109-3.json)。该 APK 的独立音频验收运行 `42625838764` 尚在执行，不声明真实音频链路通过。
+基于官方 Moonlight Android 源码二开的 [Android 签名 APK 20261109.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261109.3) 已发布，版本码 `1000010`、源码 `c8e677c6`，沿用项目持久签名，可覆盖安装此前版本。本版统一原生播放、音频焦点与音量键的媒体类别，修正前台启动及焦点交接，并明确处理本地音频设备失败。签名发布构建、现有 19 项 JVM 检查、APK 签名及封装校验已通过，见[精确发布记录](docs/evidence/android-release-20261109-3.json)。该 APK 的独立音频验收 `42625838764` 在初始观看状态等待时失败，尚未进入声音测量；正在补充固定状态诊断，不声明真实音频链路通过。
 
 客户端保留可收起工具栏、键盘、鼠标/触屏模式、设置、控制者身份及服务器地址修改入口，见[操作说明](docs/android-viewer-controls.md)。此前 `20261109.2` 已覆盖安装到实体平板和官方模拟器，并与 Web 同时接入 Example，交接及释放控制权时身份显示正确，见[三端实际检查记录](docs/evidence/android-exclusive-control-20261109.json)。这些旧版结果不替代 `1000010` 的实际设备、输入或音频验收，也不代表本机 Windows 目标程序及物理麦克风全链路已验收。
 
