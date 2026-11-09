@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-09",
+  "source_commit": "98e419f7f85fa36a92651ee55396815386a233c4",
+  "product_run": "https://github.com/bei612/stream-kit/actions/runs/42599646248",
+  "windows_acceptance_run": "https://github.com/bei612/stream-kit/actions/runs/42606395414",
+  "acceptance_workflow_commit": "d403102e60b89e475d09cfc522d9720a506b7829",
+  "windows": {
+    "passed": true,
+    "installer": {
+      "name": "stream-kit-preview-98e419f7f85f-windows-amd64-setup.exe",
+      "bytes": 97608302,
+      "sha256": "377aae5d26eb600f5ebbae76f10f8a12a8e33b518d8c67d3b1332d98597450c1"
+    },
+    "acceptance_result_sha256": "5552682fa97d4f6d1d93aa0a0c4ec61e966a58fd3e418c82b33b33078f978338",
+    "install_exit": 0,
+    "administrator_login": true,
+    "service_after_install": {
+      "state": "Running",
+      "start_mode": "Auto",
+      "account": "LocalSystem"
+    },
+    "service_after_restart": {
+      "state": "Running",
+      "start_mode": "Auto",
+      "account": "LocalSystem"
+    },
+    "gateway_restarted": true,
+    "scm_restarted": true,
+    "audio": {
+      "passed": true,
+      "captured_frames": 144480,
+      "dropped_frames": 0,
+      "xruns": 0
+    },
+    "defaults_preserved": true,
+    "uninstall_exit": 0,
+    "service_removed": true,
+    "data_preserved": true,
+    "finished_at": "2026-11-09T11:09:24.599Z"
+  },
+  "linux": {
+    "installer": {
+      "file": "stream-kit-preview-98e419f7f85f-ubuntu24.04-amd64-setup.run",
+      "bytes": 62462417,
+      "sha256": "0b9d8d4a51665907962e766b85f7e6b2f83b043669f534d82f9a1101a873f4bb"
+    },
+    "payload_sha256": "7add5d32830f4538a43e923550813eb41504bbe89ca3cb084a8dd54d8e0f18e5",
+    "acceptance_log_sha256": "5337224409fdb2f89ee8d00ae032daf8890f89d18ba30270c179cd0320a74d2e",
+    "scope": "Actual package extraction, three-component initialization, user-service configuration and existing-data protection in product job; Android/Web target input is recorded separately."
+  },
+  "local_downloads_verified": true,
+  "published": false,
+  "limits": [
+    "Windows hosted Server 2022 installation and SCM restart; no full host reboot claim.",
+    "Local installation remains 47c02726 while an existing UAC request is pending.",
+    "No in-place upgrade, physical speech, local Windows input or deployed playwright-cli acceptance is established by this receipt.",
+    "No Example, audio probe, test source, test CA, acceptance credentials or SDK is included in the runtime installer."
+  ]
+}
