@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-09",
+  "run": "https://github.com/bei612/stream-kit/actions/runs/42610388663",
+  "conclusion": "success",
+  "runtime_commit": "98e419f7f85fa36a92651ee55396815386a233c4",
+  "installer_sha256": "0b9d8d4a51665907962e766b85f7e6b2f83b043669f534d82f9a1101a873f4bb",
+  "payload_sha256": "7add5d32830f4538a43e923550813eb41504bbe89ca3cb084a8dd54d8e0f18e5",
+  "product_run_id": 42599646248,
+  "product_linux_job_id": 129100652467,
+  "acceptance_commit": "bee317cc6701fe5ddc9285b3331eda211fb248a1",
+  "runtime_rebuilt": false,
+  "scope": "Passive native exit with two real Web viewers; not administrative stop, Android, input or audio acceptance",
+  "browser_result_sha256": "9eb84ce518208293c81572a0db076e4aa0046f4d06a5d72b14c012c317e94394",
+  "trigger": "WM_DELETE_WINDOW on verified owned X11 target",
+  "before": {
+    "session_id": "b865c5c4-a4c6-43b8-afac-02aa927f0435",
+    "native_instance_id": "3472577a74788cf61473a435b252f933",
+    "process_id": 5545,
+    "window_id": "10485761",
+    "controller_connection_id": "dc327787-8659-424b-bee1-01368378ce7a",
+    "credential_earliest_expiry": "2026-11-09T11:40:21.000Z"
+  },
+  "passive_exit_observed_ms": 4784,
+  "after": {
+    "state": "stopped",
+    "observed_stop": true,
+    "connections": 0,
+    "controller_connection_id": "",
+    "old_invitation_status": 400,
+    "old_connection_status": 410,
+    "old_media_status": 401,
+    "verified_before_expiry": true,
+    "app_status": "stopped",
+    "replacement_instance_id": null,
+    "replacement_observed": false,
+    "replacement_survived_if_present": null,
+    "stability_seconds": 6
+  },
+  "limits": [
+    "Two actual Web viewers with the verified Linux runtime; not local Windows deployment or Android audio.",
+    "No replacement instance appeared; replacement survival was not exercised and is recorded as null.",
+    "Graceful target exit only; no service outage or acknowledgement-recovery fault injection.",
+    "Existing active client input, program audio and microphone acceptance remain separate; no repeated stability run."
+  ],
+  "passed": true
+}
