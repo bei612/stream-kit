@@ -201,6 +201,10 @@ async function browserAcceptance(page, cfg) {
     await page.goto(cfg.base + '/apps/' + cfg.appId);
     await page.getByRole('button', { name: '停止串流（含程序）', exact: true }).click();
     await waitFor(() => api('/apps/' + cfg.appId), app => app.status === 'stopped', 'Example stopped');
+    await waitFor(() => api('/stream-sessions'), sessions => {
+      const ended = sessions.find(session => session.session_id === live.session_id);
+      return ended && ended.state === 'stopped' && !ended.controller_connection_id && Object.keys(ended.connections).length === 0;
+    }, 'Stopped generation released all clients and authority');
     await page.goto(cfg.base + '/stream-sessions?app=' + encodeURIComponent(cfg.appId));
     await page.getByRole('button', { name: /已结束记录/ }).click();
     await page.getByRole('heading', { name: '已结束的应用串流', exact: true }).waitFor();
