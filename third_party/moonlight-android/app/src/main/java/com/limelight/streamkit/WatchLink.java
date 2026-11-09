@@ -41,6 +41,18 @@ public final class WatchLink {
     }
 
     public URI origin() { return origin; }
+    /** Change only the endpoint; retain the durable application capability. */
+    public WatchLink withOrigin(String value, boolean allowDevelopmentHttp) {
+        if (value == null || value.length() > 2048) throw invalid();
+        try {
+            URI replacement = new URI(value.trim());
+            if (replacement.getRawQuery() != null || replacement.getRawFragment() != null ||
+                    replacement.getRawUserInfo() != null ||
+                    !(replacement.getRawPath() == null || replacement.getRawPath().isEmpty() || "/".equals(replacement.getRawPath()))) throw invalid();
+            URI target = new URI(replacement.getScheme(), null, replacement.getHost(), replacement.getPort(), "/watch", null, "key=" + capability);
+            return parse(target.toString(), allowDevelopmentHttp);
+        } catch (URISyntaxException error) { throw invalid(); }
+    }
     public URI admissionEndpoint() { return origin.resolve("/api/v1/watch/open"); }
     public String admissionAuthorization() { return "Bearer " + capability; }
 

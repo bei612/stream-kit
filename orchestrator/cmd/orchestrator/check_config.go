@@ -14,6 +14,9 @@ func checkConfig(path string) error {
 	if err != nil {
 		return err
 	}
+	if cfg.Server.LANTLS.Enabled() {
+		return config.CheckManagedTLS(cfg.Server)
+	}
 	_, err = serverTLS(cfg.Server)
 	return err
 }

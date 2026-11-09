@@ -20,7 +20,7 @@ final class ViewerChrome {
   final LinearLayout entry, actions;
   final TextView status, sidebarStatus;
   final EditText address;
-  final Button connect, cancel, forget, microphone, disconnect, keyboard, keycode, pointer,
+  final Button connect, cancel, changeServer, forget, microphone, disconnect, keyboard, keycode, pointer,
       fullscreen, stats, settings, sound;
   final Spinner mouseMode, touchMode;
   private final Activity activity;
@@ -71,6 +71,9 @@ final class ViewerChrome {
     cancel = button("取消连接", SURFACE);
     entry.addView(cancel, spacedRow());
     cancel.setVisibility(View.GONE);
+    changeServer = button("修改服务器地址", SURFACE);
+    entry.addView(changeServer, spacedRow());
+    changeServer.setEnabled(false);
     forget = button("清除已保存链接", SURFACE);
     entry.addView(forget, spacedRow());
     FrameLayout.LayoutParams card = new FrameLayout.LayoutParams(

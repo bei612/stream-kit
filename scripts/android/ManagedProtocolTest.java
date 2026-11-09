@@ -31,6 +31,14 @@ public final class ManagedProtocolTest {
                 "Capability must not enter request URL");
         check(!link.toString().contains(KEY), "Diagnostic leaked capability");
         check(link.admissionAuthorization().equals("Bearer " + KEY), "Missing admission credential");
+        WatchLink moved = link.withOrigin("https://192.168.8.88:9000/", false);
+        check(moved.origin().toString().equals("https://192.168.8.88:9000"), "Address configuration not applied");
+        check(moved.admissionAuthorization().equals(link.admissionAuthorization()), "Address update changed application capability");
+        check(!moved.toString().contains(KEY), "Changed-address diagnostic leaked capability");
+        check(link.origin().toString().equals("https://192.168.3.66:9000"), "Address edit mutated previous value");
+        check(link.withOrigin("https://[2001:db8::2]:9443", false).origin().getPort() == 9443, "IPv6 address configuration failed");
+        for (String invalid : new String[]{"http://192.168.8.88:9000", "https://user:secret@host", "https://host/watch", "https://host?key="+KEY, "https://host#key="+KEY, "https://host:65536", "https://host:0", "file://host"})
+            rejects(() -> link.withOrigin(invalid, false), "Unsafe address configuration");
         rejects(() -> WatchLink.parse("http://192.168.3.66/watch#key=" + KEY, false), "Production HTTP");
         check(WatchLink.parse("http://10.0.2.2:9000/watch#key=" + KEY, true).origin().getPort() == 9000,
                 "Explicit development HTTP unavailable");

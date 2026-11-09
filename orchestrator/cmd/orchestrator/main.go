@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -164,7 +165,12 @@ func run(ctx context.Context, ready func()) error {
 	if err != nil {
 		return fmt.Errorf("配置加载失败: %v", err)
 	}
-	tlsConfig, err := serverTLS(cfg.Server)
+	var tlsConfig *tls.Config
+	if cfg.Server.LANTLS.Enabled() {
+		err = config.CheckManagedTLS(cfg.Server)
+	} else {
+		tlsConfig, err = serverTLS(cfg.Server)
+	}
 	if err != nil {
 		return err
 	}
@@ -187,6 +193,16 @@ func run(ctx context.Context, ready func()) error {
 		return fmt.Errorf("监听 %s 失败: %w", cfg.Server.BindAddress, err)
 	}
 	defer listener.Close()
+	if cfg.Server.LANTLS.Enabled() {
+		// Acquire the control socket before mutating the shared leaf identity.
+		if err := config.PrepareManagedTLS(cfg.Server); err != nil {
+			return fmt.Errorf("局域网 TLS 准备失败: %w", err)
+		}
+		tlsConfig, err = serverTLS(cfg.Server)
+		if err != nil {
+			return err
+		}
+	}
 	// Ensure directories
 	for _, dir := range []string{cfg.Storage.AppsDir, cfg.Storage.TempDir, filepath.Dir(cfg.Storage.DBPath)} {
 		if err := os.MkdirAll(dir, 0755); err != nil {

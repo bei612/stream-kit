@@ -66,7 +66,8 @@ public final class ManagedActivity extends Activity {
     getWindow().setSoftInputMode(Build.VERSION.SDK_INT >= 30
             ? WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
             : WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
-    if (Build.VERSION.SDK_INT >= 30) getWindow().setDecorFitsSystemWindows(false);
+    if (Build.VERSION.SDK_INT >= 30)
+      getWindow().setDecorFitsSystemWindows(false);
     preferences = new ViewerSettings(this);
     chrome = new ViewerChrome(this);
     chrome.configure(preferences);
@@ -107,6 +108,7 @@ public final class ManagedActivity extends Activity {
         this, egl.getEglBaseContext(), video, width, height, BuildConfig.DEBUG, stateView -> {
           boolean firstVideo = entry.getVisibility() != View.GONE && stateView.videoReady;
           chrome.state(stateView);
+          chrome.changeServer.setEnabled(!stateView.running && currentLink != null);
           if (firstVideo && preferences.enabled("enterFullscreenOnStreamStart", false))
             setFullscreen(true);
           if (!stateView.control && remoteKeyboard != null)
@@ -138,6 +140,7 @@ public final class ManagedActivity extends Activity {
     forget.setOnClickListener(view -> {
       ++entryGeneration;
       currentLink = null;
+      chrome.changeServer.setEnabled(false);
       address.setText("");
       address.setHint("粘贴管理员提供的固定观看链接");
       bookmarks.clear();
@@ -145,6 +148,7 @@ public final class ManagedActivity extends Activity {
       session.stop();
       video.clearImage();
     });
+    chrome.changeServer.setOnClickListener(view -> changeServerAddress());
     input = new ManagedInput(packet -> session.sendInput(packet));
     keyboard = new KeyboardTranslator();
     devices = (InputManager) getSystemService(INPUT_SERVICE);
@@ -220,6 +224,51 @@ public final class ManagedActivity extends Activity {
   }
   private void savedLinkHint() {
     address.setHint("当前应用 · " + currentLink.origin());
+    chrome.changeServer.setEnabled(!sessionRunning());
+  }
+  private void changeServerAddress() {
+    if (currentLink == null || sessionRunning())
+      return;
+    WatchLink original = currentLink;
+    int originalGeneration = entryGeneration;
+    EditText endpoint = new EditText(this);
+    endpoint.setSingleLine(true);
+    endpoint.setInputType(
+        android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
+    endpoint.setText(currentLink.origin().toString());
+    endpoint.setSelectAllOnFocus(true);
+    android.app.AlertDialog dialog =
+        new android.app.AlertDialog.Builder(this)
+            .setTitle("修改服务器地址")
+            .setMessage("填写服务器的新 HTTPS 地址和端口，保留当前应用的观看密钥。服务器沿用原 CA "
+                        + "信任时，无需重装 App 或证书。")
+            .setView(endpoint)
+            .setNegativeButton("取消", null)
+            .setPositiveButton("保存地址", null)
+            .create();
+    dialog.setOnShowListener(ignored
+        -> dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(view -> {
+      if (entryGeneration != originalGeneration || currentLink != original || sessionRunning()) {
+        dialog.dismiss();
+        return;
+      }
+      try {
+        WatchLink next = original.withOrigin(endpoint.getText().toString(), BuildConfig.DEBUG);
+        currentLink = next;
+        int generation = ++entryGeneration;
+        bookmarks.save(next, saved -> {
+          if (!saved && generation == entryGeneration)
+            Toast.makeText(this, "地址仅供本次使用，无法安全保存到设备", Toast.LENGTH_LONG).show();
+        });
+        address.setText("");
+        savedLinkHint();
+        status.setText("服务器地址已更新，点击连接应用");
+        dialog.dismiss();
+      } catch (IllegalArgumentException error) {
+        endpoint.setError("请输入有效的 HTTPS 服务器地址，例如 https://192.168.1.10:9000");
+      }
+    }));
+    dialog.show();
   }
   private void enableMicrophone(AuthorityState.MicrophoneRequest request) {
     if (!session.canControl()) {
@@ -553,9 +602,14 @@ public final class ManagedActivity extends Activity {
     if (Build.VERSION.SDK_INT >= 30) {
       android.view.WindowInsetsController controller = getWindow().getInsetsController();
       if (controller != null) {
-        controller.setSystemBarsBehavior(android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-        int bars = android.view.WindowInsets.Type.statusBars() | android.view.WindowInsets.Type.navigationBars();
-        if (enabled) controller.hide(bars); else controller.show(bars);
+        controller.setSystemBarsBehavior(
+            android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        int bars = android.view.WindowInsets.Type.statusBars()
+            | android.view.WindowInsets.Type.navigationBars();
+        if (enabled)
+          controller.hide(bars);
+        else
+          controller.show(bars);
       }
       chrome.root.requestApplyInsets();
       return;

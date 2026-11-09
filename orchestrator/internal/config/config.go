@@ -30,14 +30,23 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	BindAddress       string   `json:"bind_address" mapstructure:"bind_address"`
-	Username          string   `json:"username" mapstructure:"username"`
-	Password          string   `json:"password" mapstructure:"password"`
-	JWTSecret         string   `json:"jwt_secret" mapstructure:"jwt_secret"`
-	MediaTicketSecret string   `json:"media_ticket_secret" mapstructure:"media_ticket_secret"`
-	CORSOrigins       []string `json:"cors_origins" mapstructure:"cors_origins"`
-	TLSCert           string   `json:"tls_cert" mapstructure:"tls_cert"`
-	TLSKey            string   `json:"tls_key" mapstructure:"tls_key"`
+	BindAddress       string       `json:"bind_address" mapstructure:"bind_address"`
+	Username          string       `json:"username" mapstructure:"username"`
+	Password          string       `json:"password" mapstructure:"password"`
+	JWTSecret         string       `json:"jwt_secret" mapstructure:"jwt_secret"`
+	MediaTicketSecret string       `json:"media_ticket_secret" mapstructure:"media_ticket_secret"`
+	CORSOrigins       []string     `json:"cors_origins" mapstructure:"cors_origins"`
+	TLSCert           string       `json:"tls_cert" mapstructure:"tls_cert"`
+	TLSKey            string       `json:"tls_key" mapstructure:"tls_key"`
+	LANTLS            LANTLSConfig `json:"lan_tls" mapstructure:"lan_tls"`
+}
+
+// LANTLS keeps the deployment trust anchor stable when its network addresses change.
+// Empty CA paths disable managed issuance and preserve externally managed TLS.
+type LANTLSConfig struct {
+	CACert string   `json:"ca_cert" mapstructure:"ca_cert"`
+	CAKey  string   `json:"ca_key" mapstructure:"ca_key"`
+	Hosts  []string `json:"hosts" mapstructure:"hosts"`
 }
 
 type ComponentConfig struct {
@@ -203,6 +212,8 @@ func resolvePaths(cfg *Config) {
 	cfg.Storage.DBPath = resolve(cfg.Storage.DBPath)
 	cfg.Server.TLSCert = resolve(cfg.Server.TLSCert)
 	cfg.Server.TLSKey = resolve(cfg.Server.TLSKey)
+	cfg.Server.LANTLS.CACert = resolve(cfg.Server.LANTLS.CACert)
+	cfg.Server.LANTLS.CAKey = resolve(cfg.Server.LANTLS.CAKey)
 	cfg.Log.File.Path = resolve(cfg.Log.File.Path)
 	for name, comp := range cfg.Components {
 		comp.ExePath = resolve(comp.ExePath)
@@ -224,6 +235,9 @@ func validate(cfg *Config) []string {
 	portNumber, portErr := strconv.Atoi(port)
 	check(bindErr != nil || portErr != nil || portNumber < 1 || portNumber > 65535, "server.bind_address 必须包含有效主机与端口")
 	check((cfg.Server.TLSCert == "") != (cfg.Server.TLSKey == ""), "TLS 证书与私钥路径必须同时设置或清空")
+	if err := validateLANTLS(cfg.Server); err != nil {
+		errs = append(errs, err.Error())
+	}
 	check(cfg.Server.Username == "", "server.username 不能为空")
 	check(cfg.Server.Password == "", "server.password 不能为空")
 	check(cfg.Storage.AppsDir == "", "storage.apps_dir 不能为空")

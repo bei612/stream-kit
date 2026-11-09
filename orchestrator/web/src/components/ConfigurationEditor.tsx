@@ -17,7 +17,8 @@ const labels:Record<string,string> = {
   base_url:'服务连接地址',public_url:'浏览器访问地址',server_info_url:'编码器信息地址',apps_dir:'应用存储目录',temp_dir:'临时目录',db_path:'数据库路径',max_upload_size_bytes:'上传大小上限（字节）',max_extract_size_bytes:'解压大小上限（字节）',max_file_count:'解压文件数上限',
   monitor_interval_seconds:'进程检查间隔（秒）',graceful_shutdown_timeout_seconds:'停止等待（秒）',webhook_url:'Webhook 地址',events:'通知事件',level:'日志级别',file:'日志文件',enabled:'启用',path:'文件路径',max_size_mb:'单文件上限（MB）',max_backups:'保留文件数',max_age_days:'保留天数',compress:'压缩历史日志',access_log:'访问日志',exclude_paths:'排除路径',operation_log:'操作日志',max_count:'保留记录数',
 }
-const lists = new Set(['cors_origins','events','exclude_paths'])
+Object.assign(labels, {lan_tls:'局域网 TLS 身份维护',ca_cert:'已有 CA 证书路径',ca_key:'已有 CA 私钥路径',hosts:'允许访问的 IP / 主机名'})
+const lists = new Set(['cors_origins','events','exclude_paths','hosts'])
 const pointer = (key:string) => key.replaceAll('~','~0').replaceAll('/','~1')
 
 export function ConfigurationEditor() {
@@ -100,6 +101,7 @@ export function ConfigurationEditor() {
     const title=labels[key]||key
     return <div key={path} className="space-y-1">
       <Label htmlFor={id}>{title}</Label>
+      {path==='/server/lan_tls/hosts'&&<p className="text-xs text-muted-foreground">每行填写一个服务器 IP 或主机名，不含协议和端口。地址变化后更新此处并重启服务，沿用原 CA 签发服务证书；客户端不用重新安装信任或重新编译。管理服务和本机网关须使用相同服务证书路径。不要更换已有 CA。</p>}
 	  {key==='windows_session_id'&&<p className="text-xs text-muted-foreground">仅 Windows 服务部署使用。会话 ID 与用户 SID 必须匹配已登录的活动会话；控制服务需以 LocalSystem 运行。ID 设为 0 且清空 SID 时使用直接启动。修改后需重启控制服务。</p>}
       {key==='preflight_args'&&<p className="text-xs text-muted-foreground">使用同一程序、工作目录和环境执行，最长等待 15 秒。媒体网关可填 config check；自定义配置路径需与启动参数一致。重启预检失败会保留当前进程。留空则不执行预检。</p>}
       {typeof value==='boolean'||key==='verify_ssl'?<Select id={id} value={drafts[path]??(value===null?'default':String(value))} onChange={e=>edit(path,e.target.value)}>

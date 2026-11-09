@@ -151,8 +151,11 @@ func TestTLSPathsUseConfigurationDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = s.Save(view.Revision, map[string]json.RawMessage{
-		"/server/tls_cert": json.RawMessage(`"certs/server.pem"`),
-		"/server/tls_key":  json.RawMessage(`"certs/server-key.pem"`),
+		"/server/tls_cert":        json.RawMessage(`"certs/server.pem"`),
+		"/server/tls_key":         json.RawMessage(`"certs/server-key.pem"`),
+		"/server/lan_tls/ca_cert": json.RawMessage(`"certs/ca.pem"`),
+		"/server/lan_tls/ca_key":  json.RawMessage(`"certs/ca-key.pem"`),
+		"/server/lan_tls/hosts":   json.RawMessage(`["192.168.8.88", "render.local"]`),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -162,14 +165,16 @@ func TestTLSPathsUseConfigurationDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	if cfg.Server.TLSCert != filepath.Join(filepath.Dir(s.path), "certs", "server.pem") ||
-		cfg.Server.TLSKey != filepath.Join(filepath.Dir(s.path), "certs", "server-key.pem") {
+		cfg.Server.TLSKey != filepath.Join(filepath.Dir(s.path), "certs", "server-key.pem") ||
+		cfg.Server.LANTLS.CACert != filepath.Join(filepath.Dir(s.path), "certs", "ca.pem") ||
+		cfg.Server.LANTLS.CAKey != filepath.Join(filepath.Dir(s.path), "certs", "ca-key.pem") {
 		t.Fatal("TLS paths depend on process working directory")
 	}
 	_, saved, err := s.read()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if saved.Server.TLSCert != "certs/server.pem" {
+	if saved.Server.TLSCert != "certs/server.pem" || saved.Server.LANTLS.CACert != "certs/ca.pem" || saved.Server.LANTLS.CAKey != "certs/ca-key.pem" {
 		t.Fatal("loading rewrote portable configuration")
 	}
 }
