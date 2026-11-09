@@ -23,6 +23,51 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
   const current = () => api('/stream-sessions/' + sessionId);
   const run = args => { try { return cp.execFileSync(adb, ['-s', serial, ...args], { encoding: 'utf8', timeout: 15000, stdio: ['ignore','pipe','pipe'] }); } catch { throw Error('Official AVD UI command failed'); } };
   const click = target => { const output = run(['shell','am','instrument','-w','-e','action','click','-e','target',target,'io.github.bei612.streamkit.inputobserver/.Observer']); assert.match(output, /INSTRUMENTATION_RESULT: clicked=true/); };
+  const metadataCommand=(executable,args)=>new Promise(resolve=>cp.execFile(executable,args,{encoding:'utf8',timeout:5000,maxBuffer:512*1024},(error,output)=>resolve(error?{error_code:error.code||'command_failed'}:{output})));
+  const playbackMetadata=async phase=>{
+    const started=Date.now();
+    const results=await Promise.all([
+      metadataCommand(adb,['-s',serial,'shell','pidof','io.github.bei612.streamkit']),
+      metadataCommand(adb,['-s',serial,'shell','dumpsys','audio']),
+      metadataCommand(adb,['-s',serial,'shell','dumpsys','media.audio_flinger']),
+      ...['sink-inputs','sinks','sources'].map(kind=>metadataCommand('pactl',['--format=json','list',kind]))
+    ]);
+    const snapshot={started_at_ms:started,finished_at_ms:Date.now(),unavailable:results.flatMap((value,index)=>value.error_code?[{source:['app_pid','android_audio','audio_flinger','pulse_inputs','pulse_sinks','pulse_sources'][index],code:value.error_code}]:[])};
+    const pids=(results[0].output||'').trim().split(/\s+/).filter(pid=>/^[1-9][0-9]*$/.test(pid));snapshot.application_pids=pids.map(Number);
+    const audio=(results[1].output||'').split(/\r?\n/),streams={};let stream;
+    snapshot.focus=audio.filter(line=>/\b(?:gain|loss):/.test(line)&&/\bpack:/.test(line)).slice(0,16).map(line=>{
+      const fields={application_owner:/\bpack:\s*io\.github\.bei612\.streamkit(?:\s|$)/.test(line)};
+      for(const key of ['gain','loss','flags','notified','uid','sdk'])fields[key]=line.match(new RegExp('\\b'+key+':\\s*([A-Za-z0-9_.+-]+)'))?.[1];
+      fields.usage=line.match(/\busage=(USAGE_[A-Z_]+)/)?.[1];return fields;
+    });
+    snapshot.audio_mode={requested:audio.join('\n').match(/Requested mode:\s*(MODE_[A-Z_]+)/)?.[1],actual:audio.join('\n').match(/Actual mode:\s*(MODE_[A-Z_]+)/)?.[1]};
+    for(const line of audio){
+      const header=line.match(/^\s*(?:-\s*)?(STREAM_[A-Z_]+):/);
+      if(header){stream=['STREAM_VOICE_CALL','STREAM_MUSIC'].includes(header[1])?(streams[header[1]]={}):null;}
+      if(!stream)continue;
+      for(const key of ['Muted','Min','Max']){const value=line.match(new RegExp('\\b'+key+':\\s*(true|false|[0-9]+)'));if(value)stream[key.toLowerCase()]=value[1]==='true'?true:value[1]==='false'?false:Number(value[1]);}
+      if(/\bCurrent:/.test(line))stream.current_devices=[...line.matchAll(/([0-9a-fx]+)\s*\(([A-Za-z0-9_ -]+)\):\s*([0-9]+)/g)].map(match=>({device:match[1],name:match[2],volume:Number(match[3])}));
+    }
+    snapshot.streams=streams;
+    snapshot.application_playback=audio.filter(line=>pids.some(pid=>new RegExp('\\b(?:u/pid:\\s*[0-9]+/|pid[:=]\\s*)'+pid+'\\b').test(line))).slice(0,12).map(line=>({
+      state:line.match(/\bstate[:=]\s*([A-Za-z_]+)/)?.[1],usage:line.match(/\busage=(USAGE_[A-Z_]+)/)?.[1],content:line.match(/\bcontent=(CONTENT_TYPE_[A-Z_]+)/)?.[1]
+    }));
+    snapshot.output_threads=[];let thread;
+    for(const line of (results[2].output||'').split(/\r?\n/)){
+      if(/^Output thread\b/.test(line)){thread={tracks:[]};snapshot.output_threads.push(thread);}
+      else if(/^(?:Input|Mmap|Record) thread\b/.test(line))thread=null;
+      if(!thread)continue;
+      const rate=line.match(/^\s*Sample rate:\s*([0-9]+)/),frames=line.match(/^\s*Frames written:\s*([0-9]+)/),standby=line.match(/^\s*Standby:\s*(yes|no)/);
+      if(rate)thread.sample_rate=Number(rate[1]);if(frames)thread.frames_written=Number(frames[1]);if(standby)thread.standby=standby[1];
+      if(line.includes('Client(pid/uid)'))thread.track_columns=line.trim();
+      if(pids.some(pid=>new RegExp('(?:^|\\s)'+pid+'/[0-9]+(?:\\s|$)').test(line)))thread.tracks.push(line.trim());
+    }
+    const pulse=(index,name)=>{try{return JSON.parse(results[index].output||'[]').filter(item=>name(item)).map(item=>({index:item.index,name:item.name,sink:item.sink,process_id:item.properties?.['application.process.id'],sample_specification:item.sample_specification,mute:item.mute,corked:item.corked,volume:item.volume,state:item.state,master_device:item.properties?.['device.master_device']}));}catch{snapshot.unavailable.push({source:['pulse_inputs','pulse_sinks','pulse_sources'][index-3],code:'invalid_metadata_json'});return [];}};
+    const emulatorPids=new Set((state.emulator_audio_backend?.process_tree||[]).filter(proc=>proc.exe===state.emulator_audio_backend.required_binary).map(proc=>String(proc.pid)));
+    snapshot.pulse_inputs=pulse(3,item=>emulatorPids.has(item.properties?.['application.process.id']));
+    snapshot.pulse_sinks=pulse(4,item=>item.name==='streamkit_android');snapshot.pulse_sources=pulse(5,item=>item.name==='streamkit_android_capture');
+    (state.playback_metadata||={})[phase]=snapshot;save();
+  };
   const prepareObserver = () => page.evaluate(async () => {
     const track = window.__acceptancePeers.at(-1).getReceivers().find(receiver => receiver.track.kind === 'audio')?.track;
     if (!track) throw Error('Real observer audio track missing');
@@ -150,8 +195,8 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
       const actualInputs=JSON.parse(cp.execFileSync('pactl',['--format=json','list','sink-inputs'],{encoding:'utf8',timeout:5000}));
       const emulatorInputs=actualInputs.filter(item=>emulatorPids.has(item.properties?.['application.process.id']));
       const androidInputs=actualInputs.filter(item=>item.sink===androidSink);
-      state.emulator_audio_backend.sink_inputs=emulatorInputs.map(item=>({index:item.index,process_id:Number(item.properties['application.process.id']),sink:item.sink,sample_specification:item.sample_specification}));
-      state.emulator_audio_backend.android_sink_inputs=androidInputs.map(item=>({index:item.index,process_id:Number(item.properties?.['application.process.id']),sink:item.sink,sample_specification:item.sample_specification}));
+      state.emulator_audio_backend.sink_inputs=emulatorInputs.map(item=>({index:item.index,process_id:Number(item.properties['application.process.id']),sink:item.sink,sample_specification:item.sample_specification,mute:item.mute,corked:item.corked,volume:item.volume}));
+      state.emulator_audio_backend.android_sink_inputs=androidInputs.map(item=>({index:item.index,process_id:Number(item.properties?.['application.process.id']),sink:item.sink,sample_specification:item.sample_specification,mute:item.mute,corked:item.corked,volume:item.volume}));
       state.emulator_audio_backend.observed_at_ms=Date.now();
       save();
       assert.ok(emulatorInputs.every(item=>item.sink===androidSink),'Owned emulator audio must render only to its dedicated Android sink');
@@ -161,6 +206,7 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     try { await until(observeBackend,ready=>ready,'full official emulator with an owned real PulseAudio output',5000); }
     catch(error){state.emulator_audio_backend.status='failed';state.emulator_audio_backend.error=error.message;state.emulator_audio_backend.failed_at_ms=Date.now();save();throw error;}
     state.emulator_audio_backend.status='verified_real_pulse_output';state.emulator_audio_backend.verified_at_ms=Date.now();save();
+    await playbackMetadata('before_recording');
     state.observer = await prepareObserver(); save();
     const captureAndroidPlayout=async()=>{
       const androidCaptureDevice='pulseaudio:streamkit_android_capture';
@@ -179,7 +225,7 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
           return status.captured_frames;
         },frames=>frames>=192000,'dedicated Android playout PCM',6500-(Date.now()-playout.started_at_ms));
       } catch(error){playoutError=error;playout.collection_error=error.message;save();}
-      finally {playout.collection_finished_at_ms=Date.now();playout.status=await command('stop_capture');save();}
+      finally {playout.collection_finished_at_ms=Date.now();playout.status=await command('stop_capture');save();await playbackMetadata('after_recording');}
       if(playout.status.captured_frames>=4800){
         playout.signal=await command('analyze',{frequency_hz:997});playout.envelope=await command('envelope');save();
       }
@@ -230,6 +276,8 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     state.web_program_after_revocation_997_db=await audience('program_after_revocation',997); assert.ok(state.web_program_after_revocation_997_db>-65,'Revocation interrupted program audio');
     sending=false; await sender; await injectionDone; assert.equal(injectionError,undefined,'Official emulator injection failed'); state.injection_completed=true;
     assert.equal(run(['shell','getprop','sys.boot_completed']).trim(),'1'); state.passed=true; save();
+  } catch(error) {
+    await playbackMetadata('failure');throw error;
   } finally {
     sending=false;
     stopWrites.abort();
