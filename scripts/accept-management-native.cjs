@@ -59,7 +59,14 @@ function copyAssets(source, destination) {
     const denied = await fetch(base + '/api/v1/stream-sessions'); assert.equal(denied.status, 401); report.cases.push('unauthenticated real API denied');
     browser = await launchBrowser(); report.browser_version = browser.version();
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } }), javascriptErrors = [], responseChecks = [], verifiedResourceFailures = [];
-    page.on('pageerror', error => javascriptErrors.push(sanitize(error.message)));
+    report.request_timeline = []; report.request_failures = []; report.navigations = []; report.javascript_errors = javascriptErrors;
+    const pathname = value => { try { return new URL(value).pathname; } catch { return '[unavailable]'; } };
+    const requestEvent = (request, event) => ({ event, time_ms: Date.now(), path: pathname(request.url()), method: request.method(), page_path: pathname(page.url()) });
+    page.on('request', request => { if (pathname(request.url()).startsWith('/api/')) report.request_timeline.push(requestEvent(request, 'started')); });
+    page.on('requestfinished', request => { if (pathname(request.url()).startsWith('/api/')) report.request_timeline.push(requestEvent(request, 'finished')); });
+    page.on('requestfailed', request => { const event = { ...requestEvent(request, 'failed'), reason: sanitize(request.failure()?.errorText || 'unknown') }; report.request_timeline.push(event); report.request_failures.push(event); });
+    page.on('framenavigated', frame => { if (frame === page.mainFrame()) report.navigations.push({ time_ms: Date.now(), path: pathname(frame.url()) }); });
+    page.on('pageerror', error => javascriptErrors.push({ time_ms: Date.now(), path: pathname(page.url()), message: sanitize(error.message), stack: sanitize(error.stack || '') }));
     page.on('console', message => { if (['error', 'warning'].includes(message.type())) report.console.push({ type: message.type(), text: sanitize(message.text()), location: message.location(), argument_count: message.args().length }); });
     page.on('response', response => {
       if (response.status() < 400) return; const pathname = new URL(response.url()).pathname, status = response.status();
@@ -90,8 +97,15 @@ function copyAssets(source, destination) {
     await page.goto(base + '/login'); await page.getByLabel('用户名', { exact: true }).fill(cfg.server.username); await page.getByLabel('密码', { exact: true }).fill(cfg.server.password);
     await page.getByRole('button', { name: '登录控制台' }).click(); await page.waitForURL(base + '/');
     assert.ok(await page.evaluate(() => !!localStorage.getItem('auth_token'))); report.cases.push('UI login using native init-config generated credential');
-    await page.goto(base + '/apps'); assert.equal((await api('/apps')).body.data.length, 0); await screenshot('apps-empty-desktop');
-    await page.goto(base + '/stream-sessions'); await page.getByRole('heading', { name: '串流会话', exact: true }).waitFor();
+    const documentOrigin = await page.evaluate(() => performance.timeOrigin);
+    const navigate = async (label, target) => {
+      await page.getByRole('navigation', { name: '主导航' }).getByRole('link', { name: label, exact: true }).click();
+      await page.waitForURL(base + target);
+      assert.equal(await page.evaluate(() => performance.timeOrigin), documentOrigin, 'Normal management navigation unexpectedly replaced the document');
+    };
+    await navigate('应用管理', '/apps'); await page.getByText('暂无应用', { exact: true }).waitFor();
+    assert.equal((await api('/apps')).body.data.length, 0); await screenshot('apps-empty-desktop');
+    await navigate('渲染会话', '/stream-sessions'); await page.getByRole('heading', { name: '串流会话', exact: true }).waitFor();
     assert.deepEqual((await api('/stream-sessions')).body.data, []); assert.equal(await page.locator('.client-card').count(), 0);
     await page.getByText('当前没有串流会话', { exact: true }).waitFor(); await screenshot('sessions-current-desktop');
     await page.getByRole('button', { name: /已结束记录/ }).click(); await page.getByText('暂无已结束记录', { exact: true }).waitFor();
@@ -100,7 +114,7 @@ function copyAssets(source, destination) {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     await page.getByRole('button', { name: /当前会话/ }).click(); await screenshot('sessions-current-mobile');
     await page.setViewportSize({ width: 1440, height: 1000 });
-    await page.goto(base + '/settings'); await page.getByRole('heading', { name: '服务配置', exact: true }).waitFor();
+    await navigate('系统设置', '/settings'); await page.getByRole('heading', { name: '服务配置', exact: true }).waitFor();
     await page.locator('summary').filter({ hasText: '应用与存储' }).click();
     const count = page.getByLabel('解压文件数上限', { exact: true }); await count.waitFor(); const oldCount = Number(await count.inputValue()), draft = oldCount + 1;
     await count.fill(String(draft));
@@ -126,7 +140,7 @@ function copyAssets(source, destination) {
     await screenshot('configuration-saved-desktop'); await page.setViewportSize({ width: 390, height: 844 }); await screenshot('configuration-saved-mobile');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     await Promise.all(responseChecks);
-    assert.deepEqual(javascriptErrors, []); assert.deepEqual(report.unexpected_http_errors, []);
+    assert.deepEqual(javascriptErrors, []); assert.deepEqual(report.request_failures, []); assert.deepEqual(report.unexpected_http_errors, []);
     report.unexpected_console_errors = [];
     const unmatched = [...verifiedResourceFailures];
     for (const entry of report.console.filter(entry => entry.type === 'error')) {
