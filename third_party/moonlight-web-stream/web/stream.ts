@@ -11,7 +11,7 @@ import { adoptRoleDefaultLanguage, getCurrentLanguage, getTranslations, Language
 import { requestKeyboardLock } from "./iframe"
 import "./polyfill/index"
 import { KeyboardModeChangeEvent, likelyHasNativeOnScreenKeyboard, ScreenKeyboard, ScreenKeyboardListener, TextEvent } from "./keyboard"
-import { InfoEvent, Stream, StreamCapabilities } from "./stream/index"
+import { InfoEvent, Stream, StreamCapabilities, ViewerAuthority } from "./stream/index"
 import { defaultStreamInputConfig, MouseMode, ScreenKeyboardSetVisibleEvent, StreamInputConfig } from "./stream/input"
 import { emptyKeyModifiers } from "./stream/keyboard"
 import { LogMessageType } from "./stream/log"
@@ -165,6 +165,8 @@ class ViewerApp implements Component {
 
     private statsDiv = document.createElement("div")
     private localTouchCursorDiv = document.createElement("div")
+    private authorityBadge = document.createElement("div")
+    private previousAuthority: ViewerAuthority | null = null
     private stream: Stream
 
     private inputConfig: StreamInputConfig = defaultStreamInputConfig()
@@ -226,6 +228,10 @@ class ViewerApp implements Component {
         }, 100)
         this.div.appendChild(this.statsDiv)
         this.div.appendChild(this.localTouchCursorDiv)
+        this.authorityBadge.className = "viewer-authority"
+        this.authorityBadge.setAttribute("role", "status")
+        this.authorityBadge.setAttribute("aria-live", "polite")
+        this.div.appendChild(this.authorityBadge)
 
         // Configure Screen Keyboard
         if (likelyHasNativeOnScreenKeyboard()) {
@@ -247,6 +253,7 @@ class ViewerApp implements Component {
         this.toggleFullscreenWithKeybind = settings.toggleFullscreenWithKeybind
 
         this.stream = new Stream(this.api, hostId, appId, settings, [browserWidth, browserHeight], bootstrapRole.permissions)
+        this.onAuthority(this.stream.getAuthority())
         this.startStream(settings)
 
         // Configure input
@@ -330,7 +337,9 @@ class ViewerApp implements Component {
     private async onInfo(event: InfoEvent) {
         const data = event.detail
 
-        if (data.type == "app") {
+        if (data.type == "authority") {
+            this.onAuthority(data.authority)
+        } else if (data.type == "app") {
             const appName = data.appName
 
             document.title = `Stream: ${appName}`
@@ -350,6 +359,22 @@ class ViewerApp implements Component {
                 })
                 this.connectionInfoModal.onInfo(event)
             }
+        }
+    }
+
+    private onAuthority(authority: ViewerAuthority) {
+        const previous = this.previousAuthority
+        this.previousAuthority = authority
+        if (authority.managed && authority.verified && previous?.verified && previous.control !== authority.control) {
+            showNotification(authority.control ? "已获得控制权，可操作应用。麦克风需主动开启。" : "控制权已收回，已停止输入和麦克风，仅可观看。", "info")
+        }
+        this.authorityBadge.hidden = !authority.managed
+        this.authorityBadge.innerText = !authority.verified ? "权限确认中" : authority.control ? "控制者" : "仅观看"
+        this.authorityBadge.dataset.control = String(authority.control)
+        this.sidebar.onAuthority(authority)
+        if (!authority.control) {
+            this.screenKeyboard?.setVisible(false)
+            if (document.pointerLockElement) void document.exitPointerLock()
         }
     }
 
@@ -409,6 +434,7 @@ class ViewerApp implements Component {
     }
 
     private onScreenKeyboardSetVisible(event: ScreenKeyboardSetVisibleEvent) {
+        if (!this.stream.getAuthority().control) return
         console.info(event.detail)
         const screenKeyboard = this.screenKeyboard
 
@@ -703,6 +729,7 @@ class ViewerApp implements Component {
 
     // Pointer Lock
     async requestPointerLock(errorIfNotFound: boolean = false) {
+        if (!this.stream.getAuthority().control) return
         this.previousMouseMode = this.inputConfig.mouseMode
 
         const inputElement = document.getElementById("input") as HTMLDivElement
@@ -1027,12 +1054,17 @@ class ViewerSidebar implements Component, Sidebar, ScreenKeyboardListener {
 
     private mouseMode: SelectComponent
     private touchMode: SelectComponent
+    private authorityStatus = document.createElement("p")
+    private modes = document.createElement("fieldset")
 
     constructor(app: ViewerApp) {
         this.app = app
 
         // -- Configure divs
         this.div.classList.add("sidebar-stream")
+        this.authorityStatus.className = "viewer-authority-detail"
+        this.authorityStatus.setAttribute("aria-live", "polite")
+        this.div.appendChild(this.authorityStatus)
 
         this.buttonDiv.classList.add("sidebar-stream-buttons")
         this.div.appendChild(this.buttonDiv)
@@ -1114,7 +1146,8 @@ class ViewerSidebar implements Component, Sidebar, ScreenKeyboardListener {
             preSelectedOption: this.app.getInputConfig().mouseMode
         })
         this.mouseMode.addChangeListener(this.onMouseModeChange.bind(this))
-        this.mouseMode.mount(this.div)
+        this.div.appendChild(this.modes)
+        this.mouseMode.mount(this.modes)
 
         // Select Touch Mode
         this.touchMode = new SelectComponent("touchMode", [
@@ -1127,7 +1160,20 @@ class ViewerSidebar implements Component, Sidebar, ScreenKeyboardListener {
             preSelectedOption: this.app.getInputConfig().touchMode
         })
         this.touchMode.addChangeListener(this.onTouchModeChange.bind(this))
-        this.touchMode.mount(this.div)
+        this.touchMode.mount(this.modes)
+    }
+
+    onAuthority(authority: ViewerAuthority) {
+        this.authorityStatus.hidden = !authority.managed
+        this.authorityStatus.innerText = !authority.verified ? "正在确认权限，暂时仅观看。" : !authority.control
+            ? "仅观看 · 键盘、鼠标、触控和麦克风由管理员授权后可用。"
+            : authority.microphone ? "控制者 · 可操作应用。麦克风需主动开启。" : "控制者 · 可操作应用，管理员已关闭麦克风权限。"
+        for (const button of [this.keyboardButton, this.sendKeycodeButton, this.lockMouseButton]) {
+            button.disabled = !authority.control
+            button.title = authority.control ? "" : "需管理员授予控制权"
+        }
+        this.modes.disabled = !authority.control
+        this.modes.inert = !authority.control
     }
 
     onCapabilitiesChange(capabilities: StreamCapabilities) {

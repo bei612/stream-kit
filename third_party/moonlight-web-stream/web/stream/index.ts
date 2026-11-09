@@ -29,12 +29,14 @@ export type StreamCapabilities = {
 }
 
 export type InfoEvent = CustomEvent<
+    { type: "authority", authority: ViewerAuthority } |
     { type: "app", appName: string } |
     { type: "connectionComplete", capabilities: StreamCapabilities } |
     { type: "videoReady" } |
     { type: "streamEnded", graceful: boolean, message: string | null } |
     { type: "addDebugLine", line: string, additional?: LogMessageInfo }
 >
+export type ViewerAuthority = { managed: boolean; control: boolean; microphone: boolean; verified: boolean }
 export type InfoEventListener = (event: InfoEvent) => void
 
 export function getStreamerSize(settings: Settings, viewerScreenSize: [number, number]): [number, number] {
@@ -125,6 +127,8 @@ export class Stream implements Component {
     private streamerSize: [number, number]
     private mediaAccess: MediaAccess | null = null
     private mediaHeartbeatTimer: number | null = null
+    private authorityVerified = true
+    private publishedAuthority = ""
 
     constructor(api: Api, hostId: number, appId: number, settings: Settings, viewerScreenSize: [number, number], permissions: StreamPermissions) {
         this.logger.addInfoListener((info, type) => {
@@ -153,6 +157,7 @@ export class Stream implements Component {
             controllerConfig: this.settings.controllerConfig
         })
         this.input = new StreamInput(streamInputConfig)
+        this.publishAuthority()
 
         // Stream Stats
         this.stats = new StreamStats(this.logger)
@@ -264,6 +269,8 @@ export class Stream implements Component {
             if (mediaAccess) await apiRefreshMediaTicket(mediaAccess)
             else mediaAccess = await apiEnsureMediaAccess(this.api, this.hostId, this.appId)
             this.mediaAccess = mediaAccess
+            this.authorityVerified = true
+            this.publishAuthority()
             if (mediaAccess) this.api.mediaAccess = mediaAccess
             this.startMediaHeartbeat()
             if (this.stopped) {
@@ -389,6 +396,8 @@ export class Stream implements Component {
                 } catch (error) {
                     if (this.mediaAccess !== access || this.stopped) return
                     this.updateMicrophoneAuthority(false)
+                    this.authorityVerified = false
+                    this.publishAuthority()
                     if (!(error instanceof MediaAccessError) || error.status !== 410) throw error
                     await apiResumeMediaAccess(access)
                     // Stop may race a successful resume. Release the restored lease
@@ -399,6 +408,8 @@ export class Stream implements Component {
                     }
                 }
                 if (this.mediaAccess !== access || this.stopped) return
+                this.authorityVerified = true
+                this.publishAuthority()
                 this.updateMicrophoneAuthority(this.microphoneAllowed())
             } catch (error) {
                 if (this.mediaAccess !== access || this.stopped) {
@@ -406,6 +417,8 @@ export class Stream implements Component {
                     return
                 }
                 this.updateMicrophoneAuthority(false)
+                this.authorityVerified = false
+                this.publishAuthority()
                 this.debugLog(`Media heartbeat failed: ${error}`)
                 if (error instanceof MediaAccessError && (error.status === 401 || error.status === 410)) await this.stop()
             } finally { pending = false }
@@ -461,8 +474,23 @@ export class Stream implements Component {
         return !this.stopped && this.transport === transport && this.pipelineGeneration === generation
     }
     private microphoneAllowed(): boolean {
-        return this.settings.microphone && (!managedStreaming() ||
+        return this.authorityVerified && this.settings.microphone && (!managedStreaming() ||
             (this.mediaAccess?.role === "controller" && this.mediaAccess.microphoneEnabled))
+    }
+    getAuthority(): ViewerAuthority {
+        const managed = managedStreaming()
+        const verified = !this.stopped && this.authorityVerified && (!managed || this.mediaAccess != null)
+        const control = verified && (!managed || this.mediaAccess?.role === "controller")
+        return { managed, verified, control, microphone: control && (!managed || this.mediaAccess?.microphoneEnabled === true) }
+    }
+    private publishAuthority() {
+        const authority = this.getAuthority()
+        const key = authority.control ? JSON.stringify([this.mediaAccess?.sessionId ?? "legacy", this.mediaAccess?.connectionId, this.mediaAccess?.controlEpoch]) : null
+        this.input.setAuthority(key)
+        const serialized = JSON.stringify(authority)
+        if (serialized === this.publishedAuthority) return
+        this.publishedAuthority = serialized
+        this.eventTarget.dispatchEvent(new CustomEvent("stream-info", { detail: { type: "authority", authority } }))
     }
     private microphoneAuthorityKey(): string | null {
         const access = this.mediaAccess
@@ -790,6 +818,7 @@ export class Stream implements Component {
 
     async stop(): Promise<boolean> {
         this.stopped = true
+        this.publishAuthority()
         this.cleanupPipelines()
         // Stop transport
         try {

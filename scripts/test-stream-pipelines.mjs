@@ -24,7 +24,7 @@ test('stop owns the WebSocket during opening and managed admission never falls b
   } })
   const stream = Object.create(exports.Stream.prototype)
   Object.assign(stream, { api: {}, permissions: { allow_transport_websockets: true }, stopped: false, transport: null,
-    debugLog() {}, cleanupPipelines() {}, cleanupMicrophone() {}, releaseMediaAccess: async () => {},
+    debugLog() {}, publishAuthority() {}, cleanupPipelines() {}, cleanupMicrophone() {}, releaseMediaAccess: async () => {},
     input: { setControlStream() {} }, stats: { setTransport() {} }, createTransportOptions: async () => ({}),
   })
   const connecting = stream.tryWebSocketTransport()
@@ -48,7 +48,7 @@ test('automatic transport selection falls back when native WebRTC initialization
   }})
   const stream=Object.create(exports.Stream.prototype)
   Object.assign(stream,{api:{},permissions:{allow_transport_webrtc:true},settings:{dataTransport:'auto'},stopped:false,transport:null,
-    debugLog(){},startMediaHeartbeat(){},cleanupPipelines(){},cleanupMicrophone(){},
+    debugLog(){},publishAuthority(){},startMediaHeartbeat(){},cleanupPipelines(){},cleanupMicrophone(){},
     async releaseMediaAccess(){releases++},
     async tryWebSocketTransport(){websocket++;return 'disconnect'},
   })
@@ -79,7 +79,7 @@ for (const phase of ['capability-probe','offer-request']) {
     }})
     const stream=Object.create(exports.Stream.prototype)
     Object.assign(stream,{api:{},permissions:{allow_transport_webrtc:true},stopped:false,transport:null,
-      debugLog(){},startMediaHeartbeat(){},cleanupPipelines(){},cleanupMicrophone(){},releaseMediaAccess:async()=>{},
+      debugLog(){},publishAuthority(){},startMediaHeartbeat(){},cleanupPipelines(){},cleanupMicrophone(){},releaseMediaAccess:async()=>{},
       input:{setControlStream(){}},stats:{setTransport(){}},
       async createTransportOptions(){if(phase==='capability-probe'){entered.resolve();await resume.promise}return {microphone:false}},
     })
@@ -184,8 +184,8 @@ function fixture(heartbeat = async () => {}) {
   } })
   const stream = Object.create(exports.Stream.prototype)
   const transport = { async close() { closes++ }, connectVideoPipeline() { builds++; building.resolve(); return construction.promise }, connectAudioPipeline() { builds++; building.resolve(); return construction.promise } }
-  Object.assign(stream, { transport, stopped: false, pipelineGeneration: 0, videoRenderer: null, audioPlayer: null, microphoneListener: null,
-    settings: {}, divElement: {}, logger: { debug() {} }, debugLog() {}, stats: { setVideoPipeline() {}, setAudioPipeline() {} },
+  Object.assign(stream, { transport, stopped: false, authorityVerified: true, pipelineGeneration: 0, videoRenderer: null, audioPlayer: null, microphoneListener: null,
+    settings: {}, divElement: {}, logger: { debug() {} }, debugLog() {}, publishAuthority() {}, stats: { setVideoPipeline() {}, setAudioPipeline() {} },
     async releaseMediaAccess() { releases++ } })
   return { stream, transport, output, selection, construction, setup, building, mounting,
     counts: () => ({ builds, mounts, unmounts, cleanups, closes, releases }) }

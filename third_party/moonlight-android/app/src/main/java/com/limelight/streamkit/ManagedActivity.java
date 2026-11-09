@@ -46,6 +46,7 @@ public final class ManagedActivity extends Activity {
   private final android.os.Handler chromeHandler =
       new android.os.Handler(android.os.Looper.getMainLooper());
   private boolean fullscreen, statisticsVisible;
+  private Boolean previousControl;
   private FrameLayout mediaArea;
   private int frameWidth, frameHeight;
   private AudioManager audio;
@@ -108,6 +109,16 @@ public final class ManagedActivity extends Activity {
         this, egl.getEglBaseContext(), video, width, height, BuildConfig.DEBUG, stateView -> {
           boolean firstVideo = entry.getVisibility() != View.GONE && stateView.videoReady;
           chrome.state(stateView);
+          if (stateView.running && stateView.videoReady && previousControl != null
+              && previousControl != stateView.control) {
+            Toast
+                .makeText(this,
+                    stateView.control ? "已获得控制权，可操作应用和主动开启麦克风"
+                                      : "控制权已收回，已停止输入和麦克风，仅可观看",
+                    Toast.LENGTH_LONG)
+                .show();
+          }
+          previousControl = stateView.running && stateView.videoReady ? stateView.control : null;
           chrome.changeServer.setEnabled(!stateView.running && currentLink != null);
           if (firstVideo && preferences.enabled("enterFullscreenOnStreamStart", false))
             setFullscreen(true);
@@ -121,9 +132,11 @@ public final class ManagedActivity extends Activity {
             if (Build.VERSION.SDK_INT >= 26)
               video.releasePointerCapture();
           }
-          microphone.setText(stateView.microphoneLive ? "麦克风开启中"
-                  : stateView.microphoneRequested     ? "正在开启麦克风…"
-                                                      : "麦克风已关闭");
+          microphone.setText(!stateView.control   ? "麦克风 · 需控制权"
+                  : !stateView.microphoneAllowed  ? "麦克风 · 未授权"
+                  : stateView.microphoneLive      ? "麦克风开启中"
+                  : stateView.microphoneRequested ? "正在开启麦克风…"
+                                                  : "麦克风已关闭");
           connect.setEnabled(!stateView.running);
         });
     audio = (AudioManager) getSystemService(AUDIO_SERVICE);
@@ -241,7 +254,7 @@ public final class ManagedActivity extends Activity {
         new android.app.AlertDialog.Builder(this)
             .setTitle("修改服务器地址")
             .setMessage("填写服务器的新 HTTPS 地址和端口，保留当前应用的观看密钥。服务器沿用原 CA "
-                        + "信任时，无需重装 App 或证书。")
+                + "信任时，无需重装 App 或证书。")
             .setView(endpoint)
             .setNegativeButton("取消", null)
             .setPositiveButton("保存地址", null)

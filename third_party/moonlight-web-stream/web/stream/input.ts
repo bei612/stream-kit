@@ -65,6 +65,9 @@ export class StreamInput {
     private capabilities: StreamCapabilities = { touch: true }
 
     private controlStream: IControlStream | null = null
+    private availableControlStream: IControlStream | null = null
+    private authorityKey: string | null = "legacy"
+    private authorityGeneration = 0
 
     private localCursorPosition: [number, number] | null = null
 
@@ -81,7 +84,26 @@ export class StreamInput {
         // Clear state
         this.raiseAllKeys()
 
-        this.controlStream = controlStream
+        this.availableControlStream = controlStream
+        this.controlStream = this.authorityKey ? controlStream : null
+        this.authorityGeneration++
+    }
+
+    /** Local feedback and suppression; the gateway remains the authorization boundary. */
+    setAuthority(key: string | null) {
+        if (key === this.authorityKey) return
+        this.authorityGeneration++
+        this.authorityKey = key
+        this.pressedKeys.clear()
+        this.primaryTouch = null
+        this.touchTracker.clear()
+        this.touchMouseAction = "default"
+        this.touchGestureSuppressClick = true
+        this.nextTouchDoubleTap = false
+        this.scrollRemainderX = 0
+        this.scrollRemainderY = 0
+        this.controlStream = key ? this.availableControlStream : null
+        if (key && this.connected) this.registerBufferedControllers()
     }
 
     setConfig(config: StreamInputConfig) {
@@ -820,8 +842,9 @@ export class StreamInput {
                         this.nextTouchDoubleTap = true
 
                         // Schedule the click if it's not a double tap
+                        const authorityGeneration = this.authorityGeneration
                         setTimeout(() => {
-                            if (this.primaryTouch == null) {
+                            if (authorityGeneration === this.authorityGeneration && this.primaryTouch == null) {
                                 // no click present -> no double click -> We need to do the actual click
                                 doClick(false)
 

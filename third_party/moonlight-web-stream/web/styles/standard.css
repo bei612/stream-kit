@@ -1232,3 +1232,19 @@ input[type="checkbox"] {
         transition: none !important;
     }
 }
+.viewer-authority {
+    position: absolute;
+    top: max(12px, env(safe-area-inset-top));
+    right: max(12px, env(safe-area-inset-right));
+    z-index: 5;
+    pointer-events: none;
+    padding: 5px 9px;
+    border-radius: 6px;
+    background: rgba(11, 17, 28, .78);
+    color: #c7d3e4;
+    font-size: 12px;
+}
+.viewer-authority[data-control="true"] { color: #8ce7b6; }
+.viewer-authority-detail { font-size: 13px; line-height: 1.6; color: #b5c4d8; }
+.sidebar-stream fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.sidebar-stream fieldset[disabled] { opacity: .55; }

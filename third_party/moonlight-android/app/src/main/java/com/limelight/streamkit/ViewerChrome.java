@@ -19,9 +19,10 @@ final class ViewerChrome {
   final FrameLayout root, media;
   final LinearLayout entry, actions;
   final TextView status, sidebarStatus;
+  private final TextView authorityBadge, authorityDetail;
   final EditText address;
-  final Button connect, cancel, changeServer, forget, microphone, disconnect, keyboard, keycode, pointer,
-      fullscreen, stats, settings, sound;
+  final Button connect, cancel, changeServer, forget, microphone, disconnect, keyboard, keycode,
+      pointer, fullscreen, stats, settings, sound;
   final Spinner mouseMode, touchMode;
   private final Activity activity;
   private final FrameLayout shade;
@@ -40,13 +41,23 @@ final class ViewerChrome {
         // Resize the complete video viewport above the IME, including immersive mode.
         // A one-pixel editor must not make Android pan the entire stream off screen.
         android.graphics.Insets safe = insets.getInsets(android.view.WindowInsets.Type.systemBars()
-            | android.view.WindowInsets.Type.displayCutout() | android.view.WindowInsets.Type.ime());
+            | android.view.WindowInsets.Type.displayCutout()
+            | android.view.WindowInsets.Type.ime());
         view.setPadding(safe.left, safe.top, safe.right, safe.bottom);
         return android.view.WindowInsets.CONSUMED;
       });
     }
     media = new FrameLayout(activity);
     root.addView(media, new FrameLayout.LayoutParams(-1, -1));
+    authorityBadge = label("仅观看", 12, MUTED);
+    authorityBadge.setPadding(dp(9), dp(5), dp(9), dp(5));
+    authorityBadge.setBackground(background(0xCC0B111C, 6));
+    authorityBadge.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+    FrameLayout.LayoutParams badge =
+        new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.RIGHT);
+    badge.setMargins(dp(12), dp(12), dp(12), 0);
+    root.addView(authorityBadge, badge);
+    authorityBadge.setVisibility(View.GONE);
     entry = column();
     entry.setPadding(dp(28), dp(24), dp(28), dp(24));
     entry.setBackground(background(SURFACE, 18));
@@ -105,6 +116,9 @@ final class ViewerChrome {
     actions.addView(heading);
     sidebarStatus = label("等待连接", 12, MUTED);
     actions.addView(sidebarStatus, row(-1, 36));
+    authorityDetail = label("管理员授予控制权后，可操作应用和开启麦克风。", 12, MUTED);
+    authorityDetail.setPadding(0, 0, 0, dp(10));
+    actions.addView(authorityDetail, row(-1, -2));
     keyboard = button("键盘", SURFACE);
     keycode = button("发送按键", SURFACE);
     pair(keyboard, keycode);
@@ -149,6 +163,12 @@ final class ViewerChrome {
     cancel.setVisibility(state.running ? View.VISIBLE : View.GONE);
     boolean firstFrame = !connected && state.videoReady;
     connected = state.videoReady;
+    authorityBadge.setVisibility(connected ? View.VISIBLE : View.GONE);
+    authorityBadge.setText(state.control ? "控制者" : "仅观看");
+    authorityBadge.setTextColor(state.control ? Color.rgb(140, 231, 182) : MUTED);
+    authorityDetail.setText(!state.control ? "仅观看 · 键盘、鼠标、触控和麦克风由管理员授权后可用。"
+            : state.microphoneAllowed      ? "控制者 · 可操作应用。麦克风需主动开启。"
+                                           : "控制者 · 可操作应用，管理员已关闭麦克风权限。");
     entry.setVisibility(connected ? View.GONE : View.VISIBLE);
     handle.setVisibility(connected && !hideHandle && !isOpen() ? View.VISIBLE : View.GONE);
     if (firstFrame)
@@ -158,6 +178,9 @@ final class ViewerChrome {
     pointer.setEnabled(state.control && Build.VERSION.SDK_INT >= 26);
     mouseMode.setEnabled(state.control);
     touchMode.setEnabled(state.control);
+    for (View control : new View[] {keyboard, keycode, pointer, mouseMode, touchMode})
+      control.setAlpha(control.isEnabled() ? 1f : .45f);
+    microphone.setAlpha(state.microphoneAllowed ? 1f : .45f);
     if (!connected)
       close();
   }
