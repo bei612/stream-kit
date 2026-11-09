@@ -4,13 +4,15 @@ Stream-Kit 将管理服务、Sunshine 渲染端和 Moonlight Web 媒体网关集
 
 服务端支持 Windows/Linux，客户端提供 Web/PWA 和 Android 原生 App。手机和平板也可直接使用浏览器；浏览器采集麦克风需要安全上下文和用户授权。当前发布渠道为预发布，不能把构建成功视为全部生产验收完成。
 
-基于官方 Moonlight Android 源码二开的 [Android 签名 APK 20261109.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261109.3) 已发布，版本码 `1000010`、源码 `c8e677c6`，沿用项目持久签名，可覆盖安装此前版本。本版统一原生播放、音频焦点与音量键的媒体类别，修正前台启动及焦点交接，并明确处理本地音频设备失败。签名发布构建、现有 19 项 JVM 检查、APK 签名及封装校验已通过，见[精确发布记录](docs/evidence/android-release-20261109-3.json)。该 APK 的独立音频验收 `42625838764` 在初始观看状态等待时失败，尚未进入声音测量；正在补充固定状态诊断，不声明真实音频链路通过。
+基于官方 Moonlight Android 源码二开的 [Android 签名 APK 20261109.4](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261109.4) 已发布，版本码 `1000011`、源码 `4437dba9`，沿用项目持久签名，可覆盖安装此前版本。本版将焦点回调绑定到各自连接代际，防止旧回调影响新播放，并在默认关闭的统计面板补充实际音频编码、时钟及解码指标。签名 release 构建、APK 签名、源码身份及封装校验已通过；本次没有重复执行此前的 19 项 JVM 检查。精确版本见[发布记录](docs/evidence/android-release-20261109-4.json)。该 APK 的独立音频验收 `42634402828` 正在执行，结果尚未通过。
 
-客户端保留可收起工具栏、键盘、鼠标/触屏模式、设置、控制者身份及服务器地址修改入口，见[操作说明](docs/android-viewer-controls.md)。此前 `20261109.2` 已覆盖安装到实体平板和官方模拟器，并与 Web 同时接入 Example，交接及释放控制权时身份显示正确，见[三端实际检查记录](docs/evidence/android-exclusive-control-20261109.json)。这些旧版结果不替代 `1000010` 的实际设备、输入或音频验收，也不代表本机 Windows 目标程序及物理麦克风全链路已验收。
+此前 `1000010` / `c8e677c6` 在真实模拟器验收中已进入观看，但 Android 实际播放仍接近静音；`42631879793` 使用标准 `parec` 独立采集双声道得到相同近零结果，未发现左右相消，不能把问题仅归因于 CPAL 单声道观测。本次 `1000011` 尚无修复通过结论，旧版原始指标和边界见[本版发布记录中的历史诊断](docs/evidence/android-release-20261109-4.json)。
+
+客户端保留可收起工具栏、键盘、鼠标/触屏模式、设置、控制者身份及服务器地址修改入口，见[操作说明](docs/android-viewer-controls.md)。此前 `20261109.2` 已覆盖安装到实体平板和官方模拟器，并与 Web 同时接入 Example，交接及释放控制权时身份显示正确，见[三端实际检查记录](docs/evidence/android-exclusive-control-20261109.json)。这些旧版结果不替代后续 APK 的实际设备、输入或音频验收，也不代表本机 Windows 目标程序及物理麦克风全链路已验收。
 
 本机管理服务与网关仍安装源码 `47c02726`；可信 LAN HTTPS 已部署。最新 Windows/Linux 统一安装包为源码 `6546792a` 的 [20261109.2](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261109.2)，已完成精确构建、安装检查及公开附件核验，新增统一组件命令互斥、启停反馈与管理页改进，并保留原 CA 下配置式服务证书更新、当前/历史会话分离、7 天/100 条历史上限及原生实例生命周期能力，见[本版发布证据](docs/evidence/unified-installers-6546792a.json)。本机更新仍等待此前同一 Windows UAC 请求确认，尚未部署这些服务端改动；不能以源码页面或隔离检查代替本机真实页面验收。地址配置与验证边界见[局域网地址配置](docs/lan-address-configuration.md)，剩余交付范围见[当前 Goal](docs/goal-current.md)。
 
-2026-11-09 的 `20261109.2` APK 实际输入验收已通过：该 APK 与源码 `98e419f7` 的 Linux 安装包共用一个程序渲染会话，原生目标的按键/点击计数确认 Android 控制、Web 接管、旧控制者拒绝、撤权拒绝及重新授权均正确，最后目标实例停止得到确认。见[精确版本和六阶段结果](docs/evidence/android-stream-input-20261109.json)。本轮没有重复音频或长稳测试，也不代表本机 Windows 或 `1000010` APK 输入验收通过。
+2026-11-09 的 `20261109.2` APK 实际输入验收已通过：该 APK 与源码 `98e419f7` 的 Linux 安装包共用一个程序渲染会话，原生目标的按键/点击计数确认 Android 控制、Web 接管、旧控制者拒绝、撤权拒绝及重新授权均正确，最后目标实例停止得到确认。见[精确版本和六阶段结果](docs/evidence/android-stream-input-20261109.json)。本轮没有重复音频或长稳测试，也不代表本机 Windows 或后续 APK 输入验收通过。
 
 应用与会话生命周期现已按权威原生执行实例同步，真实准入凭据的到期时间保护启动过程，客户端心跳不会永久维持失败的 `starting`。`98e419f7` 已在独立 Linux 环境通过两个 Web 观看端保持连接时目标窗口正常退出的真实检查：约 4.8 秒内终结旧会话并撤权，旧凭据在到期前被拒绝，见[被动退出证据](docs/evidence/native-session-exit-20261109.json)。本次没有出现替代实例，不代表该分支、故障恢复或本机部署通过。2026-11-09 本机输入前置核查中，Windows 未授予独立 Example 窗口前台焦点，检查因而未发送串流按键；不能宣布目标输入验收通过，见[现场记录](docs/evidence/windows-owned-example-focus-20261109.json)。
 

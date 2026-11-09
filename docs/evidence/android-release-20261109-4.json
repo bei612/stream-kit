@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-11-09T14:25:23Z",
+  "source_commit": "4437dba9ae274125b0d92ab169302b2868c2504e",
+  "source_url": "https://github.com/bei612/stream-kit/tree/4437dba9ae274125b0d92ab169302b2868c2504e/third_party/moonlight-android",
+  "version": "0.1.0-preview.20261109.4",
+  "version_code": 1000011,
+  "application_id": "io.github.bei612.streamkit",
+  "release_url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261109.4",
+  "release_id": 439227502,
+  "published_at": "2026-11-09T14:23:56Z",
+  "prerelease": true,
+  "production_acceptance_complete": false,
+  "apk_sha256": "21052aac01c26f45d2bac1a47f424b1298e9eff91300f0b97ad3b5c3ec7e8fc1",
+  "signing_certificate_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f",
+  "changes": [
+    "Bind audio-focus callbacks to their request generation, preventing late callbacks from an older connection from muting or abandoning the current connection.",
+    "Extend the existing optional statistics panel with actual codec, clock, channel and decoder metrics, retaining its disabled-by-default behavior and existing query lifecycle.",
+    "Retain shared game/media playback attributes, foreground startup and terminal local audio-device failure handling."
+  ],
+  "verification": {
+    "signed_minified_release_assemble": true,
+    "corrected_build_seconds": 39,
+    "apk_signature_verified_by_release_packager": true,
+    "unique_persistent_project_signer_verified": true,
+    "apk_v2_signature_required_and_verified": true,
+    "embedded_source_identity_verified_by_release_packager": true,
+    "locked_dependency_license_inventory_verified": true,
+    "development_test_payload_exclusion_verified": true,
+    "all_five_local_asset_sizes_and_hashes_match_recorded_github_assets": true,
+    "jvm_tests_rerun_for_this_release": false,
+    "jvm_test_scope": "The earlier 19 JVM tests are historical checks; they were not repeated or attributed as a new 1000011 test run."
+  },
+  "assets": [
+    {
+      "name": "distribution.zip",
+      "bytes": 33167433,
+      "sha256": "2c1434c9683a3a272ddef4207258c7d5d2209b86944c57a04b42cfb2467651e2",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261109.4/distribution.zip"
+    },
+    {
+      "name": "DOWNLOAD-SHA256SUMS.txt",
+      "bytes": 363,
+      "sha256": "5cca7554e67bb297c9d07e25667906748fc0de0389e80ab627ad7f422c24ee51",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261109.4/DOWNLOAD-SHA256SUMS.txt"
+    },
+    {
+      "name": "provenance.json",
+      "bytes": 4959,
+      "sha256": "3fe8d6e5c6e53d22c238b0da32ea5bb86b415315c800cae66c7bd106a9069361",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261109.4/provenance.json"
+    },
+    {
+      "name": "sbom.cdx.json",
+      "bytes": 20776,
+      "sha256": "6be3d23103b1fa963949dbab1989903528ea203ad273f7d4c43e26a85026c392",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261109.4/sbom.cdx.json"
+    },
+    {
+      "name": "stream-kit-android-0.1.0-preview.20261109.4.apk",
+      "bytes": 33167087,
+      "sha256": "21052aac01c26f45d2bac1a47f424b1298e9eff91300f0b97ad3b5c3ec7e8fc1",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261109.4/stream-kit-android-0.1.0-preview.20261109.4.apk"
+    }
+  ],
+  "audio_acceptance": {
+    "run": 42634402828,
+    "url": "https://github.com/bei612/stream-kit/actions/runs/42634402828",
+    "runtime_commit": "98e419f7f85fa36a92651ee55396815386a233c4",
+    "product_run_id": 42599646248,
+    "status_at_recording": "in_progress",
+    "passed": null,
+    "scope": "Actual isolated Linux runtime and the published 1000011 APK on the official emulator. Build and publication do not establish audio-chain acceptance."
+  },
+  "previous_apk_audio_diagnostics": {
+    "version_code": 1000010,
+    "source_commit": "c8e677c628132018b80ea23b9e71f0f0f0412d10",
+    "apk_sha256": "f129237b389ba83db5cd5e8b8044882ffec2ebbcca18c6afd8e8f096ef176bf5",
+    "runtime_commit": "98e419f7f85fa36a92651ee55396815386a233c4",
+    "program_measurement_run": 42627587723,
+    "program_measurement_passed": false,
+    "program_measurement_receipt": "docs/evidence/android-release-20261109-3.json",
+    "independent_stereo_run": 42631879793,
+    "independent_stereo_acceptance_source": "f6993e89de71be4e635350f141334571b07e2882",
+    "independent_stereo_passed_audio_acceptance": false,
+    "primary_probe": {
+      "captured_frames": 198184,
+      "dropped_frames": 0,
+      "analyzed_frames": 196800,
+      "program_997_median_amplitude": 1.2497065196500351e-7
+    },
+    "parec_diagnostic_only": {
+      "status": "complete",
+      "cleanup": "terminated",
+      "source": "streamkit_android_capture",
+      "sample_rate": 48000,
+      "channels": 2,
+      "bits_per_sample": 16,
+      "bytes_received": 384044,
+      "analyzed_bytes": 384000,
+      "analyzed_frames": 96000,
+      "elapsed_ms": 2025,
+      "left_rms": 0.00001168858765808457,
+      "right_rms": 0.000011692736814318367,
+      "left_peak": 0.00006103515625,
+      "right_peak": 0.00006103515625,
+      "mono_sum_rms": 0.0000107210413556921,
+      "half_difference_rms": 0.0000046616370594847005,
+      "left_right_correlation": 0.6785944100806841
+    },
+    "conclusion": "Standard PulseAudio stereo recording independently agrees with near-silent CPAL capture; the measured channels do not support a left/right cancellation explanation. These results belong to 1000010, not the pending 1000011 acceptance.",
+    "emulator_default_input_scope": "The observed 8 kHz PulseAudio default-source reader is an actual official SDK emulator default, not evidence of a server/browser media-protocol defect. This failure occurred before microphone injection and acceptance."
+  },
+  "limits": [
+    "No completed actual media, input or physical-device acceptance is established for the 1000011 APK by this release receipt.",
+    "Earlier APK control/input, physical speech and stability evidence retains its original version and artifact boundaries.",
+    "Emulator capture does not establish physical speaker, headset or human speech performance.",
+    "The server 6546792a release remains separate. Local Windows 47c02726 deployment still awaits its existing UAC maintenance boundary; publication does not complete deployed browser acceptance.",
+    "Example, raw audio recordings, acceptance tools and credentials are not APK production payloads."
+  ],
+  "local_evidence_inputs": [
+    ".local/validation/android-1000011-release.json",
+    "artifacts/android-release/provenance.json",
+    ".local/validation/android-1000011-sign-build-corrected.log",
+    "deploy/releases/0.1.0-android-preview.20261109.4.md",
+    ".local/ci-android-audio-42631879793/android-input-evidence/provenance.json",
+    ".local/ci-android-audio-42631879793/source-stream/2026-11-09T14-16-48-702Z/browser/result.json"
+  ]
+}
