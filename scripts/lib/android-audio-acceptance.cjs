@@ -81,7 +81,14 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     state[phase] = { started_at_ms:started, stopped_at_ms:stopped, injection_packets_at_start:packetsAtStart, injection_packets_at_stop:source.packets, signal, program_997: foreign, envelope, status }; save();
     if(measurementError)throw measurementError;return signal;
   };
-  let injection, sending = false, sender, injectionDone, injectionError, native;
+  let injection, sending = false, sender, injectionDone, injectionError, native, playback, playbackDone;
+  const cancelPlayback = async reason => {
+    if(!playback)return;
+    const rpc=state.android_playback_rpc;
+    if(!rpc.ended_at_ms){rpc.cancellation_requested=true;rpc.cancellation_reason=reason;rpc.cancellation_at_ms=Date.now();playback.cancel();}
+    if(playbackDone)await playbackDone;
+    save();
+  };
   const source = { packets: 0, senderEnded: false, rpcEnded: false, error: undefined };
   const stopWrites = new AbortController();
   try {
@@ -103,12 +110,45 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     state.web_program_997_db = report.program_audio_db?.[0];
     assert.ok(Number.isFinite(state.web_program_997_db) && state.web_program_997_db > -65, 'Real shared-harness Web program audio measurement missing');
     state.observer = await prepareObserver(); save();
-    const pcm = []; let size = 0, playbackError;
-    const playback = client.streamAudio({ samplingRate:'48000',channels:0,format:1 }, metadata, { deadline:Date.now()+8000 });
-    const playbackDone = new Promise(resolve => { playback.on('error', error => { playbackError ??= error.code; resolve(); }); playback.on('end',resolve); });
-    playback.on('data', packet => { if(!validMonoPCM(packet)){playbackError='incompatible_pcm_format';playback.cancel();return;} size += packet.audio.length; if(size>960000) playback.cancel(); else pcm.push(packet.audio); });
-    await until(async()=>size,value=>value>=384000,'Android native output PCM',6500); playback.cancel(); await playbackDone;
-    assert.ok(playbackError===undefined || playbackError===grpc.status.CANCELLED); assert.ok(size<=960000);
+    const pcm = []; let size = 0;
+    const rpc=state.android_playback_rpc={started_at_ms:Date.now(),collection_limit_ms:6500,rpc_deadline_ms:8000,
+      requested:{sampling_rate:48000,channels:0,format:1},status:'opening',packet_count:0,received_bytes:0,accepted_bytes:0,packets:[],cancellation_requested:false};save();
+    try { playback = client.streamAudio({ samplingRate:'48000',channels:0,format:1 }, metadata, { deadline:rpc.started_at_ms+8000 }); }
+    catch(error) { rpc.status='creation_failed';rpc.creation_error_code=error.code;rpc.ended_at_ms=Date.now();save();throw error; }
+    playbackDone = new Promise(resolve => {
+      playback.on('error',error=>{rpc.grpc_error_code=error.code;rpc.ended_at_ms=Date.now();rpc.status=rpc.failure_reason?'rejected':rpc.cancellation_requested&&error.code===grpc.status.CANCELLED?'cancelled':'failed';save();resolve();});
+      playback.on('end',()=>{rpc.end_event_at_ms=Date.now();if(!rpc.ended_at_ms){rpc.ended_at_ms=rpc.end_event_at_ms;rpc.status=rpc.failure_reason?'rejected':'ended';}save();resolve();});
+    });
+    playback.on('data',packet=>{
+      const at=Date.now();rpc.packet_count++;rpc.first_packet_at_ms??=at;rpc.last_packet_at_ms=at;rpc.status=rpc.cancellation_requested?'cancelling':'receiving';
+      const bytes=Number.isSafeInteger(packet.audio?.byteLength)?packet.audio.byteLength:0;rpc.received_bytes+=bytes;
+      const summary={at_ms:at,bytes,audio_is_buffer:Buffer.isBuffer(packet.audio),format:packet.format?{sampling_rate:String(packet.format.samplingRate),channels:packet.format.channels,format:packet.format.format}:null};
+      if(rpc.packets.length<8)rpc.packets.push(summary);
+      if(rpc.cancellation_requested)return;
+      if(!validMonoPCM(packet)){rpc.failure_reason='incompatible_pcm_format';rpc.rejected_packet=summary;rpc.rejected_packet_at_ms=at;save();void cancelPlayback('format rejection');return;}
+      size+=bytes;rpc.accepted_bytes=size;
+      if(size>960000){rpc.failure_reason='pcm_memory_limit';save();void cancelPlayback('memory limit');return;}
+      pcm.push(packet.audio);if(rpc.packet_count<=2||rpc.packet_count%50===0)save();
+    });
+    try {
+      await until(async()=>{
+        if(rpc.failure_reason)throw Error('Android playback rejected PCM: '+rpc.failure_reason);
+        if(rpc.ended_at_ms)throw Error('Android playback RPC ended before collection completed: '+rpc.status+'/'+(rpc.grpc_error_code??'OK'));
+        return size;
+      },value=>value>=384000,'Android native output PCM',6500);
+    } catch(error) {
+      rpc.collection_failed_at_ms=Date.now();rpc.collection_error=error.message;save();
+      throw error;
+    } finally {
+      rpc.collection_finished_at_ms=Date.now();save();await cancelPlayback('collection finished');
+      if(rpc.collection_error){
+        // Metadata only: no PCM, app intents, links, logcat or capture content.
+        try { state.playback_failure_android={pid:run(['shell','pidof','io.github.bei612.streamkit']).trim(),audio_flinger_summary:run(['shell','dumpsys','media.audio_flinger']).split(/\r?\n/).filter(line=>/thread|track|standby|rate|format|channel|frames|underrun|pid|active|session/i.test(line)).slice(0,180)}; }
+        catch { state.playback_failure_android={diagnostic_unavailable:true}; }
+        save();
+      }
+    }
+    assert.ok(!rpc.failure_reason);assert.ok(rpc.grpc_error_code===undefined||rpc.grpc_error_code===grpc.status.CANCELLED&&rpc.cancellation_requested);assert.ok(size<=960000);
     const bytes=Buffer.concat(pcm), levels=[];
     for(let offset=0;offset+9600<=bytes.length;offset+=9600){let re=0,im=0;for(let i=0;i<4800;i++){const sample=bytes.readInt16LE(offset+i*2)/32768;re+=sample*Math.cos(2*Math.PI*997*i/48000);im+=sample*Math.sin(2*Math.PI*997*i/48000);}levels.push(2*Math.hypot(re,im)/4800);}
     levels.sort((a,b)=>a-b); state.android_program_pcm_bytes=bytes.length; state.android_program_997_median=levels[Math.floor(levels.length/2)]||0;
@@ -150,6 +190,7 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
   } finally {
     sending=false;
     stopWrites.abort();
+    await cancelPlayback('helper cleanup');
     if(injection)injection.cancel();
     if (sender) await sender.catch(()=>{});
     client.close();
