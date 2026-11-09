@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/api/client'
 import { currentMediaObservation, type MediaObservation, type RenderSession } from '@/api/sessions'
 import { useQuery } from '@/hooks/useQuery'
 import { useConfigurationDraft } from '@/hooks/useConfigurationDraft'
 import QueryWrapper from '@/components/QueryWrapper'
 import StatusBadge from '@/components/StatusBadge'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
+import { Select } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { formatTime } from '@/lib/utils'
 import { findSessionApplication, isLiveConnection, sessionOverview, type SessionApplication } from '@/lib/session-overview'
@@ -105,20 +106,28 @@ export default function StreamSessions() {
   })
   const apps = useQuery<SessionApplication[]>({ queryFn: useCallback(() => api.listApps(), []), pollInterval: 10000, wsInvalidateEvents: ['app_status'] })
   const media = useQuery({ queryFn: useCallback(() => api.getMediaControl(), []), pollInterval: 2000 })
+  const [search, setSearch] = useSearchParams()
+  const selectedApp = search.get('app') ?? ''
   const [busy, setBusy] = useState(false)
+  const inFlight = useRef(false)
+  const [notice, setNotice] = useState('')
   const [commandError, setCommandError] = useState('')
   const [view, setView] = useState<'current' | 'history'>('current')
   const [historyPage, setHistoryPage] = useState(1)
-  const overview = sessionOverview(data ?? [], now)
+  const visibleSessions = selectedApp ? (data ?? []).filter(session => findSessionApplication(apps.data ?? [], session)?.id === selectedApp) : data ?? []
+  const overview = sessionOverview(visibleSessions, now)
   const pageCount = Math.max(1, Math.ceil(overview.history.length / HISTORY_PAGE_SIZE))
   const page = Math.min(historyPage, pageCount)
   const appFor = (session: RenderSession) => findSessionApplication(apps.data ?? [], session)
   const action: Action = async (operation) => {
+    if (inFlight.current) return
+    inFlight.current = true
     setBusy(true)
+    setNotice('')
     setCommandError('')
-    try { await operation() }
+    try { await operation(); setNotice('操作已提交，状态以服务器最新反馈为准。') }
     catch (e: unknown) { setCommandError(e instanceof Error ? e.message : '操作失败') }
-    finally { await Promise.all([refresh(), media.refresh(), apps.refresh()]); setBusy(false) }
+    finally { try { await Promise.all([refresh(), media.refresh(), apps.refresh()]) } finally { inFlight.current = false; setBusy(false) } }
   }
 
   return <QueryWrapper loading={loading} error={error} onRetry={refresh}>
@@ -132,14 +141,16 @@ export default function StreamSessions() {
         <div><strong>{overview.clients}</strong><span>在线客户端</span></div>
         <div><strong>{overview.controllers}</strong><span>在线控制者</span></div>
       </div>
-      <details className="rounded-lg border border-border px-4 py-3 text-sm text-muted-foreground">
-        <summary className="cursor-pointer font-medium text-foreground">会话和客户端有什么区别？</summary>
-        <div className="space-y-2 pt-3 leading-relaxed">
-          <p>一个应用的一次串流由多个客户端共享。同一会话可以暂时无人观看；停止应用后，该会话结束，下次启动创建新会话。</p>
-          <p>客户端记录代表一次连接，不是永久设备档案。短暂断线可恢复；一周后重新访问会创建新的连接，控制权由管理员重新分配。</p>
-          <p>已结束记录仅供查阅历史状态，不代表在线设备，也不占用观看名额。永久观看链接属于应用，不会因会话结束而失效。</p>
-        </div>
-      </details>
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="min-w-0 flex-1 space-y-2 text-xs text-muted-foreground" htmlFor="session-app">查看应用
+          <Select id="session-app" value={selectedApp} onChange={event => { const next = new URLSearchParams(search); if (event.target.value) next.set('app', event.target.value); else next.delete('app'); setSearch(next); setHistoryPage(1) }}>
+            <option value="">全部应用</option>
+            {selectedApp && !apps.data?.some(app => app.id === selectedApp) && <option value={selectedApp}>正在确认应用…</option>}
+            {apps.data?.map(app => <option key={app.id} value={app.id}>{app.name}</option>)}
+          </Select>
+        </label>
+        <Link className="inline-flex min-h-10 items-center text-sm text-primary hover:underline" to={selectedApp ? `/apps/${selectedApp}` : '/apps'}>{selectedApp ? '应用配置与观看链接 ↗' : '应用管理 ↗'}</Link>
+      </div>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
         <div className="flex gap-2" aria-label="会话视图">
           <Button variant={view === 'current' ? 'primary' : 'outline'} aria-pressed={view === 'current'} onClick={() => setView('current')}>当前会话 ({overview.current.length})</Button>
@@ -147,6 +158,7 @@ export default function StreamSessions() {
         </div>
         <Link className="text-sm text-primary hover:underline" to="/apps">前往应用管理</Link>
       </div>
+      {notice && <p role="status" className="rounded-lg bg-primary/10 px-4 py-3 text-sm text-primary">{notice}</p>}
       {commandError && <p role="alert" className="text-sm text-red-400">{commandError}</p>}
       {apps.error && <p role="status" className="text-sm text-amber-400">应用名称和运行状态暂时无法更新，连接列表仍按会话数据显示。</p>}
       {view === 'history' ? <Card>
@@ -170,7 +182,10 @@ export default function StreamSessions() {
         {(media.error || (media.data && !media.data.reachable)) && <p role="status" className="text-sm text-amber-400">媒体网关同步异常，正在重试。下方运行状态以最新反馈为准。</p>}
         {overview.current.map((session) => {
           const app = appFor(session)
-          const connections = Object.values(session.connections)
+          const connections = Object.values(session.connections).sort((a, b) => {
+            const priority = (connection: typeof a) => isLiveConnection(connection, now) ? connection.connection_id === session.controller_connection_id ? 0 : 1 : 2
+            return priority(a) - priority(b) || Date.parse(a.connected_at) - Date.parse(b.connected_at)
+          })
           const online = connections.filter(connection => isLiveConnection(connection, now))
           const controller = online.find(connection => connection.connection_id === session.controller_connection_id)
           const observation = media.error ? undefined : currentMediaObservation(media.data, session, now)
@@ -178,26 +193,31 @@ export default function StreamSessions() {
           const leaseValid = media.data?.lease_valid && media.data.lease_expires_at_ms > now
           const applied = leaseValid && appliedRevision >= session.revision
           const stopping = session.state === 'stopping'
+          const inactive = !apps.error && app?.status === 'stopped' && observation != null && !observation.upstream_active && online.length === 0
           return <Card key={session.session_id}>
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4 mb-4">
               <div>
                 <div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-semibold text-card-foreground">{app ? <Link to={`/apps/${app.id}`} className="hover:text-primary">{app.name}</Link> : `应用 ${session.app_id}`}</h3>
-                  <Badge variant={stopping ? 'warning' : observation?.upstream_active ? 'success' : 'muted'}>{stopping ? '正在结束' : observation?.upstream_active ? '正在串流' : observation ? '等待串流' : '串流状态待确认'}</Badge>
+                  <Badge variant={stopping ? 'warning' : observation?.upstream_active ? 'success' : 'muted'}>{stopping ? '正在结束' : inactive ? '已停止 · 待结束' : observation?.upstream_active ? '正在串流' : observation ? '等待串流' : '串流状态待确认'}</Badge>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><span>应用状态</span>{app && !apps.error ? <StatusBadge status={app.status} /> : <span>待确认</span>}<span title={session.session_id}>会话 {session.session_id.slice(0, 8)}</span><span>创建于 {formatTime(session.created_at)}</span></div>
               </div>
               <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground"><span className="inline-flex items-center gap-1"><Users className="w-4 h-4" />{online.length} 在线</span><span>上限 {session.policy.max_viewers || '不限'}</span><span>{controller ? '已分配控制权' : '暂无在线控制者'}</span></div>
             </div>
-            {app?.status === 'stopped' && !apps.error && !observation?.upstream_active && !stopping && <p className="mb-4 text-sm text-amber-400">应用已停止，但会话尚未结束。{app.lifecycle?.can_stop ? '可在应用管理中结束会话；' : ''}此记录不代表应用正在运行。</p>}
+            {inactive ? <div className="rounded-lg bg-muted/30 p-4 text-sm">
+              <p className="font-medium">应用已停止，当前没有观看连接</p>
+              <p className="mt-1 text-muted-foreground">这是尚未结束的旧会话，音频和控制设置不再适用。</p>
+              {app.lifecycle?.can_stop && <Link className="mt-3 inline-flex min-h-9 items-center text-primary hover:underline" to={`/apps/${app.id}`}>前往应用管理结束会话 →</Link>}
+            </div> : <>
             <section aria-label="客户端与控制权">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h4 className="font-medium">客户端与控制权</h4><p className="text-xs text-muted-foreground">同一时间仅一个客户端可操作应用、发送麦克风</p></div>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-3 lg:grid-cols-2">
                 {connections.map((connection) => {
                   const live = isLiveConnection(connection, now)
                   const isController = connection.connection_id === session.controller_connection_id && live
                   return <div key={connection.connection_id} className="client-card space-y-3" data-controller={isController}>
-                    <div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="font-medium text-card-foreground">{connection.client_type === 'android' ? 'Android' : connection.client_type === 'web' ? 'Web' : '客户端'} {connection.connection_id.slice(0, 6).toUpperCase()}</div><div className="mt-1 text-xs text-muted-foreground">接入 {formatTime(connection.connected_at)}</div></div>{isController && <Crown className="w-4 h-4 text-primary shrink-0" />}</div>
-                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground"><span>{!live ? '连接已过期 · 等待清理' : isController ? '控制者 · 在线' : '观众 · 在线'}</span><span className="inline-flex items-center gap-1">{live && connection.microphone_live ? <Mic className="w-3 h-3 text-green-400" /> : <MicOff className="w-3 h-3" />}{live && connection.microphone_live ? '客户端报告麦克风活动' : '麦克风未活动'}</span></div>
+                    <div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="font-medium text-card-foreground">{connection.client_type === 'android' ? 'Android' : connection.client_type === 'web' ? 'Web' : '客户端'} {connection.connection_id.slice(0, 6).toUpperCase()}</div><div className="mt-1 text-xs text-muted-foreground">接入 {formatTime(connection.connected_at)}</div></div>{isController && <Badge variant="info"><Crown className="h-3 w-3" />唯一控制者</Badge>}</div>
+                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground"><span>{!live ? '连接已过期 · 等待清理' : isController ? '控制者 · 在线' : '观众 · 在线'}</span><span className="inline-flex items-center gap-1">{live && connection.microphone_live ? <Mic className="w-3 h-3 text-green-400" /> : <MicOff className="w-3 h-3" />}{live && connection.microphone_live ? '麦克风正在发送' : '麦克风关闭'}</span></div>
                     <div className="flex flex-wrap gap-2">
                       {isController
                         ? <Button size="sm" variant="outline" disabled={busy || stopping} onClick={() => void action(() => api.releaseStreamController(session.session_id))}><Unlock className="w-3 h-3" />释放控制权</Button>
@@ -209,7 +229,15 @@ export default function StreamSessions() {
               </div>
               {connections.length === 0 && <div className="rounded-lg border border-dashed border-border py-8 text-center text-sm text-muted-foreground">暂无客户端连接。客户端通过应用的永久观看链接接入后，会显示在这里。</div>}
             </section>
-            <details className="mt-5 border-t border-border pt-4">
+            <div className="mt-5 rounded-lg border border-border bg-muted/20 p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-medium">音频路由</h4><span className="text-xs text-muted-foreground">唯一控制者 → 目标程序 / 观看端</span></div>
+              <div className="grid gap-3 text-xs sm:grid-cols-3">
+                <div><p className="text-muted-foreground">目标程序接收语音</p><p className="mt-1 font-medium">{!session.audio.microphone_enabled || session.audio.target.mode === 'disabled' ? '已关闭' : ({local:'服务器录音设备', remote:'远程渲染节点', upstream:'原生音频通道'} as Record<string,string>)[session.audio.target.mode]}</p></div>
+                <div><p className="text-muted-foreground">观看端接收声音</p><p className="mt-1 font-medium">{session.audio.microphone_enabled && session.audio.broadcast_controller_microphone ? '程序声音 + 控制者麦克风' : '程序声音'}</p></div>
+                <div><p className="text-muted-foreground">当前麦克风</p><p className="mt-1 font-medium">{controller?.microphone_live ? '控制者正在发送' : controller ? '控制者未开启' : '等待分配控制权'}</p></div>
+              </div>
+            </div>
+            <details className="mt-4 border-t border-border pt-4">
               <summary className="cursor-pointer text-sm font-medium">音频与连接设置 <span className="ml-2 text-xs font-normal text-muted-foreground">当前会话 · 保存后实时应用</span></summary>
               <fieldset disabled={stopping}>
                 <AudioSettings session={session} busy={busy || stopping} action={action} />
@@ -222,10 +250,19 @@ export default function StreamSessions() {
               <p className="mt-3 break-all text-xs text-muted-foreground">主机 {session.host_id} · 应用 {session.app_id} · 会话 {session.session_id}</p>
               <p className="mt-1 text-xs text-muted-foreground">已保存版本 {session.revision} / 已应用版本 {appliedRevision} · 会话状态 {session.state}</p>
             </details>
+            </>}
           </Card>
         })}
-        {overview.current.length === 0 && <Card className="py-12 text-center"><h3 className="font-medium">当前没有串流会话</h3><p className="mt-2 text-sm text-muted-foreground">从应用管理启动串流，或使用应用的永久观看链接接入。</p></Card>}
+        {overview.current.length === 0 && <Card className="py-12 text-center"><h3 className="font-medium">{selectedApp ? '此应用当前没有串流会话' : '当前没有串流会话'}</h3><p className="mt-2 text-sm text-muted-foreground">从应用管理启动串流，或使用应用的永久观看链接接入。</p></Card>}
       </>}
+      <details className="rounded-lg border border-border px-4 py-3 text-sm text-muted-foreground">
+        <summary className="cursor-pointer font-medium text-foreground">会话和客户端有什么区别？</summary>
+        <div className="space-y-2 pt-3 leading-relaxed">
+          <p>一个应用的一次串流由多个客户端共享。同一会话可以暂时无人观看；停止应用后，该会话结束，下次启动创建新会话。</p>
+          <p>客户端记录代表一次连接，不是永久设备档案。短暂断线可恢复；一周后重新访问会创建新的连接，控制权由管理员重新分配。</p>
+          <p>已结束记录仅供查阅历史状态，不代表在线设备，也不占用观看名额。永久观看链接属于应用，不会因会话结束而失效。</p>
+        </div>
+      </details>
     </div>
   </QueryWrapper>
 }
