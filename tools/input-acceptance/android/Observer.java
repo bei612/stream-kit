@@ -3,10 +3,12 @@ package io.github.bei612.streamkit.inputobserver;
 import android.app.Activity;
 import android.app.Instrumentation;
 import android.graphics.Rect;
+import android.media.AudioManager;
+import android.media.ToneGenerator;
 import android.os.Bundle;
 import android.view.accessibility.AccessibilityNodeInfo;
 
-/** External CI observer. No product instrumentation, target input injection or network access. */
+/** External testOnly observer/control. No product instrumentation or network access. */
 public final class Observer extends Instrumentation {
     private static final String CLIENT = "io.github.bei612.streamkit";
     private static final java.util.regex.Pattern AUDIO_STATS = java.util.regex.Pattern.compile("^音频 · 接收 ([0-9]+) 包$");
@@ -20,7 +22,7 @@ public final class Observer extends Instrumentation {
     private final Rect window = new Rect();
     private int visited;
     private String requestedClick;
-    private boolean diagnosticsRequested, toolbarVisible, statisticsVisible;
+    private boolean diagnosticsRequested, playoutControlRequested, toolbarVisible, statisticsVisible;
     private String playback = "unknown", sound = "unknown";
     private long audioPackets = -1, videoPackets = -1, videoFrames = -1;
     private String audioCodec;
@@ -30,6 +32,7 @@ public final class Observer extends Instrumentation {
     @Override public void onCreate(Bundle arguments) {
         super.onCreate(arguments);
         diagnosticsRequested = arguments != null && "diagnostics".equals(arguments.getString("action"));
+        playoutControlRequested = arguments != null && "playout-control".equals(arguments.getString("action"));
         if (arguments != null && "click".equals(arguments.getString("action"))) {
             requestedClick = arguments.getString("target");
             if (!"打开串流工具栏".equals(requestedClick) && !"麦克风已关闭".equals(requestedClick))
@@ -41,6 +44,12 @@ public final class Observer extends Instrumentation {
     @Override public void onStart() {
         Bundle result = new Bundle();
         try {
+            if (playoutControlRequested) {
+                result = playoutControl();
+                finish("complete".equals(result.getString("tone_result"))
+                        ? Activity.RESULT_OK : Activity.RESULT_CANCELED, result);
+                return;
+            }
             if (diagnosticsRequested) {
                 result = statistics();
                 result.putString("snapshot", "complete");
@@ -79,6 +88,60 @@ public final class Observer extends Instrumentation {
             result.putString("error_type", error.getClass().getSimpleName());
             finish(Activity.RESULT_CANCELED, result);
         }
+    }
+
+    // A real public STREAM_MUSIC source, independent of the product and JavaADM.
+    // It can test AudioFlinger -> HAL -> QEMU -> PulseAudio, not JavaADM.write().
+    // The CI caller must run it before product admission, on an idle owned AVD.
+    // No focus request, system volume/route mutation, recording or PCM injection.
+    private Bundle playoutControl() {
+        final int durationMs = 6000;
+        Bundle result = new Bundle();
+        result.putString("tone_result", "failed");
+        result.putString("tone_stopped", "false");
+        result.putString("tone_released", "false");
+        ToneGenerator tone = null;
+        try {
+            tone = new ToneGenerator(AudioManager.STREAM_MUSIC, 100);
+            if (!tone.startTone(ToneGenerator.TONE_DTMF_1, durationMs)) {
+                result.putString("error_type", "tone_start_rejected");
+                return result;
+            }
+            Bundle started = new Bundle();
+            started.putString("tone_started", "true");
+            started.putInt("tone_duration_ms", durationMs);
+            started.putInt("tone_stream", AudioManager.STREAM_MUSIC);
+            started.putInt("tone_volume_percent", 100);
+            started.putInt("tone_process_id", android.os.Process.myPid());
+            started.putLong("tone_started_elapsed_ms", android.os.SystemClock.elapsedRealtime());
+            started.putInt("tone_session_id", tone.getAudioSessionId());
+            started.putInt("tone_low_hz", 697);
+            started.putInt("tone_high_hz", 1209);
+            sendStatus(1, started);
+            android.os.SystemClock.sleep(durationMs);
+            result.putString("tone_result", "complete");
+        } catch (RuntimeException error) {
+            result.putString("error_type", "tone_runtime_failed");
+        } finally {
+            if (tone != null) {
+                try {
+                    tone.stopTone();
+                    result.putString("tone_stopped", "true");
+                } catch (RuntimeException error) {
+                    result.putString("tone_result", "failed");
+                    result.putString("error_type", "tone_stop_failed");
+                }
+                try {
+                    tone.release();
+                    result.putString("tone_released", "true");
+                } catch (RuntimeException error) {
+                    result.putString("tone_result", "failed");
+                    result.putString("error_type", "tone_release_failed");
+                }
+            }
+            result.putLong("tone_finished_elapsed_ms", android.os.SystemClock.elapsedRealtime());
+        }
+        return result;
     }
 
     private void snapshot() {
@@ -194,6 +257,7 @@ public final class Observer extends Instrumentation {
         Bundle result = new Bundle();
         boolean closeStatistics = false;
         result.putString("statistics_available", "false");
+        result.putString("statistics_fresh", "false");
         result.putString("reason", "root_unavailable");
         try {
             long rootDeadline = android.os.SystemClock.elapsedRealtime() + 2000;
@@ -211,14 +275,30 @@ public final class Observer extends Instrumentation {
                 closeStatistics = true;
             }
             long deadline = android.os.SystemClock.elapsedRealtime() + 2000;
+            long initialAudio = -1, initialVideo = -1, initialFrames = -1, initialSamples = -1;
+            boolean fresh = false;
             do {
                 snapshot();
-                if (!"unknown".equals(playback) && audioPackets >= 0 && videoPackets >= 0) break;
+                if (android.os.SystemClock.elapsedRealtime() > deadline) break;
+                if (!"unknown".equals(playback) && audioPackets >= 0 && videoPackets >= 0) {
+                    if (initialAudio < 0) {
+                        initialAudio = audioPackets;
+                        initialVideo = videoPackets;
+                        initialFrames = videoFrames;
+                        initialSamples = receivedSamples;
+                    } else if (audioPackets > initialAudio || videoPackets > initialVideo
+                            || (initialFrames >= 0 && videoFrames > initialFrames)
+                            || (initialSamples >= 0 && receivedSamples > initialSamples)) {
+                        fresh = true;
+                        break;
+                    }
+                }
                 android.os.SystemClock.sleep(50);
             } while (android.os.SystemClock.elapsedRealtime() < deadline);
             boolean available = !"unknown".equals(playback) && audioPackets >= 0 && videoPackets >= 0;
             result.putString("statistics_available", String.valueOf(available));
-            result.putString("reason", available ? "complete" : "statistics_not_ready");
+            result.putString("statistics_fresh", String.valueOf(fresh));
+            result.putString("reason", !available ? "statistics_not_ready" : fresh ? "complete" : "statistics_stale");
             result.putString("playback", playback);
             if (audioPackets >= 0) result.putLong("audio_packets", audioPackets);
             if (videoPackets >= 0) result.putLong("video_packets", videoPackets);

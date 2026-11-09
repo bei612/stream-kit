@@ -99,13 +99,13 @@ function androidParticipant({adb,serial,report,save=()=>{}}) {
         const output=await runDiagnostic('shell','am','instrument','-w','-e','action','diagnostics','io.github.bei612.streamkit.inputobserver/.Observer');
         assert.ok(/INSTRUMENTATION_CODE: -1/.test(output)&&/INSTRUMENTATION_RESULT: snapshot=complete/.test(output),'Statistics observer failed');
         const field=(key,pattern)=>output.match(new RegExp('^INSTRUMENTATION_RESULT: '+key+'=('+pattern+')\\s*$','m'))?.[1];
-        const available=field('statistics_available','true|false'),reason=field('reason','complete|root_unavailable|toolbar_unavailable|statistics_button_unavailable|statistics_not_ready');
-        assert.ok(available&&reason,'Missing statistics classification');
-        result.ui={available:available==='true',reason,root:field('root','client|no_root|other_app'),playback:field('playback','playing|paused|waiting|failed|unknown'),sound:field('sound','on|off|unknown'),statistics_closed:field('statistics_closed','true|false')==='true',toolbar_closed:field('toolbar_closed','true|false')==='true'};
+        const available=field('statistics_available','true|false'),fresh=field('statistics_fresh','true|false'),reason=field('reason','complete|root_unavailable|toolbar_unavailable|statistics_button_unavailable|statistics_not_ready|statistics_stale');
+        assert.ok(available&&fresh&&reason,'Missing statistics classification');
+        result.ui={available:available==='true',fresh:fresh==='true',reason,root:field('root','client|no_root|other_app'),playback:field('playback','playing|paused|waiting|failed|unknown'),sound:field('sound','on|off|unknown'),statistics_closed:field('statistics_closed','true|false')==='true',toolbar_closed:field('toolbar_closed','true|false')==='true'};
         const codec=field('codec_name','[A-Za-z][A-Za-z0-9_-]{0,31}');if(codec!==undefined)result.ui.codec_name=codec;
         for(const key of ['audio_packets','video_packets','video_frames','clock_rate','audio_channels','total_samples_received','concealed_samples']){const value=field(key,'[0-9]+');if(value!==undefined){const count=Number(value);assert.ok(Number.isSafeInteger(count),'Invalid statistics count');result.ui[key]=count;}}
         for(const key of ['total_samples_duration','total_audio_energy']){const value=field(key,'[0-9]+(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?');if(value!==undefined){const number=Number(value);assert.ok(Number.isFinite(number)&&number>=0&&number<=1e12,'Invalid statistics value');result.ui[key]=number;}}
-      }catch{result.ui={available:false,reason:'statistics_observer_unavailable'};}
+      }catch{result.ui={available:false,fresh:false,reason:'statistics_observer_unavailable'};}
       result.sdk=await playoutErrors();result.finished_at_ms=Date.now();
       if(state){(state.diagnostics||=[]).push(result);save();}return result;
     },
