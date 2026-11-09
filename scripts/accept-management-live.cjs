@@ -59,7 +59,7 @@ async function main() {
   function cliRun(command, ...values) {
     const parameters = [`-s=${session}`, command, ...values];
     const result = process.platform === 'win32'
-      ? cp.spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', `"${[cli, ...parameters].map(commandArgument).join(' ')}"`], { cwd: output, encoding: 'utf8', windowsHide: true, timeout: 240000, maxBuffer: 8 * 1024 * 1024 })
+      ? cp.spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', `"${[cli, ...parameters].map(commandArgument).join(' ')}"`], { cwd: output, encoding: 'utf8', windowsHide: true, windowsVerbatimArguments: true, timeout: 240000, maxBuffer: 8 * 1024 * 1024 })
       : cp.spawnSync(cli, parameters, { cwd: output, encoding: 'utf8', timeout: 240000, maxBuffer: 8 * 1024 * 1024 });
     const diagnostic = redact((result.stdout || '') + (result.stderr || ''));
     fs.appendFileSync(path.join(output, 'cli.log'), diagnostic + '\n', { mode: 0o600 });
