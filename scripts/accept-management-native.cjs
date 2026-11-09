@@ -58,9 +58,9 @@ function copyAssets(source, destination) {
     report.dist_index_sha256 = crypto.createHash('sha256').update(fs.readFileSync(path.join(dist, 'index.html'))).digest('hex');
     const denied = await fetch(base + '/api/v1/stream-sessions'); assert.equal(denied.status, 401); report.cases.push('unauthenticated real API denied');
     browser = await launchBrowser(); report.browser_version = browser.version();
-    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } }), javascriptErrors = [], responseChecks = [];
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } }), javascriptErrors = [], responseChecks = [], verifiedResourceFailures = [];
     page.on('pageerror', error => javascriptErrors.push(sanitize(error.message)));
-    page.on('console', message => { if (['error', 'warning'].includes(message.type())) report.console.push({ type: message.type(), text: sanitize(message.text()) }); });
+    page.on('console', message => { if (['error', 'warning'].includes(message.type())) report.console.push({ type: message.type(), text: sanitize(message.text()), location: message.location(), argument_count: message.args().length }); });
     page.on('response', response => {
       if (response.status() < 400) return; const pathname = new URL(response.url()).pathname, status = response.status();
       if (pathname === '/api/v1/configuration' && status === 409) return; // Explicitly asserted below, not ignored.
@@ -75,7 +75,10 @@ function copyAssets(source, destination) {
       responseChecks.push((async () => {
         const body = await response.text();
         let code; try { code = JSON.parse(body).code; } catch {}
-        if (absent && status === absent[0] && (absent[1] === null ? body.trim() === '404 page not found' : code === absent[1])) report.expected_unavailable.push({ pathname, status, code });
+        if (absent && status === absent[0] && (absent[1] === null ? body.trim() === '404 page not found' : code === absent[1])) {
+          report.expected_unavailable.push({ pathname, status, code });
+          verifiedResourceFailures.push({ url: response.url(), status });
+        }
         else report.unexpected_http_errors.push({ pathname, status, code });
       })().catch(() => report.unexpected_http_errors.push({ pathname, status, body_unavailable: true })));
     });
@@ -107,6 +110,7 @@ function copyAssets(source, destination) {
     const conflict = page.waitForResponse(response => response.url().endsWith('/api/v1/configuration') && response.request().method() === 'PATCH');
     await page.getByRole('button', { name: /保存配置（1 项）/ }).click(); const rejected = await conflict;
     assert.equal(rejected.status(), 409); assert.equal((await rejected.json()).code, 'CONFIG_REVISION_CONFLICT');
+    verifiedResourceFailures.push({ url: rejected.url(), status: 409 });
     assert.equal(await count.inputValue(), String(draft)); assert.equal(read(configPath).storage.max_file_count, oldCount);
     await screenshot('configuration-real-cas-conflict'); report.cases.push('actual competing configuration writer triggers HTTP409; draft retained and disk unchanged by rejected save');
     await page.getByRole('button', { name: '放弃修改并重新读取', exact: true }).click();
@@ -123,7 +127,19 @@ function copyAssets(source, destination) {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     await Promise.all(responseChecks);
     assert.deepEqual(javascriptErrors, []); assert.deepEqual(report.unexpected_http_errors, []);
-    report.console_boundary = 'Expected unconfigured component HTTP failures are retained above; no JavaScript exceptions or unexpected HTTP errors permitted.';
+    report.unexpected_console_errors = [];
+    const unmatched = [...verifiedResourceFailures];
+    for (const entry of report.console.filter(entry => entry.type === 'error')) {
+      // Browser network diagnostics have no JS arguments. Application console.error
+      // has an argument and a script location, and must never be exempted here.
+      const resourceStatus = /^Failed to load resource: the server responded with a status of (404|409|503)(?: \([^\n]*\))?$/.exec(entry.text);
+      const match = resourceStatus && entry.argument_count === 0
+        ? unmatched.findIndex(request => request.url === entry.location.url && request.status === Number(resourceStatus[1])) : -1;
+      if (match >= 0) { entry.verified_http_failure = unmatched.splice(match, 1)[0].status; }
+      else report.unexpected_console_errors.push(entry);
+    }
+    assert.deepEqual(report.unexpected_console_errors, []);
+    report.console_boundary = 'Only zero-argument browser resource errors matching one verified real 404/409/503 response URL and status are allowed; warnings retained, unknown console.error and JavaScript exceptions fail.';
     report.cases.push('desktop/mobile screenshots; no horizontal page overflow'); report.passed = true;
   } catch (error) { report.error = sanitize(error.stack || error.message); }
   finally {
