@@ -108,11 +108,37 @@ function nativeTemplate(tag, message, negatives) {
     return {template_id: 'tone_audio_track_set_failed',status: Number(match[1])};
   return {template_id: 'unknown',unclassified_negative_values: negatives};
 }
+function redactedCreationContext(message) {
+  return message
+    .replace(/\b(Bearer\s+)(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s,;]+)/gi, '$1[redacted]')
+    .replace(/\b(bearer|credential(?:s)?|password|passwd|pwd|secret|authorization|api[_-]?key|(?:access[_-]?|refresh[_-]?|auth[_-]?)?token)(["']?\s*(?:[:=]|\bis\b)\s*)(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s,;)}\]]+)/gi, '$1$2[redacted]')
+    .replace(/\b[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]+/gi, '[redacted-url]')
+    .replace(/(["'])(?:[A-Za-z]:[\\/]|\/|\\\\)[^"']*\1/g, '[redacted-path]')
+    .replace(/\b[A-Za-z]:[\\/].*$/g, '[redacted-path]')
+    .replace(/(^|[\s("'=])(?:[A-Za-z]:[\\/]|\/)[^\s"'<>),;]*/g, '$1[redacted-path]')
+    .replace(/\b(?:[A-Za-z0-9_.-]+[\\/])+[A-Za-z0-9_.-]+/g, '[redacted-path]')
+    .replace(/\b0x[0-9a-f]{9,}\b|\b[0-9a-f]{12,16}\b/gi, '[redacted-pointer]')
+    .replace(/(?:\\[nr]|\b(?:stacktrace|backtrace)\b|#\d+\s+pc\b|\bat\s+[\w.$]+\([^)]*\)).*$/gi, '[redacted-stack]')
+    .replace(/[\x00-\x1f\x7f]/g, ' ').slice(0, 512);
+}
 async function startNativeLogs() {
   const diagnostic = result.native_audio_logs = {optional: true,started_at_ms: Date.now(),
     available: null,subscription_ready_confirmed: false,filters: ['ToneGenerator:E', 'AudioTrack:E', 'AudioSystem:E', 'AudioFlinger:E'],
     historical_tail_may_precede_control: true,historical_tail_max_lines: 16,
-    raw_messages_retained: false,unavailable_sources: [],loggers: [],events: []};
+    raw_messages_retained: false,bounded_redacted_creation_context: true,
+    diagnostic_context_max_characters: 512,unavailable_sources: [],loggers: [],events: []};
+  diagnostic.guest = {sdk: null,abi: null,build_fingerprint: null,unavailable: []};
+  await Promise.all([
+    ['sdk', 'ro.build.version.sdk', /^[0-9]{1,3}$/],
+    ['abi', 'ro.product.cpu.abi', /^[A-Za-z0-9_.-]{1,32}$/],
+    ['build_fingerprint', 'ro.build.fingerprint', /^[A-Za-z0-9._:+,\/-]{1,256}$/],
+  ].map(async ([field, property, pattern]) => {
+    try {
+      const value = (await android(['shell', 'getprop', property])).trim();
+      if (!pattern.test(value)) throw Error('unavailable');
+      diagnostic.guest[field] = field === 'sdk' ? Number(value) : value;
+    } catch { diagnostic.guest.unavailable.push(field); }
+  }));
   const sources = [];
   try {
     const packageInfo = await android(['shell', 'pm', 'list', 'packages', '-U', OBSERVER]);
@@ -167,16 +193,19 @@ async function startNativeLogs() {
         const line = pending.slice(0, newline).replace(/\r$/, ''); pending = pending.slice(newline + 1);
         const match = line.match(/^\s*([0-9]{2}-[0-9]{2})\s+([0-9:.]+)\s+([0-9]+)\s+([0-9]+)\s+E\s+(ToneGenerator|AudioTrack|AudioSystem|AudioFlinger)\s*:\s*(.*)$/);
         if (!match || diagnostic.events.length >= 64) continue;
-        // Keep native status numbers and fixed categories, never arbitrary
-        // messages, URLs, intents, device names, paths or exception stacks.
+        // Typed templates remain primary. Only unknown AudioFlinger creation
+        // errors may retain short, redacted context; no other raw line is kept.
         const message = match[6].slice(0, 2048);
         const statuses = [...message.matchAll(/(?:^|[^\w])(-[1-9][0-9]*)(?=$|[^\w])/g)]
           .map(item => Number(item[1])).filter(Number.isSafeInteger).slice(0, 8);
         const category = /init(?:Check|ializ|AudioTrack)|initializ/i.test(message) ? 'initialization_error'
           : /create.*(?:track|output)|(?:track|output).*creat/i.test(message) ? 'creation_error' : 'native_audio_error';
+        const template = nativeTemplate(match[5], message, statuses);
+        const context = match[5] === 'AudioFlinger' && category === 'creation_error' && template.template_id === 'unknown'
+          ? {diagnostic_context: redactedCreationContext(message),diagnostic_context_redacted: true} : {};
         diagnostic.events.push({source,uid,tag: match[5],device_date: match[1],device_time: match[2],
           pid: Number(match[3]),tid: Number(match[4]),received_at_ms: Date.now(),category,
-          ...nativeTemplate(match[5], message, statuses)});
+          ...template,...context});
       }
     });
     child.stderr.on('data', data => {
