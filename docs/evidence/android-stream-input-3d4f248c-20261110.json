@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-10",
+  "run": "https://github.com/bei612/stream-kit/actions/runs/42685523488",
+  "attempt": 1,
+  "job_id": 129391192083,
+  "conclusion": "success",
+  "passed": true,
+  "runtime_commit": "3d4f248c00cce003e4649a1d3e6b5f907dcfee39",
+  "installer_sha256": "a0e235c97831b43c790abd9fe3ab98b81b622839d26f567c57cec816101565da",
+  "payload_sha256": "e078ff613be1e70ea56792684308bd233e379c9ad4eaf83c093aaa70b422b4f5",
+  "product_run_id": 42676229242,
+  "product_linux_job_id": 129358212374,
+  "android_release_tag": "v0.1.0-android-preview.20261109.6",
+  "android_release_id": 439334431,
+  "apk_file": "stream-kit-android-0.1.0-preview.20261109.6.apk",
+  "apk_version_code": 1000013,
+  "apk_source_commit": "df7cd87b3352a638aa3a6aa7073d39074c02a43c",
+  "apk_sha256": "31593fce46afc49de92e9c04b76e0b881448e477d42fcbe02ebf387d424c3ebc",
+  "apk_signer_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f",
+  "apk_signature_verified": true,
+  "acceptance_commit": "45bd855edd4f70125daf077d00fcb1b7cb44c224",
+  "runtime_rebuilt": false,
+  "apk_rebuilt": false,
+  "started_at": "2026-11-09T19:44:15.983Z",
+  "finished_at": "2026-11-09T19:46:00.137Z",
+  "scope": "Published Android release and real Web viewer share one native Linux renderer over trusted HTTPS; actual target keyboard/touch delivery, unique controller transfer and cooperative revocation.",
+  "shared_clients": 2,
+  "one_upstream": true,
+  "phases": [
+    {
+      "label": "android_controller",
+      "before": {"keys": 0, "clicks": 0},
+      "after": {"keys": 1, "clicks": 1}
+    },
+    {
+      "label": "old_android_denied",
+      "before": {"keys": 1, "clicks": 1},
+      "after": {"keys": 1, "clicks": 1}
+    },
+    {
+      "label": "web_controller",
+      "before": {"keys": 1, "clicks": 1},
+      "after": {"keys": 2, "clicks": 2}
+    },
+    {
+      "label": "web_revoked",
+      "before": {"keys": 2, "clicks": 2},
+      "after": {"keys": 2, "clicks": 2}
+    },
+    {
+      "label": "android_regranted",
+      "before": {"keys": 2, "clicks": 2},
+      "after": {"keys": 3, "clicks": 3}
+    },
+    {
+      "label": "android_revoked",
+      "before": {"keys": 3, "clicks": 3},
+      "after": {"keys": 3, "clicks": 3}
+    }
+  ],
+  "owned_target_stop_acknowledged": true,
+  "encoder_restored_idle": true,
+  "media_profile": {
+    "videoSize": "720p",
+    "fps": 30,
+    "bitrate": 8000,
+    "videoCodec": "h264"
+  },
+  "evidence": {
+    "artifact": "android-stream-input-evidence",
+    "browser_result": "source-stream/2026-11-09T19-44-13-746Z/browser/result.json",
+    "browser_result_sha256": "62e998ffabb6c803c23e7579eac81c9036cad9d2f4c80779285b766908dad0a7",
+    "provenance": "android-input-evidence/provenance.json",
+    "provenance_sha256": "da1f11b6351230079376ca830e7f298666ef4cd85839f612fd22aca370ed33d1",
+    "retained_locally": ".local/ci-android-input-42685523488"
+  },
+  "limitations": [
+    "Official Android emulator and isolated Linux target; not physical tablet or Windows target input/ToDesk coexistence acceptance.",
+    "No program audio, microphone, physical speech or stability claim.",
+    "This verifies the explicitly downloaded release bytes, not later unbuilt gateway security changes or local Windows deployment.",
+    "The released Android and server have distinct source commits; both are recorded above."
+  ]
+}

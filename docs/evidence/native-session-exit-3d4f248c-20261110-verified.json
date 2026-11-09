@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-10",
+  "run": "https://github.com/bei612/stream-kit/actions/runs/42686412532",
+  "attempt": 1,
+  "job_id": 129394316331,
+  "conclusion": "success",
+  "passed": true,
+  "runtime_commit": "3d4f248c00cce003e4649a1d3e6b5f907dcfee39",
+  "installer_sha256": "a0e235c97831b43c790abd9fe3ab98b81b622839d26f567c57cec816101565da",
+  "payload_sha256": "e078ff613be1e70ea56792684308bd233e379c9ad4eaf83c093aaa70b422b4f5",
+  "product_run_id": 42676229242,
+  "product_linux_job_id": 129358212374,
+  "acceptance_commit": "878d395c9c8b9dad25c86d38b9d9f2fdb4d047e3",
+  "runtime_rebuilt": false,
+  "scope": "Passive native exit with two real Web viewers and revocation of unexpired old-generation authority; not administrative stop, Android, input or audio acceptance.",
+  "started_at": "2026-11-09T19:46:31.440Z",
+  "finished_at": "2026-11-09T19:46:49.014Z",
+  "trigger": "WM_DELETE_WINDOW on verified owned X11 target",
+  "before": {
+    "session_id": "23efbef1-46dc-42d2-9f17-603e27e41208",
+    "native_instance_id": "dd77e8682dbb1251c2ec4dcbbfb9d53c",
+    "process_id": 5652,
+    "window_id": "10485761",
+    "controller_connection_id": "967561a5-7f5f-4330-b2c8-4b73ebddc1b7",
+    "credential_earliest_expiry": "2026-11-09T19:48:39.000Z"
+  },
+  "passive_exit_observed_ms": 3269,
+  "after": {
+    "state": "stopped",
+    "observed_stop": true,
+    "connections": 0,
+    "controller_connection_id": "",
+    "old_invitation_status": 400,
+    "old_connection_status": 410,
+    "old_connection_code": "CONNECTION_TERMINATED",
+    "old_media_status": 401,
+    "verified_before_expiry": true,
+    "app_status": "stopped",
+    "replacement_instance_id": null,
+    "replacement_observed": false,
+    "replacement_survived_if_present": null,
+    "stability_seconds": 6
+  },
+  "encoder_restored_idle": true,
+  "evidence": {
+    "artifact": "native-exit-evidence",
+    "browser_result": "source-stream/2026-11-09T19-46-29-816Z/browser/result.json",
+    "browser_result_sha256": "27503b0d684e38a5b3f8f84e083b46854edf3d273425c5212e111906cfd074da",
+    "provenance": "native-exit-evidence/provenance.json",
+    "provenance_sha256": "7f877ef79540470f7409468269863c461dde126c5c7a604da9f97d6652815257",
+    "retained_locally": ".local/ci-native-exit-42686412532"
+  },
+  "prior_failed_acceptance": {
+    "run_id": 42685530563,
+    "receipt": "docs/evidence/native-session-exit-3d4f248c-20261110.json",
+    "boundary": "The prior outdated terminal-code assertion remains recorded as failure. This execution corrected the harness expectation to the existing terminal contract without rebuilding or changing the product."
+  },
+  "limitations": [
+    "Verified isolated Linux runtime and two actual Web viewers; not local Windows deployment or Android audio.",
+    "No replacement instance appeared, so replacement survival remains unexercised and null.",
+    "Graceful owned target exit only; no service outage or acknowledgement-recovery fault injection.",
+    "This verifies the explicitly downloaded 3d4 release bytes, not later unbuilt gateway security changes."
+  ]
+}
