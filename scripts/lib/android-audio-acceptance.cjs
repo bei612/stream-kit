@@ -23,26 +23,63 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
   const current = () => api('/stream-sessions/' + sessionId);
   const run = args => { try { return cp.execFileSync(adb, ['-s', serial, ...args], { encoding: 'utf8', timeout: 15000, stdio: ['ignore','pipe','pipe'] }); } catch { throw Error('Official AVD UI command failed'); } };
   const click = target => { const output = run(['shell','am','instrument','-w','-e','action','click','-e','target',target,'io.github.bei612.streamkit.inputobserver/.Observer']); assert.match(output, /INSTRUMENTATION_RESULT: clicked=true/); };
-  const audience = frequency => page.evaluate(async frequency => {
+  const prepareObserver = () => page.evaluate(async () => {
     const track = window.__acceptancePeers.at(-1).getReceivers().find(receiver => receiver.track.kind === 'audio')?.track;
     if (!track) throw Error('Real observer audio track missing');
     const context = new AudioContext(); await context.resume();
-    try {
-      const source = context.createMediaStreamSource(new MediaStream([track])), analyser = context.createAnalyser(), mute = context.createGain();
-      analyser.fftSize = 4096; analyser.smoothingTimeConstant = 0; mute.gain.value = 0;
-      source.connect(analyser); analyser.connect(mute); mute.connect(context.destination);
-      const bin = Math.round(frequency*4096/context.sampleRate), spectrum = new Float32Array(analyser.frequencyBinCount), values = [];
-      for (let i=0;i<20;i++) { analyser.getFloatFrequencyData(spectrum); values.push(Math.max(-140,...spectrum.slice(bin-2,bin+3))); await new Promise(resolve => setTimeout(resolve,100)); }
-      values.sort((a,b)=>a-b); return values[10];
-    } finally { await context.close(); }
-  }, frequency);
-  const capture = async (phase, frequency = 1499) => {
+    const source = context.createMediaStreamSource(new MediaStream([track])), analyser = context.createAnalyser(), mute = context.createGain();
+    analyser.fftSize = 4096; analyser.smoothingTimeConstant = 0; mute.gain.value = 0;
+    source.connect(analyser); analyser.connect(mute); mute.connect(context.destination);
+    window.__androidAudioObserver = { context, source, analyser, mute, track, peer: window.__acceptancePeers.at(-1) };
+    return { started_at_ms: Date.now(), sample_rate: context.sampleRate, fft_size: analyser.fftSize, base_latency_s:context.baseLatency, output_latency_s:context.outputLatency };
+  });
+  const webSample = async () => {
+    const before = Date.now();
+    const sample = await page.evaluate(async () => {
+      const observer = window.__androidAudioObserver;
+      if (!observer || observer.peer !== window.__acceptancePeers.at(-1) || observer.context.state !== 'running') throw Error('Real observer graph changed or stopped');
+      const spectrum = new Float32Array(observer.analyser.frequencyBinCount); observer.analyser.getFloatFrequencyData(spectrum);
+      const frequency = value => { const bin = Math.round(value*observer.analyser.fftSize/observer.context.sampleRate); return Math.max(-140,...spectrum.slice(bin-2,bin+3)); };
+      const allStats = [...(await observer.peer.getStats()).values()];
+      const stats = allStats.filter(s => s.type==='inbound-rtp'&&(s.kind==='audio'||s.mediaType==='audio'));
+      return { at_ms:Date.now(), context_time_s:observer.context.currentTime, track:{state:observer.track.readyState,enabled:observer.track.enabled,muted:observer.track.muted}, program_997_db:frequency(997), microphone_1499_db:frequency(1499),
+        codecs:allStats.filter(s=>s.type==='codec'&&stats.some(track=>track.codecId===s.id)).map(s=>({mime:s.mimeType,clock_rate:s.clockRate,channels:s.channels,fmtp:s.sdpFmtpLine})),
+        rtp:stats.map(s=>({packets:s.packetsReceived,bytes:s.bytesReceived,lost:s.packetsLost,jitter_s:s.jitter,jitter_buffer_delay_s:s.jitterBufferDelay,jitter_buffer_emitted:s.jitterBufferEmittedCount,samples:s.totalSamplesReceived,samples_duration_s:s.totalSamplesDuration,audio_energy:s.totalAudioEnergy,concealed_samples:s.concealedSamples})) };
+    });
+    return { ...sample, command_started_at_ms:before, command_finished_at_ms:Date.now(), injection_packets:source.packets, last_injection_at_ms:source.last_packet_at_ms };
+  };
+  state.web_windows = {};
+  const audience = async (phase, frequency=1499) => {
+    const samples = state.web_windows[phase] = [];
+    for(let i=0;i<20;i++){ samples.push(await webSample()); await delay(100); }
+    const levels=samples.map(s=>frequency===997?s.program_997_db:s.microphone_1499_db).sort((a,b)=>a-b); save(); return levels[10];
+  };
+  const waitForActualMicrophone = async () => {
+    state.microphone_startup = { limit_ms:5000, required_consecutive_samples:3, threshold_db:-60, samples:[] }; save();
+    let consecutive=0;
+    while(Date.now()-source.started_at_ms<5000) {
+      assertContinuousInjection(source,0);
+      const sample=await webSample();state.microphone_startup.samples.push(sample);
+      consecutive=sample.microphone_1499_db>-60?consecutive+1:0;
+      if(consecutive===3){state.microphone_startup.observed_ready_ms=Date.now()-source.started_at_ms;save();return;}
+      await delay(100);
+    }
+    save();throw Error('Real observer microphone did not reach three consecutive authorized samples within 5000ms');
+  };
+  const capture = async (phase, frequency = 1499, duringCapture) => {
+    const started=Date.now(), packetsAtStart=source.packets;
     await command('capture', { device_id: captureDevice });
-    await until(() => command('status'), value => !value.error && value.captured_frames >= 96000, 'native target PCM');
+    let measurementError;
+    try {
+      if(duringCapture) await duringCapture();
+      await until(() => command('status'), value => !value.error && value.captured_frames >= (duringCapture?4800:96000), 'native target PCM');
+    } catch(error) { measurementError=error; }
     await command('stop_capture');
-    const signal = await command('analyze', { frequency_hz: frequency }), foreign = await command('analyze', { frequency_hz: 997 }), status = await command('status');
-    assert.ok(signal.analyzed_frames >= 96000); assert.equal(status.dropped_frames, 0);
-    state[phase] = { signal, program_997: foreign, status }; save(); return signal;
+    const stopped=Date.now();
+    const signal = await command('analyze', { frequency_hz: frequency }), foreign = await command('analyze', { frequency_hz: 997 }), envelope = await command('envelope'), status = await command('status');
+    assert.ok(signal.analyzed_frames >= (duringCapture?4800:96000)); assert.equal(status.dropped_frames, 0);
+    state[phase] = { started_at_ms:started, stopped_at_ms:stopped, injection_packets_at_start:packetsAtStart, injection_packets_at_stop:source.packets, signal, program_997: foreign, envelope, status }; save();
+    if(measurementError)throw measurementError;return signal;
   };
   let injection, sending = false, sender, injectionDone, injectionError, native;
   const source = { packets: 0, senderEnded: false, rpcEnded: false, error: undefined };
@@ -65,6 +102,7 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     state.program_process_tree = { parent_pid:owned.process_id, audio_pid:owned.audio_process_id, pulse_sink_input_index:stream[0].index, pulse_sink:stream[0].sink }; save();
     state.web_program_997_db = report.program_audio_db?.[0];
     assert.ok(Number.isFinite(state.web_program_997_db) && state.web_program_997_db > -65, 'Real shared-harness Web program audio measurement missing');
+    state.observer = await prepareObserver(); save();
     const pcm = []; let size = 0, playbackError;
     const playback = client.streamAudio({ samplingRate:'48000',channels:0,format:1 }, metadata, { deadline:Date.now()+8000 });
     const playbackDone = new Promise(resolve => { playback.on('error', error => { playbackError ??= error.code; resolve(); }); playback.on('end',resolve); });
@@ -76,18 +114,26 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     levels.sort((a,b)=>a-b); state.android_program_pcm_bytes=bytes.length; state.android_program_997_median=levels[Math.floor(levels.length/2)]||0;
     assert.ok(state.android_program_997_median>0.01, 'Android playout missing 997Hz program'); save();
     const baseline = await capture('baseline'); assert.ok(baseline.peak_amplitude<0.001); assert.ok(state.baseline.program_997.peak_amplitude<0.005, 'Program audio leaked into microphone target');
+    state.observer_before_injection = await webSample();
+    assert.ok(state.observer_before_injection.program_997_db>-65,'Persistent Web observer must hear the real program before injection'); save();
     await api('/stream-sessions/'+sessionId+'/controller/'+native,'POST'); await android.role(true);
     click('打开串流工具栏'); click('麦克风已关闭');
     await until(current,s=>s.connections[native]?.microphone_live===true,'Android microphone capture');
+    const beforeInjection=await current();
+    state.authority_before_injection={revision:beforeInjection.revision,control_epoch:beforeInjection.control_epoch,controller_connection_id:beforeInjection.controller_connection_id,web_connection_id:web,web_role:beforeInjection.connections[web]?.role,audio:beforeInjection.audio};
+    assert.equal(beforeInjection.controller_connection_id,native);assert.equal(beforeInjection.audio.broadcast_controller_microphone,true);
+    assert.equal(beforeInjection.connections[web]?.role,'viewer');
+    source.started_at_ms=Date.now();state.injection_started_at_ms=source.started_at_ms;save();
     injectionDone = new Promise(resolve => { injection=client.injectAudio(metadata,{deadline:Date.now()+35000},error=>{injectionError=error?.code;source.error=injectionError;source.rpcEnded=true;stopWrites.abort();resolve();}); injection.on('error',()=>{}); });
-    sending=true; sender=(async()=>{let n=0;const started=Date.now();while(sending&&n<1500){if(source.rpcEnded)throw Error('Official microphone injection ended while sending');const data=Buffer.alloc(1920);for(let i=0;i<960;i++)data.writeInt16LE(Math.round(32767*Math.pow(10,-18/20)*Math.sin(2*Math.PI*1499*(n*960+i)/48000)),i*2);
+    sending=true; sender=(async()=>{let n=0;const started=source.started_at_ms;while(sending&&n<1500){if(source.rpcEnded)throw Error('Official microphone injection ended while sending');const data=Buffer.alloc(1920);for(let i=0;i<960;i++)data.writeInt16LE(Math.round(32767*Math.pow(10,-18/20)*Math.sin(2*Math.PI*1499*(n*960+i)/48000)),i*2);
       if(!injection.write({format:{samplingRate:'48000',channels:0,format:1,mode:1},timestamp:String(Date.now()*1000),audio:data})) {
         try { await once(injection,'drain',{signal:stopWrites.signal}); }
         catch(error) { if(!sending&&error.name==='AbortError')break;throw error; }
       }
-      n++;source.packets=n;await delay(Math.max(0,started+n*20-Date.now()));}source.senderEnded=true;if(!source.rpcEnded)injection.end();})();
+      n++;source.packets=n;source.last_packet_at_ms=Date.now();await delay(Math.max(0,started+n*20-Date.now()));}source.senderEnded=true;if(!source.rpcEnded)injection.end();})();
     void sender.catch(()=>{}); // The measurement branch awaits and reports its actual failure below.
-    const [authorized, audible] = await Promise.all([capture('authorized'),audience(1499)]); state.authorized_web_1499_db=audible;
+    await capture('startup',1499,waitForActualMicrophone);
+    const [authorized, audible] = await Promise.all([capture('authorized'),audience('authorized')]); state.authorized_web_1499_db=audible;
     assert.ok(authorized.mean_amplitude>0.01,'Authorized Android microphone absent at native target'); assert.ok(audible>-60,'Authorized Android microphone absent at Web observer'); save();
     assertContinuousInjection(source, 0);
     const packetsBeforeRevocation=source.packets; state.injection_packets_before_revocation=packetsBeforeRevocation;
@@ -95,10 +141,10 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     await api('/stream-sessions/'+sessionId+'/controller','DELETE');
     const revoked = await until(current,s=>!s.controller_connection_id&&!s.connections[native]?.microphone_live,'revoked Android capture stops'); state.revoked_control_epoch=revoked.control_epoch; assert.ok(revoked.control_epoch>granted.control_epoch);
     await android.role(false); await delay(1500); state.capture_stop_settling_ms=1500;
-    const [silent, inaudible] = await Promise.all([capture('revoked'),audience(1499)]); state.revoked_web_1499_db=inaudible;
+    const [silent, inaudible] = await Promise.all([capture('revoked'),audience('revoked')]); state.revoked_web_1499_db=inaudible;
     assertContinuousInjection(source, packetsBeforeRevocation); state.injection_packets_after_revoked_measurement=source.packets;
     assert.ok(silent.peak_amplitude<0.001,'Revoked microphone reached native target'); assert.ok(inaudible<-65,'Revoked microphone reached Web observer');
-    state.web_program_after_revocation_997_db=await audience(997); assert.ok(state.web_program_after_revocation_997_db>-65,'Revocation interrupted program audio');
+    state.web_program_after_revocation_997_db=await audience('program_after_revocation',997); assert.ok(state.web_program_after_revocation_997_db>-65,'Revocation interrupted program audio');
     sending=false; await sender; await injectionDone; assert.equal(injectionError,undefined,'Official emulator injection failed'); state.injection_completed=true;
     assert.equal(run(['shell','getprop','sys.boot_completed']).trim(),'1'); state.passed=true; save();
   } finally {
@@ -107,6 +153,8 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     if(injection)injection.cancel();
     if (sender) await sender.catch(()=>{});
     client.close();
+    try { await page.evaluate(async()=>{if(window.__androidAudioObserver)await window.__androidAudioObserver.context.close();}); }
+    catch { state.observer_cleanup_failed=true;state.passed=false;save(); }
     try { await command('stop_capture'); } catch { state.recorder_cleanup_failed=true; state.passed=false; save(); }
     if(native){const session=await current(); if(session.controller_connection_id===native)await api('/stream-sessions/'+sessionId+'/controller','DELETE');}
   }
