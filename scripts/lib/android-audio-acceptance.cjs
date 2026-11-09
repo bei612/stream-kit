@@ -6,6 +6,7 @@ const { once } = require('node:events');
 const { setTimeout: delay } = require('node:timers/promises');
 const grpc = require('../android/emulator-audio/node_modules/@grpc/grpc-js');
 const loader = require('../android/emulator-audio/node_modules/@grpc/proto-loader');
+const { assertContinuousInjection, validMonoPCM } = require('./emulator-audio-evidence.cjs');
 
 async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, app, example, audioProbe, captureDevice, grpcConfig, sdk, report, save }) {
   assert.equal(process.platform, 'linux'); assert.equal(process.env.GITHUB_ACTIONS, 'true');
@@ -44,6 +45,7 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     state[phase] = { signal, program_997: foreign, status }; save(); return signal;
   };
   let injection, sending = false, sender, injectionDone, injectionError, native;
+  const source = { packets: 0, senderEnded: false, rpcEnded: false, error: undefined };
   try {
     await unary('setMicrophoneState', { realAudioEnabled: false });
     assert.equal((await unary('getMicrophoneState', {})).realAudioEnabled, false); state.host_microphone_enabled = false;
@@ -64,8 +66,8 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     assert.ok(Number.isFinite(state.web_program_997_db) && state.web_program_997_db > -65, 'Real shared-harness Web program audio measurement missing');
     const pcm = []; let size = 0, playbackError;
     const playback = client.streamAudio({ samplingRate:'48000',channels:0,format:1 }, metadata, { deadline:Date.now()+8000 });
-    const playbackDone = new Promise(resolve => { playback.on('error', error => { playbackError=error.code; resolve(); }); playback.on('end',resolve); });
-    playback.on('data', packet => { size += packet.audio.length; if(size>960000) playback.cancel(); else pcm.push(packet.audio); });
+    const playbackDone = new Promise(resolve => { playback.on('error', error => { playbackError ??= error.code; resolve(); }); playback.on('end',resolve); });
+    playback.on('data', packet => { if(!validMonoPCM(packet)){playbackError='incompatible_pcm_format';playback.cancel();return;} size += packet.audio.length; if(size>960000) playback.cancel(); else pcm.push(packet.audio); });
     await until(async()=>size,value=>value>=384000,'Android native output PCM',6500); playback.cancel(); await playbackDone;
     assert.ok(playbackError===undefined || playbackError===grpc.status.CANCELLED); assert.ok(size<=960000);
     const bytes=Buffer.concat(pcm), levels=[];
@@ -76,18 +78,21 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     await api('/stream-sessions/'+sessionId+'/controller/'+native,'POST'); await android.role(true);
     click('打开串流工具栏'); click('麦克风已关闭');
     await until(current,s=>s.connections[native]?.microphone_live===true,'Android microphone capture');
-    injectionDone = new Promise(resolve => { injection=client.injectAudio(metadata,{deadline:Date.now()+35000},error=>{injectionError=error?.code;resolve();}); injection.on('error',()=>{}); });
+    injectionDone = new Promise(resolve => { injection=client.injectAudio(metadata,{deadline:Date.now()+35000},error=>{injectionError=error?.code;source.error=injectionError;source.rpcEnded=true;resolve();}); injection.on('error',()=>{}); });
     sending=true; sender=(async()=>{let n=0;const started=Date.now();while(sending&&n<1500){const data=Buffer.alloc(1920);for(let i=0;i<960;i++)data.writeInt16LE(Math.round(32767*Math.pow(10,-18/20)*Math.sin(2*Math.PI*1499*(n*960+i)/48000)),i*2);
       if(!injection.write({format:{samplingRate:'48000',channels:0,format:1,mode:1},timestamp:String(Date.now()*1000),audio:data}))await once(injection,'drain');
-      n++;await delay(Math.max(0,started+n*20-Date.now()));}injection.end();})();
+      n++;source.packets=n;await delay(Math.max(0,started+n*20-Date.now()));}source.senderEnded=true;injection.end();})();
     void sender.catch(()=>{}); // The measurement branch awaits and reports its actual failure below.
     const [authorized, audible] = await Promise.all([capture('authorized'),audience(1499)]); state.authorized_web_1499_db=audible;
     assert.ok(authorized.mean_amplitude>0.01,'Authorized Android microphone absent at native target'); assert.ok(audible>-60,'Authorized Android microphone absent at Web observer'); save();
+    assertContinuousInjection(source, 0);
+    const packetsBeforeRevocation=source.packets; state.injection_packets_before_revocation=packetsBeforeRevocation;
     const granted = await current(); state.authorized_control_epoch=granted.control_epoch;
     await api('/stream-sessions/'+sessionId+'/controller','DELETE');
     const revoked = await until(current,s=>!s.controller_connection_id&&!s.connections[native]?.microphone_live,'revoked Android capture stops'); state.revoked_control_epoch=revoked.control_epoch; assert.ok(revoked.control_epoch>granted.control_epoch);
     await android.role(false); await delay(1500); state.capture_stop_settling_ms=1500;
     const [silent, inaudible] = await Promise.all([capture('revoked'),audience(1499)]); state.revoked_web_1499_db=inaudible;
+    assertContinuousInjection(source, packetsBeforeRevocation); state.injection_packets_after_revoked_measurement=source.packets;
     assert.ok(silent.peak_amplitude<0.001,'Revoked microphone reached native target'); assert.ok(inaudible<-65,'Revoked microphone reached Web observer');
     state.web_program_after_revocation_997_db=await audience(997); assert.ok(state.web_program_after_revocation_997_db>-65,'Revocation interrupted program audio');
     sending=false; await sender; await injectionDone; assert.equal(injectionError,undefined,'Official emulator injection failed'); state.injection_completed=true;
