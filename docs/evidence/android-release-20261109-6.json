@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-11-09T15:55:35.270Z",
+  "source_commit": "df7cd87b3352a638aa3a6aa7073d39074c02a43c",
+  "source_url": "https://github.com/bei612/stream-kit/tree/df7cd87b3352a638aa3a6aa7073d39074c02a43c/third_party/moonlight-android",
+  "version": "0.1.0-preview.20261109.6",
+  "version_code": 1000013,
+  "application_id": "io.github.bei612.streamkit",
+  "release_url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261109.6",
+  "release_id": 439334431,
+  "published_at": "2026-11-09T15:55:01Z",
+  "prerelease": true,
+  "production_acceptance_complete": false,
+  "apk_sha256": "31593fce46afc49de92e9c04b76e0b881448e477d42fcbe02ebf387d424c3ebc",
+  "signing_certificate_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f",
+  "changes": [
+    "Preserve bounded structured server error codes without exposing response message text.",
+    "Explicit CONNECTION_TERMINATED immediately clears local authority, microphone, media and pending retries, without follow-up resume, media deletion or leave requests.",
+    "Only CONNECTION_LEASE_EXPIRED and legacy CONNECTION_EXPIRED are resumable 410 confirmations. Current-operation 401 and other 410 responses terminate locally; a definitive resume 401/410 never triggers a fresh watch open.",
+    "Keep each start's remote connection identity across media recovery. Late old-operation 401 or unknown 410 failures cannot terminate a replacement operation or later start; explicit CONNECTION_TERMINATED remains authoritative only for its owning management connection.",
+    "Retain the existing media configuration, 48 kHz stereo content playback, focus isolation, on-demand statistics and independent microphone privacy policy."
+  ],
+  "verification": {
+    "signed_minified_release_assemble": true,
+    "build_seconds": 39,
+    "build_log_sha256": "048ce463b61eb45e0716386789979acc34e2c5dfd1112dd7d6bf0dc3108e4a54",
+    "apk_signature_verified_by_release_packager": true,
+    "packaged_apk_signature_independently_verified": true,
+    "unique_persistent_project_signer_verified": true,
+    "signature_schemes": {
+      "v1": true,
+      "v2": true,
+      "v3": true
+    },
+    "embedded_source_identity_matches_clean_build": true,
+    "locked_dependency_license_inventory_verified": true,
+    "development_test_payload_exclusion_verified": true,
+    "all_five_local_asset_sizes_and_hashes_match_recorded_github_assets": true,
+    "all_five_public_assets_uploaded": true,
+    "published_release_notes_match_local_notes": true,
+    "remote_tag_commit_verified": "df7cd87b3352a638aa3a6aa7073d39074c02a43c",
+    "jvm_tests_rerun_for_this_release": false,
+    "jvm_test_scope": "Earlier 19 JVM tests are historical; no new 1000013 JVM test run is claimed."
+  },
+  "assets": [
+    {
+      "name": "distribution.zip",
+      "bytes": 33168727,
+      "sha256": "71c99740cff9e906e9183ecb07dcf2dbcf4889819ce1eb46eb536e6bf4f09a0b",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261109.6/distribution.zip"
+    },
+    {
+      "name": "DOWNLOAD-SHA256SUMS.txt",
+      "bytes": 363,
+      "sha256": "be4cbfa432ffa67184f71739e62284fadf92144e0a61c30310895b0acb3a74b5",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261109.6/DOWNLOAD-SHA256SUMS.txt"
+    },
+    {
+      "name": "provenance.json",
+      "bytes": 4959,
+      "sha256": "369cc3578e772d5ec138d8a0e6048fb10d3ce631c708d4eccc30f2e6528f4f57",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261109.6/provenance.json"
+    },
+    {
+      "name": "sbom.cdx.json",
+      "bytes": 20776,
+      "sha256": "c3f2ee5b73197604ba9a163da4a84840c0043d94890f198204cd2c1fb1339e5c",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261109.6/sbom.cdx.json"
+    },
+    {
+      "name": "stream-kit-android-0.1.0-preview.20261109.6.apk",
+      "bytes": 33168359,
+      "sha256": "31593fce46afc49de92e9c04b76e0b881448e477d42fcbe02ebf387d424c3ebc",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261109.6/stream-kit-android-0.1.0-preview.20261109.6.apk"
+    }
+  ],
+  "native_termination_acceptance": {
+    "status": "not_run_for_this_apk",
+    "passed": null,
+    "scope": "Source review and signed compilation do not replace actual Android stop/recovery acceptance against a deployed compatible server."
+  },
+  "audio_acceptance": {
+    "status": "not_run_for_this_apk",
+    "passed": null,
+    "separate_older_apk_version_code": 1000012,
+    "separate_older_apk_run": 42643666290,
+    "separate_older_apk_receipt": "docs/evidence/android-release-20261109-5.json",
+    "scope": "The separate 1000012 audio acceptance belongs to that exact older APK and is recorded independently. No audio or physical-device result is attributed to 1000013 by this release receipt."
+  },
+  "limits": [
+    "Publication, signature and packaging checks do not prove Android audio-chain, physical-device or deployed lifecycle acceptance.",
+    "Unknown transport errors retain the existing same-connection recovery policy. No new overall retry duration or automatic fresh watch open is introduced.",
+    "Official disposable CI AVD volume calibration is acceptance-only; the production APK does not set system volume, force a speaker route or change microphone processing defaults.",
+    "Older APK input, human-speech and stability evidence retains its original version boundaries.",
+    "This Android publication does not deploy or update Windows/Linux server components.",
+    "Example, probes, raw audio, emulator tools, test credentials and signing private keys are excluded from the APK."
+  ],
+  "local_evidence_inputs": [
+    ".local/validation/android-1000013-release.json",
+    "artifacts/android-release/provenance.json",
+    ".local/validation/android-1000013-signature.log",
+    ".local/validation/android-1000013-sign-build.log",
+    "deploy/releases/0.1.0-android-preview.20261109.6.md"
+  ]
+}
