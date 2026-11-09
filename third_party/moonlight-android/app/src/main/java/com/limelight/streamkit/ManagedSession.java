@@ -159,7 +159,16 @@ public final class ManagedSession implements AutoCloseable {
               }
               @Override
               public void failed(String reason) {
-                if (valid(op))
+                if (!valid(op))
+                  return;
+                // Reconnecting the transport cannot repair an unavailable
+                // local output device. Use the existing terminal state so a
+                // successful ICE handshake cannot hide a repeated audio error.
+                if ("AUDIO_PLAYOUT_INIT_FAILED".equals(reason)
+                    || "AUDIO_PLAYOUT_START_FAILED".equals(reason)
+                    || "AUDIO_PLAYOUT_FAILED".equals(reason))
+                  fail("音频输出不可用，请检查设备或声音设置后重新连接");
+                else
                   recover();
               }
               @Override
