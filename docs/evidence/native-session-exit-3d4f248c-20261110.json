@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-10",
+  "run": "https://github.com/bei612/stream-kit/actions/runs/42685530563",
+  "attempt": 1,
+  "conclusion": "failure",
+  "passed": false,
+  "runtime_commit": "3d4f248c00cce003e4649a1d3e6b5f907dcfee39",
+  "product_run_id": 42676229242,
+  "product_linux_job_id": 129358212374,
+  "installer_sha256": "a0e235c97831b43c790abd9fe3ab98b81b622839d26f567c57cec816101565da",
+  "payload_sha256": "e078ff613be1e70ea56792684308bd233e379c9ad4eaf83c093aaa70b422b4f5",
+  "acceptance_commit": "45bd855edd4f70125daf077d00fcb1b7cb44c224",
+  "runtime_rebuilt": false,
+  "scope": "Passive normal exit of an owned native X11 target with two real Web viewers; no Android, input or audio acceptance.",
+  "started_at": "2026-11-09T19:41:21.293Z",
+  "finished_at": "2026-11-09T19:41:34.258Z",
+  "failure": {
+    "classification": "outdated_acceptance_terminal_code_assertion",
+    "file": "scripts/lib/native-exit-acceptance.cjs",
+    "line": 60,
+    "actual_http_status": 410,
+    "actual_code": "CONNECTION_TERMINATED",
+    "expected_code_in_harness": "CONNECTION_EXPIRED",
+    "contract": "contracts/client-connections/README.md",
+    "boundary": "The new terminal code matches the current connection contract; this failed execution does not establish completion of all later revocation assertions."
+  },
+  "observed_before_failure": {
+    "shared_clients": 2,
+    "upstream_active": true,
+    "trigger": "WM_DELETE_WINDOW on verified owned X11 target",
+    "passive_exit_observed_ms": 1838,
+    "session_state": "stopped",
+    "observed_stop": true,
+    "app_status": "stopped",
+    "native_instance_cleared": true,
+    "native_gamestream_id": 0,
+    "sunshine_restored_idle": true
+  },
+  "not_completed": [
+    "Final media-ticket rejection and signed authority withdrawal assertions after the terminal-code assertion.",
+    "Six-second replacement-generation stability observation and final after summary.",
+    "Local Windows deployment, Android playback, microphone delivery or physical-device acceptance."
+  ],
+  "evidence": {
+    "artifact": "native-exit-evidence",
+    "browser_result": "source-stream/2026-11-09T19-41-20-088Z/browser/result.json",
+    "browser_result_sha256": "c7e8966abf03e07689cfea6c344821c9c9fa72d11b47db387b0088a4a45d5590",
+    "provenance": "native-exit-evidence/provenance.json",
+    "provenance_sha256": "5f8010b72ea445c33cf03842184efe82bfbd84b1e7decf62d2ff37f91d4031d7",
+    "retained_locally": ".local/ci-native-exit-42685530563",
+    "raw_failed_log": ".local/validation/native-exit-42685530563-job.log"
+  },
+  "rerun_performed": false
+}

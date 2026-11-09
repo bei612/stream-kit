@@ -57,8 +57,12 @@ async function verifyNativeExit({pages, api, sunshine, control, gateway, session
   assert.equal(stopped.session.observed_stop, true); assert.equal(stopped.session.controller_connection_id??'', ''); assert.deepEqual(stopped.session.connections, {});
   assert.ok(Date.now()<expiry, 'Credentials naturally expired before revocation was checked');
   const oldJoin = await request(control+'/api/v1/client-sessions/join', invitation.invitation, 'POST'); assert.equal(oldJoin.status, 400); assert.equal((await oldJoin.json()).code, 'SESSION_COMMAND_INVALID');
-  const oldConnection = await request(control+connectionPath, access.bearer); assert.equal(oldConnection.status, 410); assert.equal((await oldConnection.json()).code, 'CONNECTION_EXPIRED');
-  const oldMedia = await profile(); assert.equal(oldMedia.status, 401);
+  const oldConnection = await request(control+connectionPath, access.bearer);
+  const oldConnectionCode = (await oldConnection.json()).code;
+  result.revocation = {old_invitation_status:oldJoin.status, old_connection_status:oldConnection.status, old_connection_code:oldConnectionCode}; save();
+  assert.equal(oldConnection.status, 410);
+  assert.equal(oldConnectionCode, 'CONNECTION_TERMINATED', 'Native exit must definitively terminate the old connection, not advertise a resumable lease expiry');
+  const oldMedia = await profile(); result.revocation.old_media_status = oldMedia.status; save(); assert.equal(oldMedia.status, 401);
   await until(()=>api('/media-control'), s=>s.observations_valid && !s.observations?.[sessionId], 'signed media authority must withdraw old generation');
   let replacement = stopped.native.app_id===app.id ? stopped.native.instance_id : '';
   if(replacements.size) assert.ok(replacement && replacements.has(replacement), 'A replacement native execution disappeared during old-generation revocation');
@@ -74,7 +78,7 @@ async function verifyNativeExit({pages, api, sunshine, control, gateway, session
     else assert.equal(native.gamestream_id,0);
   }
   const finalApp = await api('/apps/'+app.id); assert.equal(finalApp.status,replacement?'running':'stopped');
-  result.after = {state:stopped.session.state, observed_stop:true, connections:0, controller_connection_id:'', old_invitation_status:oldJoin.status, old_connection_status:oldConnection.status, old_media_status:oldMedia.status, verified_before_expiry:Date.now()<expiry, app_status:finalApp.status, replacement_instance_id:replacement||null, replacement_observed:replacements.size>0, replacement_survived_if_present:replacement?true:null, stability_seconds:6};
+  result.after = {state:stopped.session.state, observed_stop:true, connections:0, controller_connection_id:'', old_invitation_status:oldJoin.status, old_connection_status:oldConnection.status, old_connection_code:oldConnectionCode, old_media_status:oldMedia.status, verified_before_expiry:Date.now()<expiry, app_status:finalApp.status, replacement_instance_id:replacement||null, replacement_observed:replacements.size>0, replacement_survived_if_present:replacement?true:null, stability_seconds:6};
   assert.equal(result.after.verified_before_expiry,true);
   result.passed=true; save();
 }
