@@ -1,4 +1,4 @@
-import { Api, apiEnsureMediaAccess, apiMediaHeartbeat, apiRefreshMediaTicket, apiReleaseMediaAccess, apiResumeMediaAccess, apiWebRTCConfiguration, apiWebRTCOffer, MediaAccess, MediaAccessError, managedStreaming } from "../api"
+import { Api, apiEnsureMediaAccess, apiMediaHeartbeat, apiRefreshMediaTicket, apiReleaseMediaAccess, apiResumeMediaAccess, apiWebRTCConfiguration, apiWebRTCOffer, MediaAccess, managedStreaming, mediaAccessActive, terminateMediaAccess, terminalMediaAccessError, resumableMediaAccessError } from "../api"
 import { Component } from "../component/index"
 import { Settings, TransportType } from "../component/settings_menu"
 import { ControlPacket, ControlPacket_Tags, TerminationReason_Tags, VideoFormats } from "../uniffi/moonlight_common_bindings"
@@ -36,7 +36,7 @@ export type InfoEvent = CustomEvent<
     { type: "streamEnded", graceful: boolean, message: string | null } |
     { type: "addDebugLine", line: string, additional?: LogMessageInfo }
 >
-export type ViewerAuthority = { managed: boolean; control: boolean; microphone: boolean; verified: boolean }
+export type ViewerAuthority = { managed: boolean; control: boolean; microphone: boolean; verified: boolean; ended: boolean }
 export type InfoEventListener = (event: InfoEvent) => void
 
 export function getStreamerSize(settings: Settings, viewerScreenSize: [number, number]): [number, number] {
@@ -113,6 +113,7 @@ export class Stream implements Component {
 
     private transportOverride: TransportType | null = null
     private stopped = false
+    private stopPromise: Promise<boolean> | null = null
     private pipelineGeneration = 0
 
     private videoRenderer: VideoRenderer | null = null
@@ -186,7 +187,7 @@ export class Stream implements Component {
             try {
                 if (desiredTransport == "auto") {
                     shutdownReason = await this.tryWebRTCTransport()
-                    if (shutdownReason == "failednoconnect") {
+                    if (shutdownReason == "failednoconnect" && !this.stopped) {
                         this.debugLog("Failed to establish WebRTC connection. Falling back to Web Socket transport.", { type: "ifErrorDescription" })
                         shutdownReason = await this.tryWebSocketTransport()
                     }
@@ -205,7 +206,9 @@ export class Stream implements Component {
             }
 
             if (this.stopped || shutdownReason == "disconnect") {
-                await this.releaseMediaAccess()
+                // The close owner waits for WHEP cleanup before revoking the
+                // connection credential. onclose alone may precede that DELETE.
+                await this.stop()
                 return
             }
             this.debugLog("Stream disconnected; reconnecting", { type: "ifErrorDescription" })
@@ -264,14 +267,22 @@ export class Stream implements Component {
         this.debugLog("Trying WebRTC transport")
 
         let mediaAccess: MediaAccess | null = null
+        const previousAccess = this.mediaAccess
+        const previousApiAccess = this.api.mediaAccess
         try {
-            mediaAccess = this.mediaAccess
+            mediaAccess = previousAccess
             if (mediaAccess) await apiRefreshMediaTicket(mediaAccess)
             else mediaAccess = await apiEnsureMediaAccess(this.api, this.hostId, this.appId)
+            if (this.stopped || this.mediaAccess !== previousAccess || this.api.mediaAccess !== previousApiAccess) {
+                // Only a fresh, unpublished admission belongs to this canceled
+                // attempt; the normal stop owner releases any previous access.
+                if (mediaAccess && mediaAccess !== previousAccess) await apiReleaseMediaAccess(mediaAccess).catch(() => {})
+                return "disconnect"
+            }
             this.mediaAccess = mediaAccess
+            if (mediaAccess) this.api.mediaAccess = mediaAccess
             this.authorityVerified = true
             this.publishAuthority()
-            if (mediaAccess) this.api.mediaAccess = mediaAccess
             this.startMediaHeartbeat()
             if (this.stopped) {
                 this.cleanupMicrophone()
@@ -279,20 +290,33 @@ export class Stream implements Component {
             }
         } catch (error) {
             this.debugLog(`Media control admission failed: ${error}`)
+            if (mediaAccess && (!mediaAccessActive(mediaAccess) || terminalMediaAccessError(error))) {
+                terminateMediaAccess(mediaAccess)
+                if (this.mediaAccess === mediaAccess) await this.stop()
+                return "disconnect"
+            }
             // The heartbeat owns expired-lease recovery. A ticket request can
             // race that recovery and must not tear down its connection state.
-            if (this.mediaAccess && !(error instanceof MediaAccessError && error.status === 401)) {
+            if (this.mediaAccess) {
                 return "failednoconnect"
             }
             return "disconnect"
         }
 
+        // Keep all negotiation requests on this admission, including requests
+        // that finish after the shared API has been given a newer connection.
+        const streamApi = mediaAccess ? { ...this.api, mediaAccess } : this.api
         // Get configuration
         let config: Awaited<ReturnType<typeof apiWebRTCConfiguration>>
         try {
-            config = await apiWebRTCConfiguration(this.api)
+            config = await apiWebRTCConfiguration(streamApi)
         } catch (error) {
             this.debugLog(`WebRTC configuration failed: ${error}`)
+            if (mediaAccess && (!mediaAccessActive(mediaAccess) || terminalMediaAccessError(error))) {
+                terminateMediaAccess(mediaAccess)
+                if (this.mediaAccess === mediaAccess) await this.stop()
+                return "disconnect"
+            }
             this.cleanupMicrophone()
             return "failednoconnect"
         }
@@ -306,7 +330,7 @@ export class Stream implements Component {
         // Create transport
         let transport: WebRTCTransport
         try {
-            transport = new WebRTCTransport(this.api, { iceServers: config.iceServers }, this.logger)
+            transport = new WebRTCTransport(streamApi, { iceServers: config.iceServers }, this.logger)
         } catch (error) {
             this.debugLog(`WebRTC initialization failed: ${error}`)
             this.cleanupMicrophone()
@@ -326,25 +350,34 @@ export class Stream implements Component {
         this.setTransport(transport)
 
         const options = await this.createTransportOptions()
-        if (!options) {
+        if (!options || this.stopped) {
             await transport.close()
             this.cleanupMicrophone()
-            return "failednoconnect"
+            return this.stopped ? "disconnect" : "failednoconnect"
         }
 
         try {
             // Create offer
             const offer = await transport.createOffer(options)
+            if (this.stopped) {
+                await transport.close()
+                return "disconnect"
+            }
 
             // Send Request
             this.debugLog("Sending Offer and waiting for Answer")
-            const answer = await apiWebRTCOffer(this.api, offer)
+            const answer = await apiWebRTCOffer(streamApi, offer)
             this.debugLog("Got Response")
 
             // Apply answer
             await transport.setAnswer(answer)
         } catch (error) {
             this.debugLog(`failed to connect using webrtc because ${error}`)
+            if (mediaAccess && (!mediaAccessActive(mediaAccess) || terminalMediaAccessError(error))) {
+                terminateMediaAccess(mediaAccess)
+                if (this.mediaAccess === mediaAccess) await this.stop()
+                return "disconnect"
+            }
 
             await transport.close()
             this.cleanupMicrophone()
@@ -384,11 +417,12 @@ export class Stream implements Component {
     }
 
     private startMediaHeartbeat() {
-        if (!this.mediaAccess || this.mediaHeartbeatTimer != null) return
+        if (!this.mediaAccess || !mediaAccessActive(this.mediaAccess) || this.stopped || this.mediaHeartbeatTimer != null) return
+        const access = this.mediaAccess
         let pending = false
         const send = async () => {
-            if (!this.mediaAccess || pending) return
-            const access = this.mediaAccess
+            if (this.mediaAccess !== access || this.stopped || pending) return
+            if (!mediaAccessActive(access)) { await this.stop(); return }
             pending = true
             try {
                 try {
@@ -398,14 +432,18 @@ export class Stream implements Component {
                     this.updateMicrophoneAuthority(false)
                     this.authorityVerified = false
                     this.publishAuthority()
-                    if (!(error instanceof MediaAccessError) || error.status !== 410) throw error
+                    if (terminalMediaAccessError(error)) throw error
+                    if (!resumableMediaAccessError(error)) throw error
                     await apiResumeMediaAccess(access)
-                    // Stop may race a successful resume. Release the restored lease
-                    // rather than leaving an invisible viewer until it times out.
+                    // Stop owns ordered cleanup of this access. A late resume
+                    // must neither renew a ticket nor race its WHEP DELETE.
                     if (this.mediaAccess !== access || this.stopped) {
-                        await apiReleaseMediaAccess(access).catch(() => {})
+                        if (!this.stopped) await apiReleaseMediaAccess(access).catch(() => {})
                         return
                     }
+                    // Restoring a lease and renewing its media admission are
+                    // separate effects, each checked against this stream owner.
+                    await apiRefreshMediaTicket(access)
                 }
                 if (this.mediaAccess !== access || this.stopped) return
                 this.authorityVerified = true
@@ -413,14 +451,17 @@ export class Stream implements Component {
                 this.updateMicrophoneAuthority(this.microphoneAllowed())
             } catch (error) {
                 if (this.mediaAccess !== access || this.stopped) {
-                    await apiReleaseMediaAccess(access).catch(() => {})
+                    if (!this.stopped && mediaAccessActive(access)) await apiReleaseMediaAccess(access).catch(() => {})
                     return
                 }
                 this.updateMicrophoneAuthority(false)
                 this.authorityVerified = false
                 this.publishAuthority()
                 this.debugLog(`Media heartbeat failed: ${error}`)
-                if (error instanceof MediaAccessError && (error.status === 401 || error.status === 410)) await this.stop()
+                if (!mediaAccessActive(access) || terminalMediaAccessError(error)) {
+                    terminateMediaAccess(access)
+                    await this.stop()
+                }
             } finally { pending = false }
         }
         send()
@@ -430,15 +471,18 @@ export class Stream implements Component {
     private async releaseMediaAccess() {
         this.cleanupMicrophone()
         this.microphoneResumeKey = null
-        if (this.mediaHeartbeatTimer != null) {
-            window.clearInterval(this.mediaHeartbeatTimer)
-            this.mediaHeartbeatTimer = null
-        }
+        this.clearMediaHeartbeat()
         if (!this.mediaAccess) return
         const access = this.mediaAccess
         this.mediaAccess = null
-        this.api.mediaAccess = null
+        if (this.api.mediaAccess === access) this.api.mediaAccess = null
         try { await apiReleaseMediaAccess(access) } catch (error) { this.debugLog(`Media disconnect failed: ${error}`) }
+    }
+
+    private clearMediaHeartbeat() {
+        if (this.mediaHeartbeatTimer == null) return
+        window.clearInterval(this.mediaHeartbeatTimer)
+        this.mediaHeartbeatTimer = null
     }
 
     private cleanupMicrophone() {
@@ -474,14 +518,14 @@ export class Stream implements Component {
         return !this.stopped && this.transport === transport && this.pipelineGeneration === generation
     }
     private microphoneAllowed(): boolean {
-        return this.authorityVerified && this.settings.microphone && (!managedStreaming() ||
-            (this.mediaAccess?.role === "controller" && this.mediaAccess.microphoneEnabled))
+        return !this.stopped && this.authorityVerified && this.settings.microphone && (!managedStreaming() ||
+            (this.mediaAccess != null && mediaAccessActive(this.mediaAccess) && this.mediaAccess.role === "controller" && this.mediaAccess.microphoneEnabled))
     }
     getAuthority(): ViewerAuthority {
         const managed = managedStreaming()
-        const verified = !this.stopped && this.authorityVerified && (!managed || this.mediaAccess != null)
+        const verified = !this.stopped && this.authorityVerified && (!managed || (this.mediaAccess != null && mediaAccessActive(this.mediaAccess)))
         const control = verified && (!managed || this.mediaAccess?.role === "controller")
-        return { managed, verified, control, microphone: control && (!managed || this.mediaAccess?.microphoneEnabled === true) }
+        return { managed, verified, control, microphone: control && (!managed || this.mediaAccess?.microphoneEnabled === true), ended: this.stopped }
     }
     private publishAuthority() {
         const authority = this.getAuthority()
@@ -494,7 +538,7 @@ export class Stream implements Component {
     }
     private microphoneAuthorityKey(): string | null {
         const access = this.mediaAccess
-        if (this.stopped || !this.settings.microphone || !access || access.role !== "controller" || !access.microphoneEnabled ||
+        if (this.stopped || !this.settings.microphone || !access || !mediaAccessActive(access) || access.role !== "controller" || !access.microphoneEnabled ||
             !Number.isSafeInteger(access.controlEpoch) || access.controlEpoch! < 0) return null
         return JSON.stringify([access.sessionId, access.connectionId, access.controlEpoch])
     }
@@ -795,6 +839,10 @@ export class Stream implements Component {
             } catch (error) {
                 if (this.microphoneListener === source) this.updateMicrophoneAuthority(false)
                 this.debugLog(`Microphone resume authorization failed: ${error}`)
+                if (this.mediaAccess === access && (!mediaAccessActive(access) || terminalMediaAccessError(error))) {
+                    terminateMediaAccess(access)
+                    await this.stop()
+                }
             }
         }
     }
@@ -816,19 +864,26 @@ export class Stream implements Component {
         return this.microphoneListener
     }
 
-    async stop(): Promise<boolean> {
+    stop(): Promise<boolean> {
+        if (this.stopPromise) return this.stopPromise
+        const transport = this.transport
+        this.transport = null
+        // Publish the owner promise before synchronous authority listeners run.
+        // Local permission/resource cleanup still completes before remote I/O.
+        this.stopPromise = Promise.resolve().then(async () => {
+            try { await transport?.close() }
+            finally { await this.releaseMediaAccess() }
+            return true
+        })
         this.stopped = true
+        this.authorityVerified = false
+        this.clearMediaHeartbeat()
         this.publishAuthority()
+        this.input.setControlStream(null)
+        this.stats.setEnabled(false)
+        this.stats.setTransport(null)
         this.cleanupPipelines()
-        // Stop transport
-        try {
-            await this.transport?.close()
-        } finally {
-            this.transport = null
-            await this.releaseMediaAccess()
-        }
-
-        return true
+        return this.stopPromise
     }
 
     private boundReceivePacket = this.onReceivePacket.bind(this)

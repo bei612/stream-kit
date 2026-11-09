@@ -80,7 +80,7 @@ export class StreamInput {
         }
     }
 
-    setControlStream(controlStream: IControlStream) {
+    setControlStream(controlStream: IControlStream | null) {
         // Clear state
         this.raiseAllKeys()
 

@@ -1,4 +1,4 @@
-import { Api, fetchApi, WebRTCAnswer } from "../../api"
+import { Api, fetchApi, WebRTCAnswer, mediaAccessActive } from "../../api"
 import { StreamKeys } from "../../api_bindings"
 import { ActiveGamepads, ClientInputEvent, ClientInputEvent_Tags, ControlPacket, ControlPacketConfig, controlPacketDeserialize, controlPacketSerialize, KeyAction, keyStatesCanStore, keyStatesEmpty, keyStatesSetPressed, MouseButton, MouseButtonAction, PacketDirection, VideoFormats, WebRtcSessionAnswer, webrtcSessionAnswerParse, WebRtcSessionOffer, webrtcSessionOfferApply } from "../../uniffi/moonlight_common_bindings"
 import { globalObject, wait } from "../../util"
@@ -32,7 +32,9 @@ export class WebRTCTransport implements Transport {
     constructor(api: Api, configuration: RTCConfiguration, logger?: Logger) {
         this.logger = logger
 
-        this.api = api
+        // Keep this connection identity, while sharing its mutable ticket/token
+        // renewal. Replacing the caller's access must not retarget old teardown.
+        this.api = api.mediaAccess === undefined ? api : { ...api }
 
         // Create peer
         this.peer = new RTCPeerConnection(configuration)
@@ -240,6 +242,7 @@ export class WebRTCTransport implements Transport {
     // -- Control Stream / Media
     private onDataChannel(event: RTCDataChannelEvent) {
         const channel = event.channel
+        if (this.closed) { channel.close(); return }
 
         this.logger?.debug(`received data channel with label: ${channel.label}`)
 
@@ -251,6 +254,7 @@ export class WebRTCTransport implements Transport {
     }
 
     private onTrack(event: RTCTrackEvent) {
+        if (this.closed) { event.track.stop(); return }
         event.receiver.jitterBufferTarget = 0
         if ("playoutDelayHint" in event.receiver) {
             event.receiver.playoutDelayHint = 0
@@ -341,7 +345,7 @@ export class WebRTCTransport implements Transport {
     }
 
     async close(reason: TransportShutdown = "disconnect"): Promise<void> {
-        if (this.closed) return
+        if (this.closed) { await this.sessionDeletion; return }
         this.closed = true
         this.pendingIceCandidates = []
         this.controlStream.close()
@@ -359,6 +363,7 @@ export class WebRTCTransport implements Transport {
     private deleteSession(): Promise<void> {
         if (!this.location) return Promise.resolve()
         if (this.sessionDeletion) return this.sessionDeletion
+        if (this.api.mediaAccess === null || (this.api.mediaAccess && !mediaAccessActive(this.api.mediaAccess))) return Promise.resolve()
         const location = this.location
         this.sessionDeletion = (async () => {
             try {
@@ -378,7 +383,9 @@ export class WebRTCTransport implements Transport {
         let tries = 0
 
         while (true) {
+            if (this.closed) throw new Error("WebRTC transport is closed")
             const stats = await this.peer.getStats()
+            if (this.closed) throw new Error("WebRTC transport is closed")
             for (const [_key, value] of stats) {
                 // Video Stream
                 if ("type" in value && "kind" in value
@@ -401,11 +408,15 @@ export class WebRTCTransport implements Transport {
     private lastFramesDecoded = 0
     async getStats(): Promise<Record<string, StatValue>> {
         const out: Record<string, StatValue> = {}
+        if (this.closed) return out
 
         // Control Stream
         // TODO
 
-        const stats = await this.peer.getStats()
+        let stats: RTCStatsReport
+        try { stats = await this.peer.getStats() }
+        catch (error) { if (this.closed) return out; throw error }
+        if (this.closed) return out
 
         for (const [_key, value] of stats) {
             console.debug(value)

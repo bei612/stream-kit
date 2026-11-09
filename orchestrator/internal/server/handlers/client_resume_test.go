@@ -4,16 +4,26 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stream-kit/orchestrator/internal/identity"
 	"github.com/stream-kit/orchestrator/internal/session"
+	"github.com/stream-kit/orchestrator/internal/store"
 )
 
 func TestClientResumeCredentialIsolationAndExplicitRevocation(t *testing.T) {
-	m := session.NewManager(nil)
+	st, err := store.New(filepath.Join(t.TempDir(), "state.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	m, err := session.NewManagerWithStore(nil, st)
+	if err != nil {
+		t.Fatal(err)
+	}
 	s, err := m.Ensure(1, 2)
 	if err != nil {
 		t.Fatal(err)
@@ -23,6 +33,11 @@ func TestClientResumeCredentialIsolationAndExplicitRevocation(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := m.SweepExpired(time.Now().Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	// Classification and recovery must survive a real persistence round trip.
+	m, err = session.NewManagerWithStore(nil, st)
+	if err != nil {
 		t.Fatal(err)
 	}
 	h := NewSessionHandler(m, []byte("secret"))
@@ -35,7 +50,7 @@ func TestClientResumeCredentialIsolationAndExplicitRevocation(t *testing.T) {
 	now := time.Now()
 	claims := identity.Claims{Subject: "owner", SessionID: s.ID, ConnectionID: conn.ID, IssuedAt: now.Unix(), ExpiresAt: now.Add(time.Minute).Unix()}
 	valid := identity.Sign(identity.Connection, claims, client.connectionKey)
-	request := func(method, suffix, token string, want int) {
+	request := func(method, suffix, token string, want int, wantCode ...string) {
 		t.Helper()
 		req := httptest.NewRequest(method, "/"+s.ID+"/connections/"+conn.ID+suffix, nil)
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -43,6 +58,14 @@ func TestClientResumeCredentialIsolationAndExplicitRevocation(t *testing.T) {
 		r.ServeHTTP(res, req)
 		if res.Code != want {
 			t.Fatalf("%s %s: got %d want %d: %s", method, suffix, res.Code, want, res.Body.String())
+		}
+		if len(wantCode) > 0 {
+			var response struct {
+				Code string `json:"code"`
+			}
+			if err := json.Unmarshal(res.Body.Bytes(), &response); err != nil || response.Code != wantCode[0] {
+				t.Fatalf("%s %s: expected %s: %s", method, suffix, wantCode[0], res.Body.String())
+			}
 		}
 		if want == http.StatusOK && suffix == "/resume" {
 			var response struct {
@@ -64,14 +87,14 @@ func TestClientResumeCredentialIsolationAndExplicitRevocation(t *testing.T) {
 			}
 		}
 	}
-	request(http.MethodGet, "", valid, 410)
+	request(http.MethodGet, "", valid, 410, "CONNECTION_LEASE_EXPIRED")
 	request(http.MethodPost, "/resume", identity.Sign(identity.Invitation, claims, client.invitationKey), 401)
 	wrong := claims
 	wrong.ConnectionID = "other"
 	request(http.MethodPost, "/resume", identity.Sign(identity.Connection, wrong, client.connectionKey), 401)
 	wrong = claims
 	wrong.Subject = "other"
-	request(http.MethodPost, "/resume", identity.Sign(identity.Connection, wrong, client.connectionKey), 410)
+	request(http.MethodPost, "/resume", identity.Sign(identity.Connection, wrong, client.connectionKey), 410, "CONNECTION_TERMINATED")
 	wrong = claims
 	wrong.ExpiresAt = now.Add(-time.Second).Unix()
 	request(http.MethodPost, "/resume", identity.Sign(identity.Connection, wrong, client.connectionKey), 401)
@@ -80,5 +103,72 @@ func TestClientResumeCredentialIsolationAndExplicitRevocation(t *testing.T) {
 		t.Fatal(err)
 	}
 	request(http.MethodDelete, "", valid, 200)
-	request(http.MethodPost, "/resume", valid, 410)
+	request(http.MethodGet, "", valid, 410, "CONNECTION_TERMINATED")
+	request(http.MethodPost, "/resume", valid, 410, "CONNECTION_TERMINATED")
+}
+
+func TestClientStoppedGenerationCannotResumeOrAffectReplacement(t *testing.T) {
+	st, err := store.New(filepath.Join(t.TempDir(), "state.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	m, err := session.NewManagerWithStore(nil, st)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := m.Ensure(1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn, err := m.AddConnection(s.ID, "owner")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := NewSessionHandler(m, []byte("secret"))
+	client := NewClientSessionHandler(h, []byte("secret"))
+	r := gin.New()
+	route := "/:session_id/connections/:connection_id"
+	r.POST(route+"/heartbeat", client.Authorize(), client.Heartbeat)
+	r.POST(route+"/resume", client.Resume)
+	r.DELETE(route, client.Authorize(), h.Disconnect)
+	now := time.Now()
+	token := identity.Sign(identity.Connection, identity.Claims{Subject: "owner", SessionID: s.ID, ConnectionID: conn.ID, IssuedAt: now.Unix(), ExpiresAt: now.Add(time.Minute).Unix()}, client.connectionKey)
+	assertTerminal := func() {
+		t.Helper()
+		for _, command := range []struct{ method, suffix string }{{http.MethodPost, "/heartbeat"}, {http.MethodPost, "/resume"}, {http.MethodDelete, ""}} {
+			req := httptest.NewRequest(command.method, "/"+s.ID+"/connections/"+conn.ID+command.suffix, nil)
+			req.Header.Set("Authorization", "Bearer "+token)
+			res := httptest.NewRecorder()
+			r.ServeHTTP(res, req)
+			var response struct {
+				Code string `json:"code"`
+			}
+			if err := json.Unmarshal(res.Body.Bytes(), &response); err != nil || res.Code != http.StatusGone || response.Code != "CONNECTION_TERMINATED" {
+				t.Fatalf("%s %s must reject the terminal generation: %d %s", command.method, command.suffix, res.Code, res.Body.String())
+			}
+		}
+	}
+	id, err := m.BeginStop(1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertTerminal()
+	if err := m.CompleteStop(id); err != nil {
+		t.Fatal(err)
+	}
+	assertTerminal()
+	fresh, err := m.Ensure(1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	freshConn, err := m.AddConnection(fresh.ID, "replacement")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertTerminal()
+	current, err := m.Get(fresh.ID)
+	if err != nil || fresh.ID == s.ID || current.Connections[freshConn.ID] == nil {
+		t.Fatal("old credentials changed the replacement generation", err)
+	}
 }

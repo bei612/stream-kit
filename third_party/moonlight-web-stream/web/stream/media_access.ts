@@ -11,6 +11,7 @@ export type MediaAccess = {
     microphoneEnabled: boolean
     revision?: number
     controlEpoch?: number
+    lifecycle?: "active" | "released" | "terminated"
 }
 
 type ConnectionResponse = {
@@ -25,7 +26,48 @@ type ConnectionResponse = {
 }
 
 export class MediaAccessError extends Error {
-    constructor(message: string, readonly status: number) { super(message) }
+    credentialSuperseded = false
+    constructor(message: string, readonly status: number, readonly code: string = "") { super(message) }
+}
+
+export function mediaAccessActive(access: MediaAccess): boolean {
+    return access.lifecycle !== "terminated" && access.lifecycle !== "released"
+}
+
+export function terminateMediaAccess(access: MediaAccess): void {
+    access.lifecycle = "terminated"
+    access.ticket = ""
+    access.expiresAt = ""
+    access.microphoneEnabled = false
+}
+
+export function terminalMediaAccessError(error: unknown): boolean {
+    return error instanceof MediaAccessError && ((error.status === 401 && !error.credentialSuperseded) ||
+        (error.status === 410 && !["CONNECTION_LEASE_EXPIRED", "CONNECTION_EXPIRED"].includes(error.code)))
+}
+
+function observeAccessFailure(access: MediaAccess, bearer: string, error: unknown, resuming = false): void {
+    if (error instanceof MediaAccessError && error.status === 401 && bearer !== access.bearer) {
+        // A rejection of an older token does not invalidate the newer token
+        // already installed for this same connection. Keep the error visible.
+        error.credentialSuperseded = true
+        return
+    }
+    if (terminalMediaAccessError(error) || (resuming && error instanceof MediaAccessError && error.status === 410)) {
+        terminateMediaAccess(access)
+    }
+}
+
+export function resumableMediaAccessError(error: unknown): boolean {
+    // Older control planes use CONNECTION_EXPIRED for both lease and terminal
+    // expiry. Resume can confirm that legacy response; a definitive 401/410
+    // rejection is terminal. A network failure leaves the outcome unknown.
+    return error instanceof MediaAccessError && error.status === 410 &&
+        ["CONNECTION_LEASE_EXPIRED", "CONNECTION_EXPIRED"].includes(error.code)
+}
+
+function requireActive(access: MediaAccess): void {
+    if (!mediaAccessActive(access)) throw new MediaAccessError("Managed connection is closed", 410, "CONNECTION_TERMINATED")
 }
 
 export function managedStreaming(): boolean { return CONFIG.managed_streaming }
@@ -53,7 +95,8 @@ async function request<T>(base: string, bearer: string, path: string, method: st
         })
         const result = await response.json().catch(() => null)
         if (!response.ok || result?.status !== "ok") {
-            throw new MediaAccessError(result?.message || "Connection authorization failed", response.status)
+            throw new MediaAccessError(result?.message || "Connection authorization failed", response.status,
+                typeof result?.code === "string" ? result.code : "")
         }
         return result.data as T
     } finally { window.clearTimeout(timer) }
@@ -83,6 +126,7 @@ export async function acquireMediaAccess(hostId: number, appId: number): Promise
         microphoneEnabled: joined.audio?.microphone_enabled === true,
         revision: joined.revision, controlEpoch: joined.control_epoch,
         ticket: "", expiresAt: "",
+        lifecycle: "active",
     }
     try {
         validateConnectionState(joined)
@@ -96,16 +140,31 @@ export async function acquireMediaAccess(hostId: number, appId: number): Promise
 }
 
 export async function refreshMediaTicket(access: MediaAccess): Promise<void> {
-    const ticket = await request<{ ticket: string; expires_at: string; role: "viewer" | "controller" }>(access.baseUrl, access.bearer, `${path(access)}/ticket`, "POST")
-    access.ticket = ticket.ticket
-    access.expiresAt = ticket.expires_at
+    requireActive(access)
+    const bearer = access.bearer
+    try {
+        const ticket = await request<{ ticket: string; expires_at: string; role: "viewer" | "controller" }>(access.baseUrl, bearer, `${path(access)}/ticket`, "POST")
+        if (!mediaAccessActive(access)) return
+        access.ticket = ticket.ticket
+        access.expiresAt = ticket.expires_at
+    } catch (error) {
+        observeAccessFailure(access, bearer, error)
+        throw error
+    }
     // Tickets admit media; only the connection snapshot controls capture.
     // A concurrent ticket response must not overwrite a newer heartbeat role.
 }
 
 export async function mediaHeartbeat(access: MediaAccess, microphone: boolean, live: boolean): Promise<void> {
-    const current = await request<ConnectionResponse>(access.baseUrl, access.bearer, `${path(access)}/heartbeat`, "POST", { microphone, microphone_live: live })
-    applyConnectionState(access, current)
+    requireActive(access)
+    const bearer = access.bearer
+    try {
+        const current = await request<ConnectionResponse>(access.baseUrl, bearer, `${path(access)}/heartbeat`, "POST", { microphone, microphone_live: live })
+        if (mediaAccessActive(access)) applyConnectionState(access, current)
+    } catch (error) {
+        observeAccessFailure(access, bearer, error)
+        throw error
+    }
 }
 
 function validateConnectionState(current: ConnectionResponse): void {
@@ -136,12 +195,26 @@ function applyConnectionState(access: MediaAccess, current: ConnectionResponse):
     access.controlEpoch = current.control_epoch
 }
 
-export async function releaseMediaAccess(access: MediaAccess): Promise<void> {
-    await request(access.baseUrl, access.bearer, path(access), "DELETE")
+const releases = new WeakMap<MediaAccess, Promise<void>>()
+export function releaseMediaAccess(access: MediaAccess): Promise<void> {
+    const pending = releases.get(access)
+    if (pending) return pending
+    if (!mediaAccessActive(access)) return Promise.resolve()
+    access.lifecycle = "released"
+    const release = request<void>(access.baseUrl, access.bearer, path(access), "DELETE")
+    releases.set(access, release)
+    return release
 }
 
 export async function resumeMediaAccess(access: MediaAccess): Promise<void> {
-    const current = await request<ConnectionResponse>(access.baseUrl, access.bearer, `${path(access)}/resume`, "POST")
-    applyConnectionState(access, current)
-    await refreshMediaTicket(access)
+    requireActive(access)
+    const bearer = access.bearer
+    try {
+        const current = await request<ConnectionResponse>(access.baseUrl, bearer, `${path(access)}/resume`, "POST")
+        if (!mediaAccessActive(access)) return
+        applyConnectionState(access, current)
+    } catch (error) {
+        observeAccessFailure(access, bearer, error, true)
+        throw error
+    }
 }

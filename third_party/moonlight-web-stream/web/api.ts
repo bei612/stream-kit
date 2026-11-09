@@ -90,7 +90,8 @@ export type Api = {
 
 export { MediaAccess, managedStreaming, MediaAccessError, refreshMediaTicket as apiRefreshMediaTicket } from "./stream/media_access"
 export { mediaHeartbeat as apiMediaHeartbeat, releaseMediaAccess as apiReleaseMediaAccess, resumeMediaAccess as apiResumeMediaAccess } from "./stream/media_access"
-import { acquireMediaAccess, managedStreaming, MediaAccess, refreshMediaTicket, releaseMediaAccess } from "./stream/media_access"
+export { mediaAccessActive, terminateMediaAccess, terminalMediaAccessError, resumableMediaAccessError } from "./stream/media_access"
+import { acquireMediaAccess, managedStreaming, MediaAccess, refreshMediaTicket, releaseMediaAccess, mediaAccessActive } from "./stream/media_access"
 
 import { StreamProfile } from "./api_bindings"
 export type { StreamProfile } from "./api_bindings"
@@ -135,7 +136,7 @@ export function isDetailedHost(host: UndetailedHost | DetailedHost): host is Det
 }
 
 function buildRequest(api: Api, endpoint: string, method: string, init?: ApiFetchInit): [string, RequestInit] {
-    if (api.mediaAccess === null) throw new Error("Managed media connection is closed")
+    if (api.mediaAccess === null || (api.mediaAccess && !mediaAccessActive(api.mediaAccess))) throw new Error("Managed media connection is closed")
     const queryObj = init?.query || {};
     const queryParts = [];
     for (const key in queryObj) {

@@ -142,19 +142,24 @@ func (h *ClientSessionHandler) Authorize() gin.HandlerFunc {
 		}
 		s, err := h.sessions.Manager.Get(claims.SessionID)
 		if err != nil {
-			errResponse(c, 410, "CONNECTION_EXPIRED", "connection is no longer active")
+			errResponse(c, 410, "CONNECTION_TERMINATED", "connection is no longer active")
 			c.Abort()
 			return
 		}
-		conn, ok := s.Connections[claims.ConnectionID]
+		conn, live := s.Connections[claims.ConnectionID]
 		// Explicit disconnect also revokes dormant recovery authority. Other
 		// commands still require a live lease and cannot use this exception.
 		disconnecting := c.Request.Method == http.MethodDelete
-		if !ok && disconnecting {
-			conn, ok = s.Resumable[claims.ConnectionID]
+		if !live {
+			conn = s.Resumable[claims.ConnectionID]
 		}
-		if !ok || conn.UserID != claims.Subject || (!disconnecting && !time.Now().Before(conn.ExpiresAt)) || s.State == session.StateStopped || s.State == session.StateStopping {
-			errResponse(c, 410, "CONNECTION_EXPIRED", "connection is no longer active")
+		if conn == nil || conn.UserID != claims.Subject || s.State == session.StateStopped || s.State == session.StateStopping {
+			errResponse(c, 410, "CONNECTION_TERMINATED", "connection is no longer active")
+			c.Abort()
+			return
+		}
+		if !disconnecting && (!live || !time.Now().Before(conn.ExpiresAt)) {
+			errResponse(c, 410, "CONNECTION_LEASE_EXPIRED", "connection lease must be resumed")
 			c.Abort()
 			return
 		}
@@ -203,7 +208,7 @@ func (h *ClientSessionHandler) Resume(c *gin.Context) {
 	}
 	conn, err := h.sessions.Manager.ResumeConnection(claims.SessionID, claims.ConnectionID, claims.Subject)
 	if errors.Is(err, session.ErrNotFound) || errors.Is(err, session.ErrInvalidState) {
-		errResponse(c, 410, "CONNECTION_EXPIRED", "connection can no longer resume; open a new viewing link")
+		errResponse(c, 410, "CONNECTION_TERMINATED", "connection can no longer resume; open a new viewing link")
 		return
 	}
 	if err != nil {

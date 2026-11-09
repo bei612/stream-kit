@@ -314,11 +314,15 @@ class ViewerApp implements Component {
             ?.classList.toggle("sidebar-button-unobtrusive", settings.hideSidebarButton)
 
         // Add app info listener
-        this.stream.addInfoListener(this.onInfo.bind(this))
+        const stream = this.stream
+        stream.addInfoListener(event => {
+            if (this.stream === stream) this.onInfo(event)
+        })
 
         // Create connection info modal
-        const connectionInfoListener = this.connectionInfoModal.onInfo.bind(this.connectionInfoModal)
-        this.stream.addInfoListener(connectionInfoListener)
+        stream.addInfoListener(event => {
+            if (this.stream === stream) this.connectionInfoModal.onInfo(event)
+        })
         showModal(this.connectionInfoModal)
 
         // Start animation frame loop
@@ -369,7 +373,7 @@ class ViewerApp implements Component {
             showNotification(authority.control ? "已获得控制权，可操作应用。麦克风需主动开启。" : "控制权已收回，已停止输入和麦克风，仅可观看。", "info")
         }
         this.authorityBadge.hidden = !authority.managed
-        this.authorityBadge.innerText = !authority.verified ? "权限确认中" : authority.control ? "控制者" : "仅观看"
+        this.authorityBadge.innerText = authority.ended ? "观看已结束" : !authority.verified ? "权限确认中" : authority.control ? "控制者" : "仅观看"
         this.authorityBadge.dataset.control = String(authority.control)
         this.sidebar.onAuthority(authority)
         if (!authority.control) {
@@ -1165,7 +1169,7 @@ class ViewerSidebar implements Component, Sidebar, ScreenKeyboardListener {
 
     onAuthority(authority: ViewerAuthority) {
         this.authorityStatus.hidden = !authority.managed
-        this.authorityStatus.innerText = !authority.verified ? "正在确认权限，暂时仅观看。" : !authority.control
+        this.authorityStatus.innerText = authority.ended ? "观看已结束，输入和麦克风已关闭。" : !authority.verified ? "正在确认权限，暂时仅观看。" : !authority.control
             ? "仅观看 · 键盘、鼠标、触控和麦克风由管理员授权后可用。"
             : authority.microphone ? "控制者 · 可操作应用。麦克风需主动开启。" : "控制者 · 可操作应用，管理员已关闭麦克风权限。"
         for (const button of [this.keyboardButton, this.sendKeycodeButton, this.lockMouseButton]) {

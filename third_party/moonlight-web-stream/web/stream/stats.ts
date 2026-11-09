@@ -86,7 +86,7 @@ export class StreamStats {
         }
     }
 
-    setTransport(transport: Transport) {
+    setTransport(transport: Transport | null) {
         this.transport = transport
     }
     setEnabled(enabled: boolean) {
