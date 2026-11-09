@@ -182,10 +182,17 @@ async function browserAcceptance(page, cfg) {
   const requireTrue = (value, message) => { if (!value) throw Error(message); };
   const address = raw => { try { const url = new URL(raw); return {resource:url.origin+url.pathname,hasQuery:!!url.search,hasHash:!!url.hash}; } catch { return {resource:'',hasQuery:false,hasHash:false}; } };
   const exact = (entry, resource) => entry.resource===resource && !entry.hasQuery && !entry.hasHash;
+  const networkCause = text => {
+    if (text==='net::ERR_ABORTED') return 'aborted';
+    if (['net::ERR_TIMED_OUT','net::ERR_CONNECTION_TIMED_OUT'].includes(text)) return 'timeout';
+    if (['net::ERR_CERT_AUTHORITY_INVALID','net::ERR_CERT_COMMON_NAME_INVALID','net::ERR_CERT_DATE_INVALID','net::ERR_CERT_INVALID','net::ERR_SSL_PROTOCOL_ERROR','net::ERR_SSL_VERSION_OR_CIPHER_MISMATCH'].includes(text)) return 'tls';
+    if (['net::ERR_FAILED','net::ERR_CONNECTION_RESET','net::ERR_CONNECTION_CLOSED','net::ERR_CONNECTION_REFUSED','net::ERR_NETWORK_CHANGED','net::ERR_INTERNET_DISCONNECTED','net::ERR_NAME_NOT_RESOLVED','net::ERR_HTTP2_PROTOCOL_ERROR','net::ERR_EMPTY_RESPONSE','net::ERR_CONTENT_LENGTH_MISMATCH'].includes(text)) return 'network';
+    return 'unknown';
+  };
   const watchErrors = target => {
     const owner = { id:owners.size, connectionId:null, media:new Set() }; owners.set(target, owner);
     target.on('request', request => {
-      const entry={owner:owner.id,method:request.method(),order:++eventOrder,...address(request.url())};
+      const entry={owner:owner.id,method:request.method(),resourceType:request.resourceType(),order:++eventOrder,...address(request.url()),responseStatus:null,responseOrder:null,contentLength:null,transferEncoding:'unobserved'};
       requests.set(request,entry);
       if (new URL(request.url()).pathname.startsWith('/api/')) {
         networkRequests.push(entry);
@@ -196,18 +203,26 @@ async function browserAcceptance(page, cfg) {
     target.on('requestfailed', request=>{
       pendingRequests.delete(request);
       const entry=requests.get(request);
-      if (entry && new URL(request.url()).pathname.startsWith('/api/')) networkFailures.push({...entry,failureOrder:++eventOrder});
+      if (entry && new URL(request.url()).pathname.startsWith('/api/')) networkFailures.push({...entry,cause:networkCause(request.failure()?.errorText),failureOrder:++eventOrder});
     });
     target.on('pageerror', error => errors.push({kind:'javascript',owner:owner.id,message:String(error.message).slice(0,1000)}));
     target.on('console', message => { if (message.type() === 'error') errors.push({kind:'console',owner:owner.id,message:message.text().slice(0,1000),...address(message.location().url)}); });
     target.on('response', response => {
-      const request = response.request(), location = response.headers().location;
+      const request = response.request(), headers = response.headers(), location = headers.location;
+      const entry=requests.get(request);
+      if (entry && new URL(response.url()).pathname.startsWith('/api/')) {
+        entry.responseStatus=response.status(); entry.responseOrder=++eventOrder;
+        const length=headers['content-length'];
+        entry.contentLength=typeof length==='string' && /^(0|[1-9][0-9]{0,15})$/.test(length) && Number.isSafeInteger(Number(length)) ? Number(length) : null;
+        const encoding=headers['transfer-encoding'];
+        entry.transferEncoding=encoding===undefined ? 'absent' : ['chunked','identity','gzip','deflate','compress'].includes(encoding.trim().toLowerCase()) ? encoding.trim().toLowerCase() : 'other';
+      }
       if (request.method() === 'POST' && new URL(response.url()).pathname === '/api/host/stream/webrtc' && location) {
         const endpoint = new URL(location, response.url());
         if (endpoint.origin === new URL(response.url()).origin && !endpoint.search && !endpoint.hash && /^\/api\/host\/stream\/webrtc\/\d+$/.test(endpoint.pathname)) owner.media.add(address(endpoint.href).resource);
       }
       if (response.status() < 400) return;
-      const failure = {owner:owner.id,...address(response.url()),method:request.method(),status:response.status(),requestOrder:requests.get(request)?.order,responseOrder:++eventOrder,code:''};
+      const failure = {owner:owner.id,...address(response.url()),method:request.method(),status:response.status(),requestOrder:entry?.order,responseOrder:entry?.responseOrder ?? ++eventOrder,code:''};
       httpFailures.push(failure);
       responseReads.push(response.json().then(body => {
         if (body?.status === 'error' && typeof body.code === 'string' && /^[A-Z][A-Z0-9_]{0,63}$/.test(body.code)) failure.code = body.code;
@@ -440,7 +455,7 @@ async function browserAcceptance(page, cfg) {
     await drainResponses();
     // Preserve actual partial observations even when an assertion fails. Query
     // strings, fragments, bodies and authentication headers are never recorded.
-    const trace={decoded_video_metrics:metrics,stopped_viewers:Object.fromEntries(endedStates),pending_viewer_api_requests:[...pendingRequests].map(request=>requests.get(request)).filter(value=>value?.owner!==owners.get(page).id),network_failures:networkFailures,http_failures:httpFailures.map(value=>({...value,classification:expectedFailures.get(value)||'unclassified'})),viewer_requests:networkRequests.filter(value=>value.owner!==owners.get(page).id)};
+    const trace={decoded_video_metrics:metrics,stopped_viewers:Object.fromEntries(endedStates),pending_viewer_api_requests:[...pendingRequests].map(request=>requests.get(request)).filter(value=>value?.owner!==owners.get(page).id),console_errors:errors,network_failures:networkFailures,http_failures:httpFailures.map(value=>({...value,classification:expectedFailures.get(value)||'unclassified'})),viewer_requests:networkRequests.filter(value=>value.owner!==owners.get(page).id)};
     throw Error(String(error.message)+'\nLive observations: '+JSON.stringify(trace));
   } finally {
     for (const viewer of viewers) await viewer.close().catch(() => {});
