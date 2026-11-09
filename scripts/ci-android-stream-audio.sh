@@ -121,6 +121,51 @@ adb -s "$serial" shell chown system:system "/data/misc/user/0/cacerts-added/$ca_
 adb -s "$serial" shell chmod 644 "/data/misc/user/0/cacerts-added/$ca_hash.0"
 adb -s "$serial" shell restorecon -R /data/misc/user/0/cacerts-added
 adb_identity unroot 2000
+# Calibrate only this disposable official AVD's STREAM_MUSIC gain before the
+# release APK starts. Keep the PCM acceptance threshold unchanged. AOSP's
+# MediaShellCommand delegates to VolumeCtrl: --get reports current/min/max,
+# and --set applies that stream's index (no host/device-volume fallback).
+# https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/services/core/java/com/android/server/media/VolumeCtrl.java
+node - "$serial" "$evidence/media-volume.json" <<'NODE'
+const fs = require('node:fs');
+const {execFileSync} = require('node:child_process');
+const assert = require('node:assert/strict');
+const [serial, evidence] = process.argv.slice(2);
+assert.equal(process.env.GITHUB_ACTIONS, 'true');
+assert.equal(process.env.RUNNER_ENVIRONMENT, 'github-hosted');
+assert.notEqual(process.getuid(), 0);
+assert.equal(serial, 'emulator-5580');
+function adb(args) {
+  try {
+    return execFileSync('adb', ['-s', serial, ...args], {
+      encoding: 'utf8', timeout: 10000, maxBuffer: 65536, stdio: ['ignore', 'pipe', 'pipe'],
+    }).replace(/\r/g, '');
+  } catch {
+    throw new Error('Owned AVD media-volume command failed; no fallback is permitted');
+  }
+}
+assert.deepEqual(adb(['emu', 'avd', 'name']).trim().split('\n').filter(line => line !== 'OK'),
+  ['StreamKit_Audio_CI'], 'Media-volume fixture must belong to the owned official AVD');
+function getVolume() {
+  const output = adb(['shell', 'cmd', 'media_session', 'volume', '--stream', '3', '--get']);
+  const matches = [...output.matchAll(/^\[V\] volume is (\d+) in range \[(\d+)\.\.(\d+)\]\s*$/gm)];
+  assert.equal(matches.length, 1, 'Official media-session volume range is unavailable');
+  const [current, min, max] = matches[0].slice(1).map(Number);
+  assert.ok([current, min, max].every(Number.isSafeInteger));
+  assert.ok(min >= 0 && max > min && current >= min && current <= max);
+  return {current, min, max};
+}
+const before = getVolume();
+adb(['shell', 'cmd', 'media_session', 'volume', '--stream', '3', '--set', String(before.max)]);
+const after = getVolume();
+assert.equal(after.min, before.min, 'AVD media-volume minimum changed');
+assert.equal(after.max, before.max, 'AVD media-volume maximum changed');
+assert.equal(after.current, before.max, 'AVD media-volume calibration did not take effect');
+fs.writeFileSync(evidence, JSON.stringify({
+  schemaVersion: 1, fixture_only: true, host_changed: false, avd_serial: serial,
+  stream: 3, before: before.current, after: after.current, min: after.min, max: after.max,
+}, null, 2) + '\n', {mode: 0o600});
+NODE
 # Bound software rasterization cost independently of the 720p30 stream profile.
 adb -s "$serial" shell wm size 720x1280
 adb -s "$serial" shell wm density 240
