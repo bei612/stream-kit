@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-11-09T15:31:46.316Z",
+  "source_commit": "4cd50f91451232ad8bcd81da063d8124e1621437",
+  "source_url": "https://github.com/bei612/stream-kit/tree/4cd50f91451232ad8bcd81da063d8124e1621437/third_party/moonlight-android",
+  "version": "0.1.0-preview.20261109.5",
+  "version_code": 1000012,
+  "application_id": "io.github.bei612.streamkit",
+  "release_url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261109.5",
+  "release_id": 439248615,
+  "published_at": "2026-11-09T14:42:25Z",
+  "prerelease": true,
+  "production_acceptance_complete": false,
+  "apk_sha256": "b1a17f2c3b3e5c1fa852af7ac68f7366558a2faae9a89abc5d6b29f63bf40802",
+  "signing_certificate_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f",
+  "changes": [
+    "Use the same parsed media configuration for playback device creation and subsequent offer negotiation.",
+    "Explicitly select currently supported 48 kHz stereo content output; Android may resample to the actual hardware route.",
+    "Keep microphone input independent and retain audio-focus, permission, AEC/NS/AGC and user-volume policies."
+  ],
+  "verification": {
+    "signed_minified_release_assemble": true,
+    "build_seconds": 38,
+    "build_log_sha256": "b3624f9035565b9b663f1f432550093b801e2c0c43155c14679542aca48eac85",
+    "apk_signature_verified_by_release_packager": true,
+    "unique_persistent_project_signer_verified": true,
+    "apk_v2_signature_required_and_verified": true,
+    "embedded_source_identity_verified_by_release_packager": true,
+    "locked_dependency_license_inventory_verified": true,
+    "development_test_payload_exclusion_verified": true,
+    "all_five_local_asset_sizes_and_hashes_match_recorded_github_assets": true,
+    "published_release_notes_match_local_notes": true,
+    "jvm_tests_rerun_for_this_release": false,
+    "jvm_test_scope": "Earlier 19 JVM tests are historical; no new 1000012 JVM test run is claimed."
+  },
+  "assets": [
+    {
+      "name": "distribution.zip",
+      "bytes": 33166653,
+      "sha256": "0f2193ef99a903f03b49c9188a452b3334b86ed1d19443b96353af7d59fafc5c",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261109.5/distribution.zip"
+    },
+    {
+      "name": "DOWNLOAD-SHA256SUMS.txt",
+      "bytes": 363,
+      "sha256": "4191e7ddad4c11d869912d829eeae3e733433c0da54479647e8a8056c88f6417",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261109.5/DOWNLOAD-SHA256SUMS.txt"
+    },
+    {
+      "name": "provenance.json",
+      "bytes": 4959,
+      "sha256": "e98a9f633e82fe8e1734c3a28eada92804f44491f8a80c381d0052ff46d4adb9",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261109.5/provenance.json"
+    },
+    {
+      "name": "sbom.cdx.json",
+      "bytes": 20776,
+      "sha256": "2c190f3e722b9581789063b877d2dcc9fd3ff0f8fe4a6bcfdf64885adc800208",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261109.5/sbom.cdx.json"
+    },
+    {
+      "name": "stream-kit-android-0.1.0-preview.20261109.5.apk",
+      "bytes": 33167360,
+      "sha256": "b1a17f2c3b3e5c1fa852af7ac68f7366558a2faae9a89abc5d6b29f63bf40802",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-android-preview.20261109.5/stream-kit-android-0.1.0-preview.20261109.5.apk"
+    }
+  ],
+  "audio_acceptance": {
+    "runtime_commit": "98e419f7f85fa36a92651ee55396815386a233c4",
+    "product_run_id": 42599646248,
+    "first_attempt": {
+      "run": 42637432848,
+      "url": "https://github.com/bei612/stream-kit/actions/runs/42637432848",
+      "passed": false,
+      "failure_phase": "disposable_avd_media_volume_fixture",
+      "observed_volume": 5,
+      "requested_volume": 15,
+      "media_volume_json_retained": false,
+      "app_entered": false,
+      "microphone_chain_exercised": false,
+      "job_log_path": ".local/validation/android-audio-42637432848-job.log",
+      "job_log_sha256": "0bcb6a52372a698914cbed2352d528d0b7b0c29fd910d8fce473f1d66c19f13e",
+      "scope": "The fixture asserted before formal APK installation/launch. This is not an in-app audio measurement or evidence that the candidate fixed or failed the media chain."
+    },
+    "same_apk_followup": {
+      "run": 42643666290,
+      "url": "https://github.com/bei612/stream-kit/actions/runs/42643666290",
+      "status_at_task_dispatch": "in_progress",
+      "completed_result_verified": false,
+      "passed": null,
+      "apk_sha256": "b1a17f2c3b3e5c1fa852af7ac68f7366558a2faae9a89abc5d6b29f63bf40802",
+      "scope": "Same published APK; a completed actual result must be reviewed before counting acceptance."
+    }
+  },
+  "limits": [
+    "Publication and packaging checks do not prove that Android playback silence is fixed.",
+    "Official disposable CI AVD volume calibration is acceptance-only; the production APK does not set system volume or force a speaker route.",
+    "Older APK input, physical-device, human-speech and stability evidence does not replace this version acceptance.",
+    "The separate server installer remains 6546792a; local maintenance is control/gateway 98e419f7 plus renderer 47c02726.",
+    "Example, probes, raw audio, emulator tools, credentials and signing private keys are excluded from the APK."
+  ],
+  "local_evidence_inputs": [
+    ".local/validation/android-1000012-release.json",
+    "artifacts/android-release/provenance.json",
+    ".local/validation/android-1000012-sign-build.log",
+    "deploy/releases/0.1.0-android-preview.20261109.5.md",
+    ".local/validation/android-audio-42637432848-job.log"
+  ]
+}

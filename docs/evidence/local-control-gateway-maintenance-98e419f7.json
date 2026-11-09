@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-11-09T15:31:46.316Z",
+  "kind": "local-control-and-gateway-maintenance",
+  "production_acceptance_complete": false,
+  "maintenance": {
+    "started_at": "2026-11-09T14:38:43.814Z",
+    "applied": true,
+    "success": true,
+    "source_commit": "98e419f7f85fa36a92651ee55396815386a233c4",
+    "gateway_source_commit": "98e419f7f85fa36a92651ee55396815386a233c4",
+    "renderer_source_commit": "47c02726c0161ebdec50911422d62845a9b6e59a",
+    "previous_control_commit": "47c02726c0161ebdec50911422d62845a9b6e59a",
+    "previous_gateway_commit": "47c02726c0161ebdec50911422d62845a9b6e59a",
+    "base_platform_commit": "47c02726c0161ebdec50911422d62845a9b6e59a",
+    "final_result_step": "control_updated",
+    "installed_marker_step": "starting_owned_service",
+    "marker_step_scope": "The installed marker was written before the final private result checkpoint; both retain the same successful source identities. Original files are unchanged."
+  },
+  "source_evidence": [
+    {
+      "path": ".local/validation/local-maintenance-98e419f7.json",
+      "sha256": "acb7c0a9f0a5650d555b38f900da2baa95a369dbe1d821129831177d756b3bb2",
+      "scope": "First-copy snapshot of the original private final result; copied only when the destination did not exist."
+    },
+    {
+      "path": "C:/Program Files/StreamKit/control-maintenance.json",
+      "sha256": "2124d4dca2b0663400ca9a2af8c7f1e3b56688beebaeb5db2b70c37dae7edc2a",
+      "scope": "Installed maintenance marker read after completion."
+    }
+  ],
+  "service_observation": {
+    "name": "StreamKitOrchestrator",
+    "state": "Running",
+    "start_mode": "Auto",
+    "observed_at": "2026-11-09T15:31:46.316Z",
+    "whole_machine_reboot_performed": false
+  },
+  "health_at_maintenance_completion": {
+    "apps_summary": {
+      "error": 0,
+      "ready": 1,
+      "running": 0,
+      "total": 2
+    },
+    "build_time": "2026-11-09T10:16:04.000Z",
+    "commit": "98e419f7f85fa36a92651ee55396815386a233c4",
+    "components": {
+      "sunshine": {
+        "crash_count": 0,
+        "pid": 35272,
+        "status": "running"
+      },
+      "web_server": {
+        "crash_count": 0,
+        "pid": 21740,
+        "status": "running"
+      }
+    },
+    "version": "git-98e419f7f85f"
+  },
+  "preservation": {
+    "application_ids": [
+      "67c824d9-0f53-4dd7-8ce2-ef0123fe8d2a",
+      "18f482ef-5d7b-4528-a5e7-6fbd8a150980"
+    ],
+    "apps_preserved": true,
+    "ca_certificate_sha256_fingerprint": "53:0D:8F:21:54:2F:DF:1F:9E:21:BF:F7:DF:9C:78:BC:38:0F:61:93:B6:30:4B:B2:10:99:58:3E:B1:E4:12:77",
+    "trust_changes_performed": false,
+    "network_changes_performed": false,
+    "todesk_changes_performed": false,
+    "renderer_binary_sha256": "2a20fd94d8e4f346eedebf42bc8674938a5028ae4202274d7cb2c4b58b756536",
+    "renderer_binary_unchanged": true
+  },
+  "installed_browser_acceptance": {
+    "result_path": ".local/validation/management-live-current/result.json",
+    "result_sha256": "694c8d62035c157f9bccc6e2808969abfe8f07797e45a2360305636369295ee2",
+    "passed": false,
+    "started_at": "2026-11-09T14:45:38.885Z",
+    "finished_at": "2026-11-09T14:46:10.275Z",
+    "expected_control_commit": "98e419f7f85fa36a92651ee55396815386a233c4",
+    "args_restored": true,
+    "idle_state_confirmed": true,
+    "final_failure": "The final console gate reported eight HTTP 410/401 resource errors. The complete run remains failed.",
+    "partial_scope": "The parent agent inspected retained screenshots of both live viewers, unique-controller transfer, stopped-application parameter save/restore and history. No decoded frame/byte metrics were returned by the failed browser command; none are asserted here.",
+    "screenshots": [
+      {
+        "path": ".local/validation/management-live-current/app-before-launch-desktop.png",
+        "bytes": 78587,
+        "sha256": "d86552b73fbb5d5b750bd14a1b8fc325735926f6aff84b038b2621070d94938f"
+      },
+      {
+        "path": ".local/validation/management-live-current/app-before-launch-mobile.png",
+        "bytes": 66011,
+        "sha256": "56fc52767406099a1d8517d97eb8ecc349ff3efb6b2da774e44dfda18e0244ac"
+      },
+      {
+        "path": ".local/validation/management-live-current/sessions-transfer-desktop.png",
+        "bytes": 100790,
+        "sha256": "0a064a9014bdc11422b15476711df8c6f86e3cc6acffb46d7f1c0f9702f6776a"
+      },
+      {
+        "path": ".local/validation/management-live-current/sessions-transfer-mobile.png",
+        "bytes": 85874,
+        "sha256": "4551d589eacae553674a553ec4c6338e2c8bbadadf76dc2273f9a21e27d02ccd"
+      },
+      {
+        "path": ".local/validation/management-live-current/viewer-before-grant.png",
+        "bytes": 302275,
+        "sha256": "6fc28734af45727a6b0eda5ee1b69c0bfdbe8eee749cf71b2b0ff686f6ebc252"
+      },
+      {
+        "path": ".local/validation/management-live-current/viewer-after-transfer.png",
+        "bytes": 287889,
+        "sha256": "4f43469286ed1e922686dcc22e28309d943a7bba9372a92229269d5b299c5c5c"
+      },
+      {
+        "path": ".local/validation/management-live-current/stopped-arguments-saved.png",
+        "bytes": 68765,
+        "sha256": "560358bf85472f225b3db98401bcc4e22629c49bab81cc0984b53edd25a99cfa"
+      },
+      {
+        "path": ".local/validation/management-live-current/stopped-arguments-restored.png",
+        "bytes": 68765,
+        "sha256": "560358bf85472f225b3db98401bcc4e22629c49bab81cc0984b53edd25a99cfa"
+      },
+      {
+        "path": ".local/validation/management-live-current/history-desktop.png",
+        "bytes": 132928,
+        "sha256": "198345c6e38137d6a97aabe65f84d806f80b799f027c2ed25d53e63f1b57b65e"
+      },
+      {
+        "path": ".local/validation/management-live-current/history-mobile.png",
+        "bytes": 105440,
+        "sha256": "0cf575a6f68cd91e6425661e2cfb398a12a70d0f44a4423fc27c005b9c29163d"
+      }
+    ]
+  },
+  "limits": [
+    "Exact control/gateway maintenance with Sunshine retained at 47c02726; not the 6546792a unified installer or proof of generalized in-place upgrade.",
+    "Running/Auto and service restart do not establish whole-machine reboot acceptance.",
+    "Later Go/Web/Native connection lease/termination changes are not installed or verified by this 98e419f7 deployment.",
+    "Partial screenshots do not override passed=false; no decoded-frame measurements or target-input/audio success is claimed.",
+    "No configuration, administrator credential, link capability, CA private key or raw audio is included."
+  ]
+}
