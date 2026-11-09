@@ -120,7 +120,7 @@ if (verifyInput) result.scope = 'Actual Web keyboard/pointer input into the owne
 if (verifyNativeExit) result.scope = 'Verified owned X11 window exits normally while real Web viewers are connected; native instance observation, generation termination and unexpired credential revocation. No Android/input/audio or fault-injection matrix.';
 if (androidSerial) result.scope = 'Actual published Android/Web input into an isolated native target over trusted HTTPS; no repeated audio/stability or physical-device claim.';
 if (targetRecording) result.scope = 'Real browser test microphone uplink, shared broadcast and explicit target input recording with authorization/revocation checks requested; completion is recorded separately. No UE5, physical microphone or Linux capture claim.';
-if (androidAudio) result.scope = 'Published Android default microphone, real Linux recorder and Web observer; program audio and revocation via official emulator audio RPCs; synthetic source, not physical speech';
+if (androidAudio) result.scope = 'Published Android default microphone via official emulator input injection, isolated native playout and target recording, real Web observer and runtime authorization/revocation; synthetic source, not physical speech';
 if(ue5Build)result.scope='Browser-generated/file test microphone through the product route, shared audience broadcast and actual UE5 native recording, including authorization/revocation. No physical microphone, human speech or business UE project claim.';
 if(microphoneSource==='physical')result.scope='Physical browser microphone uplink, native target input recording, simultaneous program/audio broadcast and authority rejection requested; completion is recorded separately. No UE5, WAN or permission-prompt claim.';
 save();
