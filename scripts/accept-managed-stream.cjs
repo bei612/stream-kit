@@ -584,24 +584,28 @@ async function main() {
     console.log(`Viewer ${i + 1}/${clientCount} is decoding`);
   }
   if (applicationExample && !verifyInput && !verifyNativeExit) {
-    result.program_audio_db = await Promise.all(pages.map(page => measureReceivedTone(page)));
-    result.program_audio_diagnostics = await Promise.all(pages.map(page => page.evaluate(async () => {
-      const peer = window.__acceptancePeers.at(-1);
-      const stats = peer ? [...(await peer.getStats()).values()] : [];
-      const track = peer?.getReceivers().find(receiver => receiver.track.kind === 'audio')?.track;
-      return {
-        peer_state: peer?.connectionState,
-        probe_state: window.__toneProbe?.context.state,
-        track: track ? { enabled: track.enabled, muted: track.muted, state: track.readyState } : null,
-        inbound: stats.filter(stat => stat.type === 'inbound-rtp' && stat.kind === 'audio').map(stat => ({
-          packetsReceived: stat.packetsReceived, packetsLost: stat.packetsLost,
-          bytesReceived: stat.bytesReceived, jitter: stat.jitter,
-          totalAudioEnergy: stat.totalAudioEnergy, totalSamplesDuration: stat.totalSamplesDuration,
-          concealedSamples: stat.concealedSamples, silentConcealedSamples: stat.silentConcealedSamples,
-          totalSamplesReceived: stat.totalSamplesReceived,
-        })),
-      };
-    })));
+    // Android audio uses one persistent observer coordinated with the actual
+    // native playout recording below; retain the shared picture verification.
+    if (!androidAudio) {
+      result.program_audio_db = await Promise.all(pages.map(page => measureReceivedTone(page)));
+      result.program_audio_diagnostics = await Promise.all(pages.map(page => page.evaluate(async () => {
+        const peer = window.__acceptancePeers.at(-1);
+        const stats = peer ? [...(await peer.getStats()).values()] : [];
+        const track = peer?.getReceivers().find(receiver => receiver.track.kind === 'audio')?.track;
+        return {
+          peer_state: peer?.connectionState,
+          probe_state: window.__toneProbe?.context.state,
+          track: track ? { enabled: track.enabled, muted: track.muted, state: track.readyState } : null,
+          inbound: stats.filter(stat => stat.type === 'inbound-rtp' && stat.kind === 'audio').map(stat => ({
+            packetsReceived: stat.packetsReceived, packetsLost: stat.packetsLost,
+            bytesReceived: stat.bytesReceived, jitter: stat.jitter,
+            totalAudioEnergy: stat.totalAudioEnergy, totalSamplesDuration: stat.totalSamplesDuration,
+            concealedSamples: stat.concealedSamples, silentConcealedSamples: stat.silentConcealedSamples,
+            totalSamplesReceived: stat.totalSamplesReceived,
+          })),
+        };
+      })));
+    }
     const picture = await pages[0].evaluate(() => {
       const video = document.querySelector('video'), canvas = document.createElement('canvas');
       canvas.width = video.videoWidth; canvas.height = video.videoHeight;
@@ -609,8 +613,10 @@ async function main() {
       return canvas.toDataURL('image/png').split(',')[1];
     });
     fs.writeFileSync(path.join(output, 'application-frame.png'), Buffer.from(picture, 'base64'));
-    assert.ok(result.program_audio_db.every(level => level > -65), 'Every viewer must receive the example process-tree 997 Hz tone');
-    if(!microphoneTest)await Promise.all(pages.map(page=>page.evaluate(()=>window.__toneProbe.context.close())));
+    if (!androidAudio) {
+      assert.ok(result.program_audio_db.every(level => level > -65), 'Every viewer must receive the example process-tree 997 Hz tone');
+      if(!microphoneTest)await Promise.all(pages.map(page=>page.evaluate(()=>window.__toneProbe.context.close())));
+    }
   }
   let observed;
   for (let i = 0; i < 30; i++) {

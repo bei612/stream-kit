@@ -54,6 +54,28 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     for(let i=0;i<20;i++){ samples.push(await webSample()); await delay(100); }
     const levels=samples.map(s=>frequency===997?s.program_997_db:s.microphone_1499_db).sort((a,b)=>a-b); save(); return levels[10];
   };
+  const measureWebProgram = async () => {
+    const startup=state.program_startup={started_at_ms:Date.now(),limit_ms:5000,required_consecutive_samples:3,threshold_db:-65,samples:[]};save();
+    try {
+      let consecutive=0;
+      while(Date.now()-startup.started_at_ms<5000){
+        const sample=await webSample();startup.samples.push(sample);save();
+        consecutive=sample.program_997_db>-65?consecutive+1:0;
+        if(consecutive===3){startup.observed_ready_ms=Date.now()-startup.started_at_ms;break;}
+        await delay(100);
+      }
+      assert.ok(startup.observed_ready_ms!==undefined&&startup.observed_ready_ms<=5000,'Real Web observer program did not reach three consecutive samples within 5000ms');
+      startup.measurement_started_at_ms=Date.now();save();
+      const samples=state.web_windows.program=[];
+      for(let i=0;i<20;i++){samples.push(await webSample());save();await delay(100);}
+      const levels=samples.map(sample=>sample.program_997_db).sort((a,b)=>a-b);
+      state.web_program_997_db=(levels[9]+levels[10])/2;
+      startup.measurement_finished_at_ms=Date.now();
+      report.program_audio_db=[state.web_program_997_db];save();
+      assert.ok(startup.measurement_finished_at_ms-startup.measurement_started_at_ms>=2000,'Web program measurement must span at least 2000ms');
+      assert.ok(state.web_program_997_db>-65,'Real Web observer is missing sustained 997Hz program');
+    } catch(error){startup.error=error.message;startup.failed_at_ms=Date.now();save();throw error;}
+  };
   const waitForActualMicrophone = async () => {
     state.microphone_startup = { limit_ms:5000, required_consecutive_samples:3, threshold_db:-60, samples:[] }; save();
     let consecutive=0;
@@ -139,36 +161,40 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     try { await until(observeBackend,ready=>ready,'full official emulator with an owned real PulseAudio output',5000); }
     catch(error){state.emulator_audio_backend.status='failed';state.emulator_audio_backend.error=error.message;state.emulator_audio_backend.failed_at_ms=Date.now();save();throw error;}
     state.emulator_audio_backend.status='verified_real_pulse_output';state.emulator_audio_backend.verified_at_ms=Date.now();save();
-    state.web_program_997_db = report.program_audio_db?.[0];
-    assert.ok(Number.isFinite(state.web_program_997_db) && state.web_program_997_db > -65, 'Real shared-harness Web program audio measurement missing');
     state.observer = await prepareObserver(); save();
-    const androidCaptureDevice='pulseaudio:streamkit_android_capture';
-    const devices=await command('devices');
-    assert.ok(devices.devices.some(device=>device.id===androidCaptureDevice&&device.input),'Dedicated Android playout capture endpoint is unavailable');
-    const playout=state.android_playout={capture_device_id:androidCaptureDevice,minimum_frames:192000,collection_limit_ms:6500,minimum_997_median_amplitude:0.01,started_at_ms:Date.now(),samples:[]};save();
-    let playoutError;
-    try {
-      playout.initial_status=await command('capture',{device_id:androidCaptureDevice});save();
-      await until(async()=>{
-        assert.ok(observeBackend(),'Owned emulator PulseAudio output disappeared during capture');
-        const status=await command('status');
-        playout.samples.push({at_ms:Date.now(),...status,emulator_sink_inputs:state.emulator_audio_backend.sink_inputs});save();
-        assert.ok(!status.error,'Android playout recorder failed: '+status.error);
-        assert.equal(status.input_state,'capture');assert.equal(status.sample_rate,48000);assert.equal(status.dropped_frames,0);
-        return status.captured_frames;
-      },frames=>frames>=192000,'dedicated Android playout PCM',6500-(Date.now()-playout.started_at_ms));
-    } catch(error){playoutError=error;playout.collection_error=error.message;save();}
-    finally {playout.collection_finished_at_ms=Date.now();playout.status=await command('stop_capture');save();}
-    if(playout.status.captured_frames>=4800){
-      playout.signal=await command('analyze',{frequency_hz:997});playout.envelope=await command('envelope');save();
-    }
-    if(playoutError)throw playoutError;
-    assert.ok(observeBackend(),'Owned emulator PulseAudio output disappeared after capture');
-    assert.equal(playout.status.sample_rate,48000);assert.equal(playout.status.dropped_frames,0);
-    assert.ok(playout.status.captured_frames>=192000);assert.ok(playout.signal.analyzed_frames>=192000);
-    assert.ok(playout.collection_finished_at_ms-playout.started_at_ms<=6500,'Android playout collection exceeded its 6500ms limit');
-    state.android_program_997_median=playout.signal.median_amplitude;save();
-    assert.ok(state.android_program_997_median>0.01,'Android playout missing sustained 997Hz program');
+    const captureAndroidPlayout=async()=>{
+      const androidCaptureDevice='pulseaudio:streamkit_android_capture';
+      const devices=await command('devices');
+      assert.ok(devices.devices.some(device=>device.id===androidCaptureDevice&&device.input),'Dedicated Android playout capture endpoint is unavailable');
+      const playout=state.android_playout={capture_device_id:androidCaptureDevice,minimum_frames:192000,collection_limit_ms:6500,minimum_997_median_amplitude:0.01,started_at_ms:Date.now(),samples:[]};save();
+      let playoutError;
+      try {
+        playout.initial_status=await command('capture',{device_id:androidCaptureDevice});save();
+        await until(async()=>{
+          assert.ok(observeBackend(),'Owned emulator PulseAudio output disappeared during capture');
+          const status=await command('status');
+          playout.samples.push({at_ms:Date.now(),...status,emulator_sink_inputs:state.emulator_audio_backend.sink_inputs});save();
+          assert.ok(!status.error,'Android playout recorder failed: '+status.error);
+          assert.equal(status.input_state,'capture');assert.equal(status.sample_rate,48000);assert.equal(status.dropped_frames,0);
+          return status.captured_frames;
+        },frames=>frames>=192000,'dedicated Android playout PCM',6500-(Date.now()-playout.started_at_ms));
+      } catch(error){playoutError=error;playout.collection_error=error.message;save();}
+      finally {playout.collection_finished_at_ms=Date.now();playout.status=await command('stop_capture');save();}
+      if(playout.status.captured_frames>=4800){
+        playout.signal=await command('analyze',{frequency_hz:997});playout.envelope=await command('envelope');save();
+      }
+      if(playoutError)throw playoutError;
+      assert.ok(observeBackend(),'Owned emulator PulseAudio output disappeared after capture');
+      assert.equal(playout.status.sample_rate,48000);assert.equal(playout.status.dropped_frames,0);
+      assert.ok(playout.status.captured_frames>=192000);assert.ok(playout.signal.analyzed_frames>=192000);
+      assert.ok(playout.collection_finished_at_ms-playout.started_at_ms<=6500,'Android playout collection exceeded its 6500ms limit');
+      state.android_program_997_median=playout.signal.median_amplitude;save();
+      assert.ok(state.android_program_997_median>0.01,'Android playout missing sustained 997Hz program');
+    };
+    // Join both real observers even if one fails, so capture cleanup and all
+    // failure evidence finish before the graph or probe can be closed.
+    const programResults=await Promise.allSettled([captureAndroidPlayout(),measureWebProgram()]);
+    for(const result of programResults)if(result.status==='rejected')throw result.reason;
     const baseline = await capture('baseline'); assert.ok(baseline.peak_amplitude<0.001); assert.ok(state.baseline.program_997.peak_amplitude<0.005, 'Program audio leaked into microphone target');
     state.observer_before_injection = await webSample();
     assert.ok(state.observer_before_injection.program_997_db>-65,'Persistent Web observer must hear the real program before injection'); save();
