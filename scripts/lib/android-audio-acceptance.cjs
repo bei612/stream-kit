@@ -75,10 +75,10 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
       await until(() => command('status'), value => !value.error && value.captured_frames >= (duringCapture?4800:96000), 'native target PCM');
     } catch(error) { measurementError=error; }
     await command('stop_capture');
-    const stopped=Date.now();
+    const stopped=Date.now(), packetsAtStop=source.packets;
     const signal = await command('analyze', { frequency_hz: frequency }), foreign = await command('analyze', { frequency_hz: 997 }), envelope = await command('envelope'), status = await command('status');
     assert.ok(signal.analyzed_frames >= (duringCapture?4800:96000)); assert.equal(status.dropped_frames, 0);
-    state[phase] = { started_at_ms:started, stopped_at_ms:stopped, injection_packets_at_start:packetsAtStart, injection_packets_at_stop:source.packets, signal, program_997: foreign, envelope, status }; save();
+    state[phase] = { started_at_ms:started, stopped_at_ms:stopped, injection_packets_at_start:packetsAtStart, injection_packets_at_stop:packetsAtStop, signal, program_997: foreign, envelope, status }; save();
     if(measurementError)throw measurementError;return signal;
   };
   let injection, sending = false, sender, injectionDone, injectionError, native;
@@ -199,6 +199,7 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     await android.role(false); await delay(1500); state.capture_stop_settling_ms=1500;
     const [silent, inaudible] = await Promise.all([capture('revoked'),audience('revoked')]); state.revoked_web_1499_db=inaudible;
     assertContinuousInjection(source, packetsBeforeRevocation); state.injection_packets_after_revoked_measurement=source.packets;
+    assert.ok(state.revoked.injection_packets_at_stop>state.revoked.injection_packets_at_start,'Synthetic microphone must advance during the actual revoked recording window');
     assert.ok(silent.peak_amplitude<0.001,'Revoked microphone reached native target'); assert.ok(inaudible<-65,'Revoked microphone reached Web observer');
     state.web_program_after_revocation_997_db=await audience('program_after_revocation',997); assert.ok(state.web_program_after_revocation_997_db>-65,'Revocation interrupted program audio');
     sending=false; await sender; await injectionDone; assert.equal(injectionError,undefined,'Official emulator injection failed'); state.injection_completed=true;
