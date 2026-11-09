@@ -107,6 +107,40 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     const sinks = JSON.parse(cp.execFileSync('pactl', ['--format=json','list','sink-inputs'], { encoding:'utf8' }));
     const stream = sinks.filter(item => item.properties?.['application.process.id'] === String(owned.audio_process_id)); assert.equal(stream.length,1,'Actual paplay child must own program audio');
     state.program_process_tree = { parent_pid:owned.process_id, audio_pid:owned.audio_process_id, pulse_sink_input_index:stream[0].index, pulse_sink:stream[0].sink }; save();
+    const sinkCatalog = JSON.parse(cp.execFileSync('pactl', ['--format=json','list','sinks'], { encoding:'utf8', timeout:5000 }));
+    const sinkIndex = name => { const found=sinkCatalog.filter(s=>s.name===name); assert.equal(found.length,1,'Required isolated audio sink missing: '+name); return found[0].index; };
+    const hostSink=sinkIndex('streamkit_host'),programSink=sinkIndex('streamkit_program'),microphoneSink=sinkIndex('streamkit_microphone');
+    assert.equal(new Set([hostSink,programSink,microphoneSink]).size,3);
+    assert.equal(stream[0].sink,programSink,'Actual program child must render only to the program sink');
+    const rootPid=process.env.STREAM_KIT_AUDIO_EMULATOR_ROOT_PID;
+    assert.match(rootPid||'',/^[1-9][0-9]*$/,'Owned emulator launcher PID is required');
+    const expectedEmulator=fs.realpathSync(path.join(sdk,'emulator/qemu/linux-x86_64/qemu-system-x86_64'));
+    state.emulator_audio_backend={required_binary:expectedEmulator,launcher_pid:Number(rootPid),required_sink:'streamkit_host',status:'waiting_for_real_pulse_output',started_at_ms:Date.now()};save();
+    try { await until(()=>{
+      const processes=[];
+      for(const entry of fs.readdirSync('/proc')){
+        if(!/^[1-9][0-9]*$/.test(entry))continue;
+        try{
+          const status=fs.readFileSync('/proc/'+entry+'/status','utf8'),ppid=Number(status.match(/^PPid:\s*(\d+)$/m)?.[1]);
+          processes.push({pid:Number(entry),parent_pid:ppid,exe:fs.realpathSync('/proc/'+entry+'/exe')});
+        }catch(error){if(!['ENOENT','ESRCH','EACCES','EPERM'].includes(error.code))throw error;}
+      }
+      const descendants=new Set([Number(rootPid)]);
+      let grew=true;while(grew){grew=false;for(const proc of processes)if(descendants.has(proc.parent_pid)&&!descendants.has(proc.pid)){descendants.add(proc.pid);grew=true;}}
+      const tree=processes.filter(proc=>descendants.has(proc.pid));
+      state.emulator_audio_backend.process_tree=tree;save();
+      assert.ok(tree.some(proc=>proc.pid===Number(rootPid)),'Owned emulator launcher exited');
+      assert.ok(!tree.some(proc=>/qemu-system-.*-headless$/.test(path.basename(proc.exe))),'Headless emulator cannot validate the real PulseAudio backend');
+      const emulatorPids=new Set(tree.filter(proc=>proc.exe===expectedEmulator).map(proc=>String(proc.pid)));
+      const actualInputs=JSON.parse(cp.execFileSync('pactl',['--format=json','list','sink-inputs'],{encoding:'utf8',timeout:5000}));
+      const emulatorInputs=actualInputs.filter(item=>emulatorPids.has(item.properties?.['application.process.id']));
+      state.emulator_audio_backend.sink_inputs=emulatorInputs.map(item=>({index:item.index,process_id:Number(item.properties['application.process.id']),sink:item.sink,sample_specification:item.sample_specification}));
+      save();
+      assert.ok(emulatorInputs.every(item=>item.sink===hostSink),'Owned emulator audio must render only to the isolated host sink');
+      return emulatorPids.size>0&&emulatorInputs.length>0;
+    },ready=>ready,'full official emulator with an owned real PulseAudio output',5000); }
+    catch(error){state.emulator_audio_backend.status='failed';state.emulator_audio_backend.error=error.message;state.emulator_audio_backend.failed_at_ms=Date.now();save();throw error;}
+    state.emulator_audio_backend.status='verified_real_pulse_output';state.emulator_audio_backend.verified_at_ms=Date.now();save();
     state.web_program_997_db = report.program_audio_db?.[0];
     assert.ok(Number.isFinite(state.web_program_997_db) && state.web_program_997_db > -65, 'Real shared-harness Web program audio measurement missing');
     state.observer = await prepareObserver(); save();

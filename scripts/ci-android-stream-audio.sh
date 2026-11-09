@@ -66,11 +66,23 @@ pulse_pid=$!
 for attempt in $(seq 1 50); do if pactl info >/dev/null 2>&1; then break; fi; kill -0 "$pulse_pid"; sleep 0.1; done
 pactl info >/dev/null
 
+# The official Linux -no-window launcher selects a headless binary whose public
+# implementation links PulseAudio stubs. Use the full official binary on this
+# isolated X server so an actual PulseAudio output backend is required.
+export DISPLAY=:91
+Xvfb "$DISPLAY" -screen 0 1280x720x24 -nolisten tcp > "$evidence/xvfb.log" 2>&1 &
+display_pid=$!
+for attempt in $(seq 1 30); do if xdpyinfo >/dev/null 2>&1; then break; fi; kill -0 "$display_pid"; sleep 1; done
+xdpyinfo >/dev/null
+openbox > "$evidence/window-manager.log" 2>&1 &
+wm_pid=$!
+
 sudo chmod a+rw /dev/kvm
 avdmanager create avd --name StreamKit_Audio_CI --package 'system-images;android-36;google_apis;x86_64' --device pixel_6 <<< no
-"$ANDROID_HOME/emulator/emulator" -avd StreamKit_Audio_CI -port 5580 -memory 4096 -no-window -no-snapshot -no-boot-anim -gpu swiftshader -grpc 8554 -grpc-use-token \
+"$ANDROID_HOME/emulator/emulator" -avd StreamKit_Audio_CI -port 5580 -memory 4096 -no-snapshot -no-boot-anim -gpu swiftshader -grpc 8554 -grpc-use-token \
   > "$evidence/emulator.log" 2>&1 &
 emulator_pid=$!
+export STREAM_KIT_AUDIO_EMULATOR_ROOT_PID="$emulator_pid"
 ready=false
 boot_deadline=$((SECONDS + 300))
 while (( SECONDS < boot_deadline )); do
@@ -114,13 +126,6 @@ adb -s "$serial" install artifacts/input-download/*.apk
 adb -s "$serial" install -t artifacts/input-example/android/observer.apk
 adb -s "$serial" shell input keyevent KEYCODE_WAKEUP
 adb -s "$serial" shell wm dismiss-keyguard
-export DISPLAY=:91
-Xvfb "$DISPLAY" -screen 0 1280x720x24 -nolisten tcp > "$evidence/xvfb.log" 2>&1 &
-display_pid=$!
-for attempt in $(seq 1 30); do if xdpyinfo >/dev/null 2>&1; then break; fi; sleep 1; done
-xdpyinfo >/dev/null
-openbox > "$evidence/window-manager.log" 2>&1 &
-wm_pid=$!
 # Locate the official owned emulator discovery entry, retaining its token only
 # in this private scratch directory. Never print/upload discovery or token data.
 node - "$scratch/grpc.json" <<'NODE'
