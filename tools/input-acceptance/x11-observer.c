@@ -7,6 +7,7 @@
 #include <inttypes.h>
 #include <signal.h>
 #include <stdint.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,6 +19,41 @@ static volatile sig_atomic_t stopped;
 static Display *display;
 static Window window;
 static uint64_t keys, clicks;
+
+// Test-only close requester. Use the real WM protocol instead of destroying a
+// window or killing its client. Recheck the target window's owning PID here.
+static int close_owned_window(const char *window_id, const char *process_id) {
+    char *end;
+    if (*window_id < '0' || *window_id > '9' || *process_id < '0' || *process_id > '9') return 2;
+    errno = 0;
+    unsigned long target_window = strtoul(window_id, &end, 10);
+    if (errno || *end || !target_window) return 2;
+    errno = 0;
+    unsigned long target_pid = strtoul(process_id, &end, 10);
+    if (errno || *end || !target_pid || target_pid > UINT32_MAX) return 2;
+    Display *connection = XOpenDisplay(NULL);
+    if (!connection) return 1;
+    Atom actual_type; int actual_format; unsigned long count, remaining; unsigned char *value = NULL;
+    int status = XGetWindowProperty(connection, target_window, XInternAtom(connection, "_NET_WM_PID", False),
+                                   0, 1, False, XA_CARDINAL, &actual_type, &actual_format, &count, &remaining, &value);
+    int owned = status == Success && actual_type == XA_CARDINAL && actual_format == 32 && count == 1 && value && *(unsigned long *)value == target_pid;
+    if (value) XFree(value);
+    if (!owned) { XCloseDisplay(connection); return 2; }
+    Atom close_message = XInternAtom(connection, "WM_DELETE_WINDOW", False), *protocols = NULL;
+    int protocol_count = 0, supported = 0;
+    if (XGetWMProtocols(connection, target_window, &protocols, &protocol_count)) {
+        for (int i = 0; i < protocol_count; i++) if (protocols[i] == close_message) supported = 1;
+    }
+    if (protocols) XFree(protocols);
+    if (!supported) { XCloseDisplay(connection); return 2; }
+    XEvent event; memset(&event, 0, sizeof event);
+    event.xclient.type = ClientMessage; event.xclient.window = target_window;
+    event.xclient.message_type = XInternAtom(connection, "WM_PROTOCOLS", False); event.xclient.format = 32;
+    event.xclient.data.l[0] = (long)close_message; event.xclient.data.l[1] = CurrentTime;
+    int sent = XSendEvent(connection, target_window, False, NoEventMask, &event);
+    XSync(connection, False); XCloseDisplay(connection);
+    return sent ? 0 : 1;
+}
 static void stop(int signal_number) { (void)signal_number; stopped = 1; }
 static void record(const char *event) {
     Window focused; int revert;
@@ -32,7 +68,9 @@ static void record(const char *event) {
            focused == window ? "true" : "false", focused == window ? "true" : "false");
     fflush(stdout);
 }
-int main(void) {
+int main(int argc, char **argv) {
+    if (argc > 1 && !strcmp(argv[1], "--close-owned-window"))
+        return argc == 4 ? close_owned_window(argv[2], argv[3]) : 2;
     display = XOpenDisplay(NULL);
     if (!display) { fputs("No X11 display\n", stderr); return 1; }
     const int screen = DefaultScreen(display);

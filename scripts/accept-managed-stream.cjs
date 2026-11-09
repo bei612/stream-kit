@@ -30,12 +30,13 @@ for (const file of ['stream.html', 'stream.js', 'index.html']) {
 }
 const applicationExample = process.argv.includes('--example') ? argument('--example') : null;
 const verifyInput = process.argv.includes('--verify-input');
+const verifyNativeExit = process.argv.includes('--verify-native-exit');
 const androidAudio = process.argv.includes('--android-audio');
 const androidSerial = process.argv.includes('--android-serial') ? process.argv[process.argv.indexOf('--android-serial')+1] : null;
 const tlsDirectory = process.argv.includes('--tls-dir') ? argument('--tls-dir') : null;
 const androidAdb = process.argv.includes('--android-adb') ? argument('--android-adb') : 'adb';
 const exampleOutput = process.argv.includes('--example-output') ? process.argv[process.argv.indexOf('--example-output') + 1] : null;
-assert.ok(!applicationExample || verifyInput || exampleOutput, 'Audio application acceptance requires an explicit example output device');
+assert.ok(!applicationExample || verifyInput || verifyNativeExit || exampleOutput, 'Audio application acceptance requires an explicit example output device');
 const numericOption = (name, fallback) => process.argv.includes(name) ? Number(process.argv[process.argv.indexOf(name) + 1]) : fallback;
 const clientCount = numericOption('--clients', 2);
 const holdSeconds = numericOption('--hold-seconds', 5);
@@ -99,6 +100,7 @@ assert.ok(Number.isInteger(holdSeconds) && holdSeconds >= 0 && holdSeconds <= 86
 assert.ok(!verifyInput || (['win32','linux'].includes(process.platform) && applicationExample && clientCount===2 && holdSeconds===0 && !microphoneTest && !restartServices && !applyManagedEncoder && !applyManagedGateway && !serviceControl), 'Input acceptance requires an isolated two-viewer native application case without other acceptance modes');
 assert.ok(!androidSerial || ((verifyInput || androidAudio) && tlsDirectory), 'Android acceptance requires trusted native HTTPS and an explicit mode');
 assert.ok(!androidAudio || (androidSerial && !verifyInput && !microphoneTest && targetRecording && applicationExample && holdSeconds === 0 && clientCount === 2 && process.platform === 'linux' && !restartServices && !serviceControl && !targetSwitch && !remoteTarget && !stopActive && !applyManagedEncoder && !applyManagedGateway && !expireClientLease && !ue5Build && !process.argv.includes('--edit-gateway-configuration') && !process.argv.includes('--edit-encoder-configuration')), 'Android audio requires an isolated Linux target/recorder, two clients, and no other input, microphone, configuration or recovery case');
+assert.ok(!verifyNativeExit || (process.platform === 'linux' && applicationExample && !verifyInput && !androidSerial && !microphoneTest && !targetRecording && !restartServices && !serviceControl && !targetSwitch && !remoteTarget && !stopActive && !applyManagedEncoder && !applyManagedGateway && !expireClientLease && !ue5Build && clientCount === 2 && holdSeconds === 0 && !process.argv.includes('--edit-gateway-configuration') && !process.argv.includes('--edit-encoder-configuration')), 'Native exit requires an isolated Linux X11 target, two real Web viewers, and no other acceptance modes');
 assert.ok(programToneCount<=30000,'Example tone budget must cover startup and the full hold interval');
 const scratch = process.argv.includes('--scratch') ? argument('--scratch') : path.join(root, '.local/managed-acceptance');
 const output = process.argv.includes('--output-dir') ? argument('--output-dir') : path.join(root, 'artifacts/managed-acceptance', new Date().toISOString().replace(/[:.]/g, '-'));
@@ -112,9 +114,10 @@ const result = { passed: false, status: 'running', browser_engine: engine, clien
 const save = () => fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(result, null, 2));
 if (applicationExample) {
   result.scope = 'Source-built application capture through native Sunshine, shared gateway and real browsers, including program tone and scoped stop. No physical microphone, target recording or Linux capture claim.';
-  if (!verifyInput) result.program_tone_count = programToneCount;
+  if (!verifyInput && !verifyNativeExit) result.program_tone_count = programToneCount;
 }
 if (verifyInput) result.scope = 'Actual Web keyboard/pointer input into the owned native Example and transfer/revocation; no repeated audio or stability acceptance, no Android claim.';
+if (verifyNativeExit) result.scope = 'Verified owned X11 window exits normally while real Web viewers are connected; native instance observation, generation termination and unexpired credential revocation. No Android/input/audio or fault-injection matrix.';
 if (androidSerial) result.scope = 'Actual published Android/Web input into an isolated native target over trusted HTTPS; no repeated audio/stability or physical-device claim.';
 if (targetRecording) result.scope = 'Real browser test microphone uplink, shared broadcast and explicit target input recording with authorization/revocation checks requested; completion is recorded separately. No UE5, physical microphone or Linux capture claim.';
 if (androidAudio) result.scope = 'Published Android default microphone, real Linux recorder and Web observer; program audio and revocation via official emulator audio RPCs; synthetic source, not physical speech';
@@ -391,9 +394,9 @@ async function main() {
   };
   let ownedApp;
   if (applicationExample) {
-    if (!verifyInput) assert.ok(!exampleOutput.includes('"') && !/[\r\n]/.test(exampleOutput), 'Invalid output device name');
+    if (!verifyInput && !verifyNativeExit) assert.ok(!exampleOutput.includes('"') && !/[\r\n]/.test(exampleOutput), 'Invalid output device name');
     ownedApp = await api('/apps/local', 'POST', { name: 'Source capture acceptance', exe_path: applicationExample,
-      capture_mode: 'application', args: verifyInput ? '--input-events -fullscreen' : `"--tone-output=${exampleOutput}" --tone-count=${programToneCount}` });
+      capture_mode: 'application', args: verifyInput || verifyNativeExit ? '--input-events -fullscreen' : `"--tone-output=${exampleOutput}" --tone-count=${programToneCount}` });
     assert.equal(ownedApp.status, 'ready');
     assert.ok(ownedApp.sunshine_app_id > 0);
     result.application = { id: ownedApp.id, native_id: ownedApp.sunshine_app_id, capture_mode: ownedApp.capture_mode, example_sha256: sha(applicationExample) };
@@ -580,7 +583,7 @@ async function main() {
     assert.equal(await page.locator('#ml-api-name').count(), 0);
     console.log(`Viewer ${i + 1}/${clientCount} is decoding`);
   }
-  if (applicationExample && !verifyInput) {
+  if (applicationExample && !verifyInput && !verifyNativeExit) {
     result.program_audio_db = await Promise.all(pages.map(page => measureReceivedTone(page)));
     result.program_audio_diagnostics = await Promise.all(pages.map(page => page.evaluate(async () => {
       const peer = window.__acceptancePeers.at(-1);
@@ -620,6 +623,12 @@ async function main() {
   assert.equal(observed.upstream_active, true);
   result.shared_observation = observed;
   const current = await api(`/stream-sessions/${invite.session_id}`);
+  if (verifyNativeExit) {
+    await require('./lib/native-exit-acceptance.cjs').verifyNativeExit({pages, api, sunshine, control, gateway, sessionId:invite.session_id, app:ownedApp, example:applicationExample, report:result, save});
+    assert.deepEqual(pageErrors, []);
+    result.gateway_sha256=sha(gatewayBinary); result.orchestrator_sha256=sha(orchestratorBinary); result.passed=true;
+    return; // Only the passive-exit case; common cleanup runs after its assertions.
+  }
   if(androidSerial){
     if(androidAudio) {
       await require('./lib/android-audio-acceptance.cjs').verifyAndroidAudio({android,adb:androidAdb,serial:androidSerial,page:pages[0],api,sessionId:invite.session_id,app:ownedApp,example:applicationExample,audioProbe,captureDevice:targetCapture,grpcConfig:argument('--android-grpc-config'),sdk:process.env.ANDROID_HOME,report:result,save});

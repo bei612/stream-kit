@@ -1,0 +1,75 @@
+name: native-exit-acceptance
+on:
+  workflow_dispatch:
+    inputs:
+      product_run_id:
+        description: 'Owned product run with completed successful Linux installer job; no runtime rebuild'
+        type: string
+        required: true
+        default: '42599646248'
+      expected_runtime_commit:
+        description: 'Exact runtime source commit to verify against API and installer manifests'
+        type: string
+        required: true
+        default: '98e419f7f85fa36a92651ee55396815386a233c4'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  passive-native-exit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PRODUCT_RUN_ID: ${{ inputs.product_run_id }}
+      EXPECTED_RUNTIME_COMMIT: ${{ inputs.expected_runtime_commit }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.4.0'
+      - name: Download and verify explicitly selected owned runtime
+        run: |
+          set -euo pipefail
+          [[ "$PRODUCT_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$EXPECTED_RUNTIME_COMMIT" =~ ^[a-f0-9]{40}$ ]]
+          mkdir -p artifacts/input-download
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PRODUCT_RUN_ID" > artifacts/input-download/product-run.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PRODUCT_RUN_ID/jobs?filter=latest&per_page=100" > artifacts/input-download/product-jobs.json
+          commit=$(node scripts/verify-native-exit-sources.mjs product-run)
+          gh run download "$PRODUCT_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "linux-product-installer-$commit" --dir artifacts/input-product
+          cp artifacts/input-product/installer/installer-manifest.json artifacts/input-download/
+          cp artifacts/input-product/installer/*-setup.run artifacts/input-download/
+          node scripts/verify-native-exit-sources.mjs downloads
+          dpkg-deb -x artifacts/input-download/runtime.deb artifacts/input-runtime
+          node -e "const fs=require('fs'),a=require('assert/strict');a.equal(JSON.parse(fs.readFileSync('artifacts/input-runtime/opt/stream-kit/platform-manifest.json')).commit,process.env.EXPECTED_RUNTIME_COMMIT)"
+      - name: Prepare real isolated Linux capture and browser dependencies
+        run: |
+          set -euo pipefail
+          mapfile -t dependencies < <(dpkg-deb -f artifacts/input-download/runtime.deb Depends | tr ',' '\n' | sed -E 's/^[[:space:]]*([a-z0-9+.-]+).*/\1/')
+          for dependency in "${dependencies[@]}"; do [[ "$dependency" =~ ^[a-z0-9][a-z0-9+.-]*$ ]]; done
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends "${dependencies[@]}" libx11-dev x11-utils xvfb xauth xdotool openbox pulseaudio libnss3-tools
+          artifacts/input-runtime/opt/stream-kit/orchestrator/orchestrator verify-platform artifacts/input-runtime/opt/stream-kit
+          npm ci --prefix third_party/moonlight-web-stream --ignore-scripts --no-audit --no-fund
+          mkdir -p artifacts/input-example
+          cc -std=c11 -O2 -Wall -Wextra -Werror tools/input-acceptance/x11-observer.c -lX11 -o artifacts/input-example/x11-observer
+      - name: Verify passive native exit and old-generation revocation
+        timeout-minutes: 6
+        run: bash scripts/ci-native-exit.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-exit-evidence
+          path: |
+            artifacts/native-exit-evidence/
+            artifacts/input-download/product-run.json
+            artifacts/input-download/product-jobs.json
+            artifacts/input-download/installer-manifest.json
+            artifacts/source-stream/**/result.json
+            artifacts/source-stream/**/example.log
+            artifacts/source-stream/**/sunshine.log
+            artifacts/source-stream/**/browser/gateway.log
+            artifacts/source-stream/**/browser/control.log
+          if-no-files-found: warn
+          retention-days: 14

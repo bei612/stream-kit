@@ -29,6 +29,7 @@ on:
       # are not imported by any product build/package entry point. Keep this
       # list explicit so new production modules remain covered by lib/**.
       - '!scripts/lib/android-audio-acceptance.cjs'
+      - '!scripts/lib/native-exit-acceptance.cjs'
       - '!scripts/lib/emulator-audio-evidence.cjs'
       - '!scripts/lib/android-input-acceptance.cjs'
       - '!scripts/lib/browser-input-acceptance.cjs'

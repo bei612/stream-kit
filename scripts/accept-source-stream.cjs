@@ -10,7 +10,8 @@ function option(name) { const i = process.argv.indexOf(name); assert.ok(i >= 0 &
 const encoder = path.resolve(option('--sunshine')), gateway = path.resolve(option('--gateway'));
 const control = path.resolve(option('--orchestrator')), example = path.resolve(option('--example'));
 const verifyInput = process.argv.includes('--verify-input');
-const outputDevice = verifyInput ? null : option('--example-output');
+const verifyNativeExit = process.argv.includes('--verify-native-exit');
+const outputDevice = verifyInput || verifyNativeExit ? null : option('--example-output');
 const serviceControl=process.argv.includes('--service-control');
 const managedEncoder=process.argv.includes('--apply-managed-encoder')||serviceControl;
 assert.ok(!managedEncoder||serviceControl||process.argv.includes('--edit-encoder-configuration'),'Managed encoder apply requires configuration editing');
@@ -97,7 +98,7 @@ async function main() {
   const probe=spawn(process.execPath,[path.join(__dirname,'accept-managed-stream.cjs'),'--gateway',gateway,'--orchestrator',control,
     '--runtime-config',runtime,'--scratch',path.join(scratch,'media'),'--output-dir',path.join(output,'browser'),'--example',example,
     ...(outputDevice ? ['--example-output',outputDevice] : []),
-    ...['--verify-input','--android-audio','--microphone-tone','--service-control','--remote-target','--target-switch','--stop-active','--delete-active','--restart-services','--expire-client-lease','--edit-gateway-configuration','--edit-encoder-configuration','--edit-vulkan','--apply-managed-gateway','--apply-managed-encoder'].filter(flag => process.argv.includes(flag)),
+    ...['--verify-input','--verify-native-exit','--android-audio','--microphone-tone','--service-control','--remote-target','--target-switch','--stop-active','--delete-active','--restart-services','--expire-client-lease','--edit-gateway-configuration','--edit-encoder-configuration','--edit-vulkan','--apply-managed-gateway','--apply-managed-encoder'].filter(flag => process.argv.includes(flag)),
     ...['--android-serial','--android-adb','--android-grpc-config','--tls-dir','--web-assets','--audio-probe','--target-render-device','--target-capture-device','--virtual-audio-identity','--ue5-editor','--ue5-project','--clients','--hold-seconds','--microphone-source','--physical-device-label'].flatMap(flag=>process.argv.includes(flag)?[flag,option(flag)]:[])],
     {cwd:root,windowsHide:true,stdio:['ignore',fd2,fd2]}); fs.closeSync(fd2);
   const [code]=await once(probe,'exit');
@@ -105,6 +106,7 @@ async function main() {
   result.browser_result=path.relative(root,path.join(output,'browser/result.json')).replaceAll('\\','/');
   const browserResult = JSON.parse(fs.readFileSync(path.join(output,'browser/result.json'),'utf8'));
   assert.equal(browserResult.passed,true);
+  if (verifyNativeExit) { assert.equal(browserResult.native_exit?.passed, true); result.native_exit = browserResult.native_exit; }
   result.browser_engine=browserResult.browser_engine;
   result.browser=browserResult.browser;
   if(serviceControl){assert.equal(browserResult.service_control?.identity,'LocalSystem');assert.equal(browserResult.service_cleanup?.passed,true);result.service_control=browserResult.service_control;}
