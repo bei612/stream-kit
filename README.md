@@ -86,6 +86,10 @@ Sunshine 原生编译入口见 [build-sunshine.sh](scripts/build-sunshine.sh)。
 
 ## 验收与协议
 
+已部署环境的管理端验收使用 `node scripts/accept-management-live.cjs --config PRIVATE.json --execute`，通过 `playwright-cli` 操作真实页面和 API，不替换网络响应。省略 `--execute` 只校验本地配置，不启动浏览器或应用。私有 JSON 配置需要填写 `base`（HTTPS 管理入口）、`ca_cert`（已有公开 CA 文件）、`auth_storage_state`（该入口管理员的 Playwright storage state）、`playwright_cli`（CLI 可执行文件）、`owned_example: true`、`example_app_id`、`expected_control_commit`（本机实际部署的完整 40 位提交）和 `output`（父目录已存在、目标尚不存在的新证据目录）。这些配置和证据放在被忽略的本地目录，不提交管理员凭据。
+
+该脚本检查其他应用没有活动后，只操作明确指定的 Example；核对启动前固定链接、真实启动、两个独立观看连接的视频解码增长、管理页授予/交接/撤销控制权及观看端角色、停止和只读历史，并保存桌面/手机宽度截图及控制台结果。截图遮盖固定链接密钥，文本诊断脱敏。浏览器必须已信任原部署 CA；脚本不会忽略证书错误或安装信任。任何未达到的检查返回失败，不代表麦克风实声、原生 App 或目标程序输入已经验收。未通过生产实际部署运行前，该脚本本身不构成通过证据。
+
 20 客户端四小时稳定性要求已按确认口径完成，不再补跑 24 小时。共享视频/程序音、唯一控制权、麦克风广播与撤权、录音端点回传等证据有各自范围，不能互相替代。
 
 - [部署与验收记录](deploy/README.md)
