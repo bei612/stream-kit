@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-09",
+  "scope": "Owned Example window focus and input readiness on installed Windows deployment",
+  "installed_server_source": "47c02726c0161ebdec50911422d62845a9b6e59a",
+  "example": {
+    "previous_source": "371db43538813cf04a277efb2b2a4cbf6c86f606",
+    "updated_executable_sha256": "c45280ff1fc349d6bb05a2a4d7e62ea3ac4707b57860c2e65d15a8cd42e735ff",
+    "input_events": "Enabled temporarily through the existing development Example argument, then original settings restored"
+  },
+  "observations": {
+    "sunshine_interactive_session": 1,
+    "caller_interactive_session": 1,
+    "sunshine_thread_desktop": "Default",
+    "input_desktop": "Default",
+    "owned_foreground_request": false,
+    "owned_window_foreground_after_request": false,
+    "streamed_input_sent_by_this_check": false,
+    "settings_restored": true
+  },
+  "result": "Target input acceptance not achieved: Windows did not grant foreground to the owned Example",
+  "boundaries": [
+    "A prior attempt used the older Example without the observer and yielded no input-delivery conclusion.",
+    "The updated check stopped before sending input because its foreground prerequisite failed.",
+    "Application capture deliberately rejects input when the retained target is not foreground; this guard was not removed.",
+    "No global input, input queue attachment, foreground policy, ToDesk setting or unrelated application was modified.",
+    "These observations do not prove which external condition caused Windows to reject foreground activation."
+  ],
+  "raw_local_evidence": [
+    ".local/validation/input-desktop-readonly-20261109.json",
+    ".local/management/owned-example-input-result.json"
+  ]
+}
