@@ -1,3 +1,5 @@
+// Historical mocked scenario harness, excluded from acceptance and CI.
+// Actual management checks: accept-management-native.cjs; deployed media checks: accept-management-live.cjs.
 // Exercise production page drafts against concurrent administrator changes.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');

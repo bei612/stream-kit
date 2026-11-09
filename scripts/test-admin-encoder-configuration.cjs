@@ -1,3 +1,5 @@
+// Historical mocked scenario harness, excluded from acceptance and CI.
+// Actual management checks: accept-management-native.cjs; deployed media checks: accept-management-live.cjs.
 // Production management UI with controlled API responses; no service is restarted.
 const assert=require('node:assert/strict');
 const fs=require('node:fs');

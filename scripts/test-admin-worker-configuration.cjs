@@ -1,3 +1,5 @@
+// Historical mocked scenario harness, excluded from acceptance and CI.
+// Actual management checks: accept-management-native.cjs; deployed media checks: accept-management-live.cjs.
 // Built management page; API writes are captured, no installed service changes.
 const assert=require('node:assert/strict');
 const fs=require('node:fs');

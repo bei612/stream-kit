@@ -1,3 +1,5 @@
+// Historical mocked scenario harness, excluded from acceptance and CI.
+// Actual management checks: accept-management-native.cjs; deployed media checks: accept-management-live.cjs.
 const fs=require('fs'),p=require('path'),http=require('http'),assert=require('assert/strict');
 const {launchBrowser,engine,evidenceDirectory}=require('./lib/test-browser.cjs');
 const root=p.resolve(process.env.ADMIN_DIST || 'orchestrator/web/dist');

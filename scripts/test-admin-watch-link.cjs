@@ -1,3 +1,5 @@
+// Historical mocked scenario harness, excluded from acceptance and CI.
+// Actual management checks: accept-management-native.cjs; deployed media checks: accept-management-live.cjs.
 // Built management UI with delayed API responses. No real capability or app.
 const fs=require('fs'),path=require('path'),http=require('http'),assert=require('assert/strict');
 const {launchBrowser,engine,evidenceDirectory}=require('./lib/test-browser.cjs');

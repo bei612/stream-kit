@@ -218,7 +218,13 @@ jobs:
           cache: npm
           cache-dependency-path: orchestrator/web/package-lock.json
       - run: npm ci
-      - run: npm run build
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.3'
+          cache-dependency-path: orchestrator/go.sum
+      - name: Build real native management service and production SPA
+        working-directory: .
+        run: node scripts/build-control-plane.mjs --require-clean --output artifacts/management-control
       - run: node --test ../../scripts/test-app-command.mjs ../../scripts/test-query-ordering.mjs ../../scripts/test-go-test-failures.mjs ../../scripts/test-go-notices.mjs ../../scripts/test-cargo-notices.mjs ../../scripts/test-windows-usb-audio-driver.mjs ../../scripts/test-control-build-target.mjs ../../scripts/test-platform-packaging.mjs ../../scripts/test-product-release.mjs
       - run: node --experimental-strip-types --test ../../scripts/test-frontend-notices.mjs
       - run: node --test ../../scripts/test-audio-playback-lifecycle.mjs ../../scripts/test-realtime-track-writer.mjs ../../scripts/test-opus-audio.mjs ../../scripts/test-audio-envelope.cjs
@@ -229,30 +235,20 @@ jobs:
       - name: Install browser engines
         run: npx --no-install playwright install --with-deps chromium firefox webkit
         working-directory: third_party/moonlight-web-stream
-      - name: Verify management interactions across browser engines
+      - name: Verify real management API and SPA across browser engines
         working-directory: .
         env:
           BROWSER_CHANNEL: chromium
         run: |
           for engine in chromium firefox webkit; do
-            BROWSER_ENGINE="$engine" node scripts/test-admin-session-audio.cjs
-            BROWSER_ENGINE="$engine" node scripts/test-admin-encoder-configuration.cjs
-            BROWSER_ENGINE="$engine" node scripts/test-admin-worker-configuration.cjs
-            BROWSER_ENGINE="$engine" node scripts/test-admin-render-nodes.cjs
-            BROWSER_ENGINE="$engine" node scripts/test-admin-app-lifecycle.cjs
-              BROWSER_ENGINE="$engine" node scripts/test-admin-watch-link.cjs
+            BROWSER_ENGINE="$engine" node scripts/accept-management-native.cjs --binary artifacts/management-control/orchestrator --dist artifacts/management-control/dist --output "artifacts/management-native/$engine"
           done
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: management-browser-interactions
           path: |
-            artifacts/session-audio/
-            artifacts/encoder-configuration/
-            artifacts/admin-render-nodes/
-            artifacts/admin-app-lifecycle/
-              artifacts/admin-watch-link/
-            artifacts/admin-worker-configuration/
+            artifacts/management-native/
           if-no-files-found: warn
 
   moonlight-web:

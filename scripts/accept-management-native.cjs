@@ -1,0 +1,145 @@
+// Source-CI management checks against the real orchestrator, SQLite and production SPA.
+// This intentionally does not claim streaming, capture, microphone or controller acceptance.
+const fs = require('node:fs');
+const path = require('node:path');
+const os = require('node:os');
+const net = require('node:net');
+const cp = require('node:child_process');
+const crypto = require('node:crypto');
+const assert = require('node:assert/strict');
+const { engine, launchBrowser } = require('./lib/test-browser.cjs');
+
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+const read = file => JSON.parse(fs.readFileSync(file, 'utf8'));
+function option(name) { const index = process.argv.indexOf(name); assert.ok(index > 1 && process.argv[index + 1], `Missing ${name}`); return path.resolve(process.argv[index + 1]); }
+function copyAssets(source, destination) {
+  assert.ok(fs.lstatSync(source).isDirectory(), 'Production dist must be a directory'); fs.mkdirSync(destination);
+  for (const entry of fs.readdirSync(source)) {
+    const from = path.join(source, entry), to = path.join(destination, entry), stat = fs.lstatSync(from);
+    if (stat.isDirectory()) copyAssets(from, to);
+    else { assert.ok(stat.isFile(), 'Linked or special asset rejected'); fs.copyFileSync(from, to); }
+  }
+}
+
+(async () => {
+  const binary = option('--binary'), dist = option('--dist'), output = option('--output');
+  assert.ok(fs.lstatSync(binary).isFile()); assert.ok(fs.lstatSync(path.join(dist, 'index.html')).isFile());
+  assert.ok(!fs.existsSync(output), 'Use a new evidence directory'); fs.mkdirSync(output, { recursive: true });
+  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'stream-kit-management-native-'));
+  const configPath = path.join(workspace, 'config.json');
+  const environment = { ...process.env }; for (const name of Object.keys(environment)) if (name.startsWith('ORCH_')) delete environment[name];
+  let child, browser, secrets = [];
+  const report = { passed: false, engine, scope: 'Real management API and SPA only; components absent by configuration, no media acceptance', cases: [], console: [], expected_unavailable: [], unexpected_http_errors: [] };
+  const sanitize = value => { let text = String(value); for (const secret of secrets) if (secret) text = text.split(secret).join('[redacted]'); return text.replace(/Bearer\s+[A-Za-z0-9_.-]+/g, 'Bearer [redacted]').replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, '[redacted-jwt]'); };
+  let serviceLog = '';
+  try {
+    cp.execFileSync(binary, ['init-config', '--config', configPath], { cwd: workspace, env: environment, windowsHide: true, stdio: 'pipe' });
+    const cfg = read(configPath); secrets = [cfg.server.password, cfg.server.jwt_secret, cfg.server.media_ticket_secret];
+    const reservation = net.createServer(); await new Promise((resolve, reject) => { reservation.once('error', reject); reservation.listen(0, '127.0.0.1', resolve); });
+    const port = reservation.address().port; await new Promise(resolve => reservation.close(resolve));
+    Object.assign(cfg.server, { bind_address: `127.0.0.1:${port}`, tls_cert: '', tls_key: '', media_ticket_secret: '', lan_tls: { ca_cert: '', ca_key: '', hosts: [] } });
+    cfg.components = {}; cfg.sunshine_api = { base_url: '', username: '', password: '', verify_ssl: true }; cfg.moonlight_web = { base_url: '', public_url: '', username: '', password: '' };
+    cfg.render_nodes = {}; cfg.storage.apps_dir = path.join(workspace, 'apps'); cfg.storage.temp_dir = path.join(workspace, 'temp'); cfg.storage.db_path = path.join(workspace, 'state.sqlite'); cfg.log.file.enabled = false;
+    fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2), { mode: 0o600 });
+    copyAssets(dist, path.join(workspace, 'dist'));
+    child = cp.spawn(binary, ['--config', configPath], { cwd: workspace, env: environment, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    let spawnError; child.once('error', error => { spawnError = error; });
+    child.stdout.on('data', chunk => serviceLog += chunk); child.stderr.on('data', chunk => serviceLog += chunk);
+    const base = `http://127.0.0.1:${port}`;
+    let health;
+    for (let attempt = 0; attempt < 100; attempt++) {
+      assert.ok(!spawnError && child.exitCode === null, 'Isolated orchestrator could not start');
+      try { const response = await fetch(base + '/api/v1/health', { signal: AbortSignal.timeout(1000) }); if (response.ok) { health = (await response.json()).data; break; } } catch {}
+      await delay(100);
+    }
+    assert.ok(health, 'Actual orchestrator health never became ready');
+    assert.deepEqual(health.components, {}, 'Unexpected real service components started');
+    report.control_commit = health.commit; report.binary_sha256 = crypto.createHash('sha256').update(fs.readFileSync(binary)).digest('hex');
+    report.dist_index_sha256 = crypto.createHash('sha256').update(fs.readFileSync(path.join(dist, 'index.html'))).digest('hex');
+    const denied = await fetch(base + '/api/v1/stream-sessions'); assert.equal(denied.status, 401); report.cases.push('unauthenticated real API denied');
+    browser = await launchBrowser(); report.browser_version = browser.version();
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } }), javascriptErrors = [], responseChecks = [];
+    page.on('pageerror', error => javascriptErrors.push(sanitize(error.message)));
+    page.on('console', message => { if (['error', 'warning'].includes(message.type())) report.console.push({ type: message.type(), text: sanitize(message.text()) }); });
+    page.on('response', response => {
+      if (response.status() < 400) return; const pathname = new URL(response.url()).pathname, status = response.status();
+      if (pathname === '/api/v1/configuration' && status === 409) return; // Explicitly asserted below, not ignored.
+      const absent = {
+        '/api/v1/media-control': [404, null],
+        '/api/v1/components/web_server': [404, 'COMPONENT_NOT_FOUND'],
+        '/api/v1/components/sunshine': [404, 'COMPONENT_NOT_FOUND'],
+        '/api/v1/gateway-configuration': [503, 'GATEWAY_CONFIGURATION_UNAVAILABLE'],
+        '/api/v1/encoder-configuration': [503, 'ENCODER_CONFIGURATION_UNAVAILABLE'],
+        '/api/v1/audio-devices': [503, 'media_unconfigured'],
+      }[pathname];
+      responseChecks.push((async () => {
+        const body = await response.text();
+        let code; try { code = JSON.parse(body).code; } catch {}
+        if (absent && status === absent[0] && (absent[1] === null ? body.trim() === '404 page not found' : code === absent[1])) report.expected_unavailable.push({ pathname, status, code });
+        else report.unexpected_http_errors.push({ pathname, status, code });
+      })().catch(() => report.unexpected_http_errors.push({ pathname, status, body_unavailable: true })));
+    });
+    const screenshot = name => page.screenshot({ path: path.join(output, name + '.png'), fullPage: true });
+    const api = (route, method = 'GET', body) => page.evaluate(async ({ route, method, body }) => {
+      const response = await fetch('/api/v1' + route, { method, headers: { Authorization: 'Bearer ' + localStorage.getItem('auth_token'), 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+      return { status: response.status, body: await response.json() };
+    }, { route, method, body });
+    await page.goto(base + '/login'); await page.getByLabel('用户名', { exact: true }).fill(cfg.server.username); await page.getByLabel('密码', { exact: true }).fill(cfg.server.password);
+    await page.getByRole('button', { name: '登录控制台' }).click(); await page.waitForURL(base + '/');
+    assert.ok(await page.evaluate(() => !!localStorage.getItem('auth_token'))); report.cases.push('UI login using native init-config generated credential');
+    await page.goto(base + '/apps'); assert.equal((await api('/apps')).body.data.length, 0); await screenshot('apps-empty-desktop');
+    await page.goto(base + '/stream-sessions'); await page.getByRole('heading', { name: '串流会话', exact: true }).waitFor();
+    assert.deepEqual((await api('/stream-sessions')).body.data, []); assert.equal(await page.locator('.client-card').count(), 0);
+    await page.getByText('当前没有串流会话', { exact: true }).waitFor(); await screenshot('sessions-current-desktop');
+    await page.getByRole('button', { name: /已结束记录/ }).click(); await page.getByText('暂无已结束记录', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: /授予控制权|转移控制权|释放控制权/ }).count(), 0); report.cases.push('real empty current/history and zero clients; no fabricated stopped or running rows');
+    await page.setViewportSize({ width: 390, height: 844 }); await screenshot('sessions-history-mobile');
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    await page.getByRole('button', { name: /当前会话/ }).click(); await screenshot('sessions-current-mobile');
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto(base + '/settings'); await page.getByRole('heading', { name: '服务配置', exact: true }).waitFor();
+    await page.locator('summary').filter({ hasText: '应用与存储' }).click();
+    const count = page.getByLabel('解压文件数上限', { exact: true }); await count.waitFor(); const oldCount = Number(await count.inputValue()), draft = oldCount + 1;
+    await count.fill(String(draft));
+    const before = await api('/configuration'); assert.equal(before.status, 200);
+    const concurrent = await api('/configuration', 'PATCH', { revision: before.body.data.revision, changes: { '/process/monitor_interval_seconds': cfg.process.monitor_interval_seconds + 1 } });
+    assert.equal(concurrent.status, 200); assert.notEqual(concurrent.body.data.revision, before.body.data.revision);
+    const conflict = page.waitForResponse(response => response.url().endsWith('/api/v1/configuration') && response.request().method() === 'PATCH');
+    await page.getByRole('button', { name: /保存配置（1 项）/ }).click(); const rejected = await conflict;
+    assert.equal(rejected.status(), 409); assert.equal((await rejected.json()).code, 'CONFIG_REVISION_CONFLICT');
+    assert.equal(await count.inputValue(), String(draft)); assert.equal(read(configPath).storage.max_file_count, oldCount);
+    await screenshot('configuration-real-cas-conflict'); report.cases.push('actual competing configuration writer triggers HTTP409; draft retained and disk unchanged by rejected save');
+    await page.getByRole('button', { name: '放弃修改并重新读取', exact: true }).click();
+    await page.waitForFunction(expected => document.getElementById('setting/storage/max_file_count')?.value === String(expected), oldCount);
+    await count.fill(String(draft));
+    const saved = page.waitForResponse(response => response.url().endsWith('/api/v1/configuration') && response.request().method() === 'PATCH');
+    await page.getByRole('button', { name: /保存配置（1 项）/ }).click(); assert.equal((await saved).status(), 200);
+    await page.getByText('配置已保存。服务重启后生效，当前串流继续使用原配置。', { exact: true }).waitFor();
+    assert.equal(read(configPath).storage.max_file_count, draft);
+    const desired = await api('/configuration'), running = await api('/config');
+    assert.equal(desired.body.data.restart_required, true); assert.equal(desired.body.data.values.storage.max_file_count, draft);
+    assert.equal(running.body.data.storage.max_file_count, oldCount); report.cases.push('explicit reload and fresh CAS save persist real configuration; running/desired remain separate until restart');
+    await screenshot('configuration-saved-desktop'); await page.setViewportSize({ width: 390, height: 844 }); await screenshot('configuration-saved-mobile');
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    await Promise.all(responseChecks);
+    assert.deepEqual(javascriptErrors, []); assert.deepEqual(report.unexpected_http_errors, []);
+    report.console_boundary = 'Expected unconfigured component HTTP failures are retained above; no JavaScript exceptions or unexpected HTTP errors permitted.';
+    report.cases.push('desktop/mobile screenshots; no horizontal page overflow'); report.passed = true;
+  } catch (error) { report.error = sanitize(error.stack || error.message); }
+  finally {
+    if (browser) await browser.close().catch(error => { report.passed = false; report.cleanup_error = sanitize(error.message); });
+    if (child && child.exitCode === null && child.pid) {
+      child.kill('SIGTERM'); await Promise.race([new Promise(resolve => child.once('exit', resolve)), delay(10000)]);
+      if (child.exitCode === null && child.signalCode === null) { child.kill('SIGKILL'); await Promise.race([new Promise(resolve => child.once('exit', resolve)), delay(3000)]); }
+      if (child.exitCode === null && child.signalCode === null) { report.passed = false; report.cleanup_error = 'Owned temporary process did not exit'; }
+    }
+    const database = path.join(workspace, 'state.sqlite');
+    if (fs.existsSync(database)) { const data = fs.readFileSync(database); report.database = { format: data.subarray(0, 16).toString('binary'), bytes: data.length, sha256: crypto.createHash('sha256').update(data).digest('hex') }; if (report.database.format !== 'SQLite format 3\u0000') report.passed = false; }
+    fs.writeFileSync(path.join(output, 'service.log'), sanitize(serviceLog));
+    const resolved = fs.realpathSync(workspace), temporaryRoot = fs.realpathSync(os.tmpdir());
+    assert.ok(path.dirname(resolved) === temporaryRoot && path.basename(resolved).startsWith('stream-kit-management-native-'), 'Refuse cleanup outside owned temporary directory');
+    if (!report.cleanup_error) fs.rmSync(resolved, { recursive: true, force: true });
+    fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(report, null, 2) + '\n');
+  }
+  console.log(JSON.stringify({ passed: report.passed, engine, output })); if (!report.passed) process.exitCode = 1;
+})().catch(error => { console.error(error.message); process.exitCode = 1; });
