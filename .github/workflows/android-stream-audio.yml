@@ -6,12 +6,12 @@ on:
         description: 'Owned product run with a completed successful Linux installer job'
         type: string
         required: true
-        default: '42599646248'
+        default: '42648530658'
       android_release_tag:
         description: 'Published signed Android release tag to test without rebuilding'
         type: string
         required: true
-        default: 'v0.1.0-android-preview.20261109.2'
+        default: 'v0.1.0-android-preview.20261109.6'
 permissions:
   contents: read
   actions: read
