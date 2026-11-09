@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-09",
+  "source": "6591f2b99721a39af7c7c34666377cd04081973b",
+  "android": {
+    "version": "0.1.0-preview.20261109.2",
+    "version_code": 1000009,
+    "apk_sha256": "6b8ecbd0b981025d5ff0fb26e6dc0ea8dcfbaf6cb21864222b9d9ea8833437c9",
+    "bytes": 33165081,
+    "release": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261109.2",
+    "public_assets_verified": 5,
+    "existing_project_release_signature": true,
+    "physical_tablet_upgrade": "passed",
+    "official_emulator_upgrade": "passed"
+  },
+  "real_concurrent_clients": {
+    "android_clients": 2,
+    "web_clients": 1,
+    "application": "Example",
+    "web_decoded_video": {"width": 1920, "height": 1080, "minimum_frames": 16},
+    "transfer_to_emulator": ["controller", "viewer"],
+    "transfer_to_web": ["viewer", "viewer"],
+    "transfer_to_tablet": ["viewer", "controller"],
+    "after_release": ["viewer", "viewer"],
+    "native_role_order": ["official_emulator", "physical_tablet"],
+    "single_controller_in_server_snapshot": "passed_at_each_transfer",
+    "viewer_microphone_live_flag": "false_at_each_transfer",
+    "raw_receipt": ".local/management/parallel-clients-native-ui-result.json"
+  },
+  "boundaries": [
+    "Server and gateway still run 47c02726; this receipt does not prove new Web role UI or new management UI deployment.",
+    "Real native UI hierarchy and server snapshots were inspected; no mocked browser responses or production test hooks were used in this concurrent check.",
+    "No new claim of Windows target-program keyboard/mouse delivery, physical speech, or complete microphone media-path acceptance.",
+    "Example was stopped and both native test activities were closed after acceptance; UE5 and ToDesk were untouched.",
+    "The local gateway build failed because CMake could not identify a complete Visual Studio instance. Canonical Windows/Linux installer workflow 42596375469 remains the build source; no alternate compiler or TLS bypass was introduced."
+  ],
+  "pending": [
+    "New gateway and control deployment",
+    "playwright-cli real deployed management and Web viewer interactions/screenshots",
+    "Unified installer build, acceptance and publication"
+  ]
+}
