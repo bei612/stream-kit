@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-10",
+  "source_commit": "df7cd87b3352a638aa3a6aa7073d39074c02a43c",
+  "product_run": "https://github.com/bei612/stream-kit/actions/runs/42648530658",
+  "product_run_conclusion": "success",
+  "windows_acceptance_run": "https://github.com/bei612/stream-kit/actions/runs/42654424801",
+  "windows_acceptance_conclusion": "success",
+  "acceptance_workflow_commit": "2b675d4311eab0067604f5f47cf0fbfe3d7190ea",
+  "producer_run_verified_from_acceptance_job_logs": 42648530658,
+  "windows": {
+    "passed": true,
+    "environment": "GitHub-hosted Windows Server 2022",
+    "source_artifact_id": 13691462120,
+    "installer": {
+      "name": "stream-kit-preview-df7cd87b3352-windows-amd64-setup.exe",
+      "bytes": 97614897,
+      "sha256": "8afca0be973946d1b5be6e673ef4fee05325d59cd93ea1ae5f038fc90e4fa501"
+    },
+    "installer_source_commit": "df7cd87b3352a638aa3a6aa7073d39074c02a43c",
+    "reused_payload": false,
+    "kernel_audio_driver_signature_verified": true,
+    "acceptance_result_sha256": "2443cc3d0f341b508bad0004cca59f71d9df519945a9f9e1e9f5f7e0c2f7b7d0",
+    "install_exit": 0,
+    "administrator_login": true,
+    "service_after_install": {
+      "state": "Running",
+      "start_mode": "Auto",
+      "account": "LocalSystem"
+    },
+    "service_after_restart": {
+      "state": "Running",
+      "start_mode": "Auto",
+      "account": "LocalSystem",
+      "new_process_id_verified": true
+    },
+    "gateway_restarted": true,
+    "gateway_stop_exit": 0,
+    "scm_restarted": true,
+    "whole_system_reboot_tested": false,
+    "audio": {
+      "passed": true,
+      "captured_frames": 144000,
+      "tone_amplitude": 0.09813821957563634,
+      "dropped_frames": 0,
+      "xruns": 0,
+      "baseline_quiet": true,
+      "after_clear_quiet": true,
+      "device_closed_after_drop": true
+    },
+    "default_devices": {
+      "before": {
+        "communication_render": "",
+        "communication_capture": "",
+        "render": "",
+        "capture": ""
+      },
+      "after_uninstall_equals_before": true,
+      "existing_nonempty_default_devices_tested": false,
+      "scope": "The fixture initially had no default endpoints. Windows selected the newly installed capture endpoint while present; uninstall restored the empty baseline. This does not establish preservation of existing nonempty default selections."
+    },
+    "uninstall_exit": 0,
+    "service_removed": true,
+    "configuration_retained_after_uninstall": true,
+    "configuration_retention_assertion": "orchestrator.json exists after uninstall",
+    "application_database_retention_separately_tested": false,
+    "finished_at": "2026-11-09T16:26:37.677Z"
+  },
+  "linux": {
+    "source_artifact_id": 13690215723,
+    "installer": {
+      "file": "stream-kit-preview-df7cd87b3352-ubuntu24.04-amd64-setup.run",
+      "bytes": 62468105,
+      "sha256": "b7ab7cc3ae471a0930fef2ef8be11941629e602df48efb9323362e3cc2aed3fd"
+    },
+    "payload_sha256": "8c17777d131d7baf7e2fcf4fa9bef63531b4902d308b2fcabf325b7aca0cfcb1",
+    "acceptance_log_sha256": "20620d4f5ec17fdf3caed7b8e6ed91140b22ef810e877c5e816f85a677d51fd7",
+    "scope": "Actual installer extraction, three-component initialization, configuration validation, offline user-service enablement and refusal to overwrite existing deployment data in the successful product job. No media service was started by this installer acceptance."
+  },
+  "sbom": {
+    "name": "stream-kit-sbom.spdx.json",
+    "bytes": 7559476,
+    "sha256": "2793e0f520b497e19b5f201776a7c5a5a764615d9dde507493e5d17b27fcefe3",
+    "format": "SPDX-2.3",
+    "source_artifact_id": 13687628811
+  },
+  "local_downloads_verified": true,
+  "published": false,
+  "publication": {
+    "state": "pending",
+    "tag": "v0.1.0-preview.20261109.3",
+    "source_commit": "df7cd87b3352a638aa3a6aa7073d39074c02a43c",
+    "prerelease": true,
+    "original_product_run": "https://github.com/bei612/stream-kit/actions/runs/42648530658"
+  },
+  "limits": [
+    "Windows SCM and gateway restart are verified; this receipt does not establish a complete host reboot.",
+    "Uninstall retention checks orchestrator.json, not an independent application-file or database-retention scenario.",
+    "The Windows default-device baseline was empty; this result does not cover existing nonempty device selections.",
+    "Linux package initialization and user-service enablement do not establish an active Linux media session.",
+    "No local installation, in-place upgrade, physical speech, Android audio, target input or deployed browser acceptance is established by this installer receipt.",
+    "Publication must be separately verified against the original build artifacts; it does not update the local installation."
+  ]
+}
