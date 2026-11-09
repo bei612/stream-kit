@@ -1,3 +1,7 @@
+// Retired historical VM/fake-fetch fixture; retained for provenance only.
+// Its implicit resume/ticket assumptions are not the current protocol contract.
+// Current conformance requires real SQLite handlers plus version-matched native
+// and installed playwright-cli flows; this fixture is not an acceptance gate.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'

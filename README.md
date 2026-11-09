@@ -96,6 +96,8 @@ Sunshine 原生编译入口见 [build-sunshine.sh](scripts/build-sunshine.sh)。
 
 ## 验收与协议
 
+`test-media-access.mjs`、`test-viewer-authority.mjs`、`test-viewer-bootstrap.mjs` 和 `test-webrtc-lifecycle.mjs` 使用 VM、替代请求或替代 RTC 对象，现仅作为历史 fixture 归档，已退出必需 Node 门禁；其中旧的隐式 resume/续票假设不代表当前协议，也不计为通过。Go 真实处理器与 SQLite 持久化回归保留，覆盖 `CONNECTION_LEASE_EXPIRED`、`CONNECTION_TERMINATED` 的区分、恢复和显式撤销，并检查重新加载存储后的分类；原生构建、生产 SPA 和 Chromium/Firefox/WebKit 真实浏览器检查继续保留。新版原生运行时及实际安装环境的 `playwright-cli` 完整流程正在推进，必须核对该次实际运行组件与源码身份；未部署、未实际运行通过的项目仍未验收，旧 `98e419f7` 运行时的历史结果不替代新协议源码验证，CI 编译成功也不等于生产交付通过。
+
 被动原生退出的独立入口为 [native-exit-acceptance](.github/workflows/native-exit.yml)。手动选择已有产品运行时构建和完整源码提交；默认复用 `42599646248` / `98e419f7f85fa36a92651ee55396815386a233c4`，核对 GitHub 运行归属、成功的 Linux job、安装清单、安装文件和载荷 SHA-256，以及提取后的组件文件清单。工作流只编译验收用 X11 目标，在独立 Linux 环境建立真实 Sunshine、网关、控制端和两个 Web 观看端；不重建产品、不下载 Android、不复测音频/输入/长稳。
 
 该场景先确认目标 PID、可执行文件、窗口归属及原生 InstanceID 与运行中的会话一致，再通过真实 `WM_DELETE_WINDOW` 请求目标自行退出。旧代次必须在不调用停止接口的情况下终结、清空连接和控制者、退出签名媒体授权，并在自然到期前拒绝旧邀请、连接凭据和媒体票据。若观看端自动重连实际创建了新原生实例，还会按 InstanceID 检查旧代次撤销不会误杀该实例；若没有创建替代实例，只证明本次旧代次终结和撤权，不代表已覆盖替代实例或中断恢复矩阵。最终清理由共用生命周期完成，只操作本次目标。新增脚本与语法检查不构成通过证据，结论以该工作流的实际运行结果为准。

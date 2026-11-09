@@ -1,3 +1,7 @@
+// Retired historical VM fixture with substituted RTC peer, timers and HTTP.
+// Retained for provenance, not proof of a real WebRTC or native lifecycle.
+// Current lifecycle acceptance requires version-matched native and installed
+// playwright-cli flows; this fixture is excluded from mandatory CI commands.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'

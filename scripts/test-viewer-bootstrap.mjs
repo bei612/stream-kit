@@ -1,3 +1,7 @@
+// Retired historical VM/fake-fetch bootstrap fixture, retained for provenance.
+// Fabricated replies and bindings do not prove current lease/termination or
+// admission behavior. Real SQLite handlers and version-matched native/installed
+// playwright-cli flows provide that scope; this fixture is not a current gate.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'

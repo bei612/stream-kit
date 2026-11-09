@@ -1,3 +1,7 @@
+// Retired historical VM fixture with substituted browser/protocol objects.
+// Retained for provenance, not current authority or target-input acceptance.
+// Actual viewer roles and control transfer require version-matched native and
+// installed playwright-cli flows; pure protocol/algorithm gates remain separate.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
