@@ -44,6 +44,13 @@ public final class ManagedSession implements AutoCloseable {
   private final boolean development;
   private final int width, height;
   private ManagedApi api;
+  // A start owns one remote connection across transport-recovery operations.
+  // Old asynchronous cleanup keeps its own marker, never the next start's state.
+  private static final class ConnectionLifetime {
+    volatile boolean terminated;
+  }
+  private ConnectionLifetime lifetime;
+  private Runnable pendingRetry;
   private ManagedApi.Admission admission;
   private ManagedApi.Ticket ticket;
   private ManagedApi.Answer answer;
@@ -84,6 +91,7 @@ public final class ManagedSession implements AutoCloseable {
     stop();
     this.link = link;
     api = new ManagedApi(link, development);
+    lifetime = new ConnectionLifetime();
     running = true;
     authority.setForeground(true);
     openDeadline = SystemClock.elapsedRealtime() + 120000;
@@ -93,13 +101,14 @@ public final class ManagedSession implements AutoCloseable {
   private void open(long op) {
     show("正在启动应用…");
     ManagedApi client = api;
+    ConnectionLifetime owner = lifetime;
     WatchLink requestedLink = link;
     submit(() -> {
       try {
         ManagedApi.Admission joined = client.open(requestedLink);
         main.post(() -> {
           if (!valid(op)) {
-            submit(() -> leaveQuietly(client, joined.authority));
+            submit(() -> leaveQuietly(client, joined.authority, owner));
             return;
           }
           admission = joined;
@@ -115,10 +124,7 @@ public final class ManagedSession implements AutoCloseable {
             return;
           if (error instanceof ManagedApi.Failure && ((ManagedApi.Failure) error).status == 503
               && SystemClock.elapsedRealtime() < openDeadline)
-            main.postDelayed(() -> {
-              if (valid(op))
-                open(op);
-            }, 2500);
+            scheduleRetry(op, () -> open(op), 2500);
           else
             fail("无法进入应用，请检查链接或服务器状态");
         });
@@ -129,6 +135,7 @@ public final class ManagedSession implements AutoCloseable {
   private void prepareMedia(long op) {
     show("正在建立音视频连接…");
     ManagedApi client = api;
+    ConnectionLifetime owner = lifetime;
     ManagedApi.Admission joined = admission;
     ConnectionAuthority current = authority.snapshot();
     org.json.JSONObject preferences = viewerSettings;
@@ -194,10 +201,7 @@ public final class ManagedSession implements AutoCloseable {
           }
         });
       } catch (Exception error) {
-        main.post(() -> {
-          if (valid(op))
-            recover();
-        });
+        main.post(() -> { connectionFailure(op, owner, error); });
       }
     });
   }
@@ -206,6 +210,7 @@ public final class ManagedSession implements AutoCloseable {
     if (!valid(op))
       return;
     ManagedApi client = api;
+    ConnectionLifetime owner = lifetime;
     ManagedApi.Admission joined = admission;
     ConnectionAuthority current = authority.snapshot();
     submit(() -> {
@@ -214,7 +219,7 @@ public final class ManagedSession implements AutoCloseable {
         ManagedApi.Answer response = client.offer(joined, fresh, sdp);
         main.post(() -> {
           if (!valid(op)) {
-            deleteQuietly(client, joined, fresh, response);
+            deleteQuietly(client, joined, fresh, response, owner);
             return;
           }
           ticket = fresh;
@@ -222,10 +227,7 @@ public final class ManagedSession implements AutoCloseable {
           peer.answer(response.sdp);
         });
       } catch (Exception error) {
-        main.post(() -> {
-          if (valid(op))
-            recover();
-        });
+        main.post(() -> { connectionFailure(op, owner, error); });
       }
     });
   }
@@ -251,6 +253,7 @@ public final class ManagedSession implements AutoCloseable {
          sentAt = SystemClock.elapsedRealtime();
     nextHeartbeat = sentAt + 5000;
     ManagedApi client = api;
+    ConnectionLifetime owner = lifetime;
     ConnectionAuthority current = authority.snapshot();
     boolean microphone = authority.canSendMicrophone(), live = microphoneLive;
     submit(() -> {
@@ -276,10 +279,9 @@ public final class ManagedSession implements AutoCloseable {
         });
       } catch (Exception error) {
         main.post(() -> {
-          if (valid(op)) {
+          if (valid(op))
             heartbeatPending = false;
-            recover();
-          }
+          connectionFailure(op, owner, error);
         });
       }
     });
@@ -296,13 +298,14 @@ public final class ManagedSession implements AutoCloseable {
     heartbeatPending = false;
     show("连接中断，正在重新连接…");
     long delay = Math.min(10000, 1000L << Math.min(retryCount++, 3));
-    main.postDelayed(() -> resume(op), delay);
+    scheduleRetry(op, () -> resume(op), delay);
   }
 
   private void resume(long op) {
     if (!valid(op))
       return;
     ManagedApi client = api;
+    ConnectionLifetime owner = lifetime;
     ConnectionAuthority current = authority.snapshot();
     long sentAt = SystemClock.elapsedRealtime(), generation = authority.generation();
     submit(() -> {
@@ -325,13 +328,15 @@ public final class ManagedSession implements AutoCloseable {
         });
       } catch (Exception error) {
         main.post(() -> {
-          if (!valid(op))
+          if (!valid(op)) {
+            connectionFailure(op, owner, error);
             return;
+          }
           if (error instanceof ManagedApi.Failure
               && (((ManagedApi.Failure) error).status == 401
                   || ((ManagedApi.Failure) error).status == 410)) {
-            fail("连接授权已失效，请重新打开观看链接");
-          } else {
+            terminateConnection(owner);
+          } else if (valid(op)) {
             recovering = false;
             recover();
           }
@@ -416,13 +421,17 @@ public final class ManagedSession implements AutoCloseable {
     recovering = false;
     heartbeatPending = false;
     main.removeCallbacks(pulse);
+    cancelRetry();
     ConnectionAuthority previous = authority.snapshot();
     ManagedApi previousApi = api;
+    ConnectionLifetime previousLifetime = lifetime;
     authority.stop();
     closeMedia();
     admission = null;
-    if (previous != null && previousApi != null)
-      submit(() -> leaveQuietly(previousApi, previous));
+    lifetime = null;
+    if (previous != null && previousApi != null && previousLifetime != null
+        && !previousLifetime.terminated)
+      submit(() -> leaveQuietly(previousApi, previous, previousLifetime));
     show("已断开连接");
   }
 
@@ -433,22 +442,27 @@ public final class ManagedSession implements AutoCloseable {
       peer = null;
     }
     microphoneLive = false;
-    if (answer != null && ticket != null && admission != null)
-      deleteQuietly(api, admission, ticket, answer);
+    if (answer != null && ticket != null && admission != null && !lifetime.terminated)
+      deleteQuietly(api, admission, ticket, answer, lifetime);
     answer = null;
     ticket = null;
   }
 
   private void deleteQuietly(ManagedApi client, ManagedApi.Admission joined,
-      ManagedApi.Ticket credential, ManagedApi.Answer media) {
+      ManagedApi.Ticket credential, ManagedApi.Answer media, ConnectionLifetime owner) {
     submit(() -> {
+      if (owner.terminated)
+        return;
       try {
         client.deleteMedia(joined, credential, media.resource);
       } catch (IOException ignored) {
       }
     });
   }
-  private static void leaveQuietly(ManagedApi client, ConnectionAuthority connection) {
+  private static void leaveQuietly(
+      ManagedApi client, ConnectionAuthority connection, ConnectionLifetime owner) {
+    if (owner.terminated)
+      return;
     try {
       client.leave(connection);
     } catch (IOException ignored) {
@@ -456,6 +470,46 @@ public final class ManagedSession implements AutoCloseable {
   }
   private boolean valid(long op) {
     return running && !closed && operation == op;
+  }
+  private void connectionFailure(long op, ConnectionLifetime owner, Exception error) {
+    if (error instanceof ManagedApi.Failure) {
+      ManagedApi.Failure failure = (ManagedApi.Failure) error;
+      if ((failure.status == 410 && "CONNECTION_TERMINATED".equals(failure.code))
+          || (valid(op) && failure.status == 401
+              && "CONNECTION_UNAUTHORIZED".equals(failure.code))) {
+        terminateConnection(owner);
+        return;
+      }
+    }
+    // Explicit lease expiry and legacy ambiguous expiry may resume this same
+    // connection. Only a definitive resume rejection is terminal; transient
+    // network failures must not manufacture a server-termination verdict.
+    if (valid(op))
+      recover();
+  }
+  private void terminateConnection(ConnectionLifetime owner) {
+    owner.terminated = true;
+    // An explicit terminal response also cancels recovery of this connection.
+    // A stale 401 only rejects its old credential and cannot reach this path.
+    // A late response for a previous start cannot stop its replacement.
+    if (!running || lifetime != owner)
+      return;
+    stop();
+    show("观看连接已结束，请重新打开观看链接");
+  }
+  private void scheduleRetry(long op, Runnable task, long delay) {
+    cancelRetry();
+    pendingRetry = () -> {
+      pendingRetry = null;
+      if (valid(op))
+        task.run();
+    };
+    main.postDelayed(pendingRetry, delay);
+  }
+  private void cancelRetry() {
+    if (pendingRetry != null)
+      main.removeCallbacks(pendingRetry);
+    pendingRetry = null;
   }
   private void fail(String message) {
     stop();

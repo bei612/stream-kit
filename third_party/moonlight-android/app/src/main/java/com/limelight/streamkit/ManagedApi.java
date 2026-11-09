@@ -249,8 +249,16 @@ public final class ManagedApi {
     }
 
     private static Failure failure(Response response) {
-        // Never display server-controlled text that might echo a secret.
-        return new Failure(response.code(), "REQUEST_REJECTED");
+        // Preserve the protocol discriminator, never the server's message,
+        // request metadata or an arbitrary response body that may echo a secret.
+        String code = "REQUEST_REJECTED";
+        try {
+            JSONObject envelope = new JSONObject(body(response));
+            Object value = envelope.opt("code");
+            if ("error".equals(envelope.optString("status")) && value instanceof String &&
+                    ((String) value).matches("[A-Z][A-Z0-9_]{0,63}")) code = (String) value;
+        } catch (IOException | JSONException ignored) { }
+        return new Failure(response.code(), code);
     }
 
     private static String body(Response response) throws IOException {
