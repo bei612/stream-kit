@@ -84,6 +84,30 @@ async function af() {
     basis: 'recognized_client_session_rows',track_count: owned.length,
     active_track_count: owned.filter(row => row[1] === 'yes').length};
 }
+// Exact Android 16 native error templates; field names follow source arguments.
+// Unknown messages retain only unnamed negative values, never inferred errno.
+function nativeTemplate(tag, message, negatives) {
+  let match;
+  if (tag === 'AudioFlinger') {
+    message = message.replace(/^createTrack\(\):?\s*/, 'createTrack() ');
+    if ((match = message.match(/^createTrack\(\) getOutputForAttr\(\) return error (-?[0-9]+) or invalid output handle$/)))
+      return {template_id: 'af_get_output_for_attr_failure',status: Number(match[1])};
+    if ((match = message.match(/^createTrack\(\) invalid stream type (-?[0-9]+)$/)))
+      return {template_id: 'af_invalid_stream_type',stream_type: Number(match[1])};
+  }
+  if (tag === 'AudioTrack') {
+    if ((match = message.match(/^createTrack_l\((-?[0-9]+)\): AudioFlinger could not create track, status: (-?[0-9]+) output (-?[0-9]+)$/)))
+      return {template_id: 'audio_track_create_failed',port_id: Number(match[1]),status: Number(match[2]),output_handle: Number(match[3])};
+    if ((match = message.match(/^createTrack_l\((-?[0-9]+)\): Could not create track due to invalid input$/)))
+      return {template_id: 'audio_track_invalid_create_input',port_id: Number(match[1])};
+    if ((match = message.match(/^createTrack_l\((-?[0-9]+)\): Could not create track output due to invalid response$/)))
+      return {template_id: 'audio_track_invalid_create_response',port_id: Number(match[1])};
+  }
+  if (tag === 'ToneGenerator'
+      && (match = message.match(/^AudioTrack\((?:0x[0-9a-fA-F]+|[0-9a-fA-F]+|\(nil\))\) set failed with error (-?[0-9]+)$/)))
+    return {template_id: 'tone_audio_track_set_failed',status: Number(match[1])};
+  return {template_id: 'unknown',unclassified_negative_values: negatives};
+}
 async function startNativeLogs() {
   const diagnostic = result.native_audio_logs = {optional: true,started_at_ms: Date.now(),
     available: null,subscription_ready_confirmed: false,filters: ['ToneGenerator:E', 'AudioTrack:E', 'AudioSystem:E', 'AudioFlinger:E'],
@@ -151,7 +175,8 @@ async function startNativeLogs() {
         const category = /init(?:Check|ializ|AudioTrack)|initializ/i.test(message) ? 'initialization_error'
           : /create.*(?:track|output)|(?:track|output).*creat/i.test(message) ? 'creation_error' : 'native_audio_error';
         diagnostic.events.push({source,uid,tag: match[5],device_date: match[1],device_time: match[2],
-          pid: Number(match[3]),tid: Number(match[4]),received_at_ms: Date.now(),category,negative_statuses: statuses});
+          pid: Number(match[3]),tid: Number(match[4]),received_at_ms: Date.now(),category,
+          ...nativeTemplate(match[5], message, statuses)});
       }
     });
     child.stderr.on('data', data => {
