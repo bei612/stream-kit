@@ -24,7 +24,7 @@ for (let index = 2; index < process.argv.length; index += 2) {
   options[key] = process.argv[index + 1];
 }
 const serial = options['--serial'], adb = options['--adb'];
-let probe, tone, evidenceReady = false;
+let probe, tone, nativeLogs, evidenceReady = false;
 const result = {schema_version: 1, fixture_only: true, product_audio_result: null,
   product_app_entered: false, host_changed: false, volume_changed: false,
   status: 'pending', passed: false, started_at_ms: Date.now(), phase: 'guards',
@@ -83,6 +83,105 @@ async function af() {
   return {at_ms: Date.now(),process_id: pid,session_id: session,available: true,
     basis: 'recognized_client_session_rows',track_count: owned.length,
     active_track_count: owned.filter(row => row[1] === 'yes').length};
+}
+async function startNativeLogs() {
+  const diagnostic = result.native_audio_logs = {optional: true,started_at_ms: Date.now(),
+    available: null,subscription_ready_confirmed: false,filters: ['ToneGenerator:E', 'AudioTrack:E', 'AudioSystem:E', 'AudioFlinger:E'],
+    historical_tail_may_precede_control: true,historical_tail_max_lines: 16,
+    raw_messages_retained: false,unavailable_sources: [],loggers: [],events: []};
+  const sources = [];
+  try {
+    const packageInfo = await android(['shell', 'pm', 'list', 'packages', '-U', OBSERVER]);
+    const uid = Number(packageInfo.trim().match(/^package:io\.github\.bei612\.streamkit\.inputobserver uid:([0-9]+)$/)?.[1]);
+    if (!Number.isSafeInteger(uid) || uid <= 0) throw Error('unavailable');
+    sources.push(['observer', uid]);
+  } catch { diagnostic.unavailable_sources.push({source: 'observer',reason: 'uid_ownership_unavailable'}); }
+  try {
+    const audioPID = (await android(['shell', 'pidof', 'audioserver'])).trim();
+    if (!/^[1-9][0-9]*$/.test(audioPID)) throw Error('unavailable');
+    const status = await android(['shell', 'cat', '/proc/' + audioPID + '/status']);
+    if (!/^Name:\s+audioserver\s*$/m.test(status)) throw Error('unavailable');
+    const ids = status.match(/^Uid:\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)\s*$/m)?.slice(1).map(Number);
+    if (!ids || ids.some(uid => uid !== ids[0])) throw Error('unavailable');
+    const uid = ids[0];
+    if (!Number.isSafeInteger(uid) || uid <= 0 || sources.some(item => item[1] === uid)) throw Error('unavailable');
+    sources.push(['audioserver', uid]);
+  } catch { diagnostic.unavailable_sources.push({source: 'audioserver',reason: 'uid_ownership_unavailable'}); }
+  if (!sources.length) {
+    diagnostic.available = false;
+    diagnostic.unavailable_reason = 'uid_ownership_unavailable';
+    return {async close() { diagnostic.finished_at_ms = Date.now(); return true; }};
+  }
+  diagnostic.allowed_uids = sources.map(item => item[1]);
+  const loggers = [];
+  for (const [source, uid] of sources) {
+    const state = {source,uid,spawned: false,closed: false,stdout_bytes: 0,stderr_bytes: 0,
+      stderr_class: null,limit_reached: false,exit_code: null,exit_signal: null};
+    diagnostic.loggers.push(state);
+    // Official logcat: -T 16 follows after a bounded historical tail. The UID
+    // and tag filters are applied on-device; no broad logcat fallback exists.
+    // https://android.googlesource.com/platform/system/logging/+/refs/heads/android16-release/logcat/logcat.cpp
+    const child = cp.spawn(adb, ['-s', serial, 'logcat', '-v', 'threadtime', '-T', '16', '--uid=' + uid,
+      '-s', ...diagnostic.filters, '*:S'], {stdio: ['ignore', 'pipe', 'pipe']});
+    let pending = '', stderrTail = '', closeResolve;
+    const closed = new Promise(resolve => { closeResolve = resolve; });
+    child.once('spawn', () => { state.spawned = true; });
+    child.once('error', () => { state.stderr_class = 'spawn_failed'; });
+    child.once('close', (code, signal) => {
+      state.closed = true; state.exit_code = code; state.exit_signal = signal;
+      clearTimeout(timer); closeResolve();
+    });
+    const stop = () => { if (!state.closed) child.kill('SIGTERM'); };
+    const timer = setTimeout(() => { state.limit_reached = true; stop(); }, 12000);
+    child.stdout.on('data', data => {
+      state.stdout_bytes += data.length;
+      if (state.stdout_bytes > 32768) { state.limit_reached = true; pending = ''; stop(); return; }
+      pending += data.toString('utf8');
+      if (pending.length > 4096 && !pending.includes('\n')) { state.limit_reached = true; pending = ''; stop(); return; }
+      let newline;
+      while ((newline = pending.indexOf('\n')) >= 0) {
+        const line = pending.slice(0, newline).replace(/\r$/, ''); pending = pending.slice(newline + 1);
+        const match = line.match(/^\s*([0-9]{2}-[0-9]{2})\s+([0-9:.]+)\s+([0-9]+)\s+([0-9]+)\s+E\s+(ToneGenerator|AudioTrack|AudioSystem|AudioFlinger)\s*:\s*(.*)$/);
+        if (!match || diagnostic.events.length >= 64) continue;
+        // Keep native status numbers and fixed categories, never arbitrary
+        // messages, URLs, intents, device names, paths or exception stacks.
+        const message = match[6].slice(0, 2048);
+        const statuses = [...message.matchAll(/(?:^|[^\w])(-[1-9][0-9]*)(?=$|[^\w])/g)]
+          .map(item => Number(item[1])).filter(Number.isSafeInteger).slice(0, 8);
+        const category = /init(?:Check|ializ|AudioTrack)|initializ/i.test(message) ? 'initialization_error'
+          : /create.*(?:track|output)|(?:track|output).*creat/i.test(message) ? 'creation_error' : 'native_audio_error';
+        diagnostic.events.push({source,uid,tag: match[5],device_date: match[1],device_time: match[2],
+          pid: Number(match[3]),tid: Number(match[4]),received_at_ms: Date.now(),category,negative_statuses: statuses});
+      }
+    });
+    child.stderr.on('data', data => {
+      state.stderr_bytes += data.length;
+      stderrTail = (stderrTail + data.toString('utf8')).slice(-512);
+      if (/permission|not permitted|access denied/i.test(stderrTail)) state.stderr_class = 'permission_denied';
+      else if (/unknown|unrecognized|invalid option|unsupported/i.test(stderrTail)) state.stderr_class = 'unsupported_option';
+      else if (/offline|not found|disconnected|no devices/i.test(stderrTail)) state.stderr_class = 'device_unavailable';
+      else state.stderr_class ||= 'other_stderr';
+      if (state.stderr_bytes > 4096) { state.limit_reached = true; stop(); }
+    });
+    loggers.push(async () => {
+      stop();
+      await Promise.race([closed, delay(1000)]);
+      if (!state.closed) { child.kill('SIGKILL'); await Promise.race([closed, delay(1000)]); }
+      state.cleanup_confirmed = state.closed;
+      if (!state.closed) { child.stdout.destroy(); child.stderr.destroy(); child.unref(); }
+      pending = ''; stderrTail = '';
+    });
+  }
+  return {async close() {
+    const cleanup = await Promise.allSettled(loggers.map(close => close()));
+    diagnostic.cleanup_errors = cleanup.filter(item => item.status === 'rejected').length;
+    diagnostic.finished_at_ms = Date.now();
+    diagnostic.matching_error_events = diagnostic.events.length;
+    diagnostic.available = diagnostic.events.length ? true
+      : diagnostic.loggers.some(item => !item.spawned || item.stderr_class || (item.exit_code !== null && item.exit_code !== 0)) ? false : null;
+    diagnostic.observation = diagnostic.events.length ? 'matching_errors_captured' : 'no_matching_errors_captured_not_proof_of_no_error';
+    return diagnostic.cleanup_errors === 0 && diagnostic.loggers.every(item => item.cleanup_confirmed === true);
+  }};
 }
 function startTone() {
   const child = cp.spawn(adb, ['-s', serial, 'shell', 'am', 'instrument', '-w', '-e', 'action',
@@ -160,6 +259,7 @@ async function main() {
   probe = startAudioProbe(path.resolve(options['--probe']));
   result.probe_pid = probe.pid;
   check((await command('devices')).devices.some(device => device.id === 'pulseaudio:' + SOURCE && device.input), 'CONTROL_CAPTURE_DEVICE_MISSING');
+  nativeLogs = await startNativeLogs();
   result.phase = 'tone_start'; tone = startTone(); result.tone = await tone.ready;
   check(result.tone.tone_duration_ms === 6000 && result.tone.tone_stream === 3 && result.tone.tone_volume_percent === 100
     && result.tone.tone_low_hz === 697 && result.tone.tone_high_hz === 1209
@@ -210,6 +310,11 @@ main().catch(error => {result.status = 'failed'; result.failure_class = error.co
       try { await android(['shell', 'am', 'force-stop', OBSERVER]); } catch {}
       result.status = 'failed'; result.passed = false; process.exitCode = 1;
     }
+  }
+  if (nativeLogs && !await nativeLogs.close()) {
+    result.pre_cleanup_failure_class = result.failure_class || null;
+    result.failure_class = 'CONTROL_NATIVE_LOGGER_CLEANUP_FAILED';
+    result.status = 'failed'; result.passed = false; process.exitCode = 1;
   }
   result.finished_at_ms = Date.now();
   save();
