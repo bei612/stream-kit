@@ -1,0 +1,90 @@
+name: management-live-cli-acceptance
+on:
+  workflow_dispatch:
+    inputs:
+      product_run_id:
+        description: 'Successful owned product run; reuse its exact Linux runtime without rebuilding'
+        type: string
+        required: true
+        default: '42648530658'
+      expected_runtime_commit:
+        description: 'Exact deployed control, gateway, SPA and renderer source to verify'
+        type: string
+        required: true
+        default: 'df7cd87b3352a638aa3a6aa7073d39074c02a43c'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  real-management-cli:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PRODUCT_RUN_ID: ${{ inputs.product_run_id }}
+      EXPECTED_RUNTIME_COMMIT: ${{ inputs.expected_runtime_commit }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.4.0'
+          cache: npm
+          cache-dependency-path: |
+            tools/management-cli/package-lock.json
+            third_party/moonlight-web-stream/package-lock.json
+      - name: Verify and extract the selected production runtime
+        run: |
+          set -euo pipefail
+          [[ "$PRODUCT_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$EXPECTED_RUNTIME_COMMIT" =~ ^[a-f0-9]{40}$ ]]
+          mkdir -p artifacts/input-download
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PRODUCT_RUN_ID" > artifacts/input-download/product-run.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PRODUCT_RUN_ID/jobs?filter=latest&per_page=100" > artifacts/input-download/product-jobs.json
+          commit=$(node scripts/verify-management-live-sources.mjs product-run)
+          gh run download "$PRODUCT_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "linux-product-installer-$commit" --dir artifacts/input-product
+          cp artifacts/input-product/installer/installer-manifest.json artifacts/input-download/
+          cp artifacts/input-product/installer/*-setup.run artifacts/input-download/
+          node scripts/verify-management-live-sources.mjs downloads
+          dpkg-deb -x artifacts/input-download/runtime.deb artifacts/input-runtime
+          node -e "const fs=require('fs'),a=require('assert/strict');a.equal(JSON.parse(fs.readFileSync('artifacts/input-runtime/opt/stream-kit/platform-manifest.json')).commit,process.env.EXPECTED_RUNTIME_COMMIT)"
+      - name: Prepare isolated native capture and pinned official CLI
+        run: |
+          set -euo pipefail
+          mapfile -t dependencies < <(dpkg-deb -f artifacts/input-download/runtime.deb Depends | tr ',' '\n' | sed -E 's/^[[:space:]]*([a-z0-9+.-]+).*/\1/')
+          for dependency in "${dependencies[@]}"; do [[ "$dependency" =~ ^[a-z0-9][a-z0-9+.-]*$ ]]; done
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends "${dependencies[@]}" libx11-dev x11-utils xvfb xauth openbox pulseaudio libnss3-tools
+          artifacts/input-runtime/opt/stream-kit/orchestrator/orchestrator verify-platform artifacts/input-runtime/opt/stream-kit
+          npm ci --prefix third_party/moonlight-web-stream --ignore-scripts --no-audit --no-fund
+          npm ci --prefix tools/management-cli --ignore-scripts --no-audit --no-fund
+          node -e "const a=require('assert/strict'),p=require('./tools/management-cli/node_modules/@playwright/cli/package.json');a.equal(p.version,'0.1.22');a.equal(p.dependencies.playwright,'1.64.0-alpha-1790635538000');a.equal(require('./tools/management-cli/node_modules/playwright/package.json').version,p.dependencies.playwright)"
+          command -v google-chrome
+          google-chrome --version
+          mkdir -p artifacts/input-example
+          cc -std=c11 -O2 -Wall -Wextra -Werror tools/input-acceptance/x11-observer.c -lX11 -o artifacts/input-example/x11-observer
+      - name: Run the existing real management CLI against this isolated deployment
+        timeout-minutes: 7
+        run: bash scripts/ci-management-live-cli.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: management-live-cli-evidence
+          path: |
+            artifacts/management-live-evidence/
+            artifacts/input-download/product-run.json
+            artifacts/input-download/product-jobs.json
+            artifacts/input-download/installer-manifest.json
+            artifacts/source-stream/**/result.json
+            artifacts/source-stream/**/browser/example.log
+            artifacts/source-stream/**/browser/management-live-runner.log
+            artifacts/source-stream/**/browser/management-live/cli.log
+            artifacts/source-stream/**/browser/management-live/.playwright-cli/console-*.log
+            artifacts/source-stream/**/browser/management-live/app-before-launch-*.png
+            artifacts/source-stream/**/browser/management-live/sessions-transfer-*.png
+            artifacts/source-stream/**/browser/management-live/history-*.png
+            artifacts/source-stream/**/browser/management-live/stopped-arguments-*.png
+            artifacts/source-stream/**/browser/management-live/viewer-before-grant.png
+            artifacts/source-stream/**/browser/management-live/viewer-after-transfer.png
+            artifacts/source-stream/**/browser/management-live/viewer-ended.png
+          if-no-files-found: warn
+          retention-days: 14

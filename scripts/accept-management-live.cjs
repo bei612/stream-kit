@@ -46,6 +46,9 @@ async function main() {
   assert.equal(configuration.owned_example, true, 'An explicitly owned Example application is required');
   assert.match(configuration.example_app_id, /^[a-f0-9-]{36}$/i);
   assert.match(configuration.expected_control_commit, /^[a-f0-9]{40}$/);
+  if (configuration.candidate_args !== undefined) {
+    assert.ok(typeof configuration.candidate_args === 'string' && configuration.candidate_args.length <= 4096 && !configuration.candidate_args.includes('\0'), 'candidate_args must be a bounded string without NUL');
+  }
   const cli = regular(path.resolve(configuration.playwright_cli));
   const ca = regular(path.resolve(configuration.ca_cert));
   const state = regular(path.resolve(configuration.auth_storage_state));
@@ -99,7 +102,10 @@ async function main() {
     const identity = new URL(example.stream_url, base);
     const host = Number(identity.searchParams.get('hostId')), app = Number(identity.searchParams.get('appId'));
     assert.ok(host > 0 && app > 0 && app === example.sunshine_app_id, 'Owned Example has no consistent streaming identity');
-    argumentSnapshot = { hostId:host, nativeAppId:app, original:example.args, template:example.args_template || '', candidate:example.args==='--tone-count=1'?'--tone-count=2':'--tone-count=1' };
+    const candidate = configuration.candidate_args === undefined ? (example.args==='--tone-count=1'?'--tone-count=2':'--tone-count=1') : configuration.candidate_args;
+    assert.notEqual(candidate, example.args, 'Candidate arguments must differ from the saved original');
+    protectArguments(candidate);
+    argumentSnapshot = { hostId:host, nativeAppId:app, original:example.args, template:example.args_template || '', candidate };
     const sessions = await api('/stream-sessions');
     assert.ok(!sessions.some(s => s.host_id === host && s.app_id === app && Object.values(s.connections).some(c => c.state === 'connected' && Date.parse(c.expires_at) > Date.now())), 'Example already has viewers');
     report.preflight = { control_commit: health.commit, app_status: example.status, other_active_apps: 0 };

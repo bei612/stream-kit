@@ -24,6 +24,17 @@ const argument = name => {
 const gatewayBinary = argument('--gateway');
 const orchestratorBinary = argument('--orchestrator');
 const runtimeConfig = argument('--runtime-config');
+const managementLiveCLI = process.argv.includes('--management-live-cli') ? fs.realpathSync(argument('--management-live-cli')) : null;
+const expectedControlCommit = process.argv.includes('--expected-control-commit') ? process.argv[process.argv.indexOf('--expected-control-commit')+1] : null;
+if (managementLiveCLI) {
+  const allowed = new Set(['--gateway','--orchestrator','--runtime-config','--scratch','--output-dir','--example','--web-assets','--tls-dir','--management-live-cli','--expected-control-commit','--clients','--hold-seconds']);
+  assert.equal(process.platform, 'linux', 'Isolated management CLI mode requires Linux');
+  assert.equal(engine, 'chromium', 'The existing management CLI uses Chrome');
+  for (let i=2;i<process.argv.length;i+=2) assert.ok(allowed.has(process.argv[i]) && process.argv[i+1] && !process.argv[i+1].startsWith('--'), 'Management CLI mode cannot combine other acceptance cases');
+  assert.ok(fs.lstatSync(managementLiveCLI).isFile(), 'Expected the real official CLI entry point');
+  assert.match(expectedControlCommit ?? '', /^[a-f0-9]{40}$/);
+  argument('--web-assets');
+}
 const webAssets = process.argv.includes('--web-assets') ? argument('--web-assets') : path.join(root, 'third_party/moonlight-web-stream/dist');
 for (const file of ['stream.html', 'stream.js', 'index.html']) {
   assert.ok(fs.statSync(path.join(webAssets, file)).isFile(), `Missing built viewer asset: ${file}`);
@@ -36,7 +47,7 @@ const androidSerial = process.argv.includes('--android-serial') ? process.argv[p
 const tlsDirectory = process.argv.includes('--tls-dir') ? argument('--tls-dir') : null;
 const androidAdb = process.argv.includes('--android-adb') ? argument('--android-adb') : 'adb';
 const exampleOutput = process.argv.includes('--example-output') ? process.argv[process.argv.indexOf('--example-output') + 1] : null;
-assert.ok(!applicationExample || verifyInput || verifyNativeExit || exampleOutput, 'Audio application acceptance requires an explicit example output device');
+assert.ok(!applicationExample || verifyInput || verifyNativeExit || managementLiveCLI || exampleOutput, 'Audio application acceptance requires an explicit example output device');
 const numericOption = (name, fallback) => process.argv.includes(name) ? Number(process.argv[process.argv.indexOf(name) + 1]) : fallback;
 const clientCount = numericOption('--clients', 2);
 const holdSeconds = numericOption('--hold-seconds', 5);
@@ -101,6 +112,7 @@ assert.ok(!verifyInput || (['win32','linux'].includes(process.platform) && appli
 assert.ok(!androidSerial || ((verifyInput || androidAudio) && tlsDirectory), 'Android acceptance requires trusted native HTTPS and an explicit mode');
 assert.ok(!androidAudio || (androidSerial && !verifyInput && !microphoneTest && targetRecording && applicationExample && holdSeconds === 0 && clientCount === 2 && process.platform === 'linux' && !restartServices && !serviceControl && !targetSwitch && !remoteTarget && !stopActive && !applyManagedEncoder && !applyManagedGateway && !expireClientLease && !ue5Build && !process.argv.includes('--edit-gateway-configuration') && !process.argv.includes('--edit-encoder-configuration')), 'Android audio requires an isolated Linux target/recorder, two clients, and no other input, microphone, configuration or recovery case');
 assert.ok(!verifyNativeExit || (process.platform === 'linux' && applicationExample && !verifyInput && !androidSerial && !microphoneTest && !targetRecording && !restartServices && !serviceControl && !targetSwitch && !remoteTarget && !stopActive && !applyManagedEncoder && !applyManagedGateway && !expireClientLease && !ue5Build && clientCount === 2 && holdSeconds === 0 && !process.argv.includes('--edit-gateway-configuration') && !process.argv.includes('--edit-encoder-configuration')), 'Native exit requires an isolated Linux X11 target, two real Web viewers, and no other acceptance modes');
+assert.ok(!managementLiveCLI || (applicationExample && tlsDirectory && clientCount===2 && holdSeconds===0), 'Management CLI mode requires its owned X11 application, trusted TLS, two viewers and no hold test');
 assert.ok(programToneCount<=30000,'Example tone budget must cover startup and the full hold interval');
 const scratch = process.argv.includes('--scratch') ? argument('--scratch') : path.join(root, '.local/managed-acceptance');
 const output = process.argv.includes('--output-dir') ? argument('--output-dir') : path.join(root, 'artifacts/managed-acceptance', new Date().toISOString().replace(/[:.]/g, '-'));
@@ -114,10 +126,11 @@ const result = { passed: false, status: 'running', browser_engine: engine, clien
 const save = () => fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(result, null, 2));
 if (applicationExample) {
   result.scope = 'Source-built application capture through native Sunshine, shared gateway and real browsers, including program tone and scoped stop. No physical microphone, target recording or Linux capture claim.';
-  if (!verifyInput && !verifyNativeExit) result.program_tone_count = programToneCount;
+  if (!verifyInput && !verifyNativeExit && !managementLiveCLI) result.program_tone_count = programToneCount;
 }
 if (verifyInput) result.scope = 'Actual Web keyboard/pointer input into the owned native Example and transfer/revocation; no repeated audio or stability acceptance, no Android claim.';
 if (verifyNativeExit) result.scope = 'Verified owned X11 window exits normally while real Web viewers are connected; native instance observation, generation termination and unexpired credential revocation. No Android/input/audio or fault-injection matrix.';
+if (managementLiveCLI) result.scope = 'Existing playwright-cli management acceptance against isolated verified Linux services and production SPA; no local Windows deployment, Android, input, audio or stability acceptance.';
 if (androidSerial) result.scope = 'Actual published Android/Web input into an isolated native target over trusted HTTPS; no repeated audio/stability or physical-device claim.';
 if (targetRecording) result.scope = 'Real browser test microphone uplink, shared broadcast and explicit target input recording with authorization/revocation checks requested; completion is recorded separately. No UE5, physical microphone or Linux capture claim.';
 if (androidAudio) result.scope = 'Published Android default microphone via official emulator input injection, isolated native playout and target recording, real Web observer and runtime authorization/revocation; synthetic source, not physical speech';
@@ -277,6 +290,12 @@ async function main() {
     result.remote_target = {node_id:'recording-target',transport:'loopback WebSocket between separate native gateway processes',binary_sha256:sha(gatewayBinary)};
   }
   fs.mkdirSync(path.dirname(controlConfigFile),{recursive:true});
+  if(managementLiveCLI){
+    const managementAssets=path.join(path.dirname(orchestratorBinary),'dist');
+    assert.ok(fs.statSync(path.join(managementAssets,'index.html')).isFile(),'Runtime management SPA is missing');
+    result.management_assets_source=managementAssets;
+    result.management_assets_sha256=Object.fromEntries(fs.readdirSync(path.join(managementAssets,'assets')).map(name=>[name,sha(path.join(managementAssets,'assets',name))]));
+  }
   if(process.argv.includes('--edit-gateway-configuration')||process.argv.includes('--edit-encoder-configuration')) {
     fs.cpSync(path.join(root,'orchestrator/web/dist'),path.join(scratch,'control/dist'),{recursive:true});
     result.management_assets_sha256=Object.fromEntries(fs.readdirSync(path.join(scratch,'control/dist/assets')).map(name=>[name,sha(path.join(scratch,'control/dist/assets',name))]));
@@ -335,17 +354,16 @@ async function main() {
   let cookie = await gatewayLogin();
   const native = (resource, method = 'GET', body) => json(gateway + '/api' + resource, {
     method, headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
-  if(androidSerial){
-    // Web acceptance already requests 720p30. Give the first Android subscriber
-    // the same ordinary server profile: a software-only CI renderer must not
-    // accidentally start a 1080p60 upstream before the Web participant joins.
+  if(androidSerial || managementLiveCLI){
+    // Use the ordinary saved server profile for native/CLI subscribers as well
+    // as direct Web viewers; keep this software-only isolated renderer at 720p30.
     const {id}=await native('/role/default');
     const {role}=await native(`/role?id=${id}`);
     const settings={...role.default_settings,videoSize:'720p',fps:30,bitrate:8000,videoCodec:'h264'};
     const changed=await fetch(gateway+'/api/role',{method:'PATCH',headers:{Cookie:cookie,'Content-Type':'application/json'},body:JSON.stringify({id,ty:role.ty,default_settings:settings})});
-    assert.equal(changed.status,200,'Cannot configure isolated input media profile');
+    assert.equal(changed.status,200,'Cannot configure isolated media profile');
     assert.deepEqual((await native(`/role?id=${id}`)).role.default_settings,settings);
-    result.input_media_profile={videoSize:'720p',fps:30,bitrate:8000,videoCodec:'h264'};save();
+    result[managementLiveCLI?'management_media_profile':'input_media_profile']={videoSize:'720p',fps:30,bitrate:8000,videoCodec:'h264'};save();
   }
   const known = await fetch(gateway + '/api/hosts', { headers: { Cookie: cookie } });
   assert.equal(known.status, 200);
@@ -394,9 +412,9 @@ async function main() {
   };
   let ownedApp;
   if (applicationExample) {
-    if (!verifyInput && !verifyNativeExit) assert.ok(!exampleOutput.includes('"') && !/[\r\n]/.test(exampleOutput), 'Invalid output device name');
+    if (!verifyInput && !verifyNativeExit && !managementLiveCLI) assert.ok(!exampleOutput.includes('"') && !/[\r\n]/.test(exampleOutput), 'Invalid output device name');
     ownedApp = await api('/apps/local', 'POST', { name: 'Source capture acceptance', exe_path: applicationExample,
-      capture_mode: 'application', args: verifyInput || verifyNativeExit ? '--input-events -fullscreen' : `"--tone-output=${exampleOutput}" --tone-count=${programToneCount}` });
+      capture_mode: 'application', args: verifyInput || verifyNativeExit || managementLiveCLI ? '--input-events -fullscreen' : `"--tone-output=${exampleOutput}" --tone-count=${programToneCount}` });
     assert.equal(ownedApp.status, 'ready');
     assert.ok(ownedApp.sunshine_app_id > 0);
     result.application = { id: ownedApp.id, native_id: ownedApp.sunshine_app_id, capture_mode: ownedApp.capture_mode, example_sha256: sha(applicationExample) };
@@ -422,6 +440,31 @@ async function main() {
     }
     throw new Error('Sunshine did not return to its initial idle state');
   };
+  if (managementLiveCLI) {
+    // Register only the permanent entry. The existing CLI owns all launch,
+    // admission, viewer and UI assertions; no browser is opened by this harness.
+    const watch = await api(`/apps/${ownedApp.id}/watch-link`, 'POST');
+    assert.equal(watch.enabled, true);
+    const stateFile=path.join(scratch,'management-cli-storage-state.json');
+    const privateConfig=path.join(scratch,'management-cli-private.json');
+    const cliOutput=path.join(output,'management-live');
+    assert.ok(!fs.existsSync(cliOutput),'Management CLI evidence must be new');
+    fs.writeFileSync(stateFile,JSON.stringify({cookies:[],origins:[{origin:control,localStorage:[{name:'auth_token',value:login.data.token}]}]}),{mode:0o600});
+    fs.writeFileSync(privateConfig,JSON.stringify({base:control,ca_cert:path.join(tlsDirectory,'ca.crt'),auth_storage_state:stateFile,playwright_cli:managementLiveCLI,owned_example:true,example_app_id:ownedApp.id,expected_control_commit:expectedControlCommit,candidate_args:'',output:cliOutput}),{mode:0o600});
+    const cli=launch(process.execPath,[path.join(__dirname,'accept-management-live.cjs'),'--config',privateConfig,'--execute'],'management-live-runner');
+    const [code]=await cli.exited;
+    const reportFile=path.join(cliOutput,'result.json');
+    if(fs.existsSync(reportFile))result.management_live=JSON.parse(fs.readFileSync(reportFile,'utf8'));
+    save();
+    assert.equal(code,0,'Real management CLI acceptance failed; inspect its sanitized evidence');
+    assert.equal(result.management_live?.passed,true);
+    assert.equal(result.management_live.expected_control_commit,expectedControlCommit);
+    assert.equal(result.management_live.example_app_id,ownedApp.id);
+    result.gateway_sha256=sha(gatewayBinary);
+    result.orchestrator_sha256=sha(orchestratorBinary);
+    result.passed=true;
+    return; // Common renderer/process cleanup remains the only cleanup owner.
+  }
   const invite = await api('/stream-invitations', 'POST', { host_id: host.host_id, app_id: desktop.app_id });
   if(androidSerial){
     const watch=await api(`/apps/${ownedApp.id}/watch-link`,'POST');assert.ok(watch.enabled);

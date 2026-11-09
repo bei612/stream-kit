@@ -1,0 +1,9 @@
+{
+  "name": "stream-kit-management-cli-acceptance",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pinned development-only CLI for real isolated management deployment acceptance",
+  "dependencies": {
+    "@playwright/cli": "0.1.22"
+  }
+}

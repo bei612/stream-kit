@@ -11,7 +11,20 @@ const encoder = path.resolve(option('--sunshine')), gateway = path.resolve(optio
 const control = path.resolve(option('--orchestrator')), example = path.resolve(option('--example'));
 const verifyInput = process.argv.includes('--verify-input');
 const verifyNativeExit = process.argv.includes('--verify-native-exit');
-const outputDevice = verifyInput || verifyNativeExit ? null : option('--example-output');
+const managementLiveCLI = process.argv.includes('--management-live-cli');
+if (managementLiveCLI) {
+  const allowed = new Set(['--sunshine','--gateway','--orchestrator','--example','--web-assets','--tls-dir','--management-live-cli','--expected-control-commit','--clients','--hold-seconds']);
+  assert.equal(process.platform, 'linux', 'Isolated management CLI mode requires Linux');
+  assert.equal(process.env.BROWSER_ENGINE || 'chromium', 'chromium', 'The existing management CLI uses Chrome');
+  for (let i=2;i<process.argv.length;i+=2) assert.ok(allowed.has(process.argv[i]) && process.argv[i+1] && !process.argv[i+1].startsWith('--'), 'Management CLI mode cannot combine other acceptance cases');
+  assert.match(option('--expected-control-commit'), /^[a-f0-9]{40}$/);
+  option('--tls-dir');
+  option('--web-assets');
+  assert.equal(Number(option('--clients')), 2);
+  assert.equal(Number(option('--hold-seconds')), 0);
+  assert.ok(fs.lstatSync(fs.realpathSync(option('--management-live-cli'))).isFile());
+}
+const outputDevice = verifyInput || verifyNativeExit || managementLiveCLI ? null : option('--example-output');
 const serviceControl=process.argv.includes('--service-control');
 const managedEncoder=process.argv.includes('--apply-managed-encoder')||serviceControl;
 assert.ok(!managedEncoder||serviceControl||process.argv.includes('--edit-encoder-configuration'),'Managed encoder apply requires configuration editing');
@@ -23,6 +36,7 @@ fs.mkdirSync(output, { recursive:true });
 const sha = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 const result = { passed:false, scope:'Source-built Sunshine program capture, shared native gateway and browser acceptance',
   encoder_sha256:sha(encoder), gateway_sha256:sha(gateway), control_sha256:sha(control), example_sha256:sha(example), scratch };
+if (managementLiveCLI) result.scope = 'Isolated Linux deployment of verified runtime artifacts; existing playwright-cli management acceptance only. No local Windows deployment, input, audio or stability acceptance.';
 const credentials = { username:'isolated-acceptance', password:crypto.randomBytes(32).toString('base64url') };
 let child, exited, base;
 async function ports() {
@@ -99,7 +113,7 @@ async function main() {
     '--runtime-config',runtime,'--scratch',path.join(scratch,'media'),'--output-dir',path.join(output,'browser'),'--example',example,
     ...(outputDevice ? ['--example-output',outputDevice] : []),
     ...['--verify-input','--verify-native-exit','--android-audio','--microphone-tone','--service-control','--remote-target','--target-switch','--stop-active','--delete-active','--restart-services','--expire-client-lease','--edit-gateway-configuration','--edit-encoder-configuration','--edit-vulkan','--apply-managed-gateway','--apply-managed-encoder'].filter(flag => process.argv.includes(flag)),
-    ...['--android-serial','--android-adb','--android-grpc-config','--tls-dir','--web-assets','--audio-probe','--target-render-device','--target-capture-device','--virtual-audio-identity','--ue5-editor','--ue5-project','--clients','--hold-seconds','--microphone-source','--physical-device-label'].flatMap(flag=>process.argv.includes(flag)?[flag,option(flag)]:[])],
+    ...['--android-serial','--android-adb','--android-grpc-config','--tls-dir','--web-assets','--audio-probe','--target-render-device','--target-capture-device','--virtual-audio-identity','--ue5-editor','--ue5-project','--clients','--hold-seconds','--microphone-source','--physical-device-label','--management-live-cli','--expected-control-commit'].flatMap(flag=>process.argv.includes(flag)?[flag,option(flag)]:[])],
     {cwd:root,windowsHide:true,stdio:['ignore',fd2,fd2]}); fs.closeSync(fd2);
   const [code]=await once(probe,'exit');
   assert.equal(code,0,'Program browser acceptance failed; inspect acceptance.log');
@@ -107,6 +121,7 @@ async function main() {
   const browserResult = JSON.parse(fs.readFileSync(path.join(output,'browser/result.json'),'utf8'));
   assert.equal(browserResult.passed,true);
   if (verifyNativeExit) { assert.equal(browserResult.native_exit?.passed, true); result.native_exit = browserResult.native_exit; }
+  if (managementLiveCLI) { assert.equal(browserResult.management_live?.passed, true); result.management_live = browserResult.management_live; }
   result.browser_engine=browserResult.browser_engine;
   result.browser=browserResult.browser;
   if(serviceControl){assert.equal(browserResult.service_control?.identity,'LocalSystem');assert.equal(browserResult.service_cleanup?.passed,true);result.service_control=browserResult.service_control;}
