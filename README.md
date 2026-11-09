@@ -4,7 +4,9 @@ Stream-Kit 将管理服务、Sunshine 渲染端和 Moonlight Web 媒体网关集
 
 服务端支持 Windows/Linux，客户端提供 Web/PWA 和 Android 原生 App。手机和平板也可直接使用浏览器；浏览器采集麦克风需要安全上下文和用户授权。当前发布渠道为预发布，不能把构建成功视为全部生产验收完成。
 
-基于官方 Moonlight Android 源码二开的 [Android 签名 APK 20261109.1](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261109.1) 已发布并安装到 Android 13 实体平板。本版补入可收起工具栏、键盘、鼠标/触屏模式和设置，移除常驻底栏；19 项 JVM 测试与 36 项权限/链接协议检查通过，见[本版证据](docs/evidence/android-viewer-controls-20261109.json)和[操作说明](docs/android-viewer-controls.md)。本机可信 LAN HTTPS 已部署；原 Windows 目标输入问题尚不能宣布完全解决，各版本的音频、输入、重连证据保留对应范围。App 要求受信任的 HTTPS 观看链接。IP 变更后仅改配置且无需重装客户端证书的新增要求正在补齐，见[当前 Goal](docs/goal-current.md)。
+基于官方 Moonlight Android 源码二开的 [Android 签名 APK 20261109.2](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261109.2) 已发布，使用原项目签名覆盖安装到实体平板与官方模拟器。本版保留可收起工具栏、键盘、鼠标/触屏模式和设置，补充常显“控制者 / 仅观看”身份、权限提示与服务器地址修改入口。平板、模拟器和 Web 同时接入 Example，依次交接及释放控制权，两端原生身份显示正确，见[三端实际检查记录](docs/evidence/android-exclusive-control-20261109.json)和[操作说明](docs/android-viewer-controls.md)。这些结果不代表 Windows 目标程序输入及物理麦克风全链路已完成新验收。
+
+本机管理服务与网关仍安装源码 `47c02726`；可信 LAN HTTPS 已部署。新源码已包含原 CA 下配置式服务证书更新、当前/历史会话分离、7 天/100 条历史上限，以及管理端与 Web 权限界面调整；统一安装包正在构建，尚未部署这些服务端改动。不能以源码页面预览代替真实页面验收。地址配置与验证边界见[局域网地址配置](docs/lan-address-configuration.md)，剩余交付范围见[当前 Goal](docs/goal-current.md)。
 
 ## 安装与访问
 
