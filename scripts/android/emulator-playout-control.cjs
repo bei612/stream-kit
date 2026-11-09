@@ -71,18 +71,31 @@ async function pa(requireWriter) {
 async function af() {
   const pid = result.tone.tone_process_id, session = result.tone.tone_session_id;
   const unknown = reason => ({at_ms: Date.now(),process_id: pid,session_id: session,
-    available: false,reason,track_count: null,active_track_count: null});
+    available: false,reason,track_count: null,active_track_count: null,
+    underrun_frames: {status: 'unknown',tracks: []}});
   let dump;
   try { dump = await android(['shell', 'dumpsys', 'media.audio_flinger']); }
   catch { return unknown('af_command_unavailable'); }
   if (!dump.split('\n').some(line => line.includes('Client(pid/uid)') && line.includes('Session') && line.includes('Active')))
     return unknown('af_schema_unrecognized');
-  const rows = dump.split('\n').map(line => line.match(/\b(yes|no)\s+([0-9]+)\s*\/\s*([0-9]+)\s+([0-9]+)(?:\s|$)/)).filter(Boolean);
+  const rows = dump.split('\n').map(line => ({line,
+    identity: line.match(/\b(yes|no)\s+([0-9]+)\s*\/\s*([0-9]+)\s+([0-9]+)(?:\s|$)/)})).filter(row => row.identity);
   if (!rows.length) return unknown('af_rows_unavailable');
-  const owned = rows.filter(row => Number(row[2]) === pid && Number(row[4]) === session);
+  const owned = rows.filter(row => Number(row.identity[2]) === pid && Number(row.identity[4]) === session);
+  // Android 16 Track::appendDump labels this cumulative frame count Underruns.
+  // Require its known trailing columns; never interpret another numeric column.
+  const header = /FrmRdy\s+F\s+Underruns\s+Flushed\s+BitPerfect\s+InternalMute/.test(dump);
+  const underruns = owned.map(({line, identity}) => {
+    const id = /(?:^|\s)([0-9]+)\s*$/.exec(line.slice(0, identity.index));
+    const tail = header && /\s[IfFA?]\s+([0-9]+)[<*?]?\s+[0-9]+\s+(?:true|false)\s+(?:true|false)(?:\s|$)/.exec(line);
+    return {track_id: id ? Number(id[1]) : null, active: identity[1] === 'yes',
+      frames: id && tail && Number.isSafeInteger(Number(tail[1])) ? Number(tail[1]) : null};
+  });
   return {at_ms: Date.now(),process_id: pid,session_id: session,available: true,
     basis: 'recognized_client_session_rows',track_count: owned.length,
-    active_track_count: owned.filter(row => row[1] === 'yes').length};
+    active_track_count: owned.filter(row => row.identity[1] === 'yes').length,
+    underrun_frames: {status: underruns.length && underruns.every(row => row.frames !== null) ? 'observed' : 'unknown',
+      tracks: underruns}};
 }
 // Exact Android 16 native error templates; field names follow source arguments.
 // Unknown messages retain only unnamed negative values, never inferred errno.
@@ -340,6 +353,25 @@ async function main() {
     && result.capture_finished_at_ms - started <= LIMIT_MS, 'CONTROL_CAPTURE_WINDOW_INVALID');
   result.signals = [];
   for (const frequency_hz of FREQUENCIES) result.signals.push(await command('analyze', {frequency_hz}));
+  // Existing probe diagnostics retain 10 ms RMS after a fixed 997 Hz Q=25
+  // notch. Aggregate equal-length windows to 100 ms without exporting PCM.
+  // This is diagnostic only and never replaces either target-tone threshold.
+  result.capture_envelope = {status: 'unknown',reason: 'envelope_unavailable'};
+  try {
+    const envelope = await command('envelope');
+    check(envelope.sample_rate === RATE && envelope.window_frames === 480 && envelope.notch_hz === 997
+      && Array.isArray(envelope.rms) && envelope.rms.length >= 400 && envelope.rms.length <= 1000
+      && envelope.rms.every(value => Number.isFinite(value) && value >= 0), 'CONTROL_ENVELOPE_INVALID');
+    const rms = [];
+    for (let offset = 0; offset + 10 <= envelope.rms.length; offset += 10) {
+      rms.push(Math.sqrt(envelope.rms.slice(offset, offset + 10).reduce((sum, value) => sum + value * value, 0) / 10));
+    }
+    result.capture_envelope = {status: 'observed',diagnostic_only: true,
+      sample_rate: RATE,source_window_frames: 480,window_frames: 4800,
+      first_frame: 0,analyzed_frames: rms.length * 4800,notch_hz: 997,notch_q: 25,rms,
+      capture_started_at_ms: result.capture_started_at_ms,capture_finished_at_ms: result.capture_finished_at_ms,
+      clock_boundary: 'Window i covers recording frames [i*4800,(i+1)*4800); host capture times do not establish physical tone onset.'};
+  } catch { /* Missing optional diagnostics cannot change the acoustic verdict. */ }
   result.tone_completion = await tone.done;
   result.clock_boundary = 'Capture starts after host receipt of tone_started and finishes before host observes instrumentation completion. Host timestamps and device elapsedRealtime are separate clocks; neither establishes the physical tone onset.';
   check(result.tone_completion.code === 0 && !result.tone_completion.signal && !result.tone_completion.timed_out
