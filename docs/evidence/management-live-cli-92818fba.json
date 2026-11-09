@@ -1,0 +1,289 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-10",
+  "passed": true,
+  "runtime_commit": "92818fba2e0970bbe407be5450c24522625ee7b4",
+  "acceptance_commit": "f348f918f36f809f651ebeb525546ccf8485596d",
+  "acceptance_run": "https://github.com/bei612/stream-kit/actions/runs/42670620703",
+  "environment": "Isolated GitHub-hosted Ubuntu 24.04 deployment with trusted temporary TLS, native Sunshine/X11 owned visual Example and official playwright-cli",
+  "playwright_cli": "0.1.22",
+  "scope": "Existing real playwright-cli management acceptance against an isolated Linux deployment of verified production runtime; no local Windows, native-exit, Android, audio, target-input or stability acceptance",
+  "excluded_scope": [
+    "Local Windows installation or service maintenance",
+    "Android native client",
+    "Audio or physical microphone transmission",
+    "Actual target keyboard/mouse delivery",
+    "IP changes or whole-system reboot",
+    "Long-running stability"
+  ],
+  "source": {
+    "product_run_id": 42664613109,
+    "linux_job_id": 129324829558,
+    "parent_run_at_source_sampling": {
+      "status": "in_progress",
+      "conclusion": null
+    },
+    "parent_run_sampling_note": "The actual recorded in-progress/null source snapshot is preserved. The completed successful Linux job, matching run/head identity and installer/payload bytes were verified before execution; later overall product success is a separate result below.",
+    "installer_sha256": "f99950090c34fc400b63433e53f7e720d683737526e2e8ef1b44287b694fd56d",
+    "payload_sha256": "3a7b7d8f1caa5a58343bf71a790fe7bebebeb23c25d26473683cc65ec5bb5dd2",
+    "runtime_rebuilt": false,
+    "gateway_sha256": "70fb3f39006cb2871595b28f1884cdee1509d392a0a74da9017b9dcb6f60b39b",
+    "orchestrator_sha256": "58f0f4f95ec2f303b6d12bc1190edb2a8f3b2ec8006c7cc83dd51751ee2844dd",
+    "renderer_sha256": "888d1f30d7e5b1c3da24fcb095d2bb21b0908548e8f5882deec485df402ed468",
+    "owned_example_sha256": "e59f3c4e34c1e7f501462d8ca72d7747a401e10abba8d0f70a7d2579e2afde9f",
+    "gateway_assets_source": "Original verified Linux runtime media-gateway/dist",
+    "management_assets_source": "Original verified Linux runtime orchestrator/dist"
+  },
+  "preflight": {
+    "exact_control_commit": "92818fba2e0970bbe407be5450c24522625ee7b4",
+    "owned_application_status": "ready",
+    "other_active_applications": 0
+  },
+  "checks": [
+    "trusted HTTPS and exact deployed control commit",
+    "permanent link visible before launch",
+    "real Example launch and two decoded WebRTC viewers",
+    "UI grant, transfer and revoke with server authority checks",
+    "viewer permission projection",
+    "Example stop; UI argument edit/save and original argument restoration with actual API agreement; read-only history",
+    "desktop/mobile screenshots and console errors"
+  ],
+  "decoded_video_metrics": [
+    {
+      "viewer": "first",
+      "samples": [
+        {
+          "bytes": 101034,
+          "frames": 12
+        },
+        {
+          "bytes": 153349,
+          "frames": 27
+        }
+      ]
+    },
+    {
+      "viewer": "second",
+      "samples": [
+        {
+          "bytes": 31277,
+          "frames": 2
+        },
+        {
+          "bytes": 127440,
+          "frames": 18
+        }
+      ]
+    }
+  ],
+  "metadata_options": [
+    {
+      "viewer": 1,
+      "resource_type": "fetch",
+      "status": 200,
+      "content_length": 0,
+      "transfer_encoding": "absent"
+    },
+    {
+      "viewer": 2,
+      "resource_type": "fetch",
+      "status": 200,
+      "content_length": 0,
+      "transfer_encoding": "absent"
+    }
+  ],
+  "lifecycle": {
+    "stopped_viewers": {
+      "1": {
+        "original_frame_present": true,
+        "frames": [
+          {
+            "original": true,
+            "peers": [
+              "closed"
+            ],
+            "ended": true,
+            "verified": false,
+            "control": false,
+            "microphone": false
+          }
+        ]
+      },
+      "2": {
+        "original_frame_present": true,
+        "frames": [
+          {
+            "original": true,
+            "peers": [
+              "closed"
+            ],
+            "ended": true,
+            "verified": false,
+            "control": false,
+            "microphone": false
+          }
+        ]
+      }
+    },
+    "pending_viewer_api_requests": 0,
+    "terminal_followup_request_count": 0,
+    "network_failure_count": 0,
+    "raw_console_error_count": 2,
+    "unexpected_console_error_count": 0,
+    "http_failures": [
+      {
+        "viewer": 1,
+        "method": "POST",
+        "status": 410,
+        "code": "CONNECTION_TERMINATED",
+        "classification": "terminal_heartbeat"
+      },
+      {
+        "viewer": 2,
+        "method": "POST",
+        "status": 410,
+        "code": "CONNECTION_TERMINATED",
+        "classification": "terminal_heartbeat"
+      }
+    ],
+    "expected_http_scope": "Only the first in-flight heartbeat rejection for each owned connection was classified as CONNECTION_TERMINATED. No errors were converted to success, and all API network failures remained a failing gate.",
+    "stopped_argument_edit": {
+      "saved_via_ui": true,
+      "restored_via_ui": true,
+      "api_ui_agreement": true
+    },
+    "argument_restoration": {
+      "values_in_evidence": false,
+      "args_restored": true,
+      "idle_state_confirmed": true
+    },
+    "owned_renderer_restored_idle": true
+  },
+  "screenshot_review": {
+    "reviewed": true,
+    "count": 11,
+    "secret_watch_link_and_argument_fields_masked": true,
+    "observations": [
+      "Owned checkerboard and moving rectangle visible in the controller frame",
+      "Controller/viewer identity and transfer actions visible",
+      "Ended badge accompanied by actual closed RTC and revoked authority",
+      "Chinese text rendered through Noto Sans CJK SC",
+      "Desktop and narrow management layouts captured before launch, during transfer and in read-only ended history"
+    ],
+    "remaining_review_items": [
+      {
+        "image": "viewer-ended.png",
+        "issue": "The previous revocation notification briefly remains visible with viewer-only wording after the ended badge is shown. Notification wording/lifetime needs UX review; actual ended state, closed RTC and revoked authority passed."
+      },
+      {
+        "image": "viewer-before-grant.png",
+        "issue": "A startup modal contains the upstream received data channel with label: moonlight.control message and Show Logs/Close controls. The same run subsequently decoded advancing video and passed authority transitions; startup notification presentation needs UX review."
+      },
+      {
+        "image": "history-mobile.png",
+        "issue": "The narrow history table requires horizontal scrolling for all columns; the static screenshot does not show every column simultaneously."
+      }
+    ],
+    "files": [
+      {
+        "file": "source-stream/2026-11-09T18-05-00-793Z/browser/management-live/app-before-launch-desktop.png",
+        "sha256": "a0e82e8596bf8f28a4d174ee133c6da1858f6ca7ba99ada8f66fe5fff5846c4d"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-05-00-793Z/browser/management-live/app-before-launch-mobile.png",
+        "sha256": "d8cf56f42ad41593f84b710bb324deb848632b58bfe209fc90f287f7417099f8"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-05-00-793Z/browser/management-live/history-desktop.png",
+        "sha256": "9901cb49bea9def7ac360e0ede21c623b9e740951ef3d2ea4fbecd1ef143aa49"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-05-00-793Z/browser/management-live/history-mobile.png",
+        "sha256": "7b27c20b91da842687b59bbd46036cb1177bef9ca2a7ed4e3280aa1666177442"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-05-00-793Z/browser/management-live/sessions-transfer-desktop.png",
+        "sha256": "63d46b05270da8a60aa88a51a99390b6fb732be480f4eec5e39d03721b58bb28"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-05-00-793Z/browser/management-live/sessions-transfer-mobile.png",
+        "sha256": "bba58c539f2e32618c8c1a3bdad9c5e261397fdb9723be07db45c8ccc75bbce1"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-05-00-793Z/browser/management-live/stopped-arguments-restored.png",
+        "sha256": "3c3b7c1c4a5cdf31e667a546290d7e9f46293892a9bb718301ad18cdb1264541"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-05-00-793Z/browser/management-live/stopped-arguments-saved.png",
+        "sha256": "3c3b7c1c4a5cdf31e667a546290d7e9f46293892a9bb718301ad18cdb1264541"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-05-00-793Z/browser/management-live/viewer-after-transfer.png",
+        "sha256": "ba31b7532da8d03a379c4e9b39fee53864df3317f9b270f45e4de50c43e4f3b7"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-05-00-793Z/browser/management-live/viewer-before-grant.png",
+        "sha256": "5a8aff22a99e831d7ceed3dd9ce0a710b84a119169f4cfa9feeec03c9d209fc8"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-05-00-793Z/browser/management-live/viewer-ended.png",
+        "sha256": "c8b1fec9f9ec6bf44a102c34491e38a38d8cf3d4d193215e0787da6ac9c81090"
+      }
+    ]
+  },
+  "artifact": {
+    "name": "management-live-cli-evidence",
+    "files": [
+      {
+        "file": "management-live-evidence/provenance.json",
+        "sha256": "3ed042fa2aebc9ffadb09ed98b029655ef4bff62d22578a0c19a5f822daac5a2"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-05-00-793Z/browser/management-live/result.json",
+        "sha256": "74f891821bafd3b03f8c6cc6c9b2f407ed2a72f1d83965a4e970fe6668f82d9e"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-05-00-793Z/browser/management-live/cli.log",
+        "sha256": "c415e28df03d3401ecb4ceb3eade8d6599fd58a71d2cce174af342cf04617554"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-05-00-793Z/browser/result.json",
+        "sha256": "4ee997608e9afed295e4b035ce4cb92f151e99ee373e3e522d86ab811d87f032"
+      },
+      {
+        "file": "source-stream/2026-11-09T18-05-00-793Z/result.json",
+        "sha256": "5fd465fe02d5fedea0fc17df60f5bad0ae2e28b0f9559402202fab5c26dce7cd"
+      }
+    ],
+    "privacy": "This receipt excludes deployment addresses, session/connection/application IDs, watch keys, request/response bodies, SDP and credentials. Referenced screenshots mask link and argument fields."
+  },
+  "related_results": [
+    {
+      "run": "https://github.com/bei612/stream-kit/actions/runs/42664556318",
+      "source_commit": "92818fba2e0970bbe407be5450c24522625ee7b4",
+      "conclusion": "success",
+      "scope": "Six source CI jobs: management Web, Windows/Linux control, Windows/Linux media gateway and source SBOM; separate from this real deployment acceptance."
+    },
+    {
+      "run": "https://github.com/bei612/stream-kit/actions/runs/42664613109",
+      "source_commit": "92818fba2e0970bbe407be5450c24522625ee7b4",
+      "conclusion": "success",
+      "scope": "Same-source Windows/Linux unified product builds and source SBOM; not a local installation or full-media acceptance."
+    }
+  ],
+  "prior_runs_retained": [
+    {
+      "run": "https://github.com/bei612/stream-kit/actions/runs/42660073016",
+      "runtime_commit": "df7cd87b3352a638aa3a6aa7073d39074c02a43c",
+      "conclusion": "failure"
+    },
+    {
+      "run": "https://github.com/bei612/stream-kit/actions/runs/42662448623",
+      "runtime_commit": "df7cd87b3352a638aa3a6aa7073d39074c02a43c",
+      "conclusion": "failure",
+      "observation": "Two explicit OPTIONS fetches received HTTP 200/content-length 0 and subsequently failed with the recorded aborted classification. Those historical results remain failed."
+    }
+  ],
+  "started_at": "2026-11-09T18:05:02.962Z",
+  "finished_at": "2026-11-09T18:05:32.541Z"
+}

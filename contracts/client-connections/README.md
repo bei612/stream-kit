@@ -62,14 +62,36 @@ HTTP response and status for the existing authorization/conflict handling.
 This ownership correction is implemented in `92818fba`. Earlier runtime
 `df7cd87b` observed two initial zero-length `200` OPTIONS responses followed by
 browser cancellation while its actual media/control/terminal operations
-completed. Those runs remain failed under the network gate. The correction
-requires a newly built runtime and real CLI verification; it is not established
-by changing error classifications or by compilation alone.
+completed. Those runs remain failed under the network gate.
+
+The newly built `92818fba` runtime passed the real deployment CLI in
+[run 42670620703](https://github.com/bei612/stream-kit/actions/runs/42670620703).
+Both OPTIONS fetches completed without network failure. Two actual viewers
+decoded advancing frames, and UI grant/transfer/revoke agreed with server
+authority. After stopping, their original viewer frames reported ended state,
+closed RTC and all authority disabled, with no later recovery, cleanup or
+admission requests. Stopped argument editing and restoration agreed with the
+actual API, and the owned renderer returned to idle.
+
+This was an isolated Linux deployment of the original verified product runtime,
+using official `playwright-cli` and trusted temporary TLS. It does not establish
+local Windows installation, Android, audio, actual target input or stability
+acceptance. The [sanitized receipt](../../docs/evidence/management-live-cli-92818fba.json)
+retains exact runtime/acceptance identities, raw expected terminal rejection
+counts, artifact hashes and screenshot review. Its source snapshot preserves
+the parent run's actual `in_progress`/null state when the already successful
+Linux job was selected; later overall product success is recorded separately.
+Screenshots also retain minor notification review items: a startup data-channel
+modal and the previous revocation toast briefly outliving the ended transition.
+These do not change the measured closed RTC and revoked permissions.
 
 The six source CI jobs for `92818fba` passed in
 [run 42664556318](https://github.com/bei612/stream-kit/actions/runs/42664556318):
 management Web, Windows/Linux control, Windows/Linux media gateway and source
-SBOM. This source result does not close the outstanding runtime CLI gate.
+SBOM. The same-source Windows/Linux product build separately passed in
+[run 42664613109](https://github.com/bei612/stream-kit/actions/runs/42664613109).
+Those build/source results have their own scope; the runtime CLI result above
+comes from the actual deployment run rather than compilation alone.
 
 ## Authority snapshots and microphone recovery
 
