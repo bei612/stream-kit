@@ -39,10 +39,10 @@ final class ViewerChrome {
       root.setOnApplyWindowInsetsListener((view, insets) -> {
         // Resize the complete video viewport above the IME, including immersive mode.
         // A one-pixel editor must not make Android pan the entire stream off screen.
-        int keyboard = insets.isVisible(android.view.WindowInsets.Type.ime())
-            ? insets.getInsets(android.view.WindowInsets.Type.ime()).bottom : 0;
-        view.setPadding(0, 0, 0, keyboard);
-        return insets;
+        android.graphics.Insets safe = insets.getInsets(android.view.WindowInsets.Type.systemBars()
+            | android.view.WindowInsets.Type.displayCutout() | android.view.WindowInsets.Type.ime());
+        view.setPadding(safe.left, safe.top, safe.right, safe.bottom);
+        return android.view.WindowInsets.CONSUMED;
       });
     }
     media = new FrameLayout(activity);

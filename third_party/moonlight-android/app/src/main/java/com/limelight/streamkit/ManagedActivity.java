@@ -66,6 +66,7 @@ public final class ManagedActivity extends Activity {
     getWindow().setSoftInputMode(Build.VERSION.SDK_INT >= 30
             ? WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
             : WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+    if (Build.VERSION.SDK_INT >= 30) getWindow().setDecorFitsSystemWindows(false);
     preferences = new ViewerSettings(this);
     chrome = new ViewerChrome(this);
     chrome.configure(preferences);
@@ -549,6 +550,16 @@ public final class ManagedActivity extends Activity {
   private void setFullscreen(boolean enabled) {
     fullscreen = enabled;
     chrome.fullscreen.setText(enabled ? "退出全屏" : "全屏");
+    if (Build.VERSION.SDK_INT >= 30) {
+      android.view.WindowInsetsController controller = getWindow().getInsetsController();
+      if (controller != null) {
+        controller.setSystemBarsBehavior(android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        int bars = android.view.WindowInsets.Type.statusBars() | android.view.WindowInsets.Type.navigationBars();
+        if (enabled) controller.hide(bars); else controller.show(bars);
+      }
+      chrome.root.requestApplyInsets();
+      return;
+    }
     getWindow().getDecorView().setSystemUiVisibility(enabled
             ? View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_FULLSCREEN
                 | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
