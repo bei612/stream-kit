@@ -1,14 +1,26 @@
 name: android-stream-input-acceptance
 on:
   workflow_dispatch:
+    inputs:
+      product_run_id:
+        description: 'Owned product run with a completed successful Linux installer job'
+        type: string
+        required: true
+      android_release_tag:
+        description: 'Published signed Android release tag to test without rebuilding'
+        type: string
+        required: true
 permissions:
   contents: read
+  actions: read
 jobs:
   native-android-web-input:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
       GH_TOKEN: ${{ github.token }}
+      PRODUCT_RUN_ID: ${{ inputs.product_run_id }}
+      ANDROID_RELEASE_TAG: ${{ inputs.android_release_tag }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,29 +35,24 @@ jobs:
           cmdline-tools-version: '16111833'
           packages: platform-tools
           log-accepted-android-sdk-licenses: false
-      - name: Download existing published runtime and signed APK
+      - name: Download explicitly selected owned runtime and published signed APK
         run: |
           set -euo pipefail
-          gh release download v0.1.0-preview.20261106.2 --pattern '*ubuntu24.04-amd64-setup.run' --pattern linux-installer-manifest.json --dir artifacts/input-download
-          gh release download v0.1.0-android-preview.20261106.6 --pattern '*.apk' --dir artifacts/input-download
-          node <<'JS'
-          const fs=require('fs'),crypto=require('crypto'),assert=require('assert/strict');
-          const hash=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
-          const m=JSON.parse(fs.readFileSync('artifacts/input-download/linux-installer-manifest.json'));
-          assert.equal(m.commit,'d36cead6fd856925b283daddcc4af6cd1cdb7dd0');
-          assert.equal(m.installer.sha256,'6df089ad4f46ef9628d1299ac7392dae6baa9604f1e60764ef286785eec55a62');
-          assert.equal(hash('artifacts/input-download/'+m.installer.file),m.installer.sha256);
-          const a=JSON.parse(fs.readFileSync('docs/evidence/android-preview-release-20261106-6.json'));
-          const apk=a.assets.find(x=>x.name.endsWith('.apk'));assert.equal(hash('artifacts/input-download/'+apk.name),a.apk_sha256);
-          fs.mkdirSync('artifacts/android-input-evidence',{recursive:true});
-          fs.writeFileSync('artifacts/android-input-evidence/provenance.json',JSON.stringify({runtime_commit:m.commit,installer_sha256:m.installer.sha256,apk_source_commit:a.source_commit,apk_sha256:a.apk_sha256,apk_signer_sha256:a.signing_certificate_sha256,acceptance_commit:process.env.GITHUB_SHA,runtime_rebuilt:false,apk_rebuilt:false},null,2));
-          JS
-          installer=artifacts/input-download/*-setup.run
-          line=$(awk '/^__STREAM_KIT_PAYLOAD__$/ {print NR+1;exit}' $installer)
-          test -n "$line"
-          tail -n +"$line" $installer > artifacts/input-download/runtime.deb
-          echo 'd44795e51a9eeba0484e429c8e0e0ddfe901c9161a1f8ee9803a6ef7888785a0  artifacts/input-download/runtime.deb' | sha256sum -c -
+          [[ "$PRODUCT_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$ANDROID_RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-android-preview\.[0-9]+(\.[0-9]+)*$ ]]
+          mkdir -p artifacts/input-download
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PRODUCT_RUN_ID" > artifacts/input-download/product-run.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PRODUCT_RUN_ID/jobs?filter=latest&per_page=100" > artifacts/input-download/product-jobs.json
+          commit=$(node scripts/verify-input-acceptance-sources.mjs product-run)
+          gh run download "$PRODUCT_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "linux-product-installer-$commit" --dir artifacts/input-product
+          cp artifacts/input-product/installer/installer-manifest.json artifacts/input-download/
+          cp artifacts/input-product/installer/*-setup.run artifacts/input-download/
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$ANDROID_RELEASE_TAG" > artifacts/input-download/android-release.json
+          gh api "repos/$GITHUB_REPOSITORY/commits/$ANDROID_RELEASE_TAG" > artifacts/input-download/android-source.json
+          gh release download "$ANDROID_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.apk' --pattern provenance.json --pattern sbom.cdx.json --dir artifacts/input-download
+          node scripts/verify-input-acceptance-sources.mjs downloads
           dpkg-deb -x artifacts/input-download/runtime.deb artifacts/input-runtime
+          node -e "const fs=require('fs'),a=require('assert/strict');a.equal(JSON.parse(fs.readFileSync('artifacts/input-runtime/opt/stream-kit/platform-manifest.json')).commit,JSON.parse(fs.readFileSync('artifacts/input-download/installer-manifest.json')).commit)"
       - name: Prepare isolated capture, TLS and official Android dependencies
         run: |
           set -euo pipefail
@@ -57,6 +64,7 @@ jobs:
           artifacts/input-runtime/opt/stream-kit/orchestrator/orchestrator verify-platform artifacts/input-runtime/opt/stream-kit
           npm ci --prefix third_party/moonlight-web-stream --ignore-scripts --no-audit --no-fund
           android --sdk="$ANDROID_HOME" sdk install 'emulator' 'system-images;android-36;google_apis;x86_64' 'platforms;android-36' 'build-tools;36.0.0'
+          node scripts/verify-input-acceptance-sources.mjs apk
           mkdir -p artifacts/input-example
           cc -std=c11 -O2 -Wall -Wextra -Werror tools/input-acceptance/x11-observer.c -lX11 -o artifacts/input-example/x11-observer
           bash tools/input-acceptance/android/build.sh
@@ -69,6 +77,13 @@ jobs:
           name: android-stream-input-evidence
           path: |
             artifacts/android-input-evidence/
+            artifacts/input-download/product-run.json
+            artifacts/input-download/product-jobs.json
+            artifacts/input-download/android-release.json
+            artifacts/input-download/android-source.json
+            artifacts/input-download/provenance.json
+            artifacts/input-download/sbom.cdx.json
+            artifacts/input-download/installer-manifest.json
             artifacts/source-stream/**/result.json
             artifacts/source-stream/**/example.log
           if-no-files-found: warn

@@ -6,7 +6,7 @@ import android.graphics.Rect;
 import android.os.Bundle;
 import android.view.accessibility.AccessibilityNodeInfo;
 
-/** External CI observer. No product instrumentation, input injection or network access. */
+/** External CI observer. No product instrumentation, target input injection or network access. */
 public final class Observer extends Instrumentation {
     private static final String CLIENT = "io.github.bei612.streamkit";
     private String role = "other";
@@ -20,15 +20,17 @@ public final class Observer extends Instrumentation {
         try {
             // A streaming UI need not become globally idle. Observe its current
             // accessibility tree through the public instrumentation API instead.
-            AccessibilityNodeInfo root = getUiAutomation().getRootInActiveWindow();
-            if (root != null) {
+            snapshot();
+            // New releases collapse their ordinary toolbar during playback.
+            // Open it as a user would, read the visible role, then restore it.
+            boolean opened = "other".equals(role) && clickDescription("打开串流工具栏");
+            if (opened) {
                 try {
-                    if (CLIENT.contentEquals(String.valueOf(root.getPackageName()))) {
-                        root.getBoundsInScreen(window);
-                        inspect(root, 0);
+                    for (int attempt = 0; attempt < 10 && "other".equals(role); attempt++) {
+                        android.os.SystemClock.sleep(50);
+                        snapshot();
                     }
-                }
-                finally { root.recycle(); }
+                } finally { clickDescription("收起工具栏"); }
             }
             result.putString("role", role);
             result.putString("window", window.left + "," + window.top + "," + window.right + "," + window.bottom);
@@ -42,6 +44,40 @@ public final class Observer extends Instrumentation {
         }
     }
 
+    private void snapshot() {
+        AccessibilityNodeInfo root = getUiAutomation().getRootInActiveWindow();
+        if (root == null) return;
+        try {
+            if (!CLIENT.contentEquals(String.valueOf(root.getPackageName()))) return;
+            visited = 0;
+            root.getBoundsInScreen(window);
+            inspect(root, 0);
+        } finally { root.recycle(); }
+    }
+
+    private boolean clickDescription(String description) {
+        AccessibilityNodeInfo root = getUiAutomation().getRootInActiveWindow();
+        if (root == null) return false;
+        try {
+            if (!CLIENT.contentEquals(String.valueOf(root.getPackageName()))) return false;
+            visited = 0;
+            return clickDescription(root, description, 0);
+        } finally { root.recycle(); }
+    }
+
+    private boolean clickDescription(AccessibilityNodeInfo node, String description, int depth) {
+        if (++visited > 512 || depth > 32) throw new IllegalStateException();
+        if (node.isVisibleToUser() && node.isEnabled() && node.isClickable() && description.contentEquals(String.valueOf(node.getContentDescription())))
+            return node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+        for (int index = 0; index < node.getChildCount(); index++) {
+            AccessibilityNodeInfo child = node.getChild(index);
+            if (child == null) continue;
+            try { if (clickDescription(child, description, depth + 1)) return true; }
+            finally { child.recycle(); }
+        }
+        return false;
+    }
+
     private void inspect(AccessibilityNodeInfo node, int depth) {
         if (++visited > 512 || depth > 32) throw new IllegalStateException();
         int children = node.getChildCount();
@@ -49,6 +85,8 @@ public final class Observer extends Instrumentation {
             String text = String.valueOf(node.getText());
             if ("已连接 · 控制中".equals(text)) role = "controller";
             if ("已连接 · 观看中".equals(text)) role = "viewer";
+            if ("控制者".equals(text)) role = "controller";
+            if ("仅观看".equals(text)) role = "viewer";
         }
         for (int index = 0; index < children; index++) {
             AccessibilityNodeInfo child = node.getChild(index);
