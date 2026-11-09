@@ -1,0 +1,177 @@
+{
+  "schema_version": 1,
+  "local_date": "2026-11-10",
+  "timezone": "Asia/Shanghai",
+  "recorded_at": "2026-11-09T16:57:21.150279+00:00",
+  "scope": "External testOnly ToneGenerator initialization and one start/stop/release invocation on the existing owned Windows API36 headless AVD. No product client, PCM capture or Linux acoustic acceptance.",
+  "tone_invocation_count": 1,
+  "tone_invocation_passed": true,
+  "successful_attempt_started_at": "2026-11-09T16:53:18.156Z",
+  "successful_attempt_finished_at": "2026-11-09T16:54:15.056Z",
+  "preflight_failure_count": 3,
+  "fixture": {
+    "package": "io.github.bei612.streamkit.inputobserver",
+    "test_only": true,
+    "target_package": "io.github.bei612.streamkit.inputobserver",
+    "action": "playout-control",
+    "observer_source_commit": "ff08bb3501d6edcd5f84296ce00d2e6ba612fbaf",
+    "observer_java_sha256": "3ea1f6ee1431341df97bf4653941f023eb974c23110e2877f3a5575b0e560039",
+    "apk_sha256": "493b7d55a2201748fb6ac6195dbcbb38f7ffd8f8366355c2e0c0a50ab6c5abda",
+    "compiled_by_parent_with": "Official JDK21 and installed Android SDK37.0; this is a dev-only fixture, not a production APK build.",
+    "declared_permissions": [],
+    "installed_missing_test_apk": true,
+    "install_terminal_success_observed": true,
+    "installed_base_apk_sha256_readback_matches": true,
+    "observer_uid": 10218
+  },
+  "environment": {
+    "host_platform": "Windows",
+    "avd": "StreamKit_API_36",
+    "api_level": 36,
+    "serial": "emulator-5580",
+    "gpu": "swiftshader",
+    "cores": 2,
+    "requested_memory_mb": 2048,
+    "actual_qemu_memory_mb": 2560,
+    "headless": true,
+    "snapshot_disabled": true,
+    "android_avd_home_environment": null,
+    "avd_directory": "C:\\Users\\fuzho\\.android\\avd\\StreamKit_API_36.avd",
+    "actual_userdata_backing_path": "C:\\Users\\fuzho\\.android\\avd\\StreamKit_API_36.avd\\userdata-qemu.img.qcow2",
+    "userdata_path_basis": "Official emulator -verbose autoconfig and QEMU userdata drive options; no inference about prior missing Observer.",
+    "launcher_executable": "C:\\Users\\fuzho\\AppData\\Local\\Android\\Sdk\\emulator\\emulator.exe",
+    "qemu_executable": "C:\\Users\\fuzho\\AppData\\Local\\Android\\Sdk\\emulator\\qemu\\windows-x86_64\\qemu-system-x86_64-headless.exe",
+    "launcher_pid": 31420,
+    "qemu_pid": 24908,
+    "audioserver_pid": 517
+  },
+  "tone": {
+    "started": true,
+    "process_id": 1912,
+    "session_id": 81,
+    "stream_music": 3,
+    "tone": "TONE_DTMF_1",
+    "frequencies_hz": [
+      697,
+      1209
+    ],
+    "tone_local_volume_percent": 100,
+    "requested_duration_ms": 6000,
+    "started_device_elapsed_ms": 46936,
+    "finished_device_elapsed_ms": 53559,
+    "reported_interval_ms": 6623,
+    "interval_scope": "Device elapsedRealtime between status preparation and final cleanup report; includes instrumentation and stop/release overhead, not a measured waveform duration.",
+    "result": "complete",
+    "stopped": true,
+    "released": true,
+    "instrumentation_code": -1,
+    "runner_exit_code": 0,
+    "pcm_observed": false,
+    "audible_sound_verified": false
+  },
+  "preflight_attempts": [
+    {
+      "evidence_path": ".local/validation/android-tone-local-20261110/result.json",
+      "error": "Observer installation failed",
+      "tone_invoked": false,
+      "interpretation": "adb install output ended in Success, but the initial runner compared the complete multiline output incorrectly and stopped before Tone."
+    },
+    {
+      "evidence_path": ".local/validation/android-tone-local-20261110/result-direct-tone.json",
+      "error": "ADB operation failed: shell getprop sys.boot_completed",
+      "tone_invoked": false,
+      "interpretation": "AVD console became readable before adbd getprop was ready; a transient boot operation escaped the original readiness loop."
+    },
+    {
+      "evidence_path": ".local/validation/android-tone-local-final-20261110/result.json",
+      "error": "Preinstalled same-hash observer required",
+      "tone_invoked": false,
+      "interpretation": "The next runner added an unnecessary already-installed constraint; actual pm path was empty. The final attempt allowed the already-authorized normal testOnly installation and verified the device hash."
+    }
+  ],
+  "native_log_diagnostics": {
+    "tags": [
+      "ToneGenerator:E",
+      "AudioTrack:E",
+      "AudioSystem:E",
+      "AudioFlinger:E"
+    ],
+    "tail_start": "-T 1",
+    "filters": [
+      {
+        "type": "uid",
+        "value": 10218,
+        "owner": "observer"
+      },
+      {
+        "type": "pid",
+        "value": 517,
+        "owner": "audioserver"
+      }
+    ],
+    "matching_lines_captured": 0,
+    "logger_ready_independently_confirmed": false,
+    "logger_exit_codes_recorded": false,
+    "logger_stderr_retained": false,
+    "scope": "Zero collected matching lines does not establish logcat availability, absence of native errors, or success of any Linux backend. Logger child processes were killed and each close awaited with a two-second bound; individual exit outcomes were not retained."
+  },
+  "preservation_and_cleanup": {
+    "product_launch_commands_issued": false,
+    "product_pid_absent_before_tone": true,
+    "product_pid_absent_after_tone": true,
+    "pcm_or_voice_recorded": false,
+    "production_apk_installed_or_updated": false,
+    "production_configuration_changed": false,
+    "permissions_added": false,
+    "audio_focus_requested": false,
+    "system_volume_or_route_changed": false,
+    "trust_changed": false,
+    "root_or_uac_used": false,
+    "ue_todesk_or_nic_changed": false,
+    "owned_observer_force_stopped": true,
+    "owned_avd_stop_acknowledged": true,
+    "adb_devices_empty": true,
+    "remaining_emulator_or_qemu_processes": 0,
+    "cleanup_observed_at": "2026-11-09T16:54:38.2203711Z"
+  },
+  "limits": [
+    "This single successful Windows headless invocation does not reproduce or explain Linux CI42656135330 Tone initialization failure.",
+    "No PulseAudio/QEMU PCM, JavaADM.write, production playback, microphone, input, TLS or mobile hardware acceptance is established.",
+    "Only the external testOnly Observer was installed; no diagnostic producer or hook was added to the production APK.",
+    "Missing Observer in a preceding boot is recorded without attributing a cause."
+  ],
+  "local_evidence": [
+    {
+      "path": ".local/validation/android-tone-local-20261110/result.json",
+      "sha256": "b6a6e2b69a3e76bbe1f8017c1f0a638df66cc6f17975b4b852610c8b34837727"
+    },
+    {
+      "path": ".local/validation/android-tone-local-20261110/result-direct-tone.json",
+      "sha256": "b44c42912680fc81f0e19b7255e127027cce3624aea16f3708c96edb6ea4038d"
+    },
+    {
+      "path": ".local/validation/android-tone-local-final-20261110/result.json",
+      "sha256": "9d64c2ef0edf3a9a56478e1797a161bd4f29d025664bee12415c5cc9f12eed56"
+    },
+    {
+      "path": ".local/validation/android-tone-local-final-20261110/attempt-tone-installed/result.json",
+      "sha256": "85cbea7249fdb686682700aef46a72208f08921f8be8940d3c12bfbcd6ff2fb3"
+    },
+    {
+      "path": ".local/validation/android-tone-local-final-20261110/attempt-tone-installed/cleanup-state.json",
+      "sha256": "5dd75572675c46281ed162be06c98b65dd19f25994f4ec6de245f32c18d82e87"
+    },
+    {
+      "path": ".local/validation/android-tone-local-final-20261110/attempt-tone-installed/runtime-process-metadata.json",
+      "sha256": "b62557cb4f589657e4b1c2c0c05ad4f2f6f6c23e345d92735fea2d5b277eff80"
+    },
+    {
+      "path": ".local/validation/android-tone-local-final-20261110/attempt-tone-installed/launcher.json",
+      "sha256": "8eeda5cf967aa639bf428410087f70a260d4557344ce36b23ac31a4fdc94a430"
+    },
+    {
+      "path": ".local/validation/android-tone-local-final-20261110/attempt-tone-installed/run.cjs",
+      "sha256": "698136f2291b1cfdf30493a3b7c5db5c47b205ee888c349dfba4ef4d565a4690"
+    }
+  ]
+}
