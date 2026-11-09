@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-10",
+  "source_commit": "92818fba2e0970bbe407be5450c24522625ee7b4",
+  "product_run": "https://github.com/bei612/stream-kit/actions/runs/42664613109",
+  "product_run_conclusion": "success",
+  "windows_acceptance_run": "https://github.com/bei612/stream-kit/actions/runs/42670816508",
+  "windows_acceptance_conclusion": "success",
+  "acceptance_workflow_commit": "f348f918f36f809f651ebeb525546ccf8485596d",
+  "windows": {
+    "passed": true,
+    "environment": "GitHub-hosted Windows Server 2022",
+    "installer": {
+      "name": "stream-kit-preview-92818fba2e09-windows-amd64-setup.exe",
+      "bytes": 97605593,
+      "sha256": "e4e363a53b18920a8978cbd1619f3d3bd4d62a88c17fdb83aec8a269f76a27fd"
+    },
+    "installer_source_commit": "92818fba2e0970bbe407be5450c24522625ee7b4",
+    "reused_payload": false,
+    "kernel_audio_driver_signature_verified": true,
+    "acceptance_result_sha256": "8b6c58adfa53648fbad42be75daf64f6ade962dc7374a8bbdb7f42c86430663f",
+    "install_exit": 0,
+    "administrator_login": true,
+    "service_after_install": {
+      "state": "Running",
+      "start_mode": "Auto",
+      "account": "LocalSystem"
+    },
+    "service_after_restart": {
+      "state": "Running",
+      "start_mode": "Auto",
+      "account": "LocalSystem",
+      "new_process_id_verified": true
+    },
+    "gateway_restarted": true,
+    "gateway_stop_exit": 0,
+    "scm_restarted": true,
+    "whole_system_reboot_tested": false,
+    "audio": {
+      "passed": true,
+      "captured_frames": 144000,
+      "tone_amplitude": 0.09817148408715153,
+      "dropped_frames": 0,
+      "xruns": 0,
+      "baseline_quiet": true,
+      "after_clear_quiet": true,
+      "device_closed_after_drop": true
+    },
+    "default_devices": {
+      "before": {
+        "communication_render": "",
+        "communication_capture": "",
+        "render": "",
+        "capture": ""
+      },
+      "after_uninstall_equals_before": true,
+      "existing_nonempty_default_devices_tested": false,
+      "scope": "Initially no default endpoints. Windows selected the added capture endpoint while present; uninstall restored the empty baseline. This does not prove preservation of existing nonempty defaults."
+    },
+    "uninstall_exit": 0,
+    "service_removed": true,
+    "configuration_retained_after_uninstall": true,
+    "configuration_retention_assertion": "orchestrator.json exists after uninstall",
+    "application_database_retention_separately_tested": false,
+    "finished_at": "2026-11-09T18:07:25.800Z"
+  },
+  "linux": {
+    "installer": {
+      "file": "stream-kit-preview-92818fba2e09-ubuntu24.04-amd64-setup.run",
+      "bytes": 62476923,
+      "sha256": "f99950090c34fc400b63433e53f7e720d683737526e2e8ef1b44287b694fd56d"
+    },
+    "payload_sha256": "3a7b7d8f1caa5a58343bf71a790fe7bebebeb23c25d26473683cc65ec5bb5dd2",
+    "acceptance_log_sha256": "716473d78555954e57fe42686ddaaba7815913119ca890afb6574f81245aff64",
+    "scope": "Installer extraction, three-component initialization, configuration validation, offline user-service enablement and refusal to overwrite existing deployment data; no media service started by installer acceptance."
+  },
+  "sbom": {
+    "name": "stream-kit-sbom.spdx.json",
+    "bytes": 7575028,
+    "sha256": "30d17a87e68b5a01913e060ac8e781a1b7d0a0c64e2ff4af03659a8dbf7372b0",
+    "format": "SPDX-2.3"
+  },
+  "local_downloads_verified": true,
+  "published": false,
+  "management_runtime_acceptance": "docs/evidence/management-live-cli-92818fba.json",
+  "limits": [
+    "Service and gateway restarts do not establish a whole host reboot.",
+    "Configuration-file retention does not independently prove application-file or database retention.",
+    "Empty default-device baseline does not cover existing nonempty device selections.",
+    "Linux installer initialization does not itself prove an active media session; the separate real CLI receipt records that deployment scope.",
+    "No local Windows update, in-place upgrade, Android audio, physical speech, target input or IP-change acceptance is established by this installer receipt."
+  ]
+}
