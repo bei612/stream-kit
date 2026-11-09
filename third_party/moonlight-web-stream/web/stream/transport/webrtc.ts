@@ -96,7 +96,7 @@ export class WebRTCTransport implements Transport {
         const sdp = webrtcSessionOfferApply(offer.sdp ?? "", this.sdpOfferOptions)
 
         this.logger?.debug(`successfully generated webrtc sdp with options ${JSON.stringify(this.sdpOfferOptions)}`)
-        console.debug("Client Sdp", sdp)
+        console.debug("WebRTC local offer created")
 
         return sdp
     }
@@ -108,15 +108,10 @@ export class WebRTCTransport implements Transport {
             await this.deleteSession()
             return
         }
-        console.debug("server sdp", JSON.stringify(response))
+        console.debug("WebRTC remote answer received")
 
         this.logger?.debug(`received whep response with location "${response.location}"`)
-        // Print ice candidates
-        for (const line of response.answerSdp.split("\r\n")) {
-            if (line.startsWith("a=candidate")) {
-                this.logger?.debug(`received remote ice candidate ${line.substring(2)}`)
-            }
-        }
+        this.logger?.debug("WebRTC remote ICE configuration received")
 
         this.sdpAnswer = webrtcSessionAnswerParse(response.answerSdp)
         this.logger?.debug(`Server responded with extensions ${JSON.stringify(this.sdpAnswer)}`)
@@ -185,10 +180,10 @@ export class WebRTCTransport implements Transport {
         }
     }
 
-    private fail(error: unknown) {
+    private fail(_error: unknown) {
         if (this.closed) return
         const shutdown = this.wasConnected ? "failed" : "failednoconnect"
-        this.logger?.debug(`WebRTC transport failed: ${error}`)
+        this.logger?.debug("WebRTC transport failed")
         void this.close(shutdown)
     }
 
@@ -419,8 +414,6 @@ export class WebRTCTransport implements Transport {
         if (this.closed) return out
 
         for (const [_key, value] of stats) {
-            console.debug(value)
-
             // Video Stream
             if ("type" in value && "kind" in value
                 && value.type == "inbound-rtp" && value.kind == "video"

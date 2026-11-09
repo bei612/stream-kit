@@ -59,6 +59,17 @@ startup. The error factory alone reads a rejected offer's body, and the offer
 owner alone reads a successful SDP answer. Body-read failures retain the original
 HTTP response and status for the existing authorization/conflict handling.
 
+The subsequent source hardening discards untrusted SDP/RTC parser payloads at
+the application error boundary. Parser failures retain HTTP 400 with a static
+body; RTC failures and stream-offer extension parsing retain their previous
+HTTP 500 status. Display, Debug and error-source chains do not retain those
+SDP payloads. Gateway description/candidate logs and browser offer/answer logs
+record fixed operation stages rather than complete SDP or low-level parse text.
+Dynamic ICE-script failure logs retain exit status or parser category/location,
+without command paths, output or credentials; execution and fallback behavior
+are unchanged. These changes are later source work and are not included in the
+frozen `3d4f248c` runtime or its published installer evidence.
+
 This ownership correction is implemented in `92818fba`. Earlier runtime
 `df7cd87b` observed two initial zero-length `200` OPTIONS responses followed by
 browser cancellation while its actual media/control/terminal operations

@@ -116,10 +116,24 @@ pub enum AppError {
     Io(#[from] io::Error),
     #[error("moonlight error: {0}")]
     Moonlight(#[from] moonlight_common::error::Error),
-    #[error("failed to parse the given sdp: {0}")]
-    WebRTCSdp(#[from] moonlight_common::webrtc::sdp::ParserError),
-    #[error("webrtc: {0}")]
-    WebRTC(#[from] webrtc::error::Error),
+    #[error("invalid session description")]
+    WebRTCSdp,
+    #[error("webrtc operation failed")]
+    WebRTC,
+}
+
+// SDP/RTC errors may contain input bytes or credentials. Drop that payload at
+// this boundary, including Debug and Error::source(), not only the HTTP body.
+impl From<moonlight_common::webrtc::sdp::ParserError> for AppError {
+    fn from(_: moonlight_common::webrtc::sdp::ParserError) -> Self {
+        Self::WebRTCSdp
+    }
+}
+
+impl From<webrtc::error::Error> for AppError {
+    fn from(_: webrtc::error::Error) -> Self {
+        Self::WebRTC
+    }
 }
 
 impl ResponseError for AppError {
@@ -168,10 +182,10 @@ impl ResponseError for AppError {
             Self::PasswordEmpty => HttpResponse::new(StatusCode::BAD_REQUEST),
             Self::UserNameEmpty => HttpResponse::new(StatusCode::BAD_REQUEST),
             Self::BadRequest => HttpResponse::new(StatusCode::BAD_REQUEST),
-            Self::WebRTCSdp(error) => HttpResponse::new(StatusCode::BAD_REQUEST)
-                .set_body(BoxBody::new(format!("{error}"))),
+            Self::WebRTCSdp => HttpResponse::new(StatusCode::BAD_REQUEST)
+                .set_body(BoxBody::new("invalid session description")),
             Self::Moonlight(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
-            Self::WebRTC(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
+            Self::WebRTC => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
             Self::Io(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
         }
     }
@@ -725,5 +739,48 @@ impl App {
             .storage
             .set_default_role(role.map(Role::id))
             .await
+    }
+}
+
+#[cfg(test)]
+mod sdp_error_tests {
+    use super::*;
+    use actix_web::body::to_bytes;
+    use moonlight_common::webrtc::sdp::Session;
+    use webrtc::peer_connection::RTCSessionDescription;
+
+    const PRIVATE_MARKER: &str = "private-ice-credential-canary";
+
+    #[actix_web::test]
+    async fn parser_error_drops_input_from_response_and_error_chain() {
+        let input = format!("v={PRIVATE_MARKER}\r\n");
+        let parser_error = Session::parse(input.as_bytes()).expect_err("invalid version");
+        // Use the real parser variant that retains untrusted bytes, so the
+        // regression would detect merely changing Display or the HTTP body.
+        assert!(format!("{parser_error:?}").contains(PRIVATE_MARKER));
+        let error = AppError::from(parser_error);
+        assert_eq!(error.to_string(), "invalid session description");
+        assert_eq!(format!("{error:?}"), "WebRTCSdp");
+        assert!(std::error::Error::source(&error).is_none());
+        let response = error.error_response();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let body = to_bytes(response.into_body()).await.expect("response body");
+        assert_eq!(body.as_ref(), b"invalid session description");
+    }
+
+    #[actix_web::test]
+    async fn rtc_error_drops_description_from_response_and_error_chain() {
+        // The real RTC SDP lexer retains an invalid key in SdpInvalidSyntax.
+        let rtc_error = RTCSessionDescription::offer(format!("{PRIVATE_MARKER}=value\r\n"))
+            .expect_err("invalid SDP key");
+        assert!(format!("{rtc_error:?}").contains(PRIVATE_MARKER));
+        let error = AppError::from(rtc_error);
+        assert_eq!(error.to_string(), "webrtc operation failed");
+        assert_eq!(format!("{error:?}"), "WebRTC");
+        assert!(std::error::Error::source(&error).is_none());
+        let response = error.error_response();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        let body = to_bytes(response.into_body()).await.expect("response body");
+        assert!(body.is_empty());
     }
 }

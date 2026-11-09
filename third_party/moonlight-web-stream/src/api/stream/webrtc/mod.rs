@@ -252,7 +252,15 @@ pub async fn webrtc_post(
     debug!("received webrtc offer");
 
     let offer_sdp = Session::parse(session_description.as_bytes())?;
-    let session = WebRTCSessionOffer::from_sdp(&offer_sdp)?;
+    let session = WebRTCSessionOffer::from_sdp(&offer_sdp).map_err(|_| {
+        warn!(
+            stage = "offer_extensions",
+            "failed to parse stream offer extensions"
+        );
+        // This previously used Moonlight's 500 response. Retain its status
+        // while dropping attribute values from the application error payload.
+        AppError::WebRTC
+    })?;
     debug!(moonlight_session = ?session, "moonlight session extensions", );
 
     let Some(host_id) = session.host_id else {
@@ -382,11 +390,14 @@ pub async fn webrtc_post(
     info!("created server webrtc peer");
 
     // Set remote description
-    if let Err(err) = peer.set_remote_description(offer.clone()).await {
-        error!(error = %err, description = %offer, "failed to set remote description");
+    if peer.set_remote_description(offer).await.is_err() {
+        error!(
+            stage = "remote_description",
+            "failed to set remote description"
+        );
 
         peer.close().await?;
-        return Err(err.into());
+        return Err(AppError::WebRTC);
     }
 
     info!("querying client for supported video and audio codecs");
@@ -562,11 +573,14 @@ pub async fn webrtc_post(
     // Complete negotiation
     let answer = peer.create_answer(None).await?;
 
-    if let Err(err) = peer.set_local_description(answer.clone()).await {
-        error!(error = %err, description = %answer, "failed to set local description");
+    if peer.set_local_description(answer).await.is_err() {
+        error!(
+            stage = "local_description",
+            "failed to set local description"
+        );
 
         peer.close().await?;
-        return Err(err.into());
+        return Err(AppError::WebRTC);
     }
 
     if let StreamAccess::Managed(admission) = &access
@@ -731,14 +745,20 @@ pub async fn webrtc_post(
                         for line in ice_sdp_frag.lines() {
                             #[allow(clippy::collapsible_if)]
                             if let Some(candidate) = line.strip_prefix("a=") {
-                                if let Err(err) = peer.add_ice_candidate(RTCIceCandidateInit {
-                                    candidate: candidate.to_string(),
-                                    ..Default::default()
-                                })
-                                .await {
-                                    warn!(error = %err, candidate = ?candidate, "failed to add trickle ice candidate");
+                                if peer
+                                    .add_ice_candidate(RTCIceCandidateInit {
+                                        candidate: candidate.to_string(),
+                                        ..Default::default()
+                                    })
+                                    .await
+                                    .is_err()
+                                {
+                                    warn!(
+                                        stage = "trickle_ice",
+                                        "failed to add trickle ice candidate"
+                                    );
                                 } else {
-                                    debug!(candidate = ?candidate, "added remote ice candidate");
+                                    debug!(stage = "trickle_ice", "added remote ice candidate");
                                 };
                             }
                         }
@@ -747,7 +767,9 @@ pub async fn webrtc_post(
                         info!("closing the stream");
 
                         // IMPORTANT: we need to manually trigger the close event because the peer doesn't do it
-                        handler.on_connection_state_change(RTCPeerConnectionState::Closed).await;
+                        handler
+                            .on_connection_state_change(RTCPeerConnectionState::Closed)
+                            .await;
 
                         if let Err(err) = peer.close().await {
                             warn!(error = %err, "error whilst closing the webrtc peer");
@@ -759,7 +781,7 @@ pub async fn webrtc_post(
         .instrument(debug_span!("external event handler", stream_id = ?stream_id))
     });
 
-    debug!(answer = ?answer, "sending answer to client");
+    debug!(stage = "answer_response", "sending answer to client");
 
     let mut response = HttpResponse::Created();
 

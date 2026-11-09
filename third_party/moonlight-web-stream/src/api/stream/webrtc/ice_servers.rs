@@ -1,7 +1,6 @@
 use crate::{api::bindings::RtcIceServer, config::WebRtcConfig};
-use log::error;
 use tokio::process::Command;
-use tracing::debug;
+use tracing::{debug, error};
 
 use crate::app::{App, AppError};
 
@@ -22,14 +21,17 @@ async fn load_dynamic_ice_servers(config: &WebRtcConfig) -> Vec<RtcIceServer> {
         return vec![];
     };
 
-    debug!(script = script_command, "running WebRTC ice server script");
+    debug!(
+        stage = "ice_server_script",
+        "running WebRTC ice server script"
+    );
 
     let mut script = Command::new(script_command);
 
     let output = match script.output().await {
         Ok(value) => value,
         Err(err) => {
-            error!("failed to run WebRTC ice server script: {err}");
+            error!(stage = "ice_server_script", kind = ?err.kind(), "failed to run WebRTC ice server script");
             return vec![];
         }
     };
@@ -40,16 +42,13 @@ async fn load_dynamic_ice_servers(config: &WebRtcConfig) -> Vec<RtcIceServer> {
             output.status
         );
 
-        if let Ok(error) = String::from_utf8(output.stdout) {
-            error!("WebRTC ice server script error:\n{error}");
-        }
         return vec![];
     }
 
     let json: Vec<RtcIceServer> = match serde_json::from_slice(&output.stdout) {
         Ok(value) => value,
         Err(err) => {
-            error!("failed to deserialize WebRTC ice server script output: {err}");
+            error!(stage = "ice_server_script", category = ?err.classify(), line = err.line(), column = err.column(), "failed to deserialize WebRTC ice server script output");
             return vec![];
         }
     };
