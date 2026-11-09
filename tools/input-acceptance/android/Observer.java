@@ -10,6 +10,8 @@ import android.view.accessibility.AccessibilityNodeInfo;
 public final class Observer extends Instrumentation {
     private static final String CLIENT = "io.github.bei612.streamkit";
     private String role = "other";
+    private String state = "unknown";
+    private String rootKind = "no_root";
     private final Rect window = new Rect();
     private int visited;
     private String requestedClick;
@@ -47,6 +49,9 @@ public final class Observer extends Instrumentation {
                 } finally { clickDescription("收起工具栏"); }
             }
             result.putString("role", role);
+            result.putString("state", state);
+            result.putString("root", rootKind);
+            result.putString("toolbar_opened", String.valueOf(opened));
             result.putString("window", window.left + "," + window.top + "," + window.right + "," + window.bottom);
             result.putString("snapshot", "complete");
             finish(Activity.RESULT_OK, result);
@@ -59,10 +64,16 @@ public final class Observer extends Instrumentation {
     }
 
     private void snapshot() {
+        role = "other";
+        state = "unknown";
+        rootKind = "no_root";
+        window.setEmpty();
         AccessibilityNodeInfo root = getUiAutomation().getRootInActiveWindow();
         if (root == null) return;
         try {
+            rootKind = "other_app";
             if (!CLIENT.contentEquals(String.valueOf(root.getPackageName()))) return;
+            rootKind = "client";
             visited = 0;
             root.getBoundsInScreen(window);
             inspect(root, 0);
@@ -102,11 +113,38 @@ public final class Observer extends Instrumentation {
             if ("已连接 · 观看中".equals(text)) role = "viewer";
             if ("控制者".equals(text)) role = "controller";
             if ("仅观看".equals(text)) role = "viewer";
+            String classified = classifyState(text);
+            if (classified != null) state = classified;
         }
         for (int index = 0; index < children; index++) {
             AccessibilityNodeInfo child = node.getChild(index);
             if (child == null) continue;
             try { inspect(child, depth + 1); } finally { child.recycle(); }
+        }
+    }
+
+    // Exact literals only: never return arbitrary UI text, input contents,
+    // saved-link hints, intents or a watching capability to the host runner.
+    private static String classifyState(String text) {
+        switch (text) {
+            case "打开应用观看链接，连接云端画面": return "entry_ready";
+            case "等待连接": return "waiting";
+            case "正在启动应用…": return "starting";
+            case "正在建立音视频连接…": return "connecting";
+            case "连接中断，正在重新连接…": return "reconnecting";
+            case "已连接 · 控制中":
+            case "已连接 · 观看中": return "ready";
+            case "音频输出不可用，请检查设备或声音设置后重新连接": return "audio_output_failed";
+            case "无法初始化本机音视频设备": return "initialize_failed";
+            case "无法进入应用，请检查链接或服务器状态": return "admission_failed";
+            case "服务器权限状态异常，已停止连接":
+            case "恢复连接时权限校验失败": return "authority_failed";
+            case "连接授权已失效，请重新打开观看链接": return "link_expired";
+            case "已断开连接": return "disconnected";
+            case "观看链接格式不正确":
+            case "请使用有效的 HTTPS 观看链接": return "link_invalid";
+            case "已保存链接无法读取，请重新粘贴": return "bookmark_unreadable";
+            default: return null;
         }
     }
 }

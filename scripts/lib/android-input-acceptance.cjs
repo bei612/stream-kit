@@ -6,8 +6,11 @@ const {execFileSync}=require('node:child_process');
 const {setTimeout:delay}=require('node:timers/promises');
 const {targetInputObserver,untilInput:until}=require('./target-input-observer.cjs');
 
-function androidParticipant({adb,serial}) {
+function androidParticipant({adb,serial,report,save=()=>{}}) {
   assert.match(serial,/^emulator-[0-9]+$/);
+  const state=report?(report.android_participant={role_waits:[],scope:'Test-only accessibility root and exact fixed-state classifications; no UI content, links or permission bypass'}):null;
+  const allowedStates=new Set(['unknown','entry_ready','waiting','starting','connecting','reconnecting','ready','audio_output_failed','initialize_failed','admission_failed','authority_failed','link_expired','disconnected','link_invalid','bookmark_unreadable']);
+  const terminalStates=new Set(['audio_output_failed','initialize_failed','admission_failed','authority_failed','link_expired','link_invalid']);
   const run=(...args)=>{
     try{return execFileSync(adb,['-s',serial,...args],{encoding:'utf8',windowsHide:true,timeout:20000,stdio:['ignore','pipe','pipe']});}
     catch(error){
@@ -23,17 +26,65 @@ function androidParticipant({adb,serial}) {
   };
   const snapshot=()=>{
     const output=run('shell','am','instrument','-w','io.github.bei612.streamkit.inputobserver/.Observer');
-    assert.match(output,/INSTRUMENTATION_CODE: -1/,'Android UI observer failed');
-    assert.match(output,/INSTRUMENTATION_RESULT: snapshot=complete/);
+    assert.ok(/INSTRUMENTATION_CODE: -1/.test(output),'Android UI observer failed');
+    assert.ok(/INSTRUMENTATION_RESULT: snapshot=complete/.test(output),'Android UI snapshot failed');
     const role=output.match(/INSTRUMENTATION_RESULT: role=(controller|viewer|other)\b/);
     const bounds=output.match(/INSTRUMENTATION_RESULT: window=(\d+),(\d+),(\d+),(\d+)/);
-    assert.ok(role&&bounds,'Incomplete Android UI snapshot');
-    return {role:role[1],bounds:bounds.slice(1).map(Number)};
+    const status=output.match(/INSTRUMENTATION_RESULT: state=([a-z_]+)\b/),root=output.match(/INSTRUMENTATION_RESULT: root=(client|no_root|other_app)\b/),opened=output.match(/INSTRUMENTATION_RESULT: toolbar_opened=(true|false)\b/);
+    assert.ok(role&&bounds&&status&&root&&opened&&allowedStates.has(status[1]),'Incomplete Android UI snapshot');
+    return {role:role[1],bounds:bounds.slice(1).map(Number),state:status[1],root:root[1],toolbar_opened:opened[1]==='true'};
   };
-  const role=controller=>until(()=>{
-    const view=snapshot(),[left,top,right,bottom]=view.bounds;
-    return view.role===(controller?'controller':'viewer')&&right>left&&bottom>top?view:false;
-  },'Android role update',30000);
+  const playoutErrors=()=>{
+    // These message prefixes and start-error enums are from the actual pinned
+    // 150.7871.01 AAR. Only classified events and explicit integer codes leave
+    // memory; no raw log message, stack, intent or UI content is retained.
+    const diagnostics={started_at_ms:Date.now(),events:[]};
+    try {
+      const pids=run('shell','pidof','io.github.bei612.streamkit').trim().split(/\s+/);
+      assert.ok(pids.length>0&&pids.every(pid=>/^[1-9][0-9]*$/.test(pid)),'Native client PID unavailable');
+      diagnostics.application_pids=pids.map(Number);diagnostics.observed_error_count=0;
+      for(const pid of pids){
+        const output=run('logcat','-d','--pid',pid,'-v','brief','-s','WebRtcAudioTrackExternal:E','WebRtcAudioTrack:E','org.webrtc.Logging:E','*:S');
+        for(const line of output.split(/\r?\n/)){
+          const tagged=line.match(/^E\/(WebRtcAudioTrackExternal|WebRtcAudioTrack|org\.webrtc\.Logging)\s*\(\s*[0-9]+\):\s*(.*)$/);if(!tagged)continue;
+          let message=tagged[2];
+          if(tagged[1]==='org.webrtc.Logging'){
+            // The SDK's default JUL logger wraps its real component tag here.
+            const wrapped=message.match(/^(?:WebRtcAudioTrackExternal|WebRtcAudioTrack): (.*)$/);if(!wrapped)continue;message=wrapped[1];
+          }
+          let event;
+          const write=message.match(/^(?:Run-time playback error: )?AudioTrack\.write failed: (-?[0-9]+)$/);
+          const count=message.match(/^AudioTrack\.write played invalid number of bytes: (-?[0-9]+)$/);
+          const start=message.match(/^Start playout error: (AUDIO_TRACK_START_EXCEPTION|AUDIO_TRACK_START_STATE_MISMATCH)\./);
+          if(write)event={kind:'write_failed',error_code:Number(write[1])};
+          else if(count)event={kind:'invalid_write_count',byte_count:Number(count[1])};
+          else if(/^Init playout error: /.test(message))event={kind:'init_failed'};
+          else if(start){event={kind:'start_failed',sdk_code:start[1]};const mismatch=message.match(/AudioTrack\.play failed - incorrect state :(-?[0-9]+)$/);if(mismatch)event.play_state=Number(mismatch[1]);}
+          else if(/^Run-time playback error: /.test(message))event={kind:'runtime_failed'};
+          else if(message==='Invalid audio state')event={kind:'invalid_state'};
+          if(event){diagnostics.observed_error_count++;if(diagnostics.events.length<32)diagnostics.events.push({process_id:Number(pid),...event});}
+        }
+      }
+      diagnostics.available=true;
+    }catch{diagnostics.available=false;diagnostics.unavailable_reason='sdk_error_metadata_unavailable';}
+    diagnostics.finished_at_ms=Date.now();return diagnostics;
+  };
+  const role=async controller=>{
+    const wait={expected_role:controller?'controller':'viewer',started_at_ms:Date.now(),timeout_ms:30000,samples:[]};
+    if(state){state.role_waits.push(wait);save();}
+    try {
+      const result=await until(()=>{
+        const view=snapshot(),[left,top,right,bottom]=view.bounds,sample={at_ms:Date.now(),...view};wait.samples.push(sample);
+        if(!wait.first_terminal&&terminalStates.has(view.state))wait.first_terminal=sample;
+        if(state)save();
+        return view.role===wait.expected_role&&right>left&&bottom>top?view:false;
+      },'Android role update',30000);
+      wait.completed_at_ms=Date.now();if(state)save();return result;
+    } catch(error){
+      wait.failed_at_ms=Date.now();wait.failure='role_wait_failed';if(state)save();
+      wait.playout_errors=playoutErrors();if(state)save();throw error;
+    }
+  };
   return {
     async connect(link){
       const parsed=new URL(link);assert.equal(parsed.protocol,'https:');assert.equal(parsed.hostname,'10.0.2.2');

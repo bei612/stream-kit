@@ -425,7 +425,7 @@ async function main() {
   const invite = await api('/stream-invitations', 'POST', { host_id: host.host_id, app_id: desktop.app_id });
   if(androidSerial){
     const watch=await api(`/apps/${ownedApp.id}/watch-link`,'POST');assert.ok(watch.enabled);
-    android=require('./lib/android-input-acceptance.cjs').androidParticipant({adb:androidAdb,serial:androidSerial});
+    android=require('./lib/android-input-acceptance.cjs').androidParticipant({adb:androidAdb,serial:androidSerial,report:result,save});
     await android.connect(new URL(watch.path,`https://10.0.2.2:${controlPort}`).href);
   }
   if (targetRecording) {
