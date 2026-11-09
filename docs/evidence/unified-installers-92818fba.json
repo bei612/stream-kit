@@ -146,6 +146,24 @@
         "bytes": 7575028,
         "sha256": "30d17a87e68b5a01913e060ac8e781a1b7d0a0c64e2ff4af03659a8dbf7372b0"
       }
-    ]
+    ],
+    "anonymous_download_head_checks": {
+      "verified_at": "2026-11-09T18:30:56.414Z",
+      "scope": "Anonymous HTTPS HEAD requests followed redirects; status and Content-Length verified. Complete file integrity is recorded separately from local artifact bytes and server asset digests.",
+      "results": [
+        {
+          "name": "stream-kit-preview-92818fba2e09-windows-amd64-setup.exe",
+          "status": 200,
+          "bytes": 97605593,
+          "download_host": "release-assets.githubusercontent.com"
+        },
+        {
+          "name": "stream-kit-preview-92818fba2e09-ubuntu24.04-amd64-setup.run",
+          "status": 200,
+          "bytes": 62476923,
+          "download_host": "release-assets.githubusercontent.com"
+        }
+      ]
+    }
   }
 }
