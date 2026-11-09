@@ -269,6 +269,54 @@ adb -s "$serial" shell wm size 720x1280
 adb -s "$serial" shell wm density 240
 adb -s "$serial" install artifacts/input-download/*.apk
 adb -s "$serial" install -t artifacts/input-example/android/observer.apk
+# Installation success is not a queue barrier. Synchronize the public PM and
+# broadcast queues before the one system-tone control; this does not observe
+# completion of AudioService's separate executor or the native UID/package map.
+node - "$ANDROID_HOME/platform-tools/adb" "$serial" "$evidence/install-synchronization.json" <<'NODE'
+const fs = require('node:fs'), cp = require('node:child_process');
+const [adb, serial, output] = process.argv.slice(2);
+const result = { schema_version: 1, fixture_only: true, status: 'failed',
+  npc_package_table_readiness: 'not_observed', commands: [], package_uids: {} };
+function check(ok, code) { if (!ok) throw new Error(code); }
+function command(type, args) {
+  const run = cp.spawnSync(adb, ['-s', serial, 'shell', ...args], {
+    encoding: 'utf8', timeout: 15000, killSignal: 'SIGKILL', maxBuffer: 16384,
+  });
+  result.commands.push({ command_type: type, exit_code: run.status,
+    completed_at_ms: Date.now(), timed_out: run.error?.code === 'ETIMEDOUT' });
+  check(!run.error && run.status === 0, type.toUpperCase() + '_FAILED');
+  return run.stdout.trim();
+}
+try {
+  check(process.platform === 'linux' && process.env.GITHUB_ACTIONS === 'true'
+    && process.env.RUNNER_ENVIRONMENT === 'github-hosted' && process.getuid() !== 0
+    && serial === 'emulator-5580', 'OWNED_AVD_REQUIRED');
+  check(command('shell_identity', ['id', '-u']) === '2000', 'SHELL_IDENTITY_REQUIRED');
+  check(command('package_handler_barrier', ['cmd', 'package', 'wait-for-handler',
+    '--timeout', '10000']) === 'Success', 'PACKAGE_HANDLER_ACK_INVALID');
+  command('broadcast_queue_barrier', ['am', 'wait-for-broadcast-barrier']);
+  for (const name of ['io.github.bei612.streamkit', 'io.github.bei612.streamkit.inputobserver']) {
+    const lines = command('target_package_uid', ['cmd', 'package', 'list', 'packages',
+      '--user', '0', '-U', name]).split(/\r?\n/);
+    const matches = lines.map(line => /^package:([A-Za-z0-9_.]+) uid:([0-9]+)$/.exec(line))
+      .filter(match => match && match[1] === name);
+    check(matches.length === 1, 'TARGET_PACKAGE_UID_UNAVAILABLE');
+    const uid = Number(matches[0][2]);
+    check(Number.isSafeInteger(uid) && uid >= 10000 && uid < 100000, 'TARGET_PACKAGE_UID_INVALID');
+    result.package_uids[name] = uid;
+  }
+  check(new Set(Object.values(result.package_uids)).size === 2, 'TARGET_PACKAGE_UID_COLLISION');
+  result.status = 'passed';
+} catch (error) {
+  result.failure_class = /^[A-Z_]+$/.test(error.message) ? error.message : 'INSTALL_SYNCHRONIZATION_FAILED';
+} finally {
+  fs.writeFileSync(output, JSON.stringify(result, null, 2) + '\n', { mode: 0o600 });
+}
+if (result.status !== 'passed') {
+  console.error('AVD installation synchronization failed: ' + result.failure_class);
+  process.exitCode = 1;
+}
+NODE
 adb -s "$serial" shell input keyevent KEYCODE_WAKEUP
 adb -s "$serial" shell wm dismiss-keyguard
 # A separate testOnly system tone must establish the common emulator output
