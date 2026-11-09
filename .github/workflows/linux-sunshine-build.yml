@@ -25,6 +25,14 @@ on:
       - '.github/scripts/release-renderer-intermediates.mjs'
       - '.github/scripts/test-renderer-intermediates.mjs'
       - 'scripts/lib/**'
+      # Manual stream acceptance consumes verified runtime bytes; these helpers
+      # are not imported by any product build/package entry point. Keep this
+      # list explicit so new production modules remain covered by lib/**.
+      - '!scripts/lib/android-audio-acceptance.cjs'
+      - '!scripts/lib/emulator-audio-evidence.cjs'
+      - '!scripts/lib/android-input-acceptance.cjs'
+      - '!scripts/lib/browser-input-acceptance.cjs'
+      - '!scripts/lib/target-input-observer.cjs'
       - 'deploy/linux/**'
       - 'deploy/stream-kit-orchestrator.service'
       - 'scripts/test-audio-target-linux.sh'
