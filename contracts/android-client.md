@@ -26,6 +26,16 @@ Gateway control-channel pollers authorize each decoded input before application 
 
 `ManagedSession` owns asynchronous admission, heartbeat, authority expiry, reconnect and late-result cleanup. `ManagedActivity` presents native video, permission controls and the upstream absolute-touch recognizer. Backgrounding leaves the connection and releases capture; returning rejoins as a viewer. Audio-focus loss disables capture and playout. Microphone capture requires an explicit user action, Android permission and current controller authority. Returning to foreground or reconnecting does not automatically restore recording consent. First-frame visibility is tracked per peer so a reused renderer cannot leave the link editor visible after reconnect.
 
+The [shared connection lifecycle](client-connections/README.md) distinguishes
+`CONNECTION_LEASE_EXPIRED` from `CONNECTION_TERMINATED`. Native recovery keeps
+the same session and connection identity; definite termination closes local
+authority, recording and media, removes pending retry work and never opens a
+new viewing admission automatically. Structured error codes are read from the
+top-level HTTP envelope. Late callbacks are scoped to their originating start
+and operation, so old authorization failures cannot terminate a replacement.
+These changes ship in Android `1000013`; their build and release checks do not
+substitute for actual lifecycle or audio acceptance.
+
 Android permission dialogs are asynchronous. Each microphone gesture now creates an opaque, single-use authority request; the returning permission result must match its session owner, generation and consent sequence. Control transfer, policy disable/enable, audio-focus loss, backgrounding and reconnect invalidate pending requests. Ordinary unchanged-authority heartbeats do not. A stale permission denial also cannot turn off a newer valid request. The Activity correlates Android request codes and discards pending permission requests on stop.
 
 ## Configuration and product boundary
