@@ -150,7 +150,7 @@ export default function StreamSessions() {
       {commandError && <p role="alert" className="text-sm text-red-400">{commandError}</p>}
       {apps.error && <p role="status" className="text-sm text-amber-400">应用名称和运行状态暂时无法更新，连接列表仍按会话数据显示。</p>}
       {view === 'history' ? <Card>
-        <div className="mb-4"><h3 className="font-semibold">已结束的应用串流</h3><p className="mt-1 text-sm text-muted-foreground">仅查看历史记录；连接和控制权已释放，历史配置不再生效。</p></div>
+        <div className="mb-4"><h3 className="font-semibold">已结束的应用串流</h3><p className="mt-1 text-sm text-muted-foreground">仅保留最近 7 天、最多 100 条已结束记录。连接和控制权已释放，历史配置不再生效。</p></div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="text-xs text-muted-foreground"><tr className="border-b border-border"><th className="py-3 pr-4">应用 / 会话</th><th className="py-3 pr-4">创建时间</th><th className="py-3 pr-4">最后更新</th><th className="py-3">状态</th></tr></thead>

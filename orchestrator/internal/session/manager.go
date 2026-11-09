@@ -107,6 +107,9 @@ func NewManagerWithStore(hub *ws.Hub, st *store.Store) (*Manager, error) {
 		}
 		m.sessions[s.ID] = s
 	}
+	if _, err := m.PruneStoppedHistory(time.Now()); err != nil {
+		return nil, err
+	}
 	if err := m.validateAudioTargets(); err != nil {
 		return nil, err
 	}
@@ -403,6 +406,9 @@ func (m *Manager) SweepExpired(now time.Time) (int, error) {
 			return count, err
 		}
 		count += expired
+	}
+	if _, err := m.pruneStoppedHistoryLocked(now); err != nil {
+		return count, err
 	}
 	return count, nil
 }
