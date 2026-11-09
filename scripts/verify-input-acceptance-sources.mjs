@@ -12,21 +12,39 @@ const evidence = 'artifacts/android-input-evidence'
 const file = name => path.join(directory, name)
 
 export function productSource(run, jobs, repository, runID) {
+  return linuxRuntimeSource(run, jobs, repository, runID, 'unified').commit
+}
+
+// Consumers must explicitly select a producer. Existing productSource callers
+// remain restricted to the original unified-product workflow.
+export function linuxRuntimeSource(run, jobs, repository, runID, producerProfile) {
+  let workflow, events, jobName
+  if (producerProfile === 'unified') {
+    workflow = '.github/workflows/windows-product-release.yml'
+    events = ['workflow_dispatch']
+    jobName = 'Linux product / Source-built Linux unified installer'
+  } else if (producerProfile === 'standalone-linux') {
+    workflow = '.github/workflows/linux-sunshine-build.yml'
+    events = ['push', 'workflow_dispatch']
+    jobName = 'Source-built Linux unified installer'
+    assert.equal(run.status, 'completed')
+    assert.equal(run.conclusion, 'success')
+  } else throw Error('Unknown Linux runtime producer profile')
   assert.match(runID, /^[1-9][0-9]*$/)
   assert.equal(String(run.id), runID)
   assert.ok(run.status === 'in_progress' || (run.status === 'completed' && run.conclusion === 'success'))
-  assert.equal(run.path, '.github/workflows/windows-product-release.yml')
+  assert.equal(run.path, workflow)
   assert.equal(run.head_repository.full_name, repository)
   assert.equal(run.head_branch, 'main')
-  assert.equal(run.event, 'workflow_dispatch')
+  assert.ok(events.includes(run.event))
   assert.match(run.head_sha, /^[a-f0-9]{40}$/)
-  const linux = jobs.jobs.filter(job => job.name === 'Linux product / Source-built Linux unified installer')
+  const linux = jobs.jobs.filter(job => job.name === jobName)
   assert.equal(linux.length, 1)
   assert.equal(linux[0].status, 'completed')
   assert.equal(linux[0].conclusion, 'success')
   assert.equal(linux[0].head_sha, run.head_sha)
   assert.equal(linux[0].run_id, run.id)
-  return run.head_sha
+  return { commit: run.head_sha, producerProfile, linuxJob: linux[0] }
 }
 
 export function releaseIdentity(release, provenance, signing, source, tag) {

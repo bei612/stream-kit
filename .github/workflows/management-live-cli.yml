@@ -2,6 +2,14 @@ name: management-live-cli-acceptance
 on:
   workflow_dispatch:
     inputs:
+      runtime_producer_profile:
+        description: 'Explicit producer: unified product, or completed successful standalone Linux workflow'
+        type: choice
+        required: true
+        default: unified
+        options:
+          - unified
+          - standalone-linux
       product_run_id:
         description: 'Owned product run with a completed successful Linux job; reuse its exact runtime without rebuilding'
         type: string
@@ -22,6 +30,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       PRODUCT_RUN_ID: ${{ inputs.product_run_id }}
+      RUNTIME_PRODUCER_PROFILE: ${{ inputs.runtime_producer_profile }}
       EXPECTED_RUNTIME_COMMIT: ${{ inputs.expected_runtime_commit }}
     steps:
       - uses: actions/checkout@v4
