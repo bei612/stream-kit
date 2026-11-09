@@ -271,6 +271,11 @@ adb -s "$serial" install artifacts/input-download/*.apk
 adb -s "$serial" install -t artifacts/input-example/android/observer.apk
 adb -s "$serial" shell input keyevent KEYCODE_WAKEUP
 adb -s "$serial" shell wm dismiss-keyguard
+# A separate testOnly system tone must establish the common emulator output
+# before the production APK enters. Its PCM/results never enter product metrics.
+node scripts/android/emulator-playout-control.cjs --serial "$serial" \
+  --adb "$ANDROID_HOME/platform-tools/adb" --probe artifacts/input-example/audio-probe \
+  --output "$evidence/system-playout-control.json" --volume-evidence "$evidence/media-volume.json"
 # Locate the official owned emulator discovery entry, retaining its token only
 # in this private scratch directory. Never print/upload discovery or token data.
 node - "$scratch/grpc.json" <<'NODE'

@@ -42,11 +42,12 @@
     "phase": "actual_android_program_playout",
     "error": "Android playout missing sustained 997Hz program",
     "app_entered": true,
-    "fixture_failed": false,
     "microphone_injection_reached": false,
     "microphone_target_measurements": {},
     "revocation_audio_measurement_reached": false,
-    "whole_audio_acceptance_passed": false
+    "whole_audio_acceptance_passed": false,
+    "media_volume_fixture_failed": false,
+    "common_output_fixture_independently_validated": false
   },
   "media_volume_fixture": {
     "schemaVersion": 2,
@@ -526,7 +527,9 @@
     "not_established": [
       "The precise location where nonzero decoded content becomes near-silent output remains unresolved between native playout, AudioTrack/AudioFlinger, Android HAL and emulator output. No production fix is inferred from volume or metadata alone.",
       "AudioFlinger underrun counts increase, but this run does not prove underruns explain near-total silence.",
-      "Raw PulseAudio modules JSON was not retained, so exact module identity cannot be reconstructed after CI teardown."
+      "Raw PulseAudio modules JSON was not retained, so exact module identity cannot be reconstructed after CI teardown.",
+      "The before_recording and after_recording native UI snapshots contain identical cached counters (1400 packets, 1261920 samples, 0.97 energy and 205 video frames). The old external observer read retained text immediately after opening the panel. Their values do not establish energy growth during the PCM capture window; only the later failure snapshot shows larger cumulative counters. This observation defect is not itself a silence root cause.",
+      "The successful volume calibration does not independently validate the whole common output fixture. This run did not include a standalone system-playout positive control, so a shared output/measurement fixture defect is not excluded."
     ],
     "diagnostic_parser_boundary": {
       "affected_helper": "scripts/lib/android-audio-acceptance.cjs recorderRoute",
