@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-09",
+  "run": "https://github.com/bei612/stream-kit/actions/runs/42601638484",
+  "conclusion": "success",
+  "runtime_commit": "98e419f7f85fa36a92651ee55396815386a233c4",
+  "installer_sha256": "0b9d8d4a51665907962e766b85f7e6b2f83b043669f534d82f9a1101a873f4bb",
+  "payload_sha256": "7add5d32830f4538a43e923550813eb41504bbe89ca3cb084a8dd54d8e0f18e5",
+  "product_run_id": 42599646248,
+  "product_linux_job_id": 129100652467,
+  "android_release_tag": "v0.1.0-android-preview.20261109.2",
+  "android_release_id": 438961470,
+  "apk_file": "stream-kit-android-0.1.0-preview.20261109.2.apk",
+  "apk_source_commit": "6591f2b99721a39af7c7c34666377cd04081973b",
+  "apk_sha256": "6b8ecbd0b981025d5ff0fb26e6dc0ea8dcfbaf6cb21864222b9d9ea8833437c9",
+  "apk_signer_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f",
+  "apk_signature_verified": true,
+  "acceptance_commit": "3a39fb7750c5d6bf0736045dc98fc7b190351735",
+  "runtime_rebuilt": false,
+  "apk_rebuilt": false,
+  "scope": "Actual published Android/Web input into an isolated native target over trusted HTTPS; no repeated audio/stability or physical-device claim.",
+  "shared_clients": 2,
+  "one_upstream": true,
+  "phases": [
+    {
+      "label": "android_controller",
+      "before": {
+        "keys": 0,
+        "clicks": 0
+      },
+      "after": {
+        "keys": 1,
+        "clicks": 1
+      }
+    },
+    {
+      "label": "old_android_denied",
+      "before": {
+        "keys": 1,
+        "clicks": 1
+      },
+      "after": {
+        "keys": 1,
+        "clicks": 1
+      }
+    },
+    {
+      "label": "web_controller",
+      "before": {
+        "keys": 1,
+        "clicks": 1
+      },
+      "after": {
+        "keys": 2,
+        "clicks": 2
+      }
+    },
+    {
+      "label": "web_revoked",
+      "before": {
+        "keys": 2,
+        "clicks": 2
+      },
+      "after": {
+        "keys": 2,
+        "clicks": 2
+      }
+    },
+    {
+      "label": "android_regranted",
+      "before": {
+        "keys": 2,
+        "clicks": 2
+      },
+      "after": {
+        "keys": 3,
+        "clicks": 3
+      }
+    },
+    {
+      "label": "android_revoked",
+      "before": {
+        "keys": 3,
+        "clicks": 3
+      },
+      "after": {
+        "keys": 3,
+        "clicks": 3
+      }
+    }
+  ],
+  "owned_target_stop_acknowledged": true,
+  "encoder_restored_idle": true,
+  "media_profile": {
+    "videoSize": "720p",
+    "fps": 30,
+    "bitrate": 8000,
+    "videoCodec": "h264"
+  },
+  "limitations": [
+    "Independent Linux renderer and official Android emulator; not Windows target input or local ToDesk coexistence acceptance.",
+    "No new microphone/audio quality, physical speech or stability claim.",
+    "This does not constitute deployment of the new Windows management/gateway packages."
+  ]
+}
