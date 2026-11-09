@@ -11,6 +11,9 @@ public final class Observer extends Instrumentation {
     private static final String CLIENT = "io.github.bei612.streamkit";
     private static final java.util.regex.Pattern AUDIO_STATS = java.util.regex.Pattern.compile("^音频 · 接收 ([0-9]+) 包$");
     private static final java.util.regex.Pattern VIDEO_STATS = java.util.regex.Pattern.compile("^视频 · 接收 ([0-9]+) 包 · 解码 ([0-9]+) 帧 · [0-9]+(?:\\.[0-9]+)? FPS$");
+    private static final String NUMBER = "[0-9]+(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?";
+    private static final java.util.regex.Pattern AUDIO_FORMAT = java.util.regex.Pattern.compile("^音频编码 · ([A-Za-z][A-Za-z0-9_-]{0,31}|不可用) · 时钟 ([0-9]+ Hz|不可用) · 声道 ([0-9]+|不可用)$");
+    private static final java.util.regex.Pattern AUDIO_QUALITY = java.util.regex.Pattern.compile("^音频样本 · 接收 ([0-9]+|不可用) · 补偿样本 ([0-9]+|不可用) · 累计时长 (" + NUMBER + " s|不可用) · 累计能量 (" + NUMBER + "|不可用)$");
     private String role = "other";
     private String state = "unknown";
     private String rootKind = "no_root";
@@ -20,6 +23,9 @@ public final class Observer extends Instrumentation {
     private boolean diagnosticsRequested, toolbarVisible, statisticsVisible;
     private String playback = "unknown", sound = "unknown";
     private long audioPackets = -1, videoPackets = -1, videoFrames = -1;
+    private String audioCodec;
+    private long audioClock = -1, audioChannels = -1, receivedSamples = -1, compensatedSamples = -1;
+    private double sampleDuration = -1, totalEnergy = -1;
 
     @Override public void onCreate(Bundle arguments) {
         super.onCreate(arguments);
@@ -84,6 +90,9 @@ public final class Observer extends Instrumentation {
         playback = "unknown";
         sound = "unknown";
         audioPackets = videoPackets = videoFrames = -1;
+        audioCodec = null;
+        audioClock = audioChannels = receivedSamples = compensatedSamples = -1;
+        sampleDuration = totalEnergy = -1;
         window.setEmpty();
         AccessibilityNodeInfo root = getUiAutomation().getRootInActiveWindow();
         if (root == null) return;
@@ -138,8 +147,21 @@ public final class Observer extends Instrumentation {
             for (String line : text.split("\n")) {
                 java.util.regex.Matcher audio = AUDIO_STATS.matcher(line);
                 java.util.regex.Matcher video = VIDEO_STATS.matcher(line);
+                java.util.regex.Matcher format = AUDIO_FORMAT.matcher(line);
+                java.util.regex.Matcher quality = AUDIO_QUALITY.matcher(line);
                 if (audio.matches()) { statisticsVisible = true; audioPackets = Math.max(0, audioPackets) + Long.parseLong(audio.group(1)); }
                 if (video.matches()) { statisticsVisible = true; videoPackets = Math.max(0, videoPackets) + Long.parseLong(video.group(1)); videoFrames = Math.max(0, videoFrames) + Long.parseLong(video.group(2)); }
+                if (format.matches()) {
+                    if (!"不可用".equals(format.group(1))) audioCodec = format.group(1);
+                    if (!"不可用".equals(format.group(2))) audioClock = Long.parseLong(format.group(2).replace(" Hz", ""));
+                    if (!"不可用".equals(format.group(3))) audioChannels = Long.parseLong(format.group(3));
+                }
+                if (quality.matches()) {
+                    if (!"不可用".equals(quality.group(1))) receivedSamples = Long.parseLong(quality.group(1));
+                    if (!"不可用".equals(quality.group(2))) compensatedSamples = Long.parseLong(quality.group(2));
+                    if (!"不可用".equals(quality.group(3))) sampleDuration = Double.parseDouble(quality.group(3).replace(" s", ""));
+                    if (!"不可用".equals(quality.group(4))) totalEnergy = Double.parseDouble(quality.group(4));
+                }
                 if ("播放 · 正在播放".equals(line)) { statisticsVisible = true; playback = "playing"; }
                 if ("播放 · 已暂停".equals(line)) { statisticsVisible = true; playback = "paused"; }
                 if ("播放 · 等待播放".equals(line)) { statisticsVisible = true; playback = "waiting"; }
@@ -201,6 +223,13 @@ public final class Observer extends Instrumentation {
             if (audioPackets >= 0) result.putLong("audio_packets", audioPackets);
             if (videoPackets >= 0) result.putLong("video_packets", videoPackets);
             if (videoFrames >= 0) result.putLong("video_frames", videoFrames);
+            if (audioCodec != null) result.putString("codec_name", audioCodec);
+            if (audioClock >= 0) result.putLong("clock_rate", audioClock);
+            if (audioChannels >= 0) result.putLong("audio_channels", audioChannels);
+            if (receivedSamples >= 0) result.putLong("total_samples_received", receivedSamples);
+            if (compensatedSamples >= 0) result.putLong("concealed_samples", compensatedSamples);
+            if (sampleDuration >= 0 && !Double.isInfinite(sampleDuration) && !Double.isNaN(sampleDuration)) result.putDouble("total_samples_duration", sampleDuration);
+            if (totalEnergy >= 0 && !Double.isInfinite(totalEnergy) && !Double.isNaN(totalEnergy)) result.putDouble("total_audio_energy", totalEnergy);
         } finally {
             if (closeStatistics && openToolbar()) clickDescription("统计信息");
             clickDescription("收起工具栏");
