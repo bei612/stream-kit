@@ -1,0 +1,584 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-11-09T16:18:13.305Z",
+  "passed": false,
+  "production_acceptance_complete": false,
+  "run": 42651317973,
+  "job": 129278117941,
+  "url": "https://github.com/bei612/stream-kit/actions/runs/42651317973",
+  "status": "completed",
+  "conclusion": "failure",
+  "scope": "Published Android default microphone via official emulator input injection, isolated native playout and target recording, real Web observer and runtime authorization/revocation; synthetic source, not physical speech",
+  "identity": {
+    "runtime_commit": "df7cd87b3352a638aa3a6aa7073d39074c02a43c",
+    "installer_sha256": "b7ab7cc3ae471a0930fef2ef8be11941629e602df48efb9323362e3cc2aed3fd",
+    "payload_sha256": "8c17777d131d7baf7e2fcf4fa9bef63531b4902d308b2fcabf325b7aca0cfcb1",
+    "product_run_id": 42648530658,
+    "product_linux_job_id": 129268273912,
+    "android_release_tag": "v0.1.0-android-preview.20261109.6",
+    "android_release_id": 439334431,
+    "apk_file": "stream-kit-android-0.1.0-preview.20261109.6.apk",
+    "apk_source_commit": "df7cd87b3352a638aa3a6aa7073d39074c02a43c",
+    "apk_sha256": "31593fce46afc49de92e9c04b76e0b881448e477d42fcbe02ebf387d424c3ebc",
+    "apk_signer_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f",
+    "apk_signature_verified": true,
+    "acceptance_commit": "a9bd672a3e551b62184ca5c05409d723e3543e36",
+    "runtime_rebuilt": false,
+    "apk_rebuilt": false
+  },
+  "source_verification": {
+    "existing_productSource_rule_used_without_changes": true,
+    "product_linux_job_completed_success_before_dispatch": true,
+    "overall_windows_product_completion_not_required_by_that_rule": true,
+    "product_and_apk_same_source": true,
+    "apk_v2_and_persistent_signer_verified_by_workflow": true,
+    "extracted_platform_verified_by_workflow": true,
+    "encoder_sha256": "556e8bfbe6abd0a27b7de8a30fecec848a4527c91f9cf7346527ea7bd88ab95d",
+    "gateway_sha256": "14cc52f7345d59572c4850f24f0e8ad8ff404b7487b11d17c51f835cb11047db",
+    "control_sha256": "c5183b7713fd038b9775786382f33d9f1f7d5f3651a2656b3feaed54152879fe",
+    "example_sha256": "444882a1abd6964d5ef664b406f5a9f6080d65e44139e8cd02edfddd55e7e7dc"
+  },
+  "failure": {
+    "phase": "actual_android_program_playout",
+    "error": "Android playout missing sustained 997Hz program",
+    "app_entered": true,
+    "fixture_failed": false,
+    "microphone_injection_reached": false,
+    "microphone_target_measurements": {},
+    "revocation_audio_measurement_reached": false,
+    "whole_audio_acceptance_passed": false
+  },
+  "media_volume_fixture": {
+    "schemaVersion": 2,
+    "fixture_only": true,
+    "host_changed": false,
+    "avd_serial": "emulator-5580",
+    "stream": 3,
+    "before": 5,
+    "after": 15,
+    "min": 0,
+    "max": 15,
+    "set_attempts": 1,
+    "set_interface": "cmd audio set-volume",
+    "get_interface": "cmd media_session volume --get",
+    "shell_uid": 2000,
+    "audio_service_before": 5,
+    "set_command_supported": true,
+    "timeout_ms": 5000,
+    "elapsed_ms": 801,
+    "observation_attempts": 1,
+    "observations_count": 1,
+    "observations": [
+      {
+        "index": 1,
+        "elapsed_ms": 200,
+        "value": 15,
+        "min": 0,
+        "max": 15
+      }
+    ],
+    "phase": "after_get",
+    "status": "passed",
+    "failure_class": null
+  },
+  "measurements": {
+    "web_program_997_db": -30.112934112548828,
+    "web_threshold_db": -65,
+    "web_startup_ready_ms": 530,
+    "android_capture": {
+      "sample_rate": 48000,
+      "captured_frames": 193077,
+      "dropped_frames": 0,
+      "minimum_frames": 192000,
+      "collection_elapsed_ms": 4032,
+      "collection_limit_ms": 6500,
+      "analyzed_frames": 192000,
+      "windows": 40,
+      "frequency_hz": 997,
+      "median_amplitude": 1.1392940445765518e-7,
+      "mean_amplitude": 1.1075296878676355e-7,
+      "peak_amplitude": 1.9377993682671648e-7,
+      "required_median_amplitude": 0.01
+    },
+    "independent_stereo_diagnostic": {
+      "diagnostic_only": true,
+      "status": "complete",
+      "capture_status": "complete",
+      "cleanup": "terminated",
+      "sample_rate": 48000,
+      "channels": 2,
+      "analyzed_frames": 96000,
+      "elapsed_ms": 2019,
+      "left_rms": 0.000011394818513004407,
+      "right_rms": 0.000011393115633444274,
+      "left_peak": 0.00006103515625,
+      "right_peak": 0.00006103515625,
+      "mono_sum_rms": 0.000010569763660866868,
+      "half_difference_rms": 0.000004254712980224208,
+      "left_right_correlation": 0.7180943096903015
+    }
+  },
+  "pipeline_observations": {
+    "before_recording": {
+      "started_at_ms": 1794240656723,
+      "finished_at_ms": 1794240664556,
+      "ui": {
+        "available": true,
+        "reason": "complete",
+        "root": "client",
+        "playback": "playing",
+        "sound": "on",
+        "statistics_closed": true,
+        "toolbar_closed": true,
+        "codec_name": "OPUS",
+        "audio_packets": 1400,
+        "video_packets": 2501,
+        "video_frames": 205,
+        "clock_rate": 48000,
+        "audio_channels": 2,
+        "total_samples_received": 1261920,
+        "concealed_samples": 8640,
+        "total_samples_duration": 26.82,
+        "total_audio_energy": 0.97
+      },
+      "sdk_error_count": 0,
+      "focus": [
+        {
+          "application_owner": true,
+          "gain": "GAIN",
+          "loss": "none",
+          "flags": "PAUSES_ON_DUCKABLE_LOSS",
+          "notified": "true",
+          "uid": "10216",
+          "sdk": "36",
+          "usage": "USAGE_GAME"
+        }
+      ],
+      "application_playback": [
+        {
+          "state": "started",
+          "usage": "USAGE_GAME",
+          "content": "CONTENT_TYPE_MUSIC"
+        }
+      ],
+      "audioflinger": {
+        "tracks": [
+          "55    yes    2876/  10216     177      15 A  0x000 00000001 00000003  48000  3   e  2     0     0     0     0            0      false 000F63C0   4360    4360 A         0        0      false        false  140.69 t"
+        ],
+        "standby": "no",
+        "sample_rate": 48000,
+        "frames_written": 1009664,
+        "track_columns": "Type     Id Active Client(pid/uid) Session Port Id S  Flags   Format Chn mask  SRate ST Usg CT  G db  L dB  R dB  VS dB  PortVol dB  PortMuted   Server FrmCnt  FrmRdy F Underruns  Flushed BitPerfect InternalMute   Latency",
+        "owned_track_count": 1
+      },
+      "pulse_inputs": [
+        {
+          "index": 0,
+          "sink": 1,
+          "process_id": "7284",
+          "sample_specification": "s16le 2ch 44100Hz",
+          "mute": false,
+          "corked": false,
+          "volume": {
+            "front-left": {
+              "value": 65536,
+              "value_percent": "100%",
+              "db": "0.00 dB"
+            },
+            "front-right": {
+              "value": 65536,
+              "value_percent": "100%",
+              "db": "0.00 dB"
+            }
+          }
+        }
+      ],
+      "pulse_sinks": [
+        {
+          "index": 1,
+          "name": "streamkit_android",
+          "sample_specification": "s16le 2ch 48000Hz",
+          "mute": false,
+          "volume": {
+            "front-left": {
+              "value": 65536,
+              "value_percent": "100%",
+              "db": "0.00 dB"
+            },
+            "front-right": {
+              "value": 65536,
+              "value_percent": "100%",
+              "db": "0.00 dB"
+            }
+          },
+          "state": "RUNNING"
+        }
+      ],
+      "capture_source_index": 2,
+      "master_source_index": 1,
+      "remap_module_verified": false,
+      "recorder_owner_verified": true
+    },
+    "after_recording": {
+      "started_at_ms": 1794240668693,
+      "finished_at_ms": 1794240679718,
+      "ui": {
+        "available": true,
+        "reason": "complete",
+        "root": "client",
+        "playback": "playing",
+        "sound": "on",
+        "statistics_closed": true,
+        "toolbar_closed": true,
+        "codec_name": "OPUS",
+        "audio_packets": 1400,
+        "video_packets": 2501,
+        "video_frames": 205,
+        "clock_rate": 48000,
+        "audio_channels": 2,
+        "total_samples_received": 1261920,
+        "concealed_samples": 8640,
+        "total_samples_duration": 26.82,
+        "total_audio_energy": 0.97
+      },
+      "sdk_error_count": 0,
+      "focus": [
+        {
+          "application_owner": true,
+          "gain": "GAIN",
+          "loss": "none",
+          "flags": "PAUSES_ON_DUCKABLE_LOSS",
+          "notified": "true",
+          "uid": "10216",
+          "sdk": "36",
+          "usage": "USAGE_GAME"
+        }
+      ],
+      "application_playback": [
+        {
+          "state": "started",
+          "usage": "USAGE_GAME",
+          "content": "CONTENT_TYPE_MUSIC"
+        }
+      ],
+      "audioflinger": {
+        "tracks": [
+          "55    yes    2876/  10216     177      15 A  0x001 00000001 00000003  48000  3   e  2     0     0     0     0            0      false 0017F088   4360    3272 A      3256        0      false        false  107.39 t"
+        ],
+        "standby": "no",
+        "sample_rate": 48000,
+        "frames_written": 1572160,
+        "track_columns": "Type     Id Active Client(pid/uid) Session Port Id S  Flags   Format Chn mask  SRate ST Usg CT  G db  L dB  R dB  VS dB  PortVol dB  PortMuted   Server FrmCnt  FrmRdy F Underruns  Flushed BitPerfect InternalMute   Latency",
+        "owned_track_count": 1
+      },
+      "pulse_inputs": [
+        {
+          "index": 0,
+          "sink": 1,
+          "process_id": "7284",
+          "sample_specification": "s16le 2ch 44100Hz",
+          "mute": false,
+          "corked": false,
+          "volume": {
+            "front-left": {
+              "value": 65536,
+              "value_percent": "100%",
+              "db": "0.00 dB"
+            },
+            "front-right": {
+              "value": 65536,
+              "value_percent": "100%",
+              "db": "0.00 dB"
+            }
+          }
+        }
+      ],
+      "pulse_sinks": [
+        {
+          "index": 1,
+          "name": "streamkit_android",
+          "sample_specification": "s16le 2ch 48000Hz",
+          "mute": false,
+          "volume": {
+            "front-left": {
+              "value": 65536,
+              "value_percent": "100%",
+              "db": "0.00 dB"
+            },
+            "front-right": {
+              "value": 65536,
+              "value_percent": "100%",
+              "db": "0.00 dB"
+            }
+          },
+          "state": "RUNNING"
+        }
+      ],
+      "capture_source_index": 2,
+      "master_source_index": 1,
+      "remap_module_verified": false,
+      "recorder_owner_verified": true
+    },
+    "at_failure": {
+      "started_at_ms": 1794240681829,
+      "finished_at_ms": 1794240689063,
+      "ui": {
+        "available": true,
+        "reason": "complete",
+        "root": "client",
+        "playback": "playing",
+        "sound": "on",
+        "statistics_closed": true,
+        "toolbar_closed": true,
+        "codec_name": "OPUS",
+        "audio_packets": 2603,
+        "video_packets": 4569,
+        "video_frames": 378,
+        "clock_rate": 48000,
+        "audio_channels": 2,
+        "total_samples_received": 2356320,
+        "concealed_samples": 8640,
+        "total_samples_duration": 49.62,
+        "total_audio_energy": 1.85
+      },
+      "sdk_error_count": 0,
+      "focus": [
+        {
+          "application_owner": true,
+          "gain": "GAIN",
+          "loss": "none",
+          "flags": "PAUSES_ON_DUCKABLE_LOSS",
+          "notified": "true",
+          "uid": "10216",
+          "sdk": "36",
+          "usage": "USAGE_GAME"
+        }
+      ],
+      "application_playback": [
+        {
+          "state": "started",
+          "usage": "USAGE_GAME",
+          "content": "CONTENT_TYPE_MUSIC"
+        }
+      ],
+      "audioflinger": {
+        "tracks": [
+          "55    yes    2876/  10216     177      15 A  0x001 00000001 00000003  48000  3   e  2     0     0     0     0            0      false 002151D8   4360    2184 A      7592        0      false        false  122.06 t"
+        ],
+        "standby": "no",
+        "sample_rate": 48000,
+        "frames_written": 2191232,
+        "track_columns": "Type     Id Active Client(pid/uid) Session Port Id S  Flags   Format Chn mask  SRate ST Usg CT  G db  L dB  R dB  VS dB  PortVol dB  PortMuted   Server FrmCnt  FrmRdy F Underruns  Flushed BitPerfect InternalMute   Latency",
+        "owned_track_count": 1
+      },
+      "pulse_inputs": [
+        {
+          "index": 0,
+          "sink": 1,
+          "process_id": "7284",
+          "sample_specification": "s16le 2ch 44100Hz",
+          "mute": false,
+          "corked": false,
+          "volume": {
+            "front-left": {
+              "value": 65536,
+              "value_percent": "100%",
+              "db": "0.00 dB"
+            },
+            "front-right": {
+              "value": 65536,
+              "value_percent": "100%",
+              "db": "0.00 dB"
+            }
+          }
+        }
+      ],
+      "pulse_sinks": [
+        {
+          "index": 1,
+          "name": "streamkit_android",
+          "sample_specification": "s16le 2ch 48000Hz",
+          "mute": false,
+          "volume": {
+            "front-left": {
+              "value": 65536,
+              "value_percent": "100%",
+              "db": "0.00 dB"
+            },
+            "front-right": {
+              "value": 65536,
+              "value_percent": "100%",
+              "db": "0.00 dB"
+            }
+          },
+          "state": "RUNNING"
+        }
+      ],
+      "capture_source_index": 2,
+      "master_source_index": 1,
+      "remap_module_verified": false,
+      "recorder_owner_verified": true
+    },
+    "emulator_backend": {
+      "required_binary": "/usr/local/lib/android/sdk/emulator/qemu/linux-x86_64/qemu-system-x86_64",
+      "launcher_pid": 7284,
+      "required_sink": "streamkit_android",
+      "status": "verified_real_pulse_output",
+      "started_at_ms": 1794240656659,
+      "process_tree": [
+        {
+          "pid": 7284,
+          "parent_pid": 6247,
+          "exe": "/usr/local/lib/android/sdk/emulator/qemu/linux-x86_64/qemu-system-x86_64"
+        },
+        {
+          "pid": 7350,
+          "parent_pid": 7284,
+          "exe": "/usr/local/lib/android/sdk/emulator/netsimd"
+        }
+      ],
+      "sink_inputs": [
+        {
+          "index": 0,
+          "process_id": 7284,
+          "sink": 1,
+          "sample_specification": "s16le 2ch 44100Hz",
+          "mute": false,
+          "corked": false,
+          "volume": {
+            "front-left": {
+              "value": 65536,
+              "value_percent": "100%",
+              "db": "0.00 dB"
+            },
+            "front-right": {
+              "value": 65536,
+              "value_percent": "100%",
+              "db": "0.00 dB"
+            }
+          }
+        }
+      ],
+      "android_sink_inputs": [
+        {
+          "index": 0,
+          "process_id": 7284,
+          "sink": 1,
+          "sample_specification": "s16le 2ch 44100Hz",
+          "mute": false,
+          "corked": false,
+          "volume": {
+            "front-left": {
+              "value": 65536,
+              "value_percent": "100%",
+              "db": "0.00 dB"
+            },
+            "front-right": {
+              "value": 65536,
+              "value_percent": "100%",
+              "db": "0.00 dB"
+            }
+          }
+        }
+      ],
+      "observed_at_ms": 1794240681826,
+      "verified_at_ms": 1794240656721
+    },
+    "recorder_during_recording": {
+      "started_at_ms": 1794240664675,
+      "finished_at_ms": 1794240664801,
+      "recorder_expected_active": true,
+      "recorder_owner_verified": true,
+      "pulse_source_outputs": [
+        {
+          "index": 4,
+          "source": 2,
+          "client": null,
+          "owner_module": null,
+          "process_id": 8028,
+          "owner": "owned_probe",
+          "application_name": "unrecognized",
+          "sample_specification": "s16le 1ch 48000Hz",
+          "mute": false,
+          "corked": false,
+          "volume": {
+            "mono": {
+              "value": 65536,
+              "value_percent": "100%",
+              "db": "0.00 dB"
+            }
+          }
+        }
+      ],
+      "capture_source_index": 2,
+      "master_source_index": 1,
+      "remap_module_verified": false
+    }
+  },
+  "analysis": {
+    "established": [
+      "The official owned AVD volume fixture succeeded under ordinary shell UID 2000: one set, volume 5 to 15, first observed at 200 ms. No product volume policy was changed.",
+      "The APK entered actual playback; Opus receive/decode counters and reported energy increase, and the existing player reports playing/sound-on without SDK error. These counters do not measure the PCM written to AudioTrack.",
+      "The owned AudioFlinger track is active PCM16/stereo/48000 with zero-dB gains and no track or port mute; its output frame count increases. Metadata does not establish nonzero samples at the AudioTrack/HAL boundary.",
+      "The full official emulator owns an uncorked/unmuted two-channel 44100 Hz PulseAudio output into the isolated 48000 Hz stereo sink, with all observed volumes at 100 percent. These sample rates can legitimately differ through resampling.",
+      "The owned probe records the intended dedicated capture source with zero drops, but sustained 997 Hz remains near zero. An independent stereo parec recording agrees; observed channels do not support cancellation as the explanation."
+    ],
+    "not_established": [
+      "The precise location where nonzero decoded content becomes near-silent output remains unresolved between native playout, AudioTrack/AudioFlinger, Android HAL and emulator output. No production fix is inferred from volume or metadata alone.",
+      "AudioFlinger underrun counts increase, but this run does not prove underruns explain near-total silence.",
+      "Raw PulseAudio modules JSON was not retained, so exact module identity cannot be reconstructed after CI teardown."
+    ],
+    "diagnostic_parser_boundary": {
+      "affected_helper": "scripts/lib/android-audio-acceptance.cjs recorderRoute",
+      "observed_remap_verified": false,
+      "ci_pulseaudio_version": "1:16.1+dfsg1-2ubuntu10.1",
+      "upstream_source": "https://github.com/pulseaudio/pulseaudio/blob/v16.1/src/utils/pactl.c",
+      "source_sha256": "e58232101807117b5d1232d180bc3c1dab68703a9ea969007ae69f47e2206404",
+      "finding": "Upstream 16.1 modules JSON does not emit index, while recorderRoute searches module.index against source.owner_module. Source-output owner_module is encoded as string, while the helper requires an integer. This can make internal-remap diagnostics unavailable; it is not proof of bad routing or the silence root cause.",
+      "helper_modified": false
+    }
+  },
+  "cleanup": {
+    "scoped_stop_acknowledged": true,
+    "sunshine_restored_idle": true
+  },
+  "limits": [
+    "Actual synthetic program-audio failure belongs to this exact df7cd87b runtime and Android 1000013 APK. It must not be replaced by older APK or runtime results.",
+    "The run stopped before microphone injection, microphone broadcast/recording or audio revocation checks; those stages are not accepted by this result.",
+    "This audio run does not establish all new connection termination/control scenarios or installed Windows acceptance.",
+    "No physical speaker, real speech, Android physical-device quality or full production acceptance is claimed.",
+    "No new dispatch, runtime/APK build, threshold reduction, privileged permission grant, host volume, network, UE or ToDesk change was performed after this result."
+  ],
+  "local_evidence": [
+    {
+      "path": ".local/ci-android-audio-42651317973/android-audio-evidence/media-volume.json",
+      "bytes": 678,
+      "sha256": "111c4fd35ad416f2e46ad9931df177fe41447a1f7b488f717940532eaca4b8c3"
+    },
+    {
+      "path": ".local/ci-android-audio-42651317973/android-input-evidence/provenance.json",
+      "bytes": 875,
+      "sha256": "20f080bc70ed2040dae0ed03738d59ead88458985384b5645251c54c8d316191"
+    },
+    {
+      "path": ".local/ci-android-audio-42651317973/source-stream/2026-11-09T16-10-16-768Z/browser/result.json",
+      "bytes": 104461,
+      "sha256": "eed59757efce3b089561039ebe608a1212a7802c8d3115f63957d58f0f2127dc"
+    },
+    {
+      "path": ".local/ci-android-audio-42651317973/source-stream/2026-11-09T16-10-16-768Z/result.json",
+      "bytes": 1557,
+      "sha256": "44c57da69780821cb41826ad8b3e39e3b49e411ded5d987e7cff6b5c983dd918"
+    },
+    {
+      "path": ".local/validation/android-audio-42651317973-job.log",
+      "bytes": 7716,
+      "sha256": "6d6657ea3d88a06af3d27b6a2c1dafa272b7ef96d5b74181538a8c7461e13ac2"
+    },
+    {
+      "path": ".local/validation/android-audio-42651317973-full-job.log",
+      "bytes": 289365,
+      "sha256": "d401b8c974a8958d173856b35146af36a027adb7c17beb34d261a02412b46142"
+    }
+  ]
+}
