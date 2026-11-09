@@ -474,9 +474,10 @@ public final class ManagedSession implements AutoCloseable {
   private void connectionFailure(long op, ConnectionLifetime owner, Exception error) {
     if (error instanceof ManagedApi.Failure) {
       ManagedApi.Failure failure = (ManagedApi.Failure) error;
+      boolean resumableGone = "CONNECTION_LEASE_EXPIRED".equals(failure.code)
+          || "CONNECTION_EXPIRED".equals(failure.code);
       if ((failure.status == 410 && "CONNECTION_TERMINATED".equals(failure.code))
-          || (valid(op) && failure.status == 401
-              && "CONNECTION_UNAUTHORIZED".equals(failure.code))) {
+          || (valid(op) && (failure.status == 401 || (failure.status == 410 && !resumableGone)))) {
         terminateConnection(owner);
         return;
       }
