@@ -6,7 +6,7 @@ import QueryWrapper from '@/components/QueryWrapper'
 import StatusBadge from '@/components/StatusBadge'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Play, Square, Upload, ExternalLink } from 'lucide-react'
+import { Upload, ExternalLink } from 'lucide-react'
 
 const componentNames: Record<string, string> = {
   sunshine: '串流编码器',
@@ -53,23 +53,7 @@ export default function Dashboard() {
                 <StatusBadge status={c.status} />
               </div>
               <div className="text-xs text-muted-foreground">PID: {c.pid || '-'}</div>
-              <div className="flex gap-2 mt-3">
-                <Button
-                  size="sm"
-                  onClick={() => api.startComponent(c.name).then(comps.refresh)}
-                  disabled={c.status === 'running'}
-                >
-                  <Play className="w-3 h-3" /> 启动
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => api.stopComponent(c.name).then(comps.refresh)}
-                  disabled={c.status === 'stopped'}
-                >
-                  <Square className="w-3 h-3" /> 停止
-                </Button>
-              </div>
+              <Link to={`/components#${encodeURIComponent(c.name)}`} className="mt-3 inline-flex min-h-9 items-center gap-1 text-xs text-primary hover:underline">管理组件 <ExternalLink className="h-3 w-3" /></Link>
             </Card>
           ))}
           {components.length === 0 && !comps.loading && (

@@ -23,13 +23,16 @@ function copyAssets(source, destination) {
 
 (async () => {
   const binary = option('--binary'), dist = option('--dist'), output = option('--output');
+  const componentCommands = process.argv.includes('--component-commands');
   assert.ok(fs.lstatSync(binary).isFile()); assert.ok(fs.lstatSync(path.join(dist, 'index.html')).isFile());
   assert.ok(!fs.existsSync(output), 'Use a new evidence directory'); fs.mkdirSync(output, { recursive: true });
   const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'stream-kit-management-native-'));
   const configPath = path.join(workspace, 'config.json');
   const environment = { ...process.env }; for (const name of Object.keys(environment)) if (name.startsWith('ORCH_')) delete environment[name];
-  let child, browser, secrets = [];
+  let child, browser, secrets = [], serviceBase;
   const report = { passed: false, engine, scope: 'Real management API and SPA only; components absent by configuration, no media acceptance', cases: [], console: [], expected_unavailable: [], unexpected_http_errors: [] };
+  if (componentCommands) report.scope = 'Real management API/SPA, owned native orchestrator component start/restart/stop and missing-executable failure; no encoder, gateway, application launch/popup or media acceptance';
+  report.expected_component_errors = [];
   const sanitize = value => { let text = String(value); for (const secret of secrets) if (secret) text = text.split(secret).join('[redacted]'); return text.replace(/Bearer\s+[A-Za-z0-9_.-]+/g, 'Bearer [redacted]').replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, '[redacted-jwt]'); };
   let serviceLog = '';
   try {
@@ -40,12 +43,27 @@ function copyAssets(source, destination) {
     Object.assign(cfg.server, { bind_address: `127.0.0.1:${port}`, tls_cert: '', tls_key: '', media_ticket_secret: '', lan_tls: { ca_cert: '', ca_key: '', hosts: [] } });
     cfg.components = {}; cfg.sunshine_api = { base_url: '', username: '', password: '', verify_ssl: true }; cfg.moonlight_web = { base_url: '', public_url: '', username: '', password: '' };
     cfg.render_nodes = {}; cfg.storage.apps_dir = path.join(workspace, 'apps'); cfg.storage.temp_dir = path.join(workspace, 'temp'); cfg.storage.db_path = path.join(workspace, 'state.sqlite'); cfg.log.file.enabled = false;
+    if (componentCommands) {
+      const directory = path.join(workspace, 'owned-component'); fs.mkdirSync(directory);
+      const componentConfig = path.join(directory, 'config.json');
+      cp.execFileSync(binary, ['init-config', '--config', componentConfig], { cwd: directory, env: environment, windowsHide: true, stdio: 'pipe' });
+      const native = read(componentConfig); secrets.push(native.server.password, native.server.jwt_secret, native.server.media_ticket_secret);
+      const lease = net.createServer(); await new Promise((resolve, reject) => { lease.once('error', reject); lease.listen(0, '127.0.0.1', resolve); });
+      const componentPort = lease.address().port; await new Promise(resolve => lease.close(resolve));
+      const childConfig = structuredClone(cfg); childConfig.server = { ...cfg.server, ...native.server, bind_address: `127.0.0.1:${componentPort}`, media_ticket_secret: '' };
+      childConfig.storage = { ...cfg.storage, apps_dir: path.join(directory, 'apps'), temp_dir: path.join(directory, 'temp'), db_path: path.join(directory, 'state.sqlite') };
+      fs.writeFileSync(componentConfig, JSON.stringify(childConfig, null, 2), { mode: 0o600 });
+      const owned = { exe_path: binary, args: `--config "${componentConfig}"`, working_dir: directory, auto_start: false, restart_on_crash: false, health_check: { type: 'http', url: `http://127.0.0.1:${componentPort}/api/v1/health`, interval_seconds: 1, timeout_seconds: 1, unhealthy_threshold: 1, healthy_threshold: 1, startup_timeout_seconds: 10 } };
+      cfg.components = { owned_runtime: owned, unavailable_runtime: { ...owned, exe_path: path.join(directory, 'missing-native-program' + (process.platform === 'win32' ? '.exe' : '')), args: '', health_check: { type: 'process' } } };
+      report.component_endpoint = `http://127.0.0.1:${componentPort}`;
+    }
     fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2), { mode: 0o600 });
     copyAssets(dist, path.join(workspace, 'dist'));
     child = cp.spawn(binary, ['--config', configPath], { cwd: workspace, env: environment, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
     let spawnError; child.once('error', error => { spawnError = error; });
     child.stdout.on('data', chunk => serviceLog += chunk); child.stderr.on('data', chunk => serviceLog += chunk);
     const base = `http://127.0.0.1:${port}`;
+    serviceBase = base;
     let health;
     for (let attempt = 0; attempt < 100; attempt++) {
       assert.ok(!spawnError && child.exitCode === null, 'Isolated orchestrator could not start');
@@ -53,7 +71,10 @@ function copyAssets(source, destination) {
       await delay(100);
     }
     assert.ok(health, 'Actual orchestrator health never became ready');
-    assert.deepEqual(health.components, {}, 'Unexpected real service components started');
+    if (componentCommands) {
+      assert.deepEqual(Object.keys(health.components).sort(), ['owned_runtime', 'unavailable_runtime']);
+      for (const state of Object.values(health.components)) assert.equal(state.status, 'stopped');
+    } else assert.deepEqual(health.components, {}, 'Unexpected real service components started');
     report.control_commit = health.commit; report.binary_sha256 = crypto.createHash('sha256').update(fs.readFileSync(binary)).digest('hex');
     report.dist_index_sha256 = crypto.createHash('sha256').update(fs.readFileSync(path.join(dist, 'index.html'))).digest('hex');
     const denied = await fetch(base + '/api/v1/stream-sessions'); assert.equal(denied.status, 401); report.cases.push('unauthenticated real API denied');
@@ -86,7 +107,10 @@ function copyAssets(source, destination) {
           report.expected_unavailable.push({ pathname, status, code });
           verifiedResourceFailures.push({ url: response.url(), status });
         }
-        else report.unexpected_http_errors.push({ pathname, status, code });
+        else if (componentCommands && pathname === '/api/v1/components/unavailable_runtime/start' && response.request().method() === 'POST' && status === 500 && code === 'INTERNAL_ERROR') {
+          const failure = JSON.parse(body); assert.ok(typeof failure.message === 'string' && failure.message.includes('missing-native-program'));
+          report.expected_component_errors.push({ pathname, status, code }); verifiedResourceFailures.push({ url: response.url(), status });
+        } else report.unexpected_http_errors.push({ pathname, status, code });
       })().catch(() => report.unexpected_http_errors.push({ pathname, status, body_unavailable: true })));
     });
     const screenshot = name => page.screenshot({ path: path.join(output, name + '.png'), fullPage: true });
@@ -103,6 +127,38 @@ function copyAssets(source, destination) {
       await page.waitForURL(base + target);
       assert.equal(await page.evaluate(() => performance.timeOrigin), documentOrigin, 'Normal management navigation unexpectedly replaced the document');
     };
+    if (componentCommands) {
+      assert.equal(await page.getByRole('button', { name: /^(启动|停止|重启)$/ }).count(), 0, 'Dashboard must not retain duplicate lifecycle controls');
+      await navigate('组件管理', '/components');
+      const owned = page.locator('#owned_runtime'), unavailable = page.locator('#unavailable_runtime');
+      await owned.getByRole('button', { name: '启动', exact: true }).waitFor();
+      const starts = () => report.request_timeline.filter(item => item.event === 'started' && item.method === 'POST' && item.path === '/api/v1/components/owned_runtime/start').length;
+      await owned.getByRole('button', { name: '启动', exact: true }).evaluate(button => { button.dispatchEvent(new MouseEvent('click', { bubbles: true })); button.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+      await page.waitForFunction(() => document.querySelector('#owned_runtime')?.textContent.includes('运行中'));
+      assert.equal(starts(), 1, 'Rapid UI clicks issued more than one start request');
+      const runningComponent = await api('/components/owned_runtime'); assert.equal(runningComponent.body.data.status, 'running'); assert.ok(runningComponent.body.data.pid > 0);
+      report.owned_component_pid = runningComponent.body.data.pid;
+      const nativeHealth = await fetch(report.component_endpoint + '/api/v1/health'); assert.equal(nativeHealth.status, 200); assert.equal((await nativeHealth.json()).data.commit, health.commit);
+      const failed = page.waitForResponse(response => response.url().endsWith('/components/unavailable_runtime/start') && response.request().method() === 'POST');
+      await unavailable.getByRole('button', { name: '启动', exact: true }).click(); assert.equal((await failed).status(), 500);
+      await unavailable.getByRole('alert').filter({ hasText: 'missing-native-program' }).waitFor();
+      assert.equal((await api('/components/unavailable_runtime')).body.data.status, 'error');
+      assert.equal((await api('/components/owned_runtime')).body.data.status, 'running', 'Other resource failure affected owned component');
+      await screenshot('components-real-running-and-error');
+      await owned.getByRole('button', { name: '重启', exact: true }).click();
+      await page.waitForFunction(previous => { const card = document.querySelector('#owned_runtime'); return card?.textContent.includes('运行中') && !card.textContent.includes('正在重启') && !card.textContent.includes(`PID: ${previous}`); }, report.owned_component_pid);
+      const restarted = (await api('/components/owned_runtime')).body.data; assert.equal(restarted.status, 'running'); assert.notEqual(restarted.pid, report.owned_component_pid);
+      await owned.getByRole('button', { name: '停止', exact: true }).evaluate(button => { button.dispatchEvent(new MouseEvent('click', { bubbles: true })); button.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+      await page.waitForFunction(() => { const card = document.querySelector('#owned_runtime'); return card?.textContent.includes('已停止') && !card.textContent.includes('正在停止'); });
+      const stopped = (await api('/components/owned_runtime')).body.data; assert.equal(stopped.status, 'stopped'); assert.equal(stopped.pid, 0);
+      const componentDatabase = fs.readFileSync(path.join(workspace, 'owned-component', 'state.sqlite'));
+      report.component_database = { format: componentDatabase.subarray(0, 16).toString('binary'), bytes: componentDatabase.length, sha256: crypto.createHash('sha256').update(componentDatabase).digest('hex') };
+      assert.equal(report.component_database.format, 'SQLite format 3\u0000');
+      assert.equal(report.request_timeline.filter(item => item.event === 'started' && item.method === 'POST' && item.path === '/api/v1/components/owned_runtime/stop').length, 1);
+      await page.setViewportSize({ width: 390, height: 844 }); await screenshot('components-real-stopped-mobile');
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false); await page.setViewportSize({ width: 1440, height: 1000 });
+      report.cases.push('Real owned native component start/restart/stop via SPA, actual health/PID transitions, same-frame repeated start and stop each produce one HTTP request, separate missing-executable HTTP500 is shown without affecting running resource');
+    }
     await navigate('应用管理', '/apps'); await page.getByText('暂无应用', { exact: true }).waitFor();
     assert.equal((await api('/apps')).body.data.length, 0); await screenshot('apps-empty-desktop');
     await navigate('渲染会话', '/stream-sessions'); await page.getByRole('heading', { name: '串流会话', exact: true }).waitFor();
@@ -146,17 +202,27 @@ function copyAssets(source, destination) {
     for (const entry of report.console.filter(entry => entry.type === 'error')) {
       // Browser network diagnostics have no JS arguments. Application console.error
       // has an argument and a script location, and must never be exempted here.
-      const resourceStatus = /^Failed to load resource: the server responded with a status of (404|409|503)(?: \([^\n]*\))?$/.exec(entry.text);
+      const resourceStatus = /^Failed to load resource: the server responded with a status of (404|409|500|503)(?: \([^\n]*\))?$/.exec(entry.text);
       const match = resourceStatus && entry.argument_count === 0
         ? unmatched.findIndex(request => request.url === entry.location.url && request.status === Number(resourceStatus[1])) : -1;
       if (match >= 0) { entry.verified_http_failure = unmatched.splice(match, 1)[0].status; }
       else report.unexpected_console_errors.push(entry);
     }
     assert.deepEqual(report.unexpected_console_errors, []);
-    report.console_boundary = 'Only zero-argument browser resource errors matching one verified real 404/409/503 response URL and status are allowed; warnings retained, unknown console.error and JavaScript exceptions fail.';
+    report.console_boundary = 'Only zero-argument browser resource errors matching one verified real response URL and status are allowed (404/409/503 unavailable/CAS, optional explicit missing-executable 500); warnings retained, unknown console.error and JavaScript exceptions fail.';
     report.cases.push('desktop/mobile screenshots; no horizontal page overflow'); report.passed = true;
   } catch (error) { report.error = sanitize(error.stack || error.message); }
   finally {
+    if (componentCommands && child && child.exitCode === null && child.signalCode === null && serviceBase) {
+      try {
+        const cfg = read(configPath);
+        const login = await fetch(serviceBase + '/api/v1/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: cfg.server.username, password: cfg.server.password }), signal: AbortSignal.timeout(3000) });
+        const token = (await login.json()).data?.token; if (token) secrets.push(token);
+        assert.ok(login.ok && token, 'Owned component cleanup login failed');
+        const stopped = await fetch(serviceBase + '/api/v1/components/owned_runtime/stop', { method: 'POST', headers: { Authorization: 'Bearer ' + token }, signal: AbortSignal.timeout(10000) });
+        assert.ok(stopped.ok, 'Owned component cleanup stop failed'); report.owned_component_cleanup_confirmed = true;
+      } catch (error) { report.passed = false; report.cleanup_error = sanitize(error.message); }
+    }
     if (browser) await browser.close().catch(error => { report.passed = false; report.cleanup_error = sanitize(error.message); });
     if (child && child.exitCode === null && child.pid) {
       child.kill('SIGTERM'); await Promise.race([new Promise(resolve => child.once('exit', resolve)), delay(10000)]);

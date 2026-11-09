@@ -1,3 +1,6 @@
+// Historical fake-React/VM harness. Retained for provenance, excluded from current
+// acceptance: component commands use accept-management-native.cjs with real React,
+// HTTP, SQLite and owned processes; application/popup scope has its own live gate.
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'

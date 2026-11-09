@@ -225,7 +225,7 @@ jobs:
       - name: Build real native management service and production SPA
         working-directory: .
         run: node scripts/build-control-plane.mjs --require-clean --output artifacts/management-control
-      - run: node --test ../../scripts/test-app-command.mjs ../../scripts/test-query-ordering.mjs ../../scripts/test-go-test-failures.mjs ../../scripts/test-go-notices.mjs ../../scripts/test-cargo-notices.mjs ../../scripts/test-windows-usb-audio-driver.mjs ../../scripts/test-control-build-target.mjs ../../scripts/test-platform-packaging.mjs ../../scripts/test-product-release.mjs
+      - run: node --test ../../scripts/test-query-ordering.mjs ../../scripts/test-go-test-failures.mjs ../../scripts/test-go-notices.mjs ../../scripts/test-cargo-notices.mjs ../../scripts/test-windows-usb-audio-driver.mjs ../../scripts/test-control-build-target.mjs ../../scripts/test-platform-packaging.mjs ../../scripts/test-product-release.mjs
       - run: node --experimental-strip-types --test ../../scripts/test-frontend-notices.mjs
       - run: node --test ../../scripts/test-audio-playback-lifecycle.mjs ../../scripts/test-realtime-track-writer.mjs ../../scripts/test-opus-audio.mjs ../../scripts/test-audio-envelope.cjs
       - run: node --experimental-strip-types --test ../../scripts/test-microphone-capture.mjs ../../scripts/test-microphone-sender.mjs ../../scripts/test-media-access.mjs ../../scripts/test-viewer-authority.mjs ../../scripts/test-media-observation.mjs ../../scripts/test-session-overview.mjs ../../scripts/test-viewer-bootstrap.mjs ../../scripts/test-webrtc-lifecycle.mjs ../../scripts/test-websocket-lifecycle.mjs ../../scripts/test-management-websocket.mjs ../../scripts/test-canvas-lifecycle.mjs ../../scripts/test-stream-pipelines.mjs ../../scripts/test-decoder-lifecycle.mjs ../../scripts/test-browser-condition.cjs
@@ -243,6 +243,7 @@ jobs:
           for engine in chromium firefox webkit; do
             BROWSER_ENGINE="$engine" node scripts/accept-management-native.cjs --binary artifacts/management-control/orchestrator --dist artifacts/management-control/dist --output "artifacts/management-native/$engine"
           done
+          BROWSER_ENGINE=chromium node scripts/accept-management-native.cjs --binary artifacts/management-control/orchestrator --dist artifacts/management-control/dist --output artifacts/management-native/component-commands --component-commands
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { api } from '@/api/client'
 import { useQuery } from '@/hooks/useQuery'
+import { useResourceCommand } from '@/hooks/useAppCommand'
 import QueryWrapper from '@/components/QueryWrapper'
 import StatusBadge from '@/components/StatusBadge'
 import { Card } from '@/components/ui/card'
@@ -13,6 +14,8 @@ const componentNames: Record<string, string> = {
   sunshine: '串流编码器',
   web_server: '串流网关',
 }
+type ComponentCommand = 'start' | 'stop' | 'restart'
+type ComponentView = { name: string; status: string; pid: number; started_at?: string; crash_count: number; last_error?: string }
 function componentDisplayName(name: string) {
   return componentNames[name] || name
 }
@@ -24,28 +27,18 @@ export default function Components() {
     wsInvalidateEvents: ['component_status'],
   })
   const [logs, setLogs] = useState<Record<string, string[]>>({})
-  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({})
-  const [actionErrors, setActionErrors] = useState<Record<string, string>>({})
+  const command = useResourceCommand<ComponentCommand>(refresh)
+  const [logErrors, setLogErrors] = useState<Record<string, string>>({})
 
-  const components = (data ?? []) as any[]
+  const components = (data ?? []) as ComponentView[]
 
   const loadLogs = async (name: string) => {
+    setLogErrors(previous => ({ ...previous, [name]: '' }))
     try {
       const res = await api.getComponentLogs(name, 50)
       setLogs(prev => ({ ...prev, [name]: res.data || [] }))
-    } catch { /* ignore */ }
-  }
-
-  const action = async (name: string, fn: () => Promise<any>) => {
-    setActionLoading(previous => ({ ...previous, [name]: true }))
-    setActionErrors(previous => ({ ...previous, [name]: '' }))
-    try {
-      await fn()
-      await refresh()
     } catch (e: unknown) {
-      setActionErrors(previous => ({ ...previous, [name]: e instanceof Error ? e.message : '组件操作失败' }))
-    } finally {
-      setActionLoading(previous => ({ ...previous, [name]: false }))
+      setLogErrors(previous => ({ ...previous, [name]: e instanceof Error ? e.message : '读取组件日志失败' }))
     }
   }
 
@@ -54,13 +47,14 @@ export default function Components() {
       <div className="space-y-6">
         <div className="page-heading"><div><p className="page-eyebrow">运行服务</p><h2>组件管理</h2><p className="page-description">管理编码器与媒体网关，查看运行状态和日志。</p></div></div>
 
-        {components.map((c: any) => {
-          const uptime = c.started_at && !c.started_at.startsWith('0001')
+        {components.map(c => {
+          const pending = command.pending[c.name]
+          const uptime = ['running', 'starting', 'unhealthy'].includes(c.status) && c.started_at && !c.started_at.startsWith('0001')
             ? Math.floor((Date.now() - new Date(c.started_at).getTime()) / 1000)
             : 0
 
           return (
-            <Card key={c.name}>
+            <Card key={c.name} id={c.name}>
               <div className="flex flex-wrap items-center justify-between gap-4 mb-3">
                 <div>
                   <span className="text-lg font-medium capitalize text-card-foreground">
@@ -69,14 +63,14 @@ export default function Components() {
                   <span className="ml-3"><StatusBadge status={c.status} /></span>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => action(c.name, () => api.startComponent(c.name))} disabled={actionLoading[c.name] || ['running','starting','unhealthy'].includes(c.status) || c.pid > 0}>
-                    <Play className="w-3 h-3" /> 启动
+                  <Button size="sm" onClick={() => void command.run(c.name, 'start', () => api.startComponent(c.name))} disabled={!!pending || ['running','starting','unhealthy'].includes(c.status) || c.pid > 0}>
+                    <Play className="w-3 h-3" /> {pending === 'start' ? '正在启动…' : '启动'}
                   </Button>
-                  <Button size="sm" variant="destructive" onClick={() => action(c.name, () => api.stopComponent(c.name))} disabled={actionLoading[c.name] || c.status === 'stopped'}>
-                    <Square className="w-3 h-3" /> 停止
+                  <Button size="sm" variant="destructive" onClick={() => void command.run(c.name, 'stop', () => api.stopComponent(c.name))} disabled={!!pending || c.status === 'stopped'}>
+                    <Square className="w-3 h-3" /> {pending === 'stop' ? '正在停止…' : '停止'}
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => action(c.name, () => api.restartComponent(c.name))} disabled={actionLoading[c.name]}>
-                    <RotateCcw className="w-3 h-3" /> 重启
+                  <Button size="sm" variant="outline" onClick={() => void command.run(c.name, 'restart', () => api.restartComponent(c.name))} disabled={!!pending}>
+                    <RotateCcw className="w-3 h-3" /> {pending === 'restart' ? '正在重启…' : '重启'}
                   </Button>
                 </div>
               </div>
@@ -87,12 +81,13 @@ export default function Components() {
                 <div>崩溃次数: <span className="text-card-foreground">{c.crash_count}</span></div>
               </div>
 
-              {c.last_error && <div className="text-xs text-red-300 mb-2">错误: {c.last_error}</div>}
-              {actionErrors[c.name] && <Alert role="alert" variant="error">{actionErrors[c.name]}</Alert>}
-              {actionLoading[c.name] && <p className="text-xs text-muted-foreground mb-2" role="status">正在执行组件操作，启停结果以健康检查状态为准。</p>}
+              {c.last_error && !command.errors[c.name] && <div className="text-xs text-red-300 mb-2">错误: {c.last_error}</div>}
+              {command.errors[c.name] && <Alert role="alert" variant="error">{command.errors[c.name]}</Alert>}
+              {pending && <p className="text-xs text-muted-foreground mb-2" role="status">正在执行组件操作，启停结果以健康检查状态为准。</p>}
 
               <div>
                 <button onClick={() => loadLogs(c.name)} className="text-xs text-primary hover:underline mb-1">加载日志</button>
+                {logErrors[c.name] && <Alert role="alert" variant="error">{logErrors[c.name]}</Alert>}
                 {logs[c.name] && (
                   <div className="bg-black text-green-400 text-xs font-mono p-2 rounded max-h-48 overflow-auto">
                     {logs[c.name].length === 0
