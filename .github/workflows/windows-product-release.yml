@@ -28,7 +28,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: windows-product-${{ github.ref }}
+  group: windows-product-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -113,6 +113,15 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Control bundle failed' }
           node scripts/build-gateway-release.mjs --output artifacts/windows-product/gateway
           if ($LASTEXITCODE -ne 0) { throw 'Gateway bundle failed' }
+      - name: Preserve complete control and gateway bundles for parallel acceptance
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-control-gateway-${{ github.sha }}
+          path: |
+            artifacts/windows-product/control/
+            artifacts/windows-product/gateway/
+          if-no-files-found: error
+          retention-days: 7
       - uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884
         id: msys2
         with:
