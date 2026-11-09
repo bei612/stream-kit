@@ -46,6 +46,7 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
   };
   let injection, sending = false, sender, injectionDone, injectionError, native;
   const source = { packets: 0, senderEnded: false, rpcEnded: false, error: undefined };
+  const stopWrites = new AbortController();
   try {
     await unary('setMicrophoneState', { realAudioEnabled: false });
     assert.equal((await unary('getMicrophoneState', {})).realAudioEnabled, false); state.host_microphone_enabled = false;
@@ -78,10 +79,13 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     await api('/stream-sessions/'+sessionId+'/controller/'+native,'POST'); await android.role(true);
     click('打开串流工具栏'); click('麦克风已关闭');
     await until(current,s=>s.connections[native]?.microphone_live===true,'Android microphone capture');
-    injectionDone = new Promise(resolve => { injection=client.injectAudio(metadata,{deadline:Date.now()+35000},error=>{injectionError=error?.code;source.error=injectionError;source.rpcEnded=true;resolve();}); injection.on('error',()=>{}); });
-    sending=true; sender=(async()=>{let n=0;const started=Date.now();while(sending&&n<1500){const data=Buffer.alloc(1920);for(let i=0;i<960;i++)data.writeInt16LE(Math.round(32767*Math.pow(10,-18/20)*Math.sin(2*Math.PI*1499*(n*960+i)/48000)),i*2);
-      if(!injection.write({format:{samplingRate:'48000',channels:0,format:1,mode:1},timestamp:String(Date.now()*1000),audio:data}))await once(injection,'drain');
-      n++;source.packets=n;await delay(Math.max(0,started+n*20-Date.now()));}source.senderEnded=true;injection.end();})();
+    injectionDone = new Promise(resolve => { injection=client.injectAudio(metadata,{deadline:Date.now()+35000},error=>{injectionError=error?.code;source.error=injectionError;source.rpcEnded=true;stopWrites.abort();resolve();}); injection.on('error',()=>{}); });
+    sending=true; sender=(async()=>{let n=0;const started=Date.now();while(sending&&n<1500){if(source.rpcEnded)throw Error('Official microphone injection ended while sending');const data=Buffer.alloc(1920);for(let i=0;i<960;i++)data.writeInt16LE(Math.round(32767*Math.pow(10,-18/20)*Math.sin(2*Math.PI*1499*(n*960+i)/48000)),i*2);
+      if(!injection.write({format:{samplingRate:'48000',channels:0,format:1,mode:1},timestamp:String(Date.now()*1000),audio:data})) {
+        try { await once(injection,'drain',{signal:stopWrites.signal}); }
+        catch(error) { if(!sending&&error.name==='AbortError')break;throw error; }
+      }
+      n++;source.packets=n;await delay(Math.max(0,started+n*20-Date.now()));}source.senderEnded=true;if(!source.rpcEnded)injection.end();})();
     void sender.catch(()=>{}); // The measurement branch awaits and reports its actual failure below.
     const [authorized, audible] = await Promise.all([capture('authorized'),audience(1499)]); state.authorized_web_1499_db=audible;
     assert.ok(authorized.mean_amplitude>0.01,'Authorized Android microphone absent at native target'); assert.ok(audible>-60,'Authorized Android microphone absent at Web observer'); save();
@@ -99,6 +103,7 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     assert.equal(run(['shell','getprop','sys.boot_completed']).trim(),'1'); state.passed=true; save();
   } finally {
     sending=false;
+    stopWrites.abort();
     if(injection)injection.cancel();
     if (sender) await sender.catch(()=>{});
     client.close();
