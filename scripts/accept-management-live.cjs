@@ -94,12 +94,12 @@ async function main() {
     assert.ok(example, 'Owned Example is not registered');
     assert.ok(typeof example.args === 'string', 'Owned Example has no argument state');
     protectArguments(example.args);
-    argumentSnapshot = { original:example.args, template:example.args_template || '', candidate:example.args==='--tone-count=1'?'--tone-count=2':'--tone-count=1' };
     assert.ok(['stopped', 'ready'].includes(example.status), 'Owned Example must be idle before acceptance');
     assert.ok(!apps.some(app => app.id !== example.id && ['running', 'starting', 'stopping'].includes(app.status)), 'Another application is active');
     const identity = new URL(example.stream_url, base);
     const host = Number(identity.searchParams.get('hostId')), app = Number(identity.searchParams.get('appId'));
     assert.ok(host > 0 && app > 0 && app === example.sunshine_app_id, 'Owned Example has no consistent streaming identity');
+    argumentSnapshot = { hostId:host, nativeAppId:app, original:example.args, template:example.args_template || '', candidate:example.args==='--tone-count=1'?'--tone-count=2':'--tone-count=1' };
     const sessions = await api('/stream-sessions');
     assert.ok(!sessions.some(s => s.host_id === host && s.app_id === app && Object.values(s.connections).some(c => c.state === 'connected' && Date.parse(c.expires_at) > Date.now())), 'Example already has viewers');
     report.preflight = { control_commit: health.commit, app_status: example.status, other_active_apps: 0 };
@@ -125,7 +125,7 @@ async function main() {
     if (opened) { try { cliRun('close'); } catch { report.browser_close_failed = true; report.passed = false; } }
     if (ownsRun) { try { await api('/apps/' + configuration.example_app_id + '/stop', 'POST'); } catch { report.cleanup_failed = true; report.passed = false; } }
     if (ownsRun && argumentSnapshot) {
-      const restoration = report.argument_restoration = { values_in_evidence:false, args_restored:false, registration_confirmed:false };
+      const restoration = report.argument_restoration = { values_in_evidence:false, args_restored:false, idle_state_confirmed:false };
       try {
         const route='/apps/'+configuration.example_app_id;
         let current=await api(route);
@@ -133,14 +133,14 @@ async function main() {
           assert.ok((current.args === argumentSnapshot.candidate || current.args === argumentSnapshot.original.trim()) && (current.args_template||'') === argumentSnapshot.template, 'Concurrent Example configuration change; restoration refused');
           assert.ok(['stopped','ready','crashed','register_failed'].includes(current.status) && current.lifecycle?.can_edit === true, 'Example is not safely editable for recovery');
           const sessions=await api('/stream-sessions');
-          assert.ok(!sessions.some(s=>s.app_id===current.sunshine_app_id && s.state!=='stopped'), 'Example still has nonterminal viewing authority; recovery refused');
+          assert.ok(!sessions.some(s=>s.host_id===argumentSnapshot.hostId && s.app_id===argumentSnapshot.nativeAppId && s.state!=='stopped'), 'Example still has nonterminal viewing authority; recovery refused');
           restoration.recovery_attempted=true;
           await api(route,'PUT',{args:argumentSnapshot.original});
           current=await api(route);
         }
         restoration.args_restored=current.args===argumentSnapshot.original;
-        restoration.registration_confirmed=['stopped','ready','crashed'].includes(current.status) && current.lifecycle?.can_edit === true;
-        assert.ok(restoration.args_restored && restoration.registration_confirmed, 'Original arguments or encoder registration could not be confirmed restored');
+        restoration.idle_state_confirmed=['stopped','ready','crashed'].includes(current.status) && current.lifecycle?.can_edit === true;
+        assert.ok(restoration.args_restored && restoration.idle_state_confirmed, 'Original arguments or idle editable state could not be confirmed restored');
       } catch (error) {
         restoration.error=redact(error.message); report.passed=false;
         // A failed registration acknowledgement can follow a successful DB write.
@@ -148,7 +148,7 @@ async function main() {
         try {
           const actual=await api('/apps/'+configuration.example_app_id);
           restoration.args_restored=actual.args===argumentSnapshot.original;
-          restoration.registration_confirmed=['stopped','ready','crashed'].includes(actual.status) && actual.lifecycle?.can_edit===true;
+          restoration.idle_state_confirmed=['stopped','ready','crashed'].includes(actual.status) && actual.lifecycle?.can_edit===true;
         } catch { restoration.readback_failed=true; }
       }
     }
