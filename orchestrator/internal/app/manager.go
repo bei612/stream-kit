@@ -416,6 +416,8 @@ func (m *Manager) RetryRegister(appID string) error {
 // LaunchApp validates preconditions and returns the stream URL for the frontend to open.
 // The actual streaming is initiated by Moonlight-Web when the user opens the URL.
 func (m *Manager) LaunchApp(appID string) (string, error) {
+	m.runtimeMu.Lock()
+	defer m.runtimeMu.Unlock()
 	unlock, err := m.TryLock(appID)
 	if err != nil {
 		return "", err
@@ -599,6 +601,13 @@ func (m *Manager) reconcileStreaming(active sunshine.Runtime) {
 				continue
 			}
 			m.store.CreateLog("app", app.ID, "stream_end", "success", "编码器确认此应用已停止", nil)
+		}
+		instance := ""
+		if matches {
+			instance = active.InstanceID
+		}
+		if err := m.reconcileObservedSession(&app, instance); err != nil {
+			m.logger.Warn("观看会话运行状态同步未完成", zap.String("app_id", app.ID), zap.Error(err))
 		}
 	}
 }

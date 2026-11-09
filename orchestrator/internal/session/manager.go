@@ -76,6 +76,9 @@ type RenderSession struct {
 	Resumable              map[string]*Connection `json:"-"`
 	CreatedAt              time.Time              `json:"created_at"`
 	UpdatedAt              time.Time              `json:"updated_at"`
+	AdmissionUntil         time.Time              `json:"admission_until"`
+	NativeInstanceID       string                 `json:"native_instance_id,omitempty"`
+	ObservedStop           bool                   `json:"observed_stop"`
 }
 
 type Manager struct {
@@ -138,12 +141,26 @@ func (m *Manager) Get(id string) (*RenderSession, error) {
 }
 
 func (m *Manager) Ensure(hostID, appID int64) (*RenderSession, error) {
+	return m.EnsureAdmission(hostID, appID, time.Time{})
+}
+
+// EnsureAdmission records the actual expiry of the invitation being issued under
+// the same session lock as generation creation/reuse. Heartbeats do not extend it.
+func (m *Manager) EnsureAdmission(hostID, appID int64, until time.Time) (*RenderSession, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for _, s := range m.sessions {
 		if s.HostID == hostID && s.AppID == appID && s.State != StateStopped {
 			if s.State == StateStopping {
 				return nil, ErrInvalidState
+			}
+			if until.After(s.AdmissionUntil) {
+				next := clone(s)
+				next.AdmissionUntil, next.UpdatedAt = until, time.Now().UTC()
+				if err := m.commitLocked(next, "stream_session_state_changed"); err != nil {
+					return nil, err
+				}
+				return clone(next), nil
 			}
 			return clone(s), nil
 		}
@@ -153,6 +170,7 @@ func (m *Manager) Ensure(hostID, appID int64) (*RenderSession, error) {
 	}
 	now := time.Now().UTC()
 	s := &RenderSession{ID: uuid.NewString(), HostID: hostID, AppID: appID, State: StateStarting, Audio: AudioConfig{Target: AudioTarget{Epoch: 1, Mode: "upstream"}, MicrophoneEnabled: true, BroadcastControllerMic: true}, Policy: Policy{ControllerDisconnectPolicy: "release", MaxViewers: 20}, Connections: map[string]*Connection{}, CreatedAt: now, UpdatedAt: now}
+	s.AdmissionUntil = until
 	if err := m.commitLocked(s, "stream_session_created"); err != nil {
 		return nil, err
 	}
@@ -446,11 +464,14 @@ func (m *Manager) persist(s *RenderSession) error {
 	if err != nil {
 		return err
 	}
-	return m.store.UpsertStreamSession(&model.StreamSession{ID: s.ID, Revision: s.Revision, ControlEpoch: s.ControlEpoch, HostID: s.HostID, AppID: s.AppID, State: s.State, ControllerConnectionID: s.ControllerConnectionID, AudioJSON: audio, PolicyJSON: policy, ConnectionsJSON: connections, ResumableJSON: string(resumable), CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt})
+	return m.store.UpsertStreamSession(&model.StreamSession{ID: s.ID, Revision: s.Revision, ControlEpoch: s.ControlEpoch, HostID: s.HostID, AppID: s.AppID, State: s.State, ControllerConnectionID: s.ControllerConnectionID, AudioJSON: audio, PolicyJSON: policy, ConnectionsJSON: connections, ResumableJSON: string(resumable), CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt, AdmissionUntil: s.AdmissionUntil, NativeInstanceID: s.NativeInstanceID, ObservedStop: s.ObservedStop})
 }
 
 func fromRecord(record model.StreamSession) (*RenderSession, error) {
 	s := &RenderSession{ID: record.ID, Revision: record.Revision, ControlEpoch: record.ControlEpoch, HostID: record.HostID, AppID: record.AppID, State: record.State, ControllerConnectionID: record.ControllerConnectionID, CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt, Connections: map[string]*Connection{}}
+	s.AdmissionUntil = record.AdmissionUntil
+	s.NativeInstanceID = record.NativeInstanceID
+	s.ObservedStop = record.ObservedStop
 	if err := store.DecodeStreamSessionSnapshot(&record, &s.Audio, &s.Policy, &s.Connections); err != nil {
 		return nil, err
 	}

@@ -90,15 +90,16 @@ func (h *ClientSessionHandler) Invite(c *gin.Context) {
 }
 
 func (h *ClientSessionHandler) invite(c *gin.Context, hostID, appID int64) {
-	s, err := h.sessions.EnsureViewingSession(c.Request.Context(), hostID, appID)
+	now := time.Now().UTC().Truncate(time.Second)
+	expires := now.Add(2 * time.Minute)
+	s, err := h.sessions.EnsureViewingSession(c.Request.Context(), hostID, appID, expires)
 	if err != nil {
 		respondSessionError(c, err)
 		return
 	}
-	now := time.Now().UTC()
-	token := identity.Sign(identity.Invitation, identity.Claims{Subject: c.GetString("username"), SessionID: s.ID, IssuedAt: now.Unix(), ExpiresAt: now.Add(2 * time.Minute).Unix()}, h.invitationKey)
+	token := identity.Sign(identity.Invitation, identity.Claims{Subject: c.GetString("username"), SessionID: s.ID, IssuedAt: now.Unix(), ExpiresAt: expires.Unix()}, h.invitationKey)
 	c.Header("Cache-Control", "no-store")
-	okResponse(c, ViewingInvitation{Invitation: token, SessionID: s.ID, HostID: s.HostID, AppID: s.AppID, GatewayPublicURL: h.GatewayPublicURL, ExpiresAt: now.Add(2 * time.Minute)})
+	okResponse(c, ViewingInvitation{Invitation: token, SessionID: s.ID, HostID: s.HostID, AppID: s.AppID, GatewayPublicURL: h.GatewayPublicURL, ExpiresAt: expires})
 }
 
 func (h *ClientSessionHandler) Join(c *gin.Context) {

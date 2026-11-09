@@ -18,4 +18,7 @@ type StreamSession struct {
 	ResumableJSON          string    `json:"-" gorm:"type:text;not null;default:'{}'"`
 	CreatedAt              time.Time `json:"created_at"`
 	UpdatedAt              time.Time `json:"updated_at"`
+	AdmissionUntil         time.Time `json:"admission_until"`
+	NativeInstanceID       string    `json:"native_instance_id"`
+	ObservedStop           bool      `json:"observed_stop"`
 }

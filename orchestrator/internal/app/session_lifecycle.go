@@ -34,7 +34,7 @@ func (m *Manager) ConfigureSessionLifecycle(sessions *session.Manager, syncMedia
 // EnsureViewingSession shares the application lifecycle boundary with stop and
 // delete. Admission checks authoritative registration while holding that boundary;
 // a stale browser URL cannot recreate a session after its app was removed.
-func (m *Manager) EnsureViewingSession(ctx context.Context, hostID, appID int64) (*session.RenderSession, error) {
+func (m *Manager) EnsureViewingSession(ctx context.Context, hostID, appID int64, invitationUntil time.Time) (*session.RenderSession, error) {
 	m.runtimeMu.Lock()
 	defer m.runtimeMu.Unlock()
 	if err := ctx.Err(); err != nil {
@@ -89,7 +89,7 @@ func (m *Manager) EnsureViewingSession(ctx context.Context, hostID, appID int64)
 	if err := m.completePendingStop(target); err != nil {
 		return nil, err
 	}
-	return m.sessions.Ensure(hostID, appID)
+	return m.sessions.EnsureAdmission(hostID, appID, invitationUntil)
 }
 
 // completePendingStop requires runtimeMu. Finish an already requested stop at
@@ -101,6 +101,18 @@ func (m *Manager) completePendingStop(app *model.App) error {
 	}
 	for _, previous := range m.sessions.List() {
 		if previous.AppID == int64(app.SunshineAppID) && previous.State == session.StateStopping {
+			if previous.ObservedStop {
+				if m.syncMedia == nil {
+					return session.ErrInvalidState
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				err := m.syncMedia(ctx)
+				cancel()
+				if err != nil {
+					return err
+				}
+				return m.sessions.CompleteStop(previous.ID)
+			}
 			if err := m.stopManagedExecution(app); err != nil {
 				return fmt.Errorf("恢复未完成的停止操作失败: %w", err)
 			}
@@ -127,6 +139,40 @@ func (m *Manager) stopManagedExecution(app *model.App) error {
 		}
 	}
 	return nil
+}
+
+// reconcileObservedSession requires runtimeMu and a successful native Runtime
+// response. Missing/unreachable services never authorize a terminal transition.
+// Native execution was already observed; this path only withdraws old viewing
+// authority, and deliberately does not call stopExecution on a possible new run.
+func (m *Manager) reconcileObservedSession(app *model.App, nativeInstance string) error {
+	if m.sessions == nil || m.syncMedia == nil || m.moonClient == nil || app.SunshineAppID <= 0 {
+		return nil
+	}
+	needed := false
+	for _, s := range m.sessions.List() {
+		if s.AppID == int64(app.SunshineAppID) && s.State != session.StateStopped {
+			needed = true
+			break
+		}
+	}
+	if !needed {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	target, err := m.resolveRendererStream(ctx, uint32(app.SunshineAppID), false)
+	if err != nil {
+		return err
+	}
+	id, err := m.sessions.ObserveNativeRuntime(int64(target.HostID), int64(target.AppID), nativeInstance, time.Now())
+	if err != nil || id == "" {
+		return err
+	}
+	if err := m.syncMedia(ctx); err != nil {
+		return err
+	}
+	return m.sessions.CompleteStop(id)
 }
 
 func (m *Manager) revokeViewingSession(app *model.App) (string, error) {

@@ -106,7 +106,7 @@ func testPersistedStopRecovery(t *testing.T, updateSettings bool) {
 		if updateSettings {
 			err = m.UpdateApp(a.ID, nil, &args, nil, nil)
 		} else {
-			fresh, err = m.EnsureViewingSession(context.Background(), 1, 771)
+			fresh, err = m.EnsureViewingSession(context.Background(), 1, 771, time.Time{})
 		}
 		previous, _ := sessions.Get(old.ID)
 		saved, readErr := st.GetApp(a.ID)
@@ -178,13 +178,13 @@ func TestViewingAdmissionAndDeletionShareLifecycle(t *testing.T) {
 	m.sunClient = sunshine.NewClient(config.SunshineAPIConfig{BaseURL: fixture.URL}, zap.NewNop())
 	sessions := session.NewManager(nil)
 	m.ConfigureSessionLifecycle(sessions, func(context.Context) error { return nil })
-	if _, err := m.EnsureViewingSession(context.Background(), 2, 771); !errors.Is(err, session.ErrInvalidState) {
+	if _, err := m.EnsureViewingSession(context.Background(), 2, 771, time.Time{}); !errors.Is(err, session.ErrInvalidState) {
 		t.Fatalf("wrong host admitted: %v", err)
 	}
-	if _, err := m.EnsureViewingSession(context.Background(), 1, 772); !errors.Is(err, session.ErrNotFound) {
+	if _, err := m.EnsureViewingSession(context.Background(), 1, 772, time.Time{}); !errors.Is(err, session.ErrNotFound) {
 		t.Fatalf("unregistered app admitted: %v", err)
 	}
-	if _, err := m.EnsureViewingSession(context.Background(), 1, 771); err != nil {
+	if _, err := m.EnsureViewingSession(context.Background(), 1, 771, time.Time{}); err != nil {
 		t.Fatal(err)
 	}
 	deleted := make(chan error, 1)
@@ -197,7 +197,7 @@ func TestViewingAdmissionAndDeletionShareLifecycle(t *testing.T) {
 	// Native deletion is pending after the old viewing session is stopped.
 	// This is precisely the old race window where Ensure could create a new one.
 	admitted := make(chan error, 1)
-	go func() { _, err := m.EnsureViewingSession(context.Background(), 1, 771); admitted <- err }()
+	go func() { _, err := m.EnsureViewingSession(context.Background(), 1, 771, time.Time{}); admitted <- err }()
 	select {
 	case err := <-admitted:
 		t.Fatalf("admission escaped pending deletion: %v", err)

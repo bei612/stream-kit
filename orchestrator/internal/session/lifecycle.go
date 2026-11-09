@@ -39,14 +39,21 @@ func (m *Manager) BeginStop(hostID, appID int64) (string, error) {
 	if current == nil {
 		return "", nil
 	}
+	return m.beginStopLocked(current, time.Now(), false)
+}
+
+// All explicit and observed stops share the same durable revocation boundary.
+// Callers must own mu and have already selected the authoritative generation.
+func (m *Manager) beginStopLocked(current *RenderSession, now time.Time, observed bool) (string, error) {
 	if current.State == StateStopping {
 		return current.ID, nil
 	}
 	next := clone(current)
+	next.ObservedStop = observed
 	if err := transitionState(next, StateStopping); err != nil {
 		return "", err
 	}
-	next.UpdatedAt = time.Now().UTC()
+	next.UpdatedAt = now.UTC()
 	if err := m.commitLocked(next, "stream_session_state_changed"); err != nil {
 		return "", err
 	}

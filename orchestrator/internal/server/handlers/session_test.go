@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stream-kit/orchestrator/internal/session"
@@ -17,7 +18,7 @@ func TestBothViewingEntrypointsUseApplicationAdmission(t *testing.T) {
 	m := session.NewManager(nil)
 	h := NewSessionHandler(m, []byte("secret"))
 	calls := 0
-	h.EnsureViewingSession = func(ctx context.Context, host, app int64) (*session.RenderSession, error) {
+	h.EnsureViewingSession = func(ctx context.Context, host, app int64, until time.Time) (*session.RenderSession, error) {
 		calls++
 		if host != 1 || app != 2 {
 			t.Fatal("admission identity changed")

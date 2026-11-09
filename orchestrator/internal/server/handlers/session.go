@@ -30,7 +30,7 @@ func respondSessionError(c *gin.Context, err error) {
 }
 
 type SessionHandler struct {
-	EnsureViewingSession func(context.Context, int64, int64) (*session.RenderSession, error)
+	EnsureViewingSession func(context.Context, int64, int64, time.Time) (*session.RenderSession, error)
 	ValidateAudioTarget  func(context.Context, session.AudioTarget) error
 	SyncMedia            func(context.Context) error
 	Manager              *session.Manager
@@ -88,8 +88,8 @@ func (h *SessionHandler) AudioTarget(c *gin.Context) {
 }
 
 func NewSessionHandler(m *session.Manager, ticketSecret []byte) *SessionHandler {
-	return &SessionHandler{Manager: m, TicketSecret: ticketSecret, EnsureViewingSession: func(_ context.Context, host, app int64) (*session.RenderSession, error) {
-		return m.Ensure(host, app)
+	return &SessionHandler{Manager: m, TicketSecret: ticketSecret, EnsureViewingSession: func(_ context.Context, host, app int64, until time.Time) (*session.RenderSession, error) {
+		return m.EnsureAdmission(host, app, until)
 	}}
 }
 func (h *SessionHandler) List(c *gin.Context) { okResponse(c, h.Manager.List()) }
@@ -117,7 +117,7 @@ func (h *SessionHandler) Ensure(c *gin.Context) {
 		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", "host_id and app_id are required")
 		return
 	}
-	s, err := h.EnsureViewingSession(c.Request.Context(), host, app)
+	s, err := h.EnsureViewingSession(c.Request.Context(), host, app, time.Time{})
 	if err != nil {
 		respondSessionError(c, err)
 		return
@@ -170,12 +170,18 @@ func (h *SessionHandler) MediaTicket(c *gin.Context) {
 		errResponse(c, http.StatusServiceUnavailable, "MEDIA_CONTROL_UNAVAILABLE", "media control is not configured")
 		return
 	}
-	if err := h.SyncMedia(c.Request.Context()); err != nil {
-		errResponse(c, http.StatusServiceUnavailable, "MEDIA_CONTROL_UNAVAILABLE", "media state has not been acknowledged")
-		return
-	}
 	if len(h.TicketSecret) == 0 {
 		errResponse(c, http.StatusServiceUnavailable, "MEDIA_TICKET_DISABLED", "media ticket signing is not configured")
+		return
+	}
+	now := time.Now().UTC().Truncate(time.Second)
+	expires := now.Add(2 * time.Minute)
+	if err := h.Manager.ReserveMediaAdmission(c.Param("session_id"), c.Param("connection_id"), expires); err != nil {
+		respondSessionError(c, err)
+		return
+	}
+	if err := h.SyncMedia(c.Request.Context()); err != nil {
+		errResponse(c, http.StatusServiceUnavailable, "MEDIA_CONTROL_UNAVAILABLE", "media state has not been acknowledged")
 		return
 	}
 	s, err := h.Manager.Get(c.Param("session_id"))
@@ -188,17 +194,16 @@ func (h *SessionHandler) MediaTicket(c *gin.Context) {
 		errResponse(c, http.StatusNotFound, "CONNECTION_NOT_FOUND", "connection not found")
 		return
 	}
-	now := time.Now().UTC()
-	if !now.Before(connection.ExpiresAt) {
+	if !time.Now().Before(connection.ExpiresAt) || !time.Now().Before(expires) {
 		errResponse(c, http.StatusGone, "CONNECTION_EXPIRED", "connection lease has expired")
 		return
 	}
 	ticket := SignMediaTicket(MediaTicketClaims{
 		Purpose: "stream-media", SessionID: s.ID, ConnectionID: connection.ID,
 		HostID: s.HostID, AppID: s.AppID, Role: connection.Role,
-		Iat: now.Unix(), Exp: now.Add(2 * time.Minute).Unix(),
+		Iat: now.Unix(), Exp: expires.Unix(),
 	}, h.TicketSecret)
-	okResponse(c, gin.H{"ticket": ticket, "expires_at": now.Add(2 * time.Minute).Format(time.RFC3339), "role": connection.Role})
+	okResponse(c, gin.H{"ticket": ticket, "expires_at": expires.Format(time.RFC3339), "role": connection.Role})
 }
 func (h *SessionHandler) Claim(c *gin.Context) {
 	if err := h.Manager.Claim(c.Param("session_id"), c.Param("connection_id")); err != nil {
