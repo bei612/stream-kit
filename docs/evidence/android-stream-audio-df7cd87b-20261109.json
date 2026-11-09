@@ -583,5 +583,181 @@
       "bytes": 289365,
       "sha256": "d401b8c974a8958d173856b35146af36a027adb7c17beb34d261a02412b46142"
     }
+  ],
+  "followup_program_playout_attempts": [
+    {
+      "run": 42673566514,
+      "attempt": 3,
+      "url": "https://github.com/bei612/stream-kit/actions/runs/42673566514/attempts/3",
+      "recorded_at": "2026-11-09T19:08:38.881Z",
+      "passed": false,
+      "identity": {
+        "runtime_commit": "df7cd87b3352a638aa3a6aa7073d39074c02a43c",
+        "installer_sha256": "b7ab7cc3ae471a0930fef2ef8be11941629e602df48efb9323362e3cc2aed3fd",
+        "payload_sha256": "8c17777d131d7baf7e2fcf4fa9bef63531b4902d308b2fcabf325b7aca0cfcb1",
+        "product_run_id": 42648530658,
+        "product_linux_job_id": 129268273912,
+        "android_release_tag": "v0.1.0-android-preview.20261109.6",
+        "android_release_id": 439334431,
+        "apk_file": "stream-kit-android-0.1.0-preview.20261109.6.apk",
+        "apk_source_commit": "df7cd87b3352a638aa3a6aa7073d39074c02a43c",
+        "apk_sha256": "31593fce46afc49de92e9c04b76e0b881448e477d42fcbe02ebf387d424c3ebc",
+        "apk_signer_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f",
+        "apk_signature_verified": true,
+        "acceptance_commit": "b08cbdaf5323b5552688665230bc771e1dd978cc",
+        "runtime_rebuilt": false,
+        "apk_rebuilt": false
+      },
+      "preceding_attempts": "Attempts 1 and 2 failed at GitHub scheduling before jobs or audio execution.",
+      "failure": "Android playout missing sustained 997Hz program",
+      "shared_output_reference": {
+        "passed": true,
+        "product_audio_result": null,
+        "evidence_sha256": "bcaa2d99e9d16f37af28ad297888a3a2ed3b5bb3077f8d98626c4b338db09468",
+        "scope": "Independent public system tone on the same owned emulator output before product admission; not product audio acceptance."
+      },
+      "web_program_997_db": -29.45414924621582,
+      "android_playout": {
+        "sample_rate": 48000,
+        "captured_frames": 197428,
+        "dropped_frames": 0,
+        "signal": {
+          "analyzed_frames": 196800,
+          "frequency_hz": 997,
+          "mean_amplitude": 1.1915042665246497e-7,
+          "median_amplitude": 1.1375096452161795e-7,
+          "peak_amplitude": 2.3549754375537492e-7,
+          "sample_rate": 48000,
+          "windows": 41
+        },
+        "required_median_amplitude": 0.01,
+        "partial_status_samples": 27,
+        "partial_status_max_rms": 0.000015568223387067918,
+        "partial_status_max_peak": 0.00006103515625,
+        "status_scope": "These are observed reset-on-read intervals, not the whole recording RMS.",
+        "independent_stereo": {
+          "diagnostic_only": true,
+          "status": "complete",
+          "capture_status": "complete",
+          "cleanup": "terminated",
+          "source": "streamkit_android_capture",
+          "child_pid": 8321,
+          "sample_rate": 48000,
+          "channels": 2,
+          "bits_per_sample": 16,
+          "requested_frames": 96000,
+          "bytes_received": 384092,
+          "analyzed_bytes": 384000,
+          "analyzed_frames": 96000,
+          "elapsed_ms": 2015,
+          "left_rms": 0.000011669066862017634,
+          "right_rms": 0.000011665740920133912,
+          "left_peak": 0.00006103515625,
+          "right_peak": 0.00006103515625,
+          "mono_sum_rms": 0.000010782622688207247,
+          "half_difference_rms": 0.000004456833437174958,
+          "left_right_correlation": 0.7049711222648815
+        }
+      },
+      "native_observations": [
+        {
+          "phase": "before_recording",
+          "native_ui": {
+            "available": true,
+            "fresh": true,
+            "reason": "complete",
+            "root": "client",
+            "playback": "playing",
+            "sound": "on",
+            "statistics_closed": true,
+            "toolbar_closed": true,
+            "codec_name": "OPUS",
+            "audio_packets": 1205,
+            "video_packets": 2227,
+            "video_frames": 125,
+            "clock_rate": 48000,
+            "audio_channels": 2,
+            "total_samples_received": 1044960,
+            "concealed_samples": 28070,
+            "total_samples_duration": 22.34,
+            "total_audio_energy": 0.943
+          },
+          "sdk_errors_observed": 0,
+          "owned_track_cumulative_underrun_frames": [
+            7592
+          ]
+        },
+        {
+          "phase": "after_recording",
+          "native_ui": {
+            "available": true,
+            "fresh": false,
+            "reason": "statistics_stale",
+            "root": "client",
+            "playback": "playing",
+            "sound": "on",
+            "statistics_closed": true,
+            "toolbar_closed": true,
+            "codec_name": "OPUS",
+            "audio_packets": 1909,
+            "video_packets": 3447,
+            "video_frames": 209,
+            "clock_rate": 48000,
+            "audio_channels": 2,
+            "total_samples_received": 1655040,
+            "concealed_samples": 28587,
+            "total_samples_duration": 35.05,
+            "total_audio_energy": 1.43
+          },
+          "sdk_errors_observed": 0,
+          "owned_track_cumulative_underrun_frames": [
+            20640
+          ]
+        },
+        {
+          "phase": "failure",
+          "native_ui": {
+            "available": true,
+            "fresh": true,
+            "reason": "complete",
+            "root": "client",
+            "playback": "playing",
+            "sound": "on",
+            "statistics_closed": true,
+            "toolbar_closed": true,
+            "codec_name": "OPUS",
+            "audio_packets": 2618,
+            "video_packets": 4681,
+            "video_frames": 293,
+            "clock_rate": 48000,
+            "audio_channels": 2,
+            "total_samples_received": 2316480,
+            "concealed_samples": 28587,
+            "total_samples_duration": 48.83,
+            "total_audio_energy": 1.96
+          },
+          "sdk_errors_observed": 0,
+          "owned_track_cumulative_underrun_frames": [
+            21720
+          ]
+        }
+      ],
+      "microphone_injection_reached": false,
+      "revocation_audio_measurement_reached": false,
+      "scoped_stop_acknowledged": true,
+      "owned_renderer_restored_idle": true,
+      "raw_evidence": {
+        "artifact": "android-stream-audio-evidence",
+        "product_result_sha256": "c9f6897b351098887cc294e5bc115b3b8af7174116be98d100706cf0e7e71dce",
+        "provenance_sha256": "170e67441a3d79383e06d790dd3fe7e4a1cd8c3f1cfd12abc8badc52956bf08b"
+      },
+      "limits": [
+        "The after-recording UI snapshot explicitly reports fresh=false and is not used as a fresh in-window delta.",
+        "Underruns are cumulative frames, not events or proof of where missing samples originate.",
+        "setMicrophoneState(false) is called after the independent output reference; its preceding value was not recorded. Public direct-source inspection limits that flag to input, but exact emulator-build and event-listener effects are not independently verified.",
+        "The SDK PCM buffer immediately before AudioTrack.write is not measured by this run.",
+        "No microphone, revocation, physical-device or new unified-runtime audio acceptance is established."
+      ]
+    }
   ]
 }

@@ -131,6 +131,20 @@ observations and actual screenshots. It does not extend the earlier `92818fba`
 receipt or establish Windows, Android, audio, actual target input or another
 unified installer artifact's acceptance.
 
+The subsequent unified product's original Linux runtime `3d4f248c` was then accepted
+independently in
+[run 42678144002](https://github.com/bei612/stream-kit/actions/runs/42678144002),
+using product run `42676229242` and its successful Linux job. Its
+[separate receipt](../../docs/evidence/management-live-cli-3d4f248c.json) records
+new advancing-frame measurements, English role/lifecycle presentation, mounted
+renderers without blocking overlays, zero ended permission notices, and the
+unchanged network/terminal/argument-restoration gates. The source snapshot still
+records the parent product as `in_progress` with null conclusion; Windows build,
+exact Windows installer acceptance and publication remain separate. This is not
+reuse of the standalone runtime's measurements, and it does not establish
+Chinese viewing, local Windows, Android, audio, actual target input or stability
+acceptance.
+
 ## Authority snapshots and microphone recovery
 
 Join, heartbeat and resume return the same connection authority snapshot,
