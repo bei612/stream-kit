@@ -164,8 +164,50 @@ async function main() {
 
 async function browserAcceptance(page, cfg) {
   const errors = [], viewers = [], contexts = [], metrics = [];
+  const httpFailures = [], networkFailures = [], responseReads = [], owners = new Map(), requests = new WeakMap(), pendingRequests = new Set(), networkRequests = [], mediaFrames = new Map(), endedStates = new Map(), expectedFailures = new Map();
+  let eventOrder = 0, stopping;
+  let responseCursor = 0;
+  const drainResponses = async () => {
+    while(responseCursor<responseReads.length) {
+      const pending=responseReads.slice(responseCursor); responseCursor=responseReads.length;
+      await Promise.all(pending);
+    }
+  };
   const requireTrue = (value, message) => { if (!value) throw Error(message); };
-  const watchErrors = target => { target.on('pageerror', error => errors.push('JavaScript: ' + String(error.message).slice(0, 1000))); target.on('console', message => { if (message.type() === 'error') errors.push('Console: ' + message.text().slice(0, 1000)); }); };
+  const address = raw => { try { const url = new URL(raw); return {resource:url.origin+url.pathname,hasQuery:!!url.search,hasHash:!!url.hash}; } catch { return {resource:'',hasQuery:false,hasHash:false}; } };
+  const exact = (entry, resource) => entry.resource===resource && !entry.hasQuery && !entry.hasHash;
+  const watchErrors = target => {
+    const owner = { id:owners.size, connectionId:null, media:new Set() }; owners.set(target, owner);
+    target.on('request', request => {
+      const entry={owner:owner.id,method:request.method(),order:++eventOrder,...address(request.url())};
+      requests.set(request,entry);
+      if (new URL(request.url()).pathname.startsWith('/api/')) {
+        networkRequests.push(entry);
+        if (['fetch','xhr'].includes(request.resourceType())) pendingRequests.add(request);
+      }
+    });
+    target.on('requestfinished', request=>pendingRequests.delete(request));
+    target.on('requestfailed', request=>{
+      pendingRequests.delete(request);
+      const entry=requests.get(request);
+      if (entry && new URL(request.url()).pathname.startsWith('/api/')) networkFailures.push({...entry,failureOrder:++eventOrder});
+    });
+    target.on('pageerror', error => errors.push({kind:'javascript',owner:owner.id,message:String(error.message).slice(0,1000)}));
+    target.on('console', message => { if (message.type() === 'error') errors.push({kind:'console',owner:owner.id,message:message.text().slice(0,1000),...address(message.location().url)}); });
+    target.on('response', response => {
+      const request = response.request(), location = response.headers().location;
+      if (request.method() === 'POST' && new URL(response.url()).pathname === '/api/host/stream/webrtc' && location) {
+        const endpoint = new URL(location, response.url());
+        if (endpoint.origin === new URL(response.url()).origin && !endpoint.search && !endpoint.hash && /^\/api\/host\/stream\/webrtc\/\d+$/.test(endpoint.pathname)) owner.media.add(address(endpoint.href).resource);
+      }
+      if (response.status() < 400) return;
+      const failure = {owner:owner.id,...address(response.url()),method:request.method(),status:response.status(),requestOrder:requests.get(request)?.order,responseOrder:++eventOrder,code:''};
+      httpFailures.push(failure);
+      responseReads.push(response.json().then(body => {
+        if (body?.status === 'error' && typeof body.code === 'string' && /^[A-Z][A-Z0-9_]{0,63}$/.test(body.code)) failure.code = body.code;
+      }).catch(() => {}));
+    });
+  };
   watchErrors(page);
   const api = route => page.evaluate(async route => {
     const response = await fetch('/api/v1' + route, { headers: { Authorization: 'Bearer ' + localStorage.getItem('auth_token') }, cache: 'no-store' });
@@ -195,8 +237,29 @@ async function browserAcceptance(page, cfg) {
       const result = []; for (const peer of globalThis.__liveAcceptancePeers || []) for (const stats of (await peer.getStats()).values())
         if (stats.type === 'inbound-rtp' && (stats.kind === 'video' || stats.mediaType === 'video')) result.push({ bytes: stats.bytesReceived || 0, frames: stats.framesDecoded || 0 });
       return result;
-    }); const decoded = values.find(value => value.frames > 0); if (decoded) return decoded; } catch { /* Navigation may replace the viewer frame. */ } }
+    }); const decoded = values.find(value => value.frames > 0); if (decoded) { mediaFrames.set(target,frame); return decoded; } } catch { /* Navigation may replace the viewer frame. */ } }
     return { bytes: 0, frames: 0 };
+  };
+  const endedViewer = async target => {
+    const original = mediaFrames.get(target);
+    const observed={original_frame_present:!!original&&!original.isDetached()&&target.frames().includes(original),frames:[]};
+    endedStates.set(owners.get(target).id,observed);
+    if (!observed.original_frame_present) return false;
+    let originalObserved = false;
+    for (const frame of target.frames()) { try {
+      const state = await frame.evaluate(() => {
+        const peers = globalThis.__liveAcceptancePeers || [];
+        if (!peers.length) return null;
+        const authority = globalThis.app?.getStream?.()?.getAuthority?.();
+        const boolean=value=>typeof value==='boolean'?value:null;
+        return {peers:peers.map(peer=>peer.signalingState),ended:boolean(authority?.ended),verified:boolean(authority?.verified),control:boolean(authority?.control),microphone:boolean(authority?.microphone)};
+      });
+      if (!state) continue;
+      observed.frames.push({original:frame===original,...state});
+      if(frame===original) originalObserved = true;
+      if (state.ended!==true || state.verified!==false || state.control!==false || state.microphone!==false || state.peers.some(value=>value!=='closed')) return false;
+    } catch { observed.observation_unavailable=true; return false; } }
+    return originalObserved;
   };
   try {
     await page.goto(cfg.base + '/apps');
@@ -230,6 +293,7 @@ async function browserAcceptance(page, cfg) {
     const firstAdvancing = await waitFor(() => videoMetrics(popup), value => value.frames > firstDecoded.frames && value.bytes > firstDecoded.bytes, 'First advancing video frames');
     metrics.push({ viewer: 'first', samples: [firstDecoded, firstAdvancing] });
     const first = Object.values((await currentSession()).connections).find(c => c.state === 'connected');
+    owners.get(popup).connectionId = first.connection_id;
     const browser = page.context().browser(); requireTrue(browser, 'CLI browser context unavailable');
     const context = await browser.newContext({ ignoreHTTPSErrors: false, viewport: { width: 1280, height: 800 } }); contexts.push(context);
     await context.addInitScript(observePeers);
@@ -238,6 +302,7 @@ async function browserAcceptance(page, cfg) {
     const live = await waitFor(currentSession, s => Object.values(s.connections).filter(c => c.state === 'connected').length === 2, 'Two viewers');
     const second = Object.values(live.connections).find(c => c.state === 'connected' && c.connection_id !== first.connection_id);
     requireTrue(second, 'Second independent connection missing');
+    owners.get(secondPage).connectionId = second.connection_id;
     const decoded = await waitFor(() => videoMetrics(secondPage), value => value.frames > 0 && value.bytes > 0, 'Second real decoded WebRTC video');
     const advancing = await waitFor(() => videoMetrics(secondPage), value => value.frames > decoded.frames && value.bytes > decoded.bytes, 'Second advancing video frames');
     metrics.push({ viewer: 'second', samples: [decoded, advancing] });
@@ -257,12 +322,16 @@ async function browserAcceptance(page, cfg) {
     await waitFor(currentSession, s => !s.controller_connection_id, 'Revoked controller');
     await role(popup, '仅观看'); await role(secondPage, '仅观看');
     await page.goto(cfg.base + '/apps/' + cfg.appId);
+    stopping = {sessionId:live.session_id,order:++eventOrder};
     await page.getByRole('button', { name: '停止串流（含程序）', exact: true }).click();
     await waitFor(() => api('/apps/' + cfg.appId), app => app.status === 'stopped', 'Example stopped');
     await waitFor(() => api('/stream-sessions'), sessions => {
       const ended = sessions.find(session => session.session_id === live.session_id);
       return ended && ended.state === 'stopped' && !ended.controller_connection_id && Object.keys(ended.connections).length === 0;
     }, 'Stopped generation released all clients and authority');
+    await waitFor(()=>endedViewer(popup), Boolean, 'First viewer ended with closed RTC and disabled authority', 20000);
+    await waitFor(()=>endedViewer(secondPage), Boolean, 'Second viewer ended with closed RTC and disabled authority', 20000);
+    await screenshot(secondPage, 'viewer-ended');
     const editor = page.locator('#application-args'), saveButton = page.getByRole('button', {name:'保存',exact:true});
     await waitFor(()=>api('/apps/'+cfg.appId), app=>app.lifecycle?.can_edit===true, 'Stopped Example is editable');
     await waitFor(()=>editor.isEnabled(), Boolean, 'Argument editor enabled after stopping');
@@ -291,8 +360,76 @@ async function browserAcceptance(page, cfg) {
     requireTrue(await page.getByRole('button', { name: /授予控制权|转移控制权|释放控制权/ }).count() === 0, 'History exposes live control commands');
     await screenshot(page, 'history-mobile');
     await page.setViewportSize({ width: 1440, height: 1000 }); await screenshot(page, 'history-desktop');
-    requireTrue(errors.length === 0, 'Browser console or JavaScript errors: ' + JSON.stringify(errors));
-    return JSON.stringify({ result: 'LIVE_MANAGEMENT_ACCEPTANCE_OK', decoded_video_metrics: metrics, stopped_argument_edit:{saved_via_ui:true,restored_via_ui:true,api_ui_agreement:true}, console_errors: errors.length });
+    const viewerPending = () => [...pendingRequests].filter(request=>requests.get(request)?.owner!==owners.get(page).id);
+    await waitFor(async()=>viewerPending().length, count=>count===0, 'Viewer API cleanup completed', 15000);
+    await drainResponses();
+    // Exercise normal browser unload only after observing the actual ended UI
+    // and closed RTC. A repeated close must not restart remote cleanup.
+    for (const viewer of viewers) {
+      viewer.on('dialog', async dialog=>{
+        errors.push({kind:'dialog',owner:owners.get(viewer).id,message:'Unexpected dialog while closing an ended viewer: '+dialog.type()});
+        await dialog.accept().catch(()=>{});
+      });
+      const closed=viewer.waitForEvent('close',{timeout:10000});
+      await viewer.close({runBeforeUnload:true}); await closed;
+    }
+    for (const context of contexts) await context.close();
+    await waitFor(async()=>viewerPending().length, count=>count===0, 'Viewer unload requests completed', 15000);
+    await drainResponses();
+    // A stop intentionally invalidates viewer credentials. Classify only real
+    // denials for this stopped generation, preserving every raw failure. A
+    // terminal response must not cause new recovery or remote cleanup effects.
+    const expected = expectedFailures, followups = [];
+    for (const owner of owners.values()) {
+      if (!owner.connectionId) continue;
+      const connection = cfg.base + '/api/v1/client-sessions/' + stopping.sessionId + '/connections/' + owner.connectionId;
+      const failures = httpFailures.filter(value=>value.owner===owner.id && value.responseOrder>stopping.order);
+      const confirmation = failures.filter(value=>
+        (value.status===410 && value.code==='CONNECTION_TERMINATED' && (exact(value,connection)||exact(value,connection+'/heartbeat')||exact(value,connection+'/resume')||exact(value,connection+'/ticket'))) ||
+        (exact(value,connection+'/resume') && ((value.status===410 && value.code==='CONNECTION_EXPIRED')||(value.status===401 && value.code==='CONNECTION_UNAUTHORIZED')))
+      ).map(value=>value.responseOrder);
+      const confirmedAt = confirmation.length ? Math.min(...confirmation) : Infinity;
+      // Inspect requests regardless of response status. An erroneous successful
+      // resume/offer after termination must fail just as a denied attempt does.
+      for (const request of networkRequests.filter(value=>value.owner===owner.id && value.order>confirmedAt && value.method!=='OPTIONS')) {
+        const url=new URL(request.resource);
+        const management=request.resource===connection||request.resource.startsWith(connection+'/');
+        const media=[...owner.media].some(value=>new URL(value).origin===url.origin)&&/^\/api\/host\/stream(?:\/|$)/.test(url.pathname);
+        const admission=url.origin===new URL(cfg.base).origin && request.method==='POST' && ['/api/v1/watch/open','/api/v1/client-sessions/join','/api/v1/stream-invitations'].includes(url.pathname);
+        if (management||media||admission) followups.push(request);
+      }
+      let legacyResume = false, mediaDelete = false, connectionDelete = false;
+      for (const failure of failures) {
+        if (failure.status===410 && failure.method==='POST' && exact(failure,connection+'/heartbeat') && ['CONNECTION_TERMINATED','CONNECTION_EXPIRED'].includes(failure.code) && failure.requestOrder<confirmedAt) {
+          expected.set(failure,'terminal_heartbeat');
+        } else if (!legacyResume && ((failure.status===410 && ['CONNECTION_TERMINATED','CONNECTION_EXPIRED'].includes(failure.code))||(failure.status===401 && failure.code==='CONNECTION_UNAUTHORIZED')) && failure.method==='POST' && exact(failure,connection+'/resume') && failure.requestOrder<confirmedAt && failures.some(value=>exact(value,connection+'/heartbeat') && value.code==='CONNECTION_EXPIRED' && value.responseOrder<failure.requestOrder)) {
+          legacyResume=true; expected.set(failure,'legacy_terminal_confirmation');
+        } else if (!mediaDelete && failure.method==='DELETE' && owner.media.has(failure.resource) && !failure.hasQuery && !failure.hasHash && [401,404,410].includes(failure.status) && failure.requestOrder<confirmedAt) {
+          mediaDelete=true; expected.set(failure,'inflight_media_cleanup');
+        } else if (!connectionDelete && failure.method==='DELETE' && exact(failure,connection) && failure.status===410 && ['CONNECTION_TERMINATED','CONNECTION_EXPIRED'].includes(failure.code) && failure.requestOrder<confirmedAt) {
+          connectionDelete=true; expected.set(failure,'inflight_connection_cleanup');
+        }
+      }
+    }
+    const unmatched = [...expected.keys()];
+    const unexpectedConsole = errors.filter(error=>{
+      if (error.kind!=='console' || !/^Failed to load resource: the server responded with a status of (401|404|410)(?:\s*\([^)]*\))?$/.test(error.message)) return true;
+      const status=Number(error.message.match(/status of (\d+)/)[1]);
+      const index=unmatched.findIndex(value=>value.owner===error.owner && value.resource===error.resource && !error.hasQuery && !error.hasHash && value.status===status);
+      if (index<0) return true;
+      unmatched.splice(index,1); return false;
+    });
+    requireTrue(followups.length===0, 'New viewer request after confirmed termination: '+JSON.stringify(followups));
+    requireTrue(networkFailures.length===0, 'Failed API network requests: '+JSON.stringify(networkFailures));
+    requireTrue(httpFailures.every(value=>expected.has(value)), 'Unexpected HTTP failure: '+JSON.stringify(httpFailures.filter(value=>!expected.has(value))));
+    requireTrue(unexpectedConsole.length===0, 'Unexpected browser console or JavaScript errors: '+JSON.stringify(unexpectedConsole));
+    return JSON.stringify({ result: 'LIVE_MANAGEMENT_ACCEPTANCE_OK', decoded_video_metrics: metrics, stopped_viewers:Object.fromEntries(endedStates), stopped_argument_edit:{saved_via_ui:true,restored_via_ui:true,api_ui_agreement:true}, raw_console_errors:errors.length,unexpected_console_errors:unexpectedConsole.length,pending_viewer_api_requests:viewerPending().length,terminal_followup_requests:followups,network_failures:networkFailures,http_failures:httpFailures.map(value=>({...value,classification:expected.get(value)||'unexpected'})),viewer_requests:networkRequests.filter(value=>value.owner!==owners.get(page).id) });
+  } catch(error) {
+    await drainResponses();
+    // Preserve actual partial observations even when an assertion fails. Query
+    // strings, fragments, bodies and authentication headers are never recorded.
+    const trace={decoded_video_metrics:metrics,stopped_viewers:Object.fromEntries(endedStates),pending_viewer_api_requests:[...pendingRequests].map(request=>requests.get(request)).filter(value=>value?.owner!==owners.get(page).id),network_failures:networkFailures,http_failures:httpFailures.map(value=>({...value,classification:expectedFailures.get(value)||'unclassified'})),viewer_requests:networkRequests.filter(value=>value.owner!==owners.get(page).id)};
+    throw Error(String(error.message)+'\nLive observations: '+JSON.stringify(trace));
   } finally {
     for (const viewer of viewers) await viewer.close().catch(() => {});
     for (const context of contexts) await context.close().catch(() => {});
