@@ -53,5 +53,7 @@
     "todesk_unchanged": true,
     "test_payload_not_in_apk": true
   },
-  "goal_complete": false
+  "goal_complete": false,
+  "published": true,
+  "public_url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261109.1"
 }
