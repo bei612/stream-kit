@@ -6,6 +6,7 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import com.limelight.binding.audio.AndroidAudioRenderer;
 import com.limelight.nvstream.StreamConfiguration;
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -26,6 +27,10 @@ public final class NativePeer implements AutoCloseable {
     requireMain();
     if (closed)
       return;
+    final String playback = playbackFailureReported ? "播放失败"
+        : !playbackEnabled                        ? "已暂停"
+        : playbackRunning                         ? "正在播放"
+                                                  : "等待播放";
     peer.getStats(report -> {
       StringBuilder summary = new StringBuilder();
       for (RTCStats stat : report.getStatsMap().values()) {
@@ -46,6 +51,7 @@ public final class NativePeer implements AutoCloseable {
               .append(" FPS");
         summary.append("\n");
       }
+      summary.append("播放 · ").append(playback);
       post(() -> result.accept(summary.length() == 0 ? "等待媒体数据" : summary.toString().trim()));
     });
   }
@@ -69,6 +75,9 @@ public final class NativePeer implements AutoCloseable {
   private boolean offerSent;
   private String offerAttributes;
   private org.json.JSONObject microphoneSettings;
+  private boolean playbackEnabled = true;
+  private boolean playbackRunning;
+  private boolean playbackFailureReported;
 
   public NativePeer(Context context, EglBase.Context egl, VideoSink sink,
       List<PeerConnection.IceServer> iceServers, AuthorityState authority, Listener listener) {
@@ -103,11 +112,37 @@ public final class NativePeer implements AutoCloseable {
     }
     audio =
         JavaAudioDeviceModule.builder(this.context)
+            .setAudioAttributes(AndroidAudioRenderer.createAudioAttributes(false))
             .setUseHardwareAcousticEchoCanceler(
                 microphoneSettings.optBoolean("echoCancellation", true)
                 && JavaAudioDeviceModule.isBuiltInAcousticEchoCancelerSupported())
             .setUseHardwareNoiseSuppressor(microphoneSettings.optBoolean("noiseSuppression", true)
                 && JavaAudioDeviceModule.isBuiltInNoiseSuppressorSupported())
+            .setAudioTrackErrorCallback(new JavaAudioDeviceModule.AudioTrackErrorCallback() {
+              @Override
+              public void onWebRtcAudioTrackInitError(String error) {
+                playbackFailed("AUDIO_PLAYOUT_INIT_FAILED");
+              }
+              @Override
+              public void onWebRtcAudioTrackStartError(
+                  JavaAudioDeviceModule.AudioTrackStartErrorCode code, String error) {
+                playbackFailed("AUDIO_PLAYOUT_START_FAILED");
+              }
+              @Override
+              public void onWebRtcAudioTrackError(String error) {
+                playbackFailed("AUDIO_PLAYOUT_FAILED");
+              }
+            })
+            .setAudioTrackStateCallback(new JavaAudioDeviceModule.AudioTrackStateCallback() {
+              @Override
+              public void onWebRtcAudioTrackStart() {
+                post(() -> playbackRunning = true);
+              }
+              @Override
+              public void onWebRtcAudioTrackStop() {
+                post(() -> playbackRunning = false);
+              }
+            })
             .setAudioRecordErrorCallback(new JavaAudioDeviceModule.AudioRecordErrorCallback() {
               @Override
               public void onWebRtcAudioRecordInitError(String error) {
@@ -302,8 +337,23 @@ public final class NativePeer implements AutoCloseable {
 
   public void audible(boolean enabled) {
     requireMain();
-    if (!closed)
+    if (!closed) {
+      playbackEnabled = enabled;
       peer.setAudioPlayout(enabled);
+    }
+  }
+
+  private void playbackFailed(String reason) {
+    // SDK callbacks arrive on audio threads. The instance's closed guard drops
+    // queued callbacks after replacement; ManagedSession also checks operation
+    // ownership before entering its existing reconnect lifecycle.
+    post(() -> {
+      if (playbackFailureReported)
+        return;
+      playbackFailureReported = true;
+      playbackRunning = false;
+      listener.failed(reason);
+    });
   }
 
   @Override
