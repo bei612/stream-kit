@@ -81,7 +81,7 @@
     "format": "SPDX-2.3"
   },
   "local_downloads_verified": true,
-  "published": false,
+  "published": true,
   "management_runtime_acceptance": "docs/evidence/management-live-cli-92818fba.json",
   "limits": [
     "Service and gateway restarts do not establish a whole host reboot.",
@@ -89,5 +89,63 @@
     "Empty default-device baseline does not cover existing nonempty device selections.",
     "Linux installer initialization does not itself prove an active media session; the separate real CLI receipt records that deployment scope.",
     "No local Windows update, in-place upgrade, Android audio, physical speech, target input or IP-change acceptance is established by this installer receipt."
-  ]
+  ],
+  "publication": {
+    "state": "published",
+    "url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261110.1",
+    "tag": "v0.1.0-preview.20261110.1",
+    "source_commit": "92818fba2e0970bbe407be5450c24522625ee7b4",
+    "tag_object_sha": "90636242efc281c1692c911d97ddd2993ffd19f2",
+    "tag_resolved_commit_verified": true,
+    "prerelease": true,
+    "published_at": "2026-11-09T18:18:32Z",
+    "verified_at": "2026-11-09T18:19:44.237Z",
+    "promotion_run": "https://github.com/bei612/stream-kit/actions/runs/42672327651",
+    "promotion_workflow_commit": "1a8fefbb6822bb461a7bcf879a15805ffd7d12e8",
+    "promotion_attempt": 2,
+    "build_jobs_skipped": true,
+    "original_product_run": "https://github.com/bei612/stream-kit/actions/runs/42664613109",
+    "public_assets_verified": true,
+    "all_public_asset_sizes_and_server_digests_match_local_verified_artifacts": true,
+    "release_notes_match": true,
+    "release_notes_comparison": "Normalize CRLF to LF and ignore trailing line-ending whitespace only",
+    "release_notes_sha256": "f8722af2dc7591468f6227ce406d436aa20c2c604b5eb55418982e0182b148f5",
+    "assets": [
+      {
+        "name": "stream-kit-preview-92818fba2e09-windows-amd64-setup.exe",
+        "bytes": 97605593,
+        "sha256": "e4e363a53b18920a8978cbd1619f3d3bd4d62a88c17fdb83aec8a269f76a27fd"
+      },
+      {
+        "name": "installer-manifest.json",
+        "bytes": 2312,
+        "sha256": "aa842840af777f31a7d376c49841aa67d734037b28fc4e30bb81057561d4a736"
+      },
+      {
+        "name": "SHA256SUMS.txt",
+        "bytes": 122,
+        "sha256": "cada8cf57846bc913d316b9dc29642d3a0fec8a59bbec5e5d445432e7dc39236"
+      },
+      {
+        "name": "stream-kit-preview-92818fba2e09-ubuntu24.04-amd64-setup.run",
+        "bytes": 62476923,
+        "sha256": "f99950090c34fc400b63433e53f7e720d683737526e2e8ef1b44287b694fd56d"
+      },
+      {
+        "name": "linux-installer-manifest.json",
+        "bytes": 1408,
+        "sha256": "e3dd3fb10d33bfbd45eb7be4158930cd3e0f1dccd84f71e0434b2e478b9b5614"
+      },
+      {
+        "name": "Linux-SHA256SUMS.txt",
+        "bytes": 126,
+        "sha256": "4f5834de6dd93cde02c3292d92d72cec2036655bf9839f00fff57a2e71b4a182"
+      },
+      {
+        "name": "stream-kit-sbom.spdx.json",
+        "bytes": 7575028,
+        "sha256": "30d17a87e68b5a01913e060ac8e781a1b7d0a0c64e2ff4af03659a8dbf7372b0"
+      }
+    ]
+  }
 }

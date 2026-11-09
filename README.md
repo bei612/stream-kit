@@ -14,7 +14,7 @@ Stream-Kit 将管理服务、Sunshine 渲染端和 Moonlight Web 媒体网关集
 
 客户端保留可收起工具栏、键盘、鼠标/触屏模式、设置、控制者身份及服务器地址修改入口，见[操作说明](docs/android-viewer-controls.md)。此前 `20261109.2` 已覆盖安装到实体平板和官方模拟器，并与 Web 同时接入 Example，交接及释放控制权时身份显示正确，见[三端实际检查记录](docs/evidence/android-exclusive-control-20261109.json)。这些旧版结果不替代后续 APK 的实际设备、输入或音频验收，也不代表本机 Windows 目标程序及物理麦克风全链路已验收。
 
-本机此前的 Windows UAC 维护已完成，管理服务与网关现为源码 `98e419f7`，Sunshine 渲染端保留 `47c02726`；系统服务为 `Running` / `Auto`，应用 ID 和原 LAN CA 保留，维护未修改信任、网络或 ToDesk，见[本机两组件维护记录](docs/evidence/local-control-gateway-maintenance-98e419f7.json)。这是一次明确版本的两组件维护，不是新版整包安装或通用原位升级验收。最新 Windows/Linux 统一安装包为源码 `df7cd87b` 的 [20261109.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261109.3)，与 Android `1000013` 同源，见[安装与发布证据](docs/evidence/unified-installers-df7cd87b.json)。本机首次真实 `playwright-cli` 流程整体仍未通过；后续维护预检通过，但 Windows 返回 UAC 取消，本机没有应用新服务端修复，不能把旧页面或历史结果计为新源码验收。地址配置与验证边界见[局域网地址配置](docs/lan-address-configuration.md)，剩余交付范围见[当前 Goal](docs/goal-current.md)。
+本机管理服务与网关现为源码 `98e419f7`，Sunshine 渲染端保留 `47c02726`；系统服务为 `Running` / `Auto`，应用 ID 和原 LAN CA 保留，见[本机两组件维护记录](docs/evidence/local-control-gateway-maintenance-98e419f7.json)。最新 Windows/Linux 统一安装包为源码 `92818fba` 的 [20261110.1](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261110.1)，见[安装与发布证据](docs/evidence/unified-installers-92818fba.json)。该版本已通过独立 Linux 实际部署的 [playwright-cli 操作及截图验收](docs/evidence/management-live-cli-92818fba.json)；本机完整控制端与网关仅完成维护预检，尚未应用，不能将独立部署结果写成本机通过。Android APK 仍为上文的独立签名版本。地址配置与边界见[局域网地址配置](docs/lan-address-configuration.md)，剩余范围见[当前 Goal](docs/goal-current.md)。
 
 2026-11-09 的 `20261109.2` APK 实际输入验收已通过：该 APK 与源码 `98e419f7` 的 Linux 安装包共用一个程序渲染会话，原生目标的按键/点击计数确认 Android 控制、Web 接管、旧控制者拒绝、撤权拒绝及重新授权均正确，最后目标实例停止得到确认。见[精确版本和六阶段结果](docs/evidence/android-stream-input-20261109.json)。本轮没有重复音频或长稳测试，也不代表本机 Windows 或后续 APK 输入验收通过。
 
@@ -26,12 +26,12 @@ Stream-Kit 将管理服务、Sunshine 渲染端和 Moonlight Web 媒体网关集
 
 从 [GitHub Releases](https://github.com/bei612/stream-kit/releases) 获取当前可下载版本，查看该版本说明和 SHA-256。Windows 使用版本中的单个 `*-windows-amd64-setup.exe` 安装三个核心组件；无需另外安装官方 Sunshine 或 Moonlight Web，也不要再注册独立 Sunshine 服务。
 
-当前统一安装预发布版为 [20261109.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261109.3)，提供源码 `df7cd87b` 构建的 Windows 单 EXE 和 Ubuntu 24.04 单文件安装包，包含明确的连接终态处理与通知级别样式修复。Windows 已集成开源虚拟音频实现及签名控制器驱动。只安装三个运行组件及必需运行库，开发示例和验收工具均不随包交付；安装及运行无需宿主机另行安装 Node.js/npm。Linux 解包、初始化和用户服务启用检查，以及 Windows 整包静默安装、自动服务、原生音频、网关与系统服务重启、卸载检查已通过；Linux 安装检查未启动媒体服务，Windows 重启检查不包含整机重启，空默认音频基线不能外推到已有非空设备设置。7 个公开附件的大小、服务端 SHA-256 与已核验构建产物一致，见[精确安装与发布证据](docs/evidence/unified-installers-df7cd87b.json)和[安装说明](deploy/releases/0.1.0-preview.20261109.3.md)。此前 [20261109.2](docs/evidence/unified-installers-6546792a.json) 与 [20261109.1](docs/evidence/unified-installers-98e419f7.json) 的记录保留原版本范围。发布不会自动替换已有部署，也不代表本机 Windows 输入或最终线上 playwright-cli 验收完成。
+当前统一安装预发布版为 [20261110.1](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261110.1)，提供源码 `92818fba` 构建的 Windows 单 EXE 和 Ubuntu 24.04 单文件安装包，修复浏览器媒体 HTTP 响应生命周期，保留明确的连接终态处理。Windows 已集成开源虚拟音频实现及签名控制器驱动。只安装三个运行组件及必需运行库，开发示例和验收工具均不随包交付；安装及运行无需宿主机另行安装 Node.js/npm。Linux 初始化、Windows 静默安装与服务/音频/卸载检查，以及独立 Linux 真实页面操作已分别通过。Windows 重启检查不包含整机重启，空默认音频基线不能外推到已有非空设备设置。7 个公开附件的大小、服务端 SHA-256 与已核验构建产物一致，见[精确安装与发布证据](docs/evidence/unified-installers-92818fba.json)和[安装说明](deploy/releases/0.1.0-preview.20261110.1.md)。此前版本的记录保留原范围。发布不会自动替换已有部署，也不代表本机 Windows、Android 音频或实际宿主机 IP 切换通过。
 
 Windows 安装器支持向导和静默模式。以管理员终端执行，将文件名替换为实际下载的名称：
 
 ```powershell
-.\stream-kit-preview-df7cd87b3352-windows-amd64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART
+.\stream-kit-preview-92818fba2e09-windows-amd64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART
 ```
 
 默认程序目录为 `C:\Program Files\StreamKit`，运行数据目录为 `C:\ProgramData\StreamKit`。静默模式自动生成独立管理员密码，管理员可从受保护的 `orchestrator.json` 中读取 `server.username` 与 `server.password`。自动化部署也可以通过 `/ADMINFILE` 提供凭据文件；密码不作为命令行参数传入。
@@ -39,7 +39,7 @@ Windows 安装器支持向导和静默模式。以管理员终端执行，将文
 Ubuntu 24.04 amd64 使用同一版本中的 `.run` 文件，明确指定实际拥有桌面和音频会话的非 root 用户：
 
 ```sh
-sudo bash stream-kit-preview-df7cd87b3352-ubuntu24.04-amd64-setup.run --user RENDER_USER
+sudo bash stream-kit-preview-92818fba2e09-ubuntu24.04-amd64-setup.run --user RENDER_USER
 ```
 
 数据位于该用户的 `~/.local/share/stream-kit/runtime`，管理员凭据同样保存在受保护的 `orchestrator.json` 中。没有桌面会话时可加 `--no-start`，登录桌面后再启动用户服务。系统运行库由 apt 安装；详细说明见 [Linux 部署说明](deploy/linux/README.md)。
