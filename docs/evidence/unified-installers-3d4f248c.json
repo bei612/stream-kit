@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-10",
+  "source_commit": "3d4f248c00cce003e4649a1d3e6b5f907dcfee39",
+  "product_run": "https://github.com/bei612/stream-kit/actions/runs/42676229242",
+  "product_run_conclusion": "success",
+  "windows_acceptance_run": "https://github.com/bei612/stream-kit/actions/runs/42681924445",
+  "windows_acceptance_conclusion": "success",
+  "acceptance_workflow_commit": "12c0d0521acc94871baa61807f680fda96ecbe2c",
+  "windows": {
+    "passed": true,
+    "environment": "GitHub-hosted Windows Server 2022",
+    "installer": {
+      "name": "stream-kit-preview-3d4f248c00cc-windows-amd64-setup.exe",
+      "bytes": 97612840,
+      "sha256": "b0045d2a7bb8651b9157c19c2072ebe1f6bce330d7062aaf95517314821efe51"
+    },
+    "installer_source_commit": "3d4f248c00cce003e4649a1d3e6b5f907dcfee39",
+    "reused_payload": false,
+    "kernel_audio_driver_signature_verified": true,
+    "acceptance_result_sha256": "604eb5ba59d4bb71b18c7bd325d482acbbaedfd54850caca61ea7a8c59dde577",
+    "install_exit": 0,
+    "administrator_login": true,
+    "service_after_install": {
+      "state": "Running",
+      "start_mode": "Auto",
+      "account": "LocalSystem"
+    },
+    "service_after_restart": {
+      "state": "Running",
+      "start_mode": "Auto",
+      "account": "LocalSystem",
+      "new_process_id_verified": true
+    },
+    "gateway_restarted": true,
+    "gateway_stop_exit": 0,
+    "scm_restarted": true,
+    "whole_system_reboot_tested": false,
+    "audio": {
+      "passed": true,
+      "captured_frames": 144000,
+      "tone_amplitude": 0.09817148408715153,
+      "dropped_frames": 0,
+      "xruns": 0,
+      "baseline_quiet": true,
+      "after_clear_quiet": true,
+      "device_closed_after_drop": true
+    },
+    "default_devices": {
+      "before": {
+        "communication_render": "",
+        "communication_capture": "",
+        "render": "",
+        "capture": ""
+      },
+      "after_uninstall_equals_before": true,
+      "existing_nonempty_default_devices_tested": false,
+      "scope": "Initially no default endpoints. Windows selected the added capture endpoint while present; uninstall restored the empty baseline. This does not prove preservation of existing nonempty defaults."
+    },
+    "uninstall_exit": 0,
+    "service_removed": true,
+    "configuration_retained_after_uninstall": true,
+    "configuration_retention_assertion": "orchestrator.json exists after uninstall",
+    "application_database_retention_separately_tested": false,
+    "finished_at": "2026-11-09T19:19:52.618Z"
+  },
+  "linux": {
+    "installer": {
+      "file": "stream-kit-preview-3d4f248c00cc-ubuntu24.04-amd64-setup.run",
+      "bytes": 62480305,
+      "sha256": "a0e235c97831b43c790abd9fe3ab98b81b622839d26f567c57cec816101565da"
+    },
+    "payload_sha256": "e078ff613be1e70ea56792684308bd233e379c9ad4eaf83c093aaa70b422b4f5",
+    "acceptance_log_sha256": "ac2d56d5ee839bee163f86a50f9a7c072b4f153070455b686d335a37ae289801",
+    "scope": "Installer extraction, three-component initialization, configuration validation, offline user-service enablement and refusal to overwrite existing deployment data; no media service started by installer acceptance."
+  },
+  "sbom": {
+    "name": "stream-kit-sbom.spdx.json",
+    "bytes": 7575028,
+    "sha256": "f4f80c4d6d4d03f0fc925fbd566c43fdfe2554cca90bca492e5094450b63aac0",
+    "format": "SPDX-2.3"
+  },
+  "local_downloads_verified": true,
+  "published": false,
+  "management_runtime_acceptance": "docs/evidence/management-live-cli-3d4f248c.json",
+  "limits": [
+    "Service and gateway restarts do not establish a whole host reboot.",
+    "Configuration-file retention does not independently prove application-file or database retention.",
+    "Empty default-device baseline does not cover existing nonempty device selections.",
+    "Linux installer initialization does not itself prove an active media session; the separate real CLI receipt records that deployment scope.",
+    "No local Windows update, in-place upgrade, Android audio, physical speech, target input or IP-change acceptance is established by this installer receipt."
+  ],
+  "publication": {
+    "state": "prepared_not_published",
+    "tag": "v0.1.0-preview.20261110.2",
+    "source_commit": "3d4f248c00cce003e4649a1d3e6b5f907dcfee39",
+    "public_assets_verified": false,
+    "promotion_run": null,
+    "assets_prepared": [
+      {
+        "name": "stream-kit-preview-3d4f248c00cc-windows-amd64-setup.exe",
+        "bytes": 97612840,
+        "sha256": "b0045d2a7bb8651b9157c19c2072ebe1f6bce330d7062aaf95517314821efe51"
+      },
+      {
+        "name": "installer-manifest.json",
+        "bytes": 2312,
+        "sha256": "e311038de3d9ed0fa3442277165072ed9ab778eb32b811a58e8d4253cd2c7d35"
+      },
+      {
+        "name": "SHA256SUMS.txt",
+        "bytes": 122,
+        "sha256": "4863169781765a306730069acc9fde586bff84821dcd760b4f92192d8b9b73d2"
+      },
+      {
+        "name": "stream-kit-preview-3d4f248c00cc-ubuntu24.04-amd64-setup.run",
+        "bytes": 62480305,
+        "sha256": "a0e235c97831b43c790abd9fe3ab98b81b622839d26f567c57cec816101565da"
+      },
+      {
+        "name": "linux-installer-manifest.json",
+        "bytes": 1408,
+        "sha256": "eb84ee5b9aaf24994adc8c0bb74a3e54005751158ed54798b28b6763871b7ff2"
+      },
+      {
+        "name": "Linux-SHA256SUMS.txt",
+        "bytes": 126,
+        "sha256": "9f56f834eb0ab94a6ecc878d695974f0d17b0383cf14f0248e4eeaec83e33d2b"
+      },
+      {
+        "name": "stream-kit-sbom.spdx.json",
+        "bytes": 7575028,
+        "sha256": "f4f80c4d6d4d03f0fc925fbd566c43fdfe2554cca90bca492e5094450b63aac0"
+      }
+    ]
+  },
+  "acceptance_product_source_binding": {
+    "producer_run_id": 42676229242,
+    "producer_commit": "3d4f248c00cce003e4649a1d3e6b5f907dcfee39",
+    "trigger": "workflow_run",
+    "verified_from": "Acceptance workflow PRODUCT_RUN_ID logs and original installed result commit, installer_source_commit and installer SHA; acceptance head is not the product source."
+  },
+  "management_runtime_acceptance_scope": "Separate exact 3d4f248c Linux deployment, real playwright-cli, English runtime with desktop/mobile viewports; not local Windows or Android audio acceptance."
+}
