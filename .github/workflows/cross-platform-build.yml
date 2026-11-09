@@ -25,6 +25,8 @@ on:
       - 'scripts/check-windows-android-environment.ps1'
       - 'scripts/accept-source-stream.cjs'
       - 'scripts/accept-managed-stream.cjs'
+      # Manual installed-deployment acceptance; not a product build dependency.
+      - 'scripts/accept-management-live.cjs'
       - 'scripts/lib/*input-acceptance.cjs'
       - 'scripts/lib/target-input-observer.cjs'
       - 'scripts/ci-android-stream-input.sh'
@@ -72,6 +74,8 @@ on:
       - 'scripts/check-windows-android-environment.ps1'
       - 'scripts/accept-source-stream.cjs'
       - 'scripts/accept-managed-stream.cjs'
+      # Manual installed-deployment acceptance; not a product build dependency.
+      - 'scripts/accept-management-live.cjs'
       - 'scripts/lib/*input-acceptance.cjs'
       - 'scripts/lib/target-input-observer.cjs'
       - 'scripts/ci-android-stream-input.sh'

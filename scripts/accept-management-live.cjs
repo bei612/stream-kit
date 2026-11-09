@@ -4,11 +4,28 @@ const path = require('node:path');
 const https = require('node:https');
 const cp = require('node:child_process');
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
+const privateText = new Set();
 
 function redact(value) {
-  return String(value).replace(/((?:key|join|mediaTicket|mediaControlToken)=)[A-Za-z0-9_%.-]+/g, '$1[redacted]')
+  let text = String(value);
+  for (const secret of privateText) if (secret) text = text.split(secret).join('[redacted-private]');
+  return text.replace(/((?:key|join|mediaTicket|mediaControlToken)=)[A-Za-z0-9_%.-]+/g, '$1[redacted]')
     .replace(/Bearer\s+[A-Za-z0-9_.-]+/gi, 'Bearer [redacted]')
     .replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, '[redacted-jwt]');
+}
+function protectArguments(value) {
+  // Privacy only: cover both API text and the editor's quoted, line-separated
+  // representation in CLI diagnostics. Actual checks use live API/UI values.
+  let quote = '', current = ''; const parts = [];
+  for (const ch of value) {
+    if (!quote && (ch === '"' || ch === "'")) quote = ch;
+    else if (ch === quote) quote = '';
+    if (ch === ' ' && !quote) { if (current) parts.push(current); current = ''; }
+    else current += ch;
+  }
+  if (current) parts.push(current);
+  for (const text of [value, value.trim(), parts.join('\n')]) if (text) { privateText.add(text); privateText.add(JSON.stringify(text).slice(1,-1)); }
 }
 function read(file) { return JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '')); }
 function regular(file) { assert.ok(fs.lstatSync(file).isFile(), 'Configuration inputs must be regular files'); return file; }
@@ -39,6 +56,7 @@ async function main() {
   const storage = read(state);
   const token = storage.origins?.find(origin => origin.origin === base.origin)?.localStorage?.find(item => item.name === 'auth_token')?.value;
   assert.ok(typeof token === 'string' && token.length > 16, 'Storage state must contain this deployment administrator session');
+  privateText.add(token);
   if (args[2] !== '--execute') {
     console.log('Configuration validated. No browser, application or service was changed. Add --execute to run live acceptance.');
     return;
@@ -46,16 +64,17 @@ async function main() {
   fs.mkdirSync(output, { mode: 0o700 });
   const report = { passed: false, base: base.origin, expected_control_commit: configuration.expected_control_commit,
     example_app_id: configuration.example_app_id, started_at: new Date().toISOString(), operations: 'Only explicitly owned Example; no service or network changes' };
-  const api = (route, method = 'GET') => new Promise((resolve, reject) => {
-    const request = https.request(new URL('/api/v1' + route, base), { method, ca: fs.readFileSync(ca), headers: { Authorization: `Bearer ${token}` }, timeout: 10000 }, response => {
+  const api = (route, method = 'GET', payload) => new Promise((resolve, reject) => {
+    const body = payload === undefined ? undefined : JSON.stringify(payload);
+    const request = https.request(new URL('/api/v1' + route, base), { method, ca: fs.readFileSync(ca), headers: { Authorization: `Bearer ${token}`, ...(body === undefined ? {} : {'Content-Type':'application/json','Content-Length':Buffer.byteLength(body)}) }, timeout: 10000 }, response => {
       let body = ''; response.on('data', chunk => { body += chunk; if (body.length > 4 * 1024 * 1024) request.destroy(Error('API response too large')); });
       response.on('end', () => { try { const data = JSON.parse(body); assert.equal(response.statusCode, 200, 'Live API refused request'); assert.equal(data.status, 'ok'); resolve(data.data); } catch { reject(Error('Live API check failed: ' + route)); } });
     });
     request.on('error', () => reject(Error('Trusted HTTPS request failed: ' + route)));
-    request.on('timeout', () => request.destroy()); request.end();
+    request.on('timeout', () => request.destroy()); request.end(body);
   });
   const session = `management-live-${Date.now()}`;
-  let opened = false, ownsRun = false;
+  let opened = false, ownsRun = false, argumentSnapshot;
   function cliRun(command, ...values) {
     const parameters = [`-s=${session}`, command, ...values];
     const result = process.platform === 'win32'
@@ -73,6 +92,9 @@ async function main() {
     const apps = await api('/apps');
     const example = apps.find(app => app.id === configuration.example_app_id);
     assert.ok(example, 'Owned Example is not registered');
+    assert.ok(typeof example.args === 'string', 'Owned Example has no argument state');
+    protectArguments(example.args);
+    argumentSnapshot = { original:example.args, template:example.args_template || '', candidate:example.args==='--tone-count=1'?'--tone-count=2':'--tone-count=1' };
     assert.ok(['stopped', 'ready'].includes(example.status), 'Owned Example must be idle before acceptance');
     assert.ok(!apps.some(app => app.id !== example.id && ['running', 'starting', 'stopping'].includes(app.status)), 'Another application is active');
     const identity = new URL(example.stream_url, base);
@@ -85,21 +107,51 @@ async function main() {
     fs.writeFileSync(browserConfig, JSON.stringify({ browser: { browserName: 'chromium', launchOptions: { channel: 'chrome' }, contextOptions: { ignoreHTTPSErrors: false, storageState: state, viewport: { width: 1440, height: 1000 } } }, outputDir: output }), { mode: 0o600 });
     cliRun('open', 'about:blank', '--config', browserConfig); opened = true;
     const script = path.join(output, 'live-browser.js');
-    const browserOptions = { base: base.origin, appId: example.id, name: example.name, host, app, output };
+    const browserOptions = { base: base.origin, appId: example.id, name: example.name, host, app, output,
+      originalArgsSHA256:crypto.createHash('sha256').update(example.args).digest('hex'), candidateArgs:argumentSnapshot.candidate };
     fs.writeFileSync(script, `async (page) => { const cfg = ${JSON.stringify(browserOptions)}; return await (${browserAcceptance.toString()})(page, cfg); }`, { mode: 0o600 });
     ownsRun = true;
     const result = cliRun('run-code', '--filename', script);
     assert.ok(result.includes('LIVE_MANAGEMENT_ACCEPTANCE_OK'), 'Live browser checks did not finish successfully');
     const stopped = await api('/apps/' + example.id);
-    assert.equal(stopped.status, 'stopped', 'Example did not stop');
+    assert.ok(['stopped','ready'].includes(stopped.status) && stopped.lifecycle?.can_edit === true, 'Example must remain idle and editable after argument restoration');
+    assert.ok(stopped.args === argumentSnapshot.original, 'Example arguments were not restored');
     assert.equal((await api('/health')).commit, configuration.expected_control_commit, 'Control source changed during acceptance');
     report.passed = true;
     report.checks = ['trusted HTTPS and exact deployed control commit', 'permanent link visible before launch', 'real Example launch and two decoded WebRTC viewers',
-      'UI grant, transfer and revoke with server authority checks', 'viewer permission projection', 'Example stop and read-only history', 'desktop/mobile screenshots and console errors'];
+      'UI grant, transfer and revoke with server authority checks', 'viewer permission projection', 'Example stop; UI argument edit/save and original argument restoration with actual API agreement; read-only history', 'desktop/mobile screenshots and console errors'];
   } catch (error) { report.error = redact(error.message); }
   finally {
     if (opened) { try { cliRun('close'); } catch { report.browser_close_failed = true; report.passed = false; } }
     if (ownsRun) { try { await api('/apps/' + configuration.example_app_id + '/stop', 'POST'); } catch { report.cleanup_failed = true; report.passed = false; } }
+    if (ownsRun && argumentSnapshot) {
+      const restoration = report.argument_restoration = { values_in_evidence:false, args_restored:false, registration_confirmed:false };
+      try {
+        const route='/apps/'+configuration.example_app_id;
+        let current=await api(route);
+        if (current.args !== argumentSnapshot.original) {
+          assert.ok((current.args === argumentSnapshot.candidate || current.args === argumentSnapshot.original.trim()) && (current.args_template||'') === argumentSnapshot.template, 'Concurrent Example configuration change; restoration refused');
+          assert.ok(['stopped','ready','crashed','register_failed'].includes(current.status) && current.lifecycle?.can_edit === true, 'Example is not safely editable for recovery');
+          const sessions=await api('/stream-sessions');
+          assert.ok(!sessions.some(s=>s.app_id===current.sunshine_app_id && s.state!=='stopped'), 'Example still has nonterminal viewing authority; recovery refused');
+          restoration.recovery_attempted=true;
+          await api(route,'PUT',{args:argumentSnapshot.original});
+          current=await api(route);
+        }
+        restoration.args_restored=current.args===argumentSnapshot.original;
+        restoration.registration_confirmed=['stopped','ready','crashed'].includes(current.status) && current.lifecycle?.can_edit === true;
+        assert.ok(restoration.args_restored && restoration.registration_confirmed, 'Original arguments or encoder registration could not be confirmed restored');
+      } catch (error) {
+        restoration.error=redact(error.message); report.passed=false;
+        // A failed registration acknowledgement can follow a successful DB write.
+        // Record what can actually be read back without retrying unrelated state.
+        try {
+          const actual=await api('/apps/'+configuration.example_app_id);
+          restoration.args_restored=actual.args===argumentSnapshot.original;
+          restoration.registration_confirmed=['stopped','ready','crashed'].includes(actual.status) && actual.lifecycle?.can_edit===true;
+        } catch { restoration.readback_failed=true; }
+      }
+    }
     // CLI diagnostics/snapshots can contain viewer fragments; never retain them unredacted.
     function scrub(directory) { for (const entry of fs.readdirSync(directory, { withFileTypes: true })) { const file = path.join(directory, entry.name); if (entry.isSymbolicLink()) continue; if (entry.isDirectory()) scrub(file); else if (/\.(json|jsonl|log|txt|yml|yaml|md|js)$/.test(entry.name)) fs.writeFileSync(file, redact(fs.readFileSync(file, 'utf8'))); } }
     scrub(output);
@@ -125,7 +177,7 @@ async function browserAcceptance(page, cfg) {
     while (Date.now() < deadline) { const value = await read(); if (check(value)) return value; await page.waitForTimeout(500); }
     throw Error('Timed out: ' + label);
   };
-  const screenshot = (target, name, mask = []) => target.screenshot({ path: cfg.output + '/' + name + '.png', fullPage: true, mask });
+  const screenshot = (target, name, mask = []) => target.screenshot({ path: cfg.output + '/' + name + '.png', fullPage: true, mask:[...mask, target.locator('#application-args')] });
   const currentSession = async () => {
     const matches = (await api('/stream-sessions')).filter(s => s.host_id === cfg.host && s.app_id === cfg.app && s.state !== 'stopped');
     requireTrue(matches.length === 1, 'Expected one shared Example session'); return matches[0];
@@ -151,6 +203,12 @@ async function browserAcceptance(page, cfg) {
     await page.locator('a[href="/apps/' + cfg.appId + '"]').first().click();
     await page.getByRole('heading', { name: cfg.name, exact: true }).waitFor();
     const link = page.getByRole('textbox', { name: '固定观看链接', exact: true });
+    const original = await api('/apps/'+cfg.appId);
+    const originalHash = await page.evaluate(async value => {
+      const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));
+      return Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join('');
+    }, original.args);
+    requireTrue(originalHash === cfg.originalArgsSHA256, 'Example arguments changed before acceptance');
     await link.waitFor(); const watch = await link.inputValue();
     const url = new URL(watch); requireTrue(url.origin === cfg.base && url.pathname === '/watch' && /^#key=[A-Za-z0-9_-]{43}$/.test(url.hash), 'Invalid permanent link');
     await screenshot(page, 'app-before-launch-desktop', [link]);
@@ -205,6 +263,28 @@ async function browserAcceptance(page, cfg) {
       const ended = sessions.find(session => session.session_id === live.session_id);
       return ended && ended.state === 'stopped' && !ended.controller_connection_id && Object.keys(ended.connections).length === 0;
     }, 'Stopped generation released all clients and authority');
+    const editor = page.locator('#application-args'), saveButton = page.getByRole('button', {name:'保存',exact:true});
+    await waitFor(()=>api('/apps/'+cfg.appId), app=>app.lifecycle?.can_edit===true, 'Stopped Example is editable');
+    await waitFor(()=>editor.isEnabled(), Boolean, 'Argument editor enabled after stopping');
+    const unchanged=await api('/apps/'+cfg.appId);
+    requireTrue(unchanged.args===original.args && unchanged.capture_mode===original.capture_mode && unchanged.args_template===original.args_template, 'Example configuration changed concurrently');
+    const originalEditor=await waitFor(()=>editor.inputValue(), value=>original.args.trim()?!!value.trim():!value.trim(), 'Original arguments loaded in editor');
+    const saveArgs = async value => {
+      await editor.fill(value);
+      const response = page.waitForResponse(response=>new URL(response.url()).pathname==='/api/v1/apps/'+cfg.appId && response.request().method()==='PUT');
+      await saveButton.click(); requireTrue((await response).status()===200, 'Stopped Example argument save was rejected');
+      await page.getByRole('status').filter({hasText:'配置已保存，下次启动应用时生效。'}).waitFor();
+      await waitFor(()=>api('/apps/'+cfg.appId), app=>app.args===value && app.lifecycle?.can_edit===true, 'Saved argument state and API agree');
+      await waitFor(()=>editor.isEnabled(), Boolean, 'Editor ready after saved configuration refresh');
+    };
+    await saveArgs(cfg.candidateArgs);
+    await waitFor(()=>editor.inputValue(), value=>value===cfg.candidateArgs, 'Saved candidate displayed in editor');
+    await screenshot(page,'stopped-arguments-saved',[link]);
+    await saveArgs(original.args);
+    await waitFor(()=>editor.inputValue(), value=>value===originalEditor, 'Restored original argument state displayed');
+    const restored=await api('/apps/'+cfg.appId);
+    requireTrue(restored.args===original.args && restored.capture_mode===original.capture_mode && restored.args_template===original.args_template, 'Original Example configuration was not restored');
+    await screenshot(page,'stopped-arguments-restored',[link]);
     await page.goto(cfg.base + '/stream-sessions?app=' + encodeURIComponent(cfg.appId));
     await page.getByRole('button', { name: /已结束记录/ }).click();
     await page.getByRole('heading', { name: '已结束的应用串流', exact: true }).waitFor();
@@ -212,8 +292,14 @@ async function browserAcceptance(page, cfg) {
     await screenshot(page, 'history-mobile');
     await page.setViewportSize({ width: 1440, height: 1000 }); await screenshot(page, 'history-desktop');
     requireTrue(errors.length === 0, 'Browser console or JavaScript errors: ' + JSON.stringify(errors));
-    return JSON.stringify({ result: 'LIVE_MANAGEMENT_ACCEPTANCE_OK', decoded_video_metrics: metrics, console_errors: errors.length });
-  } finally { for (const viewer of viewers) await viewer.close().catch(() => {}); for (const context of contexts) await context.close().catch(() => {}); }
+    return JSON.stringify({ result: 'LIVE_MANAGEMENT_ACCEPTANCE_OK', decoded_video_metrics: metrics, stopped_argument_edit:{saved_via_ui:true,restored_via_ui:true,api_ui_agreement:true}, console_errors: errors.length });
+  } finally {
+    for (const viewer of viewers) await viewer.close().catch(() => {});
+    for (const context of contexts) await context.close().catch(() => {});
+    // CLI may snapshot the active page after run-code finishes or throws. Leave
+    // no argument editor or durable viewing capability visible to that snapshot.
+    await page.goto('about:blank').catch(() => {});
+  }
 }
 
 main().catch(error => { console.error(redact(error.message)); process.exitCode = 1; });
