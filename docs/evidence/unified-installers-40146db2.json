@@ -82,7 +82,7 @@
     "format": "SPDX-2.3"
   },
   "local_downloads_verified": true,
-  "published": false,
+  "published": true,
   "management_runtime_acceptance": "docs/evidence/management-live-cli-40146db2.json",
   "limits": [
     "Service and gateway restarts do not establish a whole host reboot.",
@@ -96,5 +96,83 @@
     "producer_commit": "40146db2ffa8b15040906cf130be8e89548c48da",
     "trigger": "workflow_run",
     "verified_from": "Original acceptance PRODUCT_RUN_ID environment plus result commit and installer SHA; acceptance head is not the product source"
+  },
+  "publication": {
+    "state": "published",
+    "url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261110.3",
+    "tag": "v0.1.0-preview.20261110.3",
+    "source_commit": "40146db2ffa8b15040906cf130be8e89548c48da",
+    "tag_object_sha": "9e6dffcf2f6b83eabd7c49b850cafc8b234e24b0",
+    "tag_resolved_commit_verified": true,
+    "prerelease": true,
+    "published_at": "2026-11-10T05:17:33Z",
+    "verified_at": "2026-11-10T05:17:52.839Z",
+    "promotion_run": "https://github.com/bei612/stream-kit/actions/runs/42761159746",
+    "promotion_workflow_commit": "55e02383171aa5772af7385792824e49a28c88fa",
+    "promotion_attempt": 1,
+    "build_jobs_skipped": true,
+    "original_product_run": "https://github.com/bei612/stream-kit/actions/runs/42756383945",
+    "public_assets_verified": true,
+    "all_public_asset_sizes_and_server_digests_match_local_verified_artifacts": true,
+    "release_notes_match": true,
+    "release_notes_comparison": "Normalize CRLF to LF only",
+    "release_notes_sha256": "d0cc9093141d8620cf8d9bdaab815b5eb559f44eeb7e7639a62ceb92b15b2a62",
+    "assets": [
+      {
+        "name": "stream-kit-preview-40146db2ffa8-windows-amd64-setup.exe",
+        "bytes": 97598001,
+        "sha256": "af7a9a0dc2b3649f2f65c4b4ddf8280fa94fa0d6da650c2913ff8e633da33f5e"
+      },
+      {
+        "name": "installer-manifest.json",
+        "bytes": 2312,
+        "sha256": "6edda56794036ce240fd2e52048c24b37aff953263c2a52ce9ab8005321a2932"
+      },
+      {
+        "name": "SHA256SUMS.txt",
+        "bytes": 122,
+        "sha256": "55b5c5bbd11a2cfad4fdb860109a1d3298bb6165467ea348b76e3aece2432e75"
+      },
+      {
+        "name": "stream-kit-preview-40146db2ffa8-ubuntu24.04-amd64-setup.run",
+        "bytes": 62476057,
+        "sha256": "bdf977e4c8d75cf157dd302c00ebb7930d3aba1feac4320f188c0781fd102313"
+      },
+      {
+        "name": "linux-installer-manifest.json",
+        "bytes": 1408,
+        "sha256": "116fd0d3db9a7608c7afb92417083a81d5d0089f56662851165528a9f3fa8f91"
+      },
+      {
+        "name": "Linux-SHA256SUMS.txt",
+        "bytes": 126,
+        "sha256": "cd83055592ffc4ce8388fdc95b578ae1fae73e36286249d813c14539de2aceb8"
+      },
+      {
+        "name": "stream-kit-sbom.spdx.json",
+        "bytes": 7575028,
+        "sha256": "64bb003f157137f37357b5cda4265cdc3f009dd4529f8d6c28259cb766441cc2"
+      }
+    ],
+    "anonymous_download_head_checks": {
+      "verified_at": "2026-11-10T05:18:18.048Z",
+      "scope": "Anonymous HTTPS HEAD with redirect follow; no Authorization header or signed redirect URL retained",
+      "assets": [
+        {
+          "name": "stream-kit-preview-40146db2ffa8-ubuntu24.04-amd64-setup.run",
+          "http_status": 200,
+          "content_length": 62476057,
+          "authorization_header_sent": false,
+          "redirect_destination_retained": false
+        },
+        {
+          "name": "stream-kit-preview-40146db2ffa8-windows-amd64-setup.exe",
+          "http_status": 200,
+          "content_length": 97598001,
+          "authorization_header_sent": false,
+          "redirect_destination_retained": false
+        }
+      ]
+    }
   }
 }

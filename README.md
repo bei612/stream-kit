@@ -4,7 +4,7 @@ Stream-Kit 将管理服务、Sunshine 渲染端和 Moonlight Web 媒体网关集
 
 服务端支持 Windows/Linux，客户端提供 Web/PWA 和 Android 原生 App。手机和平板也可直接使用浏览器；浏览器采集麦克风需要安全上下文和用户授权。当前发布渠道为预发布，不能把构建成功视为全部生产验收完成。
 
-2026-11-10 已用上述正式 `.6` APK 在本机官方 Windows 模拟器完成[程序播放、麦克风回传和撤权声学验收](docs/evidence/android-release-audio-windows-20261110.json)：程序音的 49 个窗口持续通过原门槛；授权后的合成麦克风同时到达原生录音端点和真实 Web 观看端，撤权后两处恢复静音，采集零丢帧。复用原 APK，未加入生产探针；Example 参数、路由及模拟器音量均已恢复。这仅证明记录中的本机 `98e419f7` 服务端与 Windows 模拟器环境，不覆盖后续新服务部署，也不覆盖 Linux PulseAudio、真人语音或 UE 内部录音。
+2026-11-10 已用正式 `.6` APK 在本机官方 Windows 模拟器完成[程序播放、麦克风回传和撤权声学验收](docs/evidence/android-release-audio-windows-20261110.json)：程序音的 49 个窗口持续通过原门槛；授权后的合成麦克风同时到达原生录音端点和真实 Web 观看端，撤权后两处恢复静音，采集零丢帧。复用原 APK，未加入生产探针；Example 参数、路由及模拟器音量均已恢复。[权限拒绝、断网恢复及前后台检查](docs/evidence/android-release-lifecycle-windows-20261110.json)也已通过。这仅证明记录中的本机 `98e419f7` 服务端与 Windows 模拟器环境，不覆盖后续新服务部署，也不覆盖 Linux PulseAudio、真人语音或 UE 内部录音。
 
 基于官方 Moonlight Android 源码二开的 [Android 签名 APK 20261109.6](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261109.6) 已发布，版本码 `1000013`、源码 `df7cd87b`，沿用项目持久签名。本版区分连接租约过期和连接终止，已终止连接立即关闭本地权限、麦克风及媒体并停止恢复；陈旧操作不能影响替代连接。签名 release 构建、唯一持久签名、源码身份、封装及五个公开附件校验已通过；音频另按上述 Windows 实际结果与下述 Linux 失败分别记录，未将构建通过或单次声学结果当成完整生命周期验收。精确版本见[发布记录](docs/evidence/android-release-20261109-6.json)。
 
@@ -16,9 +16,9 @@ Stream-Kit 将管理服务、Sunshine 渲染端和 Moonlight Web 媒体网关集
 
 客户端保留可收起工具栏、键盘、鼠标/触屏模式、设置、控制者身份及服务器地址修改入口，见[操作说明](docs/android-viewer-controls.md)。此前 `20261109.2` 已覆盖安装到实体平板和官方模拟器，并与 Web 同时接入 Example，交接及释放控制权时身份显示正确，见[三端实际检查记录](docs/evidence/android-exclusive-control-20261109.json)。这些旧版结果不替代后续 APK 的实际设备、输入或音频验收，也不代表本机 Windows 目标程序及物理麦克风全链路已验收。
 
-本机管理服务与网关现为源码 `98e419f7`，Sunshine 渲染端保留 `47c02726`；系统服务为 `Running` / `Auto`，应用 ID 和原 LAN CA 保留，见[本机两组件维护记录](docs/evidence/local-control-gateway-maintenance-98e419f7.json)。最新 Windows/Linux 统一安装包为源码 `3d4f248c` 的 [20261110.2](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261110.2)，见[安装与发布证据](docs/evidence/unified-installers-3d4f248c.json)。该版本已通过独立 Linux 实际部署的 [playwright-cli 操作及截图验收](docs/evidence/management-live-cli-3d4f248c.json)；本机尚未更新，不能将独立部署结果写成本机通过。Android APK 仍为上文的独立签名版本。地址配置与边界见[局域网地址配置](docs/lan-address-configuration.md)，剩余范围见[当前 Goal](docs/goal-current.md)。
+本机管理服务与网关现为源码 `98e419f7`，Sunshine 渲染端保留 `47c02726`；系统服务为 `Running` / `Auto`，应用 ID 和原 LAN CA 保留，见[本机两组件维护记录](docs/evidence/local-control-gateway-maintenance-98e419f7.json)。最新 Windows/Linux 统一安装包为源码 `40146db2` 的 [20261110.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261110.3)，见[安装与发布证据](docs/evidence/unified-installers-40146db2.json)。该版本已通过独立 Linux 实际部署的 [playwright-cli 操作及截图验收](docs/evidence/management-live-cli-40146db2.json)；本机尚未更新，不能将独立部署结果写成本机通过。Android APK 仍为上文的独立签名版本。地址配置与边界见[局域网地址配置](docs/lan-address-configuration.md)，剩余范围见[当前 Goal](docs/goal-current.md)。
 
-2026-11-09 的 `20261109.2` APK 实际输入验收已通过：该 APK 与源码 `98e419f7` 的 Linux 安装包共用一个程序渲染会话，原生目标的按键/点击计数确认 Android 控制、Web 接管、旧控制者拒绝、撤权拒绝及重新授权均正确，最后目标实例停止得到确认。见[精确版本和六阶段结果](docs/evidence/android-stream-input-20261109.json)。本轮没有重复音频或长稳测试，也不代表本机 Windows 或后续 APK 输入验收通过。
+正式 `20261109.6` APK 与源码 `3d4f248c` 的 Linux 安装包已通过[真实目标输入六阶段验收](docs/evidence/android-stream-input-3d4f248c-20261110.json)：共用一个上游，原生目标按键/点击计数确认 Android 控制、Web 接管、旧控制者拒绝、撤权拒绝及重新授权，最后恢复空闲。更早的 `.2` APK 与 `98e419f7` 服务端[记录](docs/evidence/android-stream-input-20261109.json)保留其原范围；这些结果均不代表本机 Windows 目标输入或后续服务端重新验收。
 
 应用与会话生命周期现已按权威原生执行实例同步，真实准入凭据的到期时间保护启动过程，客户端心跳不会永久维持失败的 `starting`。`98e419f7` 已在独立 Linux 环境通过两个 Web 观看端保持连接时目标窗口正常退出的真实检查：约 4.8 秒内终结旧会话并撤权，旧凭据在到期前被拒绝，见[被动退出证据](docs/evidence/native-session-exit-20261109.json)。本次没有出现替代实例，不代表该分支、故障恢复或本机部署通过。2026-11-09 本机输入前置核查中，Windows 未授予独立 Example 窗口前台焦点，检查因而未发送串流按键；不能宣布目标输入验收通过，见[现场记录](docs/evidence/windows-owned-example-focus-20261109.json)。
 
@@ -28,7 +28,7 @@ Stream-Kit 将管理服务、Sunshine 渲染端和 Moonlight Web 媒体网关集
 
 从 [GitHub Releases](https://github.com/bei612/stream-kit/releases) 获取当前可下载版本，查看该版本说明和 SHA-256。Windows 使用版本中的单个 `*-windows-amd64-setup.exe` 安装三个核心组件；无需另外安装官方 Sunshine 或 Moonlight Web，也不要再注册独立 Sunshine 服务。
 
-当前统一安装预发布版为 [20261110.2](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261110.2)，提供源码 `3d4f248c` 构建的 Windows 单 EXE 和 Ubuntu 24.04 单文件安装包，修复观看端连接提示、权限通知的生命周期与语言一致性，保留媒体 HTTP 响应和明确终态处理。Windows 已集成开源虚拟音频实现及签名控制器驱动。只安装三个运行组件及必需运行库，开发示例和验收工具均不随包交付；安装及运行无需宿主机另行安装 Node.js/npm。Linux 初始化、Windows 静默安装与服务/音频/卸载检查，以及独立 Linux 真实页面操作已分别通过。Windows 重启检查不包含整机重启，空默认音频基线不能外推到已有非空设备设置。7 个公开附件的大小、服务端 SHA-256 与已核验构建产物一致，见[精确安装与发布证据](docs/evidence/unified-installers-3d4f248c.json)和[安装说明](deploy/releases/0.1.0-preview.20261110.2.md)。此前版本的记录保留原范围。发布不会自动替换已有部署，也不代表本机 Windows、Android 音频或实际宿主机 IP 切换通过。
+当前统一安装预发布版为 [20261110.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261110.3)，提供源码 `40146db2` 构建的 Windows 单 EXE 和 Ubuntu 24.04 单文件安装包，移除 SDP、ICE 候选和脚本输出中的敏感日志，保留观看提示、权限通知与明确终态处理。Windows 已集成开源虚拟音频实现及签名控制器驱动。只安装三个运行组件及必需运行库，开发示例和验收工具均不随包交付；安装及运行无需宿主机另行安装 Node.js/npm。Linux 初始化、Windows 静默安装与服务/音频/卸载检查，以及独立 Linux 真实页面操作已分别通过。Windows 重启检查不包含整机重启，空默认音频基线不能外推到已有非空设备设置。7 个公开附件的大小、服务端 SHA-256 与已核验构建产物一致，两个安装器匿名下载检查返回 200，见[精确安装与发布证据](docs/evidence/unified-installers-40146db2.json)和[安装说明](deploy/releases/0.1.0-preview.20261110.3.md)。此前版本的记录保留原范围。发布不会自动替换已有部署，也不代表本机 Windows、Android 音频或实际宿主机 IP 切换通过。
 
 Windows 安装器支持向导和静默模式。以管理员终端执行，将文件名替换为实际下载的名称：
 
