@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-10",
+  "passed": true,
+  "scope": "Published Android release .6 on the owned official Windows emulator with the existing 98e419f7 local service: real permission denial, guest-only network interruption, connection recovery and foreground/background microphone privacy. Not host network or new server deployment acceptance.",
+  "android": {
+    "release_tag": "v0.1.0-android-preview.20261109.6",
+    "version_code": 1000013,
+    "source_commit": "df7cd87b3352a638aa3a6aa7073d39074c02a43c",
+    "apk_sha256": "31593fce46afc49de92e9c04b76e0b881448e477d42fcbe02ebf387d424c3ebc",
+    "debuggable": false,
+    "rebuilt": false,
+    "instrumented_product_code": false,
+    "environment": "Official Emulator 37.2.13.0 build 16740729; owned StreamKit_API_36 AVD on Windows 11",
+    "host_microphone_connected": false
+  },
+  "server": {
+    "control_commit": "98e419f7f85fa36a92651ee55396815386a233c4",
+    "gateway_commit": "98e419f7f85fa36a92651ee55396815386a233c4",
+    "renderer_commit": "47c02726c0161ebdec50911422d62845a9b6e59a",
+    "owned_application": "Existing independent Example",
+    "transport": "Existing trusted LAN HTTPS"
+  },
+  "permission_denial": {
+    "original_record_audio_permission": true,
+    "revoked_before_launch_with_official_shell_interface": true,
+    "unique_controller_granted": true,
+    "client_microphone_button_used": true,
+    "real_android_permission_dialog": true,
+    "deny_button_variant": "permission_deny_and_dont_ask_again_button",
+    "permission_remained_denied": true,
+    "microphone_not_live": true,
+    "client_returned_to_microphone_off": true,
+    "permission_restored_for_next_scenario": "Official adb pm grant on owned AVD; not represented as a UI permission-grant acceptance"
+  },
+  "guest_network_recovery": {
+    "capture_active_before_disconnect": true,
+    "method": "svc wifi disable and svc data disable in the owned Android guest only",
+    "host_network_changed": false,
+    "milliseconds_until_server_observed_lease_expiry": 14802,
+    "expired_microphone_off": true,
+    "expired_controller_removed": true,
+    "resumed_same_connection": true,
+    "resumed_role": "viewer",
+    "resumed_microphone_live": false,
+    "controller_not_automatically_regranted": true
+  },
+  "foreground_background": {
+    "controller_explicitly_regranted": true,
+    "microphone_explicitly_enabled_again": true,
+    "home_launcher_action": true,
+    "background_left_connection": true,
+    "background_controller_removed": true,
+    "background_capture_off": true,
+    "foreground_return_without_new_watch_uri": true,
+    "foreground_connection_is_new": true,
+    "foreground_role": "viewer",
+    "foreground_microphone_live": false,
+    "foreground_viewer_label_visible": true,
+    "native_example_picture_visually_reviewed": true
+  },
+  "cleanup": {
+    "guest_wifi_after": 1,
+    "guest_mobile_data_after": 1,
+    "guest_network_restored": true,
+    "record_audio_permission_restored_with_readback": true,
+    "owned_example_stopped": true,
+    "example_original_arguments_unchanged": true,
+    "owned_emulator_closed": true,
+    "adb_devices_empty": true,
+    "adb_forwards_empty": true,
+    "active_sessions": 0,
+    "active_upstreams": 0,
+    "ue_stopped": true,
+    "host_network_or_todesk_changed": false
+  },
+  "evidence": {
+    "source": "Actual local API/ADB command observations from the controlled execution; no CI run is attributed",
+    "private_fixture": ".local/management/owned-release-lifecycle-check.cjs",
+    "screenshot": ".local/validation/android-release-lifecycle-windows-20261110/android-foreground-viewer.png",
+    "private_capabilities_or_connection_ids_saved_in_receipt": false,
+    "fixture_sha256": "307bb375539d364be4538931ee53d06c8d8ce0e0a6441471341c040ddf4ade87",
+    "screenshot_sha256": "8608dc5590ebbd5072bcdca6c1ee3f2c2cd18c6ccb231675fdfba3ab09338715"
+  },
+  "earlier_fixture_attempts": [
+    "An initial check sampled admission before it became ready and failed with zero generations; the fixture was corrected to wait for the real admission state.",
+    "A subsequent check selected only the first-denial Android resource ID. The actual dialog used the permanent-denial resource ID; that attempt was not marked as a permission-denial pass. The later successful execution used the actual Android dialog."
+  ],
+  "limits": [
+    "Old local Windows service compatibility only; no automatic extension to 40146db2 deployment or exact new terminal semantics.",
+    "AVD radio toggles do not establish physical radio, host DHCP/IP change, whole host reboot or Bluetooth behavior.",
+    "Privacy state and actual authority/connection lifetime were checked. This scenario did not measure a new acoustic sample or repeat program-audio acceptance.",
+    "The separately recorded signed-APK audio/revocation execution supplies the actual sound measurements."
+  ]
+}
