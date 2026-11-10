@@ -1,0 +1,230 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-10",
+  "source_commit": "3d4a3b5c61fea72354318cea637b3428052e5cfc",
+  "product_run": "https://github.com/bei612/stream-kit/actions/runs/42803959807",
+  "product_run_conclusion": "success",
+  "source_ci": {
+    "run": "https://github.com/bei612/stream-kit/actions/runs/42807108880",
+    "commit": "a2e8529b4c1adebee026344caaa19ac92d30c9ff",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "id": 129798937814,
+        "name": "Management Web",
+        "conclusion": "success"
+      },
+      {
+        "id": 129798938144,
+        "name": "Source SBOM",
+        "conclusion": "success"
+      },
+      {
+        "id": 129798938211,
+        "name": "Orchestrator (ubuntu-latest)",
+        "conclusion": "success"
+      },
+      {
+        "id": 129798938215,
+        "name": "Moonlight Web (ubuntu-latest)",
+        "conclusion": "success"
+      },
+      {
+        "id": 129798938232,
+        "name": "Orchestrator (windows-latest)",
+        "conclusion": "success"
+      },
+      {
+        "id": 129798938262,
+        "name": "Moonlight Web (windows-latest)",
+        "conclusion": "success"
+      }
+    ],
+    "runtime_source_equivalence": {
+      "runtime_source_commit": "3d4a3b5c61fea72354318cea637b3428052e5cfc",
+      "verification_source_commit": "a2e8529b4c1adebee026344caaa19ac92d30c9ff",
+      "approved_validation_documentation_changes": [
+        ".github/workflows/cross-platform-build.yml",
+        "docs/evidence/management-query-library-3d4a3b5c.json",
+        "docs/evidence/management-query-library-3d4a3b5c/app-mobile.png",
+        "docs/evidence/management-query-library-3d4a3b5c/logs-page-two.png",
+        "docs/goal-current.md",
+        "docs/managed-session-state.md",
+        "scripts/accept-management-live.cjs",
+        "scripts/accept-management-native.cjs",
+        "scripts/lib/management-query-cancellations.cjs",
+        "scripts/test-management-query-cancellations.cjs"
+      ],
+      "production_source_files_unchanged": true,
+      "build_metadata_commits_distinct": true,
+      "verification_binaries_published": false,
+      "ci_workflow_difference": "One additional acceptance-classifier unit test; production build steps unchanged"
+    },
+    "original_runtime_run": {
+      "url": "https://github.com/bei612/stream-kit/actions/runs/42803722032",
+      "conclusion": "failure",
+      "scope": "Five build/test groups succeeded; original management gate retained client-aborted reads as failures. Corrective CI uses unchanged production inputs and an evidence-bounded cancellation classifier."
+    }
+  },
+  "windows_acceptance_run": "https://github.com/bei612/stream-kit/actions/runs/42809817756",
+  "windows_acceptance_conclusion": "success",
+  "acceptance_workflow_commit": "d048cc878c5c41cab6d12ee9eec4d2b933f884d4",
+  "windows": {
+    "passed": true,
+    "environment": "Isolated GitHub-hosted Windows Server 2022 with installed original unified runtime",
+    "installer": {
+      "name": "stream-kit-preview-3d4a3b5c61fe-windows-amd64-setup.exe",
+      "bytes": 97611719,
+      "sha256": "d0ca4804010a2a9af06666f67a0c41da879d85c276928da4323da09a85bc986b"
+    },
+    "installer_source_commit": "3d4a3b5c61fea72354318cea637b3428052e5cfc",
+    "reused_payload": false,
+    "kernel_audio_driver_signature_verified": true,
+    "acceptance_result_sha256": "9a476335aa759301f265ebb41748ce0f67c376ccde9eb8603af40305cfd19e21",
+    "install_exit": 0,
+    "administrator_login": true,
+    "service_after_install": {
+      "Name": "StreamKitOrchestrator",
+      "State": "Running",
+      "StartMode": "Auto",
+      "StartName": "LocalSystem",
+      "ProcessId": 3056,
+      "PathName": "\"C:\\Program Files\\StreamKit-Audio-Acceptance-3d4a3b5c-f7bf46\\orchestrator\\orchestrator.exe\" --config C:\\ProgramData\\StreamKit-Audio-Acceptance-3d4a3b5c-f7bf46\\orchestrator.json"
+    },
+    "service_after_restart": {
+      "Name": "StreamKitOrchestrator",
+      "State": "Running",
+      "StartMode": "Auto",
+      "StartName": "LocalSystem",
+      "ProcessId": 452,
+      "PathName": "\"C:\\Program Files\\StreamKit-Audio-Acceptance-3d4a3b5c-f7bf46\\orchestrator\\orchestrator.exe\" --config C:\\ProgramData\\StreamKit-Audio-Acceptance-3d4a3b5c-f7bf46\\orchestrator.json"
+    },
+    "gateway_restarted": true,
+    "gateway_stop_exit": 0,
+    "scm_restarted": true,
+    "whole_system_reboot_tested": false,
+    "audio": {
+      "passed": true,
+      "captured_frames": 144000,
+      "tone_amplitude": 0.09817148408715153,
+      "tone": {
+        "captured_frames": 144000,
+        "tone_amplitude": 0.09817148408715153,
+        "rms": 0.0700544095464206,
+        "peak": 0.10003662109375,
+        "quiet": false
+      },
+      "first_error_after_frames": null,
+      "submitted_packets": 150,
+      "target": {
+        "device_open": true,
+        "device_sample_frames": 221856,
+        "dropped_frames": 0,
+        "xruns": 0,
+        "realtime_denied": false,
+        "error": null
+      },
+      "baseline": {
+        "captured_frames": 24000,
+        "tone_amplitude": 8.772706585683166e-8,
+        "rms": 0.000020666131971797438,
+        "peak": 0.00006103515625,
+        "quiet": true
+      },
+      "after_clear": {
+        "captured_frames": 24000,
+        "tone_amplitude": 1.2137949093373441e-7,
+        "rms": 0.00002070177781622203,
+        "peak": 0.00006103515625,
+        "quiet": true
+      },
+      "drain_before_silence_ms": 300,
+      "closed_after_drop": true
+    },
+    "default_devices": {
+      "before": {
+        "communication_render": "",
+        "communication_capture": "",
+        "render": "",
+        "capture": ""
+      },
+      "during": {
+        "communication_render": "",
+        "communication_capture": "\\\\?\\SWD#MMDEVAPI#{0.0.1.00000000}.{f4a1e469-783d-412a-a8c5-e3bf7047a86a}#{2eef81be-33fa-4800-9670-1cd474972c3f}",
+        "render": "",
+        "capture": "\\\\?\\SWD#MMDEVAPI#{0.0.1.00000000}.{f4a1e469-783d-412a-a8c5-e3bf7047a86a}#{2eef81be-33fa-4800-9670-1cd474972c3f}"
+      },
+      "after": {
+        "communication_render": "",
+        "communication_capture": "",
+        "render": "",
+        "capture": ""
+      },
+      "preserved": true,
+      "baseline_scope": "All four baseline endpoints empty; not proof of preserving an existing non-empty setup"
+    },
+    "uninstall_exit": 0,
+    "service_removed": true,
+    "configuration_retained_after_uninstall": true,
+    "configuration_retention_assertion": "Acceptance checks that orchestrator.json still exists after uninstall",
+    "application_database_retention_separately_tested": false,
+    "finished_at": "2026-11-10T11:46:07.984Z"
+  },
+  "linux": {
+    "installer": {
+      "file": "stream-kit-preview-3d4a3b5c61fe-ubuntu24.04-amd64-setup.run",
+      "bytes": 62453855,
+      "sha256": "c965e70e420f80cdb101e0d5a806e7d30434cbfd191042ed81d0a5f8fdf3c38e"
+    },
+    "payload_sha256": "ccea8de45a6441a5ac478072bb414a8623878631abe3664b159948b4d0e32831",
+    "acceptance_log_sha256": "cbb7e6f95261b7f81d0156ee80c61c066f6eee09735e6c47153f41a61374a668",
+    "scope": "Native package extraction, three-component initialization, configuration validation, offline user-service enablement and refusal to overwrite an existing data directory; this initialization does not start media",
+    "embedded_payload_sha256_independently_verified": true
+  },
+  "sbom": {
+    "name": "stream-kit-sbom.spdx.json",
+    "bytes": 7575028,
+    "sha256": "3a729750d2aa40dca9b9c5284f70c2495efa3fd382f0b104565df10cb9b00324",
+    "format": "SPDX-2.3",
+    "packages": 3186
+  },
+  "local_downloads_verified": true,
+  "published": false,
+  "publication": {
+    "state": "verified_original_artifacts_ready_for_tag_and_promotion",
+    "tag": "v0.1.0-preview.20261110.5",
+    "source_commit": "3d4a3b5c61fea72354318cea637b3428052e5cfc"
+  },
+  "management_runtime_acceptance": {
+    "local_windows_installed": null,
+    "local_windows_isolated": "docs/evidence/management-query-library-3d4a3b5c.json",
+    "local_windows_component_commands": "docs/evidence/management-component-commands-3d4a3b5c.json",
+    "linux": "docs/evidence/management-overview-linux-3d4a3b5c.json",
+    "linux_run": "https://github.com/bei612/stream-kit/actions/runs/42807240092",
+    "scope": "Actual packaged Linux runtime, separate local isolated UI/component checks; local installed proof is included only if independently recorded"
+  },
+  "primary_evidence": [
+    {
+      "path": ".local/ci-product-installers-3d4a3b5c/windows/installer-manifest.json",
+      "sha256": "c19084c127d5905530525f1af61768723e3f16fe2c2f68a98177812feb513af0"
+    },
+    {
+      "path": ".local/ci-product-installers-3d4a3b5c/linux/installer/installer-manifest.json",
+      "sha256": "1b1bb6a8e4261b94a24e8f849c252c93a776f15e55d1f40305fa54a1a5334e7b"
+    },
+    {
+      "path": ".local/ci-installer-acceptance-3d4a3b5c/installer-acceptance/result.json",
+      "sha256": "9a476335aa759301f265ebb41748ce0f67c376ccde9eb8603af40305cfd19e21"
+    },
+    {
+      "path": ".local/ci-product-installers-3d4a3b5c/sbom/stream-kit-sbom.spdx.json",
+      "sha256": "3a729750d2aa40dca9b9c5284f70c2495efa3fd382f0b104565df10cb9b00324"
+    }
+  ],
+  "limits": [
+    "SCM and gateway restarts do not establish a whole-machine boot or actual shared-host primary address-change result.",
+    "This is a clean isolated installation/uninstallation, not a generic in-place upgrade claim.",
+    "Windows empty default-device baseline and retained configuration file existence are not broader non-empty device or complete application/database retention proofs.",
+    "No new Android, physical microphone, UE-internal recording, phone hardware or stability acceptance claim."
+  ]
+}
