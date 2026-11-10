@@ -1,6 +1,6 @@
 # 当前 Goal（2026-11-10）
 
-最新服务端 [20261110.5](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261110.5) 已发布并核对[七份附件与匿名下载](evidence/unified-installers-3d4a3b5c.json)。运行源码 `3d4a3b5c`，原始产品任务 `42803959807`、精确 Windows 安装验收 `42809817756`、修订验证 CI `42807108880`、原始 Linux CLI `42807240092` 与仅发布任务 `42810604677` 均成功；发布阶段未重建。源码与验证提交的差异仅为已核对的验收/文档文件，构建标识不混同。本机仍是 `571295af`，最终 `3d4a3b5c` 维护请求等待 Windows UAC；共享主机主地址迁移与整机重启仍待窗口，Goal 不标完成。以下较早段落描述其当时状态，不覆盖本段最新发布记录。
+最新服务端 [20261110.5](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261110.5) 已发布并核对[七份附件与匿名下载](evidence/unified-installers-3d4a3b5c.json)。运行源码 `3d4a3b5c`，原始产品任务 `42803959807`、精确 Windows 安装验收 `42809817756`、修订验证 CI `42807108880`、原始 Linux CLI `42807240092` 与仅发布任务 `42810604677` 均成功；发布阶段未重建，源码与验证提交的构建标识分别保留。用户确认 UAC 后，本机控制组件也已更新并通过[实际 LAN HTTPS / playwright-cli 验收](evidence/management-overview-local-windows-3d4a3b5c.json)：双端解码 13→29、14→31 帧，授权前/交接后版本为 8/8/8、14/14/14，参数保存恢复和终态正确。网关 `40146db2`、Sunshine `47c02726` 未改动；服务 `Running / Auto / LocalSystem`，已恢复空闲。共享主机主地址迁移与整机重启仍待维护窗口，Goal 不标完成；以下早期段落保留其当时状态，不覆盖本段。
 
 `3d4a3b5c` 的[原始 Linux 产品与真实 playwright-cli 媒体验收](evidence/management-overview-linux-3d4a3b5c.json)已通过：两观看端解码 13→28、2→18 帧，管理授权前和转交后会话/确认/观测版本为 8/8/8、15/15/15，停止后的参数保存与恢复一致。12 条被后继成功管理 GET 替代的取消请求及两条明确终态 410 均保留，非预期网络/控制台错误为零。[独立 Windows 原生组件操作](evidence/management-component-commands-3d4a3b5c.json)也通过，保留五条同类取消及对应请求 ID/200 完成证据。原源 CI 的失败不删除；验收修正提交 `a2e8529b` 没有修改运行代码，产品任务 `42803959807` 继续使用原产物，不因验收器改动重建。
 

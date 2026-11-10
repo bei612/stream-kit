@@ -273,12 +273,12 @@
     ]
   },
   "management_runtime_acceptance": {
-    "local_windows_installed": null,
+    "local_windows_installed": "docs/evidence/management-overview-local-windows-3d4a3b5c.json",
     "local_windows_isolated": "docs/evidence/management-query-library-3d4a3b5c.json",
     "local_windows_component_commands": "docs/evidence/management-component-commands-3d4a3b5c.json",
     "linux": "docs/evidence/management-overview-linux-3d4a3b5c.json",
     "linux_run": "https://github.com/bei612/stream-kit/actions/runs/42807240092",
-    "scope": "Actual packaged Linux runtime, separate local isolated UI/component checks; local installed proof is included only if independently recorded"
+    "scope": "Exact packaged Linux runtime and independent local Windows control-only maintenance; installed gateway 40146db2 and renderer 47c02726 are retained. Unified installer bytes were accepted separately in hosted Windows."
   },
   "primary_evidence": [
     {

@@ -1,0 +1,522 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-11-10T12:35:13.901Z",
+  "passed": true,
+  "scope": "Actual installed Windows control component, existing trusted LAN HTTPS, real playwright-cli and owned Example. Control-only maintenance with unchanged media binaries.",
+  "control_commit": "3d4a3b5c61fea72354318cea637b3428052e5cfc",
+  "gateway_commit": "40146db2ffa8b15040906cf130be8e89548c48da",
+  "renderer_commit": "47c02726c0161ebdec50911422d62845a9b6e59a",
+  "acceptance_source_commit": "cd5dbee19bf9511d8fc52cffc7a3cd66a894b5af",
+  "started_at": "2026-11-10T12:31:23.445Z",
+  "finished_at": "2026-11-10T12:31:59.605Z",
+  "maintenance": {
+    "previous_control_source": "571295af7c106ca5080b7a7510ffe62715b90de6",
+    "success": true,
+    "apps_preserved": true,
+    "service": {
+      "Name": "StreamKitOrchestrator",
+      "State": "Running",
+      "StartMode": "Auto",
+      "StartName": "LocalSystem",
+      "ProcessId": 7288
+    },
+    "trust_changed": false,
+    "network_changed": false,
+    "todesk_changed": false,
+    "backups": {
+      "control": "C:\\Program Files\\StreamKit\\.previous-control-1794313631832",
+      "state": "C:\\ProgramData\\StreamKit\\control-maintenance-1794313631832"
+    },
+    "scope": "Control-component maintenance; Sunshine and gateway remain at recorded revisions. Not a new unified installer."
+  },
+  "management_overview_observations": [
+    {
+      "stage": "before_control_grant",
+      "session_revision": 8,
+      "applied_revision": 8,
+      "observed_revision": 8,
+      "upstream_active": true,
+      "cache_control": "no-store",
+      "sampled_at_ms": 1794313892900
+    },
+    {
+      "stage": "after_control_transfer",
+      "session_revision": 14,
+      "applied_revision": 14,
+      "observed_revision": 14,
+      "upstream_active": true,
+      "cache_control": "no-store",
+      "sampled_at_ms": 1794313903442
+    }
+  ],
+  "decoded_video_metrics": [
+    {
+      "viewer": "first",
+      "samples": [
+        {
+          "bytes": 301467,
+          "frames": 13
+        },
+        {
+          "bytes": 474251,
+          "frames": 29
+        }
+      ]
+    },
+    {
+      "viewer": "second",
+      "samples": [
+        {
+          "bytes": 423014,
+          "frames": 14
+        },
+        {
+          "bytes": 661257,
+          "frames": 31
+        }
+      ]
+    }
+  ],
+  "viewer_role_observations": [
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "controller",
+      "verified": true,
+      "control": true,
+      "ended": false,
+      "data_control": "true"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "controller",
+      "verified": true,
+      "control": true,
+      "ended": false,
+      "data_control": "true"
+    },
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    }
+  ],
+  "ui_pipeline_ready": [
+    {
+      "owner": 1,
+      "locale": "en",
+      "original_frame_present": true,
+      "video_renderer_available": true,
+      "width": 1440,
+      "height": 810,
+      "blocking_overlay_visible": false
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "original_frame_present": true,
+      "video_renderer_available": true,
+      "width": 1280,
+      "height": 720,
+      "blocking_overlay_visible": false
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "original_frame_present": true,
+      "video_renderer_available": true,
+      "width": 1280,
+      "height": 720,
+      "blocking_overlay_visible": false
+    }
+  ],
+  "ended_permission_notifications": [
+    {
+      "owner": 1,
+      "canonical_permission_notification_count": 0
+    },
+    {
+      "owner": 2,
+      "canonical_permission_notification_count": 0
+    }
+  ],
+  "stopped_argument_edit": {
+    "saved_via_ui": true,
+    "restored_via_ui": true,
+    "api_ui_agreement": true
+  },
+  "argument_restoration": {
+    "values_in_evidence": false,
+    "args_restored": true,
+    "idle_state_confirmed": true
+  },
+  "raw_console_errors": 2,
+  "unexpected_console_errors": 0,
+  "raw_network_failures": [
+    {
+      "owner": 0,
+      "method": "GET",
+      "resourceType": "fetch",
+      "order": 39,
+      "resource": "https://192.168.3.66:9000/api/v1/apps/18f482ef-5d7b-4528-a5e7-6fbd8a150980",
+      "hasQuery": false,
+      "hasHash": false,
+      "responseStatus": 200,
+      "responseOrder": 44,
+      "contentLength": 938,
+      "transferEncoding": "absent",
+      "cause": "aborted",
+      "browser_error_code": "net::ERR_ABORTED",
+      "failureOrder": 45
+    },
+    {
+      "owner": 0,
+      "method": "GET",
+      "resourceType": "fetch",
+      "order": 101,
+      "resource": "https://192.168.3.66:9000/api/v1/apps/18f482ef-5d7b-4528-a5e7-6fbd8a150980",
+      "hasQuery": false,
+      "hasHash": false,
+      "responseStatus": null,
+      "responseOrder": null,
+      "contentLength": null,
+      "transferEncoding": "unobserved",
+      "cause": "aborted",
+      "browser_error_code": "net::ERR_ABORTED",
+      "failureOrder": 103
+    },
+    {
+      "owner": 0,
+      "method": "GET",
+      "resourceType": "fetch",
+      "order": 198,
+      "resource": "https://192.168.3.66:9000/api/v1/stream-sessions/overview",
+      "hasQuery": false,
+      "hasHash": false,
+      "responseStatus": 200,
+      "responseOrder": 203,
+      "contentLength": null,
+      "transferEncoding": "absent",
+      "cause": "aborted",
+      "browser_error_code": "net::ERR_ABORTED",
+      "failureOrder": 204
+    },
+    {
+      "owner": 0,
+      "method": "GET",
+      "resourceType": "fetch",
+      "order": 228,
+      "resource": "https://192.168.3.66:9000/api/v1/stream-sessions/overview",
+      "hasQuery": false,
+      "hasHash": false,
+      "responseStatus": null,
+      "responseOrder": null,
+      "contentLength": null,
+      "transferEncoding": "unobserved",
+      "cause": "aborted",
+      "browser_error_code": "net::ERR_ABORTED",
+      "failureOrder": 233
+    },
+    {
+      "owner": 0,
+      "method": "GET",
+      "resourceType": "fetch",
+      "order": 268,
+      "resource": "https://192.168.3.66:9000/api/v1/stream-sessions/overview",
+      "hasQuery": false,
+      "hasHash": false,
+      "responseStatus": null,
+      "responseOrder": null,
+      "contentLength": null,
+      "transferEncoding": "unobserved",
+      "cause": "aborted",
+      "browser_error_code": "net::ERR_ABORTED",
+      "failureOrder": 273
+    },
+    {
+      "owner": 0,
+      "method": "GET",
+      "resourceType": "fetch",
+      "order": 312,
+      "resource": "https://192.168.3.66:9000/api/v1/apps/18f482ef-5d7b-4528-a5e7-6fbd8a150980",
+      "hasQuery": false,
+      "hasHash": false,
+      "responseStatus": null,
+      "responseOrder": null,
+      "contentLength": null,
+      "transferEncoding": "unobserved",
+      "cause": "aborted",
+      "browser_error_code": "net::ERR_ABORTED",
+      "failureOrder": 314
+    },
+    {
+      "owner": 0,
+      "method": "GET",
+      "resourceType": "fetch",
+      "order": 313,
+      "resource": "https://192.168.3.66:9000/api/v1/apps/18f482ef-5d7b-4528-a5e7-6fbd8a150980",
+      "hasQuery": false,
+      "hasHash": false,
+      "responseStatus": null,
+      "responseOrder": null,
+      "contentLength": null,
+      "transferEncoding": "unobserved",
+      "cause": "aborted",
+      "browser_error_code": "net::ERR_ABORTED",
+      "failureOrder": 316
+    },
+    {
+      "owner": 0,
+      "method": "GET",
+      "resourceType": "fetch",
+      "order": 347,
+      "resource": "https://192.168.3.66:9000/api/v1/apps/18f482ef-5d7b-4528-a5e7-6fbd8a150980",
+      "hasQuery": false,
+      "hasHash": false,
+      "responseStatus": null,
+      "responseOrder": null,
+      "contentLength": null,
+      "transferEncoding": "unobserved",
+      "cause": "aborted",
+      "browser_error_code": "net::ERR_ABORTED",
+      "failureOrder": 349
+    },
+    {
+      "owner": 0,
+      "method": "GET",
+      "resourceType": "fetch",
+      "order": 348,
+      "resource": "https://192.168.3.66:9000/api/v1/apps/18f482ef-5d7b-4528-a5e7-6fbd8a150980",
+      "hasQuery": false,
+      "hasHash": false,
+      "responseStatus": null,
+      "responseOrder": null,
+      "contentLength": null,
+      "transferEncoding": "unobserved",
+      "cause": "aborted",
+      "browser_error_code": "net::ERR_ABORTED",
+      "failureOrder": 353
+    },
+    {
+      "owner": 0,
+      "method": "GET",
+      "resourceType": "fetch",
+      "order": 360,
+      "resource": "https://192.168.3.66:9000/api/v1/apps/18f482ef-5d7b-4528-a5e7-6fbd8a150980",
+      "hasQuery": false,
+      "hasHash": false,
+      "responseStatus": null,
+      "responseOrder": null,
+      "contentLength": null,
+      "transferEncoding": "unobserved",
+      "cause": "aborted",
+      "browser_error_code": "net::ERR_ABORTED",
+      "failureOrder": 362
+    },
+    {
+      "owner": 0,
+      "method": "GET",
+      "resourceType": "fetch",
+      "order": 361,
+      "resource": "https://192.168.3.66:9000/api/v1/apps/18f482ef-5d7b-4528-a5e7-6fbd8a150980",
+      "hasQuery": false,
+      "hasHash": false,
+      "responseStatus": 200,
+      "responseOrder": 366,
+      "contentLength": 936,
+      "transferEncoding": "absent",
+      "cause": "aborted",
+      "browser_error_code": "net::ERR_ABORTED",
+      "failureOrder": 367
+    }
+  ],
+  "expected_management_query_cancellations": [
+    {
+      "request_id": 39,
+      "replacement_request_id": 43,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 101,
+      "replacement_request_id": 102,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 198,
+      "replacement_request_id": 201,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 228,
+      "replacement_request_id": 231,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 268,
+      "replacement_request_id": 271,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 312,
+      "replacement_request_id": 315,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 313,
+      "replacement_request_id": 315,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 347,
+      "replacement_request_id": 352,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 348,
+      "replacement_request_id": 352,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 360,
+      "replacement_request_id": 365,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 361,
+      "replacement_request_id": 365,
+      "classification": "superseded_management_read"
+    }
+  ],
+  "network_failures": [],
+  "http_failures": [
+    {
+      "owner": 1,
+      "hasQuery": false,
+      "hasHash": false,
+      "method": "POST",
+      "status": 410,
+      "requestOrder": 329,
+      "responseOrder": 330,
+      "code": "CONNECTION_TERMINATED",
+      "classification": "terminal_heartbeat"
+    },
+    {
+      "owner": 2,
+      "hasQuery": false,
+      "hasHash": false,
+      "method": "POST",
+      "status": 410,
+      "requestOrder": 333,
+      "responseOrder": 334,
+      "code": "CONNECTION_TERMINATED",
+      "classification": "terminal_heartbeat"
+    }
+  ],
+  "pending_viewer_api_requests": 0,
+  "terminal_followup_requests": [],
+  "screenshots": [
+    {
+      "path": "management-installed-windows-3d4a3b5c/sessions-transfer-desktop.png",
+      "sha256": "3492722389b9b5e1ab610ac02ccf870eb624495d38f3e3490359839599bb959f",
+      "visually_reviewed": true
+    },
+    {
+      "path": "management-installed-windows-3d4a3b5c/sessions-transfer-mobile.png",
+      "sha256": "390615dd50ca852ef944bafc432d1ac41dc4b32e96426db457d184e5fdf96a8b",
+      "visually_reviewed": true
+    }
+  ],
+  "primary_evidence": [
+    {
+      "path": ".local/validation/maintenance-applied-3d4a3b5c.json",
+      "sha256": "2c21d60c954eae799b64c02d71cfe0282eba8fea41516669123bf430611ba03d"
+    },
+    {
+      "path": ".local/validation/maintenance-elevation-3d4a3b5c.json",
+      "sha256": "679bed03ceea700042b1796c894254316e3ddad2691fc2dd7228b5b3b9113a19"
+    },
+    {
+      "path": ".local/validation/management-live-windows-3d4a3b5c/result.json",
+      "sha256": "72b5b78ea3d3ca3b76a273509e09575b64c017144a0c209bab380430486df7df"
+    },
+    {
+      "path": ".local/validation/management-live-windows-3d4a3b5c/cli.log",
+      "sha256": "0f02592d36acf14dbb07acecdb379661a5b81e4ab6cdebee692f6656ce1f15da"
+    }
+  ],
+  "post_acceptance": {
+    "no_active_apps": true,
+    "all_sessions_stopped": true,
+    "no_active_upstream": true,
+    "example_args_restored": true,
+    "ue_launched": false,
+    "components_other_than_control_unchanged": true
+  },
+  "checks": [
+    "trusted HTTPS and exact deployed control commit",
+    "permanent link visible before launch",
+    "real Example launch and two decoded WebRTC viewers",
+    "UI grant, transfer and revoke with server authority checks",
+    "canonical en/zh viewer authority, lifecycle-only connection prompts and ready UI pipelines",
+    "ended viewers have no stale permission notifications",
+    "Example stop; UI argument edit/save and original argument restoration with actual API agreement; read-only history",
+    "desktop/mobile screenshots and console errors"
+  ],
+  "limits": [
+    "SCM Auto/Running is not an actual whole-machine reboot result.",
+    "Host primary IP was not changed; the shared-host network/reboot maintenance window remains pending.",
+    "This control-only maintenance is not a rerun of the complete unified installer or proof of generic in-place upgrade.",
+    "No new Android, acoustic, microphone-to-target, UE-internal recording or stability claim.",
+    "Client-aborted management reads remain retained and each must have a completed successful replacement; they do not exempt mutations or viewer failures."
+  ]
+}
