@@ -27,7 +27,7 @@
     "unique_controller_granted": true,
     "client_microphone_button_used": true,
     "real_android_permission_dialog": true,
-    "deny_button_variant": "permission_deny_and_dont_ask_again_button",
+    "deny_button_variant": "The successful execution matched the actual first-denial or permanent-denial Android button; its specific variant was not retained",
     "permission_remained_denied": true,
     "microphone_not_live": true,
     "client_returned_to_microphone_off": true,
