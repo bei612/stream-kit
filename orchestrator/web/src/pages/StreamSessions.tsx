@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/api/client'
+import { managementKeys } from '@/api/query-client'
 import { currentMediaObservation, overviewServerTime, type MediaObservation, type RenderSession } from '@/api/sessions'
 import { useQuery } from '@/hooks/useQuery'
 import { useConfigurationDraft } from '@/hooks/useConfigurationDraft'
@@ -100,11 +101,12 @@ export default function StreamSessions() {
     return () => window.clearInterval(timer)
   }, [])
   const { data: snapshot, loading, error, refresh } = useQuery({
-    queryFn: useCallback(() => api.getStreamSessionOverview(), []),
+    queryKey: managementKeys.overview,
+    queryFn: useCallback((signal: AbortSignal) => api.getStreamSessionOverview(signal), []),
     pollInterval: 2000,
     wsInvalidateEvents: ['stream_session_created', 'stream_session_state_changed', 'stream_connection_changed', 'stream_connection_expired', 'stream_connection_resumed', 'stream_controller_changed', 'stream_audio_changed', 'stream_policy_changed'],
   })
-  const apps = useQuery<SessionApplication[]>({ queryFn: useCallback(() => api.listApps(), []), pollInterval: 10000, wsInvalidateEvents: ['app_status'] })
+  const apps = useQuery<SessionApplication[]>({ queryKey: managementKeys.apps, queryFn: useCallback((signal: AbortSignal) => api.listApps(signal), []), pollInterval: 10000, wsInvalidateEvents: ['app_status'] })
   const data = snapshot?.sessions
   const media = snapshot?.media
   const now = snapshot ? overviewServerTime(snapshot) : Date.now()

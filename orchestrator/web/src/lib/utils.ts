@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { managementQueryClient } from '@/api/query-client'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -33,10 +34,12 @@ export function getToken(): string {
 }
 
 export function setToken(token: string) {
+  if (getToken() !== token) managementQueryClient.clear()
   localStorage.setItem('auth_token', token)
 }
 
 export function clearToken() {
+  managementQueryClient.clear()
   localStorage.removeItem('auth_token')
 }
 

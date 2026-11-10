@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { Link } from 'react-router'
 import { api } from '@/api/client'
+import { managementKeys } from '@/api/query-client'
 import { useAppCommand } from '@/hooks/useAppCommand'
 import { Alert } from '@/components/ui/alert'
 import { useQuery } from '@/hooks/useQuery'
@@ -14,7 +15,8 @@ import { Play, Square, Upload, ArrowUpRight, Users, Monitor } from 'lucide-react
 
 export default function Apps() {
   const { data, loading, error, refresh } = useQuery({
-    queryFn: useCallback(() => api.listApps(), []),
+    queryKey: managementKeys.apps,
+    queryFn: useCallback((signal: AbortSignal) => api.listApps(signal), []),
     pollInterval: 10000,
     wsInvalidateEvents: ['app_status', 'stream_session_state_changed', 'stream_session_created'],
   })

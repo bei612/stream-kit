@@ -4,6 +4,7 @@ import { useAppCommand, type AppCommand } from '@/hooks/useAppCommand'
 import { useQuery } from '@/hooks/useQuery'
 import { useConfigurationDraft } from '@/hooks/useConfigurationDraft'
 import { api } from '@/api/client'
+import { managementKeys } from '@/api/query-client'
 import { openViewingStream } from '@/lib/stream-access'
 import AppWatchLink from '@/components/AppWatchLink'
 import StatusBadge from '@/components/StatusBadge'
@@ -23,7 +24,8 @@ export default function AppDetail() {
 function AppDetailContent({id}: {id: string | undefined}) {
   const navigate = useNavigate()
   const {data:app, error:loadError, refresh} = useQuery({
-    queryFn: useCallback(() => api.getApp(id!), [id]), enabled: !!id, pollInterval: 5000,
+    queryKey: managementKeys.app(id),
+    queryFn: useCallback((signal: AbortSignal) => api.getApp(id!, signal), [id]), enabled: !!id, pollInterval: 5000,
     wsInvalidateEvents: ['app_status', 'stream_session_state_changed', 'stream_session_created'],
   })
   const settingsDraft = useConfigurationDraft<{args: string; captureMode: CaptureMode}>(
@@ -39,7 +41,7 @@ function AppDetailContent({id}: {id: string | undefined}) {
   const launching = pending === 'launch'
   const stopping = pending === 'stop'
   const [saveNotice, setSaveNotice] = useState<{kind:'error'|'success';message:string}|null>(null)
-  const candidatesQuery = useQuery({ queryFn: useCallback(() => api.getAppCandidates(id!), [id]), enabled: !!id && app?.status === 'detecting', pollInterval: 5000 })
+  const candidatesQuery = useQuery({ queryKey: managementKeys.candidates(id), queryFn: useCallback((signal: AbortSignal) => api.getAppCandidates(id!, signal), [id]), enabled: !!id && app?.status === 'detecting', pollInterval: 5000 })
   const candidates = candidatesQuery.data ?? []
   const candidateError = app?.status === 'detecting' ? candidatesQuery.error : ''
 

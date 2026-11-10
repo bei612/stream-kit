@@ -27,6 +27,9 @@ async function request<T>(
   }
 
   const controller = new AbortController()
+  const callerAbort = () => controller.abort()
+  options.signal?.addEventListener('abort', callerAbort, { once: true })
+  if (options.signal?.aborted) controller.abort()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
@@ -49,11 +52,13 @@ async function request<T>(
     return json
   } catch (e: unknown) {
     if (e instanceof DOMException && e.name === 'AbortError') {
+      if (options.signal?.aborted) throw e
       throw new Error('请求超时，请检查服务器状态')
     }
     throw e
   } finally {
     clearTimeout(timer)
+    options.signal?.removeEventListener('abort', callerAbort)
   }
 }
 
@@ -99,10 +104,10 @@ export const api = {
   login: loginRequest,
 
   // Health
-  health: () => request<HealthStatus>('/health'),
+  health: (signal?: AbortSignal) => request<HealthStatus>('/health', { signal }),
 
   // Components
-  listComponents: () => request<ComponentInfo[]>('/components'),
+  listComponents: (signal?: AbortSignal) => request<ComponentInfo[]>('/components', { signal }),
   getComponent: (name: string) => request<ComponentInfo>(`/components/${name}`),
   startComponent: (name: string) => request<ComponentInfo>(`/components/${name}/start`, { method: 'POST' }),
   stopComponent: (name: string) => request<ComponentInfo>(`/components/${name}/stop`, { method: 'POST' }),
@@ -120,10 +125,10 @@ export const api = {
   listStreamSessions: () => request<RenderSession[]>('/stream-sessions'),
   getStreamSession: (id: string) => request<RenderSession>(`/stream-sessions/${id}`),
   getMediaControl: () => request<MediaControlStatus>('/media-control'),
-  getStreamSessionOverview: async (): Promise<ApiResponse<TimedStreamSessionOverview>> => {
+  getStreamSessionOverview: async (signal?: AbortSignal): Promise<ApiResponse<TimedStreamSessionOverview>> => {
     const request_started_at_ms = Date.now()
     const request_started_monotonic_ms = performance.now()
-    const response = await request<StreamSessionOverview>('/stream-sessions/overview')
+    const response = await request<StreamSessionOverview>('/stream-sessions/overview', { signal })
     return { ...response, data: response.data ? { ...response.data, request_started_at_ms, request_started_monotonic_ms } : undefined }
   },
   getAudioDevices: () => request<AudioInventory>('/audio-devices'),
@@ -153,12 +158,12 @@ export const api = {
   captureCapabilities: () => request<{schema_version:number; capture_modes:('desktop'|'application')[]; capture_mode_apply:'application_restart'}>('/apps/capture-capabilities'),
   registerLocalApp: (data: { name:string; exe_path:string; working_dir:string; args:string; args_template:string; capture_mode:'desktop'|'application' }) =>
     request<{id:string}>('/apps/local', { method:'POST', body:JSON.stringify(data) }),
-  listApps: () => request<ApplicationView[]>('/apps'),
-  getApp: (id: string) => request<ApplicationView>(`/apps/${id}`),
+  listApps: (signal?: AbortSignal) => request<ApplicationView[]>('/apps', { signal }),
+  getApp: (id: string, signal?: AbortSignal) => request<ApplicationView>(`/apps/${id}`, { signal }),
   updateApp: (id: string, data: ApplicationUpdate) =>
     request<ApplicationRecord>(`/apps/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteApp: (id: string) => request<{ message: string }>(`/apps/${id}?confirm=true`, { method: 'DELETE' }),
-  getAppCandidates: (id: string) => request<ExecutableCandidate[] | null>(`/apps/${id}/candidates`),
+  getAppCandidates: (id: string, signal?: AbortSignal) => request<ExecutableCandidate[] | null>(`/apps/${id}/candidates`, { signal }),
   selectExe: (id: string, exePath: string) =>
     request<ApplicationRecord>(`/apps/${id}/exe`, { method: 'PUT', body: JSON.stringify({ exe_path: exePath }) }),
   retryRegister: (id: string) => request<{ message: string }>(`/apps/${id}/register`, { method: 'POST' }),
@@ -214,12 +219,12 @@ export const api = {
   applyGatewayConfiguration: (revision:string, instance_id:string) => request<GatewayConfigurationView>('/gateway-configuration/apply', {method:'POST',body:JSON.stringify({revision,instance_id})},100000),
   saveConfiguration: (revision:string, changes:Record<string,ConfigValue>) => request<ConfigurationView>('/configuration', {method:'PATCH',body:JSON.stringify({revision,changes})}),
   getTemplates: () => request<Record<string, string>>('/templates'),
-  getLogs: async (params: { page?: number; size?: number; target_type?: string }) => {
+  getLogs: async (params: { page?: number; size?: number; target_type?: string }, signal?: AbortSignal) => {
     const qs = new URLSearchParams()
     if (params.page) qs.set('page', String(params.page))
     if (params.size) qs.set('size', String(params.size))
     if (params.target_type) qs.set('target_type', params.target_type)
-    const response = await request<OperationLog[]>(`/logs?${qs}`)
+    const response = await request<OperationLog[]>(`/logs?${qs}`, { signal })
     if (!response.pagination) throw new Error('服务器未返回日志分页信息')
     return response
   },

@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { api } from '@/api/client'
+import { managementKeys } from '@/api/query-client'
 import { useQuery } from '@/hooks/useQuery'
 import QueryWrapper from '@/components/QueryWrapper'
 import { Select } from '@/components/ui/input'
@@ -13,10 +14,10 @@ export default function Logs() {
   const [filter, setFilter] = useState('')
 
   const queryFn = useCallback(
-    () => api.getLogs({ page, size: 20, target_type: filter || undefined }),
+    (signal: AbortSignal) => api.getLogs({ page, size: 20, target_type: filter || undefined }, signal),
     [page, filter]
   )
-  const { data, pagination, loading, error, refresh } = useQuery({ queryFn, pollInterval: 30000 })
+  const { data, pagination, loading, error, refresh } = useQuery({ queryKey: managementKeys.logs(page, filter), queryFn, pollInterval: 30000 })
 
   const logs = data ?? []
   const hasMore = pagination !== undefined && pagination.page * pagination.size < pagination.total

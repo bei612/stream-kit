@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { api } from '@/api/client'
+import { managementKeys } from '@/api/query-client'
 import { useQuery } from '@/hooks/useQuery'
 import { useResourceCommand } from '@/hooks/useAppCommand'
 import QueryWrapper from '@/components/QueryWrapper'
@@ -21,7 +22,8 @@ function componentDisplayName(name: string) {
 
 export default function Components() {
   const { data, loading, error, refresh } = useQuery({
-    queryFn: useCallback(() => api.listComponents(), []),
+    queryKey: managementKeys.components,
+    queryFn: useCallback((signal: AbortSignal) => api.listComponents(signal), []),
     pollInterval: 5000,
     wsInvalidateEvents: ['component_status'],
   })

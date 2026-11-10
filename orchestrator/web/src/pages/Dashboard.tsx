@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { Link } from 'react-router'
 import { api } from '@/api/client'
+import { managementKeys } from '@/api/query-client'
 import { useQuery } from '@/hooks/useQuery'
 import QueryWrapper from '@/components/QueryWrapper'
 import StatusBadge from '@/components/StatusBadge'
@@ -17,14 +18,16 @@ function componentDisplayName(name: string) {
 }
 
 export default function Dashboard() {
-  const health = useQuery({ queryFn: api.health, pollInterval: 15000 })
+  const health = useQuery({ queryKey: managementKeys.health, queryFn: api.health, pollInterval: 15000 })
   const comps = useQuery({
-    queryFn: useCallback(() => api.listComponents(), []),
+    queryKey: managementKeys.components,
+    queryFn: useCallback((signal: AbortSignal) => api.listComponents(signal), []),
     pollInterval: 5000,
     wsInvalidateEvents: ['component_status'],
   })
   const apps = useQuery({
-    queryFn: useCallback(() => api.listApps(), []),
+    queryKey: managementKeys.apps,
+    queryFn: useCallback((signal: AbortSignal) => api.listApps(signal), []),
     pollInterval: 10000,
     wsInvalidateEvents: ['app_status'],
   })
