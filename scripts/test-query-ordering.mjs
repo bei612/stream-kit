@@ -1,29 +1,42 @@
-import {test} from 'node:test'
+import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import fs from 'node:fs'
-import vm from 'node:vm'
-import ts from '../orchestrator/web/node_modules/typescript/lib/typescript.js'
-
-const code=ts.transpileModule(fs.readFileSync(new URL('../orchestrator/web/src/hooks/useQuery.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText
-function harness(){
- const states=[],effects=[],pending=[]
- const react={useState(value){const i=states.push(value)-1;return[value,next=>{states[i]=next}]},useRef:value=>({current:value}),useCallback:fn=>fn,useEffect:fn=>effects.push(fn)}
- const exports={};vm.runInNewContext(code,{exports,require:()=>react,setInterval:()=>1,clearInterval(){},window:{addEventListener(){},removeEventListener(){}}})
- const query=exports.useQuery({queryFn:()=>new Promise((resolve,reject)=>pending.push({resolve,reject}))})
- const cleanup=effects.map(fn=>fn())
- return {query,states,pending,cleanup}
-}
-test('newer query result wins over older poll response and error',async()=>{
- const h=harness();const latest=h.query.refresh()
- h.pending[1].resolve({data:'new status'});await latest
- h.pending[0].reject(new Error('obsolete failure'));await Promise.resolve();await Promise.resolve()
- assert.equal(h.states[0],'new status');assert.equal(h.states[2],'')
- const old=h.query.refresh(),fresh=h.query.refresh()
- h.pending[3].resolve({data:'stopped'});await fresh
- h.pending[2].resolve({data:'running'});await old
- assert.equal(h.states[0],'stopped')
+import { createRequestScope } from '../orchestrator/web/src/lib/request-scope.ts'
+test('newer response owns data and pagination; obsolete success/error cannot overwrite it', async () => {
+  const scope = createRequestScope()
+  let published
+  let error = ''
+  let resolveOld, rejectOld
+  const old = scope.begin(), failed = scope.begin()
+  const olderSuccess = new Promise(resolve => { resolveOld = resolve }).then(value => { if (old()) published = value })
+  const olderFailure = new Promise((_, reject) => { rejectOld = reject }).catch(cause => { if (failed()) error = cause.message })
+  const latest = scope.begin()
+  const value = { data: ['stopped'], pagination: { page: 2, size: 20, total: 21 } }
+  await Promise.resolve(value).then(response => { if (latest()) published = response })
+  resolveOld({ data: ['running'], pagination: { page: 1, size: 20, total: 100 } })
+  rejectOld(new Error('obsolete failure'))
+  await Promise.all([olderSuccess, olderFailure])
+  assert.equal(published, value)
+  assert.equal(error, '')
 })
-test('unmounted query cannot publish late data',async()=>{
- const h=harness();h.cleanup.forEach(fn=>fn?.());h.pending[0].resolve({data:'old application'})
- await Promise.resolve();await Promise.resolve();assert.equal(h.states[0],null)
+
+test('retired consumers reject late results and cannot start another request', async () => {
+  const scope = createRequestScope()
+  const current = scope.begin()
+  let published = false
+  scope.retire()
+  await Promise.resolve().then(() => { if (current()) published = true })
+  assert.equal(published, false)
+  assert.equal(scope.begin(), null)
+})
+
+test('reactivating a consumer cannot revive a previous lifetime', () => {
+  const scope = createRequestScope()
+  const previous = scope.begin()
+  scope.retire()
+  scope.activate()
+  const next = scope.begin()
+  assert.equal(previous(), false)
+  assert.equal(next(), true)
+  scope.retire()
+  assert.equal(next(), false)
 })

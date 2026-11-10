@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { Pagination } from '@/api/response'
+import { createRequestScope } from '@/lib/request-scope'
 
 interface UseQueryOptions<T> {
   queryFn: () => Promise<{ data?: T; pagination?: Pagination }>
@@ -24,37 +25,36 @@ export function useQuery<T>(opts: UseQueryOptions<T>): UseQueryResult<T> {
   const [error, setError] = useState('')
   const [refreshing, setRefreshing] = useState(false)
   const firstLoad = useRef(true)
-  const mounted = useRef(true)
-  const revision = useRef(0)
-  const invalidateRequests = useCallback(() => { revision.current++ }, [])
+  const [scope] = useState(createRequestScope)
 
   const refresh = useCallback(async () => {
     if (!enabled) return false
+    const current = scope.begin()
+    if (!current) return false
     let accepted = false
-    const requestRevision = ++revision.current
     if (!firstLoad.current) setRefreshing(true)
     try {
       const res = await queryFn()
-      if (mounted.current && requestRevision === revision.current) {
+      if (current()) {
         setResult({ data: res.data ?? null, pagination: res.pagination })
         setError('')
         accepted = true
       }
     } catch (e: unknown) {
-      if (mounted.current && requestRevision === revision.current) setError(e instanceof Error ? e.message : '请求失败')
+      if (current()) setError(e instanceof Error ? e.message : '请求失败')
     } finally {
-      if (mounted.current && requestRevision === revision.current) {
+      if (current()) {
         setLoading(false)
         setRefreshing(false)
         firstLoad.current = false
       }
     }
     return accepted
-  }, [queryFn, enabled])
+  }, [queryFn, enabled, scope])
 
   // Initial fetch + polling
   useEffect(() => {
-    mounted.current = true
+    scope.activate()
     firstLoad.current = true
     setResult({ data: null })
     setError('')
@@ -62,11 +62,10 @@ export function useQuery<T>(opts: UseQueryOptions<T>): UseQueryResult<T> {
     refresh()
     const timer = setInterval(refresh, pollInterval)
     return () => {
-      mounted.current = false
-      invalidateRequests()
+      scope.retire()
       clearInterval(timer)
     }
-  }, [refresh, pollInterval, invalidateRequests])
+  }, [refresh, pollInterval, scope])
 
   // WebSocket event-driven refresh
   useEffect(() => {
