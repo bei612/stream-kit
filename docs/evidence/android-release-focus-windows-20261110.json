@@ -1,0 +1,219 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-11-10T06:14:54.279Z",
+  "passed": true,
+  "production_acceptance_complete": false,
+  "scope": "Signed .6 APK on owned Windows AVD with local 98e419f7 server: actual transient audio focus and microphone consent lifecycle; no PCM or acoustic-quality claim",
+  "started_at": "2026-11-10T06:10:16.374Z",
+  "finished_at": "2026-11-10T06:11:39.274Z",
+  "identity": {
+    "server_commit": "98e419f7f85fa36a92651ee55396815386a233c4",
+    "renderer_commit": "47c02726c0161ebdec50911422d62845a9b6e59a",
+    "android_source_commit": "df7cd87b3352a638aa3a6aa7073d39074c02a43c",
+    "android_release_tag": "v0.1.0-android-preview.20261109.6",
+    "version_code": 1000013,
+    "apk_sha256": "31593fce46afc49de92e9c04b76e0b881448e477d42fcbe02ebf387d424c3ebc",
+    "fixture_source_commit": "79b09db807d88880bedd5de0dafbfdc28adfcd54",
+    "fixture_source_files": {
+      "FocusService.java": "439084c7ba1288241613ff6aa8de016e33f25fd2e3a52f9a7bf941259d129b87",
+      "AndroidManifest.xml": "1d809abf446f1898b53b268a63174b4574073d9860b105b20a2dfbbeb52ff8c5"
+    },
+    "fixture_package": "io.github.bei612.streamkit.focusobserver",
+    "fixture_apk_sha256": "3e7a51e99d0d815a0b12e8d9e8fe72da265011ab88dd527e8136d68d39daa8c4",
+    "fixture_test_only": true,
+    "production_apk_rebuilt": false,
+    "production_key_accessed": false
+  },
+  "environment": {
+    "platform": "Windows",
+    "avd": "StreamKit_API_36",
+    "serial": "emulator-5580",
+    "api_level": 36,
+    "requested_cores": 2,
+    "requested_memory_mb": 2560,
+    "host_microphone_disconnected": true,
+    "host_network_changed": false,
+    "voice_or_pcm_saved": false,
+    "ue_launched": false,
+    "todesk_changed": false,
+    "fixture_compiler": "Official JDK 21.0.13+9 and installed Android SDK platform/build-tools 37.0; test package targets 36"
+  },
+  "observations": [
+    {
+      "phase": "before_focus_loss",
+      "at_ms": 1794291069049,
+      "controller_unchanged": true,
+      "connection_state": "connected",
+      "microphone_live": true,
+      "control_epoch": 6,
+      "focus": [
+        {
+          "owner": "native",
+          "gain": "GAIN",
+          "loss": "none"
+        }
+      ],
+      "native_activity_resumed": true
+    },
+    {
+      "phase": "during_transient_focus",
+      "at_ms": 1794291070523,
+      "controller_unchanged": true,
+      "connection_state": "connected",
+      "microphone_live": false,
+      "control_epoch": 6,
+      "focus": [
+        {
+          "owner": "native",
+          "gain": "GAIN",
+          "loss": "LOSS_TRANSIENT"
+        },
+        {
+          "owner": "fixture",
+          "gain": "GAIN_TRANSIENT",
+          "loss": "none"
+        }
+      ],
+      "native_activity_resumed": true
+    },
+    {
+      "phase": "focus_restored_without_recording_consent",
+      "at_ms": 1794291071123,
+      "controller_unchanged": true,
+      "connection_state": "connected",
+      "microphone_live": false,
+      "control_epoch": 6,
+      "focus": [
+        {
+          "owner": "native",
+          "gain": "GAIN",
+          "loss": "none"
+        }
+      ],
+      "native_activity_resumed": true
+    },
+    {
+      "phase": "no_automatic_microphone_resume",
+      "at_ms": 1794291071211,
+      "microphone_live": false
+    },
+    {
+      "phase": "no_automatic_microphone_resume",
+      "at_ms": 1794291071526,
+      "microphone_live": false
+    },
+    {
+      "phase": "no_automatic_microphone_resume",
+      "at_ms": 1794291071834,
+      "microphone_live": false
+    },
+    {
+      "phase": "no_automatic_microphone_resume",
+      "at_ms": 1794291072142,
+      "microphone_live": false
+    },
+    {
+      "phase": "no_automatic_microphone_resume",
+      "at_ms": 1794291072449,
+      "microphone_live": false
+    },
+    {
+      "phase": "no_automatic_microphone_resume",
+      "at_ms": 1794291072755,
+      "microphone_live": false
+    },
+    {
+      "phase": "explicit_recording_consent_after_focus_return",
+      "at_ms": 1794291079961,
+      "controller_unchanged": true,
+      "connection_state": "connected",
+      "microphone_live": true,
+      "control_epoch": 6,
+      "focus": [
+        {
+          "owner": "native",
+          "gain": "GAIN",
+          "loss": "none"
+        }
+      ],
+      "native_activity_resumed": true
+    }
+  ],
+  "focus_service_stop": {
+    "exit_code": 255,
+    "service_stopped_reported": true,
+    "already_absent_reported": false,
+    "actual_focus_owner_absent": true
+  },
+  "cleanup": {
+    "focus_service_stopped": true,
+    "client_stopped": true,
+    "example_stopped": true,
+    "example_args_unchanged": true,
+    "focus_observer_removed": true,
+    "production_apk_unchanged": true,
+    "record_audio_permission_unchanged": true,
+    "owned_emulator_stopped": true,
+    "errors": []
+  },
+  "screenshot": {
+    "path": ".local/validation/android-focus-20261110/focus-restored-microphone-off.png",
+    "sha256": "973abb99b3e30c5116f5c0ba649d2b98629c47774275dbda272425f303c30cb4",
+    "reviewed": true,
+    "observed": [
+      "Controller badge",
+      "Connected/controller state",
+      "Microphone closed",
+      "Example window visible behind toolbar"
+    ]
+  },
+  "earlier_attempts": [
+    {
+      "result": ".local/validation/android-focus-20261110/result.json",
+      "state": "failed_before_product_admission",
+      "reason": "First helper incorrectly reused retained input-observer package identity; Android rejected its different test signer. No old package identity or production key was cleared to bypass this check."
+    },
+    {
+      "result": ".local/validation/android-focus-20261110/result-focus-only.json",
+      "state": "partial_focus_loss_observed_but_harness_failed",
+      "reason": "Actual transient focus stopped the microphone; harness treated am stop-service exit 255 as failure. AOSP Android 16 returns -1 even when it reports Service stopped. Final run verifies both exact acknowledgement and actual focus-owner absence."
+    }
+  ],
+  "evidence": [
+    {
+      "path": ".local/validation/android-focus-20261110/result.json",
+      "sha256": "eb2456ad5283494f627e6f887a0382d276347f0ce557311a4e9cacbe50655c5e"
+    },
+    {
+      "path": ".local/validation/android-focus-20261110/installation-diagnostic/install-terminal.json",
+      "sha256": "4b9b443d323e692285f68e4258fdeaa982f6b430b04058968df246ecd6d6f993"
+    },
+    {
+      "path": ".local/validation/android-focus-20261110/result-focus-only.json",
+      "sha256": "838d31a436e852834e49bd33b784450a970ba1508c8e0234eb78e91b037f4f1b"
+    },
+    {
+      "path": ".local/validation/android-focus-20261110/result-focus-verified.json",
+      "sha256": "c2451a9f33cc3be76038f4794bc2744d3ef002c8ce83630186be41bae154d8ec"
+    },
+    {
+      "path": ".local/validation/android-focus-20261110/build-focus-only/build-result.json",
+      "sha256": "70612b904958eb8bdc8e492e1234400f40794b681e89582cb4a1020f5d550eb1"
+    },
+    {
+      "path": ".local/validation/android-focus-20261110/focus-restored-microphone-off.png",
+      "sha256": "973abb99b3e30c5116f5c0ba649d2b98629c47774275dbda272425f303c30cb4"
+    },
+    {
+      "path": ".local/management/owned-release-focus-check.cjs",
+      "sha256": "29191e5e85ad79dd3418710bb9f1c023244c744863467c48139517c92c7a0ac1"
+    }
+  ],
+  "limits": [
+    "No production audio or microphone implementation changed; this closes an actual focus/lifecycle evidence gap for the exact signed APK and old local server only.",
+    "No saved PCM, physical speech, acoustic playback quality, phone-call or all-focus-types acceptance is established here.",
+    "Initial compile failed because standalone SDK bootclasspath lacks the lambda metafactory; the committed helper uses an ordinary Runnable and both generated classes are included in D8.",
+    "Local helper was built with installed SDK 37 tools. The shared CI build profile uses SDK 36 and was syntax-reviewed, not executed as a new CI run in this acceptance.",
+    "This is not a latest unified installer deployment, actual host IP change, whole-system reboot or a resolution of the earlier Linux-emulator near-silent output."
+  ]
+}
