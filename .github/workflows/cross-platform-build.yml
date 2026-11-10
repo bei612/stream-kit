@@ -263,7 +263,7 @@ jobs:
         working-directory: .
         run: node scripts/build-control-plane.mjs --require-clean --output artifacts/management-control
       - run: node --test ../../scripts/test-query-ordering.mjs ../../scripts/test-go-test-failures.mjs ../../scripts/test-go-notices.mjs ../../scripts/test-cargo-notices.mjs ../../scripts/test-windows-usb-audio-driver.mjs ../../scripts/test-control-build-target.mjs ../../scripts/test-platform-packaging.mjs ../../scripts/test-product-release.mjs
-      - run: node --experimental-strip-types --test ../../scripts/test-frontend-notices.mjs ../../scripts/test-management-response.mjs
+      - run: node --experimental-strip-types --test ../../scripts/test-frontend-notices.mjs ../../scripts/test-management-response.mjs ../../scripts/test-management-query-cancellations.cjs
       - run: node --test ../../scripts/test-audio-playback-lifecycle.mjs ../../scripts/test-realtime-track-writer.mjs ../../scripts/test-opus-audio.mjs ../../scripts/test-audio-envelope.cjs
       # Historical media-access/authority/bootstrap/WebRTC/pipeline VM fixtures are
       # archived, not conformance gates. Keep native Go and real browser checks.

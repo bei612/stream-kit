@@ -8,6 +8,7 @@ const cp = require('node:child_process');
 const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
 const { engine, launchBrowser } = require('./lib/test-browser.cjs');
+const { managementQueryCancellations } = require('./lib/management-query-cancellations.cjs');
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const read = file => JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -82,14 +83,21 @@ function copyAssets(source, destination) {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } }), javascriptErrors = [], responseChecks = [], verifiedResourceFailures = [];
     report.request_timeline = []; report.request_failures = []; report.navigations = []; report.javascript_errors = javascriptErrors;
     const pathname = value => { try { return new URL(value).pathname; } catch { return '[unavailable]'; } };
-    const requestEvent = (request, event) => ({ event, time_ms: Date.now(), path: pathname(request.url()), method: request.method(), page_path: pathname(page.url()) });
-    page.on('request', request => { if (pathname(request.url()).startsWith('/api/')) report.request_timeline.push(requestEvent(request, 'started')); });
-    page.on('requestfinished', request => { if (pathname(request.url()).startsWith('/api/')) report.request_timeline.push(requestEvent(request, 'finished')); });
-    page.on('requestfailed', request => { const event = { ...requestEvent(request, 'failed'), reason: sanitize(request.failure()?.errorText || 'unknown') }; report.request_timeline.push(event); report.request_failures.push(event); });
+    const traced = new WeakMap(), queryRequests = []; let order = 0;
+    const requestEvent = (request, event) => ({ event, time_ms: Date.now(), path: pathname(request.url()), has_query: !!new URL(request.url()).search, method: request.method(), page_path: pathname(page.url()), request_id: traced.get(request)?.request_id, response_status: traced.get(request)?.response_status, order: ++order });
+    page.on('request', request => {
+      const url = new URL(request.url()), started_order = ++order;
+      const metadata = { request_id: started_order, owner: 0, method: request.method(), started_order, request_key: url.origin + url.pathname + url.search, management_read: url.origin === new URL(base).origin && url.pathname.startsWith('/api/v1/') && request.method() === 'GET' && request.resourceType() === 'fetch', response_status: null, finished_order: null };
+      traced.set(request, metadata); queryRequests.push(metadata);
+      if (pathname(request.url()).startsWith('/api/')) report.request_timeline.push(requestEvent(request, 'started'));
+    });
+    page.on('requestfinished', request => { const metadata = traced.get(request); if (metadata) metadata.finished_order = ++order; if (pathname(request.url()).startsWith('/api/')) report.request_timeline.push(requestEvent(request, 'finished')); });
+    page.on('requestfailed', request => { const event = { ...requestEvent(request, 'failed'), reason: sanitize(request.failure()?.errorText || 'unknown') }; const metadata = traced.get(request); if (metadata) Object.assign(metadata, { failed_order: event.order, reason: event.reason }); report.request_timeline.push(event); report.request_failures.push(event); });
     page.on('framenavigated', frame => { if (frame === page.mainFrame()) report.navigations.push({ time_ms: Date.now(), path: pathname(frame.url()) }); });
     page.on('pageerror', error => javascriptErrors.push({ time_ms: Date.now(), path: pathname(page.url()), message: sanitize(error.message), stack: sanitize(error.stack || '') }));
     page.on('console', message => { if (['error', 'warning'].includes(message.type())) report.console.push({ type: message.type(), text: sanitize(message.text()), location: message.location(), argument_count: message.args().length }); });
     page.on('response', response => {
+      const metadata = traced.get(response.request()); if (metadata) metadata.response_status = response.status();
       if (response.status() < 400) return; const pathname = new URL(response.url()).pathname, status = response.status();
       if (pathname === '/api/v1/configuration' && status === 409) return; // Explicitly asserted below, not ignored.
       const absent = {
@@ -200,7 +208,11 @@ function copyAssets(source, destination) {
     await screenshot('configuration-saved-desktop'); await page.setViewportSize({ width: 390, height: 844 }); await screenshot('configuration-saved-mobile');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     await Promise.all(responseChecks);
-    assert.deepEqual(javascriptErrors, []); assert.deepEqual(report.request_failures, []); assert.deepEqual(report.unexpected_http_errors, []);
+    report.expected_request_cancellations = managementQueryCancellations(queryRequests.filter(request => request.failed_order !== undefined), queryRequests, 0);
+    const expectedCancellationIds = new Set(report.expected_request_cancellations.map(value => value.request_id));
+    report.unexpected_request_failures = report.request_failures.filter(value => !expectedCancellationIds.has(value.request_id));
+    report.request_cancellation_boundary = 'Only client-aborted management GET/fetch with a newer identical URL/query read completed HTTP2xx; request failures remain retained, and mutations, viewer traffic, resets, timeouts or failed replacements never qualify.';
+    assert.deepEqual(javascriptErrors, []); assert.deepEqual(report.unexpected_request_failures, []); assert.deepEqual(report.unexpected_http_errors, []);
     report.unexpected_console_errors = [];
     const unmatched = [...verifiedResourceFailures];
     for (const entry of report.console.filter(entry => entry.type === 'error')) {

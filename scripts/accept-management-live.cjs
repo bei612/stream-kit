@@ -6,6 +6,7 @@ const cp = require('node:child_process');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const { pathToFileURL } = require('node:url');
+const { managementQueryCancellations } = require('./lib/management-query-cancellations.cjs');
 const privateText = new Set();
 
 function redact(value) {
@@ -124,7 +125,7 @@ async function main() {
     const script = path.join(output, 'live-browser.js');
     const browserOptions = { base: base.origin, appId: example.id, name: example.name, host, app, output,
       originalArgsSHA256:crypto.createHash('sha256').update(example.args).digest('hex'), candidateArgs:argumentSnapshot.candidate, viewerLocales };
-    fs.writeFileSync(script, `async (page) => { const cfg = ${JSON.stringify(browserOptions)}; return await (${browserAcceptance.toString()})(page, cfg); }`, { mode: 0o600 });
+    fs.writeFileSync(script, `async (page) => { const cfg = ${JSON.stringify(browserOptions)}; return await (${browserAcceptance.toString()})(page, cfg, ${managementQueryCancellations.toString()}); }`, { mode: 0o600 });
     ownsRun = true;
     const result = cliRun('run-code', '--filename', script);
     assert.ok(result.includes('LIVE_MANAGEMENT_ACCEPTANCE_OK'), 'Live browser checks did not finish successfully');
@@ -177,11 +178,12 @@ async function main() {
   if (!report.passed) process.exitCode = 1;
 }
 
-async function browserAcceptance(page, cfg) {
+async function browserAcceptance(page, cfg, classifyQueryCancellations) {
   const errors = [], viewers = [], contexts = [], metrics = [];
   const viewerLocales = new Map(), roleObservations = [], loadingObservations = [], uiReadiness = [], endedNotifications = [];
   const httpFailures = [], networkFailures = [], responseReads = [], owners = new Map(), requests = new WeakMap(), pendingRequests = new Set(), networkRequests = [], mediaFrames = new Map(), endedStates = new Map(), expectedFailures = new Map();
   let eventOrder = 0, stopping;
+  const privateRequestKeys = new Map();
   let responseCursor = 0;
   const drainResponses = async () => {
     while(responseCursor<responseReads.length) {
@@ -203,17 +205,18 @@ async function browserAcceptance(page, cfg) {
     const owner = { id:owners.size, connectionId:null, media:new Set() }; owners.set(target, owner);
     target.on('request', request => {
       const entry={owner:owner.id,method:request.method(),resourceType:request.resourceType(),order:++eventOrder,...address(request.url()),responseStatus:null,responseOrder:null,contentLength:null,transferEncoding:'unobserved'};
+      const url = new URL(request.url()); privateRequestKeys.set(entry.order, url.origin + url.pathname + url.search);
       requests.set(request,entry);
       if (new URL(request.url()).pathname.startsWith('/api/')) {
         networkRequests.push(entry);
         if (['fetch','xhr'].includes(request.resourceType())) pendingRequests.add(request);
       }
     });
-    target.on('requestfinished', request=>pendingRequests.delete(request));
+    target.on('requestfinished', request=>{ pendingRequests.delete(request); const entry=requests.get(request); if(entry)entry.finishedOrder=++eventOrder; });
     target.on('requestfailed', request=>{
       pendingRequests.delete(request);
       const entry=requests.get(request);
-      if (entry && new URL(request.url()).pathname.startsWith('/api/')) networkFailures.push({...entry,cause:networkCause(request.failure()?.errorText),failureOrder:++eventOrder});
+      if (entry && new URL(request.url()).pathname.startsWith('/api/')) networkFailures.push({...entry,cause:networkCause(request.failure()?.errorText),browser_error_code:request.failure()?.errorText,failureOrder:++eventOrder});
     });
     target.on('pageerror', error => errors.push({kind:'javascript',owner:owner.id,message:String(error.message).slice(0,1000)}));
     target.on('console', message => { if (message.type() === 'error') errors.push({kind:'console',owner:owner.id,message:message.text().slice(0,1000),...address(message.location().url)}); });
@@ -554,10 +557,14 @@ async function browserAcceptance(page, cfg) {
       unmatched.splice(index,1); return false;
     });
     requireTrue(followups.length===0, 'New viewer request after confirmed termination: '+JSON.stringify(followups));
-    requireTrue(networkFailures.length===0, 'Failed API network requests: '+JSON.stringify(networkFailures));
+    const cancellationInput = entry => ({ request_id:entry.order, owner:entry.owner, method:entry.method, started_order:entry.order, request_key:privateRequestKeys.get(entry.order), management_read:entry.owner===owners.get(page).id && entry.method==='GET' && entry.resourceType==='fetch' && new URL(entry.resource).origin===new URL(cfg.base).origin && new URL(entry.resource).pathname.startsWith('/api/v1/'), response_status:entry.responseStatus, finished_order:entry.finishedOrder, failed_order:entry.failureOrder, reason:entry.browser_error_code });
+    const expectedQueryCancellations = classifyQueryCancellations(networkFailures.map(cancellationInput), networkRequests.map(cancellationInput), owners.get(page).id);
+    const expectedCancellationIds = new Set(expectedQueryCancellations.map(entry=>entry.request_id));
+    const unexpectedNetworkFailures = networkFailures.filter(entry=>!expectedCancellationIds.has(entry.order));
+    requireTrue(unexpectedNetworkFailures.length===0, 'Failed API network requests: '+JSON.stringify(unexpectedNetworkFailures));
     requireTrue(httpFailures.every(value=>expected.has(value)), 'Unexpected HTTP failure: '+JSON.stringify(httpFailures.filter(value=>!expected.has(value))));
     requireTrue(unexpectedConsole.length===0, 'Unexpected browser console or JavaScript errors: '+JSON.stringify(unexpectedConsole));
-    return JSON.stringify({ result: 'LIVE_MANAGEMENT_ACCEPTANCE_OK', management_overview_observations:managementOverviewObservations, decoded_video_metrics: metrics,viewer_role_observations:roleObservations,loading_modal_observations:loadingObservations,ui_pipeline_ready:uiReadiness,ended_permission_notifications:endedNotifications, stopped_viewers:Object.fromEntries(endedStates), stopped_argument_edit:{saved_via_ui:true,restored_via_ui:true,api_ui_agreement:true}, raw_console_errors:errors.length,unexpected_console_errors:unexpectedConsole.length,pending_viewer_api_requests:viewerPending().length,terminal_followup_requests:followups,network_failures:networkFailures,http_failures:httpFailures.map(value=>({...value,classification:expected.get(value)||'unexpected'})),viewer_requests:networkRequests.filter(value=>value.owner!==owners.get(page).id) });
+    return JSON.stringify({ result: 'LIVE_MANAGEMENT_ACCEPTANCE_OK', management_overview_observations:managementOverviewObservations, decoded_video_metrics: metrics,viewer_role_observations:roleObservations,loading_modal_observations:loadingObservations,ui_pipeline_ready:uiReadiness,ended_permission_notifications:endedNotifications, stopped_viewers:Object.fromEntries(endedStates), stopped_argument_edit:{saved_via_ui:true,restored_via_ui:true,api_ui_agreement:true}, raw_console_errors:errors.length,unexpected_console_errors:unexpectedConsole.length,pending_viewer_api_requests:viewerPending().length,terminal_followup_requests:followups,raw_network_failures:networkFailures,expected_management_query_cancellations:expectedQueryCancellations,network_failures:unexpectedNetworkFailures,http_failures:httpFailures.map(value=>({...value,classification:expected.get(value)||'unexpected'})),viewer_requests:networkRequests.filter(value=>value.owner!==owners.get(page).id) });
   } catch(error) {
     await drainResponses();
     // Preserve actual partial observations even when an assertion fails. Query
