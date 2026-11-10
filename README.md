@@ -4,6 +4,8 @@ Stream-Kit 将管理服务、Sunshine 渲染端和 Moonlight Web 媒体网关集
 
 服务端支持 Windows/Linux，客户端提供 Web/PWA 和 Android 原生 App。手机和平板也可直接使用浏览器；浏览器采集麦克风需要安全上下文和用户授权。当前发布渠道为预发布，不能把构建成功视为全部生产验收完成。
 
+最新服务端为 [20261110.5](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261110.5)，运行源码 `3d4a3b5c`：统一管理响应、真实分页及 TanStack Query 请求/缓存生命周期。Windows 原始安装包实际安装、自启动、服务恢复、音频端点和卸载验收通过；Linux 原始包双观看端的真实 playwright-cli 流程通过，7 个附件摘要和两安装器匿名下载已核对。见[精确发布证据](docs/evidence/unified-installers-3d4a3b5c.json)。验证脚本修订提交 `a2e8529b` 的 CI 六项通过，运行源码文件与发布提交一致，构建标识分别保留。本机仍为下文 `571295af`，新组件更新等待 Windows UAC，不把发布完成写成本机已升级。Android 保持独立签名 `.6`；实际宿主机换 IP 与整机重启仍待维护窗口。
+
 2026-11-10 已用正式 `.6` APK 在本机官方 Windows 模拟器完成[程序播放、麦克风回传和撤权声学验收](docs/evidence/android-release-audio-windows-20261110.json)：程序音的 49 个窗口持续通过原门槛；授权后的合成麦克风同时到达原生录音端点和真实 Web 观看端，撤权后两处恢复静音，采集零丢帧。复用原 APK，未加入生产探针；Example 参数、路由及模拟器音量均已恢复。[权限拒绝、断网恢复及前后台检查](docs/evidence/android-release-lifecycle-windows-20261110.json)也已通过。这仅证明记录中的本机 `98e419f7` 服务端与 Windows 模拟器环境，不覆盖后续新服务部署，也不覆盖 Linux PulseAudio、真人语音或 UE 内部录音。
 
 基于官方 Moonlight Android 源码二开的 [Android 签名 APK 20261109.6](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261109.6) 已发布，版本码 `1000013`、源码 `df7cd87b`，沿用项目持久签名。本版区分连接租约过期和连接终止，已终止连接立即关闭本地权限、麦克风及媒体并停止恢复；陈旧操作不能影响替代连接。签名 release 构建、唯一持久签名、源码身份、封装及五个公开附件校验已通过；音频另按上述 Windows 实际结果与下述 Linux 失败分别记录，未将构建通过或单次声学结果当成完整生命周期验收。精确版本见[发布记录](docs/evidence/android-release-20261109-6.json)。

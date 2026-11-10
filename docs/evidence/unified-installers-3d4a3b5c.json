@@ -189,11 +189,88 @@
     "packages": 3186
   },
   "local_downloads_verified": true,
-  "published": false,
+  "published": true,
   "publication": {
-    "state": "verified_original_artifacts_ready_for_tag_and_promotion",
+    "state": "published_verified",
+    "url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261110.5",
     "tag": "v0.1.0-preview.20261110.5",
-    "source_commit": "3d4a3b5c61fea72354318cea637b3428052e5cfc"
+    "source_commit": "3d4a3b5c61fea72354318cea637b3428052e5cfc",
+    "tag_object_sha": "fa85c858dd49f6bd8b4e728e575e4c8526d48e45",
+    "tag_resolved_commit_verified": true,
+    "prerelease": true,
+    "published_at": "2026-11-10T11:50:01Z",
+    "verified_at": "2026-11-10T11:52:04.382Z",
+    "promotion_run": "https://github.com/bei612/stream-kit/actions/runs/42810604677",
+    "promotion_workflow_commit": "f3b62d25243b3d500f8e14e57aee93a3ef1166c5",
+    "build_jobs_skipped": true,
+    "original_product_run": 42803959807,
+    "public_assets_verified": 7,
+    "all_public_asset_sizes_and_server_digests_match_local_verified_artifacts": true,
+    "release_notes_match": true,
+    "release_notes_comparison": "CRLF normalized and trailing whitespace trimmed; otherwise exact text equality",
+    "release_notes_sha256": "cf79905c41536bafa874f539269bf67d081ae48b3b17013b7240a58e99124866",
+    "assets": [
+      {
+        "name": "stream-kit-preview-3d4a3b5c61fe-windows-amd64-setup.exe",
+        "bytes": 97611719,
+        "sha256": "d0ca4804010a2a9af06666f67a0c41da879d85c276928da4323da09a85bc986b",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261110.5/stream-kit-preview-3d4a3b5c61fe-windows-amd64-setup.exe"
+      },
+      {
+        "name": "installer-manifest.json",
+        "bytes": 2312,
+        "sha256": "c19084c127d5905530525f1af61768723e3f16fe2c2f68a98177812feb513af0",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261110.5/installer-manifest.json"
+      },
+      {
+        "name": "SHA256SUMS.txt",
+        "bytes": 122,
+        "sha256": "af994631131aed137c674804504a396965da7b5d2085d17e7d85b8c856fdbf40",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261110.5/SHA256SUMS.txt"
+      },
+      {
+        "name": "stream-kit-preview-3d4a3b5c61fe-ubuntu24.04-amd64-setup.run",
+        "bytes": 62453855,
+        "sha256": "c965e70e420f80cdb101e0d5a806e7d30434cbfd191042ed81d0a5f8fdf3c38e",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261110.5/stream-kit-preview-3d4a3b5c61fe-ubuntu24.04-amd64-setup.run"
+      },
+      {
+        "name": "linux-installer-manifest.json",
+        "bytes": 1408,
+        "sha256": "1b1bb6a8e4261b94a24e8f849c252c93a776f15e55d1f40305fa54a1a5334e7b",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261110.5/linux-installer-manifest.json"
+      },
+      {
+        "name": "Linux-SHA256SUMS.txt",
+        "bytes": 126,
+        "sha256": "3b0d1cba5fcc9953aae873a48f895eb8a23b3a8624fd5565cfae2dddddb387db",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261110.5/Linux-SHA256SUMS.txt"
+      },
+      {
+        "name": "stream-kit-sbom.spdx.json",
+        "bytes": 7575028,
+        "sha256": "3a729750d2aa40dca9b9c5284f70c2495efa3fd382f0b104565df10cb9b00324",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261110.5/stream-kit-sbom.spdx.json"
+      }
+    ],
+    "anonymous_download_head_checks": [
+      {
+        "name": "stream-kit-preview-3d4a3b5c61fe-windows-amd64-setup.exe",
+        "status": 200,
+        "content_length": 97611719,
+        "final_host": "release-assets.githubusercontent.com",
+        "authentication_sent": false,
+        "tls_verification": true
+      },
+      {
+        "name": "stream-kit-preview-3d4a3b5c61fe-ubuntu24.04-amd64-setup.run",
+        "status": 200,
+        "content_length": 62453855,
+        "final_host": "release-assets.githubusercontent.com",
+        "authentication_sent": false,
+        "tls_verification": true
+      }
+    ]
   },
   "management_runtime_acceptance": {
     "local_windows_installed": null,
