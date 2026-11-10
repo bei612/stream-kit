@@ -2,7 +2,9 @@
 
 Linux Android 音频差异排查新增仅用于验收工具的官方 `streamAudio` 输出观察，与现有原生 PulseAudio 采集在同一窗口独立记录有界数值指标；不保存 PCM，不修改 APK、系统音量或输入状态，也不替代或降低原采集门槛。目的仅是区分模拟器导出端与宿主 PulseAudio 路径，不能证明 SDK 写入前已有声音。公开源码的 [EmulatorService::streamAudio](https://android.googlesource.com/platform/external/qemu/+/refs/heads/emu-master-dev/android/android-grpc/services/emulator-controller/server/src/android/emulation/control/EmulatorService.cpp) 与 [AudioStream](https://android.googlesource.com/platform/external/qemu/+/refs/heads/emu-master-dev/android/android-grpc/services/emulator-controller/server/src/android/emulation/control/audio/AudioStream.cpp)说明其输出采集边界，但不作为本次精确模拟器二进制实现相同的证明。
 
-首次执行 [42763144266](evidence/android-linux-audio-fixture-42763144266.json) 在对照音源启动时被 Android 原生音频服务以 `unknown uid` 拒绝，尚未启动产品 App，也未执行新增观察；不算产品音频失败重现或通过。依照 [Android 16 AudioService 的包快照初始化和异步广播更新](https://android.googlesource.com/platform/frameworks/base/+/refs/heads/android16-release/services/core/java/com/android/server/audio/AudioService.java)，隔离工具改为安装两个 APK 后仅重启受管测试 AVD 一次，核对内核启动身份变化及音频控制器初始化，再开始音量校准和正式观察；不改主机、权限、原生包表或广播调度。该准备流程修正尚待执行验证，原有近静音失败保持未解决。
+首次执行 [42763144266](evidence/android-linux-audio-fixture-42763144266.json) 在对照音源启动时被 Android 原生音频服务以 `unknown uid` 拒绝，尚未启动产品 App，也未执行新增观察；不算产品音频失败重现或通过。依照 [Android 16 AudioService 的包快照初始化和异步广播更新](https://android.googlesource.com/platform/frameworks/base/+/refs/heads/android16-release/services/core/java/com/android/server/audio/AudioService.java)，隔离工具改为安装两个 APK 后仅重启受管测试 AVD 一次，核对内核启动身份变化及音频控制器初始化，再开始音量校准和正式观察；不改主机、权限、原生包表或广播调度。
+
+修正后的 [42763962676](evidence/android-linux-audio-fixture-42763962676.json) 已核实测试 AVD 启动身份变化、音频控制器初始化及对照音轨创建成功；但独立输出只有部分窗口有声，697/1209 Hz 中位幅度均约 `6e-8`，未达到原门槛 `0.01`，仪器进程也触发原有 10 秒超时，整体失败。此轮仍未进入产品 App 或 `streamAudio` 观察，不把“零采集丢帧”或局部峰值当作稳定输出通过，不据此改生产音频实现、提高超时或重复相同任务。两次新任务均复用已发布 `40146db2` 安装包和正式 `.6` APK，既没有重建产品，也不能解释或关闭此前近静音问题；Windows 官方模拟器的既有正式 APK 通过证据范围保持不变。
 
 目标是交付生产可用的一体化云渲染串流产品：Windows/Linux 服务端、Web/PWA 与官方源码二开的 Android 原生客户端，共用应用、串流会话、连接、控制代次和媒体授权。仅一个管理员，不增加多用户系统、重型监控或无关功能。完整范围与完成条件见下方 Goal 提示词；构建、发布或隔离测试成功不等于产品交付。
 

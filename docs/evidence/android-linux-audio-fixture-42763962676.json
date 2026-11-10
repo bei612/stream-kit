@@ -1,0 +1,203 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-11-10T05:52:02.381Z",
+  "run": 42763962676,
+  "url": "https://github.com/bei612/stream-kit/actions/runs/42763962676",
+  "acceptance_commit": "8a888130292b3f54245ecf252e1470ad21915f58",
+  "status": "completed",
+  "conclusion": "failure",
+  "production_acceptance_complete": false,
+  "scope": "Disposable Linux AVD installed-state baseline verified; independent output control failed before product admission",
+  "identity": {
+    "runtime_commit": "40146db2ffa8b15040906cf130be8e89548c48da",
+    "installer_sha256": "bdf977e4c8d75cf157dd302c00ebb7930d3aba1feac4320f188c0781fd102313",
+    "payload_sha256": "02d8a2337a715667aba1ccd22e73f471a16d520d45a00220498a3f25f578f40b",
+    "product_run_id": 42756383945,
+    "product_linux_job_id": 129631639001,
+    "android_release_tag": "v0.1.0-android-preview.20261109.6",
+    "android_release_id": 439334431,
+    "apk_file": "stream-kit-android-0.1.0-preview.20261109.6.apk",
+    "apk_source_commit": "df7cd87b3352a638aa3a6aa7073d39074c02a43c",
+    "apk_sha256": "31593fce46afc49de92e9c04b76e0b881448e477d42fcbe02ebf387d424c3ebc",
+    "apk_signer_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f",
+    "apk_signature_verified": true,
+    "acceptance_commit": "8a888130292b3f54245ecf252e1470ad21915f58",
+    "runtime_rebuilt": false,
+    "apk_rebuilt": false
+  },
+  "installed_guest_baseline": {
+    "fixture_only": true,
+    "owned_avd": "StreamKit_Audio_CI",
+    "post_install_guest_reboot": true,
+    "boot_identity_changed": true,
+    "host_rebooted": false,
+    "shell_uid": 2000
+  },
+  "audio_service_lifecycle": {
+    "status": "observed",
+    "events": [
+      {
+        "event": "service_created",
+        "device_clock": "11-10 05:49:21:695"
+      },
+      {
+        "event": "controller_start_task_complete",
+        "device_clock": "11-10 05:49:21:711"
+      }
+    ]
+  },
+  "observation": {
+    "tone_created_and_started": true,
+    "active_track_observed": {
+      "at_ms": 1794289785404,
+      "process_id": 1965,
+      "session_id": 81,
+      "available": true,
+      "basis": "recognized_client_session_rows",
+      "track_count": 2,
+      "active_track_count": 1,
+      "underrun_frames": {
+        "status": "observed",
+        "tracks": [
+          {
+            "track_id": 55,
+            "active": true,
+            "frames": 0
+          },
+          {
+            "track_id": 55,
+            "active": false,
+            "frames": 0
+          }
+        ]
+      }
+    },
+    "native_error_observation": "no_matching_errors_captured_not_proof_of_no_error",
+    "original_tone_duration_ms": 6000,
+    "original_capture_minimum_frames": 192000,
+    "original_minimum_median_amplitude": 0.01,
+    "capture": {
+      "captured_frames": 193424,
+      "dropped_frames": 0,
+      "error": null,
+      "input_state": "idle",
+      "output_state": "idle",
+      "peak": 0,
+      "played_frames": 0,
+      "rms": 0,
+      "sample_rate": 48000,
+      "state": "idle"
+    },
+    "signals": [
+      {
+        "analyzed_frames": 192000,
+        "frequency_hz": 697,
+        "mean_amplitude": 0.00767214273938559,
+        "median_amplitude": 6.185897896926676e-8,
+        "peak_amplitude": 0.07952961921953136,
+        "sample_rate": 48000,
+        "windows": 40
+      },
+      {
+        "analyzed_frames": 192000,
+        "frequency_hz": 1209,
+        "mean_amplitude": 0.02670244948890344,
+        "median_amplitude": 6.630725107077328e-8,
+        "peak_amplitude": 0.25631474375402724,
+        "sample_rate": 48000,
+        "windows": 40
+      }
+    ],
+    "capture_envelope": {
+      "status": "observed",
+      "diagnostic_only": true,
+      "sample_rate": 48000,
+      "source_window_frames": 480,
+      "window_frames": 4800,
+      "first_frame": 0,
+      "analyzed_frames": 192000,
+      "notch_hz": 997,
+      "notch_q": 25,
+      "rms": [
+        0.29696469268573955,
+        0.2966175024997039,
+        0.29581285501553717,
+        0.2907832805753026,
+        0.15407759348036595,
+        0.1617882136650273,
+        0.000013395397799756241,
+        0.000009465770344918922,
+        0.000009395072468738564,
+        0.000009435291947217424,
+        0.0000116252811457749,
+        0.00001152746009607954,
+        0.000009465133277876362,
+        0.00000944602812762523,
+        0.000009456458435131684,
+        0.000013378853087917122,
+        0.000009395212034464413,
+        0.00000943529208358502,
+        0.000009485633314010068,
+        0.000012408851978036164,
+        0.000010661200718928584,
+        0.000009446038083232577,
+        0.000009456458366366749,
+        0.000009455048860534627,
+        0.000013336624146976924,
+        0.000009435301871538636,
+        0.000009485635121977808,
+        0.000009425398770756837,
+        0.000012291664662332998,
+        0.000011297055318979048,
+        0.000009485853617950727,
+        0.00000943537777009342,
+        0.000009466797652715562,
+        0.00001158305019711868,
+        0.00001156123172709676,
+        0.000009373974757903691,
+        0.000009505550748007419,
+        0.000009435318934685674,
+        0.000012276378894994881,
+        0.000010822757811737369
+      ],
+      "capture_started_at_ms": 1794289785328,
+      "capture_finished_at_ms": 1794289789368,
+      "clock_boundary": "Window i covers recording frames [i*4800,(i+1)*4800); host capture times do not establish physical tone onset."
+    },
+    "tone_completion": {
+      "code": null,
+      "signal": "SIGTERM",
+      "timed_out": true,
+      "host_finished_at_ms": 1794289792333
+    },
+    "fixture_failure": "CONTROL_TONE_CLEANUP_FAILED",
+    "product_app_entered": false,
+    "product_audio_result": null,
+    "output_rpc_observation_reached": false
+  },
+  "primary_evidence": [
+    {
+      "path": ".local/ci-android-audio-42763962676/android-audio-evidence/system-playout-control.json",
+      "sha256": "258cca882d00df733d7e232bbe684d41573712f4bf9c885721dd680b921894ae"
+    },
+    {
+      "path": ".local/ci-android-audio-42763962676/android-audio-evidence/install-synchronization.json",
+      "sha256": "4405d64eca40f68a41de8f7a69bafdc8d1ec97f6a6ebe40ddc391da05da75457"
+    },
+    {
+      "path": ".local/ci-android-audio-42763962676/android-audio-evidence/installed-guest-baseline.json",
+      "sha256": "0cba0238236e6e92b989cb848adc0808e051d991930836106fd98cbe1136aa40"
+    },
+    {
+      "path": ".local/ci-android-audio-42763962676/android-input-evidence/provenance.json",
+      "sha256": "af0d8027ca0fb6c66c3f3c47ddda2906b5a5b65e79bec61e2a9aa3ef1a1d6cd2"
+    }
+  ],
+  "limits": [
+    "Tone startup succeeded after the installed-state guest reboot, but this does not establish all native UID mappings or sustained output health.",
+    "The original amplitude threshold also fails: the independent output control cannot qualify this environment for product acceptance.",
+    "The instrumentation process reached its original 10000ms timeout; no success is inferred from partial audible windows or zero recorder drops.",
+    "This pre-admission failure does not explain or replace the earlier post-admission near-silent product observation.",
+    "No unchanged retry, product/APK rebuild, host reboot, host network change, permission bypass or threshold relaxation was performed."
+  ]
+}
