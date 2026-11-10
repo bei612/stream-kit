@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-11-10T07:33:48.920Z",
+  "passed": true,
+  "scope": "Control and gateway maintenance at source; Sunshine remains at previous renderer revision. Not a new unified installer.",
+  "control_commit": "40146db2ffa8b15040906cf130be8e89548c48da",
+  "gateway_commit": "40146db2ffa8b15040906cf130be8e89548c48da",
+  "renderer_commit": "47c02726c0161ebdec50911422d62845a9b6e59a",
+  "previous_control_commit": "98e419f7f85fa36a92651ee55396815386a233c4",
+  "previous_gateway_commit": "98e419f7f85fa36a92651ee55396815386a233c4",
+  "service": {
+    "Name": "StreamKitOrchestrator",
+    "State": "Running",
+    "StartMode": "Auto",
+    "StartName": "LocalSystem",
+    "ProcessId": 34988
+  },
+  "health": {
+    "apps_summary": {
+      "error": 0,
+      "ready": 0,
+      "running": 0,
+      "total": 2
+    },
+    "build_time": "2026-11-10T04:22:36.000Z",
+    "commit": "40146db2ffa8b15040906cf130be8e89548c48da",
+    "components": {
+      "sunshine": {
+        "crash_count": 0,
+        "pid": 45828,
+        "status": "running"
+      },
+      "web_server": {
+        "crash_count": 0,
+        "pid": 44428,
+        "status": "running"
+      }
+    },
+    "version": "git-40146db2ffa8"
+  },
+  "apps_preserved": true,
+  "application_ids_preserved": true,
+  "ca_fingerprint": "53:0D:8F:21:54:2F:DF:1F:9E:21:BF:F7:DF:9C:78:BC:38:0F:61:93:B6:30:4B:B2:10:99:58:3E:B1:E4:12:77",
+  "maintenance_asserted_ca_and_service_key_preserved": true,
+  "trust_changed": false,
+  "host_network_changed": false,
+  "todesk_changed": false,
+  "ue_launched": false,
+  "backups": {
+    "control": "C:\\Program Files\\StreamKit\\.previous-control-1794295410856",
+    "gateway": "C:\\Program Files\\StreamKit\\.previous-gateway-1794295410856",
+    "state": "C:\\ProgramData\\StreamKit\\control-maintenance-1794295410856"
+  },
+  "elevation": {
+    "method": "Normal interactive Windows RunAs command",
+    "process_started": true,
+    "pid": 40324,
+    "execution_policy_changed": false,
+    "started_at": "2026-11-10T06:19:56.2654966Z",
+    "finished_at": "2026-11-10T07:23:29.7881215Z"
+  },
+  "primary_evidence": [
+    {
+      "path": ".local/validation/local-maintenance-applied-40146db2.json",
+      "sha256": "ef0509db095dc467702bbd094c31657b92ad9b0cadfbb53afc0ad44cd632ff23"
+    },
+    {
+      "path": ".local/validation/local-maintenance-elevation-40146db2-20261110-2.json",
+      "sha256": "baac7018dd6a0f5869578264319e05793feb12a5f130fbde18321493afa5a3b4"
+    },
+    {
+      "path": ".local/management/maintain-control-lan.cjs",
+      "sha256": "43cb24dade418e06a3351c36eb5861748283db145d833c98c3c82c9eb23a6215"
+    }
+  ],
+  "post_update_ui_record": "docs/evidence/management-live-cli-local-windows-40146db2.json",
+  "limits": [
+    "Complete control/gateway bundles maintained in an existing deployment; this was not a new unified installer run or proof of generic in-place upgrade support.",
+    "Sunshine remains 47c02726; no full-platform source-identity claim.",
+    "Running/Auto plus an actual maintenance service restart does not establish whole-system reboot or host IP-change recovery."
+  ]
+}

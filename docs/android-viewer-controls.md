@@ -8,7 +8,7 @@
 
 连接入口的“修改服务器地址”保留当前应用的观看密钥，只更新 HTTPS 地址及端口。服务器更换 IP 后，应由管理员按[局域网地址配置](lan-address-configuration.md)更新服务身份与公开地址；沿用原 CA 时无需重新安装客户端信任。客户端自身更换 IP 不改变观看密钥，重新连接后仍由管理端决定控制权。
 
-当前公开 APK 为 [`20261109.6`](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261109.6)（源码 `df7cd87b`、版本码 `1000013`），具体签名与来源见[发布记录](evidence/android-release-20261109-6.json)。本机控制端与网关仍为 `98e419f7`，尚未更新到服务端公开版本 `40146db2`，不能把发布记录当作本机安装完成。
+当前公开 APK 为 [`20261109.6`](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261109.6)（源码 `df7cd87b`、版本码 `1000013`），具体签名与来源见[发布记录](evidence/android-release-20261109-6.json)。本机控制端与网关已[更新为 `40146db2`](evidence/local-control-gateway-maintenance-40146db2.json)，Sunshine 保留 `47c02726`；更新后的[实际 Web 操作验收](evidence/management-live-cli-local-windows-40146db2.json)已通过。下述 Android 音频、生命周期和焦点记录仍保留其原服务端版本，不因更新而扩展范围。
 
 此前 `20261109.2`（源码 `6591f2b9`）的实体平板与模拟器交接记录见[版本证据](evidence/android-exclusive-control-20261109.json)，与 `98e419f7` Linux 运行时的[真实目标输入检查](evidence/android-stream-input-20261109.json)保留其原版本范围。当前 `.6` APK 与 `3d4f248c` 服务端也已完成[六阶段输入与控制交接检查](evidence/android-stream-input-3d4f248c-20261110.json)：一个上游、两个客户端，验证目标实际输入及撤权拒绝，不扩展为本机最新服务端验收。
 

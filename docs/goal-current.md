@@ -1,52 +1,20 @@
 # 当前 Goal（2026-11-10）
 
-正式 `.6` APK 新增[系统瞬时音频焦点验收](evidence/android-release-focus-windows-20261110.json)：独立 `testOnly` 前台辅助服务通过公开 API 取得 `GAIN_TRANSIENT`，系统焦点栈显示客户端 `LOSS_TRANSIENT`，对应连接的实际麦克风状态从开启转为关闭；客户端一直在前台，连接、唯一控制者及控制代次保持不变。辅助服务正常释放后，系统焦点恢复 `GAIN` / `none`，麦克风保持关闭，只有新的主动点击才恢复录音。截图已核对，测试包已卸载，Example 参数未变且已停止，模拟器及转发已清理。未重建正式 APK 或读取产品签名密钥；使用旧本机 `98e419f7` 服务环境，不扩展为新版安装、声学质量、实际换 IP 或整机重启验收。此前测试包签名冲突及对 Android 16 停服务返回码的误判分别保留，没有改写成通过。
+目标是交付生产可用的一体化云渲染串流平台：Windows/Linux 服务端、Web/PWA 与原生 Android 共用应用、会话、连接、唯一控制权和媒体授权模型；仅一个管理员，不新增多用户系统或重型监控。Goal 保持 active，以下范围和完成条件完整保留，构建或部分检查通过不能代替最终交付。
 
-Linux Android 音频差异排查新增仅用于验收工具的官方 `streamAudio` 输出观察，与现有原生 PulseAudio 采集在同一窗口独立记录有界数值指标；不保存 PCM，不修改 APK、系统音量或输入状态，也不替代或降低原采集门槛。目的仅是区分模拟器导出端与宿主 PulseAudio 路径，不能证明 SDK 写入前已有声音。公开源码的 [EmulatorService::streamAudio](https://android.googlesource.com/platform/external/qemu/+/refs/heads/emu-master-dev/android/android-grpc/services/emulator-controller/server/src/android/emulation/control/EmulatorService.cpp) 与 [AudioStream](https://android.googlesource.com/platform/external/qemu/+/refs/heads/emu-master-dev/android/android-grpc/services/emulator-controller/server/src/android/emulation/control/audio/AudioStream.cpp)说明其输出采集边界，但不作为本次精确模拟器二进制实现相同的证明。
+本机管理服务和媒体网关已于 2026-11-10 实际更新至 `40146db2`，Sunshine 保留 `47c02726`。Windows 正常 UAC 确认后完成有备份的组件维护，服务为 `Running` / `Auto`，应用 ID、数据及原 LAN CA/服务密钥保留；未修改执行策略、网卡、ToDesk 或 UE。记录见[本机维护](evidence/local-control-gateway-maintenance-40146db2.json)。此前的[预检和未成功启动记录](evidence/local-control-gateway-40146db2-prepared.json)保持历史范围，不再代表当前部署。此次不是重新运行统一安装器，也不证明通用原位升级能力或三个组件来自同一源码版本。
 
-首次执行 [42763144266](evidence/android-linux-audio-fixture-42763144266.json) 在对照音源启动时被 Android 原生音频服务以 `unknown uid` 拒绝，尚未启动产品 App，也未执行新增观察；不算产品音频失败重现或通过。依照 [Android 16 AudioService 的包快照初始化和异步广播更新](https://android.googlesource.com/platform/frameworks/base/+/refs/heads/android16-release/services/core/java/com/android/server/audio/AudioService.java)，隔离工具改为安装两个 APK 后仅重启受管测试 AVD 一次，核对内核启动身份变化及音频控制器初始化，再开始音量校准和正式观察；不改主机、权限、原生包表或广播调度。
+更新后的本机[真实 playwright-cli 验收](evidence/management-live-cli-local-windows-40146db2.json)已通过：两个 Web 观看端实际解码并推进（8→23、16→32 帧），唯一控制权授予、转移、撤销及停止后的明确终态正确；参数经页面保存、恢复并与 API 一致，旧 RTC 关闭且没有终态后的恢复/准入请求。网络失败和非预期控制台错误为零；两条终态心跳 410 明确为 CONNECTION_TERMINATED。已核对桌面/移动截图，结束后应用、会话和上游均恢复空闲。实际观看语言为英文，不把加载两个语言词表当作中文运行验收；管理页仍显示待确认的媒体/设备观测，需继续核对其数据链路，不能用观看端出画面证明遥测完整。
 
-修正后的 [42763962676](evidence/android-linux-audio-fixture-42763962676.json) 已核实测试 AVD 启动身份变化、音频控制器初始化及对照音轨创建成功；但独立输出只有部分窗口有声，697/1209 Hz 中位幅度均约 `6e-8`，未达到原门槛 `0.01`，仪器进程也触发原有 10 秒超时，整体失败。此轮仍未进入产品 App 或 `streamAudio` 观察，不把“零采集丢帧”或局部峰值当作稳定输出通过，不据此改生产音频实现、提高超时或重复相同任务。两次新任务均复用已发布 `40146db2` 安装包和正式 `.6` APK，既没有重建产品，也不能解释或关闭此前近静音问题；Windows 官方模拟器的既有正式 APK 通过证据范围保持不变。
+当前可下载服务端为 [20261110.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261110.3)，原始产品源码 `40146db2`；Windows 单 EXE 与 Ubuntu 24.04 单文件安装包、清单、校验和及 SBOM 已发布，见[精确产物记录](evidence/unified-installers-40146db2.json)。Windows 静默安装、自动系统服务、音频、服务/网关重启及卸载通过；Linux 安装初始化及[独立真实页面操作](evidence/management-live-cli-40146db2.json)有各自记录。发布复用原始构建字节，没有为了改文档或验收脚本重新构建产品。安装器仅交付运行组件，排除 Example、测试声源、探针、测试凭据、开发 CA 和调试依赖；运行无需宿主机另装 Node.js/npm，不依赖 VB-CABLE。
 
-目标是交付生产可用的一体化云渲染串流产品：Windows/Linux 服务端、Web/PWA 与官方源码二开的 Android 原生客户端，共用应用、串流会话、连接、控制代次和媒体授权。仅一个管理员，不增加多用户系统、重型监控或无关功能。完整范围与完成条件见下方 Goal 提示词；构建、发布或隔离测试成功不等于产品交付。
+当前正式签名 Android 为 [20261109.6](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261109.6)、版本码 1000013、源码 `df7cd87b`，见[APK 来源](evidence/android-release-20261109-6.json)。同一 APK 在 Windows 官方模拟器与当时旧本机 `98e419f7` 服务环境完成[程序音、麦克风到原生录音端点与 Web 观看端、撤权静音](evidence/android-release-audio-windows-20261110.json)、[权限拒绝/断网恢复/前后台](evidence/android-release-lifecycle-windows-20261110.json)及[系统瞬时音频焦点](evidence/android-release-focus-windows-20261110.json)检查。焦点恢复后必须再次主动开启麦克风；这些记录不因本机服务更新而改写版本，也不代表真机声学质量或 UE 内部录音。与 `3d4f248c` 服务端共享上游的[实际目标输入六阶段](evidence/android-stream-input-3d4f248c-20261110.json)及[原生程序自然退出](evidence/native-session-exit-3d4f248c-20261110-verified.json)另行保留。
 
-正式 Android `.6` 的[本机 Windows 音频链路验收](evidence/android-release-audio-windows-20261110.json)已完成：官方模拟器独立输出的 997 Hz 程序音中位幅值约 0.159，49 个窗口全部通过原门槛；唯一控制者发送的合成 1499 Hz 麦克风到达原生录音端点（平均幅值约 0.312）及真实 CLI Web 观看端（约 -21.74 dB），撤权后分别低于 0.001 和 -65 dB，零采集丢帧。复用已发布 APK，没有改生产源码或加入探针。该次服务端仍为 `98e419f7`、Sunshine 为 `47c02726`；Linux CI 的近静音失败保留，不能因 Windows 通过而改写。Example、路由及模拟器音量已恢复，无活动串流或遗留 ADB 转发。
+Linux 模拟器的[原有程序音近静音失败](evidence/android-stream-audio-df7cd87b-20261109.json)没有被 Windows 通过改写或解释。随后独立基准任务 [42763144266](evidence/android-linux-audio-fixture-42763144266.json)在包身份校验处失败；修正安装态初始化后的 [42763962676](evidence/android-linux-audio-fixture-42763962676.json)可以创建音轨，但独立对照音源未持续达到原门槛且仪器进程超时，两次均未进入产品 App 或新增 streamAudio 观察。不降低声音门槛、不将局部峰值或零采集丢帧当作通过、不重复相同失败任务，也不向正式 APK 加入探针。
 
-同一正式 APK 随后的[权限与生命周期检查](evidence/android-release-lifecycle-windows-20261110.json)通过：实际系统权限拒绝后未采集；仅关闭测试 AVD 的网络，约 14.8 秒后租约失效、控制与麦克风撤销，网络恢复后同连接以观看者身份返回；主动重新授权采集后按 HOME，后台离开并停止采集，返回前台创建新观看连接，麦克风保持关闭。没有修改宿主机网络、ToDesk 或 UE。这仍是旧本机服务环境的兼容证据，不代替新服务安装或真实宿主机换 IP/重启验收。
+可信 LAN HTTPS 初次部署已完成，见[平板与 LAN 记录](evidence/android-tablet-lan-20261109.json)。地址更新保留部署 CA 和应用观看密钥，不重新编译或重装客户端信任；独立环境的[真实地址恢复](evidence/lan-address-recovery-20261107.json)和[自动配对](evidence/managed-enrollment-20261107.json)保留其版本与环境。实际宿主机主地址切换、对应控制面/数据面恢复以及整机重启登录后的启动流程尚未验收；不能将自动服务状态、组件重启或独立网卡实验替代这些项。涉及共享主机网络中断或重启时遵守既有确认边界，并保护其他开发工作。
 
-安全修复对应的统一产品源码冻结为 `40146db2`，唯一构建任务 [42756383945](https://github.com/bei612/stream-kit/actions/runs/42756383945)已成功。原产物通过[同源真实 CLI 验收](evidence/management-live-cli-40146db2.json)：双端视频推进、控制交接、终态清理、参数保存恢复、桌面与移动截图均通过，网络失败为零；Windows 精确安装验收及原始文件发布也已完成，见下文。
-
-本机原始 Windows 控制/网关包已完成[只读维护预检](evidence/local-control-gateway-40146db2-prepared.json)，正常 RunAs 提权启动未返回维护进程，尚未应用；具体 Windows 原生错误码没有保留，不推定为用户取消。没有替换服务或绕过系统提权。本机仍为 `98e419f7`，已准备的精确版本 CLI 配置也没有对旧服务执行。
-
-最新补齐的跨端范围：公开 `3d4f248c` 服务端与正式 Android APK `.6` 在同一个真实目标中完成输入、控制权交接与撤销六阶段验收，见[对应版本记录](evidence/android-stream-input-3d4f248c-20261110.json)。同一服务端也通过[程序自然退出与旧代次撤权](evidence/native-session-exit-3d4f248c-20261110-verified.json)：正常关闭后停止串流，旧连接返回明确终态，未到期媒体凭据失效；原验收脚本错误码断言的失败记录保留。这些结果不证明 Android 程序音或麦克风通过，也不是本机 Windows 目标输入验收。
-
-安全源码 `878d395c` 移除网关与浏览器中的完整 SDP、候选及 ICE 脚本输出日志，解析失败不再通过 HTTP、Display、Debug 或错误链保留原始 SDP。原 HTTP 状态不变；`51b0ce2a` 校正真实解析器回归的前置断言。TypeScript、Webpack 和格式检查通过，源码 CI [42686818179](https://github.com/bei612/stream-kit/actions/runs/42686818179) 的管理前端、Windows/Linux 控制端、Windows/Linux 网关和 SBOM 六项全部成功。此前 `878d395c` 的两项网关检查失败保留，不改写为通过；安全修改现已进入公开 `40146db2` 安装包，本机尚未应用。
-
-当前已发布服务端为 `v0.1.0-preview.20261110.3`，源码 `40146db2`，提供 Windows 单 EXE 与 Ubuntu 24.04 单文件安装包。完整产品构建 `42756383945`、独立 Windows 安装验收 `42760501029` 和原始产物发布 `42761159746` 均成功，没有为发布重新构建。实际验证静默安装、自动系统服务、音频、网关/系统服务重启与卸载；不是整机重启验收，也不外推空默认音频基线之外的设备配置。七个公开附件的大小、服务端 SHA-256、标签与说明已核对，两个安装器匿名 HEAD 返回 200 和准确长度，见[统一安装包记录](evidence/unified-installers-40146db2.json)。Android 仍为下述独立签名版本，不声称两者源码相同。
-
-本机管理服务和媒体网关已完成维护，源码为 `98e419f7`；Sunshine 保持 `47c02726`。服务观测为 `Running` / `Auto`，原应用身份、LAN CA 与配置保留，没有修改 ToDesk、宿主机网卡或 UE。此维护不等于最新整包安装或通用原位升级验收，见[两组件维护记录](evidence/local-control-gateway-maintenance-98e419f7.json)。
-
-Android 当前签名 APK 为 `v0.1.0-android-preview.20261109.6`、版本码 `1000013`、源码 `df7cd87b`，使用项目持久签名，已包含连接终态修复，见[精确 APK 记录](evidence/android-release-20261109-6.json)。同源音频验收 `42651317973` 已进入此 APK，但 Android 输出实际 PCM 近零，尚未到达麦克风/撤权声学阶段；音量基准通过不能证明整个公共输出夹具健康，见[精确失败记录](evidence/android-stream-audio-df7cd87b-20261109.json)。对旧本机服务的[终态兼容观察](evidence/android-legacy-terminal-20261110.json)完成真实视频解码、停止终态与短时无重新入场观测，原脚本仍因 SDK 日志证据不足为失败，不等于新协议或活跃录音释放通过。旧版 Android/Web 唯一控制权及目标输入的六阶段证据保留在[输入验收记录](evidence/android-stream-input-20261109.json)，不自动扩展到后续 APK。
-
-本机首次完整 `playwright-cli` 操作已经执行并保留截图，整体仍为失败：停止应用后旧客户端继续恢复和清理已失效的连接。围绕这一实际问题，Go/Web `02a81c66` 与 Android `ce170d31`、`98ebd40c` 已统一区分可恢复的连接租约过期和不可恢复的连接终止，终态同步禁用权限、停止重试并释放媒体。修复已进入已发布的安装包和 APK，具体源码分别以上述版本记录为准；Go 全包回归与 Android 编译通过，`eeccd7ad` 的全部六项源码 CI（`42649208912`）通过。源码 `4dd34943` 的完整 Windows 控制/网关构建已校验并通过维护预检，但 Windows 对随后维护请求返回取消，实际未应用，本机仍为 `98e419f7`。真实浏览器脚本进一步要求旧 RTC 关闭、观看端终态、无终态后续票/恢复/重新准入，并保留实际 HTTP 与网络失败；历史失败记录不会改写为通过。
-
-Web 媒体 HTTP 响应生命周期修复位于 `92818fba`：配置请求读完响应再返回、失败 offer 的响应体由错误工厂单独读取，保留原 HTTP 状态。该源码的六项跨平台 CI、Windows/Linux 整包及真实 CLI [42670620703](https://github.com/bei612/stream-kit/actions/runs/42670620703) 已分别通过。两观看端实际解码并推进，交接/撤权/停止/参数保存恢复正确，网络失败为零；终态 RTC 关闭、权限失效，没有后续恢复或重新准入请求。详见[实际页面记录](evidence/management-live-cli-92818fba.json)，不扩大为本机 Windows 或 Android 验收。
-
-同一源码的完整 Windows 控制端和网关已下载，全部清单、文件哈希、二进制来源及现有配置链的只读维护预检通过。尚未应用，本机仍为上述旧安装版本；服务观测仍为运行中、自动启动。该准备不修改信任、网卡、ToDesk 或 UE，也不代替真实部署验收。
-
-Android 独立对照在 `42666139066` 中因系统原生 UID/package 归属校验拒绝而未能创建音轨，尚不能确定属于安装广播时序还是镜像实现问题。安装同步修正 `577baa09` 随后的单次验收 [42668858250](https://github.com/bei612/stream-kit/actions/runs/42668858250) 完成 PM 屏障，但广播队列屏障在 15 秒主机时限内未完成，尚未进入对照播放或产品阶段；此超时不证明队列故障或产品音频失败。保留先前正式 APK 的近静音失败结果，不改变声音门槛、不重新构建相同 APK。
-
-后续 `f348f918` 去掉了范围不匹配、会改变全局广播调度的屏障，保留 PM/安装身份硬校验与被动诊断。`31b7d5e5` 复用现有 envelope 保留有界数值 RMS 与可识别的 underrun 帧数，不导出 PCM。`42673566514` 前两次尝试遭 GitHub 内部调度错误，未执行测试；第三次实际执行中，公共 Tone 对照按原门槛通过，40 个 RMS 窗口持续有声、零丢帧。随后正式 `df7cd87b`/APK `.6` 的程序音仍近静音：997 Hz 中位幅值约 `1.14e-7`，独立双声道采集也近静音；尚未进入麦克风注入及撤权阶段。新的程序播放失败已追加到[同版本原始记录](evidence/android-stream-audio-df7cd87b-20261109.json)，没有覆盖旧失败或降低声音门槛。RPC 输入状态设置发生于公共对照之后，精确模拟器构建副作用及 SDK 写入边界仍需进一步定位。
-
-截图发现的启动日志覆盖主提示、撤权通知跨越终态及权限文案语言不一致，已在 `15673e5a` 从连接状态与通知所有者生命周期修复，并通过[完整独立 Linux 产物的真实页面验收](evidence/management-live-cli-15673e5a.json)。随后冻结统一包源码 `3d4f248c`，其原始 Linux 产物也独立通过 [42678144002](evidence/management-live-cli-3d4f248c.json)：实际 renderer 就绪、无遮挡弹层、语义角色与权限一致、终态旧权限通知为零，原网络/参数恢复门槛保持。两次观看端实际语言均为英文，不宣称中文、Android、声音或本机 Windows 已验收；该批修复现已进入公开 `20261110.2` 统一包。
-
-为定位 Android SDK 写入边界，已使用现有官方工具链构建标准 `.debug` 诊断 APK，源码 `12c0d052`、SHA-256 `3258bc99a7cfea47a4d1cef523ec37cd8ff33c94e6c9d1094166a37b63c8b169`；整个 Android 源码与正式 `df7cd87b` 无差异，但构建类型、签名与优化方式不同。诊断包没有发布，不改变正式签名或生产可调试性，不加入生产采样探针，其 debugger 观察不能代替正式 APK 的声学验收。
-
-收尾重点是本机新版本部署及对应链路、实际宿主机恢复核验；含安全修复的统一包已交付，Android 旧本机部署的播放、麦克风/撤权和生命周期已按上文真实通过，Linux CI 近静音的环境差异仍待定位。已通过且未受影响的流程不重复长跑。不向正式 APK 加入探针，不用对照声源代替产品声音。复用已构建同源安装包和持久签名 APK，不为修改验收脚本重建产品。每个阶段 review、更新正式项目文档、提交并 push。源码、发布和本机安装版本分别记录，Goal 继续 active。
-
-IP 变化必须通过配置和既有发现机制恢复，保留部署 CA 与应用密钥，不重新编译程序或重装客户端信任。可信 LAN HTTPS 的初次部署已完成，见[平板与 LAN 记录](evidence/android-tablet-lan-20261109.json)；独立 Linux 地址恢复证据见[地址恢复记录](evidence/lan-address-recovery-20261107.json)与[自动配对记录](evidence/managed-enrollment-20261107.json)。实际宿主机网卡切换尚未执行，不能将独立环境结果写成本机通过。
-
-用户确认的 20 客户端四小时稳定性和既有真人语音证据保留，不重复长跑或要求用户讲话。本机只使用独立 Example；生产包排除 Example、测试声源、探针、测试凭据和开发 CA。按用户最新要求并行处理独立模块，汇合时统一版本身份。开发和审查约束统一维护于 [AGENTS.md](../AGENTS.md)。历史全局审计 JSON 未随本次更新，不作为最新部署或新源码验收结论。
+接下来聚焦实际宿主机恢复验收、管理页待确认状态的来源核对及未解释的音频环境差异。20 客户端四小时稳定性和既有真人语音已接受，不重复长跑或要求用户讲话；本机只使用独立 Example，不启动其他代理维护的 UE，不修改 ToDesk。单 agent 按调用链和影响面实施，完成后 review、更新正式项目文档、提交并 push；源码、发布版本和本机版本分别记录。历史全局审计 JSON 不作为当前完成证明，最新事实以上述精确记录为准。
 
 以下为可用于 `/goal` 的完整提示词：
 
@@ -75,5 +43,5 @@ IP 变化必须通过配置和既有发现机制恢复，保留部署 CA 与应�
 14. 保留已有已通过证据：20 客户端四小时稳定性已接受，不重复跑24小时；2026-11-05 本地真人语音已有独立指标证据，不再要求用户讲话。历史证据仅证明其版本和环境，不能代替新 Android 能力验收。
 15. 本轮不要求 Linux 或手机真机验收；Android 至少完成模拟器安装/启动、链接进入、实际媒体接收、输入与控制权转移/撤销、麦克风权限及可自动验证的音频路径、断线重连和生命周期检查。模拟器不代表真实设备性能、扬声器/耳机或真人语音；保留这些明确边界，不让用户反复介入。
 16. 可信 LAN HTTPS、配置式地址更新及实际宿主机 IP 变化恢复分别按版本和环境记录；保留已完成的初次信任部署证据，不将独立网络环境通过等同本机通过。保护本机演示、运行数据和其他项目；涉及现有入口/信任改变或主机网络中断的切换先准备可复核方案与回滚，按既有待确认边界处理，其余开发不等待这些事项。
-17. 从当前仓库继续，每次修改前先了解完整调用链、数据所有者、影响面、副作用与恢复路径，再按依赖完成真实实现及必要验证，不采用 spec 驱动开发。复用已纳管上游及成熟依赖，不堆 workaround、假实现或 mock，不重复验证已通过且未改变的内容。独立模块按用户授权并行处理，汇合构建时冻结源码身份；每项完成先 review，阶段性纠偏、更新正式项目文档、提交并 push。线上交互必须经 playwright-cli 真实操作及截图验收；保留用户修改，不实施危险性操作。
+17. 从当前仓库继续，每次修改前先了解完整调用链、数据所有者、影响面、副作用与恢复路径，再按依赖完成真实实现及必要验证，不采用 spec 驱动开发。复用已纳管上游及成熟依赖，不堆 workaround、假实现或 mock，不重复验证已通过且未改变的内容。单 agent 执行，汇合构建时冻结源码身份；每项完成先 review，阶段性纠偏、更新正式项目文档、提交并 push。线上交互必须经 playwright-cli 真实操作及截图验收；保留用户修改，不实施危险性操作。
 18. 完成定义：上述核心代码、Android APK、服务端安装与自启动、跨端权限/音频/视频链路和范围内必要验收具有对应证据；所有已授权源码修改提交推送，Release 可下载，清楚区分仓库版本、发布版本及本机安装版本。未完成项如实记录，只有实际达到目标才将 goal 标记 complete。

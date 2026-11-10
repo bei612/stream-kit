@@ -1,0 +1,330 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-11-10T07:33:48.924Z",
+  "passed": true,
+  "scope": "Actual updated Windows installation, strict LAN HTTPS, real playwright-cli/Chrome, owned Example only; no mocked responses",
+  "control_commit": "40146db2ffa8b15040906cf130be8e89548c48da",
+  "gateway_commit": "40146db2ffa8b15040906cf130be8e89548c48da",
+  "renderer_commit": "47c02726c0161ebdec50911422d62845a9b6e59a",
+  "acceptance_source_commit": "30f53ece6186e0f8264db6d21b556a234b1c797b",
+  "started_at": "2026-11-10T07:26:05.139Z",
+  "finished_at": "2026-11-10T07:26:39.542Z",
+  "checks": [
+    "trusted HTTPS and exact deployed control commit",
+    "permanent link visible before launch",
+    "real Example launch and two decoded WebRTC viewers",
+    "UI grant, transfer and revoke with server authority checks",
+    "canonical en/zh viewer authority, lifecycle-only connection prompts and ready UI pipelines",
+    "ended viewers have no stale permission notifications",
+    "Example stop; UI argument edit/save and original argument restoration with actual API agreement; read-only history",
+    "desktop/mobile screenshots and console errors"
+  ],
+  "decoded_video_metrics": [
+    {
+      "viewer": "first",
+      "samples": [
+        {
+          "bytes": 206767,
+          "frames": 8
+        },
+        {
+          "bytes": 411686,
+          "frames": 23
+        }
+      ]
+    },
+    {
+      "viewer": "second",
+      "samples": [
+        {
+          "bytes": 435533,
+          "frames": 16
+        },
+        {
+          "bytes": 658227,
+          "frames": 32
+        }
+      ]
+    }
+  ],
+  "viewer_role_observations": [
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "controller",
+      "verified": true,
+      "control": true,
+      "ended": false,
+      "data_control": "true"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "controller",
+      "verified": true,
+      "control": true,
+      "ended": false,
+      "data_control": "true"
+    },
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    }
+  ],
+  "loading_modal_observations": [
+    {
+      "owner": 1,
+      "locale": "en",
+      "phase": "connecting"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "phase": "connecting"
+    }
+  ],
+  "ui_pipeline_ready": [
+    {
+      "owner": 1,
+      "locale": "en",
+      "original_frame_present": true,
+      "video_renderer_available": true,
+      "width": 1440,
+      "height": 810,
+      "blocking_overlay_visible": false
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "original_frame_present": true,
+      "video_renderer_available": true,
+      "width": 1280,
+      "height": 720,
+      "blocking_overlay_visible": false
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "original_frame_present": true,
+      "video_renderer_available": true,
+      "width": 1280,
+      "height": 720,
+      "blocking_overlay_visible": false
+    }
+  ],
+  "ended_permission_notifications": [
+    {
+      "owner": 1,
+      "canonical_permission_notification_count": 0
+    },
+    {
+      "owner": 2,
+      "canonical_permission_notification_count": 0
+    }
+  ],
+  "stopped_viewers": {
+    "1": {
+      "original_frame_present": true,
+      "frames": [
+        {
+          "original": true,
+          "peers": [
+            "closed"
+          ],
+          "ended": true,
+          "verified": false,
+          "control": false,
+          "microphone": false,
+          "data_control": "false",
+          "badge_visible": true,
+          "locale": "en"
+        }
+      ]
+    },
+    "2": {
+      "original_frame_present": true,
+      "frames": [
+        {
+          "original": true,
+          "peers": [
+            "closed"
+          ],
+          "ended": true,
+          "verified": false,
+          "control": false,
+          "microphone": false,
+          "data_control": "false",
+          "badge_visible": true,
+          "locale": "en"
+        }
+      ]
+    }
+  },
+  "stopped_argument_edit": {
+    "saved_via_ui": true,
+    "restored_via_ui": true,
+    "api_ui_agreement": true
+  },
+  "argument_restoration": {
+    "values_in_evidence": false,
+    "args_restored": true,
+    "idle_state_confirmed": true
+  },
+  "raw_console_errors": 2,
+  "unexpected_console_errors": 0,
+  "pending_viewer_api_requests": 0,
+  "terminal_followup_requests": [],
+  "network_failures": [],
+  "http_failures": [
+    {
+      "owner": 1,
+      "hasQuery": false,
+      "hasHash": false,
+      "method": "POST",
+      "status": 410,
+      "requestOrder": 228,
+      "responseOrder": 229,
+      "code": "CONNECTION_TERMINATED",
+      "classification": "terminal_heartbeat"
+    },
+    {
+      "owner": 2,
+      "hasQuery": false,
+      "hasHash": false,
+      "method": "POST",
+      "status": 410,
+      "requestOrder": 231,
+      "responseOrder": 232,
+      "code": "CONNECTION_TERMINATED",
+      "classification": "terminal_heartbeat"
+    }
+  ],
+  "post_acceptance": {
+    "all_apps_stopped": true,
+    "all_sessions_stopped": true,
+    "no_active_upstream": true,
+    "source_unchanged": true
+  },
+  "screenshots": [
+    {
+      "path": ".local/validation/local-management-live-40146db2/app-before-launch-desktop.png",
+      "sha256": "6105006911984dcaf6b4673d695d2b9750b4155a0fa6f3e3600c6205227377d5",
+      "reviewed": false
+    },
+    {
+      "path": ".local/validation/local-management-live-40146db2/app-before-launch-mobile.png",
+      "sha256": "74faf3807f60205ffd87a42622c8b35f9ea1d266849e9ed7259050495a5486f0",
+      "reviewed": false
+    },
+    {
+      "path": ".local/validation/local-management-live-40146db2/history-desktop.png",
+      "sha256": "481483bb80b41015ba057d4388c23e3f1c4c981af8c01fef11b61dae01678dbc",
+      "reviewed": false
+    },
+    {
+      "path": ".local/validation/local-management-live-40146db2/history-mobile.png",
+      "sha256": "5ce9bf9c5919eb5196c96fedeb3e596a7a6ee738af8224dcff8423d2f7b15739",
+      "reviewed": false
+    },
+    {
+      "path": ".local/validation/local-management-live-40146db2/sessions-transfer-desktop.png",
+      "sha256": "c8911984d3de6d4c66bbfc314138e5274eaa087293c1c557d519b931b2ee676c",
+      "reviewed": false
+    },
+    {
+      "path": ".local/validation/local-management-live-40146db2/sessions-transfer-mobile.png",
+      "sha256": "79afc1a910c19fb30fc3cdf0a9c3634f1b2faf113438a12e543f1468cba9e9d2",
+      "reviewed": true
+    },
+    {
+      "path": ".local/validation/local-management-live-40146db2/stopped-arguments-restored.png",
+      "sha256": "560358bf85472f225b3db98401bcc4e22629c49bab81cc0984b53edd25a99cfa",
+      "reviewed": false
+    },
+    {
+      "path": ".local/validation/local-management-live-40146db2/stopped-arguments-saved.png",
+      "sha256": "560358bf85472f225b3db98401bcc4e22629c49bab81cc0984b53edd25a99cfa",
+      "reviewed": false
+    },
+    {
+      "path": ".local/validation/local-management-live-40146db2/viewer-after-transfer.png",
+      "sha256": "ed5acaa12e6e64800b6f92ccac5604f4c63f2eaaf24d6a6f55b257fab5035c50",
+      "reviewed": false
+    },
+    {
+      "path": ".local/validation/local-management-live-40146db2/viewer-before-grant.png",
+      "sha256": "f5bac9395c663c4a9bb5474d40e1d1ecbbc94343af69921d7c3b81bb8709f53c",
+      "reviewed": true
+    },
+    {
+      "path": ".local/validation/local-management-live-40146db2/viewer-ended.png",
+      "sha256": "20d2bd3c80cdd1d824f651457f30191adbe1dc8688b59e353d670d6159251135",
+      "reviewed": true
+    }
+  ],
+  "primary_evidence": [
+    {
+      "path": ".local/validation/local-management-live-40146db2/result.json",
+      "sha256": "af02f4872e8bb2146890c6eea11966b6dd5c9540c7ad2de427367deb0946b29f"
+    },
+    {
+      "path": ".local/validation/local-management-live-40146db2/cli.log",
+      "sha256": "e8d56bf8b7b5bf433d79aaab0aaba2ce670210474f41ae9cd3cdf32d841c4b50"
+    }
+  ],
+  "limits": [
+    "Viewer role observations were English; loading both canonical catalogs is not a Chinese runtime acceptance.",
+    "Management screenshots include pending media/device telemetry; decoded picture and authority checks do not establish completeness of that telemetry.",
+    "No Android, acoustic, target-input, actual host IP-change, whole-system reboot or generic installer-upgrade claim."
+  ]
+}
