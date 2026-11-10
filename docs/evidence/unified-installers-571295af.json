@@ -164,11 +164,88 @@
     "packages": 3186
   },
   "local_downloads_verified": true,
-  "published": false,
+  "published": true,
   "publication": {
-    "state": "verified_original_artifacts_ready_for_tag_and_promotion",
+    "state": "published_verified",
+    "url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261110.4",
     "tag": "v0.1.0-preview.20261110.4",
-    "source_commit": "571295af7c106ca5080b7a7510ffe62715b90de6"
+    "source_commit": "571295af7c106ca5080b7a7510ffe62715b90de6",
+    "tag_object_sha": "fc4408124dd3635f6a37d9e17505687b5dcfc054",
+    "tag_resolved_commit_verified": true,
+    "prerelease": true,
+    "published_at": "2026-11-10T08:48:32Z",
+    "verified_at": "2026-11-10T08:49:48.076Z",
+    "promotion_run": "https://github.com/bei612/stream-kit/actions/runs/42785453045",
+    "promotion_workflow_commit": "bdc55bd58624965370362e2f7ca9a5e4631ba4d4",
+    "build_jobs_skipped": true,
+    "original_product_run": 42779935015,
+    "public_assets_verified": 7,
+    "all_public_asset_sizes_and_server_digests_match_local_verified_artifacts": true,
+    "release_notes_match": true,
+    "release_notes_comparison": "CRLF normalized and trailing whitespace trimmed; otherwise exact text equality",
+    "release_notes_sha256": "e51a62213019f586b06c7ddb4dd844d124921bfde31cf854d1d2701cb6207ae9",
+    "assets": [
+      {
+        "name": "stream-kit-preview-571295af7c10-windows-amd64-setup.exe",
+        "bytes": 97596916,
+        "sha256": "7f5f1c8fe4de6e8eae27a4e78ccd760657192580f1b306788d42795a4f1fd117",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261110.4/stream-kit-preview-571295af7c10-windows-amd64-setup.exe"
+      },
+      {
+        "name": "installer-manifest.json",
+        "bytes": 2312,
+        "sha256": "d37e674322e109e96ae46a230f00668693404f71d0df72720c6c6cd520f89a3e",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261110.4/installer-manifest.json"
+      },
+      {
+        "name": "SHA256SUMS.txt",
+        "bytes": 122,
+        "sha256": "446feb6fdac0284acd79810bc2f21a6bfe04fed135d58c9939c33c1ccd3769a5",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261110.4/SHA256SUMS.txt"
+      },
+      {
+        "name": "stream-kit-preview-571295af7c10-ubuntu24.04-amd64-setup.run",
+        "bytes": 62443235,
+        "sha256": "b2dcfa508abd27c07a3ea69b05ed145a1d5036978b0ee1294c20c5342d074806",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261110.4/stream-kit-preview-571295af7c10-ubuntu24.04-amd64-setup.run"
+      },
+      {
+        "name": "linux-installer-manifest.json",
+        "bytes": 1408,
+        "sha256": "07fdcd5fc5eb8e0879ccef9c5ad1da893ae30e5d369d24436519939ddaf7f4ac",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261110.4/linux-installer-manifest.json"
+      },
+      {
+        "name": "Linux-SHA256SUMS.txt",
+        "bytes": 126,
+        "sha256": "173e75d64de1f6dc5b524e754aced06d1e447beb6dc29786527388338a4511dc",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261110.4/Linux-SHA256SUMS.txt"
+      },
+      {
+        "name": "stream-kit-sbom.spdx.json",
+        "bytes": 7575028,
+        "sha256": "838c5b76b5075389f519db608b9d19b1c55bcf5a3c0ce70f0cc37ffcf0ea590d",
+        "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261110.4/stream-kit-sbom.spdx.json"
+      }
+    ],
+    "anonymous_download_head_checks": [
+      {
+        "name": "stream-kit-preview-571295af7c10-windows-amd64-setup.exe",
+        "status": 200,
+        "content_length": 97596916,
+        "final_host": "release-assets.githubusercontent.com",
+        "authentication_sent": false,
+        "tls_verification": true
+      },
+      {
+        "name": "stream-kit-preview-571295af7c10-ubuntu24.04-amd64-setup.run",
+        "status": 200,
+        "content_length": 62443235,
+        "final_host": "release-assets.githubusercontent.com",
+        "authentication_sent": false,
+        "tls_verification": true
+      }
+    ]
   },
   "management_runtime_acceptance": {
     "local_windows": "docs/evidence/management-overview-local-windows-571295af.json",

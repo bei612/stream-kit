@@ -4,9 +4,9 @@
 
 本机管理服务已于 2026-11-10 实际更新至 `571295af`，媒体网关保留 `40146db2`、Sunshine 保留 `47c02726`。Windows 正常 UAC 完成有备份的控制组件维护，服务为 `Running` / `Auto`，应用 ID、数据及原 LAN CA/服务密钥保留；未修改执行策略、网卡、ToDesk 或 UE。最新[本机维护与实际页面记录](evidence/management-overview-local-windows-571295af.json)覆盖统一会话状态修复；之前的[两组件维护](evidence/local-control-gateway-maintenance-40146db2.json)和[未成功启动记录](evidence/local-control-gateway-40146db2-prepared.json)均保留历史范围。此次不是重新运行统一安装器，也不证明通用原位升级能力或三个组件来自同一源码版本。
 
-更新后的本机[真实 playwright-cli 验收](evidence/management-live-cli-local-windows-40146db2.json)已通过：两个 Web 观看端实际解码并推进（8→23、16→32 帧），唯一控制权授予、转移、撤销及停止后的明确终态正确；参数经页面保存、恢复并与 API 一致，旧 RTC 关闭且没有终态后的恢复/准入请求。网络失败和非预期控制台错误为零；两条终态心跳 410 明确为 CONNECTION_TERMINATED。已核对桌面/移动截图，结束后应用、会话和上游均恢复空闲。实际观看语言为英文，不把加载两个语言词表当作中文运行验收；管理页仍显示待确认的媒体/设备观测，需继续核对其数据链路，不能用观看端出画面证明遥测完整。
+此前 `40146db2` 的本机[真实 playwright-cli 验收](evidence/management-live-cli-local-windows-40146db2.json)已通过：两个 Web 观看端实际解码并推进（8→23、16→32 帧），唯一控制权授予、转移、撤销及停止后的明确终态正确；参数经页面保存、恢复并与 API 一致，旧 RTC 关闭且没有终态后的恢复/准入请求。网络失败和非预期控制台错误为零；两条终态心跳 410 明确为 CONNECTION_TERMINATED。实际观看语言为英文，不把加载两个语言词表当作中文运行验收。该历史记录保留了管理页待确认现象；后续已按统一快照修复并建立下文的新本机及 Linux 记录，不能反向改写旧证据。
 
-当前可下载服务端为 [20261110.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261110.3)，原始产品源码 `40146db2`；Windows 单 EXE 与 Ubuntu 24.04 单文件安装包、清单、校验和及 SBOM 已发布，见[精确产物记录](evidence/unified-installers-40146db2.json)。Windows 静默安装、自动系统服务、音频、服务/网关重启及卸载通过；Linux 安装初始化及[独立真实页面操作](evidence/management-live-cli-40146db2.json)有各自记录。发布复用原始构建字节，没有为了改文档或验收脚本重新构建产品。安装器仅交付运行组件，排除 Example、测试声源、探针、测试凭据、开发 CA 和调试依赖；运行无需宿主机另装 Node.js/npm，不依赖 VB-CABLE。
+当前可下载服务端为 [20261110.4](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261110.4)，原始产品源码 `571295af`；Windows 单 EXE 与 Ubuntu 24.04 单文件安装包、清单、校验和及 SBOM 已发布，见[精确产物记录](evidence/unified-installers-571295af.json)。六项源码 CI、Windows 静默安装/自动系统服务/音频/服务与网关重启/卸载均通过；Linux 安装初始化及[独立真实页面操作](evidence/management-overview-linux-571295af.json)有各自记录。发布直接复用原始构建字节，标签解析到 `571295af`，7 个公开附件的大小与摘要匹配，两平台安装器匿名下载均为 200。安装器排除 Example、测试声源、探针、测试凭据、开发 CA 和调试依赖；运行无需宿主机另装 Node.js/npm，不依赖 VB-CABLE。保留此前 `40146db2` 的[20261110.3 历史产物记录](evidence/unified-installers-40146db2.json)，不将本机组件维护当作重新安装新统一包。
 
 当前正式签名 Android 为 [20261109.6](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261109.6)、版本码 1000013、源码 `df7cd87b`，见[APK 来源](evidence/android-release-20261109-6.json)。同一 APK 在 Windows 官方模拟器与当时旧本机 `98e419f7` 服务环境完成[程序音、麦克风到原生录音端点与 Web 观看端、撤权静音](evidence/android-release-audio-windows-20261110.json)、[权限拒绝/断网恢复/前后台](evidence/android-release-lifecycle-windows-20261110.json)及[系统瞬时音频焦点](evidence/android-release-focus-windows-20261110.json)检查。焦点恢复后必须再次主动开启麦克风；这些记录不因本机服务更新而改写版本，也不代表真机声学质量或 UE 内部录音。与 `3d4f248c` 服务端共享上游的[实际目标输入六阶段](evidence/android-stream-input-3d4f248c-20261110.json)及[原生程序自然退出](evidence/native-session-exit-3d4f248c-20261110-verified.json)另行保留。
 
@@ -14,9 +14,9 @@ Linux 模拟器的[原有程序音近静音失败](evidence/android-stream-audio
 
 可信 LAN HTTPS 初次部署已完成，见[平板与 LAN 记录](evidence/android-tablet-lan-20261109.json)。地址更新保留部署 CA 和应用观看密钥，不重新编译或重装客户端信任；独立环境的[真实地址恢复](evidence/lan-address-recovery-20261107.json)和[自动配对](evidence/managed-enrollment-20261107.json)保留其版本与环境。实际宿主机主地址切换、对应控制面/数据面恢复以及整机重启登录后的启动流程尚未验收；不能将自动服务状态、组件重启或独立网卡实验替代这些项。涉及共享主机网络中断或重启时遵守既有确认边界，并保护其他开发工作。
 
-接下来聚焦实际宿主机恢复验收、管理页待确认状态的来源核对及未解释的音频环境差异。20 客户端四小时稳定性和既有真人语音已接受，不重复长跑或要求用户讲话；本机只使用独立 Example，不启动其他代理维护的 UE，不修改 ToDesk。单 agent 按调用链和影响面实施，完成后 review、更新正式项目文档、提交并 push；源码、发布版本和本机版本分别记录。历史全局审计 JSON 不作为当前完成证明，最新事实以上述精确记录为准。
+接下来需要按已准备的[验收及回退步骤](lan-address-configuration.md)完成实际共享宿主机主地址迁移与整机重启，等待明确允许中断其他项目的维护窗口；当前未执行、不标为通过。Linux Android 模拟器的音频失败继续保留其未解释边界，不用 Windows 通过改写，也不重复相同失败任务。20 客户端四小时稳定性和既有真人语音已接受，不重复长跑或要求用户讲话；本机只使用独立 Example，不启动其他代理维护的 UE，不修改 ToDesk。单 agent 按调用链和影响面实施，完成后 review、更新正式项目文档、提交并 push；源码、发布版本和本机版本分别记录。历史全局审计 JSON 不作为当前完成证明，最新事实以上述精确记录为准。
 
-管理页状态问题已完成[统一会话与媒体读取投影](managed-session-state.md)，并已安装、[真实操作和截图验收](evidence/management-overview-local-windows-571295af.json)。授予前和转移后的会话/确认/观测版本分别为 9/9/9、15/15/15；两个观看端推进 9→24、14→30 帧；独立连续 62 次采样有 55 次显示正在串流、零次待确认，保留初始启动状态，不将有限采样扩展为所有情况保证。结束后恢复空闲。相关源码检查通过；客户端 API 文件原有的 25 处 `no-explicit-any` lint 错误经旧版对照未增加，不能宣称全文件 lint 通过。该修复尚未进入已发布安装包；源码 `571295af` 的跨平台 CI `42779693912`、统一产品构建 `42779935015` 正在执行。
+管理页状态问题已完成[统一会话与媒体读取投影](managed-session-state.md)，并已安装、[真实操作和截图验收](evidence/management-overview-local-windows-571295af.json)。授予前和转移后的会话/确认/观测版本分别为 9/9/9、15/15/15；两个观看端推进 9→24、14→30 帧；独立连续 62 次采样有 55 次显示正在串流、零次待确认，保留初始启动状态，不将有限采样扩展为所有情况保证。结束后恢复空闲。该修复已进入 `20261110.4` 安装包：跨平台 CI `42779693912`、原始产品构建 `42779935015`、精确安装验收 `42784612979`、发布任务 `42785453045` 均成功，发布时构建任务均跳过。客户端 API 文件原有的 25 处 `no-explicit-any` lint 错误经旧版对照未增加，不能宣称全文件 lint 通过。
 
 以下为可用于 `/goal` 的完整提示词：
 
