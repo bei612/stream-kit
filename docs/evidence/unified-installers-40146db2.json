@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-10",
+  "source_commit": "40146db2ffa8b15040906cf130be8e89548c48da",
+  "product_run": "https://github.com/bei612/stream-kit/actions/runs/42756383945",
+  "product_run_conclusion": "success",
+  "windows_acceptance_run": "https://github.com/bei612/stream-kit/actions/runs/42760501029",
+  "windows_acceptance_conclusion": "success",
+  "acceptance_workflow_commit": "d96923a4acfb4f6639e38f98e1d8a08270d7efca",
+  "windows": {
+    "passed": true,
+    "environment": "GitHub-hosted Windows Server 2022",
+    "installer": {
+      "name": "stream-kit-preview-40146db2ffa8-windows-amd64-setup.exe",
+      "bytes": 97598001,
+      "sha256": "af7a9a0dc2b3649f2f65c4b4ddf8280fa94fa0d6da650c2913ff8e633da33f5e"
+    },
+    "installer_source_commit": "40146db2ffa8b15040906cf130be8e89548c48da",
+    "reused_payload": false,
+    "kernel_audio_driver_signature_verified": true,
+    "acceptance_result_sha256": "638a1296b2d5fd12c017510e5928e3289a8c3b1f008909c1b2051b0ea9e93631",
+    "install_exit": 0,
+    "administrator_login": true,
+    "service_after_install": {
+      "state": "Running",
+      "start_mode": "Auto",
+      "account": "LocalSystem"
+    },
+    "service_after_restart": {
+      "state": "Running",
+      "start_mode": "Auto",
+      "account": "LocalSystem",
+      "new_process_id_verified": true
+    },
+    "gateway_restarted": true,
+    "gateway_stop_exit": 0,
+    "scm_restarted": true,
+    "whole_system_reboot_tested": false,
+    "audio": {
+      "passed": true,
+      "captured_frames": 144000,
+      "tone_amplitude": 0.09813821957563634,
+      "dropped_frames": 0,
+      "xruns": 0,
+      "baseline_quiet": true,
+      "after_clear_quiet": true,
+      "device_closed_after_drop": true
+    },
+    "default_devices": {
+      "before": {
+        "communication_render": "",
+        "communication_capture": "",
+        "render": "",
+        "capture": ""
+      },
+      "after_uninstall_equals_before": true,
+      "existing_nonempty_default_devices_tested": false,
+      "scope": "Initially no default endpoints. Windows selected the added capture endpoint while present; uninstall restored the empty baseline. This does not prove preservation of existing nonempty defaults."
+    },
+    "uninstall_exit": 0,
+    "service_removed": true,
+    "configuration_retained_after_uninstall": true,
+    "configuration_retention_assertion": "orchestrator.json exists after uninstall",
+    "application_database_retention_separately_tested": false,
+    "finished_at": "2026-11-10T05:13:21.560Z"
+  },
+  "linux": {
+    "installer": {
+      "file": "stream-kit-preview-40146db2ffa8-ubuntu24.04-amd64-setup.run",
+      "bytes": 62476057,
+      "sha256": "bdf977e4c8d75cf157dd302c00ebb7930d3aba1feac4320f188c0781fd102313"
+    },
+    "payload_sha256": "02d8a2337a715667aba1ccd22e73f471a16d520d45a00220498a3f25f578f40b",
+    "acceptance_log_sha256": "fa1d65fc1cb35333348c62e1e64131e05b33bfc94a0c9c467a6da4145d638c11",
+    "scope": "Installer extraction, three-component initialization, configuration validation, offline user-service enablement and refusal to overwrite existing deployment data; no media service started by installer acceptance.",
+    "embedded_payload_sha256_independently_verified": true
+  },
+  "sbom": {
+    "name": "stream-kit-sbom.spdx.json",
+    "bytes": 7575028,
+    "sha256": "64bb003f157137f37357b5cda4265cdc3f009dd4529f8d6c28259cb766441cc2",
+    "format": "SPDX-2.3"
+  },
+  "local_downloads_verified": true,
+  "published": false,
+  "management_runtime_acceptance": "docs/evidence/management-live-cli-40146db2.json",
+  "limits": [
+    "Service and gateway restarts do not establish a whole host reboot.",
+    "Configuration-file retention does not independently prove application-file or database retention.",
+    "Empty default-device baseline does not cover existing nonempty device selections.",
+    "Linux installer initialization does not itself prove an active media session; the separate real CLI receipt records that deployment scope.",
+    "No local Windows update, in-place upgrade, Android audio, physical speech, target input or IP-change acceptance is established by this installer receipt."
+  ],
+  "acceptance_product_source_binding": {
+    "producer_run_id": 42756383945,
+    "producer_commit": "40146db2ffa8b15040906cf130be8e89548c48da",
+    "trigger": "workflow_run",
+    "verified_from": "Original acceptance PRODUCT_RUN_ID environment plus result commit and installer SHA; acceptance head is not the product source"
+  }
+}
