@@ -80,11 +80,38 @@ type Status struct {
 	Observations          map[string]SessionObservation `json:"observations"`
 }
 
+// Overview pairs current durable sessions with the last authenticated media
+// acknowledgement. A mismatch represents reconciliation in flight, rather than
+// separately cached HTTP responses. Reading this projection grants no authority.
+type Overview struct {
+	SampledAt int64                    `json:"sampled_at_ms"`
+	Sessions  []*session.RenderSession `json:"sessions"`
+	Media     Status                   `json:"media"`
+}
+
+func (p *Publisher) Overview() Overview {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	sessions := []*session.RenderSession{}
+	if p.manager != nil {
+		sessions = p.manager.List()
+	}
+	now := time.Now().UnixMilli()
+	return Overview{SampledAt: now, Sessions: sessions, Media: p.statusLocked(now, sessions)}
+}
+
 func (p *Publisher) Status() Status {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	var sessions []*session.RenderSession
+	if p.manager != nil {
+		sessions = p.manager.List()
+	}
+	return p.statusLocked(time.Now().UnixMilli(), sessions)
+}
+
+func (p *Publisher) statusLocked(now int64, sessions []*session.RenderSession) Status {
 	s := p.status
-	now := time.Now().UnixMilli()
 	s.LeaseValid = now < s.LeaseExpiresAt
 	s.ObservationsExpiresAt = min(s.LeaseExpiresAt, s.AcknowledgedAt+observationFreshnessMS)
 	s.ObservationsValid = s.Reachable && s.LeaseValid && now >= s.AcknowledgedAt && now < s.ObservationsExpiresAt
@@ -96,15 +123,13 @@ func (p *Publisher) Status() Status {
 	for id, rev := range p.status.Revisions {
 		s.Revisions[id] = rev
 	}
-	if p.manager != nil {
-		for _, session := range p.manager.List() {
-			if message := p.routeErrors[session.Audio.Target.NodeID]; session.Audio.Target.Mode == "remote" && message != "" {
-				if observation, ok := s.Observations[session.ID]; ok && observation.MicrophoneTarget.State == "pending" {
-					observation.MicrophoneTarget.State = "device_failed"
-					detail := "目标路由：" + message
-					observation.MicrophoneTarget.Error = &detail
-					s.Observations[session.ID] = observation
-				}
+	for _, session := range sessions {
+		if message := p.routeErrors[session.Audio.Target.NodeID]; session.Audio.Target.Mode == "remote" && message != "" {
+			if observation, ok := s.Observations[session.ID]; ok && observation.MicrophoneTarget.State == "pending" {
+				observation.MicrophoneTarget.State = "device_failed"
+				detail := "目标路由：" + message
+				observation.MicrophoneTarget.Error = &detail
+				s.Observations[session.ID] = observation
 			}
 		}
 	}

@@ -1,5 +1,5 @@
 import { API_BASE, getToken, clearToken } from '@/lib/utils'
-import type { RenderSession, SessionAudio, SessionPolicy, MediaControlStatus, AudioTarget } from './sessions'
+import type { RenderSession, SessionAudio, SessionPolicy, MediaControlStatus, AudioTarget, StreamSessionOverview, TimedStreamSessionOverview } from './sessions'
 import type { AudioInventory, AudioPairCheckResult } from './audio-devices'
 import type { ConfigurationView, GatewayConfigurationView, EncoderConfigurationView, EncoderConfigurationAcknowledgement, EncoderStartupState, ConfigValue } from './configuration'
 
@@ -120,6 +120,12 @@ export const api = {
   listStreamSessions: () => request<RenderSession[]>('/stream-sessions'),
   getStreamSession: (id: string) => request<RenderSession>(`/stream-sessions/${id}`),
   getMediaControl: () => request<MediaControlStatus>('/media-control'),
+  getStreamSessionOverview: async (): Promise<ApiResponse<TimedStreamSessionOverview>> => {
+    const request_started_at_ms = Date.now()
+    const request_started_monotonic_ms = performance.now()
+    const response = await request<StreamSessionOverview>('/stream-sessions/overview')
+    return { ...response, data: response.data ? { ...response.data, request_started_at_ms, request_started_monotonic_ms } : undefined }
+  },
   getAudioDevices: () => request<AudioInventory>('/audio-devices'),
   getRenderNodes: () => request<{apply_policy:string,nodes:{id:string,name:string,base_url:string}[]}>('/render-nodes'),
   getNodeAudioDevices: (id:string) => request<{node_id:string,inventory:AudioInventory}>(`/render-nodes/${encodeURIComponent(id)}/audio-devices`),

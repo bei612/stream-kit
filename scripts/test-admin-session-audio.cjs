@@ -43,6 +43,7 @@ const {engine, launchBrowser, evidenceDirectory} = require('./lib/test-browser.c
       if (url.pathname.endsWith('/render-nodes/renderer-a/audio-devices')) return route.fulfill({json:{status:'ok',data:{node_id:'renderer-a',inventory:{schema_version:2,instance_id:'0123456789abcdef0123456789abcdef',devices:[{id:'remote-out',name:'虚拟音频输出',output:true,input:false},{id:'remote-in',name:'目标程序录音输入',input:true,output:false}],configured_routes:[]}}}});
       if (url.pathname.startsWith('/api/') && url.pathname.endsWith('/stream-sessions')) return route.fulfill({json:{status:'ok',data:[session]}});
       if (url.pathname.endsWith('/media-control')) return route.fulfill({json:{status:'ok',data:{reachable:false,lease_valid:false,observations_valid:false,applied_revisions:{},observations:{}}}});
+      if (url.pathname.endsWith('/stream-sessions/overview')) return route.fulfill({json:{status:'ok',data:{sampled_at_ms:Date.now(),sessions:[session],media:{reachable:false,lease_valid:false,observations_valid:false,applied_revisions:{},observations:{}}}}});
       if (url.pathname.startsWith('/api/')) return route.fulfill({json:{status:'ok',data:{}}});
       const file = url.pathname.startsWith('/assets/') ? path.resolve(root,'.'+url.pathname) : path.join(root,'index.html');
       if (!file.startsWith(root+path.sep)) return route.abort();

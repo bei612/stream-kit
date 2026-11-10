@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/api/client'
-import { currentMediaObservation, type MediaObservation, type RenderSession } from '@/api/sessions'
+import { currentMediaObservation, overviewServerTime, type MediaObservation, type RenderSession } from '@/api/sessions'
 import { useQuery } from '@/hooks/useQuery'
 import { useConfigurationDraft } from '@/hooks/useConfigurationDraft'
 import QueryWrapper from '@/components/QueryWrapper'
@@ -93,19 +93,21 @@ function AudioSettings({ session, busy, action }: { session: RenderSession; busy
 const HISTORY_PAGE_SIZE = 10
 
 export default function StreamSessions() {
-  const [now, setNow] = useState(Date.now)
+  const [, tick] = useState(0)
   useEffect(() => {
     // Expire displayed evidence even while a poll is stalled or offline.
-    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+    const timer = window.setInterval(() => tick(value => value + 1), 1000)
     return () => window.clearInterval(timer)
   }, [])
-  const { data, loading, error, refresh } = useQuery({
-    queryFn: useCallback(() => api.listStreamSessions(), []),
-    pollInterval: 5000,
+  const { data: snapshot, loading, error, refresh } = useQuery({
+    queryFn: useCallback(() => api.getStreamSessionOverview(), []),
+    pollInterval: 2000,
     wsInvalidateEvents: ['stream_session_created', 'stream_session_state_changed', 'stream_connection_changed', 'stream_connection_expired', 'stream_connection_resumed', 'stream_controller_changed', 'stream_audio_changed', 'stream_policy_changed'],
   })
   const apps = useQuery<SessionApplication[]>({ queryFn: useCallback(() => api.listApps(), []), pollInterval: 10000, wsInvalidateEvents: ['app_status'] })
-  const media = useQuery({ queryFn: useCallback(() => api.getMediaControl(), []), pollInterval: 2000 })
+  const data = snapshot?.sessions
+  const media = snapshot?.media
+  const now = snapshot ? overviewServerTime(snapshot) : Date.now()
   const [search, setSearch] = useSearchParams()
   const selectedApp = search.get('app') ?? ''
   const [busy, setBusy] = useState(false)
@@ -127,14 +129,14 @@ export default function StreamSessions() {
     setCommandError('')
     try { await operation(); setNotice('操作已提交，状态以服务器最新反馈为准。') }
     catch (e: unknown) { setCommandError(e instanceof Error ? e.message : '操作失败') }
-    finally { try { await Promise.all([refresh(), media.refresh(), apps.refresh()]) } finally { inFlight.current = false; setBusy(false) } }
+    finally { try { await Promise.all([refresh(), apps.refresh()]) } finally { inFlight.current = false; setBusy(false) } }
   }
 
   return <QueryWrapper loading={loading} error={error} onRetry={refresh}>
     <div className="space-y-6">
       <div className="page-heading">
         <div><p className="page-eyebrow">连接与协作</p><h2>串流会话</h2><p className="page-description">按应用管理观看连接、唯一控制权和实时音频。</p></div>
-        <Button variant="outline" onClick={() => { void refresh(); void media.refresh(); void apps.refresh() }} disabled={busy}><RefreshCw className="w-4 h-4" /> 刷新</Button>
+        <Button variant="outline" onClick={() => { void refresh(); void apps.refresh() }} disabled={busy}><RefreshCw className="w-4 h-4" /> 刷新</Button>
       </div>
       <div className="session-summary" aria-label="当前会话概览">
         <div><strong>{overview.current.length}</strong><span>当前会话</span></div>
@@ -179,7 +181,7 @@ export default function StreamSessions() {
         </div>
         {overview.history.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">暂无已结束记录</p> : <div className="mt-4 flex items-center justify-between gap-3 text-sm text-muted-foreground"><span>共 {overview.history.length} 条 · 第 {page} / {pageCount} 页</span><div className="flex gap-2"><Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setHistoryPage(page - 1)}>上一页</Button><Button size="sm" variant="outline" disabled={page >= pageCount} onClick={() => setHistoryPage(page + 1)}>下一页</Button></div></div>}
       </Card> : <>
-        {(media.error || (media.data && !media.data.reachable)) && <p role="status" className="text-sm text-amber-400">媒体网关同步异常，正在重试。下方运行状态以最新反馈为准。</p>}
+        {media && !media.reachable && <p role="status" className="text-sm text-amber-400">媒体网关同步异常，正在重试。下方运行状态以最新反馈为准。</p>}
         {overview.current.map((session) => {
           const app = appFor(session)
           const connections = Object.values(session.connections).sort((a, b) => {
@@ -188,10 +190,10 @@ export default function StreamSessions() {
           })
           const online = connections.filter(connection => isLiveConnection(connection, now))
           const controller = online.find(connection => connection.connection_id === session.controller_connection_id)
-          const observation = media.error ? undefined : currentMediaObservation(media.data, session, now)
-          const appliedRevision = media.data?.applied_revisions[session.session_id] ?? 0
-          const leaseValid = media.data?.lease_valid && media.data.lease_expires_at_ms > now
-          const applied = leaseValid && appliedRevision >= session.revision
+          const observation = error ? undefined : currentMediaObservation(media, session, now)
+          const appliedRevision = media?.applied_revisions[session.session_id] ?? 0
+          const leaseValid = !error && media?.lease_valid && media.lease_expires_at_ms > now
+          const applied = leaseValid && appliedRevision === session.revision
           const stopping = session.state === 'stopping'
           const pendingAdmission = session.state === 'starting' && Date.parse(session.admission_until ?? '') > now
           const inactive = !pendingAdmission && !apps.error && app?.status === 'stopped' && observation != null && !observation.upstream_active && online.length === 0
@@ -246,10 +248,10 @@ export default function StreamSessions() {
               </fieldset>
             </details>
             <details className="mt-4 border-t border-border pt-4 text-sm">
-              <summary className="cursor-pointer font-medium">媒体与设备状态 <span className={`ml-2 text-xs font-normal ${applied ? 'text-green-400' : 'text-amber-400'}`}>{applied ? '配置已应用' : leaseValid ? '等待应用配置' : '网关未就绪'}</span></summary>
+              <summary className="cursor-pointer font-medium">媒体与设备状态 <span className={`ml-2 text-xs font-normal ${applied ? 'text-green-400' : 'text-amber-400'}`}>{applied ? '会话状态已同步' : leaseValid ? '等待网关同步' : '网关未就绪'}</span></summary>
               <div className="mt-3"><MediaRuntime observation={observation} /></div>
               <p className="mt-3 break-all text-xs text-muted-foreground">主机 {session.host_id} · 应用 {session.app_id} · 会话 {session.session_id}</p>
-              <p className="mt-1 text-xs text-muted-foreground">已保存版本 {session.revision} / 已应用版本 {appliedRevision} · 会话状态 {session.state}</p>
+              <p className="mt-1 text-xs text-muted-foreground">会话版本 {session.revision} / 网关确认版本 {appliedRevision} · 会话状态 {session.state}</p>
             </details>
             </>}
           </Card>

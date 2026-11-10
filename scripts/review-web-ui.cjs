@@ -98,11 +98,11 @@ async function main() {
         else if(pathname === '/api/v1/apps/demo/register') { detail.status='ready'; detail.error_message=''; failSettings=false; data=detail; }
         else if(pathname === '/api/v1/health') data = { version:'review', commit:'fixture' };
         else if(pathname === '/api/v1/stream-sessions') data = [session];
-        else if(pathname === '/api/v1/media-control') data = {
+        else if(pathname === '/api/v1/stream-sessions/overview') data = {sampled_at_ms:Date.now(),sessions:[session],media:{
           reachable:true,lease_valid:true,observations_valid:true,acknowledged_at_ms:Date.now()-5000,lease_expires_at_ms:Date.now()+30000,
           observations_expires_at_ms:Date.now()+30000,applied_revisions:{[session.session_id]:3},
           observations:{[session.session_id]:{session_id:session.session_id,revision:session.revision,upstream_active:true,subscribers:3,microphone_target:{epoch:session.audio.target.epoch,state:'unconfigured',device:null,error:null}}},
-        };
+        }};
         else if(pathname === '/api/v1/logs') data = [];
         else if(pathname === '/api/v1/config') data = {server:{listen:'127.0.0.1:9000'}};
         else if(pathname === '/api/v1/configuration') {

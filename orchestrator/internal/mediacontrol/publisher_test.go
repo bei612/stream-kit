@@ -43,6 +43,40 @@ func TestCrossLanguageContract(t *testing.T) {
 	}
 }
 
+func TestOverviewPairsLiveSessionsWithoutInventingAppliedState(t *testing.T) {
+	manager := session.NewManager(nil)
+	s, err := manager.Ensure(1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The session has advanced while the signed publisher is still at revision 1.
+	if err := manager.SetState(s.ID, session.StateRunning); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UnixMilli()
+	p := &Publisher{manager: manager, status: Status{
+		Reachable: true, AcknowledgedAt: now, LeaseExpiresAt: now + 10000,
+		Revisions:    map[string]uint64{s.ID: s.Revision},
+		Observations: map[string]SessionObservation{s.ID: {SessionID: s.ID, Revision: s.Revision, UpstreamActive: true}},
+	}}
+	got := p.Overview()
+	if len(got.Sessions) != 1 || got.Sessions[0].Revision != s.Revision+1 || got.Media.Revisions[s.ID] != s.Revision ||
+		got.Media.Observations[s.ID].Revision != s.Revision || !got.Media.ObservationsValid || got.SampledAt < now {
+		t.Fatalf("overview hid pending reconciliation: %#v", got)
+	}
+	got.Sessions[0].Revision = 900
+	got.Media.Revisions[s.ID] = 900
+	delete(got.Media.Observations, s.ID)
+	again := p.Overview()
+	if again.Sessions[0].Revision != s.Revision+1 || again.Media.Revisions[s.ID] != s.Revision || len(again.Media.Observations) != 1 {
+		t.Fatal("overview returned mutable manager or publisher state")
+	}
+	p.status.AcknowledgedAt -= observationFreshnessMS
+	if p.Overview().Media.ObservationsValid {
+		t.Fatal("overview extended observation freshness")
+	}
+}
+
 func TestPublisherReconcilesCommittedChangesAndStops(t *testing.T) {
 	manager := session.NewManager(nil)
 	received := make(chan Envelope, 32)

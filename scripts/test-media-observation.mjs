@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { currentMediaObservation } from '../orchestrator/web/src/api/sessions.ts'
+import { currentMediaObservation, overviewServerTime } from '../orchestrator/web/src/api/sessions.ts'
 
 test('management never presents stale or mismatched runtime state as current', () => {
   const session = { session_id: 's', revision: 7 }
@@ -12,4 +12,17 @@ test('management never presents stale or mismatched runtime state as current', (
   assert.equal(currentMediaObservation(status, { ...session, revision: 8 }, 2000), undefined)
   assert.equal(currentMediaObservation(status, { ...session, session_id: 'other' }, 2000), undefined)
   assert.equal(currentMediaObservation(null, session, 2000), undefined)
+})
+
+test('overview ages server evidence conservatively without sharing client wall clock', () => {
+  const snapshot = { sampled_at_ms: 1000, request_started_at_ms: 900000, request_started_monotonic_ms: 500 }
+  assert.equal(overviewServerTime(snapshot, 900150, 650), 1150)
+  // Both local clocks are intentionally unrelated to the server clock.
+  const observation = { session_id: 's', revision: 7, upstream_active: true }
+  const status = { reachable: true, lease_valid: true, observations_valid: true, acknowledged_at_ms: 1000, lease_expires_at_ms: 11000, observations_expires_at_ms: 4000, observations: { s: observation } }
+  assert.equal(currentMediaObservation(status, observation, overviewServerTime(snapshot, 900150, 650)), observation)
+  assert.equal(currentMediaObservation(status, observation, overviewServerTime(snapshot, 899000, 3500)), undefined)
+  assert.equal(currentMediaObservation(status, observation, overviewServerTime(snapshot, 903000, 650)), undefined)
+  assert.equal(overviewServerTime(snapshot, 899000, 650), 1150)
+  assert.equal(overviewServerTime(snapshot, 899000, 400), 1000)
 })

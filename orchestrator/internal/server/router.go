@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stream-kit/orchestrator/internal/app"
@@ -178,6 +179,18 @@ func (s *Server) setupRoutes() {
 	}
 	if s.SessionMgr != nil {
 		sh := handlers.NewSessionHandler(s.SessionMgr, []byte(s.Config.Server.MediaTicketSecret))
+		authed.GET("/stream-sessions/overview", func(c *gin.Context) {
+			c.Header("Cache-Control", "no-store")
+			if s.MediaControl != nil {
+				c.JSON(http.StatusOK, gin.H{"status": "ok", "data": s.MediaControl.Overview()})
+				return
+			}
+			// A missing gateway does not hide durable sessions or imply readiness.
+			c.JSON(http.StatusOK, gin.H{"status": "ok", "data": mediacontrol.Overview{
+				SampledAt: time.Now().UnixMilli(), Sessions: s.SessionMgr.List(),
+				Media: mediacontrol.Status{Revisions: map[string]uint64{}, Observations: map[string]mediacontrol.SessionObservation{}},
+			}})
+		})
 		if s.AppManager != nil {
 			sh.EnsureViewingSession = s.AppManager.EnsureViewingSession
 		}

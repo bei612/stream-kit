@@ -255,6 +255,27 @@ async function browserAcceptance(page, cfg) {
     const matches = (await api('/stream-sessions')).filter(s => s.host_id === cfg.host && s.app_id === cfg.app && s.state !== 'stopped');
     requireTrue(matches.length === 1, 'Expected one shared Example session'); return matches[0];
   };
+  const managementOverviewObservations = [];
+  const managementReady = async label => {
+    const result = await waitFor(async () => {
+      const response = page.waitForResponse(value => new URL(value.url()).pathname === '/api/v1/stream-sessions/overview' && value.status() === 200);
+      await page.getByRole('button', { name: '刷新', exact: true }).click();
+      const reply = await response;
+      requireTrue(reply.headers()['cache-control'] === 'no-store', 'Management overview permits stale HTTP caching');
+      return (await reply.json()).data;
+    }, value => {
+      const current = value.sessions.filter(s => s.host_id === cfg.host && s.app_id === cfg.app && s.state !== 'stopped');
+      if (current.length !== 1) return false;
+      const session = current[0], media = value.media, observation = media.observations[session.session_id];
+      return media.reachable && media.lease_valid && media.observations_valid && value.sampled_at_ms >= media.acknowledged_at_ms &&
+        value.sampled_at_ms < media.observations_expires_at_ms && media.applied_revisions[session.session_id] === session.revision &&
+        observation?.revision === session.revision && observation.upstream_active;
+    }, 'Coherent actual management media overview');
+    await page.getByText('正在串流', { exact: true }).waitFor();
+    await page.getByText('会话状态已同步', { exact: true }).waitFor({ state: 'attached' });
+    const session = result.sessions.find(s => s.host_id === cfg.host && s.app_id === cfg.app && s.state !== 'stopped');
+    managementOverviewObservations.push({stage:label,session_revision:session.revision,applied_revision:result.media.applied_revisions[session.session_id],observed_revision:result.media.observations[session.session_id].revision,upstream_active:true,cache_control:'no-store',sampled_at_ms:result.sampled_at_ms});
+  };
   const retainLocale = (target, locale) => {
     const previous = viewerLocales.get(target);
     requireTrue(!previous || previous.id === locale.id, 'Viewer changed its canonical language group');
@@ -414,6 +435,7 @@ async function browserAcceptance(page, cfg) {
     await viewerReady(secondPage);
     await screenshot(secondPage, 'viewer-before-grant');
     await page.goto(cfg.base + '/stream-sessions?app=' + encodeURIComponent(cfg.appId));
+    await managementReady('before_control_grant');
     const clientCard = id => page.locator('.client-card').filter({ hasText: id.slice(0, 6).toUpperCase() });
     await clientCard(first.connection_id).getByRole('button', { name: '授予控制权', exact: true }).click();
     await waitFor(currentSession, s => s.controller_connection_id === first.connection_id, 'First controller');
@@ -422,6 +444,7 @@ async function browserAcceptance(page, cfg) {
     await waitFor(currentSession, s => s.controller_connection_id === second.connection_id, 'Transferred controller');
     await role(popup, 'viewer'); await role(secondPage, 'controller');
     await viewerReady(secondPage);
+    await managementReady('after_control_transfer');
     await screenshot(page, 'sessions-transfer-desktop'); await screenshot(secondPage, 'viewer-after-transfer');
     await page.setViewportSize({ width: 390, height: 844 }); await screenshot(page, 'sessions-transfer-mobile');
     requireTrue(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Session page overflows mobile viewport');
@@ -534,7 +557,7 @@ async function browserAcceptance(page, cfg) {
     requireTrue(networkFailures.length===0, 'Failed API network requests: '+JSON.stringify(networkFailures));
     requireTrue(httpFailures.every(value=>expected.has(value)), 'Unexpected HTTP failure: '+JSON.stringify(httpFailures.filter(value=>!expected.has(value))));
     requireTrue(unexpectedConsole.length===0, 'Unexpected browser console or JavaScript errors: '+JSON.stringify(unexpectedConsole));
-    return JSON.stringify({ result: 'LIVE_MANAGEMENT_ACCEPTANCE_OK', decoded_video_metrics: metrics,viewer_role_observations:roleObservations,loading_modal_observations:loadingObservations,ui_pipeline_ready:uiReadiness,ended_permission_notifications:endedNotifications, stopped_viewers:Object.fromEntries(endedStates), stopped_argument_edit:{saved_via_ui:true,restored_via_ui:true,api_ui_agreement:true}, raw_console_errors:errors.length,unexpected_console_errors:unexpectedConsole.length,pending_viewer_api_requests:viewerPending().length,terminal_followup_requests:followups,network_failures:networkFailures,http_failures:httpFailures.map(value=>({...value,classification:expected.get(value)||'unexpected'})),viewer_requests:networkRequests.filter(value=>value.owner!==owners.get(page).id) });
+    return JSON.stringify({ result: 'LIVE_MANAGEMENT_ACCEPTANCE_OK', management_overview_observations:managementOverviewObservations, decoded_video_metrics: metrics,viewer_role_observations:roleObservations,loading_modal_observations:loadingObservations,ui_pipeline_ready:uiReadiness,ended_permission_notifications:endedNotifications, stopped_viewers:Object.fromEntries(endedStates), stopped_argument_edit:{saved_via_ui:true,restored_via_ui:true,api_ui_agreement:true}, raw_console_errors:errors.length,unexpected_console_errors:unexpectedConsole.length,pending_viewer_api_requests:viewerPending().length,terminal_followup_requests:followups,network_failures:networkFailures,http_failures:httpFailures.map(value=>({...value,classification:expected.get(value)||'unexpected'})),viewer_requests:networkRequests.filter(value=>value.owner!==owners.get(page).id) });
   } catch(error) {
     await drainResponses();
     // Preserve actual partial observations even when an assertion fails. Query

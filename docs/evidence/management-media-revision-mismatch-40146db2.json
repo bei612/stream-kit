@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "scope": "Real installed Windows management page and Example, before overview correction; diagnostic observation, not corrected-product acceptance",
+  "control_gateway_source": "40146db2ffa8b15040906cf130be8e89548c48da",
+  "sunshine_source": "47c02726c0161ebdec50911422d62845a9b6e59a",
+  "started_at": "2026-11-10T07:54:22.484Z",
+  "finished_at": "2026-11-10T07:54:42.051Z",
+  "browser": "Real Chrome through playwright-cli; strict existing LAN HTTPS trust",
+  "response_replacement": false,
+  "samples": 61,
+  "sample_interval_ms": 250,
+  "actual_ui_pending_samples": 14,
+  "pending_samples_with_gateway_upstream_active": 10,
+  "actual_ui_streaming_samples": 36,
+  "all_pending_samples_session_minus_observation_revision": 1,
+  "root_cause_evidence": "Page read sessions and signed media acknowledgement via independent polling caches; the newer session revision invalidated the separately cached observation, including samples where the gateway already reported an active upstream",
+  "raw_private_result_sha256": "92b31ffc7fc470c4c870822a39a0f2e257bed04f4fe7a4896aabeb919deaea10",
+  "actual_screenshot_sha256": "176bc66f04a74bdb364b6d11083c570d57576b127de3b71f4a5667e065528b50",
+  "screenshot_reviewed": true,
+  "prior_diagnostic": {
+    "passed": false,
+    "failure": "waitForFunction timed out after 30 seconds; non-normalized double-slash page origin and incorrect timeout argument position retained in private failed fixture",
+    "record_preserved": true,
+    "example_stopped": true
+  },
+  "cleanup": {
+    "browser_closed": true,
+    "example_stopped": true,
+    "ue_launched": false,
+    "todesk_modified": false,
+    "host_network_or_trust_modified": false
+  },
+  "limitations": [
+    "A finite diagnostic timeline does not measure every possible refresh race",
+    "Gateway upstream_active is runtime telemetry, not proof of target-program internal recording",
+    "Corrected source requires its own installed runtime and actual page acceptance"
+  ]
+}

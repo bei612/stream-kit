@@ -62,6 +62,25 @@ export interface MediaControlStatus {
   observations: Record<string, MediaObservation>
 }
 
+export interface StreamSessionOverview {
+  sampled_at_ms: number
+  sessions: RenderSession[]
+  media: MediaControlStatus
+}
+
+export interface TimedStreamSessionOverview extends StreamSessionOverview {
+  request_started_at_ms: number
+  request_started_monotonic_ms: number
+}
+
+// Server leases use the server clock. Conservatively charge the whole request
+// duration against freshness, then age the snapshot even while polling fails.
+// A backwards wall-clock change cannot extend freshness; a forwards jump fails
+// closed. Monotonic time also covers ordinary local clock adjustments.
+export function overviewServerTime(snapshot: TimedStreamSessionOverview, wallNow = Date.now(), monotonicNow = performance.now()): number {
+  return snapshot.sampled_at_ms + Math.max(0, wallNow - snapshot.request_started_at_ms, monotonicNow - snapshot.request_started_monotonic_ms)
+}
+
 export interface TargetDeviceStatus {
   device_open: boolean
   device_sample_frames: number
