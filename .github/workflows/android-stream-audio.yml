@@ -59,6 +59,7 @@ jobs:
       - name: Prepare isolated capture, TLS and official Android dependencies
         run: |
           set -euo pipefail
+          node --test scripts/android/emulator-playout-observation.test.cjs
           # Dependency names come only from the verified published package.
           mapfile -t dependencies < <(dpkg-deb -f artifacts/input-download/runtime.deb Depends | tr ',' '\n' | sed -E 's/^[[:space:]]*([a-z0-9+.-]+).*/\1/')
           for dependency in "${dependencies[@]}"; do [[ "$dependency" =~ ^[a-z0-9][a-z0-9+.-]*$ ]]; done

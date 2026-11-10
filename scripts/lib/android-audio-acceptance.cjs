@@ -254,8 +254,12 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
       const devices=await command('devices');
       assert.ok(devices.devices.some(device=>device.id===androidCaptureDevice&&device.input),'Dedicated Android playout capture endpoint is unavailable');
       const playout=state.android_playout={capture_device_id:androidCaptureDevice,minimum_frames:192000,collection_limit_ms:6500,minimum_997_median_amplitude:0.01,started_at_ms:Date.now(),samples:[]};save();
-      let playoutError,duringRecording;
+      let playoutError,duringRecording,stopRpcObservation;
       try {
+        // Independently observe the emulator's output in the same collection
+        // window. This does not replace or relax the actual PulseAudio gate.
+        try {stopRpcObservation=require('../android/emulator-playout-observation.cjs').observeEmulatorPlayout(client,metadata);}
+        catch {playout.emulator_output_rpc={diagnostic_only:true,failure:'RPC_OBSERVATION_UNAVAILABLE'};save();}
         playout.initial_status=await command('capture',{device_id:androidCaptureDevice});save();
         duringRecording=observeRecordingRoute();void duringRecording.catch(()=>{});
         await until(async()=>{
@@ -267,7 +271,12 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
           return status.captured_frames;
         },frames=>frames>=192000,'dedicated Android playout PCM',6500-(Date.now()-playout.started_at_ms));
       } catch(error){playoutError=error;playout.collection_error=error.message;save();}
-      finally {playout.collection_finished_at_ms=Date.now();playout.status=await command('stop_capture');save();if(duringRecording)await duringRecording;await playbackMetadata('after_recording');}
+      finally {
+        playout.collection_finished_at_ms=Date.now();
+        try {playout.status=await command('stop_capture');}
+        finally {if(stopRpcObservation)playout.emulator_output_rpc=await stopRpcObservation();save();}
+        if(duringRecording)await duringRecording;await playbackMetadata('after_recording');
+      }
       if(playout.status.captured_frames>=4800){
         playout.signal=await command('analyze',{frequency_hz:997});playout.envelope=await command('envelope');save();
       }

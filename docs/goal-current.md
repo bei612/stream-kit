@@ -1,5 +1,7 @@
 # 当前 Goal（2026-11-10）
 
+Linux Android 音频差异排查新增仅用于验收工具的官方 `streamAudio` 输出观察，与现有原生 PulseAudio 采集在同一窗口独立记录有界数值指标；不保存 PCM，不修改 APK、系统音量或输入状态，也不替代或降低原采集门槛。目的仅是区分模拟器导出端与宿主 PulseAudio 路径，不能证明 SDK 写入前已有声音。公开源码的 [EmulatorService::streamAudio](https://android.googlesource.com/platform/external/qemu/+/refs/heads/emu-master-dev/android/android-grpc/services/emulator-controller/server/src/android/emulation/control/EmulatorService.cpp) 与 [AudioStream](https://android.googlesource.com/platform/external/qemu/+/refs/heads/emu-master-dev/android/android-grpc/services/emulator-controller/server/src/android/emulation/control/audio/AudioStream.cpp)说明其输出采集边界，但不作为本次精确模拟器二进制实现相同的证明。历史失败记录保持不变；新观察尚未运行。
+
 目标是交付生产可用的一体化云渲染串流产品：Windows/Linux 服务端、Web/PWA 与官方源码二开的 Android 原生客户端，共用应用、串流会话、连接、控制代次和媒体授权。仅一个管理员，不增加多用户系统、重型监控或无关功能。完整范围与完成条件见下方 Goal 提示词；构建、发布或隔离测试成功不等于产品交付。
 
 正式 Android `.6` 的[本机 Windows 音频链路验收](evidence/android-release-audio-windows-20261110.json)已完成：官方模拟器独立输出的 997 Hz 程序音中位幅值约 0.159，49 个窗口全部通过原门槛；唯一控制者发送的合成 1499 Hz 麦克风到达原生录音端点（平均幅值约 0.312）及真实 CLI Web 观看端（约 -21.74 dB），撤权后分别低于 0.001 和 -65 dB，零采集丢帧。复用已发布 APK，没有改生产源码或加入探针。该次服务端仍为 `98e419f7`、Sunshine 为 `47c02726`；Linux CI 的近静音失败保留，不能因 Windows 通过而改写。Example、路由及模拟器音量已恢复，无活动串流或遗留 ADB 转发。
