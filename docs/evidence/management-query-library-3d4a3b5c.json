@@ -1,0 +1,69 @@
+{
+  "recorded_at": "2026-11-10T11:02:58.607Z",
+  "source_commit": "3d4a3b5c61fea72354318cea637b3428052e5cfc",
+  "source_dirty": false,
+  "isolated_native_UI_passed": true,
+  "installed_deployment_verified": false,
+  "scope": "Isolated native Windows control bundle, real HTTP/API and SQLite, actual playwright-cli desktop/mobile; no installed-service, encoder or media claim",
+  "query_library": "TanStack Query 5.95.2, already locked dependency; no dependency version changes",
+  "test_method": "Actual native bundle, independent SQLite and loopback listener, playwright-cli 0.1.22; no response interception, React substitute, fake API or simulated save",
+  "checks": {
+    "log_pagination": {
+      "total": 33,
+      "first_count": 20,
+      "second_page": 2,
+      "second_count": 13,
+      "server_pagination_used": true
+    },
+    "app_draft": {
+      "saved_and_reloaded": true,
+      "horizontal_overflow": false
+    },
+    "upload_success": {
+      "real_upload_and_id_navigation": true
+    },
+    "watch_retry": {
+      "actual_requests": 2,
+      "iframe_count": 0
+    },
+    "upload_401": {
+      "http": 401,
+      "cleared_token": true,
+      "returned_to_login": true
+    }
+  },
+  "cleanup": {
+    "owned_native_process_stopped": true,
+    "owned_app_registrations_removed": true,
+    "no_media_components_started": true,
+    "main_shared_deployment_changed": false,
+    "ue_or_todesk_changed": false,
+    "test_content_shipped": false
+  },
+  "frontend_sizes": {
+    "javascript_bytes": 435957,
+    "javascript_gzip_kb": 133.19,
+    "prior_91f87d34_gzip_kb": 123.46,
+    "scope": "Gzip values are rounded Vite build display; bytes from immutable manifest"
+  },
+  "screenshots": [
+    {
+      "path": "management-query-library-3d4a3b5c/logs-page-two.png",
+      "sha256": "44fc00851245b55775d688a946f627bafccad3e3a3a2fb622d9a471292e79e8c",
+      "visually_reviewed": true
+    },
+    {
+      "path": "management-query-library-3d4a3b5c/app-mobile.png",
+      "sha256": "a17ee4f58b42ad65087e5d480dba88d8d73c6bdca08a96d2dafc3f12ab4a5160",
+      "visually_reviewed": true
+    }
+  ],
+  "primary_result_sha256": "2241e4ccdf83172dbe54f091dfcd08cd438608f0fb6731a202e7ca1f2b2f30a7",
+  "bundle_manifest_sha256": "9e7ab88dc737045eafb387d3100e26ab3e0e7abc6a893e112aebbce93d4b5211",
+  "limitations": [
+    "This is not installed LAN service, unified installer, media, physical Android, host address-change or whole-machine boot acceptance.",
+    "Expected unconfigured encoder-capability 503 and invalid watch-entry 401 responses remain; no zero-console-error claim.",
+    "Only the 207-byte unauthorized archive exercises XHR 401 here; the earlier isolated HTTP large-body connection-reset observation remains unchanged.",
+    "Original 91f87d34 product run was deliberately cancelled and its pending local stage withdrawn; this record belongs only to the new frozen source."
+  ]
+}
