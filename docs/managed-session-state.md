@@ -16,6 +16,8 @@
 
 `GET /stream-sessions` 和 `GET /media-control` 保留兼容，但管理页不再拼接两份独立缓存。远端音频路由仍按原有精确版本匹配失败关闭；本次没有凭页面问题改变媒体路由或授权语义。
 
+Android `.6` 发布源码 `df7cd87b` 的 `ManagedSession.connectionFailure` 已同时处理 `CONNECTION_LEASE_EXPIRED`、旧版 `CONNECTION_EXPIRED` 与明确的 `CONNECTION_TERMINATED`：可恢复租约尝试恢复同一连接，明确终止结束该连接。已对照发布提交复核，并非只查看当前工作区。服务端从旧 `98e419f7` 到当前版本的状态码区分与该逻辑兼容；这是调用链源码复核，不替代 Android 原有生命周期运行证据，也不是新的 Android 媒体或音频验收。
+
 ## 现场发现与验收边界
 
 2026-11-10 在真实 Windows 安装版本 `40146db2` 上使用 playwright-cli、真实 LAN HTTPS 和独立 Example 复现：61 次采样中 14 次显示待确认，其中 10 次对应的网关回执已报告上游运行。待确认采样的会话版本均比回执新一版；独立会话与媒体轮询使两份缓存错配。截图也记录了正常同步的状态，不能将偶发正常截图当作整段状态正确。
