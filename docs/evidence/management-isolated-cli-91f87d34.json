@@ -1,0 +1,99 @@
+{
+  "recorded_at": "2026-11-10T10:34:25.401Z",
+  "source_commit": "91f87d34143f064867407f9ffdf2c65ab1b32643",
+  "source_dirty": false,
+  "bundle_manifest_sha256": "a0eaa386d693e278f32b0d54088f42da3df3a588931bff5de29a60a49783bc6d",
+  "targeted_ui_cases_passed": true,
+  "first_full_run_passed": false,
+  "installed_deployment_verified": false,
+  "scope": "Real native 91f87d34 bundle on isolated Windows loopback HTTP, real SQLite and actual playwright-cli; no mocked responses. Media components remain unconfigured and stopped. This is not the installed 9000 LAN service or a unified installer test.",
+  "checks": {
+    "log_pagination": {
+      "total": 33,
+      "first_count": 20,
+      "second_page": 2,
+      "second_count": 13,
+      "server_pagination_used": true
+    },
+    "app_draft": {
+      "saved_and_reloaded": true,
+      "horizontal_overflow": false
+    },
+    "upload_success": {
+      "real_upload_and_id_navigation": true
+    },
+    "watch_retry": {
+      "actual_requests": 2,
+      "iframe_count": 0
+    },
+    "upload_401": {
+      "passed": true,
+      "scope": "Focused small-body XHR 401 boundary on actual isolated native 91f87d34; preserve the separate large-body HTTP connection-reset failure",
+      "archive_bytes": 207,
+      "http": 401,
+      "cleared_token": true,
+      "returned_to_login": true,
+      "no_app_registered": true,
+      "owned_native_process_stopped": true
+    }
+  },
+  "source_ci": {
+    "url": "https://github.com/bei612/stream-kit/actions/runs/42795458858",
+    "conclusion": "success",
+    "job_count": 6,
+    "management_web": "success",
+    "standalone_linux": "https://github.com/bei612/stream-kit/actions/runs/42795458549"
+  },
+  "retained_failures": [
+    {
+      "scope": "First fixture did not include the required confirm=true on the delete URL",
+      "error": "Native API /apps/062a99a0-46ae-464c-9d7f-83e4dc7d2e70 HTTP 400\n\n400 !== 200\n",
+      "product_mutation_workaround": false,
+      "corrected": "Fixture now uses the same existing explicit confirmation contract as the production API client"
+    },
+    {
+      "scope": "Initial expired-upload case used the 3059842-byte archive against isolated HTTP",
+      "error": "CLI process failed\n\n1 !== 0\n",
+      "browser_error": "net::ERR_CONNECTION_RESET at /api/v1/apps/upload; no HTTP response event was delivered; the subsequent real upload-status poll got 401",
+      "cause": "Not isolated. Native HTTP early rejection of an unread large body is a possible transport explanation, not established production HTTPS behavior.",
+      "followup": "A separate 207-byte actual archive reached the intended HTTP 401/XHR branch and cleared login; the original failure remains. No production server/client workaround was introduced."
+    }
+  ],
+  "cleanup": {
+    "main_process_stopped": true,
+    "focused_process_stopped": true,
+    "no_apps_remaining": true,
+    "external_binary_preserved": true,
+    "main_shared_deployment_changed": false,
+    "ue_or_todesk_changed": false,
+    "test_archive_shipped": false
+  },
+  "screenshots": [
+    {
+      "path": "management-isolated-cli-91f87d34/logs-page-two.png",
+      "sha256": "b898346f2f52c3a033187a0b5641aa0006869a4f0ab8bfca494aafe8aea386be",
+      "visually_reviewed": true
+    },
+    {
+      "path": "management-isolated-cli-91f87d34/app-mobile.png",
+      "sha256": "a17ee4f58b42ad65087e5d480dba88d8d73c6bdca08a96d2dafc3f12ab4a5160",
+      "visually_reviewed": true
+    },
+    {
+      "path": "management-isolated-cli-91f87d34/expired-upload-login.png",
+      "sha256": "53f4e382f2ecb263308d90df04ba2b8074642bc7f7eb3a355aa5129604991346",
+      "visually_reviewed": true
+    }
+  ],
+  "limitations": [
+    "No installed 91f87d34 LAN deployment acceptance yet; Windows UAC remains pending.",
+    "No successful large-body expired-upload response claim and no extrapolation of isolated HTTP behavior to production HTTPS.",
+    "Unconfigured encoder 503 responses and invalid watch-key 401 responses are expected in this isolated fixture; no zero-console-error claim.",
+    "This receipt does not replace media or whole-goal acceptance."
+  ],
+  "private_result_hashes": {
+    "initial": "1d0dc167df644bab40f4e395d671875c6e9ff93233504bda8031287ceeb527ef",
+    "main": "d62656a41e98d19d1908522e1853f741fd8deb56ed38c840e3d7e76adfc7b7d2",
+    "focused": "e8ea47393cb6d826c02b93daf46c14a2bb2cbbf51c7ce68136a6642d943edf9b"
+  }
+}
