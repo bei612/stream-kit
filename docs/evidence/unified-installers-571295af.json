@@ -1,0 +1,203 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-10",
+  "source_commit": "571295af7c106ca5080b7a7510ffe62715b90de6",
+  "product_run": "https://github.com/bei612/stream-kit/actions/runs/42779935015",
+  "product_run_conclusion": "success",
+  "source_ci": {
+    "run": "https://github.com/bei612/stream-kit/actions/runs/42779693912",
+    "commit": "571295af7c106ca5080b7a7510ffe62715b90de6",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "id": 129706463277,
+        "name": "Moonlight Web (windows-latest)",
+        "conclusion": "success"
+      },
+      {
+        "id": 129706463496,
+        "name": "Moonlight Web (ubuntu-latest)",
+        "conclusion": "success"
+      },
+      {
+        "id": 129706463508,
+        "name": "Orchestrator (windows-latest)",
+        "conclusion": "success"
+      },
+      {
+        "id": 129706463571,
+        "name": "Source SBOM",
+        "conclusion": "success"
+      },
+      {
+        "id": 129706463608,
+        "name": "Orchestrator (ubuntu-latest)",
+        "conclusion": "success"
+      },
+      {
+        "id": 129706463662,
+        "name": "Management Web",
+        "conclusion": "success"
+      }
+    ]
+  },
+  "windows_acceptance_run": "https://github.com/bei612/stream-kit/actions/runs/42784612979",
+  "windows_acceptance_conclusion": "success",
+  "acceptance_workflow_commit": "e7ba0ce4bf6f1cbc7dc788377dbc63b1fc8cf26c",
+  "windows": {
+    "passed": true,
+    "environment": "Isolated GitHub-hosted Windows Server 2022 with installed original unified runtime",
+    "installer": {
+      "name": "stream-kit-preview-571295af7c10-windows-amd64-setup.exe",
+      "bytes": 97596916,
+      "sha256": "7f5f1c8fe4de6e8eae27a4e78ccd760657192580f1b306788d42795a4f1fd117"
+    },
+    "installer_source_commit": "571295af7c106ca5080b7a7510ffe62715b90de6",
+    "reused_payload": false,
+    "kernel_audio_driver_signature_verified": true,
+    "acceptance_result_sha256": "170c2fac541b1ac7ba4aeb77b0cf09d9cfbb68fff335a059b85091c1a58d3e73",
+    "install_exit": 0,
+    "administrator_login": true,
+    "service_after_install": {
+      "Name": "StreamKitOrchestrator",
+      "State": "Running",
+      "StartMode": "Auto",
+      "StartName": "LocalSystem",
+      "ProcessId": 1720,
+      "PathName": "\"C:\\Program Files\\StreamKit-Audio-Acceptance-571295af-bedab2\\orchestrator\\orchestrator.exe\" --config C:\\ProgramData\\StreamKit-Audio-Acceptance-571295af-bedab2\\orchestrator.json"
+    },
+    "service_after_restart": {
+      "Name": "StreamKitOrchestrator",
+      "State": "Running",
+      "StartMode": "Auto",
+      "StartName": "LocalSystem",
+      "ProcessId": 7872,
+      "PathName": "\"C:\\Program Files\\StreamKit-Audio-Acceptance-571295af-bedab2\\orchestrator\\orchestrator.exe\" --config C:\\ProgramData\\StreamKit-Audio-Acceptance-571295af-bedab2\\orchestrator.json"
+    },
+    "gateway_restarted": true,
+    "gateway_stop_exit": 0,
+    "scm_restarted": true,
+    "whole_system_reboot_tested": false,
+    "audio": {
+      "passed": true,
+      "captured_frames": 144000,
+      "tone_amplitude": 0.09817148408715153,
+      "tone": {
+        "captured_frames": 144000,
+        "tone_amplitude": 0.09817148408715153,
+        "rms": 0.0700544095464206,
+        "peak": 0.10003662109375,
+        "quiet": false
+      },
+      "first_error_after_frames": null,
+      "submitted_packets": 150,
+      "target": {
+        "device_open": true,
+        "device_sample_frames": 221856,
+        "dropped_frames": 0,
+        "xruns": 0,
+        "realtime_denied": false,
+        "error": null
+      },
+      "baseline": {
+        "captured_frames": 24000,
+        "tone_amplitude": 8.772706585683166e-8,
+        "rms": 0.000020666131971797438,
+        "peak": 0.00006103515625,
+        "quiet": true
+      },
+      "after_clear": {
+        "captured_frames": 24000,
+        "tone_amplitude": 1.2137949093373441e-7,
+        "rms": 0.00002070177781622203,
+        "peak": 0.00006103515625,
+        "quiet": true
+      },
+      "drain_before_silence_ms": 300,
+      "closed_after_drop": true
+    },
+    "default_devices": {
+      "before": {
+        "communication_render": "",
+        "communication_capture": "",
+        "render": "",
+        "capture": ""
+      },
+      "during": {
+        "communication_render": "",
+        "communication_capture": "\\\\?\\SWD#MMDEVAPI#{0.0.1.00000000}.{e5c8484c-cee5-4054-a714-306e9d012eab}#{2eef81be-33fa-4800-9670-1cd474972c3f}",
+        "render": "",
+        "capture": "\\\\?\\SWD#MMDEVAPI#{0.0.1.00000000}.{e5c8484c-cee5-4054-a714-306e9d012eab}#{2eef81be-33fa-4800-9670-1cd474972c3f}"
+      },
+      "after": {
+        "communication_render": "",
+        "communication_capture": "",
+        "render": "",
+        "capture": ""
+      },
+      "preserved": true,
+      "baseline_scope": "All four baseline default endpoints empty; not proof of preserving an existing non-empty default-device setup"
+    },
+    "uninstall_exit": 0,
+    "service_removed": true,
+    "configuration_retained_after_uninstall": true,
+    "configuration_retention_assertion": "Acceptance checks that orchestrator.json still exists after uninstall",
+    "application_database_retention_separately_tested": false,
+    "finished_at": "2026-11-10T08:43:44.535Z"
+  },
+  "linux": {
+    "installer": {
+      "file": "stream-kit-preview-571295af7c10-ubuntu24.04-amd64-setup.run",
+      "bytes": 62443235,
+      "sha256": "b2dcfa508abd27c07a3ea69b05ed145a1d5036978b0ee1294c20c5342d074806"
+    },
+    "payload_sha256": "ed746979a90ddb921c13e047c9b6a89b77d278d794ac0c8ac50c6ba889878ef3",
+    "acceptance_log_sha256": "e2554392c06ac1f615853ef7b9ef069b82fd5a33d4384f9bf2c81b17852c72d7",
+    "scope": "Native package extraction, three-component initialization, configuration validation, offline user-service enablement and refusal to overwrite an existing data directory; this initialization does not start media",
+    "embedded_payload_sha256_independently_verified": true
+  },
+  "sbom": {
+    "name": "stream-kit-sbom.spdx.json",
+    "bytes": 7575028,
+    "sha256": "838c5b76b5075389f519db608b9d19b1c55bcf5a3c0ce70f0cc37ffcf0ea590d",
+    "format": "SPDX-2.3",
+    "packages": 3186
+  },
+  "local_downloads_verified": true,
+  "published": false,
+  "publication": {
+    "state": "verified_original_artifacts_ready_for_tag_and_promotion",
+    "tag": "v0.1.0-preview.20261110.4",
+    "source_commit": "571295af7c106ca5080b7a7510ffe62715b90de6"
+  },
+  "management_runtime_acceptance": {
+    "local_windows": "docs/evidence/management-overview-local-windows-571295af.json",
+    "linux": "docs/evidence/management-overview-linux-571295af.json",
+    "linux_run": "https://github.com/bei612/stream-kit/actions/runs/42781654748",
+    "scope": "Actual original Linux product runtime; local Windows control-only maintenance explicitly retains gateway 40146db2 and renderer 47c02726"
+  },
+  "primary_evidence": [
+    {
+      "path": ".local/ci-product-installers-571295af/windows/installer-manifest.json",
+      "sha256": "d37e674322e109e96ae46a230f00668693404f71d0df72720c6c6cd520f89a3e"
+    },
+    {
+      "path": ".local/ci-product-installers-571295af/linux/installer/installer-manifest.json",
+      "sha256": "07fdcd5fc5eb8e0879ccef9c5ad1da893ae30e5d369d24436519939ddaf7f4ac"
+    },
+    {
+      "path": ".local/ci-installer-acceptance-571295af/installer-acceptance/result.json",
+      "sha256": "170c2fac541b1ac7ba4aeb77b0cf09d9cfbb68fff335a059b85091c1a58d3e73"
+    },
+    {
+      "path": ".local/ci-product-installers-571295af/sbom/stream-kit-sbom.spdx.json",
+      "sha256": "838c5b76b5075389f519db608b9d19b1c55bcf5a3c0ce70f0cc37ffcf0ea590d"
+    }
+  ],
+  "limits": [
+    "SCM and gateway restarts do not establish a whole-machine boot or actual shared-host primary address-change result.",
+    "This is a clean isolated installation/uninstallation, not a generic in-place upgrade claim.",
+    "Windows empty default-device baseline and retained configuration file existence are not broader non-empty device or complete application/database retention proofs.",
+    "No new Android, physical microphone, UE-internal recording, phone hardware or stability acceptance claim."
+  ]
+}
