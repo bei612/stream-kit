@@ -15,7 +15,6 @@ const componentNames: Record<string, string> = {
   web_server: '串流网关',
 }
 type ComponentCommand = 'start' | 'stop' | 'restart'
-type ComponentView = { name: string; status: string; pid: number; started_at?: string; crash_count: number; last_error?: string }
 function componentDisplayName(name: string) {
   return componentNames[name] || name
 }
@@ -30,7 +29,7 @@ export default function Components() {
   const command = useResourceCommand<ComponentCommand>(refresh)
   const [logErrors, setLogErrors] = useState<Record<string, string>>({})
 
-  const components = (data ?? []) as ComponentView[]
+  const components = data ?? []
 
   const loadLogs = async (name: string) => {
     setLogErrors(previous => ({ ...previous, [name]: '' }))

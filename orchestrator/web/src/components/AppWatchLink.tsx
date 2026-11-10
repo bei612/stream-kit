@@ -26,9 +26,10 @@ function responsePath(result: Awaited<ReturnType<typeof api.watchLink>>): string
 function AppWatchLinkContent({ appId }: { appId: string }) {
   const [view, setView] = useState<LinkView>({ phase: 'loading', path: '', error: '', copied: false })
   const revision = useRef(0)
+  const nextRevision = useCallback(() => ++revision.current, [])
   const inFlight = useRef(true)
   const load = useCallback(async () => {
-    const request = ++revision.current
+    const request = nextRevision()
     inFlight.current = true
     setView({ phase: 'loading', path: '', error: '', copied: false })
     try {
@@ -39,16 +40,16 @@ function AppWatchLinkContent({ appId }: { appId: string }) {
     } finally {
       if (request === revision.current) inFlight.current = false
     }
-  }, [appId])
+  }, [appId, nextRevision])
   useEffect(() => {
     void load()
-    return () => { revision.current++; inFlight.current = true }
-  }, [load])
+    return () => { nextRevision(); inFlight.current = true }
+  }, [load, nextRevision])
   const change = async (method: string) => {
     if (inFlight.current || view.phase !== 'ready') return
     if (method === 'PUT' && !confirm('重置后旧观看链接立即失去加入权限，已连接的设备不会被踢出。是否重置？')) return
     if (method === 'DELETE' && !confirm('关闭固定链接后，不能再通过它进入应用。已连接的设备不会被踢出。是否关闭？')) return
-    const request = ++revision.current
+    const request = nextRevision()
     inFlight.current = true
     setView(current => ({ ...current, phase: 'changing', error: '', copied: false }))
     try {

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState, useRef } from 'react'
+import { useCallback, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router'
 import { useAppCommand, type AppCommand } from '@/hooks/useAppCommand'
 import { useQuery } from '@/hooks/useQuery'
+import { useConfigurationDraft } from '@/hooks/useConfigurationDraft'
 import { api } from '@/api/client'
 import { openViewingStream } from '@/lib/stream-access'
 import AppWatchLink from '@/components/AppWatchLink'
@@ -21,14 +22,16 @@ export default function AppDetail() {
 
 function AppDetailContent({id}: {id: string | undefined}) {
   const navigate = useNavigate()
-  const {data:app, error:loadError, refresh} = useQuery<any>({
+  const {data:app, error:loadError, refresh} = useQuery({
     queryFn: useCallback(() => api.getApp(id!), [id]), enabled: !!id, pollInterval: 5000,
     wsInvalidateEvents: ['app_status', 'stream_session_state_changed', 'stream_session_created'],
   })
-  const [args, setArgs] = useState('')
-  const [captureMode,setCaptureMode]=useState<CaptureMode>('desktop')
-  const [argsDirty, setArgsDirty] = useState(false)
-  const argsDirtyRef = useRef(false)
+  const settingsDraft = useConfigurationDraft<{args: string; captureMode: CaptureMode}>(
+    { args: argsToLines(app?.args ?? ''), captureMode: app?.capture_mode ?? 'desktop' },
+    (a, b) => a.args === b.args && a.captureMode === b.captureMode,
+  )
+  const {args, captureMode} = settingsDraft.value
+  const argsDirty = settingsDraft.dirty
   const command = useAppCommand(refresh)
   const pending = id ? command.pending[id] : undefined
   const saving = pending === 'save'
@@ -36,40 +39,26 @@ function AppDetailContent({id}: {id: string | undefined}) {
   const launching = pending === 'launch'
   const stopping = pending === 'stop'
   const [saveNotice, setSaveNotice] = useState<{kind:'error'|'success';message:string}|null>(null)
-  const [candidateError, setCandidateError] = useState('')
-  const [candidates, setCandidates] = useState<any[]>([])
-
-  useEffect(() => {
-    if (app && !argsDirtyRef.current) {
-      setArgs(argsToLines(app.args || ''))
-      setCaptureMode(app.capture_mode || 'desktop')
-    }
-  }, [app])
-  useEffect(() => {
-    let active = true
-    setCandidates([])
-    setCandidateError('')
-    if (id && app?.status === 'detecting') api.getAppCandidates(id).then(res => {
-      if (active) setCandidates(res.data || [])
-    }).catch(e => { if (active) setCandidateError(e.message || '读取程序入口失败') })
-    return () => { active = false }
-  }, [id, app])
+  const candidatesQuery = useQuery({ queryFn: useCallback(() => api.getAppCandidates(id!), [id]), enabled: !!id && app?.status === 'detecting', pollInterval: 5000 })
+  const candidates = candidatesQuery.data ?? []
+  const candidateError = app?.status === 'detecting' ? candidatesQuery.error : ''
 
   const execute = (kind: AppCommand, task: () => Promise<void>) => {
     if (!id || loadError) return
     return command.run(id, kind, async () => { setSaveNotice(null); await task() })
   }
-  const handleSave = () => execute('save', async () => {
-    await api.updateApp(id!, {args:linesToArgs(args), capture_mode:captureMode})
-    argsDirtyRef.current = false
-    setArgsDirty(false)
-    setSaveNotice({kind:'success',message:'配置已保存，下次启动应用时生效。'})
-  })
+  const handleSave = async () => {
+    const confirmed = await execute('save', async () => { await api.updateApp(id!, {args:linesToArgs(args), capture_mode:captureMode}) })
+    if (confirmed) {
+      settingsDraft.reset()
+      setSaveNotice({kind:'success',message:'配置已保存，下次启动应用时生效。'})
+    }
+  }
   const handleDelete = () => {
     if (!app || !confirm(app.source === 'local' ? `移除 "${app.name}" 的平台注册？原程序及工作目录会保留。` : `确定删除应用 "${app.name}" 及上传文件？`)) return
     return execute('delete', async () => { await api.deleteApp(id!); navigate('/apps') })
   }
-  const handleSelectExe = (exePath: string) => execute('select', async () => { await api.selectExe(id!, exePath); setCandidates([]) })
+  const handleSelectExe = (exePath: string) => execute('select', async () => { await api.selectExe(id!, exePath) })
   const handleRetryRegister = () => execute('register', async () => { await api.retryRegister(id!) })
   const handleLaunch = () => execute('launch', async () => {
     await openViewingStream(async () => (await api.launchApp(id!)).data?.stream_url)
@@ -145,7 +134,7 @@ function AppDetailContent({id}: {id: string | undefined}) {
         <Alert variant="warning">
           <p className="font-medium mb-2">检测到多个可执行文件，请选择入口：</p>
           <div className="space-y-2">
-            {candidates.map((c: any) => (
+            {candidates.map(c => (
               <Button
                 key={c.relative_path}
                 variant="outline"
@@ -175,7 +164,7 @@ function AppDetailContent({id}: {id: string | undefined}) {
         <summary className="cursor-pointer text-sm font-medium">采集与启动配置 <span className="ml-2 text-xs font-normal text-muted-foreground">{settingsEditable ? '下次启动应用生效' : '停止串流后可修改'}</span></summary>
         <div className="mt-4 space-y-3">
           {!settingsEditable && <Alert variant="info" role="status">{app.status==='running'?'请先停止串流，再修改采集范围和启动参数。':'应用正在处理，请等待处理完成后修改配置。'}</Alert>}
-          <CaptureModeField value={captureMode} disabled={settingsDisabled} onChange={mode=>{setCaptureMode(mode);setArgsDirty(true);argsDirtyRef.current=true;setSaveNotice(null)}} />
+          <CaptureModeField value={captureMode} disabled={settingsDisabled} onChange={mode=>{settingsDraft.edit({...settingsDraft.value,captureMode:mode});setSaveNotice(null)}} />
           <label htmlFor="application-args" className="block text-sm font-medium">启动参数</label>
           <p id="application-args-help" className="text-xs text-muted-foreground">每行一个参数，含空格的路径请用引号包裹</p>
           <Textarea
@@ -183,7 +172,7 @@ function AppDetailContent({id}: {id: string | undefined}) {
             aria-describedby="application-args-help"
             disabled={settingsDisabled}
             value={args}
-            onChange={e => { setArgs(e.target.value); setArgsDirty(true); argsDirtyRef.current = true; setSaveNotice(null) }}
+            onChange={e => { settingsDraft.edit({...settingsDraft.value,args:e.target.value});setSaveNotice(null) }}
             rows={5}
             placeholder={"无启动参数"}
             className="font-mono"
@@ -195,7 +184,7 @@ function AppDetailContent({id}: {id: string | undefined}) {
             size="sm"
           >
             <Save className="w-3 h-3" /> {saving ? '保存中...' : '保存'}
-          </Button>{argsDirty && <span className="text-xs text-muted-foreground">正在编辑 · 尚未确认应用</span>}</div>
+          </Button>{argsDirty && <><Button variant="outline" size="sm" disabled={!!pending} onClick={settingsDraft.reset}>载入服务器配置</Button><span className="text-xs text-muted-foreground">正在编辑 · 尚未确认应用</span></>}</div>
         </div>
       </details>
 

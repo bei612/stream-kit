@@ -26,8 +26,8 @@ export default function Login() {
       setToken(data.token)
       useWSStore.getState().connect()
       navigate('/', { replace: true })
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '登录失败')
     }
     setLoading(false)
   }

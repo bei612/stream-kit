@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useConfigurationDraft } from '@/hooks/useConfigurationDraft'
 import { api } from '@/api/client'
 import type { AudioDevice } from '@/api/audio-devices'
@@ -15,6 +15,7 @@ export function AudioTargetSettings({ session, busy, action }: {
   const [devices, setDevices] = useState<AudioDevice[] | null>(null)
   const [nodes, setNodes] = useState<{id:string;name:string}[]>([])
   const generation = useRef(0)
+  const nextGeneration = useCallback(() => ++generation.current, [])
   useEffect(() => {
     let active = true
     void api.getRenderNodes().then(result => {
@@ -22,14 +23,14 @@ export function AudioTargetSettings({ session, busy, action }: {
     }).catch(error => {
       if (active) setError(error instanceof Error ? error.message : '无法读取渲染节点配置')
     })
-    return () => { active = false; generation.current++ }
-  }, [])
+    return () => { active = false; nextGeneration() }
+  }, [nextGeneration])
   const [reading, setReading] = useState(false)
   const [error, setError] = useState('')
-  useEffect(()=>{generation.current++;setDevices(null);setReading(false)},[draft.mode,draft.node_id])
+  useEffect(()=>{nextGeneration();setDevices(null);setReading(false)},[draft.mode,draft.node_id,nextGeneration])
   const edit = (values: Partial<AudioTarget>) => targetDraft.edit({ ...draft, ...values })
   async function readDevices() {
-    const current=++generation.current
+    const current=nextGeneration()
     setReading(true); setError(''); setDevices(null)
     try { const inventory=draft.mode==='remote' ? (await api.getNodeAudioDevices(draft.node_id || '')).data?.inventory : (await api.getAudioDevices()).data; if(current===generation.current) setDevices(inventory?.devices ?? []) }
     catch (error) { if (current === generation.current) setError(error instanceof Error ? error.message : '无法读取音频设备') }
@@ -58,7 +59,7 @@ export function AudioTargetSettings({ session, busy, action }: {
       <label className="block max-w-sm space-y-1 text-sm"><span>发送方式</span>
         <select aria-label="发送方式" className="w-full rounded-md border border-border bg-background p-2" value={draft.mode} onChange={e => {
           const mode = e.target.value as AudioTarget['mode']
-          generation.current++;setDevices(null);setReading(false);setError('')
+          nextGeneration();setDevices(null);setReading(false);setError('')
           edit({mode,node_id:mode==='remote' ? (nodes[0]?.id || '') : undefined,render_device_id:'',capture_device_id:''})
         }}>
           <option value="upstream">上游原生麦克风通道</option>
@@ -70,7 +71,7 @@ export function AudioTargetSettings({ session, busy, action }: {
       {draft.mode === 'remote' && <label className="block max-w-sm space-y-1 text-sm">
         <span>目标渲染节点</span>
         <select aria-label="目标渲染节点" required className="w-full rounded-md border border-border bg-background p-2" value={draft.node_id || ''} onChange={e => {
-          generation.current++; setDevices(null); setReading(false); setError('')
+          nextGeneration(); setDevices(null); setReading(false); setError('')
           edit({node_id:e.target.value, render_device_id:'', capture_device_id:''})
         }}>
           <option value="">请选择已配置节点</option>

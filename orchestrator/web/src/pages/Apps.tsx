@@ -19,7 +19,7 @@ export default function Apps() {
     wsInvalidateEvents: ['app_status', 'stream_session_state_changed', 'stream_session_created'],
   })
 
-  const apps = (data ?? []) as any[]
+  const apps = data ?? []
 
   const command = useAppCommand(refresh)
   const handleLaunch = (id: string) => command.run(id, 'launch', async () => {
@@ -47,7 +47,7 @@ export default function Apps() {
           </div>
         ) : (
           <div className="grid gap-4 xl:grid-cols-2">
-            {apps.map((app: any) => {
+            {apps.map(app => {
               const pending = command.pending[app.id]
               return <Card key={app.id} className="flex min-w-0 flex-col gap-5">
                 <div className="flex items-start justify-between gap-3">

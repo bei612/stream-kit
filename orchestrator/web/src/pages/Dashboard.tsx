@@ -29,13 +29,15 @@ export default function Dashboard() {
     wsInvalidateEvents: ['app_status'],
   })
 
-  const appList = apps.data ?? []
-  const appStats = useMemo(() => ({
+  const appStats = useMemo(() => {
+    const appList = apps.data ?? []
+    return {
     total: appList.length,
-    running: appList.filter((a: any) => a.status === 'running').length,
-    ready: appList.filter((a: any) => a.status === 'ready').length,
-    error: appList.filter((a: any) => ['error', 'crashed', 'register_failed'].includes(a.status)).length,
-  }), [appList])
+    running: appList.filter(a => a.status === 'running').length,
+    ready: appList.filter(a => a.status === 'ready').length,
+    error: appList.filter(a => ['error', 'crashed', 'register_failed'].includes(a.status)).length,
+    }
+  }, [apps.data])
 
   const components = comps.data ?? []
 
@@ -46,7 +48,7 @@ export default function Dashboard() {
 
         {/* Component status cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {(components as any[]).map((c: any) => (
+          {components.map(c => (
             <Card key={c.name}>
               <div className="flex items-center justify-between mb-2">
                 <span className="font-medium text-card-foreground">{componentDisplayName(c.name)}</span>
@@ -91,7 +93,7 @@ export default function Dashboard() {
 
         {health.data && (
           <div className="text-xs text-muted-foreground">
-            版本: {(health.data as any).version} ({(health.data as any).commit})
+            版本: {health.data.version} ({health.data.commit})
           </div>
         )}
       </div>

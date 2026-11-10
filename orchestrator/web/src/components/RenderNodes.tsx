@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/api/client'
 import type { AudioInventory } from '@/api/audio-devices'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,13 +13,14 @@ export function RenderNodes(){
   const [error,setError]=useState('')
   const [busy,setBusy]=useState(false)
   const generation=useRef(0)
-  useEffect(()=>{const current=++generation.current;api.getRenderNodes().then(result=>{
+  const nextGeneration=useCallback(()=>++generation.current,[])
+  useEffect(()=>{const current=nextGeneration();api.getRenderNodes().then(result=>{
     if(current!==generation.current)return
     setNodes(result.data?.nodes||[]);setSelected(result.data?.nodes[0]?.id||'')
-  }).catch(error=>{if(current===generation.current)setError(error instanceof Error?error.message:'无法读取节点')});return()=>{generation.current++}},[])
+  }).catch(error=>{if(current===generation.current)setError(error instanceof Error?error.message:'无法读取节点')});return()=>{nextGeneration()}},[nextGeneration])
   async function inspect(){
     if(!selected||busy)return
-    const current=++generation.current,id=selected
+    const current=nextGeneration(),id=selected
     setBusy(true);setError('');setInventory(null)
     try{const result=await api.getNodeAudioDevices(id);if(current!==generation.current)return
       if(result.data?.node_id!==id)throw new Error('节点设备响应不匹配')
@@ -32,7 +33,7 @@ export function RenderNodes(){
       {error&&<Alert variant="error" role="alert">{error}</Alert>}
       {!nodes.length?<p className="text-sm text-muted-foreground">尚无已生效节点，请先配置节点连接。</p>:<>
         <Label htmlFor="render-node-selection">节点</Label>
-        <Select id="render-node-selection" value={selected} disabled={busy} onChange={event=>{generation.current++;setSelected(event.target.value);setInventory(null);setError('')}}>
+        <Select id="render-node-selection" value={selected} disabled={busy} onChange={event=>{nextGeneration();setSelected(event.target.value);setInventory(null);setError('')}}>
           {nodes.map(node=><option key={node.id} value={node.id}>{node.name} · {node.id}</option>)}
         </Select>
         <p className="break-all text-xs text-muted-foreground">{nodes.find(node=>node.id===selected)?.base_url}</p>

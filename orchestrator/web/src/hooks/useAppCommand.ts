@@ -5,7 +5,7 @@ export type AppCommand = 'save' | 'launch' | 'stop' | 'delete' | 'select' | 'reg
 // One in-flight command per resource, including the confirming refresh.
 // The ref closes the same-frame double-click gap before React renders disabled
 // buttons. Invoking the task synchronously preserves browser launch gestures.
-export function useResourceCommand<Command extends string>(refresh: () => Promise<void>) {
+export function useResourceCommand<Command extends string>(refresh: () => Promise<boolean | void>) {
   const active = useRef(new Map<string, Command>())
   const [pending, setPending] = useState<Record<string, Command>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -29,7 +29,9 @@ export function useResourceCommand<Command extends string>(refresh: () => Promis
       } catch (cause) {
         report(cause instanceof Error ? cause.message : '操作失败，请重试。')
       } finally {
-        try { await refresh() }
+        try {
+          if (await refresh() === false) report([failure, '操作后状态未确认，请刷新后核对。'].filter(Boolean).join('；'))
+        }
         catch (cause) { report([failure, '操作后状态未确认：' + (cause instanceof Error ? cause.message : '刷新失败，请重试。')].filter(Boolean).join('；')) }
         finally {
           active.current.delete(id)
@@ -41,6 +43,6 @@ export function useResourceCommand<Command extends string>(refresh: () => Promis
   }
 }
 
-export function useAppCommand(refresh: () => Promise<void>) {
+export function useAppCommand(refresh: () => Promise<boolean | void>) {
   return useResourceCommand<AppCommand>(refresh)
 }

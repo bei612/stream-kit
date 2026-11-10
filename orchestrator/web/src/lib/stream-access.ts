@@ -1,6 +1,6 @@
 import { api } from '@/api/client'
 
-export async function openViewingStream(loadStreamPath: () => Promise<string>): Promise<void> {
+export async function openViewingStream(loadStreamPath: () => Promise<string | undefined>): Promise<void> {
   // Reserve the tab during the user gesture, before network calls consume the
   // browser's transient activation (especially on mobile browsers).
   const tab = window.open('about:blank', '_blank')

@@ -57,8 +57,9 @@ export default function UploadPage() {
     if (source==='local') {
       try {
         const result=await api.registerLocalApp({name,exe_path:exePath,working_dir:workingDir,args:argsMode==='custom'?linesToArgs(customArgsText):'',args_template:argsMode!=='none'&&argsMode!=='custom'?argsMode:'',capture_mode:captureMode})
-        navigate(`/apps/${result.data?.id}`)
-      } catch (err:any) { setError(err.message) } finally { setUploading(false) }
+        if (!result.data?.id) throw new Error('服务器未返回已登记的应用')
+        navigate(`/apps/${result.data.id}`)
+      } catch (err:unknown) { setError(err instanceof Error ? err.message : '登记应用失败') } finally { setUploading(false) }
       return
     }
 
@@ -78,13 +79,12 @@ export default function UploadPage() {
       const { promise, abort } = api.uploadApp(fd, setProgress)
       abortRef.current = abort
       const res = await promise
+      if (!res.data?.app_id) throw new Error('服务器未返回已上传的应用')
       setProgress(100)
       setUploading(false)
-      setTimeout(() => {
-        navigate(`/apps/${(res as any).data?.app_id || ''}`)
-      }, 1000)
-    } catch (err: any) {
-      setError(err.message)
+      navigate(`/apps/${res.data.app_id}`)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '上传应用失败')
       setUploading(false)
     } finally {
       abortRef.current = null

@@ -7,12 +7,17 @@ import { viewingURL } from '@/lib/stream-access'
 export default function Watch() {
   const { hash } = useLocation()
   const [attempt, setAttempt] = useState(0)
+  return <WatchAttempt key={`${hash}:${attempt}`} hash={hash} retry={() => setAttempt(n => n + 1)} />
+}
+
+// A new capability or explicit retry owns a new request/iframe lifetime. The
+// old attempt unmounts immediately and aborts its outstanding admission.
+function WatchAttempt({ hash, retry }: { hash: string; retry: () => void }) {
   const [stream, setStream] = useState('')
   const [error, setError] = useState('')
   useEffect(() => {
     const abort = new AbortController()
     const timer = setTimeout(() => abort.abort(), 120000)
-    setStream(''); setError('')
     const key = new URLSearchParams(hash.slice(1)).get('key')
     const open = async () => {
       if (!key) throw new Error('观看地址不完整，请使用管理员提供的固定观看链接。')
@@ -48,7 +53,7 @@ export default function Watch() {
     const timeoutMessage = () => setError('连接超时，请检查服务器是否在线后重试。')
     abort.signal.addEventListener('abort', timeoutMessage)
     return () => { clearTimeout(timer); abort.signal.removeEventListener('abort', timeoutMessage); abort.abort() }
-  }, [hash, attempt])
+  }, [hash])
   if (stream) return <iframe title="应用直播" src={stream} className="fixed inset-0 h-dvh w-full border-0 bg-black"
     allow="autoplay; fullscreen; microphone; gamepad" allowFullScreen referrerPolicy="no-referrer" />
   return <main className="min-h-dvh flex items-center justify-center bg-background px-6 text-foreground">
@@ -56,7 +61,7 @@ export default function Watch() {
       <p className="text-xs tracking-widest text-muted-foreground">STREAM KIT</p>
       <h1 className="text-2xl font-semibold">{error ? '暂时无法进入' : '正在连接应用'}</h1>
       <p role="status" className="text-sm text-muted-foreground">{error || '正在准备程序与直播画面，请稍候…'}</p>
-      {error && <button className="rounded-md bg-primary text-primary-foreground px-5 py-2" onClick={() => setAttempt(n => n + 1)}>重新连接</button>}
+      {error && <button className="rounded-md bg-primary text-primary-foreground px-5 py-2" onClick={retry}>重新连接</button>}
     </div>
   </main>
 }

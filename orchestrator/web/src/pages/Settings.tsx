@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { api } from '@/api/client'
+import type { SanitizedConfiguration } from '@/api/management'
 import { clearToken } from '@/lib/utils'
 import { useWSStore } from '@/stores/websocket'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -14,12 +15,12 @@ import { EncoderConfigurationEditor } from '@/components/EncoderConfigurationEdi
 import { RenderNodes } from '@/components/RenderNodes'
 
 export default function Settings() {
-  const [config, setConfig] = useState<any>(null)
+  const [config, setConfig] = useState<SanitizedConfiguration | null>(null)
   const [configError, setConfigError] = useState('')
   const navigate = useNavigate()
 
   useEffect(() => {
-    api.getConfig().then(r => setConfig(r.data)).catch((error:unknown) => setConfigError(error instanceof Error?error.message:'无法读取服务配置'))
+    api.getConfig().then(r => setConfig(r.data ?? null)).catch((error:unknown) => setConfigError(error instanceof Error?error.message:'无法读取服务配置'))
   }, [])
 
   const handleLogout = () => {

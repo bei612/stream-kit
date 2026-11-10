@@ -2,14 +2,13 @@ import { API_BASE, getToken, clearToken } from '@/lib/utils'
 import type { RenderSession, SessionAudio, SessionPolicy, MediaControlStatus, AudioTarget, StreamSessionOverview, TimedStreamSessionOverview } from './sessions'
 import type { AudioInventory, AudioPairCheckResult } from './audio-devices'
 import type { ConfigurationView, GatewayConfigurationView, EncoderConfigurationView, EncoderConfigurationAcknowledgement, EncoderStartupState, ConfigValue } from './configuration'
+import type { ApplicationRecord, ApplicationView, ApplicationUpdate, ExecutableCandidate, ArchiveUpload, ComponentInfo, HealthStatus, OperationLog, SanitizedConfiguration } from './management'
+import { decodeApiResponse, type ApiResponse } from './response'
 
-interface ApiResponse<T = unknown> {
-  status: 'ok' | 'error'
-  data?: T
-  code?: string
-  message?: string
-  request_id?: string
-  pagination?: { page: number; size: number; total: number }
+function expiredLoginError(): Error {
+  clearToken()
+  window.dispatchEvent(new CustomEvent('auth-error'))
+  return new Error('登录已过期，请重新登录')
 }
 
 async function request<T>(
@@ -34,17 +33,16 @@ async function request<T>(
     const resp = await fetch(url, { ...options, headers, signal: controller.signal })
 
     if (resp.status === 401) {
-      clearToken()
-      window.dispatchEvent(new CustomEvent('auth-error'))
-      throw new Error('登录已过期，请重新登录')
+      throw expiredLoginError()
     }
 
-    let json: any
+    let body: unknown
     try {
-      json = await resp.json()
+      body = await resp.json()
     } catch {
       throw new Error(`服务器返回了非 JSON 响应 (HTTP ${resp.status})`)
     }
+    const json = decodeApiResponse<T>(body)
     if (!resp.ok || json.status === 'error') {
       throw new Error(json.message || `请求失败 (${resp.status})`)
     }
@@ -70,15 +68,17 @@ async function loginRequest(username: string, password: string): Promise<{ token
       body: JSON.stringify({ username, password }),
       signal: controller.signal,
     })
-    let json: any
+    let body: unknown
     try {
-      json = await resp.json()
+      body = await resp.json()
     } catch {
       throw new Error('服务器响应异常')
     }
+    const json = decodeApiResponse<{ token: string; expires_at: string }>(body)
     if (!resp.ok || json.status === 'error') {
       throw new Error(json.message || '登录失败')
     }
+    if (!json.data || typeof json.data.token !== 'string' || !json.data.token || typeof json.data.expires_at !== 'string' || !Number.isFinite(Date.parse(json.data.expires_at))) throw new Error('登录响应缺少有效凭据')
     return json.data
   } catch (e: unknown) {
     if (e instanceof DOMException && e.name === 'AbortError') {
@@ -99,18 +99,18 @@ export const api = {
   login: loginRequest,
 
   // Health
-  health: () => request<any>('/health'),
+  health: () => request<HealthStatus>('/health'),
 
   // Components
-  listComponents: () => request<any[]>('/components'),
-  getComponent: (name: string) => request<any>(`/components/${name}`),
-  startComponent: (name: string) => request<any>(`/components/${name}/start`, { method: 'POST' }),
-  stopComponent: (name: string) => request<any>(`/components/${name}/stop`, { method: 'POST' }),
-  restartComponent: (name: string) => request<any>(`/components/${name}/restart`, { method: 'POST' }),
+  listComponents: () => request<ComponentInfo[]>('/components'),
+  getComponent: (name: string) => request<ComponentInfo>(`/components/${name}`),
+  startComponent: (name: string) => request<ComponentInfo>(`/components/${name}/start`, { method: 'POST' }),
+  stopComponent: (name: string) => request<ComponentInfo>(`/components/${name}/stop`, { method: 'POST' }),
+  restartComponent: (name: string) => request<ComponentInfo>(`/components/${name}/restart`, { method: 'POST' }),
   getComponentLogs: (name: string, lines = 100) =>
     request<string[]>(`/components/${name}/logs?lines=${lines}`),
-  startAllComponents: () => request<any>('/components/start-all', { method: 'POST' }),
-  stopAllComponents: () => request<any>('/components/stop-all', { method: 'POST' }),
+  startAllComponents: () => request<ComponentInfo[]>('/components/start-all', { method: 'POST' }),
+  stopAllComponents: () => request<ComponentInfo[]>('/components/stop-all', { method: 'POST' }),
 
   // Shared stream sessions
   inviteStreamViewers: (hostId: number, appId: number) =>
@@ -153,25 +153,25 @@ export const api = {
   captureCapabilities: () => request<{schema_version:number; capture_modes:('desktop'|'application')[]; capture_mode_apply:'application_restart'}>('/apps/capture-capabilities'),
   registerLocalApp: (data: { name:string; exe_path:string; working_dir:string; args:string; args_template:string; capture_mode:'desktop'|'application' }) =>
     request<{id:string}>('/apps/local', { method:'POST', body:JSON.stringify(data) }),
-  listApps: () => request<any[]>('/apps'),
-  getApp: (id: string) => request<any>(`/apps/${id}`),
-  updateApp: (id: string, data: any) =>
-    request<any>(`/apps/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteApp: (id: string) => request<any>(`/apps/${id}?confirm=true`, { method: 'DELETE' }),
-  getAppCandidates: (id: string) => request<any[]>(`/apps/${id}/candidates`),
+  listApps: () => request<ApplicationView[]>('/apps'),
+  getApp: (id: string) => request<ApplicationView>(`/apps/${id}`),
+  updateApp: (id: string, data: ApplicationUpdate) =>
+    request<ApplicationRecord>(`/apps/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteApp: (id: string) => request<{ message: string }>(`/apps/${id}?confirm=true`, { method: 'DELETE' }),
+  getAppCandidates: (id: string) => request<ExecutableCandidate[] | null>(`/apps/${id}/candidates`),
   selectExe: (id: string, exePath: string) =>
-    request<any>(`/apps/${id}/exe`, { method: 'PUT', body: JSON.stringify({ exe_path: exePath }) }),
-  retryRegister: (id: string) => request<any>(`/apps/${id}/register`, { method: 'POST' }),
-  uploadStatus: () => request<any>('/apps/upload-status'),
-  launchApp: (id: string) => request<any>(`/apps/${id}/launch`, { method: 'POST' }, 60000),
-  stopApp: (id: string) => request<any>(`/apps/${id}/stop`, { method: 'POST' }),
-  getAppStatus: (id: string) => request<any>(`/apps/${id}/status`),
-  getAppLogs: (id: string, lines = 200) => request<any>(`/apps/${id}/logs?lines=${lines}`),
+    request<ApplicationRecord>(`/apps/${id}/exe`, { method: 'PUT', body: JSON.stringify({ exe_path: exePath }) }),
+  retryRegister: (id: string) => request<{ message: string }>(`/apps/${id}/register`, { method: 'POST' }),
+  uploadStatus: () => request<{ uploading: boolean }>('/apps/upload-status'),
+  launchApp: (id: string) => request<{ stream_url: string }>(`/apps/${id}/launch`, { method: 'POST' }, 60000),
+  stopApp: (id: string) => request<ApplicationRecord>(`/apps/${id}/stop`, { method: 'POST' }),
+  getAppStatus: (id: string) => request<Pick<ApplicationRecord, 'status'>>(`/apps/${id}/status`),
+  getAppLogs: (id: string, lines = 200) => request<{ app_id: string; lines: string[] }>(`/apps/${id}/logs?lines=${lines}`),
 
   // Upload — returns { promise, abort } for cancellation support
   uploadApp: (formData: FormData, onProgress?: (pct: number) => void) => {
     const xhr = new XMLHttpRequest()
-    const promise = new Promise<ApiResponse>((resolve, reject) => {
+    const promise = new Promise<ApiResponse<ArchiveUpload>>((resolve, reject) => {
       xhr.open('POST', `${API_BASE}/apps/upload`)
       xhr.setRequestHeader('Authorization', `Bearer ${getToken()}`)
       xhr.timeout = 30 * 60 * 1000 // 30 minutes for large packages
@@ -186,9 +186,13 @@ export const api = {
       xhr.onabort = () => reject(new Error('上传已取消'))
       xhr.onerror = () => reject(new Error('网络错误'))
       xhr.onload = () => {
+        if (xhr.status === 401) {
+          reject(expiredLoginError())
+          return
+        }
         try {
-          const json = JSON.parse(xhr.responseText)
-          if (xhr.status >= 400 || json.status === 'error') {
+          const json = decodeApiResponse<ArchiveUpload>(JSON.parse(xhr.responseText))
+          if (xhr.status < 200 || xhr.status >= 300 || json.status === 'error') {
             reject(new Error(json.message || '上传失败'))
           } else {
             resolve(json)
@@ -203,18 +207,20 @@ export const api = {
   },
 
   // System
-  getConfig: () => request<any>('/config'),
+  getConfig: () => request<SanitizedConfiguration>('/config'),
   getConfiguration: () => request<ConfigurationView>('/configuration'),
   getGatewayConfiguration: () => request<GatewayConfigurationView>('/gateway-configuration'),
   saveGatewayConfiguration: (revision:string, changes:Record<string,ConfigValue>) => request<GatewayConfigurationView>('/gateway-configuration', {method:'PATCH',body:JSON.stringify({revision,changes})}),
   applyGatewayConfiguration: (revision:string, instance_id:string) => request<GatewayConfigurationView>('/gateway-configuration/apply', {method:'POST',body:JSON.stringify({revision,instance_id})},100000),
   saveConfiguration: (revision:string, changes:Record<string,ConfigValue>) => request<ConfigurationView>('/configuration', {method:'PATCH',body:JSON.stringify({revision,changes})}),
   getTemplates: () => request<Record<string, string>>('/templates'),
-  getLogs: (params: { page?: number; size?: number; target_type?: string }) => {
+  getLogs: async (params: { page?: number; size?: number; target_type?: string }) => {
     const qs = new URLSearchParams()
     if (params.page) qs.set('page', String(params.page))
     if (params.size) qs.set('size', String(params.size))
     if (params.target_type) qs.set('target_type', params.target_type)
-    return request<any[]>(`/logs?${qs}`)
+    const response = await request<OperationLog[]>(`/logs?${qs}`)
+    if (!response.pagination) throw new Error('服务器未返回日志分页信息')
+    return response
   },
 }

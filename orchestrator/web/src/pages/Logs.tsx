@@ -16,15 +16,11 @@ export default function Logs() {
     () => api.getLogs({ page, size: 20, target_type: filter || undefined }),
     [page, filter]
   )
-  const { data, loading, error, refresh } = useQuery({ queryFn, pollInterval: 30000 })
+  const { data, pagination, loading, error, refresh } = useQuery({ queryFn, pollInterval: 30000 })
 
-  // getLogs returns data as array, pagination comes alongside
-  const logs = (data ?? []) as any[]
-
-  // We need total from the raw response — useQuery passes through ApiResponse
-  // For now, pagination is estimated from logs length (no empty page = has more)
-  const hasMore = logs.length === 20
-  const hasPrev = page > 1
+  const logs = data ?? []
+  const hasMore = pagination !== undefined && pagination.page * pagination.size < pagination.total
+  const hasPrev = (pagination?.page ?? page) > 1
 
   return (
     <QueryWrapper loading={loading} error={error} onRetry={refresh}>
@@ -57,7 +53,7 @@ export default function Logs() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {logs.map((log: any) => (
+              {logs.map(log => (
                 <TableRow key={log.id}>
                   <Td className="text-muted-foreground whitespace-nowrap">{formatTime(log.created_at)}</Td>
                   <Td className="font-mono text-xs">{log.operation}</Td>
