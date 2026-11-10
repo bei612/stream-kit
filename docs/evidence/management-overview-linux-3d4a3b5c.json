@@ -1,0 +1,586 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-10",
+  "passed": true,
+  "runtime_commit": "3d4a3b5c61fea72354318cea637b3428052e5cfc",
+  "acceptance_commit": "a2e8529b4c1adebee026344caaa19ac92d30c9ff",
+  "acceptance_run": "https://github.com/bei612/stream-kit/actions/runs/42807240092",
+  "environment": "Isolated GitHub-hosted Ubuntu 24.04, actual selected unified installer runtime, native Sunshine/X11 Example, trusted temporary TLS and real playwright-cli",
+  "source": {
+    "runtime_commit": "3d4a3b5c61fea72354318cea637b3428052e5cfc",
+    "installer_sha256": "c965e70e420f80cdb101e0d5a806e7d30434cbfd191042ed81d0a5f8fdf3c38e",
+    "payload_sha256": "ccea8de45a6441a5ac478072bb414a8623878631abe3664b159948b4d0e32831",
+    "product_run_id": 42803959807,
+    "product_run_status": "in_progress",
+    "product_run_conclusion": null,
+    "runtime_producer_profile": "unified",
+    "product_workflow": ".github/workflows/windows-product-release.yml",
+    "product_event": "workflow_dispatch",
+    "product_linux_job_id": 129788280053,
+    "product_linux_job_name": "Linux product / Source-built Linux unified installer",
+    "acceptance_commit": "a2e8529b4c1adebee026344caaa19ac92d30c9ff",
+    "runtime_rebuilt": false,
+    "playwright_cli": "0.1.22",
+    "scope": "Existing real playwright-cli management acceptance against an isolated Linux deployment of verified production runtime; no local Windows, native-exit, Android, audio, target-input or stability acceptance"
+  },
+  "started_at": "2026-11-10T11:25:48.340Z",
+  "finished_at": "2026-11-10T11:26:37.452Z",
+  "management_overview_observations": [
+    {
+      "stage": "before_control_grant",
+      "session_revision": 8,
+      "applied_revision": 8,
+      "observed_revision": 8,
+      "upstream_active": true,
+      "cache_control": "no-store",
+      "sampled_at_ms": 1794309963597
+    },
+    {
+      "stage": "after_control_transfer",
+      "session_revision": 15,
+      "applied_revision": 15,
+      "observed_revision": 15,
+      "upstream_active": true,
+      "cache_control": "no-store",
+      "sampled_at_ms": 1794309975910
+    }
+  ],
+  "decoded_video_metrics": [
+    {
+      "viewer": "first",
+      "samples": [
+        {
+          "bytes": 103209,
+          "frames": 13
+        },
+        {
+          "bytes": 155524,
+          "frames": 28
+        }
+      ]
+    },
+    {
+      "viewer": "second",
+      "samples": [
+        {
+          "bytes": 31275,
+          "frames": 2
+        },
+        {
+          "bytes": 127228,
+          "frames": 18
+        }
+      ]
+    }
+  ],
+  "viewer_role_observations": [
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "controller",
+      "verified": true,
+      "control": true,
+      "ended": false,
+      "data_control": "true"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "controller",
+      "verified": true,
+      "control": true,
+      "ended": false,
+      "data_control": "true"
+    },
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    }
+  ],
+  "ui_pipeline_ready": [
+    {
+      "owner": 1,
+      "locale": "en",
+      "original_frame_present": true,
+      "video_renderer_available": true,
+      "width": 1280,
+      "height": 720,
+      "blocking_overlay_visible": false
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "original_frame_present": true,
+      "video_renderer_available": true,
+      "width": 1280,
+      "height": 720,
+      "blocking_overlay_visible": false
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "original_frame_present": true,
+      "video_renderer_available": true,
+      "width": 1280,
+      "height": 720,
+      "blocking_overlay_visible": false
+    }
+  ],
+  "ended_permission_notifications": [
+    {
+      "owner": 1,
+      "canonical_permission_notification_count": 0
+    },
+    {
+      "owner": 2,
+      "canonical_permission_notification_count": 0
+    }
+  ],
+  "stopped_argument_edit": {
+    "saved_via_ui": true,
+    "restored_via_ui": true,
+    "api_ui_agreement": true
+  },
+  "argument_restoration": {
+    "values_in_evidence": false,
+    "args_restored": true,
+    "idle_state_confirmed": true
+  },
+  "raw_console_errors": 2,
+  "unexpected_console_errors": 0,
+  "raw_network_failures": [
+    {
+      "owner": 0,
+      "method": "GET",
+      "resourceType": "fetch",
+      "order": 36,
+      "resource": "https://127.0.0.1:39277/api/v1/apps/a30b4027-757a-40da-8b7e-ecdbde98b400",
+      "hasQuery": false,
+      "hasHash": false,
+      "responseStatus": 200,
+      "responseOrder": 41,
+      "contentLength": 977,
+      "transferEncoding": "absent",
+      "cause": "aborted",
+      "browser_error_code": "net::ERR_ABORTED",
+      "failureOrder": 42
+    },
+    {
+      "owner": 0,
+      "method": "GET",
+      "resourceType": "fetch",
+      "order": 160,
+      "resource": "https://127.0.0.1:39277/api/v1/apps/a30b4027-757a-40da-8b7e-ecdbde98b400",
+      "hasQuery": false,
+      "hasHash": false,
+      "responseStatus": null,
+      "responseOrder": null,
+      "contentLength": null,
+      "transferEncoding": "unobserved",
+      "cause": "aborted",
+      "browser_error_code": "net::ERR_ABORTED",
+      "failureOrder": 162
+    },
+    {
+      "owner": 0,
+      "method": "GET",
+      "resourceType": "fetch",
+      "order": 197,
+      "resource": "https://127.0.0.1:39277/api/v1/stream-sessions/overview",
+      "hasQuery": false,
+      "hasHash": false,
+      "responseStatus": null,
+      "responseOrder": null,
+      "contentLength": null,
+      "transferEncoding": "unobserved",
+      "cause": "aborted",
+      "browser_error_code": "net::ERR_ABORTED",
+      "failureOrder": 200
+    },
+    {
+      "owner": 0,
+      "method": "GET",
+      "resourceType": "fetch",
+      "order": 228,
+      "resource": "https://127.0.0.1:39277/api/v1/stream-sessions/overview",
+      "hasQuery": false,
+      "hasHash": false,
+      "responseStatus": null,
+      "responseOrder": null,
+      "contentLength": null,
+      "transferEncoding": "unobserved",
+      "cause": "aborted",
+      "browser_error_code": "net::ERR_ABORTED",
+      "failureOrder": 232
+    },
+    {
+      "owner": 0,
+      "method": "GET",
+      "resourceType": "fetch",
+      "order": 273,
+      "resource": "https://127.0.0.1:39277/api/v1/stream-sessions/overview",
+      "hasQuery": false,
+      "hasHash": false,
+      "responseStatus": 200,
+      "responseOrder": 278,
+      "contentLength": 2088,
+      "transferEncoding": "absent",
+      "cause": "aborted",
+      "browser_error_code": "net::ERR_ABORTED",
+      "failureOrder": 279
+    },
+    {
+      "owner": 0,
+      "method": "GET",
+      "resourceType": "fetch",
+      "order": 321,
+      "resource": "https://127.0.0.1:39277/api/v1/apps/a30b4027-757a-40da-8b7e-ecdbde98b400",
+      "hasQuery": false,
+      "hasHash": false,
+      "responseStatus": null,
+      "responseOrder": null,
+      "contentLength": null,
+      "transferEncoding": "unobserved",
+      "cause": "aborted",
+      "browser_error_code": "net::ERR_ABORTED",
+      "failureOrder": 326
+    },
+    {
+      "owner": 0,
+      "method": "GET",
+      "resourceType": "fetch",
+      "order": 325,
+      "resource": "https://127.0.0.1:39277/api/v1/apps/a30b4027-757a-40da-8b7e-ecdbde98b400",
+      "hasQuery": false,
+      "hasHash": false,
+      "responseStatus": null,
+      "responseOrder": null,
+      "contentLength": null,
+      "transferEncoding": "unobserved",
+      "cause": "aborted",
+      "browser_error_code": "net::ERR_ABORTED",
+      "failureOrder": 328
+    },
+    {
+      "owner": 0,
+      "method": "GET",
+      "resourceType": "fetch",
+      "order": 327,
+      "resource": "https://127.0.0.1:39277/api/v1/apps/a30b4027-757a-40da-8b7e-ecdbde98b400",
+      "hasQuery": false,
+      "hasHash": false,
+      "responseStatus": null,
+      "responseOrder": null,
+      "contentLength": null,
+      "transferEncoding": "unobserved",
+      "cause": "aborted",
+      "browser_error_code": "net::ERR_ABORTED",
+      "failureOrder": 333
+    },
+    {
+      "owner": 0,
+      "method": "GET",
+      "resourceType": "fetch",
+      "order": 352,
+      "resource": "https://127.0.0.1:39277/api/v1/apps/a30b4027-757a-40da-8b7e-ecdbde98b400",
+      "hasQuery": false,
+      "hasHash": false,
+      "responseStatus": null,
+      "responseOrder": null,
+      "contentLength": null,
+      "transferEncoding": "unobserved",
+      "cause": "aborted",
+      "browser_error_code": "net::ERR_ABORTED",
+      "failureOrder": 355
+    },
+    {
+      "owner": 0,
+      "method": "GET",
+      "resourceType": "fetch",
+      "order": 353,
+      "resource": "https://127.0.0.1:39277/api/v1/apps/a30b4027-757a-40da-8b7e-ecdbde98b400",
+      "hasQuery": false,
+      "hasHash": false,
+      "responseStatus": null,
+      "responseOrder": null,
+      "contentLength": null,
+      "transferEncoding": "unobserved",
+      "cause": "aborted",
+      "browser_error_code": "net::ERR_ABORTED",
+      "failureOrder": 358
+    },
+    {
+      "owner": 0,
+      "method": "GET",
+      "resourceType": "fetch",
+      "order": 365,
+      "resource": "https://127.0.0.1:39277/api/v1/apps/a30b4027-757a-40da-8b7e-ecdbde98b400",
+      "hasQuery": false,
+      "hasHash": false,
+      "responseStatus": null,
+      "responseOrder": null,
+      "contentLength": null,
+      "transferEncoding": "unobserved",
+      "cause": "aborted",
+      "browser_error_code": "net::ERR_ABORTED",
+      "failureOrder": 367
+    },
+    {
+      "owner": 0,
+      "method": "GET",
+      "resourceType": "fetch",
+      "order": 366,
+      "resource": "https://127.0.0.1:39277/api/v1/apps/a30b4027-757a-40da-8b7e-ecdbde98b400",
+      "hasQuery": false,
+      "hasHash": false,
+      "responseStatus": 200,
+      "responseOrder": 371,
+      "contentLength": 976,
+      "transferEncoding": "absent",
+      "cause": "aborted",
+      "browser_error_code": "net::ERR_ABORTED",
+      "failureOrder": 372
+    }
+  ],
+  "expected_management_query_cancellations": [
+    {
+      "request_id": 36,
+      "replacement_request_id": 40,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 160,
+      "replacement_request_id": 161,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 197,
+      "replacement_request_id": 198,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 228,
+      "replacement_request_id": 230,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 273,
+      "replacement_request_id": 276,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 321,
+      "replacement_request_id": 331,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 325,
+      "replacement_request_id": 331,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 327,
+      "replacement_request_id": 331,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 352,
+      "replacement_request_id": 357,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 353,
+      "replacement_request_id": 357,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 365,
+      "replacement_request_id": 370,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 366,
+      "replacement_request_id": 370,
+      "classification": "superseded_management_read"
+    }
+  ],
+  "network_failures": [],
+  "http_failures": [
+    {
+      "owner": 1,
+      "hasQuery": false,
+      "hasHash": false,
+      "method": "POST",
+      "status": 410,
+      "requestOrder": 322,
+      "responseOrder": 323,
+      "code": "CONNECTION_TERMINATED",
+      "classification": "terminal_heartbeat"
+    },
+    {
+      "owner": 2,
+      "hasQuery": false,
+      "hasHash": false,
+      "method": "POST",
+      "status": 410,
+      "requestOrder": 341,
+      "responseOrder": 342,
+      "code": "CONNECTION_TERMINATED",
+      "classification": "terminal_heartbeat"
+    }
+  ],
+  "terminal_followup_requests": [],
+  "pending_viewer_api_requests": 0,
+  "checks": [
+    "trusted HTTPS and exact deployed control commit",
+    "permanent link visible before launch",
+    "real Example launch and two decoded WebRTC viewers",
+    "UI grant, transfer and revoke with server authority checks",
+    "canonical en/zh viewer authority, lifecycle-only connection prompts and ready UI pipelines",
+    "ended viewers have no stale permission notifications",
+    "Example stop; UI argument edit/save and original argument restoration with actual API agreement; read-only history",
+    "desktop/mobile screenshots and console errors"
+  ],
+  "screenshots": [
+    {
+      "path": ".local/ci-management-live-3d4a3b5c/source-stream/2026-11-10T11-25-46-505Z/browser/management-live/app-before-launch-desktop.png",
+      "sha256": "a0e82e8596bf8f28a4d174ee133c6da1858f6ca7ba99ada8f66fe5fff5846c4d",
+      "reviewed": false
+    },
+    {
+      "path": ".local/ci-management-live-3d4a3b5c/source-stream/2026-11-10T11-25-46-505Z/browser/management-live/app-before-launch-mobile.png",
+      "sha256": "d8cf56f42ad41593f84b710bb324deb848632b58bfe209fc90f287f7417099f8",
+      "reviewed": false
+    },
+    {
+      "path": ".local/ci-management-live-3d4a3b5c/source-stream/2026-11-10T11-25-46-505Z/browser/management-live/history-desktop.png",
+      "sha256": "e4b620bd09c5783116110a5a915ea25e92e7a55290ad337ab8e50add424cda73",
+      "reviewed": false
+    },
+    {
+      "path": ".local/ci-management-live-3d4a3b5c/source-stream/2026-11-10T11-25-46-505Z/browser/management-live/history-mobile.png",
+      "sha256": "d0f56504ec90bbbd9841f1a3b8c9a92ef3a47ca7e4bc2d21576d7b5536ca5b91",
+      "reviewed": false
+    },
+    {
+      "path": ".local/ci-management-live-3d4a3b5c/source-stream/2026-11-10T11-25-46-505Z/browser/management-live/sessions-transfer-desktop.png",
+      "sha256": "4df4bad6ee0b2d28fa03e55ee0166811667776b910728684cb892d0ca5cce7d5",
+      "reviewed": true
+    },
+    {
+      "path": ".local/ci-management-live-3d4a3b5c/source-stream/2026-11-10T11-25-46-505Z/browser/management-live/sessions-transfer-mobile.png",
+      "sha256": "166ca82658463396f05532c6a04745372cddcd642cf9903fd194e66284ccbbf5",
+      "reviewed": true
+    },
+    {
+      "path": ".local/ci-management-live-3d4a3b5c/source-stream/2026-11-10T11-25-46-505Z/browser/management-live/stopped-arguments-restored.png",
+      "sha256": "3c3b7c1c4a5cdf31e667a546290d7e9f46293892a9bb718301ad18cdb1264541",
+      "reviewed": false
+    },
+    {
+      "path": ".local/ci-management-live-3d4a3b5c/source-stream/2026-11-10T11-25-46-505Z/browser/management-live/stopped-arguments-saved.png",
+      "sha256": "3c3b7c1c4a5cdf31e667a546290d7e9f46293892a9bb718301ad18cdb1264541",
+      "reviewed": false
+    },
+    {
+      "path": ".local/ci-management-live-3d4a3b5c/source-stream/2026-11-10T11-25-46-505Z/browser/management-live/viewer-after-transfer.png",
+      "sha256": "3aa0974ad174e7cf8c0696a424ee3cb0b96c4daae8b794c38a49a441d530429a",
+      "reviewed": false
+    },
+    {
+      "path": ".local/ci-management-live-3d4a3b5c/source-stream/2026-11-10T11-25-46-505Z/browser/management-live/viewer-before-grant.png",
+      "sha256": "220a897704af36649b0b9cae98be9def86a37bab2ccdad11c0a50fd8c489439c",
+      "reviewed": false
+    },
+    {
+      "path": ".local/ci-management-live-3d4a3b5c/source-stream/2026-11-10T11-25-46-505Z/browser/management-live/viewer-ended.png",
+      "sha256": "144c1714ab08782daa4a53e30dc8fdfa378bd224114bc087d4bcfc08e2652ad9",
+      "reviewed": false
+    }
+  ],
+  "primary_evidence": [
+    {
+      "path": ".local/ci-management-live-3d4a3b5c/management-live-evidence/provenance.json",
+      "sha256": "f66a441be2195d3a9593601652de221792e3b8d648cc51ec0c886a0ce69a2fb6"
+    },
+    {
+      "path": ".local/ci-management-live-3d4a3b5c/source-stream/2026-11-10T11-25-46-505Z/result.json",
+      "sha256": "f058bfd8fc207798b6c347a6110c5109ea1dba4492e6bf415773d148d04bb94c"
+    },
+    {
+      "path": ".local/ci-management-live-3d4a3b5c/source-stream/2026-11-10T11-25-46-505Z/browser/management-live/result.json",
+      "sha256": "487a2c899811c9ee337fb8ec90e2ff6a27c1b728acb6a3c974d2680ade15fe08"
+    },
+    {
+      "path": ".local/ci-management-live-3d4a3b5c/source-stream/2026-11-10T11-25-46-505Z/browser/management-live/cli.log",
+      "sha256": "e160c37db7677afe88490dd219f53a892823ef41e9f10f893f77a3a5f6f726c7"
+    }
+  ],
+  "limits": [
+    "Linux initializer evidence alone does not prove media; this separate actual native deployment and browser run provides the scoped media evidence.",
+    "Viewer permission observations were English; no expanded native Android, audio, acoustic, target-input, host primary IP change, whole-machine reboot or stability claim.",
+    "Product run was still in progress when Linux artifacts were selected; only its already completed successful Linux job supplied this runtime. Windows publication still requires independent exact-installer acceptance."
+  ],
+  "public_reviewed_screenshots": [
+    {
+      "path": "management-overview-linux-3d4a3b5c/sessions-transfer-desktop.png",
+      "sha256": "4df4bad6ee0b2d28fa03e55ee0166811667776b910728684cb892d0ca5cce7d5",
+      "visually_reviewed": true
+    },
+    {
+      "path": "management-overview-linux-3d4a3b5c/sessions-transfer-mobile.png",
+      "sha256": "166ca82658463396f05532c6a04745372cddcd642cf9903fd194e66284ccbbf5",
+      "visually_reviewed": true
+    }
+  ]
+}

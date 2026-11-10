@@ -1,0 +1,323 @@
+{
+  "recorded_at": "2026-11-10T11:29:51.964Z",
+  "passed": true,
+  "runtime_commit": "3d4a3b5c61fea72354318cea637b3428052e5cfc",
+  "scope": "Real management API/SPA, owned native orchestrator component start/restart/stop and missing-executable failure; no encoder, gateway, application launch/popup or media acceptance",
+  "method": "Supplemental direct Playwright automation of the real immutable Windows native bundle; the separate query-library page and Linux media checks use playwright-cli",
+  "driver_review_commit": "a2e8529b4c1adebee026344caaa19ac92d30c9ff",
+  "cases": [
+    "unauthenticated real API denied",
+    "UI login using native init-config generated credential",
+    "Real owned native component start/restart/stop via SPA, actual health/PID transitions, same-frame repeated start and stop each produce one HTTP request, separate missing-executable HTTP500 is shown once without affecting running resource, stopped uptime is a dash on desktop/mobile",
+    "real empty current/history and zero clients; no fabricated stopped or running rows",
+    "actual competing configuration writer triggers HTTP409; draft retained and disk unchanged by rejected save",
+    "explicit reload and fresh CAS save persist real configuration; running/desired remain separate until restart",
+    "desktop/mobile screenshots; no horizontal page overflow"
+  ],
+  "raw_request_failures": [
+    {
+      "event": "failed",
+      "time_ms": 1794309653692,
+      "path": "/api/v1/components",
+      "has_query": false,
+      "method": "GET",
+      "page_path": "/components",
+      "request_id": 55,
+      "response_status": null,
+      "order": 61,
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "event": "failed",
+      "time_ms": 1794309653692,
+      "path": "/api/v1/components",
+      "has_query": false,
+      "method": "GET",
+      "page_path": "/components",
+      "request_id": 57,
+      "response_status": null,
+      "order": 64,
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "event": "failed",
+      "time_ms": 1794309653857,
+      "path": "/api/v1/components",
+      "has_query": false,
+      "method": "GET",
+      "page_path": "/components",
+      "request_id": 77,
+      "response_status": null,
+      "order": 83,
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "event": "failed",
+      "time_ms": 1794309653857,
+      "path": "/api/v1/components",
+      "has_query": false,
+      "method": "GET",
+      "page_path": "/components",
+      "request_id": 79,
+      "response_status": null,
+      "order": 86,
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "event": "failed",
+      "time_ms": 1794309654867,
+      "path": "/api/v1/components",
+      "has_query": false,
+      "method": "GET",
+      "page_path": "/components",
+      "request_id": 99,
+      "response_status": null,
+      "order": 105,
+      "reason": "net::ERR_ABORTED"
+    }
+  ],
+  "expected_request_cancellations": [
+    {
+      "request_id": 55,
+      "replacement_request_id": 62,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 57,
+      "replacement_request_id": 62,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 77,
+      "replacement_request_id": 84,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 79,
+      "replacement_request_id": 84,
+      "classification": "superseded_management_read"
+    },
+    {
+      "request_id": 99,
+      "replacement_request_id": 103,
+      "classification": "superseded_management_read"
+    }
+  ],
+  "unexpected_request_failures": [],
+  "proof_events": [
+    {
+      "event": "started",
+      "time_ms": 1794309653689,
+      "path": "/api/v1/components",
+      "has_query": false,
+      "method": "GET",
+      "page_path": "/components",
+      "request_id": 55,
+      "response_status": null,
+      "order": 56
+    },
+    {
+      "event": "started",
+      "time_ms": 1794309653692,
+      "path": "/api/v1/components",
+      "has_query": false,
+      "method": "GET",
+      "page_path": "/components",
+      "request_id": 57,
+      "response_status": null,
+      "order": 58
+    },
+    {
+      "event": "failed",
+      "time_ms": 1794309653692,
+      "path": "/api/v1/components",
+      "has_query": false,
+      "method": "GET",
+      "page_path": "/components",
+      "request_id": 55,
+      "response_status": null,
+      "order": 61,
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "event": "started",
+      "time_ms": 1794309653692,
+      "path": "/api/v1/components",
+      "has_query": false,
+      "method": "GET",
+      "page_path": "/components",
+      "request_id": 62,
+      "response_status": null,
+      "order": 63
+    },
+    {
+      "event": "failed",
+      "time_ms": 1794309653692,
+      "path": "/api/v1/components",
+      "has_query": false,
+      "method": "GET",
+      "page_path": "/components",
+      "request_id": 57,
+      "response_status": null,
+      "order": 64,
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "event": "finished",
+      "time_ms": 1794309653692,
+      "path": "/api/v1/components",
+      "has_query": false,
+      "method": "GET",
+      "page_path": "/components",
+      "request_id": 62,
+      "response_status": 200,
+      "order": 66
+    },
+    {
+      "event": "started",
+      "time_ms": 1794309653856,
+      "path": "/api/v1/components",
+      "has_query": false,
+      "method": "GET",
+      "page_path": "/components",
+      "request_id": 77,
+      "response_status": null,
+      "order": 78
+    },
+    {
+      "event": "started",
+      "time_ms": 1794309653857,
+      "path": "/api/v1/components",
+      "has_query": false,
+      "method": "GET",
+      "page_path": "/components",
+      "request_id": 79,
+      "response_status": null,
+      "order": 80
+    },
+    {
+      "event": "failed",
+      "time_ms": 1794309653857,
+      "path": "/api/v1/components",
+      "has_query": false,
+      "method": "GET",
+      "page_path": "/components",
+      "request_id": 77,
+      "response_status": null,
+      "order": 83,
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "event": "started",
+      "time_ms": 1794309653857,
+      "path": "/api/v1/components",
+      "has_query": false,
+      "method": "GET",
+      "page_path": "/components",
+      "request_id": 84,
+      "response_status": null,
+      "order": 85
+    },
+    {
+      "event": "failed",
+      "time_ms": 1794309653857,
+      "path": "/api/v1/components",
+      "has_query": false,
+      "method": "GET",
+      "page_path": "/components",
+      "request_id": 79,
+      "response_status": null,
+      "order": 86,
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "event": "finished",
+      "time_ms": 1794309653858,
+      "path": "/api/v1/components",
+      "has_query": false,
+      "method": "GET",
+      "page_path": "/components",
+      "request_id": 84,
+      "response_status": 200,
+      "order": 88
+    },
+    {
+      "event": "started",
+      "time_ms": 1794309654866,
+      "path": "/api/v1/components",
+      "has_query": false,
+      "method": "GET",
+      "page_path": "/components",
+      "request_id": 99,
+      "response_status": null,
+      "order": 100
+    },
+    {
+      "event": "started",
+      "time_ms": 1794309654867,
+      "path": "/api/v1/components",
+      "has_query": false,
+      "method": "GET",
+      "page_path": "/components",
+      "request_id": 103,
+      "response_status": null,
+      "order": 104
+    },
+    {
+      "event": "failed",
+      "time_ms": 1794309654867,
+      "path": "/api/v1/components",
+      "has_query": false,
+      "method": "GET",
+      "page_path": "/components",
+      "request_id": 99,
+      "response_status": null,
+      "order": 105,
+      "reason": "net::ERR_ABORTED"
+    },
+    {
+      "event": "finished",
+      "time_ms": 1794309654867,
+      "path": "/api/v1/components",
+      "has_query": false,
+      "method": "GET",
+      "page_path": "/components",
+      "request_id": 103,
+      "response_status": 200,
+      "order": 107
+    }
+  ],
+  "unexpected_http_errors": [],
+  "javascript_errors": [],
+  "component_database": {
+    "format": "SQLite format 3\u0000",
+    "bytes": 69632,
+    "sha256": "1fbafd0f08486b56f9450e52fcb4229057f8475e3a59c5dea36b6777f2788ba9"
+  },
+  "owned_component_cleanup_confirmed": true,
+  "screenshots": [
+    {
+      "path": "management-component-commands-3d4a3b5c/components-real-running-and-error.png",
+      "sha256": "805d3b16472801740433b99b6a295bcdc4002e918e13cb3286892e727533e85e",
+      "visually_reviewed": true
+    },
+    {
+      "path": "management-component-commands-3d4a3b5c/components-real-stopped-mobile.png",
+      "sha256": "d1f21dfc025d8538602bb9c7c1dae396a9bfd092db1eedd987f0aef654e3d805",
+      "visually_reviewed": true
+    }
+  ],
+  "primary_result_sha256": "fd480f7d867042c156df69d4b923aa9372f5c59542636bf32fe9f60867cdc867",
+  "retained_source_ci_failure": {
+    "run": "https://github.com/bei612/stream-kit/actions/runs/42803722032",
+    "job": 129787492803,
+    "scope": "Three native browser cases passed; component business cases completed, then the legacy assertion rejected five client-aborted management reads",
+    "passed": false,
+    "raw_failure_result_sha256": "a4184b726a35623e118104f71b33edb921c582cec78fa306e13609092e126828"
+  },
+  "limits": [
+    "Not the installed StreamKit service, SCM reboot, media, physical device or host network acceptance.",
+    "Local test changes were reviewed and committed after execution; this receipt does not assert commit-identical test driver bytes.",
+    "All original aborted reads remain in evidence; no mutation or viewer request is exempted."
+  ]
+}
