@@ -85,14 +85,18 @@ PULSE_SINK=streamkit_android "$ANDROID_HOME/emulator/emulator" -avd StreamKit_Au
   > "$evidence/emulator.log" 2>&1 &
 emulator_pid=$!
 export STREAM_KIT_AUDIO_EMULATOR_ROOT_PID="$emulator_pid"
-ready=false
-boot_deadline=$((SECONDS + 300))
-while (( SECONDS < boot_deadline )); do
-  kill -0 "$emulator_pid"
-  if [[ "$(timeout 5s adb -s "$serial" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)" == 1 ]]; then ready=true; break; fi
-  sleep 2
-done
-[[ "$ready" == true ]]
+wait_for_owned_boot() {
+  local previous_boot="${1:-}" current_boot='' boot_deadline=$((SECONDS + 300))
+  while (( SECONDS < boot_deadline )); do
+    kill -0 "$emulator_pid"
+    current_boot=$(timeout 5s adb -s "$serial" shell cat /proc/sys/kernel/random/boot_id 2>/dev/null | tr -d '\r' || true)
+    if [[ "$current_boot" =~ ^[0-9a-f-]{36}$ && "$current_boot" != "$previous_boot" && "$(timeout 5s adb -s "$serial" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)" == 1 ]]; then return 0; fi
+    sleep 2
+  done
+  echo 'Owned official AVD boot did not complete' >&2
+  return 1
+}
+wait_for_owned_boot
 # Restarting adbd can close its requesting transport before the acknowledgement.
 # Verify the resulting identity after reconnection; never trust only exit status.
 adb_identity() {
@@ -121,6 +125,26 @@ adb -s "$serial" shell chown system:system "/data/misc/user/0/cacerts-added/$ca_
 adb -s "$serial" shell chmod 644 "/data/misc/user/0/cacerts-added/$ca_hash.0"
 adb -s "$serial" shell restorecon -R /data/misc/user/0/cacerts-added
 adb_identity unroot 2000
+# Build the disposable guest's installed baseline before audio-service startup.
+# Android 16 initializes NativePermissionController from a PackageManager
+# snapshot, while post-install updates arrive asynchronously via broadcasts.
+# A package-handler barrier alone does not synchronize that separate consumer.
+# Reboot only this owned AVD once; no host reboot, permission bypass, synthetic
+# package-map writes, global broadcast reprioritization or AudioTrack retries.
+# https://android.googlesource.com/platform/frameworks/base/+/refs/heads/android16-release/services/core/java/com/android/server/audio/AudioService.java
+adb -s "$serial" shell wm size 720x1280
+adb -s "$serial" shell wm density 240
+adb -s "$serial" install artifacts/input-download/*.apk
+adb -s "$serial" install -t artifacts/input-example/android/observer.apk
+boot_before=$(adb -s "$serial" shell cat /proc/sys/kernel/random/boot_id | tr -d '\r')
+[[ "$boot_before" =~ ^[0-9a-f-]{36}$ ]]
+adb -s "$serial" reboot
+timeout 90s adb -s "$serial" wait-for-device
+wait_for_owned_boot "$boot_before"
+boot_after=$(adb -s "$serial" shell cat /proc/sys/kernel/random/boot_id | tr -d '\r')
+[[ "$boot_after" =~ ^[0-9a-f-]{36}$ && "$boot_before" != "$boot_after" ]]
+[[ $(adb -s "$serial" shell id -u | tr -d '\r') == 2000 ]]
+printf '%s\n' '{"fixture_only":true,"owned_avd":"StreamKit_Audio_CI","post_install_guest_reboot":true,"boot_identity_changed":true,"host_rebooted":false,"shell_uid":2000}' > "$evidence/installed-guest-baseline.json"
 # Calibrate only this disposable official AVD's STREAM_MUSIC gain before the
 # release APK starts. Keep the PCM acceptance threshold unchanged. AOSP's
 # MediaShellCommand's --get reports current/min/max. Set through AudioService's
@@ -264,11 +288,6 @@ calibrate().then(() => {
   process.exitCode = 1;
 });
 NODE
-# Bound software rasterization cost independently of the 720p30 stream profile.
-adb -s "$serial" shell wm size 720x1280
-adb -s "$serial" shell wm density 240
-adb -s "$serial" install artifacts/input-download/*.apk
-adb -s "$serial" install -t artifacts/input-example/android/observer.apk
 # Installation success is not a PM queue barrier. Check the target identities
 # and collect passive diagnostics without reprioritizing unrelated broadcasts;
 # none of these observations proves that the native UID/package map is ready.
@@ -352,6 +371,12 @@ try {
     ['dumpsys', 'activity', '-a', 'broadcasts', 'filter', '--action',
       'android.intent.action.PACKAGE_ADDED'], true));
   result.audio_service_lifecycle = lifecycle(command('audio_lifecycle_diagnostic', ['dumpsys', 'audio'], true));
+  check(result.audio_service_lifecycle.events.some(event => event.event === 'controller_start_task_complete'),
+    'INITIAL_AUDIO_CONTROLLER_NOT_OBSERVED');
+  result.installed_baseline = JSON.parse(fs.readFileSync('artifacts/android-audio-evidence/installed-guest-baseline.json', 'utf8'));
+  check(result.installed_baseline.post_install_guest_reboot === true
+    && result.installed_baseline.boot_identity_changed === true
+    && result.installed_baseline.host_rebooted === false, 'INSTALLED_GUEST_BASELINE_INVALID');
   result.status = 'passed';
 } catch (error) {
   result.failure_class = /^[A-Z_]+$/.test(error.message) ? error.message : 'INSTALL_SYNCHRONIZATION_FAILED';

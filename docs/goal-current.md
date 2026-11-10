@@ -1,6 +1,8 @@
 # 当前 Goal（2026-11-10）
 
-Linux Android 音频差异排查新增仅用于验收工具的官方 `streamAudio` 输出观察，与现有原生 PulseAudio 采集在同一窗口独立记录有界数值指标；不保存 PCM，不修改 APK、系统音量或输入状态，也不替代或降低原采集门槛。目的仅是区分模拟器导出端与宿主 PulseAudio 路径，不能证明 SDK 写入前已有声音。公开源码的 [EmulatorService::streamAudio](https://android.googlesource.com/platform/external/qemu/+/refs/heads/emu-master-dev/android/android-grpc/services/emulator-controller/server/src/android/emulation/control/EmulatorService.cpp) 与 [AudioStream](https://android.googlesource.com/platform/external/qemu/+/refs/heads/emu-master-dev/android/android-grpc/services/emulator-controller/server/src/android/emulation/control/audio/AudioStream.cpp)说明其输出采集边界，但不作为本次精确模拟器二进制实现相同的证明。历史失败记录保持不变；新观察尚未运行。
+Linux Android 音频差异排查新增仅用于验收工具的官方 `streamAudio` 输出观察，与现有原生 PulseAudio 采集在同一窗口独立记录有界数值指标；不保存 PCM，不修改 APK、系统音量或输入状态，也不替代或降低原采集门槛。目的仅是区分模拟器导出端与宿主 PulseAudio 路径，不能证明 SDK 写入前已有声音。公开源码的 [EmulatorService::streamAudio](https://android.googlesource.com/platform/external/qemu/+/refs/heads/emu-master-dev/android/android-grpc/services/emulator-controller/server/src/android/emulation/control/EmulatorService.cpp) 与 [AudioStream](https://android.googlesource.com/platform/external/qemu/+/refs/heads/emu-master-dev/android/android-grpc/services/emulator-controller/server/src/android/emulation/control/audio/AudioStream.cpp)说明其输出采集边界，但不作为本次精确模拟器二进制实现相同的证明。
+
+首次执行 [42763144266](evidence/android-linux-audio-fixture-42763144266.json) 在对照音源启动时被 Android 原生音频服务以 `unknown uid` 拒绝，尚未启动产品 App，也未执行新增观察；不算产品音频失败重现或通过。依照 [Android 16 AudioService 的包快照初始化和异步广播更新](https://android.googlesource.com/platform/frameworks/base/+/refs/heads/android16-release/services/core/java/com/android/server/audio/AudioService.java)，隔离工具改为安装两个 APK 后仅重启受管测试 AVD 一次，核对内核启动身份变化及音频控制器初始化，再开始音量校准和正式观察；不改主机、权限、原生包表或广播调度。该准备流程修正尚待执行验证，原有近静音失败保持未解决。
 
 目标是交付生产可用的一体化云渲染串流产品：Windows/Linux 服务端、Web/PWA 与官方源码二开的 Android 原生客户端，共用应用、串流会话、连接、控制代次和媒体授权。仅一个管理员，不增加多用户系统、重型监控或无关功能。完整范围与完成条件见下方 Goal 提示词；构建、发布或隔离测试成功不等于产品交付。
 
