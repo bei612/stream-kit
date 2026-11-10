@@ -1,0 +1,283 @@
+{
+  "scope": "Signed production APK .6 on an owned official Windows Android emulator and deployed 571295af control; Example only. API-based audio checks and actual administrative/client UI operations with playwright-cli.",
+  "recorded_at": "2026-11-10T10:23:56.919Z",
+  "core_joint_cases_passed": true,
+  "all_goal_complete": false,
+  "runtime_commits": {
+    "orchestrator": "571295af7c106ca5080b7a7510ffe62715b90de6",
+    "media-gateway": "40146db2ffa8b15040906cf130be8e89548c48da",
+    "sunshine": "47c02726c0161ebdec50911422d62845a9b6e59a"
+  },
+  "android": {
+    "source_commit": "df7cd87b3352a638aa3a6aa7073d39074c02a43c",
+    "version_code": 1000013,
+    "apk_sha256": "31593fce46afc49de92e9c04b76e0b881448e477d42fcbe02ebf387d424c3ebc",
+    "debuggable": false,
+    "rebuilt": false,
+    "physical_usb_pad_tested": false,
+    "physical_pad_status": "USB interface present, ADB unavailable; user deferred unlocking"
+  },
+  "video": {
+    "evidence": "native-video-viewer.png and tool-observed advancing decoded frames",
+    "decoded_frames": [
+      1080,
+      1141
+    ],
+    "fps": [
+      30,
+      31
+    ],
+    "sample_at_ms": [
+      1794305118093,
+      1794305126052
+    ],
+    "scope": "Native decoded video before audio tests; not an actual target input count claim"
+  },
+  "microphone": {
+    "scope": "Published Android .6 on Windows emulator with control 571295af, gateway 40146db2, renderer 47c02726, synthetic 1499Hz microphone, owned native target and real CLI Web viewer; no saved voice or PCM",
+    "passed": true,
+    "target_baseline": {
+      "analyzed_frames": 48000,
+      "frequency_hz": 1499,
+      "mean_amplitude": 0.0000010728576708568633,
+      "peak_amplitude": 0.0000011345651526912055,
+      "sample_rate": 48000,
+      "windows": 10
+    },
+    "audience_baseline": {
+      "frequency": 1499,
+      "windows": 30,
+      "median_db": -127.58657836914062,
+      "sample_rate": 48000,
+      "track_live": true,
+      "context_running": true
+    },
+    "capture_started": true,
+    "authorized_audience": {
+      "frequency": 1499,
+      "windows": 30,
+      "median_db": -19.356813430786133,
+      "sample_rate": 48000,
+      "track_live": true,
+      "context_running": true
+    },
+    "authorized_target": {
+      "analyzed_frames": 211200,
+      "frequency_hz": 1499,
+      "mean_amplitude": 0.4078066375747776,
+      "peak_amplitude": 0.5318476062192055,
+      "sample_rate": 48000,
+      "windows": 44
+    },
+    "authorized_status": {
+      "captured_frames": 211200,
+      "dropped_frames": 0,
+      "error": null,
+      "input_state": "idle",
+      "output_state": "idle",
+      "peak": 0,
+      "played_frames": 0,
+      "rms": 0,
+      "sample_rate": 48000,
+      "state": "idle"
+    },
+    "revoked_audience": {
+      "frequency": 1499,
+      "windows": 30,
+      "median_db": -127.34434509277344,
+      "sample_rate": 48000,
+      "track_live": true,
+      "context_running": true
+    },
+    "revoked_target": {
+      "analyzed_frames": 206400,
+      "frequency_hz": 1499,
+      "mean_amplitude": 0.0000011647255516792633,
+      "peak_amplitude": 0.0000012649767182070436,
+      "sample_rate": 48000,
+      "windows": 43
+    },
+    "revoked_status": {
+      "captured_frames": 209280,
+      "dropped_frames": 0,
+      "error": null,
+      "input_state": "idle",
+      "output_state": "idle",
+      "peak": 0,
+      "played_frames": 0,
+      "rms": 0,
+      "sample_rate": 48000,
+      "state": "idle"
+    },
+    "injection_error_code": null,
+    "target_restored": true
+  },
+  "administrative_controls": {
+    "scope": "Actual deployed control 571295af with published Android .6 and playwright-cli Web; administrative grant, transfer and revoke via visible controls",
+    "passed": true,
+    "grant_android": {
+      "server_controller_matches": true,
+      "native": {
+        "passed": true,
+        "role": "控制者",
+        "microphone_closed": true
+      },
+      "web_control": false,
+      "microphones_off": true
+    },
+    "transfer_web": {
+      "server_controller_matches": true,
+      "native": {
+        "passed": true,
+        "role": "仅观看",
+        "microphone_closed": false
+      },
+      "web_control": true,
+      "microphones_off": true
+    },
+    "revoke_web": {
+      "server_controller_matches": true,
+      "native": {
+        "passed": true,
+        "role": "仅观看",
+        "microphone_closed": false
+      },
+      "web_control": false,
+      "microphones_off": true
+    }
+  },
+  "lifecycle": {
+    "scope": "Published release .6, owned Windows Android emulator, current control 571295af, gateway 40146db2, renderer 47c02726; real permission denial and guest-network/background lifecycle, no host network change",
+    "passed": true,
+    "permission_before_fixture": true,
+    "permission_denied_capture_off": true,
+    "permission_restored_for_lifecycle_via": "adb pm grant on owned AVD",
+    "capture_before_guest_disconnect": true,
+    "expired_microphone_off": true,
+    "guest_disconnect_until_expiry_ms": 18095,
+    "resumed_same_connection_as_viewer": true,
+    "recovered_microphone_off": true,
+    "capture_before_home": true,
+    "background_left_and_capture_off": true,
+    "foreground_new_viewer_microphone_off": true,
+    "foreground_viewer_label": true,
+    "guest_network_restored": true
+  },
+  "program_playout": {
+    "format": "48000 Hz S16 stereo, official SDK streamAudio",
+    "frames": 240959,
+    "bytes": 963836,
+    "windows_per_channel": [
+      50,
+      50
+    ],
+    "median_997_per_channel": [
+      0.07964713176941177,
+      0.07964713176941177
+    ],
+    "windows_above_point01_per_channel": [
+      49,
+      49
+    ],
+    "grpc_error": null,
+    "track_active": true,
+    "track_underruns": 0,
+    "scope": "After guest-network/background lifecycle returned as viewer; no saved PCM or physical acoustic measurement"
+  },
+  "retained_failures": [
+    {
+      "case": "Initial mono SDK output observation before lifecycle",
+      "source": "Tool output 6e1970, retained here as tool-observed metrics; no original stdout file was created",
+      "elapsed_ms": 5112,
+      "bytes": 31890,
+      "frames": 15945,
+      "windows": 3,
+      "program_997_median": 1.0851133522728364e-7,
+      "pcm_rms": 0.0000920868,
+      "peak": 0.00012207,
+      "windows_above_point01": 0,
+      "grpc_error": null,
+      "passed": false,
+      "root_cause": "Unconfirmed. Successful stereo observation changed both format and native connection lifetime; it does not isolate or explain this failure."
+    },
+    {
+      "case": "Lifecycle fixture attempted before Web leave finished",
+      "passed": false,
+      "error": "Unowned client present",
+      "product_scenario_entered": false,
+      "subsequent_fixture": "Waited until only owned Android connection remained before running lifecycle"
+    }
+  ],
+  "terminal": {
+    "passed": true,
+    "native_terminal_after_stop_ms": 5580,
+    "session_stopped_and_connections_cleared": true,
+    "guest_volume_restored": true,
+    "guest_permission_restored": true,
+    "all_apps_stopped": true
+  },
+  "cleanup": {
+    "apps": [
+      {
+        "status": "stopped",
+        "example": false
+      },
+      {
+        "status": "ready",
+        "example": true
+      }
+    ],
+    "no_active_application": true,
+    "example_args_restored": true,
+    "all_sessions_stopped": true,
+    "no_active_upstream": true,
+    "guest_network_restored": true,
+    "guest_volume_restored_to": 5,
+    "guest_permission_and_flags_restored": true,
+    "owned_avd_stopped": true,
+    "coordinator_cleanup": "Returned owned_example_stopped=true and args_still_match_snapshot=true; idle process then interrupted",
+    "first_idle_receipt_note": "all_apps_stopped=false was literally correct because saving restored Example args changes stopped to ready; no running app or active upstream remained."
+  },
+  "safety": {
+    "ue_started_or_changed": false,
+    "todesk_changed": false,
+    "host_nic_changed": false,
+    "host_rebooted": false,
+    "ca_or_watch_key_changed": false,
+    "production_package_test_payload_added": false,
+    "human_speech_claim": false,
+    "voice_or_pcm_saved": false
+  },
+  "screenshots": [
+    {
+      "file": "android-joint-571295af/admin-control-revoked.png",
+      "sha256": "3379d7569f146a9b509ea2972bb3f2adc5c8de9f0e2a9da852700b4ee5919bb2",
+      "visually_reviewed": true
+    },
+    {
+      "file": "android-joint-571295af/native-after-lifecycle.png",
+      "sha256": "744bc70a37aa6857aec1c42414e28dee14e8c9a64cc025c3507fe781ece738e7",
+      "visually_reviewed": true
+    },
+    {
+      "file": "android-joint-571295af/native-terminal.png",
+      "sha256": "e3267d442deae0a7f55ab3c4a64e5c3393592a6bb31701def0859958f1e1b993",
+      "visually_reviewed": true
+    }
+  ],
+  "limitations": [
+    "Emulator is not physical pad, speaker/headphone acoustic quality, human speech or UE internal recording acceptance.",
+    "Earlier Linux emulator negatives remain unresolved and unchanged.",
+    "Source 91f87d34 frontend changes were not installed during this run.",
+    "Actual shared-host primary IP migration and full reboot remain pending."
+  ],
+  "private_source_hashes": {
+    "preparation.json": "44d8b8147fc3f702f4b2949b8f967520554c880d955df30267683bca94981572",
+    "microphone-first.log": "eb46a19bffd441b639d139d367a8b40b42fe3695b838d5b8918768e33f2a29e2",
+    "control-ui-result.json": "2c24819f8c7478d18721341c19dfce6466d0789c8607585814209b01d586f0f9",
+    "lifecycle-after-browser-leave.log": "a1120db8ff75ba2048b3ad494745cc44412bf77486729480cff93df2700bdb9d",
+    "stereo-output-diagnostic.json": "7e2dae85c295c20047097f6e02a5a6b003117827952ae3cf187ef364c463b091",
+    "finish-before-avd-cleanup.json": "92b21349a2f9df73e9182761b649161a862b19805afba7ba74cde413bdd76cd3",
+    "final-state.json": "c319541334813213ad80e784a64b57934ed546742e7d7540e136a2d698a4bc2e"
+  }
+}

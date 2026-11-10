@@ -1,5 +1,9 @@
 # 当前 Goal（2026-11-10）
 
+本轮续作新增[当前部署与正式 Android APK 的联合运行证据](evidence/android-joint-windows-571295af-20261110.json)：控制组件 `571295af`、网关 `40146db2`、Sunshine `47c02726` 与签名 APK `.6`。实际管理页完成 Android 授权、转交 Web、撤权，两端权限提示一致；Android 麦克风到服务器录音端点与观看端、撤权静音及断网/前后台均通过。生命周期恢复后，官方 SDK 按双声道读取 240959 帧，两个声道各 50 个窗口的 997 Hz 中位幅度为 0.07965。首次单声道观察只有 3 个窗口且接近静音，保留失败，未证明其根因；双声道通过不解释此前 Linux 负例。停止 Example 后 Android 明确进入终态，配置与模拟器音量/权限均恢复，模拟器已关闭。用户暂不方便操作 USB 平板，本轮不声称真机验收。
+
+后续管理前端修复源码为 `91f87d34`：统一管理响应类型与校验、日志真实分页、上传鉴权失效处理及请求/观看尝试的生命周期归属；全量 TypeScript、ESLint 和生产构建已通过，跨平台 CI [42795458858](https://github.com/bei612/stream-kit/actions/runs/42795458858) 六项成功。前一源码 `99d4038b` 的 CI 因旧手写 React 替身测试失败；已删除该替身，以生产请求归属对象的直接异步测试替代，未掩盖失败。源码已提交推送，新的干净组件包和维护预检已完成；安装仍等待 Windows UAC 确认，当前本机与公开安装包仍是下文记录的旧身份。原 API 25 处显式 `any` 已在新源码消除，下文相关描述属于 `571295af` 的历史检查边界。产品任务 [42798460428](https://github.com/bei612/stream-kit/actions/runs/42798460428) 正在构建该修复源码，尚不能写成已发布。
+
 目标是交付生产可用的一体化云渲染串流平台：Windows/Linux 服务端、Web/PWA 与原生 Android 共用应用、会话、连接、唯一控制权和媒体授权模型；仅一个管理员，不新增多用户系统或重型监控。Goal 保持 active，以下范围和完成条件完整保留，构建或部分检查通过不能代替最终交付。
 
 本机管理服务已于 2026-11-10 实际更新至 `571295af`，媒体网关保留 `40146db2`、Sunshine 保留 `47c02726`。Windows 正常 UAC 完成有备份的控制组件维护，服务为 `Running` / `Auto`，应用 ID、数据及原 LAN CA/服务密钥保留；未修改执行策略、网卡、ToDesk 或 UE。最新[本机维护与实际页面记录](evidence/management-overview-local-windows-571295af.json)覆盖统一会话状态修复；之前的[两组件维护](evidence/local-control-gateway-maintenance-40146db2.json)和[未成功启动记录](evidence/local-control-gateway-40146db2-prepared.json)均保留历史范围。此次不是重新运行统一安装器，也不证明通用原位升级能力或三个组件来自同一源码版本。
