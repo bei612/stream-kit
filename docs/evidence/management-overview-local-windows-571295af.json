@@ -1,0 +1,350 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-11-10T08:08:36.511Z",
+  "passed": true,
+  "scope": "Actual installed native Windows control component, strict existing LAN HTTPS and real playwright-cli Chrome; owned Example, no mocked responses",
+  "control_commit": "571295af7c106ca5080b7a7510ffe62715b90de6",
+  "gateway_commit": "40146db2ffa8b15040906cf130be8e89548c48da",
+  "renderer_commit": "47c02726c0161ebdec50911422d62845a9b6e59a",
+  "acceptance_source_commit": "571295af7c106ca5080b7a7510ffe62715b90de6",
+  "started_at": "2026-11-10T08:05:52.388Z",
+  "finished_at": "2026-11-10T08:06:26.770Z",
+  "maintenance": {
+    "source": "571295af7c106ca5080b7a7510ffe62715b90de6",
+    "previous_control_source": "40146db2ffa8b15040906cf130be8e89548c48da",
+    "success": true,
+    "apps_preserved": true,
+    "service": {
+      "Name": "StreamKitOrchestrator",
+      "State": "Running",
+      "StartMode": "Auto",
+      "StartName": "LocalSystem",
+      "ProcessId": 29868
+    },
+    "trust_changed": false,
+    "network_changed": false,
+    "todesk_changed": false,
+    "backups": {
+      "control": "C:\\Program Files\\StreamKit\\.previous-control-1794297900647",
+      "state": "C:\\ProgramData\\StreamKit\\control-maintenance-1794297900647"
+    },
+    "scope": "Control-component maintenance; Sunshine and gateway remain at recorded revisions. Not a new unified installer."
+  },
+  "management_overview_observations": [
+    {
+      "stage": "before_control_grant",
+      "session_revision": 9,
+      "applied_revision": 9,
+      "observed_revision": 9,
+      "upstream_active": true,
+      "cache_control": "no-store",
+      "sampled_at_ms": 1794297960999
+    },
+    {
+      "stage": "after_control_transfer",
+      "session_revision": 15,
+      "applied_revision": 15,
+      "observed_revision": 15,
+      "upstream_active": true,
+      "cache_control": "no-store",
+      "sampled_at_ms": 1794297971000
+    }
+  ],
+  "decoded_video_metrics": [
+    {
+      "viewer": "first",
+      "samples": [
+        {
+          "bytes": 220296,
+          "frames": 9
+        },
+        {
+          "bytes": 422189,
+          "frames": 24
+        }
+      ]
+    },
+    {
+      "viewer": "second",
+      "samples": [
+        {
+          "bytes": 444824,
+          "frames": 14
+        },
+        {
+          "bytes": 657021,
+          "frames": 30
+        }
+      ]
+    }
+  ],
+  "viewer_role_observations": [
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "controller",
+      "verified": true,
+      "control": true,
+      "ended": false,
+      "data_control": "true"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "controller",
+      "verified": true,
+      "control": true,
+      "ended": false,
+      "data_control": "true"
+    },
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    }
+  ],
+  "ui_pipeline_ready": [
+    {
+      "owner": 1,
+      "locale": "en",
+      "original_frame_present": true,
+      "video_renderer_available": true,
+      "width": 1440,
+      "height": 810,
+      "blocking_overlay_visible": false
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "original_frame_present": true,
+      "video_renderer_available": true,
+      "width": 1280,
+      "height": 720,
+      "blocking_overlay_visible": false
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "original_frame_present": true,
+      "video_renderer_available": true,
+      "width": 1280,
+      "height": 720,
+      "blocking_overlay_visible": false
+    }
+  ],
+  "ended_permission_notifications": [
+    {
+      "owner": 1,
+      "canonical_permission_notification_count": 0
+    },
+    {
+      "owner": 2,
+      "canonical_permission_notification_count": 0
+    }
+  ],
+  "stopped_argument_edit": {
+    "saved_via_ui": true,
+    "restored_via_ui": true,
+    "api_ui_agreement": true
+  },
+  "argument_restoration": {
+    "values_in_evidence": false,
+    "args_restored": true,
+    "idle_state_confirmed": true
+  },
+  "raw_console_errors": 2,
+  "unexpected_console_errors": 0,
+  "network_failures": [],
+  "http_failures": [
+    {
+      "owner": 1,
+      "hasQuery": false,
+      "hasHash": false,
+      "method": "POST",
+      "status": 410,
+      "requestOrder": 226,
+      "responseOrder": 227,
+      "code": "CONNECTION_TERMINATED",
+      "classification": "terminal_heartbeat"
+    },
+    {
+      "owner": 2,
+      "hasQuery": false,
+      "hasHash": false,
+      "method": "POST",
+      "status": 410,
+      "requestOrder": 229,
+      "responseOrder": 230,
+      "code": "CONNECTION_TERMINATED",
+      "classification": "terminal_heartbeat"
+    }
+  ],
+  "pending_viewer_api_requests": 0,
+  "terminal_followup_requests": [],
+  "timeline": {
+    "started_at": "2026-11-10T08:07:20.323Z",
+    "finished_at": "2026-11-10T08:07:40.188Z",
+    "sample_interval_ms": 250,
+    "samples": 62,
+    "ui_pending_samples": 0,
+    "ui_streaming_samples": 55,
+    "all_responses_single_overview": true,
+    "example_stopped": true
+  },
+  "screenshots": [
+    {
+      "path": ".local/validation/local-management-live-571295af/app-before-launch-desktop.png",
+      "sha256": "6105006911984dcaf6b4673d695d2b9750b4155a0fa6f3e3600c6205227377d5",
+      "reviewed": false
+    },
+    {
+      "path": ".local/validation/local-management-live-571295af/app-before-launch-mobile.png",
+      "sha256": "74faf3807f60205ffd87a42622c8b35f9ea1d266849e9ed7259050495a5486f0",
+      "reviewed": false
+    },
+    {
+      "path": ".local/validation/local-management-live-571295af/history-desktop.png",
+      "sha256": "7da9959d9b2985e3debb9197b17de3e0ad5a3b0e793ac4ad5acc16d3d6cca002",
+      "reviewed": false
+    },
+    {
+      "path": ".local/validation/local-management-live-571295af/history-mobile.png",
+      "sha256": "49b737b54187d24b5cf8aa2acf1a5be0d87c19c8a04d29dd427ce6b2f38c0590",
+      "reviewed": false
+    },
+    {
+      "path": ".local/validation/local-management-live-571295af/sessions-transfer-desktop.png",
+      "sha256": "f0dfc53f3ab6f366b57bb8f2c6654ff48ba6a59c6bd732aa4c5c05a8d3806d57",
+      "reviewed": true
+    },
+    {
+      "path": ".local/validation/local-management-live-571295af/sessions-transfer-mobile.png",
+      "sha256": "b4bdd76030de1c504352f34039a19654d9eae2689cff91a05386b1bad5e42c1a",
+      "reviewed": true
+    },
+    {
+      "path": ".local/validation/local-management-live-571295af/stopped-arguments-restored.png",
+      "sha256": "560358bf85472f225b3db98401bcc4e22629c49bab81cc0984b53edd25a99cfa",
+      "reviewed": false
+    },
+    {
+      "path": ".local/validation/local-management-live-571295af/stopped-arguments-saved.png",
+      "sha256": "560358bf85472f225b3db98401bcc4e22629c49bab81cc0984b53edd25a99cfa",
+      "reviewed": false
+    },
+    {
+      "path": ".local/validation/local-management-live-571295af/viewer-after-transfer.png",
+      "sha256": "489746f74d2f1e9b043809ec12edda54612db84710eff721cfb6b43a4be37b74",
+      "reviewed": false
+    },
+    {
+      "path": ".local/validation/local-management-live-571295af/viewer-before-grant.png",
+      "sha256": "6a0819db33b11331c56f052d294e9eb809846920d322054fd2a5aa3cf092bff9",
+      "reviewed": false
+    },
+    {
+      "path": ".local/validation/local-management-live-571295af/viewer-ended.png",
+      "sha256": "20d2bd3c80cdd1d824f651457f30191adbe1dc8688b59e353d670d6159251135",
+      "reviewed": false
+    }
+  ],
+  "primary_evidence": [
+    {
+      "path": ".local/validation/local-maintenance-applied-571295af.json",
+      "sha256": "84ce997054608d7c9ac67d2cb560849c801837cacfefc0cc39a667d6835b4c9f"
+    },
+    {
+      "path": ".local/validation/maintenance-elevation-571295af.json",
+      "sha256": "2aa37f1737e6a7d383dbc361edcc4820957f4ed520a946cb60af99abad4f486b"
+    },
+    {
+      "path": ".local/validation/local-management-live-571295af/result.json",
+      "sha256": "f22dfec2b68b3ec72160eb59a3d65148b3ebd990195cdd1965dd4163c7739b08"
+    },
+    {
+      "path": ".local/validation/local-management-live-571295af/cli.log",
+      "sha256": "b47c132db708f9feb0cc06b4395c5b9130a8c4dba89a0be41d19a63c93d1cddb"
+    },
+    {
+      "path": ".local/management/android-acceptance-private/media-observation-571295af/result.json",
+      "sha256": "81f4c562202cc32716196911a2895dccd848b8c2e6f616ca94d6c8506a705529"
+    },
+    {
+      "path": ".local/management/android-acceptance-private/media-observation-571295af/actual-management-state.png",
+      "sha256": "92236647018725879b98d3994445cea0e215a7c3c24fb8dcb07331ed23ae9859"
+    }
+  ],
+  "post_acceptance": {
+    "apps_preserved": true,
+    "all_apps_stopped": true,
+    "all_sessions_stopped": true,
+    "no_upstream_active": true,
+    "ue_launched": false,
+    "components_other_than_control_unchanged": true
+  },
+  "checks": [
+    "trusted HTTPS and exact deployed control commit",
+    "permanent link visible before launch",
+    "real Example launch and two decoded WebRTC viewers",
+    "UI grant, transfer and revoke with server authority checks",
+    "canonical en/zh viewer authority, lifecycle-only connection prompts and ready UI pipelines",
+    "ended viewers have no stale permission notifications",
+    "Example stop; UI argument edit/save and original argument restoration with actual API agreement; read-only history",
+    "desktop/mobile screenshots and console errors"
+  ],
+  "limits": [
+    "Finite observed timeline is not a guarantee of zero legitimate pending reconciliation during future commands or outages.",
+    "Viewer role observations are English; no expanded language or native Android acceptance claim.",
+    "No acoustic, target-program recording, actual primary host IP change or whole-machine reboot claim.",
+    "Control-only component maintenance is not a unified installer rerun or proof of generic in-place upgrade. Released unified installer remains source 40146db2 until a separately verified publication."
+  ]
+}
