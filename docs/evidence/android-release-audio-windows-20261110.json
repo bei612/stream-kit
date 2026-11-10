@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-10",
+  "recorded_at": "2026-11-10T04:38:43Z",
+  "passed": true,
+  "scope": "Published signed Android APK .6 on an owned official Windows emulator, existing local Windows runtime, independent emulator program-audio output and synthetic microphone to a native recording endpoint plus an actual playwright-cli Web viewer, followed by revocation. No physical speech or Linux audio acceptance.",
+  "runtime": {
+    "control_commit": "98e419f7f85fa36a92651ee55396815386a233c4",
+    "gateway_commit": "98e419f7f85fa36a92651ee55396815386a233c4",
+    "renderer_commit": "47c02726c0161ebdec50911422d62845a9b6e59a",
+    "runtime_updated_for_test": false,
+    "application": "Existing independent Example in application capture mode; UE was stopped throughout",
+    "clients": [
+      "Published native Android APK",
+      "Actual Chrome viewer operated through playwright-cli"
+    ],
+    "one_upstream_observed": true
+  },
+  "android": {
+    "release_tag": "v0.1.0-android-preview.20261109.6",
+    "source_commit": "df7cd87b3352a638aa3a6aa7073d39074c02a43c",
+    "version_code": 1000013,
+    "apk_sha256": "31593fce46afc49de92e9c04b76e0b881448e477d42fcbe02ebf387d424c3ebc",
+    "signer_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f",
+    "installed_apk_bytes_verified": true,
+    "debuggable": false,
+    "rebuilt": false,
+    "production_probes_added": false,
+    "emulator": "Android SDK Emulator 37.2.13.0 build 16740729 on Windows 11, owned StreamKit_API_36 AVD",
+    "transport": "Existing trusted LAN HTTPS; no trust installation or certificate bypass",
+    "host_microphone_connected": false,
+    "audio_rpc": "Official emulator controller, localhost-only port with per-emulator bearer authentication; token not recorded"
+  },
+  "program_audio": {
+    "frequency_hz": 997,
+    "source": "Example tone routed to an explicitly selected existing Realtek output; no default-device change requested",
+    "observer": "Official streamAudio output RPC, 48000 Hz mono signed 16-bit little-endian, bounded in-memory samples",
+    "guest_music_volume": {
+      "before": 5,
+      "maximum": 15,
+      "during": 15,
+      "restored": 5,
+      "actual_readback_verified": true
+    },
+    "volume_interface_note": "Legacy media_session volume --set did not change actual volume. Existing cmd audio set-volume interface and media_session --get readback established 15, then restored 5.",
+    "observed_milliseconds": 5131,
+    "bytes": 479998,
+    "frames": 239999,
+    "windows": 49,
+    "median_amplitude": 0.15934084950124142,
+    "pcm_rms": 0.1100582763094298,
+    "peak": 0.163238525390625,
+    "minimum_window_amplitude": 0.01,
+    "windows_above_minimum": 49,
+    "grpc_error_code": null,
+    "web_program_audio": {
+      "median_db": -36.19091796875,
+      "sample_rate": 44100,
+      "windows": 30,
+      "track_live": true,
+      "context_running": true
+    }
+  },
+  "microphone": {
+    "source": "Official emulator injectAudio, synthetic 1499 Hz, 48000 Hz mono signed 16-bit; host microphone remained disconnected",
+    "physical_speech": false,
+    "permission": "Explicit client microphone UI action; foreground permission dialog handled through its normal Android permission button if present",
+    "authority": "Administrator granted the one Android connection; client activated microphone; administrator revoked control while injection continued",
+    "capture_started_confirmed_by_server": true,
+    "target": "Explicit existing Stream Kit Virtual Audio render/capture endpoint pair; native audio-probe captured the recording endpoint in memory",
+    "target_baseline": {
+      "frames": 48000,
+      "windows": 10,
+      "mean_amplitude": 0.0000011226311271650973,
+      "peak_amplitude": 0.0000011781667626220628
+    },
+    "audience_baseline_db": -126.36238098144531,
+    "authorized_target": {
+      "frames": 206400,
+      "windows": 43,
+      "mean_amplitude": 0.31176715907658653,
+      "peak_amplitude": 0.524146367255716,
+      "dropped_frames": 0
+    },
+    "authorized_audience_db": -21.744552612304688,
+    "revoked_target": {
+      "frames": 206400,
+      "windows": 43,
+      "mean_amplitude": 8.537311608964462e-7,
+      "peak_amplitude": 8.999484626601319e-7,
+      "dropped_frames": 0
+    },
+    "revoked_audience_db": -128.42886352539062,
+    "audience_windows_per_observation": 30,
+    "audience_sample_rate": 44100,
+    "bounded_queue_settling_ms_after_capture_stopped": 1500,
+    "injection_error_code": null,
+    "thresholds": {
+      "authorized_target_mean_above": 0.01,
+      "authorized_audience_db_above": -60,
+      "revoked_target_peak_below": 0.001,
+      "revoked_audience_db_below": -65
+    }
+  },
+  "cleanup": {
+    "microphone_control_revoked": true,
+    "original_audio_target_restored": true,
+    "guest_music_volume_restored_with_readback": true,
+    "owned_browser_closed": true,
+    "owned_emulator_closed": true,
+    "adb_devices_empty": true,
+    "adb_forwards_empty": true,
+    "example_ready_and_original_empty_arguments_restored": true,
+    "active_sessions": 0,
+    "active_upstreams": 0,
+    "ue_stopped": true,
+    "pcm_or_voice_files_saved": false,
+    "note": "Coordinator conservatively refused to stop after seeing two retained connections. Root independently waited for no unexpired connected viewers, then stopped the owned Example and restored its exact temporary arguments with compare-and-set checks."
+  },
+  "evidence": {
+    "source": "Actual interactive command outputs and independently viewed Android/Web screenshots; no CI run is attributed to this local execution",
+    "playwright_cli_session": "release-audio-windows-current",
+    "screenshot_directory": ".local/validation/android-release-audio-windows-20261110",
+    "scripts": [
+      ".local/management/read-owned-emulator-audio.cjs",
+      ".local/management/owned-release-microphone-check.cjs",
+      ".local/management/owned-release-audio-web.cjs"
+    ],
+    "private_identifiers_and_tokens_omitted": true,
+    "screenshots": [
+      {
+        "name": "android-after-revocation.png",
+        "bytes": 144878,
+        "sha256": "de7502a3248de0f50dcb4d8f784dc1f2e5d9a2559266c8dd069180ab948ecd63"
+      },
+      {
+        "name": "web-after-revocation.png",
+        "bytes": 265069,
+        "sha256": "502e13b58b47acc850d58c9271a189010f16326d104d3772e5478ae22448f7d6"
+      }
+    ],
+    "script_sha256": [
+      {
+        "path": ".local/management/read-owned-emulator-audio.cjs",
+        "sha256": "3ef2322ef0191fe07e1f6cff292acbf37a0a14fb1271d13ad8ce26086b25b0b8"
+      },
+      {
+        "path": ".local/management/owned-release-microphone-check.cjs",
+        "sha256": "cd982a0f8382bd8d2ca18f859cd72dbb85a7d4d6a5f608a0d200c79e1c4f9610"
+      },
+      {
+        "path": ".local/management/owned-release-audio-web.cjs",
+        "sha256": "f36ed699f1306869896aa29f0255bdffac7e5e3fb7176abf7140ad3658f87de9"
+      }
+    ]
+  },
+  "limits": [
+    "This establishes the recorded published APK and old local Windows deployment, not the newer 3d4f248c server or a subsequent source revision.",
+    "The separate Linux PulseAudio result 42673566514 attempt 3 remains a failure. This Windows success does not explain or overwrite that result.",
+    "No physical tablet, headphones, Bluetooth, real speech or actual host IP/reboot acceptance is claimed.",
+    "A native recording endpoint was measured; this does not establish recording inside UE or a particular customer program.",
+    "The preceding standard-debug SDK buffer observations were diagnostic only and are not substituted for this signed-APK output measurement."
+  ]
+}
