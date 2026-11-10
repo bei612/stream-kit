@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-10",
+  "source_commit": "40146db2ffa8b15040906cf130be8e89548c48da",
+  "producer_run": "https://github.com/bei612/stream-kit/actions/runs/42756383945",
+  "artifact": "windows-control-gateway-40146db2ffa8b15040906cf130be8e89548c48da",
+  "artifact_directory": ".local/ci-control-gateway-40146db2",
+  "scope": "Complete original Windows control and gateway bundles verified by read-only local maintenance preflight; not an applied maintenance or unified installer acceptance.",
+  "preflight": {
+    "success": true,
+    "apply": false,
+    "started_at": "2026-11-10T04:43:37.219Z",
+    "step": "read_only_preflight_complete",
+    "source": "40146db2ffa8b15040906cf130be8e89548c48da",
+    "gateway_source": "40146db2ffa8b15040906cf130be8e89548c48da",
+    "previous_source": "98e419f7f85fa36a92651ee55396815386a233c4",
+    "previous_gateway_source": "98e419f7f85fa36a92651ee55396815386a233c4",
+    "renderer_source": "47c02726c0161ebdec50911422d62845a9b6e59a",
+    "no_business_application_or_active_upstream": true,
+    "full_bundle_inventories_and_hashes_verified": true,
+    "binary_source_stamps_verified": true,
+    "service_running_automatic": true,
+    "requires_elevation_for_apply": true,
+    "frozen_result": ".local/validation/local-maintenance-preflight-40146db2.json",
+    "frozen_result_sha256": "448e90744120388e3035004330000a47837a6715886cd586427caae8be0d6c75"
+  },
+  "maintenance_attempt": {
+    "method": "Reviewed bounded backup/rollback helper through normal Windows RunAs",
+    "elevation_launch_succeeded": false,
+    "windows_exception_class": "InvalidOperationException",
+    "native_error_code_retained": false,
+    "cause_boundary": "The launch did not return a process. This record does not infer whether the Windows prompt was canceled, timed out or otherwise refused.",
+    "maintenance_process_started": false,
+    "existing_service_replaced": false,
+    "legacy_maintenance_receipt_unchanged": true,
+    "automatic_retry_performed": false
+  },
+  "applied": false,
+  "trust_changed": false,
+  "host_network_changed": false,
+  "todesk_changed": false,
+  "ue_launched": false,
+  "prepared_live_check": "Private live-config-40146db2.json validates but has not been executed against the old local service",
+  "limitations": [
+    "Original installation remains control/gateway 98e419f7 and renderer 47c02726.",
+    "Successful preflight cannot establish deployment, post-update UI, actual host IP change or reboot recovery.",
+    "The separate exact Linux runtime CLI receipt is independent of this Windows deployment attempt."
+  ]
+}

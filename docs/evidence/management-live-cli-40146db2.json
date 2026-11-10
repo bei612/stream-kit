@@ -1,0 +1,367 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-10",
+  "passed": true,
+  "runtime_commit": "40146db2ffa8b15040906cf130be8e89548c48da",
+  "acceptance_commit": "aef660a49875b828177f8b925852d90ff0d32783",
+  "acceptance_run": "https://github.com/bei612/stream-kit/actions/runs/42757734441",
+  "environment": "Isolated GitHub-hosted Ubuntu 24.04 production runtime with trusted temporary TLS, native Sunshine/X11 owned Example and official playwright-cli",
+  "playwright_cli": "0.1.22",
+  "scope": "Existing real playwright-cli management acceptance against an isolated Linux deployment of verified production runtime; no local Windows, native-exit, Android, audio, target-input or stability acceptance",
+  "source": {
+    "runtime_commit": "40146db2ffa8b15040906cf130be8e89548c48da",
+    "installer_sha256": "bdf977e4c8d75cf157dd302c00ebb7930d3aba1feac4320f188c0781fd102313",
+    "payload_sha256": "02d8a2337a715667aba1ccd22e73f471a16d520d45a00220498a3f25f578f40b",
+    "product_run_id": 42756383945,
+    "product_run_status": "in_progress",
+    "product_run_conclusion": null,
+    "runtime_producer_profile": "unified",
+    "product_workflow": ".github/workflows/windows-product-release.yml",
+    "product_event": "workflow_dispatch",
+    "product_linux_job_id": 129631639001,
+    "product_linux_job_name": "Linux product / Source-built Linux unified installer",
+    "acceptance_commit": "aef660a49875b828177f8b925852d90ff0d32783",
+    "runtime_rebuilt": false,
+    "playwright_cli": "0.1.22",
+    "scope": "Existing real playwright-cli management acceptance against an isolated Linux deployment of verified production runtime; no local Windows, native-exit, Android, audio, target-input or stability acceptance",
+    "gateway_sha256": "caefefffb91c9ad19d225d33ad0b158043ba6af583c14b7b4acc637650b4d79b",
+    "control_sha256": "8ed4b39deb58d480c4b4a54083eb044a8ef00202f135c651620f39f31f79ed39",
+    "renderer_sha256": "b7f78347c2d31442403aae5e31bd7ea5341d023426363709f69f841fa3695777",
+    "owned_example_sha256": "e59f3c4e34c1e7f501462d8ca72d7747a401e10abba8d0f70a7d2579e2afde9f"
+  },
+  "canonical_catalog_languages": [
+    "en",
+    "zh-CN"
+  ],
+  "observed_viewer_language_groups": [
+    "en"
+  ],
+  "checks": [
+    "trusted HTTPS and exact deployed control commit",
+    "permanent link visible before launch",
+    "real Example launch and two decoded WebRTC viewers",
+    "UI grant, transfer and revoke with server authority checks",
+    "canonical en/zh viewer authority, lifecycle-only connection prompts and ready UI pipelines",
+    "ended viewers have no stale permission notifications",
+    "Example stop; UI argument edit/save and original argument restoration with actual API agreement; read-only history",
+    "desktop/mobile screenshots and console errors"
+  ],
+  "preflight": {
+    "exact_control_commit": "40146db2ffa8b15040906cf130be8e89548c48da",
+    "owned_application_status": "ready",
+    "other_active_applications": 0
+  },
+  "decoded_video_metrics": [
+    {
+      "viewer": "first",
+      "samples": [
+        {
+          "bytes": 104257,
+          "frames": 13
+        },
+        {
+          "bytes": 154119,
+          "frames": 28
+        }
+      ]
+    },
+    {
+      "viewer": "second",
+      "samples": [
+        {
+          "bytes": 119986,
+          "frames": 16
+        },
+        {
+          "bytes": 175545,
+          "frames": 31
+        }
+      ]
+    }
+  ],
+  "viewer_role_observations": [
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "controller",
+      "verified": true,
+      "control": true,
+      "ended": false,
+      "data_control": "true"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "controller",
+      "verified": true,
+      "control": true,
+      "ended": false,
+      "data_control": "true"
+    },
+    {
+      "owner": 1,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "semantic": "viewer",
+      "verified": true,
+      "control": false,
+      "ended": false,
+      "data_control": "false"
+    }
+  ],
+  "loading_modal_observations": [
+    {
+      "owner": 1,
+      "locale": "en",
+      "phase": "connecting"
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "phase": "connecting"
+    }
+  ],
+  "ui_pipeline_ready": [
+    {
+      "owner": 1,
+      "locale": "en",
+      "original_frame_present": true,
+      "video_renderer_available": true,
+      "width": 1280,
+      "height": 720,
+      "blocking_overlay_visible": false
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "original_frame_present": true,
+      "video_renderer_available": true,
+      "width": 1280,
+      "height": 720,
+      "blocking_overlay_visible": false
+    },
+    {
+      "owner": 2,
+      "locale": "en",
+      "original_frame_present": true,
+      "video_renderer_available": true,
+      "width": 1280,
+      "height": 720,
+      "blocking_overlay_visible": false
+    }
+  ],
+  "ended_permission_notifications": [
+    {
+      "owner": 1,
+      "canonical_permission_notification_count": 0
+    },
+    {
+      "owner": 2,
+      "canonical_permission_notification_count": 0
+    }
+  ],
+  "lifecycle": {
+    "stopped_viewers": {
+      "1": {
+        "original_frame_present": true,
+        "frames": [
+          {
+            "original": true,
+            "peers": [
+              "closed"
+            ],
+            "ended": true,
+            "verified": false,
+            "control": false,
+            "microphone": false,
+            "data_control": "false",
+            "badge_visible": true,
+            "locale": "en"
+          }
+        ]
+      },
+      "2": {
+        "original_frame_present": true,
+        "frames": [
+          {
+            "original": true,
+            "peers": [
+              "closed"
+            ],
+            "ended": true,
+            "verified": false,
+            "control": false,
+            "microphone": false,
+            "data_control": "false",
+            "badge_visible": true,
+            "locale": "en"
+          }
+        ]
+      }
+    },
+    "pending_viewer_api_requests": 0,
+    "terminal_followup_request_count": 0,
+    "network_failure_count": 0,
+    "raw_console_error_count": 2,
+    "unexpected_console_error_count": 0,
+    "http_failures": [
+      {
+        "viewer": 1,
+        "method": "POST",
+        "status": 410,
+        "code": "CONNECTION_TERMINATED",
+        "classification": "terminal_heartbeat"
+      },
+      {
+        "viewer": 2,
+        "method": "POST",
+        "status": 410,
+        "code": "CONNECTION_TERMINATED",
+        "classification": "terminal_heartbeat"
+      }
+    ],
+    "stopped_argument_edit": {
+      "saved_via_ui": true,
+      "restored_via_ui": true,
+      "api_ui_agreement": true
+    },
+    "argument_restoration": {
+      "values_in_evidence": false,
+      "args_restored": true,
+      "idle_state_confirmed": true
+    }
+  },
+  "screenshot_review": {
+    "manually_reviewed_count": 3,
+    "observations": [
+      "Pre-grant viewer displays decoded moving checkerboard and Viewer only, with no blocking diagnostic modal",
+      "Ended viewer displays Viewing ended, no retained permission toast",
+      "Mobile management displays two clients, one unique controller and audio route; pending telemetry remains explicitly pending"
+    ],
+    "files": [
+      {
+        "file": "source-stream/2026-11-10T04-45-09-034Z/browser/management-live/app-before-launch-desktop.png",
+        "sha256": "a0e82e8596bf8f28a4d174ee133c6da1858f6ca7ba99ada8f66fe5fff5846c4d"
+      },
+      {
+        "file": "source-stream/2026-11-10T04-45-09-034Z/browser/management-live/app-before-launch-mobile.png",
+        "sha256": "d8cf56f42ad41593f84b710bb324deb848632b58bfe209fc90f287f7417099f8"
+      },
+      {
+        "file": "source-stream/2026-11-10T04-45-09-034Z/browser/management-live/history-desktop.png",
+        "sha256": "56291479f38f53fd9031bb1686a8e1eafc86054ea2d0086f6a016c343125f3f6"
+      },
+      {
+        "file": "source-stream/2026-11-10T04-45-09-034Z/browser/management-live/history-mobile.png",
+        "sha256": "119680d5c4f6ebd51b1dcd3b6fe43c4ad040f342718ac59849010a3848ffd999"
+      },
+      {
+        "file": "source-stream/2026-11-10T04-45-09-034Z/browser/management-live/sessions-transfer-desktop.png",
+        "sha256": "f716b44a1a097fae09ebd0ee12dcd77bb1595f0e40d02e63b6495cda0b799f5b"
+      },
+      {
+        "file": "source-stream/2026-11-10T04-45-09-034Z/browser/management-live/sessions-transfer-mobile.png",
+        "sha256": "eab134ce371fa44db32ca923969274d44abb5c120378948f35ef1ca756f89696"
+      },
+      {
+        "file": "source-stream/2026-11-10T04-45-09-034Z/browser/management-live/stopped-arguments-restored.png",
+        "sha256": "3c3b7c1c4a5cdf31e667a546290d7e9f46293892a9bb718301ad18cdb1264541"
+      },
+      {
+        "file": "source-stream/2026-11-10T04-45-09-034Z/browser/management-live/stopped-arguments-saved.png",
+        "sha256": "3c3b7c1c4a5cdf31e667a546290d7e9f46293892a9bb718301ad18cdb1264541"
+      },
+      {
+        "file": "source-stream/2026-11-10T04-45-09-034Z/browser/management-live/viewer-after-transfer.png",
+        "sha256": "dc0b6d811d28e3cfa47782546759f4daba397987a54c84765089c6e11fd6bc94"
+      },
+      {
+        "file": "source-stream/2026-11-10T04-45-09-034Z/browser/management-live/viewer-before-grant.png",
+        "sha256": "7ec5fd4d9176ed32d18ab78f77103364f4d3e4b5211554c4df8d5ab06cd017bd"
+      },
+      {
+        "file": "source-stream/2026-11-10T04-45-09-034Z/browser/management-live/viewer-ended.png",
+        "sha256": "144c1714ab08782daa4a53e30dc8fdfa378bd224114bc087d4bcfc08e2652ad9"
+      }
+    ]
+  },
+  "evidence": {
+    "artifact": "management-live-cli-evidence",
+    "retained_locally": ".local/ci-management-live-42757734441",
+    "files": [
+      {
+        "file": "source-stream/2026-11-10T04-45-09-034Z/result.json",
+        "sha256": "064052214cc9272141d1d62f1bceac4b237a43dc78686d6acf3313c7c10541f5"
+      },
+      {
+        "file": "source-stream/2026-11-10T04-45-09-034Z/browser/result.json",
+        "sha256": "077956258689ccd09289be832e4dfde9de5269d597cd083e0cf2a5810947513e"
+      },
+      {
+        "file": "source-stream/2026-11-10T04-45-09-034Z/browser/management-live/result.json",
+        "sha256": "8164b59468ed7663b11195e2d4571ced4c2a398af8d6ad86fbb3b90cb428eef7"
+      },
+      {
+        "file": "source-stream/2026-11-10T04-45-09-034Z/browser/management-live/cli.log",
+        "sha256": "d5c57aae02d1910eba0d36d3ec12c270f8b27315e907945daaeb86a5d7ff4ccd"
+      },
+      {
+        "file": "management-live-evidence/provenance.json",
+        "sha256": "5c9ecdf827b400f2781aa225fd2420b127179fbaf263f2605ccf0e330eb9af06"
+      }
+    ],
+    "privacy": "Receipt excludes deployment origins, application/connection identifiers, credentials, SDP and request bodies"
+  },
+  "limits": [
+    "The source snapshot sampled its parent product run in progress; preserve that original state. Exact Windows installation and publication have independent gates.",
+    "English viewer runtime with desktop/mobile viewports; canonical en/zh catalog validation is not Chinese runtime execution.",
+    "No local Windows deployment, Android sound, target input, host IP change, whole reboot or long-run acceptance.",
+    "This is a real deployed UI check, not a claim that all logging privacy properties were exercised by the successful media path."
+  ],
+  "started_at": "2026-11-10T04:45:11.265Z",
+  "finished_at": "2026-11-10T04:45:50.740Z"
+}

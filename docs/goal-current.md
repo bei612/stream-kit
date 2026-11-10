@@ -4,7 +4,9 @@
 
 正式 Android `.6` 的[本机 Windows 音频链路验收](evidence/android-release-audio-windows-20261110.json)已完成：官方模拟器独立输出的 997 Hz 程序音中位幅值约 0.159，49 个窗口全部通过原门槛；唯一控制者发送的合成 1499 Hz 麦克风到达原生录音端点（平均幅值约 0.312）及真实 CLI Web 观看端（约 -21.74 dB），撤权后分别低于 0.001 和 -65 dB，零采集丢帧。复用已发布 APK，没有改生产源码或加入探针。该次服务端仍为 `98e419f7`、Sunshine 为 `47c02726`；Linux CI 的近静音失败保留，不能因 Windows 通过而改写。Example、路由及模拟器音量已恢复，无活动串流或遗留 ADB 转发。
 
-安全修复对应的统一产品源码冻结为 `40146db2`，唯一构建任务为 [42756383945](https://github.com/bei612/stream-kit/actions/runs/42756383945)。它包含已通过源码 CI 的安全修改；构建尚在执行，不能称为已发布或已安装，也不重复构建既有 `3d4f248c` 产物。
+安全修复对应的统一产品源码冻结为 `40146db2`，唯一构建任务为 [42756383945](https://github.com/bei612/stream-kit/actions/runs/42756383945)。Linux 原产物已构建完成并通过[同源真实 CLI 验收](evidence/management-live-cli-40146db2.json)：双端视频推进、控制交接、终态清理、参数保存恢复、桌面与移动截图均通过，网络失败为零。Windows 整包仍在构建，不能称为已发布或已安装，也不重复构建既有 `3d4f248c` 产物。
+
+本机原始 Windows 控制/网关包已完成[只读维护预检](evidence/local-control-gateway-40146db2-prepared.json)，正常 RunAs 提权启动未返回维护进程，尚未应用；具体 Windows 原生错误码没有保留，不推定为用户取消。没有替换服务或绕过系统提权。本机仍为 `98e419f7`，已准备的精确版本 CLI 配置也没有对旧服务执行。
 
 最新补齐的跨端范围：公开 `3d4f248c` 服务端与正式 Android APK `.6` 在同一个真实目标中完成输入、控制权交接与撤销六阶段验收，见[对应版本记录](evidence/android-stream-input-3d4f248c-20261110.json)。同一服务端也通过[程序自然退出与旧代次撤权](evidence/native-session-exit-3d4f248c-20261110-verified.json)：正常关闭后停止串流，旧连接返回明确终态，未到期媒体凭据失效；原验收脚本错误码断言的失败记录保留。这些结果不证明 Android 程序音或麦克风通过，也不是本机 Windows 目标输入验收。
 
