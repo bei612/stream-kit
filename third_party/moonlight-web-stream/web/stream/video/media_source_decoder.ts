@@ -1,4 +1,4 @@
-import { download, globalObject } from "../../util"
+import { globalObject } from "../../util"
 import { ByteBuffer } from "../buffer"
 import { Logger } from "../log"
 import { Pipe, PipeInfo } from "../pipeline/index"
@@ -7,11 +7,11 @@ import { emptyVideoCodecs } from "../video"
 import { h264NalType, H264StreamVideoTranslator } from "./annex_b_translator"
 import { DataVideoRenderer, UrlVideoRenderer, VideoDecodeUnit, VideoRendererSetup } from "./index"
 
-// auto download an mp4 file containing all data until a media source error occured, testing only
-const DEBUG_FILE = false
-
 export class MediaSourceDecoder implements DataVideoRenderer {
     static readonly pipeName = "MediaSourceDecoder"
+    static readonly pendingFrameLimit = 60
+    static readonly pendingByteLimit = 16 * 1024 * 1024
+    private static readonly retainedSeconds = 5
 
     static async getInfo(): Promise<PipeInfo> {
         const environmentSupported = "MediaSource" in globalObject() && "isTypeSupported" in MediaSource
@@ -45,6 +45,11 @@ export class MediaSourceDecoder implements DataVideoRenderer {
     private translator: H264StreamVideoTranslator
 
     private onReadyPromise: Promise<void>
+    private resolveReady: (() => void) | null = null
+    private boundSourceOpen = () => { this.resolveReady?.(); this.resolveReady = null }
+    private boundSourceClose = () => { if (!this.disposed) this.fail("Media source closed before streaming completed") }
+    private boundSourceError = this.onError.bind(this)
+    private boundUpdateEnd = this.onUpdateEnd.bind(this)
 
     private videoSize: [number, number] | null = null
     private frameDuration = 0
@@ -52,7 +57,8 @@ export class MediaSourceDecoder implements DataVideoRenderer {
 
     private sourceBuffer: SourceBuffer | null = null
 
-    private debugBuffer: Uint8Array<ArrayBuffer> | null = null
+    private bufferedBytes = 0
+    private trimmedUntil = 0
 
     constructor(base: UrlVideoRenderer, logger?: Logger) {
         this.logger = logger ?? null
@@ -61,11 +67,9 @@ export class MediaSourceDecoder implements DataVideoRenderer {
         this.base = base
         this.translator = new H264StreamVideoTranslator(logger)
 
-        this.onReadyPromise = new Promise((resolve, reject) => {
-            this.mediaSource.addEventListener("sourceopen", () => {
-                resolve()
-            })
-        })
+        this.onReadyPromise = new Promise(resolve => { this.resolveReady = resolve })
+        this.mediaSource.addEventListener("sourceopen", this.boundSourceOpen)
+        this.mediaSource.addEventListener("sourceclose", this.boundSourceClose)
 
         if (document) {
             document.addEventListener("visibilitychange", this.boundOnDocVisibilityChange)
@@ -97,24 +101,24 @@ export class MediaSourceDecoder implements DataVideoRenderer {
             `video/mp4; codecs="${codec}"`
         )
 
-        this.sourceBuffer.addEventListener("error", this.onError.bind(this))
-        this.sourceBuffer.addEventListener("updateend", this.onUpdateEnd.bind(this))
+        this.sourceBuffer.addEventListener("error", this.boundSourceError)
+        this.sourceBuffer.addEventListener("updateend", this.boundUpdateEnd)
     }
 
 
-    private onError(event: Event) {
-        this.errored = true
-        this.logger?.debug(`Error whilst decoding using MediaSourceExtension at sequenceNumber ${this.sequenceNumber}`, { type: "fatalDescription" })
-        if (event instanceof ErrorEvent) {
-            this.logger?.debug(`${event.error}`, { type: "fatal" })
-        }
+    private onError() {
+        this.fail(`MediaSource decoding failed at frame ${this.sequenceNumber}`)
+    }
 
-        if (DEBUG_FILE && this.debugBuffer) {
-            download(this.debugBuffer, "file.mp4", "video/mp4")
-        }
+    private fail(message: string) {
+        if (this.disposed) return
+        this.errored = true
+        this.cleanup()
+        this.logger?.debug(message, { type: "fatal" })
     }
 
     private onUpdateEnd() {
+        if (this.disposed) return
         if (this.waitForIdrUpdateEnd) {
             this.base.seekToLatest()
             this.waitForIdrUpdateEnd = false
@@ -135,13 +139,26 @@ export class MediaSourceDecoder implements DataVideoRenderer {
 
     submitDecodeUnit(unit: VideoDecodeUnit): void {
         if (this.disposed) return
+        try { this.appendDecodeUnit(unit) }
+        catch { this.fail("MediaSource could not prepare an encoded frame") }
+    }
+
+    private appendDecodeUnit(unit: VideoDecodeUnit): void {
         if (this.errored) {
+            return
+        }
+        // Account before translation/copying, including the backing allocation.
+        // MSE stalls must never retain an unbounded queue of encoded frames.
+        const incomingBytes = unit.data.buffer.byteLength
+        if (this.buffers.length >= MediaSourceDecoder.pendingFrameLimit ||
+            incomingBytes + 2400 > MediaSourceDecoder.pendingByteLimit - this.bufferedBytes) {
+            this.fail("MediaSource decoder cannot keep up with the stream")
             return
         }
 
         const value = this.translator.submitDecodeUnit(unit)
         if (value.error) {
-            this.errored = true
+            this.cleanup()
             return
         }
 
@@ -156,16 +173,14 @@ export class MediaSourceDecoder implements DataVideoRenderer {
             if (!configure.description
                 || !(configure.description instanceof Uint8Array)
             ) {
-                this.errored = true
-                this.logger?.debug(`Failed to init MediaSourceExtension Decoder because of missing description in configuration or configuration is in incorrect format\n${JSON.stringify(configure)}`, { type: "fatal" })
+                this.fail("MediaSource configuration has no supported codec description")
                 return
             }
 
             this.createNewSourceBuffer(configure.codec)
 
             if (!this.videoSize) {
-                this.errored = true
-                this.logger?.debug(`Failed to init MediaSourceExtension Decoder because video size is not currently known`, { type: "fatal" })
+                this.fail("MediaSource video size is not known")
                 return
             }
             const [width, height] = this.videoSize
@@ -177,6 +192,7 @@ export class MediaSourceDecoder implements DataVideoRenderer {
             putVideoInitSegment(initSegment, 1_000_000, 1, width, height, configure.description)
             initSegment.flip()
             this.buffers.push(initSegment.getRemainingBuffer())
+            this.bufferedBytes += this.buffers[this.buffers.length - 1].buffer.byteLength
 
             const idrSegment = new ByteBuffer(400 + unit.data.byteLength, false)
             putVideoFrameSegment(
@@ -190,6 +206,7 @@ export class MediaSourceDecoder implements DataVideoRenderer {
             )
             idrSegment.flip()
             this.buffers.push(idrSegment.getRemainingBuffer())
+            this.bufferedBytes += this.buffers[this.buffers.length - 1].buffer.byteLength
 
             this.needIdr = false
             this.waitForIdrUpdateEnd = true
@@ -218,15 +235,14 @@ export class MediaSourceDecoder implements DataVideoRenderer {
             )
             segment.flip()
             this.buffers.push(segment.getRemainingBuffer())
-
-            console.debug("pushed video frame segment")
+            this.bufferedBytes += this.buffers[this.buffers.length - 1].buffer.byteLength
         }
         this.tryAppendDecodeUnit()
     }
 
     private tryAppendDecodeUnit() {
         while (true) {
-            if (this.errored) {
+            if (this.errored || this.disposed) {
                 return
             }
 
@@ -239,30 +255,35 @@ export class MediaSourceDecoder implements DataVideoRenderer {
                 return
             }
 
+            // Keep a bounded native MSE back buffer during uninterrupted playback,
+            // rather than waiting for the browser's memory quota to be exhausted.
+            const ranges = this.sourceBuffer.buffered
+            if (ranges.length) {
+                const cutoff = ranges.end(ranges.length - 1) - MediaSourceDecoder.retainedSeconds
+                if (cutoff > this.trimmedUntil + 2) {
+                    this.trimmedUntil = cutoff
+                    try { this.sourceBuffer.remove(0, cutoff) }
+                    catch { this.fail("MediaSource history could not be released") }
+                    return
+                }
+            }
+
             if (this.buffers.length == 0) {
                 return
             }
 
             const [unit] = this.buffers.splice(0, 1)
+            this.bufferedBytes -= unit.buffer.byteLength
 
             try {
                 this.sourceBuffer.appendBuffer(unit)
             } catch (e) {
                 if (e instanceof Error && e.name == "QuotaExceededError") {
                     this.resetBuffer()
+                    return
                 }
-                console.error("appendBuffer failed", e);
-            }
-
-            if (DEBUG_FILE) {
-                if (!this.debugBuffer) {
-                    this.debugBuffer = new Uint8Array(0)
-                }
-                const oldBuffer = this.debugBuffer
-
-                this.debugBuffer = new Uint8Array(oldBuffer.length + unit.length)
-                this.debugBuffer.set(oldBuffer)
-                this.debugBuffer.set(unit, oldBuffer.length)
+                this.fail("MediaSource rejected an encoded frame")
+                return
             }
         }
     }
@@ -271,7 +292,7 @@ export class MediaSourceDecoder implements DataVideoRenderer {
 
     /// Clears all current sourceBuffer data and requests an idr
     private resetBuffer() {
-        console.debug("resetting buffer")
+        if (this.disposed) return
 
         if (!this.sourceBuffer) {
             return
@@ -279,6 +300,7 @@ export class MediaSourceDecoder implements DataVideoRenderer {
 
         if (this.removeUntilSeconds == null || !this.sourceBuffer.updating) {
             this.buffers = []
+            this.bufferedBytes = 0
             this.needIdr = true
 
             // This will request an idr
@@ -294,7 +316,8 @@ export class MediaSourceDecoder implements DataVideoRenderer {
             }
 
             end = Math.max(end, 0.1)
-            this.sourceBuffer.remove(0, end)
+            try { this.sourceBuffer.remove(0, end) }
+            catch { this.fail("MediaSource buffer could not be reset") }
         } else {
             this.removeUntilSeconds = this.getCurrentTimeSeconds() - 1
         }
@@ -333,6 +356,24 @@ export class MediaSourceDecoder implements DataVideoRenderer {
     cleanup() {
         if (this.disposed) return
         this.disposed = true
+        this.buffers.length = 0
+        this.bufferedBytes = 0
+        this.resolveReady?.()
+        this.resolveReady = null
+        this.mediaSource.removeEventListener("sourceopen", this.boundSourceOpen)
+        this.mediaSource.removeEventListener("sourceclose", this.boundSourceClose)
+        const sourceBuffer = this.sourceBuffer
+        this.sourceBuffer = null
+        if (sourceBuffer) {
+            sourceBuffer.removeEventListener("error", this.boundSourceError)
+            sourceBuffer.removeEventListener("updateend", this.boundUpdateEnd)
+            if (this.mediaSource.readyState === "open") {
+                try {
+                    if (sourceBuffer.updating) sourceBuffer.abort()
+                    this.mediaSource.removeSourceBuffer(sourceBuffer)
+                } catch { /* Source closure can race native resource teardown. */ }
+            }
+        }
         if ("cleanup" in this.base && typeof this.base.cleanup == "function") {
             this.base.cleanup(...arguments)
         }
@@ -519,7 +560,22 @@ function putVideoFrameSegment(
 ) {
     // https://github.com/moq-dev/moq/blob/bdbeb615e69ba6426fa8fd67acb500cb203a9b13/js/hang/src/container/cmaf/encode.ts#L942-L1062
 
-    if (isKeyframe && h264NalType(frame[4]) != 5) {
+    // AVC samples may start with SEI/AUD before their IDR slice. Check the
+    // length-prefixed NAL units instead of assuming the first unit is a slice.
+    let hasIdr = false
+    if (isKeyframe) {
+        const view = new DataView(frame.buffer, frame.byteOffset, frame.byteLength)
+        let offset = 0
+        while (offset < frame.byteLength) {
+            if (frame.byteLength - offset < 4) throw new Error("Truncated AVC NAL length")
+            const length = view.getUint32(offset)
+            offset += 4
+            if (length === 0 || length > frame.byteLength - offset) throw new Error("Invalid AVC NAL length")
+            hasIdr ||= h264NalType(frame[offset]) === 5
+            offset += length
+        }
+    }
+    if (isKeyframe && !hasIdr) {
         throw "tried to submit non idr as a keyframe"
     }
 

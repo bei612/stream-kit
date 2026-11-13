@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "scope": "Native Windows source review and targeted regressions of managed control, media gateway, browser, lifecycle and resource retention",
+  "baseline_commit": "d3e5c45a",
+  "runtime_source": "The commit containing this evidence; installed revisions remain independently recorded in docs/release-status.md",
+  "findings_fixed": [
+    {"id":"RR-01","severity":"high","issue":"VideoStream retained first-seen metadata for consumed frames indefinitely","fix":"Metadata is removed with consumed/discarded/expired frames; orphan frames expire; depayloader retains at most 64 frames"},
+    {"id":"RR-02","severity":"high","issue":"Dropping a peer after failed/cancelled negotiation retained its ordinary-runtime driver and UDP socket","fix":"Both runtimes signal durable shutdown and wake blocked senders on final peer drop","baseline_reproduced":true},
+    {"id":"RR-03","severity":"high","issue":"Unbounded control feedback/handoff queues and default unbounded SCTP send buffer","fix":"Bounded message/event queues, send deadline, bounded native SCTP buffering and remote channel/track budgets"},
+    {"id":"RR-04","severity":"high","issue":"MSE pending frames/history and URL renderer cleanup did not have complete retention/release boundaries","fix":"Frame/byte budgets, native history trimming, explicit cleanup and settled cancelled setup; valid SEI-before-IDR also accepted","baseline_browser_failure":"artifacts/browser-decoder/2026-11-13T09-57-06-071Z/result.json"},
+    {"id":"RR-05","severity":"high","issue":"Paired GameStream TLS skipped server certificate identity validation","fix":"Require the exact paired certificate while retaining handshake signature verification; no DNS-name dependency"},
+    {"id":"RR-06","severity":"medium","issue":"GameStream responses could grow without a body limit and only connect timeout was configured","fix":"8 MiB body budget and full-exchange deadline; Sunshine control client also bounds list/token/error bodies"},
+    {"id":"RR-07","severity":"medium","issue":"Application image cache retained all visited cover keys","fix":"256-entry / 32 MiB FIFO with replacement/host-removal accounting"},
+    {"id":"RR-08","severity":"medium","issue":"Rate limiters owned immortal cleanup goroutines and unlimited identity maps; login trusted spoofable forwarded IPs","fix":"Request-owned expiry, 4096 identity cap, saturating counters, actual peer identity and 16 KiB login body"},
+    {"id":"RR-09","severity":"medium","issue":"Operation log retention existed in configuration but was not started; cleanup hid database errors","fix":"Joined service-owned startup/hourly cleanup, context deadline and reported database errors; failed initialization closes SQLite"},
+    {"id":"RR-10","severity":"medium","issue":"Native management HTTP server had no explicit header or idle deadline","fix":"10-second header deadline and 60-second idle deadline without imposing a short whole-upload timeout"}
+  ],
+  "verification": {
+    "go": {"command":"go test ./internal/... ./cmd/orchestrator/...", "passed_packages":19, "result":"passed", "vet":"passed", "local_log":".local/review-go-tests.log"},
+    "gateway": {"command":"cargo test --locked --release --bin web-server", "passed":178, "failed":0, "local_log":".local/review-gateway-tests-final.log", "new_native_cases":["Correct paired certificate accepted and wrong pin rejected over actual TLS","9 MiB chunked HTTP response rejected by body budget, not timeout","20000 native packetized frames delivered; partial current frame uses 100 ms deadline","20000 incomplete frames remain within 64 retained frames","Actual native DataChannel handles cannot expand the remote callback queue","10000 cover changes and byte-budget eviction"]},
+    "webrtc_library": {"command":"cargo test --locked --release --lib", "passed":52, "failed":0, "udp_drop_cycles":24, "reactor_pool_sizes":[0,1], "local_log":".local/review-webrtc-tests.log"},
+    "web_typescript": {"command":"tsc --noEmit", "result":"passed"},
+    "browser_decoder": {"result":"passed", "browser":"Chrome 157.0.8103.38", "artifact":"artifacts/browser-decoder/2026-11-13T10-06-19-773Z/result.json", "native_mse_frames":360, "retained_range_seconds":[6.2,11.999999], "pending_bytes":0, "burst_frames":500, "expected_overflow_failures":1, "early_setup_cleanup":"passed", "webcodecs_cases":4, "scope":"Synthetic encoded input with actual native browser APIs and repository implementations; not full Sunshine transport"},
+    "review":"Ownership, boundedness, cancellation, authorization generation, native TLS, renderer compatibility and changed diff inspected before commit"
+  },
+  "unchanged_reviewed_boundaries": [
+    "Management event client/message limits and session history/resume retention",
+    "Existing audio/video queues and microphone task cancellation/weak ownership",
+    "Android authority generations, single heartbeat/retry, native peer/audio disposal and bounded HTTP body",
+    "Sunshine native capture/encode queue ownership; no new renderer binary or GPU-driver endurance claim",
+    "Installer/service ownership and existing source versus installed version separation"
+  ],
+  "not_claimed": [
+    "Universal absence of OOM or exhaustive line-by-line proof of all third-party code",
+    "New four-hour/24-hour endurance or hardware reboot acceptance",
+    "New installed-version playwright-cli/media acceptance until separately recorded",
+    "New Linux/mobile physical-device or Android APK acceptance",
+    "Standalone upstream legacy WebSocket mode production readiness; managed mode rejects that route"
+  ]
+}

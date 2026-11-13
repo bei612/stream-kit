@@ -31,16 +31,18 @@ function load(file) {
 const entry = load(path.join(web, 'stream/video/video_decoder_pipe.ts'));
 const canvasEntry = load(path.join(web, 'stream/video/canvas_frame.ts'));
 const rendererEntry = load(path.join(web, 'stream/video/canvas.ts'));
+const mseEntry = load(path.join(web, 'stream/video/media_source_decoder.ts'));
+const elementEntry = load(path.join(web, 'stream/video/video_element.ts'));
 const server = http.createServer((_req, res) => {res.setHeader('Content-Type', 'text/html'); res.end('<!doctype html><title>Decoder acceptance</title>');});
 let browser;
-const result = {passed:false, scope:'Native browser H264 encode/decode using repository WebCodecs pipeline; synthetic frames', source_sha256:hashes};
+const result = {passed:false, scope:'Native browser H264 encode/decode using repository WebCodecs and MSE pipelines; synthetic frames, real native buffers and lifecycle', source_sha256:hashes};
 (async () => {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   browser = await chromium.launch({headless:true, channel:process.env.BROWSER_CHANNEL || 'chrome'});
   result.browser = browser.version();
   const page = await browser.newPage();
   await page.goto(`http://127.0.0.1:${server.address().port}`);
-  result.verification = await page.evaluate(async ({modules, entry, canvasEntry, rendererEntry}) => {
+  result.verification = await page.evaluate(async ({modules, entry, canvasEntry, rendererEntry, mseEntry, elementEntry}) => {
     const cache = {};
     function requireModule(id) {
       if (cache[id]) return cache[id].exports;
@@ -51,6 +53,8 @@ const result = {passed:false, scope:'Native browser H264 encode/decode using rep
     const {VideoDecoderPipe} = requireModule(entry);
     const {CanvasFrameDrawPipe} = requireModule(canvasEntry);
     const {BaseCanvasVideoRenderer} = requireModule(rendererEntry);
+    const {MediaSourceDecoder} = requireModule(mseEntry);
+    const {UrlVideoElementRenderer} = requireModule(elementEntry);
     const check = (value, message) => {if (!value) throw Error(message);};
     const bounded = async promise => {
       let timer;
@@ -109,9 +113,59 @@ const result = {passed:false, scope:'Native browser H264 encode/decode using rep
       await bounded(new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       check(colors.length === draws, 'Canvas kept drawing after cleanup');
     }
+    const mseCases = [];
+    const setup = {width:160,height:96,fps:30,codec:'h264'};
+    const drain = pipe => bounded(new Promise(resolve => {
+      const source = pipe.sourceBuffer;
+      const checkDrained = () => {
+        if (pipe.disposed || (!source.updating && pipe.buffers.length === 0)) {
+          source.removeEventListener('updateend', checkDrained); resolve();
+        }
+      };
+      source.addEventListener('updateend', checkDrained); checkDrained();
+    }));
+    {
+      const base = new UrlVideoElementRenderer(); base.mount(document.body);
+      const pipe = new MediaSourceDecoder(base, {debug(message, info) {if (info?.type === 'fatal') errors.push(message);}});
+      try {
+        await bounded(pipe.setup(setup));
+        for (let i=0;i<360;i++) { pipe.submitDecodeUnit(units[i%units.length]); await drain(pipe); }
+        check(!pipe.errored && !pipe.disposed, 'MSE uninterrupted playback failed');
+        const ranges = pipe.sourceBuffer.buffered;
+        check(ranges.length > 0, 'MSE did not append actual media');
+        const first = ranges.start(0), last = ranges.end(ranges.length-1);
+        check(first > 3 && last-first <= 7.3, `Unbounded MSE native history: ${first}..${last}`);
+        check(base.videoElement.videoWidth === 160, 'Native MSE video metadata missing');
+        mseCases.push({case:'continuous native MSE retention', frames:360, first, last, pendingBytes:pipe.bufferedBytes});
+      } finally {pipe.cleanup(); pipe.cleanup(); base.unmount(document.body);}
+      check(pipe.sourceBuffer === null && pipe.buffers.length === 0 && pipe.bufferedBytes === 0, 'MSE retained queued/native data after cleanup');
+      check(!base.videoElement.hasAttribute('src'), 'MSE URL renderer retained its source');
+    }
+    {
+      const base = new UrlVideoElementRenderer(); base.mount(document.body);
+      const failures = [];
+      const pipe = new MediaSourceDecoder(base, {debug(message, info) {if (info?.type === 'fatal') failures.push(message);}});
+      try {
+        await bounded(pipe.setup(setup));
+        // Synchronous burst outruns the actual asynchronous SourceBuffer, with
+        // no fake updating flag, fake codec, or replacement browser API.
+        for (let i=0;i<500;i++) pipe.submitDecodeUnit(units[i%units.length]);
+        check(pipe.disposed && failures.length === 1, 'Slow native MSE did not fail closed at its budget');
+        check(pipe.buffers.length === 0 && pipe.bufferedBytes === 0 && pipe.sourceBuffer === null, 'MSE overflow retained resources');
+        mseCases.push({case:'native append backlog overflow', frames:500, expectedFailures:failures.length});
+      } finally {pipe.cleanup(); base.unmount(document.body);}
+    }
+    {
+      const base = new UrlVideoElementRenderer();
+      const pipe = new MediaSourceDecoder(base);
+      const pending = pipe.setup(setup);
+      pipe.cleanup(); await bounded(pending);
+      check(!base.videoElement.hasAttribute('src'), 'Early MSE cleanup retained source');
+      mseCases.push({case:'cleanup before sourceopen releases pending setup'});
+    }
     check(errors.length === 0, errors.join('; '));
-    return {encoded_frames:units.length, cases, errors};
-  }, {modules, entry, canvasEntry, rendererEntry});
+    return {encoded_frames:units.length, cases, mseCases, errors};
+  }, {modules, entry, canvasEntry, rendererEntry, mseEntry, elementEntry});
   result.passed = true;
 })().catch(error => {result.error = String(error.stack || error); process.exitCode = 1;}).finally(async () => {
   await browser?.close(); server.close();

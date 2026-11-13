@@ -57,6 +57,7 @@ impl From<rustls::Error> for Error {
 #[derive(Debug)]
 struct NoHostnameVerifier<Base> {
     base: Base,
+    pinned_certificate: CertificateDer<'static>,
 }
 
 impl<Base> ServerCertVerifier for NoHostnameVerifier<Base>
@@ -65,12 +66,19 @@ where
 {
     fn verify_server_cert(
         &self,
-        _end_entity: &CertificateDer<'_>,
+        end_entity: &CertificateDer<'_>,
         _intermediates: &[CertificateDer<'_>],
         _server_name: &ServerName<'_>,
         _ocsp_response: &[u8],
         _now: UnixTime,
     ) -> Result<ServerCertVerified, rustls::Error> {
+        // GameStream uses its paired self-signed identity, not a DNS PKI name.
+        // Skipping hostname validation must never skip the paired identity.
+        if end_entity != &self.pinned_certificate {
+            return Err(rustls::Error::InvalidCertificate(
+                rustls::CertificateError::ApplicationVerificationFailure,
+            ));
+        }
         Ok(ServerCertVerified::assertion())
     }
 
@@ -125,12 +133,16 @@ fn build_client(
 }
 
 async fn response_to_bytes(mut response: Response<Incoming>) -> Result<Vec<u8>, Error> {
+    const MAX_RESPONSE_BYTES: usize = 8 * 1024 * 1024;
     let mut bytes = Vec::new();
 
     // Stream the body, writing each chunk to our response buffer
     while let Some(next) = response.frame().await {
         let frame = next?;
         if let Some(chunk) = frame.data_ref() {
+            if chunk.len() > MAX_RESPONSE_BYTES - bytes.len() {
+                return Err(Error::Other("GameStream response exceeds 8 MiB".into()));
+            }
             bytes.extend_from_slice(chunk);
         }
     }
@@ -141,19 +153,38 @@ async fn response_to_bytes(mut response: Response<Incoming>) -> Result<Vec<u8>, 
 #[derive(Debug, Clone)]
 pub struct TokioHyperClient {
     client: Client<HttpsConnector<HttpConnector>, Empty<Bytes>>,
+    timeout: Duration,
+}
+
+impl TokioHyperClient {
+    async fn get_bytes(&self, uri: hyper::Uri) -> Result<Vec<u8>, Error> {
+        // A connect deadline alone leaves stalled headers/bodies and their
+        // calling tasks alive indefinitely. Bound the complete exchange.
+        tokio::time::timeout(self.timeout, async {
+            response_to_bytes(self.client.get(uri).await?).await
+        })
+        .await
+        .map_err(|_| Error::ConnectionTimeout)?
+    }
 }
 
 impl RequestClient for TokioHyperClient {
     fn with_defaults_long_timeout() -> Result<Self, Error> {
         let client = build_client(build_empty_rustls_connector(DEFAULT_LONG_TIMEOUT));
 
-        Ok(Self { client })
+        Ok(Self {
+            client,
+            timeout: DEFAULT_LONG_TIMEOUT,
+        })
     }
 
     fn with_defaults() -> Result<Self, Error> {
         let client = build_client(build_empty_rustls_connector(DEFAULT_TIMEOUT));
 
-        Ok(Self { client })
+        Ok(Self {
+            client,
+            timeout: DEFAULT_TIMEOUT,
+        })
     }
 
     #[cfg_attr(not(feature = "__tracing_sensitive"), instrument(level = Level::DEBUG, skip_all, err))]
@@ -191,6 +222,8 @@ impl RequestClient for TokioHyperClient {
 
         // Create custom server verifier that doesn't care about host names
         let verifier = NoHostnameVerifier {
+            pinned_certificate: CertificateDer::from_slice(server_certificate.contents())
+                .into_owned(),
             // The builder doesn't store the Arc reference anywhere so we can move the value out of the Arc
             #[allow(clippy::unwrap_used)]
             base: Arc::try_unwrap(
@@ -214,7 +247,10 @@ impl RequestClient for TokioHyperClient {
         // Build Client
         let client = build_client(https_connector);
 
-        Ok(Self { client })
+        Ok(Self {
+            client,
+            timeout: DEFAULT_TIMEOUT,
+        })
     }
 
     #[instrument(level = Level::DEBUG, skip(self, request), fields(path = E::path()), err)]
@@ -233,8 +269,7 @@ impl RequestClient for TokioHyperClient {
 
         debug!(url = %url, "sending request");
 
-        let response = self.client.get(url).await?;
-        let response_bytes = response_to_bytes(response).await?;
+        let response_bytes = self.get_bytes(url).await?;
         let response_text = String::from_utf8_lossy(&response_bytes);
 
         debug!(response = ?response_text, "received response");
@@ -258,8 +293,7 @@ impl RequestClient for TokioHyperClient {
 
         debug!(url = %url, "sending request");
 
-        let response = self.client.get(url).await?;
-        let response_bytes = response_to_bytes(response).await?;
+        let response_bytes = self.get_bytes(url).await?;
         let response_text = String::from_utf8_lossy(&response_bytes);
 
         debug!(response = ?response_text, "received response");
@@ -282,8 +316,7 @@ impl RequestClient for TokioHyperClient {
 
         debug!(url = %url, "sending request");
 
-        let response = self.client.get(url).await?;
-        let response_bytes = response_to_bytes(response).await?;
+        let response_bytes = self.get_bytes(url).await?;
 
         debug!("received response");
 

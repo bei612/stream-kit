@@ -140,7 +140,7 @@ impl VideoStream {
         };
         let highest = self.depayloader.known_frames().max().unwrap_or(current);
 
-        let frame_known = self.depayloader.is_frame_known(FrameIndex(0));
+        let frame_known = self.depayloader.is_frame_known(current);
 
         let current_frame_first_seen = self.frames_first_seen.get(&current);
 
@@ -168,6 +168,16 @@ impl VideoStream {
     fn update(&mut self, now: Instant) -> Result<(), Error> {
         let mut frame_to_return = None;
 
+        // Metadata has exactly the same lifetime as its retained frame. Also
+        // expire orphaned frames when an upstream never supplies the next IDR.
+        self.frames_first_seen.retain(|index, first_seen| {
+            if now - *first_seen >= STALL_TIMEOUT {
+                self.depayloader.discard_frame(*index);
+                return false;
+            }
+            self.depayloader.is_frame_known(*index)
+        });
+
         // Add the first seen numbers
         for frame_index in self.depayloader.known_frames() {
             self.frames_first_seen.entry(frame_index).or_insert(now);
@@ -193,6 +203,7 @@ impl VideoStream {
                 for known_frame in known_frames[0..known_frames_len].iter() {
                     if *known_frame < current_frame {
                         self.depayloader.discard_frame(*known_frame);
+                        self.frames_first_seen.remove(known_frame);
                     }
                 }
             }
@@ -235,6 +246,7 @@ impl VideoStream {
                 .depayloader
                 .take_frame(frame_index)
                 .expect("VideoStream::update, take_frame");
+            self.frames_first_seen.remove(&frame_index);
             self.events.push_back(VideoStreamEvent::OnFrame(frame));
 
             return Ok(());

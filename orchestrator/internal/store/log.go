@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -16,10 +17,10 @@ type LogQuery struct {
 }
 
 type LogResult struct {
-	Items      []model.OperationLog `json:"items"`
-	Total      int64                `json:"total"`
-	Page       int                  `json:"page"`
-	Size       int                  `json:"size"`
+	Items []model.OperationLog `json:"items"`
+	Total int64                `json:"total"`
+	Page  int                  `json:"page"`
+	Size  int                  `json:"size"`
 }
 
 func (s *Store) CreateLog(targetType, targetID, operation, result, message string, detail interface{}) error {
@@ -75,23 +76,30 @@ func (s *Store) QueryLogs(q LogQuery) (*LogResult, error) {
 	}, err
 }
 
-func (s *Store) CleanupLogs(maxAgeDays, maxCount int) (int64, error) {
+func (s *Store) CleanupLogs(ctx context.Context, maxAgeDays, maxCount int) (int64, error) {
 	var deleted int64
+	db := s.DB.WithContext(ctx)
 
 	if maxAgeDays > 0 {
-		result := s.DB.Exec(
+		result := db.Exec(
 			"DELETE FROM operation_logs WHERE created_at < datetime('now', ?)",
 			fmt.Sprintf("-%d days", maxAgeDays),
 		)
 		deleted += result.RowsAffected
+		if result.Error != nil {
+			return deleted, result.Error
+		}
 	}
 
 	if maxCount > 0 {
-		result := s.DB.Exec(`
+		result := db.Exec(`
 			DELETE FROM operation_logs WHERE id NOT IN (
-				SELECT id FROM operation_logs ORDER BY created_at DESC LIMIT ?
+				SELECT id FROM operation_logs ORDER BY created_at DESC, id DESC LIMIT ?
 			)`, maxCount)
 		deleted += result.RowsAffected
+		if result.Error != nil {
+			return deleted, result.Error
+		}
 	}
 
 	return deleted, nil

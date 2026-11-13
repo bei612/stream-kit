@@ -88,6 +88,8 @@ cd third_party/moonlight-android
 
 不把 fixture、替代请求、MockWebServer 或历史 VM 检查当成部署验收；已有测试目录中的隔离工具不进入生产。保留失败及版本边界，不通过降低阈值或隐藏错误达成通过。已经通过且变更未影响的长测不重复执行。
 
+运行资源变更的定向回归见[资源所有权](runtime-resources.md)。网关原生测试使用 `cargo test --locked --release --bin web-server`，WebRTC 库使用 `cargo test --locked --release --lib`；实际浏览器解码运行 `node scripts/accept-browser-decoder.cjs`。后者是原生编解码及缓冲验证，不替代已安装播放器的 playwright-cli 验收。正式网关构建复用 release profile 导出绑定，避免额外生成整套 debug 原生依赖。
+
 ## 发布与来源
 
 现有 Actions 包括跨平台源码、统一产品、Windows 精确安装、管理页 CLI、Android 构建/发布和定向媒体/网络任务。统一产品工作流支持发布已成功原始产物，不因测试或文档变化重新构建运行时。准确参数参见[Windows CI 发布](../deploy/windows/CI-RELEASE.md)。

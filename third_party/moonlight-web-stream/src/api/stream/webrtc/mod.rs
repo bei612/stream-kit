@@ -37,7 +37,10 @@ use rtc::rtp_transceiver::rtp_sender::{
 };
 use std::collections::HashMap;
 use std::net::{Ipv4Addr, SocketAddr};
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    Arc, Mutex,
+    atomic::{AtomicBool, AtomicUsize, Ordering},
+};
 use std::time::Duration;
 use tokio::sync::Notify;
 use tokio::sync::mpsc::{self};
@@ -64,6 +67,14 @@ use crate::app::host::HostId;
 use crate::app::stream::{ExternalStreamEvent, Stream, StreamId};
 
 const FLEX_FEC_PAYLOAD_TYPE: u8 = 49;
+// Six auxiliary input channels plus the client's negotiation channel. These
+// are protocol budgets, not queues that grow with the duration of a stream.
+const REMOTE_CHANNEL_LIMIT: usize = 7;
+const REMOTE_TRACK_LIMIT: usize = 2;
+const CONTROL_SEND_BUFFER_BYTES: usize = 64 * 1024;
+
+#[cfg(test)]
+mod resource_tests;
 
 mod audio;
 mod control;
@@ -211,8 +222,11 @@ fn create_media_engine(video_formats: &HashMap<VideoFormat, RTCRtpCodecParameter
 
 struct WebRtcHandler {
     on_ice_gathering_finished: Notify,
-    on_data_channel_sender: mpsc::UnboundedSender<Arc<dyn DataChannel>>,
-    on_track_sender: mpsc::UnboundedSender<Arc<dyn TrackRemote>>,
+    on_data_channel_sender: mpsc::Sender<Arc<dyn DataChannel>>,
+    on_track_sender: mpsc::Sender<Arc<dyn TrackRemote>>,
+    received_channels: AtomicUsize,
+    received_tracks: AtomicUsize,
+    resource_failed: AtomicBool,
     peer_state: Mutex<RTCPeerConnectionState>,
 }
 
@@ -233,11 +247,19 @@ impl PeerConnectionEventHandler for WebRtcHandler {
     }
 
     async fn on_data_channel(&self, data_channel: Arc<dyn DataChannel>) {
-        let _ = self.on_data_channel_sender.send(data_channel);
+        if self.received_channels.fetch_add(1, Ordering::Relaxed) >= REMOTE_CHANNEL_LIMIT
+            || self.on_data_channel_sender.try_send(data_channel).is_err()
+        {
+            self.resource_failed.store(true, Ordering::Release);
+        }
     }
 
     async fn on_track(&self, track: Arc<dyn TrackRemote>) {
-        let _ = self.on_track_sender.send(track);
+        if self.received_tracks.fetch_add(1, Ordering::Relaxed) >= REMOTE_TRACK_LIMIT
+            || self.on_track_sender.try_send(track).is_err()
+        {
+            self.resource_failed.store(true, Ordering::Release);
+        }
     }
 }
 
@@ -348,14 +370,17 @@ pub async fn webrtc_post(
 
     // Initialize senders and receivers for events
     let (on_data_channel_sender, on_data_channel) =
-        mpsc::unbounded_channel::<Arc<dyn DataChannel>>();
-    let (on_track_sender, on_track) = mpsc::unbounded_channel::<Arc<dyn TrackRemote>>();
+        mpsc::channel::<Arc<dyn DataChannel>>(REMOTE_CHANNEL_LIMIT);
+    let (on_track_sender, on_track) = mpsc::channel::<Arc<dyn TrackRemote>>(REMOTE_TRACK_LIMIT);
 
     let handler = Arc::new(WebRtcHandler {
         peer_state: Mutex::new(RTCPeerConnectionState::New),
         on_ice_gathering_finished: Notify::new(),
         on_data_channel_sender,
         on_track_sender,
+        received_channels: AtomicUsize::new(0),
+        received_tracks: AtomicUsize::new(0),
+        resource_failed: AtomicBool::new(false),
     });
 
     // Create new peer
@@ -364,6 +389,7 @@ pub async fn webrtc_post(
         builder = builder.with_udp_port_range(range.min, range.max);
     }
     let peer = builder
+        .with_data_channel_send_buffer_limit(CONTROL_SEND_BUFFER_BYTES)
         .with_media_engine(media_engine)
         .with_interceptor_registry(interceptor_registry)
         .with_setting_engine(setting_engine.build())

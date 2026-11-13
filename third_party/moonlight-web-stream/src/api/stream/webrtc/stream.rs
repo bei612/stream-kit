@@ -39,8 +39,8 @@ pub async fn webrtc_loop(
     mut video_channel: VideoChannel,
     mut control_channel: ControlChannel,
     mut mic_channel: Option<MicChannel>,
-    mut on_data_channel: mpsc::UnboundedReceiver<Arc<dyn DataChannel>>,
-    mut on_track: mpsc::UnboundedReceiver<Arc<dyn TrackRemote>>,
+    mut on_data_channel: mpsc::Receiver<Arc<dyn DataChannel>>,
+    mut on_track: mpsc::Receiver<Arc<dyn TrackRemote>>,
     handler: &WebRtcHandler,
     media_registry: MediaSessionRegistry,
     media_key: MediaSessionKey,
@@ -51,6 +51,12 @@ pub async fn webrtc_loop(
     let mut peer_was_disconnected = true;
     let mut lease_check = tokio::time::interval(Duration::from_millis(250));
     loop {
+        if handler
+            .resource_failed
+            .load(std::sync::atomic::Ordering::Acquire)
+        {
+            return Err(AppError::StreamClosed);
+        }
         if !stream.is_alive() {
             info!("stopping stream because the moonlight stream is dead");
             break;
@@ -88,12 +94,15 @@ pub async fn webrtc_loop(
                 if control_channel.try_add_channel(&label, &data_channel) {
                     continue;
                 }
+                data_channel.close().await?;
             }
             Some(track) = async { if on_track.is_closed() { pending().await } else { on_track.recv().await } } => {
                 debug!("got remote track");
 
                 if let Some(mic_channel) = &mut mic_channel {
                     mic_channel.set_track(track, stream.microphone_sender()).await;
+                } else {
+                    track.stop().await;
                 }
             }
             result = stream.drive() => {

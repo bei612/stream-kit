@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use std::time::Duration;
+use std::{collections::HashSet, sync::Arc};
 
 use bytes::BytesMut;
 use moonlight_common::stream::proto::control::packet::{
@@ -8,7 +8,6 @@ use moonlight_common::stream::proto::control::packet::{
 use rtc::data_channel::RTCDataChannelState;
 use tokio::select;
 use tokio::sync::mpsc;
-use tokio::sync::mpsc::unbounded_channel;
 use tokio::task::JoinSet;
 use tokio::time::sleep;
 use tracing::{Instrument, debug, debug_span, info, trace, warn};
@@ -18,6 +17,22 @@ use webrtc::peer_connection::PeerConnection;
 use crate::api::stream::create_control_packet_config;
 use crate::app::AppError;
 use crate::app::upstream::InputSender;
+
+const CONTROL_QUEUE_CAPACITY: usize = 128;
+const CONTROL_EVENT_CAPACITY: usize = 16;
+const CONTROL_SEND_TIMEOUT: Duration = Duration::from_secs(2);
+
+fn auxiliary_label(label: &str) -> bool {
+    matches!(
+        label,
+        "moonlight.control.mouseAbsolute"
+            | "moonlight.control.mouse"
+            | "moonlight.control.keysCompact"
+            | "moonlight.control.keys"
+            | "moonlight.control.touch"
+            | "moonlight.control.controller"
+    )
+}
 
 pub enum ControlChannelEvent {
     Closed,
@@ -50,12 +65,13 @@ pub struct ControlChannel {
     #[allow(unused)]
     channel: Arc<dyn DataChannel>,
     channel_state: RTCDataChannelState,
-    on_main_channel_event: mpsc::UnboundedReceiver<DataChannelEvent>,
+    on_main_channel_event: mpsc::Receiver<DataChannelEvent>,
     on_failure: mpsc::Receiver<()>,
     on_failure_sender: mpsc::Sender<()>,
     input: InputSender,
     tasks: JoinSet<()>,
-    on_send: mpsc::UnboundedSender<BytesMut>,
+    on_send: mpsc::Sender<BytesMut>,
+    auxiliary_channels: HashSet<String>,
     config: ControlPacketConfig,
 }
 
@@ -64,8 +80,8 @@ impl ControlChannel {
         let channel = peer.create_data_channel("moonlight.control", None).await?;
 
         let (on_failure_sender, on_failure) = mpsc::channel(1);
-        let (on_send, mut on_send_receiver) = unbounded_channel();
-        let (on_event_sender, on_event) = unbounded_channel();
+        let (on_send, mut on_send_receiver) = mpsc::channel::<BytesMut>(CONTROL_QUEUE_CAPACITY);
+        let (on_event_sender, on_event) = mpsc::channel(CONTROL_EVENT_CAPACITY);
         let mut tasks = JoinSet::new();
 
         tasks.spawn({
@@ -88,9 +104,16 @@ impl ControlChannel {
                     }
                     connected = true;
 
-                    trace!(message = ?message, "sending control message to webrtc peer over data channel");
-                    if let Err(err) = channel.send(message).await {
-                        warn!(error = %err, "failed to send message over data channel");
+                    trace!(
+                        bytes = message.len(),
+                        "sending control message to webrtc peer over data channel"
+                    );
+                    if !matches!(
+                        tokio::time::timeout(CONTROL_SEND_TIMEOUT, channel.send(message)).await,
+                        Ok(Ok(()))
+                    ) {
+                        warn!("control data channel send failed or exceeded deadline");
+                        break;
                     }
                 }
             }
@@ -111,7 +134,8 @@ impl ControlChannel {
                             let _ = on_failure.try_send(());
                             break;
                         }
-                    } else if on_event_sender.send(event).is_err() {
+                    } else if on_event_sender.try_send(event).is_err() {
+                        let _ = on_failure.try_send(());
                         break;
                     }
                 }
@@ -128,12 +152,13 @@ impl ControlChannel {
             input,
             tasks,
             on_send,
+            auxiliary_channels: HashSet::new(),
             config: create_control_packet_config(),
         })
     }
 
     pub fn try_add_channel(&mut self, label: &str, channel: &Arc<dyn DataChannel>) -> bool {
-        if !label.starts_with("moonlight.control.") {
+        if !auxiliary_label(label) || !self.auxiliary_channels.insert(label.to_owned()) {
             return false;
         }
         info!(label = %label, "adding control channel");
@@ -176,7 +201,11 @@ impl ControlChannel {
         let mut bytes = BytesMut::with_capacity(buffer.len());
         bytes.extend_from_slice(buffer);
 
-        let _ = self.on_send.send(bytes);
+        // A slow viewer must not accumulate control messages indefinitely. Close
+        // the attachment instead of dropping stateful feedback silently.
+        if self.on_send.try_send(bytes).is_err() {
+            let _ = self.on_failure_sender.try_send(());
+        }
     }
 
     pub fn is_alive(&self) -> bool {

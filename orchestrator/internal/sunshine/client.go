@@ -43,6 +43,19 @@ type Client struct {
 	csrfMu    sync.Mutex
 }
 
+// Control responses are small documents; never let a faulty renderer retain
+// an unbounded body in the long-lived orchestrator.
+func readControlResponse(body io.Reader, limit int64) ([]byte, error) {
+	data, err := io.ReadAll(io.LimitReader(body, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > limit {
+		return nil, fmt.Errorf("Sunshine response exceeds %d bytes", limit)
+	}
+	return data, nil
+}
+
 func NewClient(cfg config.SunshineAPIConfig, logger *zap.Logger) *Client {
 	transport := &http.Transport{}
 	if !cfg.VerifySSL {
@@ -99,7 +112,11 @@ func (c *Client) GetCSRFToken(ctx context.Context) (string, error) {
 	var result struct {
 		CSRFToken string `json:"csrf_token"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	body, err := readControlResponse(resp.Body, 16<<10)
+	if err != nil {
+		return "", err
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
 		return "", fmt.Errorf("解析 CSRF 响应失败: %w", err)
 	}
 
@@ -128,7 +145,10 @@ func (c *Client) ListApps(ctx context.Context) ([]SunshineApp, error) {
 	var result struct {
 		Apps []SunshineApp `json:"apps"`
 	}
-	body, _ := io.ReadAll(resp.Body)
+	body, err := readControlResponse(resp.Body, 8<<20)
+	if err != nil {
+		return nil, err
+	}
 	if err := json.Unmarshal(body, &result); err != nil {
 		// Try as array directly
 		var apps []SunshineApp
@@ -174,7 +194,7 @@ func (c *Client) DeleteApp(ctx context.Context, index int) error {
 	}
 
 	if resp.StatusCode >= 400 {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 16<<10))
 		return fmt.Errorf("Sunshine 返回错误 %d: %s", resp.StatusCode, string(body))
 	}
 	return nil
@@ -317,7 +337,7 @@ func (c *Client) doAppWrite(ctx context.Context, method string, app SunshineApp,
 	}
 
 	if resp.StatusCode >= 400 {
-		respBody, _ := io.ReadAll(resp.Body)
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 16<<10))
 		return fmt.Errorf("Sunshine 返回错误 %d: %s", resp.StatusCode, string(respBody))
 	}
 	return nil
@@ -354,7 +374,7 @@ func (c *Client) doAppWriteRetry(ctx context.Context, method string, app Sunshin
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		respBody, _ := io.ReadAll(resp.Body)
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 16<<10))
 		return fmt.Errorf("Sunshine 重试失败 %d: %s", resp.StatusCode, string(respBody))
 	}
 	return nil
@@ -378,7 +398,7 @@ func (c *Client) deleteAppRetry(ctx context.Context, index int) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 16<<10))
 		return fmt.Errorf("Sunshine 删除重试失败 %d: %s", resp.StatusCode, string(body))
 	}
 	return nil

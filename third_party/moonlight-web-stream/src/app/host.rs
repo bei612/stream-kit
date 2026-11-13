@@ -527,7 +527,7 @@ impl Host {
         {
             {
                 let mut app_images = app.app_image_cache.write().await;
-                app_images.retain(|(_, host_id, _), _| *host_id != self.id);
+                app_images.remove_host(self.id);
             }
 
             drop(app);

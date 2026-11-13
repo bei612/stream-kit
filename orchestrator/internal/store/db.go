@@ -33,10 +33,19 @@ func New(dbPath string) (*Store, error) {
 		return nil, fmt.Errorf("get sql.DB: %w", err)
 	}
 	sqlDB.SetMaxOpenConns(1)
+	initialized := false
+	defer func() {
+		if !initialized {
+			_ = sqlDB.Close()
+		}
+	}()
 
 	// SQLite pragmas
-	db.Exec("PRAGMA journal_mode=WAL")
-	db.Exec("PRAGMA busy_timeout=5000")
+	for _, statement := range []string{"PRAGMA journal_mode=WAL", "PRAGMA busy_timeout=5000"} {
+		if err := db.Exec(statement).Error; err != nil {
+			return nil, fmt.Errorf("initialize database: %w", err)
+		}
+	}
 
 	// Auto-migrate
 	if err := db.AutoMigrate(&model.App{}, &model.OperationLog{}, &model.StreamSession{}, &model.UploadArchive{}); err != nil {
@@ -48,6 +57,7 @@ func New(dbPath string) (*Store, error) {
 		return nil, fmt.Errorf("migrate control epoch: %w", err)
 	}
 
+	initialized = true
 	return &Store{DB: db}, nil
 }
 

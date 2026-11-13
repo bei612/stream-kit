@@ -292,9 +292,11 @@ func run(ctx context.Context, ready func()) error {
 	srv := server.New(cfg, st, compMgr, appMgr, wsHub, sessionMgr, logger)
 
 	httpServer := &http.Server{
-		Addr:      cfg.Server.BindAddress,
-		Handler:   srv.Engine,
-		TLSConfig: tlsConfig,
+		Addr:              cfg.Server.BindAddress,
+		Handler:           srv.Engine,
+		TLSConfig:         tlsConfig,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 	serveDone := make(chan struct{})
 	httpShutdownDone := make(chan struct{})
@@ -325,6 +327,9 @@ func run(ctx context.Context, ready func()) error {
 			<-done
 		}
 	}()
+	background = append(background, util.SafeGo(logger, "operation-log-retention", func() {
+		runOperationLogRetention(streamCtx, st, cfg.Log.OperationLog, logger)
+	}))
 	if srv.MediaControl != nil {
 		background = append(background, util.SafeGo(logger, "media-state-reconciler", func() { srv.MediaControl.Run(streamCtx, logger) }))
 		background = append(background, util.SafeGo(logger, "microphone-route-reconciler", func() { srv.MediaControl.RunRoutes(streamCtx, logger) }))

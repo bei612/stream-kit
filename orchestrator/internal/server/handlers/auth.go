@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"crypto/sha256"
+	"errors"
 	"net/http"
 	"sync"
 	"time"
@@ -11,6 +12,8 @@ import (
 )
 
 const jwtExpiration = 24 * time.Hour
+const rateLimiterMaxEntries = 4096
+const loginMaxBytes = 16 * 1024
 
 type Claims struct {
 	Sub string `json:"sub"`
@@ -71,10 +74,11 @@ func VerifyMediaTicket(token string, secret []byte) (*MediaTicketClaims, error) 
 // --- Rate Limiter (IP-based, in-memory) ---
 
 type rateLimiter struct {
-	mu      sync.Mutex
-	entries map[string]*rlEntry
-	limit   int
-	window  time.Duration
+	mu          sync.Mutex
+	entries     map[string]*rlEntry
+	limit       int
+	window      time.Duration
+	nextCleanup time.Time
 }
 
 type rlEntry struct {
@@ -83,40 +87,51 @@ type rlEntry struct {
 }
 
 func newRateLimiter(limit int, window time.Duration) *rateLimiter {
-	rl := &rateLimiter{
+	return &rateLimiter{
 		entries: make(map[string]*rlEntry),
 		limit:   limit,
 		window:  window,
 	}
-	// Background cleanup every 5 minutes
-	go func() {
-		for {
-			time.Sleep(5 * time.Minute)
-			rl.cleanup()
-		}
-	}()
-	return rl
 }
 
 func (rl *rateLimiter) allow(ip string) bool {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 	now := time.Now()
+	// Request-owned cleanup avoids an immortal goroutine per handler. A hard
+	// cardinality limit also bounds memory when many distinct peers connect.
+	if !now.Before(rl.nextCleanup) {
+		rl.cleanupLocked(now)
+		rl.nextCleanup = now.Add(min(rl.window, time.Minute))
+	}
 	e, ok := rl.entries[ip]
-	if !ok || now.After(e.resetAt) {
+	if !ok {
+		if len(rl.entries) >= rateLimiterMaxEntries {
+			return false
+		}
 		rl.entries[ip] = &rlEntry{count: 1, resetAt: now.Add(rl.window)}
 		return true
 	}
+	if !now.Before(e.resetAt) {
+		rl.entries[ip] = &rlEntry{count: 1, resetAt: now.Add(rl.window)}
+		return true
+	}
+	if e.count >= rl.limit {
+		return false
+	}
 	e.count++
-	return e.count <= rl.limit
+	return true
 }
 
 func (rl *rateLimiter) cleanup() {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
-	now := time.Now()
+	rl.cleanupLocked(time.Now())
+}
+
+func (rl *rateLimiter) cleanupLocked(now time.Time) {
 	for ip, e := range rl.entries {
-		if now.After(e.resetAt) {
+		if !now.Before(e.resetAt) {
 			delete(rl.entries, ip)
 		}
 	}
@@ -142,7 +157,9 @@ func NewAuthHandler(username, password string, jwtSecret []byte) *AuthHandler {
 
 func (h *AuthHandler) Login(c *gin.Context) {
 	// Rate limit check
-	if !h.limiter.allow(c.ClientIP()) {
+	// Native listeners use the actual peer, like watch admission. Forwarded
+	// headers supplied by a caller must not bypass limits or grow this map.
+	if !h.limiter.allow(c.RemoteIP()) {
 		c.JSON(http.StatusTooManyRequests, gin.H{
 			"status":     "error",
 			"code":       "RATE_LIMITED",
@@ -156,7 +173,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		Username string `json:"username" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, loginMaxBytes)
 	if err := c.ShouldBindJSON(&req); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			errResponse(c, http.StatusRequestEntityTooLarge, "REQUEST_TOO_LARGE", "登录请求过大")
+			return
+		}
 		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", "请提供用户名和密码")
 		return
 	}

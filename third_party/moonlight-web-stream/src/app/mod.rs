@@ -5,11 +5,8 @@ use std::{
     sync::{Arc, Weak},
 };
 
-use crate::{
-    app::host::AppId,
-    config::{Config, ForwardedHeaders},
-};
-use actix_web::{HttpResponse, ResponseError, body::BoxBody, http::StatusCode, web::Bytes};
+use crate::config::{Config, ForwardedHeaders};
+use actix_web::{HttpResponse, ResponseError, body::BoxBody, http::StatusCode};
 use futures::future::try_join_all;
 use futures_concurrency::future::RaceOk;
 use hex::FromHexError;
@@ -23,7 +20,6 @@ use tracing::{error, info, warn};
 
 use crate::app::{
     auth::{SessionToken, UserAuth},
-    host::HostId,
     password::StoragePassword,
     role::{Role, RoleId},
     storage::{
@@ -38,6 +34,7 @@ pub mod admission;
 pub mod auth;
 pub mod control_state;
 pub mod host;
+mod image_cache;
 pub mod input;
 pub mod media;
 pub mod media_observation;
@@ -45,6 +42,10 @@ pub mod mixer;
 pub mod node_audio;
 pub mod password;
 pub mod remote_routes;
+#[cfg(test)]
+mod request_client_tests;
+#[cfg(test)]
+mod video_lifetime_tests;
 pub mod role;
 pub mod storage;
 pub mod stream;
@@ -205,7 +206,7 @@ impl AppRef {
 struct AppInner {
     config: Config,
     storage: Arc<dyn Storage + Send + Sync>,
-    app_image_cache: RwLock<HashMap<(UserId, HostId, AppId), Bytes>>,
+    app_image_cache: RwLock<image_cache::ImageCache>,
     streams: RwLock<HashMap<StreamId, Stream>>,
     media_sessions: media::MediaSessionRegistry,
     node_audio: RwLock<node_audio::Authority>,

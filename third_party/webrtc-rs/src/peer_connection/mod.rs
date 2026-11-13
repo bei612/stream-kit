@@ -50,6 +50,8 @@
 //! ```
 
 pub(crate) mod driver;
+#[cfg(all(test, feature = "runtime-tokio"))]
+mod drop_tests;
 pub mod transport;
 mod udp_port_range;
 
@@ -760,12 +762,6 @@ pub(crate) struct PeerConnectionImpl {
     /// Ends (`recv` returns `None`) once the driver future is gone, whether it ran to completion
     /// or was aborted: its sender lives in that future. `close()` waits on it.
     driver_stopped: Mutex<Option<crate::runtime::Receiver<()>>>,
-    /// Whether the driver runs on the shared bounded reactor pool (a task pinned to
-    /// one pool thread) rather than the general async runtime. When true, `Drop`
-    /// signals it to stop (via [`PeerConnectionRef::closing`]) so a driver task is not
-    /// left running on a pool thread if the connection is dropped without an explicit
-    /// `close()`. (`close()` itself treats both runtimes alike.)
-    dedicated_reactor: bool,
 }
 
 pub(crate) struct PeerConnectionRef {
@@ -1043,7 +1039,6 @@ impl PeerConnectionImpl {
             }),
             driver_handle: Mutex::new(None),
             driver_stopped: Mutex::new(None),
-            dedicated_reactor: dedicated_reactor_pool_size > 0,
         };
 
         // Init-result oneshot. `new()` awaits this so that socket wrapping and
@@ -1116,30 +1111,16 @@ impl PeerConnectionImpl {
 
 impl Drop for PeerConnectionImpl {
     fn drop(&mut self) {
-        // A reactor-pool driver task only exits when its event loop returns, so a
-        // connection dropped without an explicit `close()` would leave that task
-        // running on a shared pool thread — pinning a scarce reactor thread and
-        // holding the connection's buffers alive (the RSS this pool exists to
-        // bound). Dropping the join handle merely detaches the task. So set the
-        // shutdown flag (infallible) so the driver stops at the top of its next
-        // loop iteration, then best-effort wake it so it stops promptly rather
-        // than after its next timer/socket event. Crucially the flag — not the
-        // wake — is the guarantee: a full channel drops the wake but cannot leak
-        // the task. (Drivers on the general runtime detach harmlessly onto the
-        // application's own worker pool, so this is limited to the pooled-reactor
-        // case to avoid changing the default lifecycle.)
-        if self.dedicated_reactor {
-            self.inner.closing.store(true, Ordering::Release);
-            // Wake a sender blocked in `DataChannel::writable()` so it returns promptly
-            // instead of waiting out its 50 ms backstop past teardown (mirrors `close`).
-            self.inner.data_channel_backpressure.notify_waiters();
-            // overflow: nudge — `closing` is the durable signal, checked at the top of the
-            // driver loop. `Drop` cannot await, and does not need to.
-            let _ = self
-                .inner
-                .driver_event_tx
-                .try_send(PeerConnectionDriverEvent::Close);
-        }
+        // Every runtime must release a cancelled/failed negotiation. Detaching
+        // the general-runtime driver also retains its sockets, buffers and inner
+        // sender, so receiver closure alone cannot terminate it. The durable flag
+        // handles a full event queue; the best-effort wake makes teardown prompt.
+        self.inner.closing.store(true, Ordering::Release);
+        self.inner.data_channel_backpressure.notify_waiters();
+        let _ = self
+            .inner
+            .driver_event_tx
+            .try_send(PeerConnectionDriverEvent::Close);
     }
 }
 
@@ -1718,7 +1699,6 @@ mod tests {
                 inner,
                 driver_handle: Mutex::new(None),
                 driver_stopped: Mutex::new(None),
-                dedicated_reactor: false,
             };
 
             let _dc = pc.create_data_channel("test", None).await.unwrap();

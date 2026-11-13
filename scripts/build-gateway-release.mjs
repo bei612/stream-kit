@@ -32,7 +32,7 @@ if (!version.endsWith(`(commit: ${commit}, dirty: false)`)) throw new Error('Gat
 if (output) {
   // Rebuild the bindings and viewer into a new directory, never copy a mutable
   // dist left by a development build or overwrite an installed deployment.
-  execFileSync('cargo', ['test', '--locked', 'export_bindings'], {cwd: gateway, env, stdio: 'inherit', windowsHide: true})
+  execFileSync('cargo', ['test', '--locked', '--release', 'export_bindings'], {cwd: gateway, env, stdio: 'inherit', windowsHide: true})
   execFileSync(process.execPath, [path.join(root, 'scripts/build-gateway-bindings.mjs')], {cwd: gateway, env, stdio: 'inherit', windowsHide: true})
   fs.mkdirSync(output, {recursive: true})
   execFileSync(process.execPath, [path.join(gateway, 'node_modules/webpack/bin/webpack.js'), '--mode=production', '--output-path', path.join(output, 'dist')], {cwd: gateway, env, stdio: 'inherit', windowsHide: true})

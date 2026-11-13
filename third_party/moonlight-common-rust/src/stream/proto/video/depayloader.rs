@@ -121,6 +121,10 @@ pub struct VideoDepayloader {
     frames: BTreeMap<FrameIndex, Frame>,
 }
 
+// Incomplete frames cannot accumulate while waiting for an IDR or FEC recovery.
+// This exceeds the normal 100 ms reorder window even at 240 fps.
+const MAX_PENDING_FRAMES: usize = 64;
+
 pub(crate) fn create_video_reed_solomon(data_shards: usize, parity_shards: usize) -> ReedSolomon {
     #[allow(clippy::unwrap_used)]
     ReedSolomon::new(data_shards, parity_shards).unwrap()
@@ -680,6 +684,14 @@ impl VideoDepayloader {
 
         let frame_index = video_header.frame_index;
         let mut block_index = video_header.multi_fec_blocks.current_block;
+
+        if !self.frames.contains_key(&FrameIndex(frame_index))
+            && self.frames.len() >= MAX_PENDING_FRAMES
+        {
+            if let Some(oldest) = self.frames.keys().next().copied() {
+                self.discard_frame(oldest);
+            }
+        }
 
         self.packets.insert(
             rtp_header.sequence_number,
