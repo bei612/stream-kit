@@ -1,65 +1,54 @@
-# Stream Kit 综合测试程序
+# Stream Kit 综合开发示例
 
-Windows 原生窗口保留棋盘格、分辨率与全屏测试，并增加实时画面计数、键盘/画布鼠标计数和音频测试面板。窗口缩放、关闭按钮和 Esc 均可使用；焦点在音频控件时 Esc 仍关闭整个程序。
+Example 是独立开发/演示应用，不属于客户生产安装包。Windows 原生棋盘窗口提供动态画面计数、分辨率/全屏、键盘/画布鼠标计数、程序音、录音和回放。关闭按钮及 Esc 可用，焦点在音频控件时 Esc 也应关闭整个窗口。
 
-自动输入验收可使用 `--input-events`：标准输出按行写入 `type=stream-kit-example-input`、`schema_version=1` 的 JSON，包含进程 ID、事件类型、时间、累计按键/画布点击次数、前台及键盘焦点状态。只在本窗口收到输入或焦点变化时输出，不采集全局输入，不记录文字、键值或声音；默认关闭，也不会修改系统焦点策略。`key_down` 必须以实际计数变化判断，不能把发送端 `SendInput` 成功或后台“控制中”当作接收成功。该输出不区分本地物理输入与远程注入，验收需使用独立窗口并排除其他操作。Example 及此观察能力不进入生产安装包。
+演示需要时单独构建并作为应用登记或上传；不要为部署 Example 重新打包生产安装器。
 
-Windows 本机输入基线使用 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/accept-example-input.ps1 -ExamplePath <checkerboard.exe> -OutputDirectory <新的证据目录>`。它创建并关闭自己的可见窗口，只有确认该窗口在前台时才发送一次 F24 和一次画布点击，并要求程序报告对应计数；无法获得焦点时直接报告环境前置条件不满足，不向其他窗口发按键，不关闭远控软件或修改系统策略。`-ObserveOnly` 仅验证观察输出和正常退出，不代表输入验收。手动 GitHub workflow `windows-native-input-acceptance` 可在隔离 Windows runner 上运行此基线；该结果也不能单独证明 Android/Web 端到端输入通过。
+## 功能操作
 
-串流输入验收使用手动 workflow `windows-stream-input-acceptance`，传入已成功的 `windows-product-release` 构建编号。它复用并校验既有运行产物，只构建独立 Example；两个真实 Web 客户端共享目标程序，验证按键、点击、控制移交、撤权及再次授权。撤权检查重放先前实际发出的测试按键数据，不能只依赖客户端停止发送；结果要求目标窗口计数不变且重新授权后仍能接收输入。测试不改远控软件，不运行音频/长稳验收，不将 Example 加入生产包。结果只覆盖所在 runner 的 Web 链路，不代表 Android 或本机 ToDesk 共存验收已经通过。
+| 操作 | 作用 |
+| --- | --- |
+| Record input | 显式选择输入端点后录音，查看实际电平 |
+| Play test tone | 在指定输出播放 997 Hz 程序测试音 |
+| Play recording | 录音结束后回放，不复制仍在采集的缓冲 |
+| Stop recording / Stop playback | 各自停止输入或输出 |
+| Stop all | 同时停止两方向及后续自动音频操作 |
+| Analyze client tone | 分析已录 PCM 中的 1499 Hz 客户端测试音 |
+| Analyze program tone | 检查目标录音中 997 Hz 程序音及回灌 |
 
-## 音频测试
+输入和输出原生流独立，可在录音时发程序音；一个方向结束/错误不自动停止另一个方向。名称必须唯一匹配，缺失/歧义明确失败，不退回系统默认设备。新录音清除旧分析；未录音或仍在录音时拒绝分析，不自动打开设备。
 
-录音和播放使用独立的原生流，可以在 **Record input** 录音期间点击 **Play test tone**，同时检验客户端麦克风接收和程序音输出。界面分别显示 Input/Output 状态；**Stop recording**、**Stop playback** 只停止对应方向，**Stop all** 同时停止。一个方向结束或设备出错不会自动终止另一个方向。录音回放仍要求先结束录音，避免复制正在采集的数据；测试音不受该限制。该能力不代替专用虚拟输入设备的部署或端到端实录验收。
+真人讲话用电平与真实录音判断；频率分析是受控测试音工具，不识别任意讲话内容，也不自行判定端到端通过。测试声音不应在未经允许的演示中自动播放。
 
-1. 选择输入设备，点击 **Record input**。页面显示实际采集帧数、峰值、RMS 和丢帧数。录音最多 10 秒，自动停止，也可提前点击 **Stop**。
-2. 选择输出设备，点击 **Play recording** 回放刚才采集的声音，或点击 **Play test tone** 播放 3 秒 997Hz 测试音。回放增益为 0.5，测试音峰值为 0.08，首尾渐变。
-3. 验证 Web 麦克风到目标程序时，将管理会话的麦克风目标配置为已部署的专用虚拟设备；在本程序中选择对应的录音输入。观察电平和回放结果，不能仅凭设备目录可见判断收音成功。
-4. 停止录音后，点击 **Analyze client tone** 测量已录 PCM 中的 1499 Hz 客户端测试音，或点击 **Analyze program tone** 测量 997 Hz 程序测试音。窗口显示所选频率、平均幅度、峰值和实际分析时长；新录音会清除旧分析。此功能用于配合测试音定位收音与回灌，不能检测任意讲话内容，也不会自动给出端到端验收通过结论。未录音或正在录音时明确报错，不自动打开输入设备。
+## 构建与启动参数
 
-默认不选择输入/输出、打开麦克风或修改默认音频。录音只保存在内存中，新录音替换旧录音，关闭即释放。输入和输出各最多运行一个测试；录音可以与测试音同时运行，已录音频回放要求先停止录音。设备失败显示错误，需要显式重试。
+在原生 Windows Go/Rust/MSVC 环境执行 `example/build.ps1`，输出 `artifacts/example/checkerboard.exe`、`audio-probe.exe` 及 `example.zip`。两个程序保持同目录。正式独立组件构建入口为 `scripts/build-example-release.mjs`，不将该组件作为产品安装器输入。
 
-自动验收可显式传入 `"--tone-output=设备名称或稳定 ID" --tone-count=2`。名称必须唯一匹配，缺失或歧义会显示错误，不回退到默认设备；每次播放仍为 3 秒，次数限定为 1–30000，默认一次，最大值供 24 小时保持测试及接入等待预算使用（包含调度间隔，实际总时间会略长）。浏览器验收根据客户端接入等待预算及保持时间计算次数，避免多客户端尚未接入完测试音已经结束。点击任一音频操作会取消后续自动播放，点击 Stop 同时停止当前测试。该参数只播放测试音，不打开麦克风。
+| 参数 | 语义 |
+| --- | --- |
+| `-fullscreen` | 全屏窗口；仍保留 Esc 退出 |
+| `--input-device=名称或稳定ID` | 预选输入，不自动开始录音 |
+| `--tone-output=名称或稳定ID` | 显式输出设备 |
+| `--tone-count=N` | 自动测试音次数 1–30000，每次 3 秒；任一音频手动操作取消后续循环 |
+| `--input-events` | 仅本窗口输入/焦点事件的 JSON 观察，不记录键值、文字或全局输入 |
 
-也可传入 `"--input-device=设备名称或稳定 ID"` 预选目标录音端点，便于启动后在窗口中直接测试；仅选择设备，不会自动开始录音。名称必须唯一匹配，缺失或歧义会显示错误，不使用默认设备。
+输入验收必须看目标实际计数变化，不以发送 API 成功或后台“控制者”标签替代。观察输出不能区分本地物理与远端注入，需要隔离其他输入。不能为获取焦点修改 ToDesk 或强行向未知窗口发送按键。
 
-原生音频由 `components/audio-target` 中的 `audio-probe` 执行，复用锁定的 CPAL/WASAPI/PulseAudio/ALSA 技术栈。它是 example 自己的子进程，通过继承的标准输入输出通信，无端口或后台服务；关闭窗口、父进程退出或管道断开会释放设备。程序声音属于 example 的进程树，后续程序隔离采集必须包含该树。音频组件支持 Windows/Linux 构建，当前图形测试窗口使用 Win32。
+## 原生音频子进程
 
-## 构建与验证
+`audio-probe` 来自 `components/audio-target`，通过继承 stdin/stdout 按行 JSON 通信，无后台端口或独立服务；窗口关闭、父进程退出或管道断开时释放设备。程序音属于 Example 进程树，指定程序采集应包含该身份。
 
-在原生 Windows 的 Go、Rust、MSVC 环境运行 `example/build.ps1`。生成 `artifacts/example/checkerboard.exe`、`audio-probe.exe` 和包含二者的 `example.zip`，上传时两个程序必须在同一目录。参数仍支持 `-fullscreen` 与棋盘列/行数。
+协议 v1：命令含 `schema_version/id/op`，响应带相同 id，主动事件 id=0；支持 `devices/status/capture/tone/playback/stop/stop_capture/stop_playback/analyze`。分析只处理已结束录音，不改变原 PCM、不打开新设备。完整协议及限制以音频组件源码为准，不能用于客户业务通信接口。
 
-- `example/smoke-test.ps1`：真实窗口、设备列表、未选设备错误、停止、缩放、关闭、子控件 Esc 及音频子进程退出。
-- `go test ./...`（example 目录，Windows）：分析响应与原录音状态独立、旧录音迟到分析被丢弃，以及分析命令沿用原生探针协议。已加入 Windows CI。
-- `node scripts/test-example-audio.cjs`：真实原生设备枚举、协议/设备校验、无默认设备回退、管道关闭退出。
-- `node scripts/accept-source-stream.cjs --sunshine <源码构建的 sunshine.exe> --gateway <源码构建的 web-server.exe> --orchestrator <orchestrator.exe> --example <checkerboard.exe> --example-output <明确的输出设备>`：在独立回环端口启动编码器，经管理接口注册程序采集，由两个真实浏览器验证共享画面、程序测试音和按实例停止；加 `--microphone-tone` 同时验证 1499 Hz 浏览器测试麦克风与 997 Hz 程序音的混音和撤权。完整结果、帧图像和日志写入 `artifacts/source-stream/`。
-- 上述命令追加 `--edit-gateway-configuration --apply-managed-gateway --clients 20 --hold-seconds 30 --delete-active`：控制服务实际托管隔离网关，在活动串流中通过真实管理页面修改配对名称和 UDP 范围、点击应用，再核验运行实例、20 路画面及程序声音恢复、唯一控制权和单上游。退出时先通过组件接口停止受管网关，再停止控制服务；不要与 `--restart-services`、麦克风或租约过期用例合并。此项不测试自动回滚。
-- `cargo test --locked --all-targets` 与 `cargo clippy --locked --all-targets -- -D warnings`（组件目录）：录音缓冲上限、PCM 电平、测试音及输出幅度与既有目标队列检查。
+## 定向检查
 
-源码链路验收还支持 `--stop-active` 或 `--delete-active`：保留一个浏览器正在播放时执行管理停止或删除，检查观看会话终止、旧凭据拒绝、传输关闭，并持续观察 12 秒确认浏览器没有重新启动程序。删除用例只删除测试创建的注册与平台文件，同时核对外部 example 可执行文件的哈希保持不变。
+- `example/smoke-test.ps1`：真实窗口、缩放、错误状态、退出及音频子进程回收。
+- `go test ./...`（Example 目录）和音频组件 Cargo 检查：输入/输出状态与旧结果归属。
+- `scripts/test-example-audio.cjs`：原生设备枚举、管道和无默认回退。
+- `scripts/accept-example-input.ps1`：只对自建且确认前台窗口发送输入，观察模式不算输入验收。
+- `scripts/accept-source-stream.cjs`：独立源组件与多个真实 Web 观看端，按选项检查媒体、控制权、停止和配置。
+- `scripts/accept-example-audio.cjs`：明确指定专用端点的真实播放/录音/回放检查。
 
-追加 `--restart-services` 可在源码程序采集链路中终止并重启本次测试的网关及管理服务，保持浏览器页面、端口、配置和数据库不变，验证实际新连接解码、逻辑连接与控制权恢复。此参数不与 `--microphone-tone` 同用；它覆盖进程重启，不代表长时间断网或 24 小时稳定性。
+开发自动化参数以各脚本当前入口为准，不盲目拼接互斥选项。测试会创建自己的应用/进程/端口，结束应恢复归属空闲；不得启动或修改其他代理维护的 UE。既有 20 客户端四小时验收已接受，不因可配置更长保持时间就反复补跑 24 小时。
 
-追加 `--expire-client-lease` 可阻断一个浏览器到控制服务的 HTTP 请求，等待租约和网关订阅移除，再恢复请求。验收要求原连接无需刷新以观众身份恢复、新媒体连接解码、控制权及麦克风不自动恢复；其他页面继续共享上游。该场景不修改系统网络，不代表 UDP 或广域网断网。2026-10-31 源码链路整轮通过记录位于 `artifacts/source-stream/2026-10-30T17-43-33-525Z/`。
-
-追加 `--edit-gateway-configuration` 可在媒体播放期间，登录真实管理页面并通过表单修改本次隔离网关的配对名称，再由管理员 API 核对脱敏、待重启状态及旧版本保存冲突。管理端和网关使用独立静态资源目录，运行前须构建管理 Web。随后继续验证媒体及清理；不会重启网关或修改常驻配置。最新通过记录为 `artifacts/source-stream/2026-10-30T18-18-00-781Z/`，含真实表单及静态资源哈希；此前 `18-04-45-007Z` 仅覆盖 API。
-
-源码链路支持 `--clients 20 --hold-seconds 120`，并发范围 2–20，保持时间 0–86400 秒。保持期间每 10 秒（最后一次可能更短）检查每个当前 WebRTC 连接保持 connected、视频实际解码帧和音频接收包增长，并确认签名网关观测中的订阅数及共享上游仍有效。中间停滞会立即失败，逐次记录流式写入 `browser/continuous-media.jsonl`，汇总写入 `continuous_media`；零秒保持明确不产生持续性通过结论。所有页面运行在同机 Chrome，不代表多台物理设备或广域网；音频包连续性不代表持续测试音、听感或音画同步验收。非麦克风用例在初始程序测试音测量完成后关闭频谱分析上下文，避免长期测试附加分析负担。
-
-目标输入录音验收在上述 `--microphone-tone` 命令中追加 `--audio-probe <audio-probe.exe> --target-render-device <专用虚拟播放端点ID> --target-capture-device <对应录音端点ID>`。端点必须是已部署并确认连通的专用设备对，不使用默认设备或名称猜测。脚本检查设备方向，通过管理接口绑定会话，再使用与 example 相同的原生探针录音；分别分析观看者越权、控制者授权、转移后旧控制者、新控制者及释放后的 PCM。授权平均幅度须大于 0.01，未授权峰值须小于 0.003，并检查程序 997 Hz 声音没有回灌；这些是测试信号判据，不是音质评级。缺失设备立即失败，退出关闭探针；结果单独记录在 `target_recording`，不能以广播成功代替目标录音成功。此用例不与 `--target-switch` 合并，也不代表 UE5 或物理麦克风已经验收。
-
-2026-10-30 Windows 11 窗口与协议冒烟通过，三个窗口用例均正常退出且没有遗留音频子进程，设备数量以实时枚举为准。初始冒烟不打开麦克风或扬声器。后续完整源码链路使用明确选择的输出设备播放测试音，两个浏览器收到独立窗口、程序音及授权客户端测试麦克风混音；越权、转移和释放检查通过，证据位于 `artifacts/source-stream/2026-10-30T15-12-01-729Z/`。浏览器麦克风采用 Chromium 测试音源，没有打开现场物理麦克风；Web→虚拟输入→example/UE5 实录仍待验收。
-
-## 内部管道协议 v1
-
-每行一个 JSON 命令，最大 16KiB：`{"schema_version":1,"id":1,"op":"capture","device_id":"枚举所得稳定 ID"}`。操作为 `devices/status/capture/tone/playback/stop/stop_capture/stop_playback/analyze`。响应携带相同 `id`，主动状态事件的 `id` 为 0；两者包含 `schema_version/event/data` 或 `error`。状态包含独立的 `input_state` 和 `output_state`，两方向同时运行时总 `state` 为 `duplex`；原有单方向状态值保留。状态事件最高 10Hz，仅测试运行时发送。录音内存预分配，原生回调不分配、不等待锁、不输出日志；控制队列有界，输入结束释放两方向并终止进程。
-
-录音停止后可发送 `{"schema_version":1,"id":2,"op":"analyze","frequency_hz":1499}`，分析已录 PCM 中的客户端测试音；再次指定 997 Hz 可检查程序音是否混入目标录音输入。结果包含采样率、分析帧数、窗口数、峰值和平均幅度。分析使用 100 ms Hann 窗口，接受 20–20000 Hz、100 ms–10 秒录音，不打开设备，不改变录音，只在显式请求时运行；正在录音时拒绝分析，独立播放流不阻止分析。峰值可识别短时测试音，平均值包含静音窗口；结果本身不自动判定端到端通过，也不能替代真实目标端录音与撤权后静音检查。
-
-2026-10-31 新增分析的 13 项组件/探针测试、严格 Clippy、Windows 构建和原生管道验证通过。模拟 PCM 测试覆盖客户端 1499 Hz 与程序 997 Hz 分离、幅度、静音、短时信号、非法频率及容量限制。实时枚举仍仅发现 Realtek/ToDesk 输入输出，本轮没有打开这些设备或更改默认设备，未取得专用虚拟录音端点的端到端接收证据。
-
-2026-10-31 目标录音流程接入共享浏览器验收脚本，原生管道冒烟改用同一子进程通信模块并通过。普通源码串流、程序音、麦克风广播及删除撤权回归通过，记录为 `artifacts/source-stream/2026-10-30T16-47-16-443Z/`（目录为 UTC 时间）。缺失端点用例在 `2026-10-30T16-48-25-196Z/` 按预期以 `Explicit target capture endpoint is unavailable` 失败，确认没有默认设备回退、编码器恢复空闲且无测试进程遗留。目标录音成功分支尚无真实专用设备验证，不能将这两个结果计为目标录音通过。
-
-2026-10-31 录音频率分析已接入 example 窗口，使用同一探针协议。独立构建 `.local/validation/example-analysis-20261031/checkerboard.exe` 的三个真实窗口冒烟通过，包含两个分析按钮的空录音错误、停止恢复、缩放及退出；结果与截图位于 `artifacts/example/smoke-results.json` 和同目录 PNG。两个 Go 回归及 vet 通过，默认窗口截图已检查布局。此构建没有覆盖 24 小时运行中的 example；成功分析的数据处理由模拟响应验证，尚无专用虚拟输入上的窗口实录分析证据。
-
-`scripts/accept-example-audio.cjs AUDIO_PROBE RENDER_DEVICE CAPTURE_DEVICE` 使用两个独立原生探针进程验证静音基线、997 Hz 发声录音、1499 Hz 排除、录音回放后的再次录音，以及 EOF 正常退出。必须指定专用端点，不回退默认设备。Linux 隔离 PulseAudio 验收脚本已接入该检查，结果写入 `artifacts/audio-target/example-pair-result.json`；只有实际运行结果中的 `passed` 和 `clean_exit` 同时为 true 才算通过。此检查不覆盖 Windows 窗口、浏览器麦克风、网关混音或 UE5，不能替代完整端到端验收。
+程序音广播、客户端麦克风发送、服务器端点实录和 UE 内部接收是不同证据；只开了浏览器麦克风或收到 RTP 不等于全部通过。版本边界统一见[发布基线](../docs/release-status.md)，不在本文堆历次执行流水。

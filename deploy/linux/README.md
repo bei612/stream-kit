@@ -1,144 +1,60 @@
-# Linux unified deployment
+# Linux 部署实现与维护
 
-Customer installation and operation instructions are in [INSTALL.md](INSTALL.md).
-The package installs that guide; this source-development and evidence document
-is not copied into the customer installation.
+客户操作以 [INSTALL.md](INSTALL.md) 为准，该说明随产品分发。本文面向维护开发者；Windows 与 Linux 的服务身份不同，不能套用 SCM、Session ID 或 Windows 虚拟音频驱动。
 
-The native `init-platform` command now shares credential generation, listener
-validation, component verification and configuration preparation with Windows.
-The source pipeline assembles those native components into one silent-first
-Ubuntu 24.04 amd64 installer. A candidate is delivered only after its workflow
-has completed; source changes alone do not establish a downloadable or accepted
-package. Linux hardware acceptance is excluded from the current scope.
+## 安装器与会话
 
-## Single installer
+Ubuntu 24.04 amd64 使用一个含 SHA-256 校验 Debian 载荷的 `.run` 文件。以 root 安装不可变程序及系统运行库，明确选择实际拥有桌面和音频的非 root 渲染用户；控制服务和媒体不以 root 运行。
 
 ```sh
-sudo bash stream-kit-preview-COMMIT-ubuntu24.04-amd64-setup.run --user RENDER_USER
+sudo bash INSTALLER.run --user RENDER_USER
 ```
 
-Select the existing non-root desktop/audio session owner explicitly. The file
-contains a hash-verified Debian payload with all three native components and
-Web assets. Apt resolves distribution runtime libraries without confirmation;
-Node.js, npm, Go, Rust and CMake are not runtime prerequisites. Distribution
-package repositories must be available if required native libraries are absent.
-The installer checks the target distribution, user and session before package
-installation, then initializes private data and enables a single systemd user
-service. It prints the protected credential file location, never its contents.
+原生 `init-platform` 与 Windows 共用清单验证、独立凭据生成、端口检查和配置准备。安装器启用 `stream-kit.service` 用户服务，服务管理 Sunshine 与网关。没有桌面时用 `--no-start` 延后立即启动，安装器仍离线 enable，后续渲染用户登录时自动运行；不要求安装后再手工补 enable。
 
-Use `--no-start` when installing without an active desktop session. This prepares
-data but does not claim service/media readiness; after logging into the desktop,
-run `systemctl --user enable --now stream-kit.service`. The systemd user manager
-must have the desktop's DISPLAY/WAYLAND environment and access to the selected
-PulseAudio/PipeWire devices. Initialization needs no GPU or open audio stream.
+图形会话、用户服务管理器、DISPLAY/WAYLAND 和 PulseAudio/PipeWire-Pulse 必须可用。初始化可在无 GPU/音频流时完成，但初始化成功不是媒体就绪。未自动授予 KMS CAP_SYS_ADMIN，也不新增 root 图形守护进程。
 
-Program files are under `/opt/stream-kit`; data is under the rendering user's
-`$HOME/.local/share/stream-kit/runtime`. Upgrades validate and retain existing
-configuration instead of regenerating administrator credentials. Back up this
-data before updating. `sudo apt-get remove stream-kit` stops/disables the recorded
-owner's service when its user manager is available and preserves data. No other
-user is auto-selected. Package files include Sunshine's input-device uaccess
-rules and uinput/uhid module configuration; active installation reloads only
-those factory device rules. KMS CAP_SYS_ADMIN is not granted automatically.
+## 目录与来源
 
-Windows keeps its single setup EXE; each server OS has one native installer.
+| 内容 | 路径 |
+| --- | --- |
+| 程序根 | `/opt/stream-kit` |
+| 控制端与管理资源 | `orchestrator/` |
+| 网关与观看资源 | `media-gateway/` |
+| Sunshine | `sunshine/bin/sunshine`、`sunshine/share/sunshine` |
+| 运行数据 | 渲染用户 `$HOME/.local/share/stream-kit/runtime` |
+| 安装记录的渲染用户 | `/var/lib/stream-kit/render-user` |
 
-The service prepares a dedicated 48 kHz virtual microphone pair in the rendering
-user's authenticated PulseAudio/PipeWire-Pulse server before launching components.
-`orchestrator prepare-audio` is also available for explicit preparation after an
-audio-server restart. It reuses matching modules, rejects existing names owned by
-other configurations, and rolls back only modules it created if preparation fails.
-It does not set system default devices or start a separate audio daemon.
-Service shutdown releases the owned source and sink in dependency order, including
-package removal and restart. `orchestrator release-audio` performs the same checked
-cleanup explicitly; foreign devices and unrelated audio modules are retained.
-The package includes `pulseaudio-utils`; an active user audio server is required.
-In the existing management audio-target selector, choose output
-`pulseaudio:stream_kit_microphone` and input
-`pulseaudio:stream_kit_microphone_capture`. Select **StreamKit-Microphone** in the
-target recording application. Existing route ownership and controller permissions
-continue to apply. These source changes are not included in the earlier .4 release;
-Windows product source now also provisions its integrated virtual audio device;
-its new unified installer acceptance remains pending.
+原生布局唯一目录定义是 `orchestrator/internal/bundle/layouts.json`。Sunshine 使用 platform CMake/DESTDIR 布局，保留 bin/lib/share、ELF RPATH 及私有 Vulkan loader；不是把 Windows 文件平铺到 Linux。媒体资源从当前可执行位置解析。
 
-Native CI has verified creation, reuse, default-device preservation and removal
-against isolated PulseAudio and PipeWire-Pulse servers with real WirePlumber
-session policy. Module ownership uses exact correlation of the structured
-argument catalog and indexed listing, including empty and multiline arguments.
-The [backend evidence](../../docs/evidence/linux-audio-backends-20261101.json)
-records source identity and limits: it does not establish customer-host systemd
-installation or physical microphone speech acceptance.
-The unified release workflow requires both package builds and source SBOM before
-publishing a tagged preview. The Linux package check extracts the actual payload,
-executes all three components through initialization, validates its private
-configuration and checks refusal to replace existing data. It neither installs
-onto the CI host nor claims hardware streaming acceptance.
+初始化要求可信归属的私有父目录，拒绝共享可写父目录及覆盖既有目标，发布使用 `RENAME_NOREPLACE` 并同步父目录；不支持时失败，不退回覆盖。失败 staging 保持私有用于诊断。
 
-## Runtime layout
+## 图形、输入与音频
 
-The canonical catalog is
-`orchestrator/internal/bundle/layouts.json`, embedded in the native verifier and
-read by the platform packager. Linux keeps Sunshine's executable in
-`sunshine/bin/sunshine`, its Web/resources in `sunshine/share/sunshine`, and its
-private loader libraries in the renderer's native library tree. The gateway is
-`media-gateway/web-server`; the management executable and Web assets remain in
-`orchestrator/`. The packager and initializer use the same catalog. Windows
-retains its existing flat executable layout.
+包提供 Sunshine 输入设备规则、uinput/uhid 模块配置，安装后加载及触发相应设备；不扩大所有设备权限。实际窗口/桌面采集及编码能力受图形后端、GPU 驱动和会话影响。
 
-`SUNSHINE_PACKAGE_LAYOUT=platform` selects the source build profile consumed by
-the same renderer verifier. It stages through native CMake `DESTDIR`, preserving
-bin/lib/share and checking installed source identity, dependencies and the
-private Vulkan loader. The full Linux source CI now exercises this layout and
-the executable-relative resource resolver. Its result must be confirmed before
-claiming that this renderer bundle is accepted.
+服务在渲染用户已认证的 PulseAudio/PipeWire-Pulse 中准备专用 48 kHz 虚拟 sink/source：
 
-## Native initialization
+- 输出 ID：`pulseaudio:stream_kit_microphone`。
+- 输入 ID：`pulseaudio:stream_kit_microphone_capture`。
+- 目标录音程序选择 `StreamKit-Microphone`。
 
-Run as the non-root user that owns the rendering and audio session. A package
-manager may install immutable files with elevated privileges; initialization
-does not run media applications as root or impersonate another user.
+复用匹配模块，拒绝他人占用的同名设备，失败只回滚本次模块；停止时按依赖顺序释放本平台设备，不切换系统默认设备或创建另一套音频服务。
+
+音频服务重启后，可在该用户环境运行 `/opt/stream-kit/orchestrator/orchestrator prepare-audio`，或重启平台服务；`release-audio` 使用同一归属检查释放。生产包不包含原生录音 probe。
+
+## 网络与更新
+
+默认 loopback HTTP 管理 9000、网关 8080、Sunshine 原生 47989。LAN 需开放对应监听、可信 HTTPS 和实际媒体 UDP。依赖包括 Avahi client、daemon 和名称解析模块，复用 Sunshine 发布，不另加发现服务；是否在客户网络可解析仍须实查。
+
+包管理升级校验并保留既有配置，不重新生成管理员身份。更新前先停活动串流及用户服务，备份运行数据和旧包；数据库降级需按版本确认。卸载在用户管理器可用时停止并禁用记录用户的服务，保留数据，不选择其他用户代替操作。
+
+## 构建与验证边界
 
 ```sh
-install -d -m 700 "$HOME/.local/share/stream-kit"
-/opt/stream-kit/orchestrator/orchestrator init-platform \
-  --root /opt/stream-kit \
-  --data-dir "$HOME/.local/share/stream-kit/runtime"
+SUNSHINE_PACKAGE_LAYOUT=platform SUNSHINE_REQUIRE_CLEAN=1 bash scripts/build-sunshine.sh
 ```
 
-The data parent must already exist. Its ancestors must preserve ownership;
-shared writable parents are rejected, while root-owned sticky ancestors such
-as `/tmp` are allowed above a private parent. Program and data directories must
-be separate. Windows SID/session flags are rejected on Linux. A complete,
-same-commit native platform is verified before invoking either media executable.
+控制/网关/渲染组件同源验证后组装安装器。依赖锁、SBOM、来源、文件摘要、初始化和真实页面检查分别保留；精确版本状态见[发布基线](../../docs/release-status.md)。
 
-Credentials are generated independently for the single platform administrator
-and internal media connections. Optional `--admin-file` supplies a private JSON
-file; credentials are piped to native initialization commands, never passed in
-process arguments. Default listeners are loopback-only and use ports 9000/8080/
-47989; `--control-port`, `--gateway-port` and `--renderer-port` configure them as
-one deployment. Remote browser microphone capture requires HTTPS and browser
-permission.
-
-`orchestrator verify-platform DIRECTORY` performs read-only native verification
-of the complete platform: component identity, required runtime files, hashes and
-matching source revisions. Packaging and installation use the same verifier.
-The private Vulkan loader's license accompanies its binary in the renderer
-component inventory. Archive applications accept native ELF programs and Unix
-launch scripts; selection grants owner execution only to the chosen uploaded
-entry. Existing local programs must already be executable and are not changed.
-
-Staging and media directories are private to the rendering user. Failed staging
-is retained privately for diagnosis. Successful initialization uses Linux
-`RENAME_NOREPLACE`, including refusal to replace an empty existing directory,
-and syncs the parent directory. An unsupported filesystem/kernel returns failure
-rather than falling back to replacement. No service, listener or audio stream is
-started by initialization. Service readiness and actual media acceptance remain
-separate checks.
-
-## Validation scope
-
-Windows Go tests and the cross-platform packaging contract checks run locally in
-native Windows; Linux-specific code is cross-compiled there. Linux CI runs the
-native ownership, permission, atomic publication and configuration tests. Linux
-hardware acceptance is excluded from the current delivery scope; compilation or
-filesystem tests do not establish GPU capture, real microphone or UE5 delivery.
+Windows 上 Linux 交叉编译不等于原生 Linux 运行。CI 的原生文件权限、音频服务、安装包及实际页面证据也不等于客户 GPU、物理设备或共享 Windows 主机的重启/网络迁移。本轮不要求 Linux 真机验收，不能因此宣称所有 Linux 硬件已通过。

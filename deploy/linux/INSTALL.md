@@ -1,46 +1,60 @@
-# Stream-Kit：Ubuntu 24.04 安装与运行
+# Stream Kit：Ubuntu 24.04 安装与运行
 
-本安装包适用于 Ubuntu 24.04 amd64，包含统一管理服务、管理页面、Sunshine 渲染端和 Web/PWA 媒体网关。安装前核对随下载提供的 SHA-256 校验文件。版本状态及已知问题以对应版本的发布说明为准。
+本安装包包含管理服务、管理页面、Sunshine 和 Web/PWA 网关，适用于 Ubuntu 24.04 amd64。先核对下载文件 SHA-256，版本限制以对应发布说明为准。运行不需要 Node.js/npm、Go、Rust 或 CMake。
 
-## 安装
+## 安装与自动启动
 
-选择实际运行渲染程序的非 root 桌面用户，将下列 `INSTALLER.run` 和 `RENDER_USER` 替换为下载文件名和用户名：
+明确选择拥有实际图形及音频会话的非 root 用户：
 
 ```sh
 sudo bash INSTALLER.run --user RENDER_USER
 ```
 
-安装器使用包管理器补齐系统运行库，初始化私有数据，并启用该用户的 `stream-kit.service`。缺少运行库时，需要能访问 Ubuntu 软件源。运行不需要 Node.js、npm 或编译工具。
+安装器通过 apt 补齐系统运行库，需能访问所用 Ubuntu 软件源。程序在 `/opt/stream-kit`；受保护数据在该用户 `$HOME/.local/share/stream-kit/runtime`。安装器只报告凭据文件位置，不输出密码。
 
-安装依赖包含 Sunshine 原有局域网发布功能所需的 Avahi 客户端库、Avahi 服务及 `.local` 名称解析模块。可在允许组播的同一局域网使用 `主机名.local` 作为稳定入口；主机名保持不变时无需把固定链接绑定到某个 DHCP 地址。此方式依赖服务正常运行、客户端支持 mDNS 和网络允许 UDP 5353，不保证跨 VLAN、访客 Wi-Fi 或禁用组播的网络可用。HTTPS 证书必须覆盖该主机名并被客户端信任；名称解析不代替证书验证。数字 IP 书签不会自动改写。
+没有活动桌面时添加 `--no-start`。它仍启用该用户 `stream-kit.service` 的自动启动关系，只延后本次启动；后续渲染用户桌面登录时启动，无需手工再 enable。未登录/没有 DISPLAY、WAYLAND 或音频服务时，不能宣称已具备图形串流能力。
 
-尚未登录图形桌面时，可附加 `--no-start` 安装并初始化，暂不立即启动。安装器仍会启用该用户的服务自启动；随后以指定用户登录，用户服务管理器将自动启动平台，无需另行执行启用命令。
+## 访问与程序
 
-渲染与音频运行需要该用户的图形会话，以及可用的 PulseAudio 或 PipeWire-Pulse 音频服务。无桌面安装成功不代表采集已经可用。
+新安装默认管理 `http://127.0.0.1:9000`，只供服务器本机。LAN 使用前配置控制/网关监听、防火墙及可信 HTTPS；已启用 TLS 后使用 HTTPS。其他设备使用服务器可达 IP/主机名，不能使用服务器 loopback。
 
-## 管理与音频
+统一管理页支持上传归档或登记已有可执行程序，设置参数及采集模式。Linux 本机文件必须已有执行权限。单渲染主机同时一个应用串流，多观看端共享，由管理员分配唯一控制权。
 
-默认管理入口为 `http://127.0.0.1:9000`。安装器只显示受保护的凭据文件位置，不输出密码。程序文件位于 `/opt/stream-kit`，配置、数据库与上传应用位于渲染用户的 `$HOME/.local/share/stream-kit/runtime`。不要公开配置文件。
+应用详情在启动前可复制永久观看链接，打开时按保存参数启动或加入。首次需要配对时平台按真实客户端证书指纹自动配对，之后复用身份；主机离线、身份不符或重复端点明确失败。不需要单独打开 Sunshine PIN 页面。
 
-通过统一管理页面配置渲染主机，上传应用压缩包或选择已有可执行程序，设置程序窗口或桌面采集，并管理观看会话和控制权。远程浏览器麦克风需要可信 HTTPS 和浏览器录音授权；默认监听地址仅供本机访问，远程接入前需配置相应监听地址、公开媒体地址和 TLS。
+## 麦克风与音频
 
-从源码 `928c012a` 起，首次启动应用（包括打开永久观看链接）会自动将配置的渲染主机注册并配对到媒体网关，无需另外打开 Sunshine 页面提交 PIN。审批只匹配网关本次生成的客户端证书指纹；后续启动复用已配对主机。渲染主机离线、配置凭据失效或存在多个相同端点时会明确报错。完整安装包已在独立环境验证空主机目录下自动配对出画面及 IP 变化后的恢复，见 `docs/evidence/managed-enrollment-20261107.json`；不代表物理设备或本机 Windows 验收。
+用户会话需要 PulseAudio 或 PipeWire-Pulse。平台服务准备专用虚拟录音路由，不修改默认音频设备：
 
-服务启动时在该用户的音频服务中准备专用虚拟麦克风。管理页选择输出 `pulseaudio:stream_kit_microphone` 和输入 `pulseaudio:stream_kit_microphone_capture`；目标录音程序选择 **StreamKit-Microphone**。平台不将其设为系统默认设备。
+- 管理端输出：`pulseaudio:stream_kit_microphone`。
+- 管理端输入：`pulseaudio:stream_kit_microphone_capture`。
+- 目标录音程序：`StreamKit-Microphone`。
 
-音频服务重启后可执行 `/opt/stream-kit/orchestrator/orchestrator prepare-audio` 重新准备端点，或重启平台服务。服务停止时释放本平台创建的虚拟端点。
+当前控制者需主动开麦并允许系统/浏览器授权。远端 Web 采集需要可信 HTTPS；程序收到声音还须选中目标录音端点，不能只看网页图标。
 
-## 停止、更新与卸载
+音频服务重启后，在该渲染用户环境执行 `/opt/stream-kit/orchestrator/orchestrator prepare-audio`，或重启平台服务。停止时释放平台拥有的虚拟端点，不移除其他应用模块。
+
+## 地址变化
+
+没有域名也可使用 LAN IP。新地址须加入原部署 CA 下的 `server.lan_tls.hosts`，核对显式公开 URL/来源/ICE 配置后预检并重启服务。保留原 CA、服务私钥和应用观看密钥，不需重新编译或重装客户端信任。
+
+固定数字 IP 书签需修改地址部分，key 保持不变。可使用证书覆盖的稳定主机名；Sunshine 复用 Avahi 发布 `主机名.local`，依赖组播/网络和客户端解析支持，不能保证跨 VLAN 或访客 Wi-Fi 可达。名称解析不替代 HTTPS 信任。
+
+## 服务、备份与卸载
+
+以指定渲染用户执行：
 
 ```sh
 systemctl --user status stream-kit.service
+systemctl --user restart stream-kit.service
 systemctl --user stop stream-kit.service
+journalctl --user -u stream-kit.service -n 100 --no-pager
 ```
 
-更新前停止活动会话、备份私有数据并保留旧安装包。更新会校验并保留现有配置，不重新生成管理员凭据。不要把备份数据库覆盖到仍在运行的服务上。数据库降级兼容性以对应版本说明为准。
+维护前从后台停止应用并等终态，再停用户服务。备份私有配置、数据库、上传应用、配对状态及 CA/密钥，保留旧包。升级校验既有配置并保留账号；不要热覆盖数据库，降级兼容按版本判断。
 
 ```sh
 sudo apt-get remove stream-kit
 ```
 
-卸载停止并禁用所记录用户的服务，保留配置与应用数据。其他用户的服务和无关音频模块不由本平台清理。
+卸载处理记录用户的服务并保留运行数据，不选择其他用户代替清理。无桌面初始化成功、组件重启和系统整机重启是不同验证，不能从安装命令成功推断全部媒体正常。

@@ -1,440 +1,136 @@
-# Stream-Kit service deployment
+# Stream Kit 部署与运维
 
-Current Windows packaging uses the pinned open-source audio provider branch;
-the former optional VB-CABLE bundler and installer adapter have been removed.
-VB-CABLE is not a product dependency. Historical acceptance records below retain
-the exact devices used at the time and do not describe current package contents.
+本手册用于长期运行维护；平台安装参数分别见 [Windows](windows/README.md) 和 [Linux](linux/INSTALL.md)。当前发布及本机组件身份集中见[发布与部署基线](../docs/release-status.md)。
 
-The published Windows preview `cc650e8f` has now passed controlled-browser
-microphone recording into an installed VB-CABLE endpoint pair, both through a
-local gateway target and a separate receiver gateway over loopback WebSocket.
-Both runs checked viewer denial, controller delivery, transfer, old-controller
-denial, release and simultaneous audience program/microphone audio. Structured
-results and binary hashes are in
-`contracts/audio-devices/windows-recording-20261031.json`. This is real native
-endpoint recording with generated browser audio, not physical microphone,
-permission-prompt, cross-host TLS/WAN, UE5 or Windows service-session acceptance.
+## 部署组成
 
-The Windows gateway CI failure at revision `91842833` now has native environment
-evidence: job `124530698696` reported running AudioEndpointBuilder/Audiosrv but
-zero input and zero output endpoints. Firefox's gesture was active and its
-native resume promise did not settle. This is an unmet playback environment
-prerequisite; it does not prove a production player defect or a successful fix.
-Windows CI now requires an output endpoint before the playback probe and reports
-failure explicitly when none exists. Native builds, configuration/contract
-checks, viewer checks and bundle publication precede that hardware-dependent
-gate, so its failure no longer prevents obtaining the compiled release for
-deployment. The overall job remains failed until playback acceptance succeeds
-on an audio-capable Windows runner. No fake output backend or relaxed running
-state assertion is used.
+每个平台一个安装器，安装三个运行组件：Orchestrator、Sunshine、媒体网关及各自静态资源。Node.js/npm、编译器、SDK、Example、音频 probe、测试数据库和开发 CA 不是生产运行依赖或产品载荷。
 
-Clean revision `7c076209` passed the complete local Windows source-stack run at
-`artifacts/source-stream/2026-10-31T10-51-22-607Z/`, using the same revision's
-staged Sunshine, gateway, control bundle, example and Web assets. PATH contained
-only Windows system directories. Both outer and Chromium browser results passed:
-two viewers shared one upstream, program audio measured about -35.5 dB, and
-generated controller microphone audio measured about -27.6 dB. Viewer,
-previous-controller and released microphone measurements were below -119 dB.
-Control transfer preserved program audio; viewer departure preserved the other
-viewer's video/audio; active application deletion rejected readmission, closed
-transport and restored Sunshine idle. The microphone target was unconfigured:
-this does not prove physical microphone permission or recorder/UE5 delivery.
+| 平台 | 服务与进程关系 | 图形 / 音频前提 |
+| --- | --- | --- |
+| Windows | 一个自动 LocalSystem SCM 服务 `StreamKitOrchestrator`，管理 Sunshine 和网关两个组件工作进程 | 配置渲染用户的活动交互桌面；服务不启用系统自动登录 |
+| Linux | 指定非 root 渲染用户的 `stream-kit.service`，管理同样两个组件 | 用户图形会话及 PulseAudio/PipeWire-Pulse，正确的 DISPLAY/WAYLAND 等环境 |
 
-The same revision's native Windows build and clean-source stamp passed, followed
-by 106 selected native core tests (zero failures), recorded under
-`artifacts/source-build/sunshine-7c076209/`. Its example passed default/resized/
-fullscreen window and exit checks, native probe command/EOF checks, and 33 audio
-component tests. Frozen example evidence is in
-`.local/validation/example-7c076209/acceptance-manifest.json`. These are separate
-build/runtime checks, not a signed installer or Windows SCM session acceptance.
+“一个服务、三个核心运行组件”不能混称为三个 Windows 服务。无需额外安装原版 Sunshine 服务、任务计划或启动文件夹快捷方式。系统自带音频、图形、Avahi 等服务仍属于操作系统，不由平台取代。
 
-Windows CI job `124514252183` for this revision still failed the browser audio
-lifecycle check: the first click was recorded with active user activation,
-visible/focused page and no page errors, but AudioContext remained suspended.
-The media element was unpaused and unmuted. This narrows the observed failure;
-it does not establish the cause or a fix. Keep this CI issue open despite the
-successful local full-stream run.
-The CI audio artifact now also records Windows audio-service state and native
-endpoint enumeration using `scripts/record-windows-audio-environment.cjs`, plus
-actual browser resume call/promise outcomes. Inventory does not open streams,
-start services, install drivers or change defaults. Local inventory found two
-inputs/two outputs and running audio services; the Firefox lifecycle probe still
-passed. Await CI evidence before attributing its failure to absent endpoints.
+安装器建立启用及恢复关系。Windows 控制端可在登录前启动，但媒体采集需等待指定用户桌面；Linux 用户服务在该用户登录环境中运行。控制端在线、两个组件 running、应用开始出画面和系统重启恢复是不同事实。
 
-Firefox 157 passed actual Windows application streaming with the frozen clean
-`aa254605` renderer/gateway/control/example/Web artifacts at
-`artifacts/source-stream/2026-10-31T10-32-26-859Z/` (outer and browser results
-both passed). Two viewers shared one upstream; program audio measured about
--35.5 dB. Generated 1499 Hz controller audio reached the other viewer at -27.6 dB,
-while viewer/previous-controller/released microphone measurements were below
--127 dB. Control transfer retained program audio and the new controller's tone
-was -27.5 dB. Viewer departure kept the remaining video/audio active; deleting
-the active application rejected old admission, closed the transport and restored
-Sunshine idle. This is Firefox source-stack integration evidence, not physical
-microphone permission, target recorder/UE5 delivery, current HEAD binary release,
-or proof that the separate Windows CI AudioContext-resume failure is resolved.
+## 默认地址与文件
 
-Gateway revision `aa4f4574` passed the Linux CI browser audio checks in
-[job 124507123027](https://github.com/bei612/stream-kit/actions/runs/41190831790/job/124507123027):
-Chromium/Firefox and WebKit playback plus microphone RTP lifecycle, including
-revocation/reacquisition, and all three viewer asset/WASM checks. The browsers
-used the isolated real PulseAudio fixture. This confirms the WebKit initial
-interrupted-context test correction; it does not establish physical microphone
-permission, mobile hardware, browser-to-UE5 recording or a signed installer.
-The Linux job subsequently completed successfully, including its gateway release
-build, configuration checks and media-contract smoke test. The matching Windows
-gateway job failed Firefox's second AudioContext resume check; Linux success
-does not resolve that failure. The same Firefox lifecycle test passed locally
-on Windows. Additional bounded probe-only gesture/state/resume-error diagnostics
-were added without weakening the running-state assertion or changing playback.
+| 项目 | Windows 默认 | Linux 默认 |
+| --- | --- | --- |
+| 程序目录 | `C:\Program Files\StreamKit` | `/opt/stream-kit` |
+| 数据目录 | `C:\ProgramData\StreamKit` | 渲染用户 `$HOME/.local/share/stream-kit/runtime` |
+| 管理入口 | `http://127.0.0.1:9000` | 同左 |
+| 网关 | `http://127.0.0.1:8080` | 同左 |
+| Sunshine 原生基础端口 | `47989` | 同左 |
+| Sunshine 内部管理 | `https://127.0.0.1:47990` | 同左 |
 
-Before registering a Windows service, or on each systemd start, deployment runs
-`orchestrator check-config --config PATH`. This validates the existing file with
-the same environment overlay as startup and loads any configured TLS key pair.
-It does not generate configuration, create storage, bind ports or start media
-components. It does not test component availability or service-account access;
-run it under the deployment identity/environment and verify actual service startup
-separately. Windows installer preflight runs under the invoking account; SCM may
-use a different account/environment.
+这些是新安装默认值，现场配置可以覆盖端口并启用 HTTPS。已启用 HTTPS 后应使用 `https://…`；管理、网关与调用方必须一并更新。内部渲染端管理端口不应当作客户观看入口。
 
-Direct control startup also loads its TLS key pair before opening the listening
-socket, logs or database. It shares the preflight TLS implementation and retains
-the loaded certificate for serving, rather than reopening the files later.
-Native tests verify that an unreadable TLS pair fails before binding or creating
-storage and does not announce readiness; normal HTTP/HTTPS startup and shutdown
-tests pass. Certificate trust/hostname/expiry verification by clients is still
-required and is not implied by successfully loading a key pair.
+配置与数据库等运行数据放在外部受保护目录；不能公开原始 `orchestrator.json`，其中包含平台和内部机器间凭据。管理员密码来自安装或既有配置，没有通用默认密码。
 
-Windows source revision `aa254605` completed the native Sunshine release build
-with official CMake 3.31.8, clean-source verification and matching executable
-revision. Its 71 selected core native tests passed without skips (capture target,
-application management, configuration persistence and Windows audio behavior).
-Build/test evidence: `artifacts/source-build/sunshine-aa254605/`.
+## 日常启动、检查和停止
 
-The same revision's renderer, gateway, control bundle, example and rebuilt Web
-assets passed Chromium application-stream acceptance at
-`artifacts/source-stream/2026-10-31T09-50-06-672Z/`: two viewers, one upstream,
-program tone, controller microphone-tone broadcast alongside program audio,
-viewer/previous-controller rejection, control transfer, viewer departure,
-application deletion and return to idle. The microphone source was a generated
-test file and the target recording device was unconfigured. This does not prove
-physical microphone permission, delivery to UE5/recorder, full audio quality,
-installed-service operation or a signed platform installer.
+Windows 查询不需要修改启动关系：
 
-The same Windows artifacts passed service recovery at
-`artifacts/source-stream/2026-10-31T09-52-10-116Z/`: gateway recovery took
-20.315 seconds without a page reload; control restart retained connection and
-control-epoch identity while video continued. Renderer files were then staged
-with `cmake --install` into a new local directory. With PATH restricted to
-Windows system directories, the staged renderer passed full program streaming,
-browser configuration editing and managed encoder restart at
-`artifacts/source-stream/2026-10-31T09-54-04-561Z/`. Both clients recovered in
-23.096 seconds, the loaded configuration revision matched, identities were
-preserved, and program audio was measured after recovery. These checks use the
-existing Windows host; they do not prove a fresh-OS installer or SCM session
-deployment. No installed service or system default audio device was changed.
-Gateway configuration application also passed with those staged artifacts at
-`artifacts/source-stream/2026-10-31T09-56-05-845Z/`: the production form saved the
-revision, rejected stale edits, restarted the owned gateway, verified its loaded
-revision and configured UDP ports, and recovered both clients in 21.205 seconds
-with program audio. The owned gateway was stopped during cleanup.
+```powershell
+Get-Service -Name StreamKitOrchestrator
+Get-CimInstance Win32_Service -Filter "Name='StreamKitOrchestrator'" |
+  Select-Object State, StartMode, StartName, ProcessId
+```
 
-On 2026-10-31 the required stability duration was explicitly reduced from 24 to
-4 hours. The 20-client run completed 16,280.012 seconds (about 4.52 hours), with
-1,603 periodic samples verifying all connections, decoded-frame and audio-packet
-progress, and the shared upstream. This stability requirement is complete.
-Evidence is in `artifacts/source-stream/2026-10-31T05-01-53-785Z/four-hour-acceptance/`.
-The original 24-hour harness was deliberately interrupted after the requirement
-change; its later disconnect checks and graceful teardown are not claimed.
-Only its 36 owned processes were stopped, with none remaining. This result does
-not certify microphone delivery to a target application or audible audio quality.
+手动维护时在管理员 PowerShell 中使用：
 
-The Linux native control bundle at `aa254605` passed the complete CI job,
-including Go unit tests, race checks, clean release construction and real-browser
-external-configuration/restart acceptance:
-https://github.com/bei612/stream-kit/actions/runs/41188846438/job/124501261048.
-This is native Linux CI runtime evidence, not physical-device or full media
-installation acceptance. The same revision's local Windows control bundle also
-passed at `artifacts/control-bundle/2026-10-31T09-31-15-394Z/`.
-The same revision's Windows CI job subsequently passed too, including the
-native control-bundle browser acceptance:
-https://github.com/bei612/stream-kit/actions/runs/41188846438/job/124501260959.
+```powershell
+Start-Service -Name StreamKitOrchestrator
+Stop-Service -Name StreamKitOrchestrator
+Restart-Service -Name StreamKitOrchestrator
+```
 
-The native gateway release entry point is `node scripts/build-gateway-release.mjs`.
-It requires a clean commit, builds with the locked Cargo dependency graph, embeds
-the full source revision and explicit dirty state, executes `--version`, and
-rechecks source identity after the build. Cargo must be on PATH. Ordinary Cargo
-builds without source metadata identify themselves as `unversioned-development`;
-the upstream package version alone is not evidence of a Stream-Kit release.
-This command builds the native executable only. Gateway browser assets, runtime
-dependencies, notices and the complete platform installer remain separate
-requirements; this source stamp does not certify those artifacts.
+这些命令只适用于平台服务；不要重复注册子组件服务。重启会中断串流，应先从后台停止当前应用。
 
-The Orchestrator CI artifact contains the executable and a sibling `dist/`
-directory with the unified management page. Keep this layout when installing:
-on Linux, both belong under `/opt/stream-kit/orchestrator/`; on Windows, both
-belong under the install root passed to the service installer. Configuration can
-remain in `/etc/stream-kit/` or `C:\ProgramData\StreamKit\` independently.
+Linux 以配置的渲染用户执行：
 
-Without an explicit template, first run creates a random administrator credential,
-loopback-only listener configuration, and disabled `sunshine` / `web_server`
-entries, then exits for review. Their executable paths are empty; the generated
-management form can configure both components without selecting an installed
-upstream binary. Automatic startup requires a nonempty executable path. Component
-paths and activation remain explicit deployment choices, and changes require a
-control-service restart. Existing configuration and explicit templates are retained.
-The clean Windows `35498585` bundle passed first-run generation, actual browser
-login, component path editing, user-session settings and isolated control restart
-at `artifacts/control-bundle/2026-10-31T08-50-11-441Z/`. Neither media component was
-launched by that acceptance; this is not full platform installation acceptance.
+```sh
+systemctl --user status stream-kit.service
+systemctl --user start stream-kit.service
+systemctl --user stop stream-kit.service
+systemctl --user restart stream-kit.service
+journalctl --user -u stream-kit.service -n 100 --no-pager
+```
 
-After installing locked dependencies with `npm ci` in `orchestrator/web`, use `node scripts/build-control-plane.mjs`
-from the repository root to build the control-plane bundle. `--go` selects the
-Go executable and `--output` selects a new output directory. Existing output is
-never overwritten. CI uses `--require-clean`, Go 1.27.3 and Node 26.4.0; a dirty
-source tree is rejected before creating a release output. Local builds without
-that flag are explicitly marked `-dirty` when appropriate.
+Windows 原生部署工具可用 `orchestrator.exe service start --config ABSOLUTE_CONFIG` 等命令。它在 SCM 状态之外等待管理健康接口和自动组件就绪；普通 `Start-Service` 返回不代表画面已经可用。
 
-The Go module now requires Go 1.26 or later. Windows worker pipe I/O uses
-vendored Microsoft go-winio 0.6.4: concurrent `os.File` pipe reads and writes
-triggered the upstream [Windows pipe offset race](https://go-review.googlesource.com/c/go/+/829144)
-in the released runtime. The project uses the official Go 1.27.3 toolchain;
-it does not patch the runtime or disable race checking. Worker lifecycle tests
-include bidirectional traffic and idle heartbeats beyond the 30-second timeout.
+## 就绪分层检查
 
-The executable reports its source commit and version. The embedded build stamp
-is the source commit timestamp for reproducibility, not wall-clock packaging
-time. `bundle-manifest.json` records the commit, dirty state, target, Go version,
-and SHA-256/size of every executable and page asset. The builder type-checks and
-builds the page directly into the new bundle, then builds the executable; it
-never copies a potentially stale `web/dist`. The manifest also records Node,
-TypeScript and Vite versions and the frontend lockfile hash. Installed TypeScript
-and Vite must match the lockfile. Release builds recheck the source revision and
-clean worktree before issuing a manifest. Existing deployment assets are untouched.
-The binary's Go build metadata must also agree on `vcs.modified`; a clean-tree
-manifest cannot be issued for a binary that records modified sources, and missing
-modification metadata is rejected. Explicit development builds retain `-dirty`
-and cannot pass installation verification.
+1. 从实际协议和端口打开管理登录页；`GET /api/v1/health` 检查控制端身份及组件状态。
+2. 查看组件实际 PID、启动错误及桌面会话。Sunshine 或网关未就绪时不要先重装整个平台。
+3. 在后台检查应用状态、当前主机占用、运行实例和会话 overview。停止历史不是在线用户。
+4. 通过应用固定观看链接进入，确认客户端实际解码、程序音和唯一权限。
+5. 需要录音时单独确认当前控制者、目标端点和目标程序录音；不能只看收包或麦克风图标。
 
-Native Sunshine builds support `SUNSHINE_BUILD_NAME=cmake-build-sunshine-release`
-with `scripts/build-sunshine.sh`. The named directory stays under `.local/` and
-must begin with `cmake-build-`; the default remains `cmake-build-sunshine`.
-Use a separate directory when an existing binary is serving acceptance traffic.
-Dependency builds still use the common source dependency directory. This option
-does not stop, replace or install an existing service.
-Set `SUNSHINE_REQUIRE_CLEAN=1` for a release build. This rejects dirty sources
-before dependency compilation, retains the initial commit throughout the build,
-and rejects a changed commit or worktree at completion. It then executes the
-native binary's version command and reports its matching revision and SHA-256.
-Without this flag the script remains a development build entry point; successful
-compilation alone does not qualify its output as a release. Runtime version and
-hash checks are not installer, dependency-closure or publisher-signature checks.
-Hashes identify the packaged bytes; the manifest is not a signature, SBOM or
-proof that the complete platform has passed acceptance.
+单机同一时刻一个应用串流；后台登记多个程序不表示可并行独立运行。用户关闭观看页面不等于后台应用已经停止。
 
-`node scripts/accept-control-bundle.cjs BUNDLE_DIRECTORY` runs the native bundle
-with an isolated external configuration, database, random administrator credential
-and loopback port. A real browser checks login and the packaged sibling management
-assets, saves both renderer and gateway user-session settings, verifies rejection
-of incomplete/stale writes, then restores direct launch and restarts only its own
-control process. It verifies the immutable package before and after the run and
-requires both media components to remain unstarted. It neither installs a service
-nor validates audio/capture. Windows execution of the clean `ba07b312` bundle passed
-at `artifacts/control-bundle/2026-10-31T07-30-29-029Z/`; the Linux bundle was only
-cross-compiled locally. Both native CI jobs now run this package acceptance.
+## LAN、HTTPS 和地址变化
 
-Run `orchestrator verify-bundle DIRECTORY` (or `orchestrator.exe` on Windows)
-before installation. The command is read-only and starts no server. It requires
-a clean release manifest matching the verifier's platform/architecture, checks
-every listed file's size and SHA-256, rejects missing or extra files and linked
-or special entries, and requires the executable, management entry page and both
-Go/frontend notice inventories. Relative paths cannot escape the package root;
-case-colliding entries are rejected on both platforms. Keep configuration,
-databases and logs outside this immutable package directory. Verification assumes
-the package is not being concurrently modified during installation.
+只使用本机时可保留默认 loopback HTTP。其他电脑、手机和平板使用服务器 LAN 地址；监听与防火墙须允许相应私网访问。远端浏览器麦克风需要客户端可信的 HTTPS 和录音授权。
 
-Current manifests declare `verification_version: 1`. Native clean builds run
-their own verification command before reporting success; cross-compiled bundles
-require verification on the target platform. The Windows installer checks this
-capability and verifies the package before creating, reconfiguring or starting
-the service. Older bundles must be rebuilt before using the current installer.
-The verifier and installer must themselves come from a trusted distribution;
-an unsigned manifest and its hashes do not establish publisher identity.
+IP 变化后的处理必须覆盖控制面和数据面：
 
-2026-10-31 local checks cover changed bytes, changed sizes, missing/extra files,
-target mismatch, dirty builds, path escape and duplicate entries. A compiled
-Windows verifier also checked the existing clean `b75c6fe9d368` bundle (8 files).
-The symbolic-link test was skipped locally because this account cannot create
-symlinks; it remains enabled for Linux CI. No SCM installation was performed.
+- 保持内部组件间 loopback 地址，避免把它们改成 DHCP 地址。
+- 同机布局通常保持 `moonlight_web.public_url` 为空，CORS 用匹配实际 scheme/port 的 `{host}` 模板。
+- 把新 IP 加入原 CA 下 `server.lan_tls.hosts`，核对显式 bind、公开 URL、来源及 ICE/NAT 映射。
+- 原生预检后重启 Stream Kit，核对管理及网关 HTTPS，再检查真实媒体。
+- 保留原 CA、服务私钥、应用数据库、配对身份和观看密钥。客户端只修改地址部分，不需要重新编译或重装原 CA。
 
-The Linux systemd unit now runs the same verifier through `ExecStartPre` on
-every start, before opening the control-plane listener. Three starts within
-60 seconds trigger the unit's start limit, preventing a damaged package from
-entering a tight restart loop. Deploy this unit with a current bundle declaring
-`verification_version: 1`; do not pair it with an older executable that lacks
-the command. Source cleanliness must be explicitly `false` for `source_dirty`
-(missing or null is rejected), and the version must match the recorded commit.
-Tests cover both supported architectures for Windows/Linux manifest selection
-and a real isolated Windows directory junction, which is rejected. These are
-package-validation tests, not a Linux systemd installation acceptance result.
+当前版本不会自动追踪任意 DHCP 地址并更新证书；旧数字 IP 书签不会自动改写。稳定主机名依赖 LAN 解析和证书身份，不是仅改显示文字。完整步骤见[网络与证书](../docs/lan-address-configuration.md)。
 
-Management builds emit `dist/THIRD_PARTY_NOTICES.json` from dependencies with
-rendered code in JavaScript chunks, plus Vite's browser-helper and Tailwind's CSS
-generators. It retains original license/notice text, package versions, declared
-license metadata and source-file hashes. Missing or empty license text,
-lockfile/version mismatch, linked dependencies and non-file notice entries fail
-the build. The control bundle inventories this asset with its other files;
-browsers do not download it as part of page startup. This is the management
-frontend's notice inventory, not the complete native-product SBOM or a completed
-license review for all shipped components.
+## 配置保存与应用
 
-Viewer Webpack builds now emit the same `THIRD_PARTY_NOTICES.json` format using
-the shared collector, including concatenated chunk modules and the Webpack
-runtime generator. The published `@ubjs/core@0.31.0-6` npm package omits its
-license file; `scripts/licenses/ubjs-core-0.31.0-6/` preserves its published
-revision's upstream notice and the referenced full MPL-2.0 text. Supplement use
-requires exact version, npm lockfile integrity and license-file hashes.
-This covers npm JavaScript dependencies, not Rust/WASM, copied project assets
-or native gateway dependencies; those remain separate release obligations.
+| 范围 | 正常操作 |
+| --- | --- |
+| 应用入口、参数、采集模式 | 后台停止应用并等会话/原生实例终止，保存后下次启动 |
+| 会话控制权与音频策略 | 保存当前会话修改，等待版本确认和新鲜观测 |
+| 网关 / 编码器配置 | 保存期望值，再用管理页应用对应组件，核对新运行实例 |
+| 控制端监听、账号、LAN TLS 等 | 保存后维护重启控制服务，必要时重新登录 |
 
-Control revision `8acd3c51` passed a clean Windows bundle build and real Chromium
-acceptance at `artifacts/control-bundle/2026-10-31T10-05-19-063Z/`, including
-read-only configuration preflight before bootstrap and after configuration save.
-Full local control Go tests passed. This does not establish SCM installation.
+配置版本冲突先重新读取，不覆盖其他有效修改。管理员不应直接编辑正在变化的配置而忽略管理页 revision。脱敏导出不能直接当作完整回退文件。
 
-The control executable's compiled Go dependency metadata drives
-`THIRD_PARTY_NOTICES.go.json` in the bundle root. Module versions, local
-replacements, vendor license/notice/attribution texts and their hashes are
-retained, including nested notices. Go's root license and patents notice are
-included from the matching build toolchain. Missing license texts, invalid
-module paths and linked or special vendor entries fail packaging. This covers
-the control executable's module notices; Sunshine, media gateway and their
-native dependencies still require their own package inventories and review.
+## 备份与恢复
 
-CI retains structured Orchestrator test events per OS and annotates failing
-test/package names without copying test output into annotations. Control-plane
-and gateway jobs have independent queues per ref and operating system; management
-Web and SBOM jobs each have their own queue. Each queue preserves its running job
-and retains the newest pending revision, so a stalled gateway cannot hold up a
-new control-plane build. Job timeouts bound failures without cancelling healthy
-builds on every push. Bundle build failures retain their compiler/packaging log
-and publish bounded diagnostic excerpts. This does not restore cancelled runs
-or cancel historical jobs started with the old workflow definition.
-Earlier on 2026-10-31,
-the Actions API showed run `41147255650` (commit `7dfa293b`) queued without an
-assigned runner. The most recent completed run `41117602538` (commit `606a181e`)
-failed Windows Orchestrator tests while its other five jobs succeeded. The log
-download returned HTTP 403, so the specific historical test failure remains
-unidentified; local passing tests do not establish that remote CI is green.
+维护前停止活动应用，停止服务或使用经过验证的 SQLite 一致性备份方法，再备份以下数据：
 
-Static page discovery requires a regular `index.html`, and checks the
-configuration directory's `dist/`, its development `web/dist/`, then the
-executable's sibling `dist/`, in that order. An empty directory or a directory
-containing only a compiled executable is not a valid frontend bundle. Existing
-configuration-local page overrides keep precedence; update or remove an old
-override when upgrading the installed page. Application data paths still resolve
-against the configuration directory; this change only affects page discovery.
+| 数据 | 必须保留的原因 |
+| --- | --- |
+| 控制、网关和 Sunshine 外部配置 | 端口、账号、目标、原生参数和运行路径 |
+| SQLite 及一致状态的 WAL/相关文件 | 应用元数据、永久密钥、会话及操作记录 |
+| 上传应用与平台所属文件 | 程序及入口资源 |
+| 网关存储、渲染端配对/凭据状态 | 已配对身份，避免错误重新登记 |
+| 部署 CA、CA 私钥、服务证书与私钥 | 客户端信任及地址更新能力 |
+| 原验证运行包和清单 | 完整组件回退及来源核验 |
 
-This artifact is the control-plane bundle, not a signed complete platform
-installer. Encoder/gateway packaging, signing and full installation acceptance
-remain separate release requirements. Local HTTP tests cover external config
-paths, SPA routes, static assets and API-route exclusion; they do not replace a
-Windows SCM or Linux systemd installation test.
+备份目录应只允许管理员/服务身份访问，不能放进 Git、Release 或公开截图。不要复制运行中的数据库后宣称可一致恢复，也不要将备份热覆盖到活动数据库。
 
-The Linux unit runs the pinned Orchestrator binary with a dedicated service account and persistent state directories. Install it under `/opt/stream-kit`, copy the unit to `/etc/systemd/system`, create `/etc/stream-kit/orchestrator.json`, then run `systemctl enable --now stream-kit-orchestrator`.
+回退先停止归属服务，恢复已核对兼容的完整组件及对应数据，保持目录权限，再预检、启动和验收。数据库迁移可能不支持降级；无自动通用降级承诺。不要混拷 DLL、静态资源和新旧接口造成不可追溯部署。
 
-On Windows, run `install-windows-service.ps1` from an elevated PowerShell after placing `orchestrator.exe` in the install root. The service is configured for automatic restart by the Windows Service Control Manager.
+## 更新与卸载
 
-The executable detects SCM launch through the vendored `x/sys/windows/svc`
-implementation. It reports startup pending until configuration, persistence,
-TLS and the HTTP listener are initialized; stop and shutdown requests cancel the
-same runtime used by console signal handling. Stop remains pending until HTTP
-draining and owned resource cleanup complete. Startup errors return a nonzero
-service result without waiting for keyboard input. Pending operations report
-checkpoints to SCM. The listener is owned continuously from startup through
-shutdown, rather than being probed, closed and reopened.
+Windows 当前安装器用于首次部署，拒绝覆盖现有程序/数据/服务，不提供通用原位升级。组件维护需明确匹配来源、文件清单及前后端契约，不能宣传为已重装同源整包。Linux 安装器校验既有配置并保留账号，更新前仍需停止服务、备份并核对版本兼容。
 
-Runtime shutdown also joins the media-state reconciler, session lease reaper and
-encoder monitor before releasing application persistence. Automatic component
-startup is joined after cancelling the component manager, so a readiness wait
-cannot outlive shutdown or hold it until the normal startup timeout. The shared
-goroutine helper exposes completion only after deferred cleanup and panic
-reporting finish. Tests include cancellation during an in-flight encoder HTTP
-observation, HTTP/HTTPS shutdown and SQLite release; lifecycle and completion
-tests pass with the Windows race detector.
+卸载只处理本平台匹配的服务和程序，保留运行数据；外部本机程序也不应删除。Windows 如报告需重启，按维护窗口人工重启，不强制结束其他项目。Linux 用 `sudo apt-get remove stream-kit`，保留记录的渲染用户数据。
 
-Managed component stdout/stderr are drained by `exec.Cmd`'s owned copy workers.
-Process completion is published only after those workers finish and final
-unterminated lines are retained. A published line retains at most 64 KiB; excess bytes are
-discarded until the next newline with an explicit truncation marker, while the
-pipe continues to drain. This prevents an oversized diagnostic line from
-blocking the child process. A two-second post-exit pipe wait bounds descendants
-holding inherited pipe handles. Tests use a real child emitting a 3 MiB line and
-final stdout/stderr fragments, plus Windows race checks. This change does not
-provide interactive-session launch or validate capture from a Windows service.
-Each component's log history also has a 4 MiB text budget in addition to its
-configured line count. Oldest entries are evicted and their references cleared
-when either limit is reached. Subscriber lines share the same length bound;
-subscriber queues and other runtime allocations are separate from this budget.
+## 故障排查
 
-The Windows installer requires an existing configuration and management page,
-rejects an existing same-named service with different launch paths, and configures
-failure recovery delays of 5, 15 and 60 seconds. It does not silently migrate an
-existing installation. Recovery includes nonzero service-specific exits.
+| 现象 | 优先检查 |
+| --- | --- |
+| 127.0.0.1 无法打开 | 实际 HTTP/HTTPS、端口、服务、浏览器完整错误；LAN 证书缺地址不能自动解释 loopback 失败 |
+| 新 IP TLS 报错 | 证书 SAN 是否含新 IP、原 CA 是否可信、服务是否重启加载 |
+| 控制端运行但组件未启动 | 配置 SID 的桌面是否登录、组件预检、路径及权限、重试/恢复记录 |
+| 管理端正常但无画面 | 当前应用/原生占用、采集/编码能力、ICE UDP、防火墙、客户端解码 |
+| 参数无法修改 | 是否只断开了客户端；应用、会话及原生实例是否都已停止 |
+| 反复要求登录 | 管理入口与内部网关入口是否混用，是否使用有效固定链接 |
+| 程序录音静音 | 目标设备、实际路由、控制权、Windows 录音隐私或用户音频服务 |
+| 有几十条历史会话 | 活跃与历史是否混看；停止历史按 100 条/7 天策略保留，只读且不等于在线人数 |
 
-Validation on 2026-10-31 includes simulated SCM start/stop/shutdown/interrogate
-and failure transitions, plus actual HTTP and certificate-verified HTTPS runtime
-startup, health requests, cancellation, listener closure and SQLite release.
-Go tests and Windows lifecycle race tests passed, and Windows/Linux amd64 builds
-passed. The first local race-test link attempt failed because the UCRT toolchain
-directory was absent from PATH; using the existing UCRT toolchain environment
-resolved it. No service was installed, restarted or removed for these checks.
-Actual SCM/systemd installation remains unverified. On Windows, running the
-control plane as a service does not prove that render processes in session 0 can
-capture an interactive user's desktop; interactive rendering deployment still
-requires separate verification and appropriate process-session ownership.
-
-Direct managed Sunshine launches now reject Windows Session 0 before executing
-native preflight or stopping an existing process for restart. Failure to query
-the current session also rejects the launch. The headless gateway and externally
-managed Sunshine remain available to the service control plane. Nonzero session
-IDs pass this prerequisite only; they are not proof of an unlocked desktop or
-working capture.
-
-Managed Sunshine and the media gateway can select the same native Windows
-user-session worker through `components.sunshine.windows_session_id` /
-`windows_user_sid` and `components.web_server.windows_session_id` /
-`windows_user_sid`, respectively. Set both fields for an
-active logged-on user; set the ID to `0` and clear the SID to retain direct
-launch. The management configuration page exposes both fields and marks them
-as requiring a control-service restart. They are rejected for other components,
-external-monitor mode, system service accounts, or Linux deployments.
-
-For local microphone delivery, explicitly place the gateway in the same user
-session as the target application so its native audio endpoint operations run
-in that user's audio context. A headless gateway may retain direct launch when
-it does not need user-session audio devices. This selection reuses the worker's
-preflight, authenticated pipes, process ownership, session revalidation and
-shutdown; it does not install virtual audio devices or establish that target
-recording works. Session changes still require a control-service restart.
-
-The control service must run as LocalSystem to acquire the selected user's WTS
-token. The user identity and session are checked before native launch; there is
-no fallback to another desktop. The worker uses `winsta0\default`, a contained
-process tree, mutually authenticated local pipes, and an immutable per-launch
-snapshot. Native preflight runs in that same user context before an existing
-renderer is stopped. Logs, heartbeats, stop, kill and exit ownership use the
-same component manager as direct processes. The controller revalidates the
-selected active session and SID immediately and on each 10-second heartbeat.
-Loss or mismatch terminates the owned job and records the reason in component
-logs. It never moves the renderer into another session automatically; a later
-restart must pass the same user/session checks. Recovery across actual Windows
-logon/session changes remains unaccepted until the SCM test is performed.
-
-The launch transaction, failure cleanup, preflight failure, process lifecycle
-and 35-second idle heartbeat have native tests, including a built worker binary.
-Cross-session LocalSystem/SCM acceptance remains outstanding: the development
-shell used for these checks is not elevated. These tests do not establish that
-an installed service can capture or inject audio in the selected desktop.
-
-TLS can terminate in the native Orchestrator and gateway, or at a deployment ingress. When using an ingress, keep the upstream listeners private. Native TLS requires coordinated changes to browser URLs, internal gateway requests, health checks and certificate trust; see [the address and HTTPS deployment contract](../contracts/public-addresses.md). Enabling a certificate on only one listener does not complete remote microphone deployment.
+先保存精确错误和组件版本再处理，避免反复重装、忽略证书、修改 ToDesk 或强制结束无关 UE。运维操作不能把测试包或测试证书引入生产。

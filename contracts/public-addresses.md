@@ -1,43 +1,51 @@
-# Browser access when server addresses change
+# Browser addresses and native HTTPS
 
-Native component-to-component addresses use loopback and do not follow the physical NIC address. Browser addresses are separate: an empty gateway `public_url` generates viewing links from the management page's actual hostname and the gateway port. An explicit external public URL remains an administrator override for reverse proxies and separately hosted gateways.
+This contract separates component-internal addresses from browser-visible addresses. Operational steps are in [LAN/TLS configuration](../docs/lan-address-configuration.md); released and installed revisions are tracked only in [release status](../docs/release-status.md).
 
-The gateway's `config.js` replaces a loopback/unspecified control-plane hostname with the hostname used to request the viewer. It retains the control port, scheme and path. An explicitly configured external control-plane hostname is preserved. Request URI authority takes precedence, including HTTP/2 `:authority`; origin-form HTTP/1 requests fall back to `Host`. Forwarded host headers are not used for this automatic mapping.
+## Address derivation
 
-The published 20261106.2 server has a confirmed HTTP/2 defect: native HTTPS can return the internal loopback control URL when only `:authority` is present. Source commit `00fe4953751e52dd38f0d707e9ba721d5374cb81` corrects this and adds HTTP/2, IPv6 and HTTP/1 regression cases. Do not treat the older published installer as containing this fix; see [network evidence](../docs/evidence/lan-http2-address-20261107.json) for the exact affected bytes and subsequent acceptance status.
+Native local component calls use loopback; do not replace them with a physical NIC's DHCP address. An empty `moonlight_web.public_url` derives the gateway origin from the hostname of the management request and the configured gateway port. An explicit public URL is an administrator override for reverse proxies or separately hosted gateways.
 
-Management CORS can use `http://{host}:8080` (substitute the actual gateway scheme and port). The placeholder matches only the management request hostname, including IPv6 brackets. It does not allow unrelated hosts, schemes or ports. Existing literal origin entries remain supported. Native installation selects this same-host template and leaves the public gateway override empty.
+The gateway's `config.js` replaces loopback/unspecified control-plane hostnames with the hostname used to request the viewer, retaining scheme, control port and path. Explicit external hostnames remain unchanged. Request authority takes precedence, including HTTP/2 `:authority`; origin-form HTTP/1 falls back to Host. Forwarded host headers do not participate in this automatic mapping.
 
-For remote access, bind control and gateway listeners to an appropriate wildcard/interface, with corresponding private-network firewall rules. Loopback-only listeners remain available for local-only deployments. Listener changes require a component/service restart. Do not replace internal loopback API endpoints with the server's DHCP address.
+Management CORS supports `https://{host}:8080`, using the actual deployment scheme and gateway port. The placeholder matches only the management request hostname, with IPv6 brackets handled correctly; unrelated origins remain rejected. Literal origin entries are supported. Native installation selects the same-host template and leaves the public override empty.
 
-A numeric URL already sent to a client cannot change its hostname when DHCP assigns another address. A stable hostname/domain with DNS updated to the current address provides the persistent entry point. Local machine-name resolution depends on the LAN's DNS/name services; public access requires a configured domain/DDNS and routing. Browser connections may briefly drop during a network change and reconnect through that stable name. Remote microphone access additionally requires browser-trusted HTTPS.
+HTTP/2 authority handling is implemented in the current source. Historical older-installer defects and acceptance bytes remain in [the HTTP/2 evidence](../docs/evidence/lan-http2-address-20261107.json); they must not be presented as a current requirement to use HTTP/1.
 
-For same-LAN operation without a purchased domain, reuse Sunshine's existing OS publisher: Windows `DnsServiceRegister` advertises `<computer-name>.local`; Linux uses Avahi. The Ubuntu installer explicitly depends on `libavahi-client3`, `avahi-daemon` and `libnss-mdns`, because the renderer loads Avahi through `dlopen` and ELF dependency scanning cannot include it automatically. Do not add a second application discovery daemon. A certificate covering the stable `.local` hostname preserves the HTTPS identity across IP changes; mDNS records alone are not trusted identity. A numeric-IP certificate requires the new address in its SAN before that address can be used securely.
+## Listeners and transport
 
-Client resolution and multicast reachability must still be verified. [AOSP documents `.local` resolver support](https://source.android.com/docs/core/ota/modular-system/dns-resolver) from November 2021; older or vendor-modified clients and isolated Wi-Fi networks can differ. Local resolution on the server is not proof of remote LAN or DHCP-change recovery. Windows service publication already exists in the vendored source. The Linux discovery dependencies are included in the published 20261106.2 installer; [installer evidence](../docs/evidence/unified-installers-d36cead6.json) does not by itself prove remote multicast resolution or address-change recovery.
+Remote access needs reachable control and gateway listeners and the corresponding private-network firewall rules. Loopback-only is a supported local-only deployment. Listener changes require the owning component/service to restart.
 
-The exact `00fe4953` Linux installer subsequently passed [independent LAN recovery acceptance](../docs/evidence/lan-address-recovery-20261107.json): a separate client network/Avahi namespace resolved the server before and after its owned NIC changed from `198.18.31.1` to `198.18.31.2`. Native HTTPS verified normally under both HTTP versions. The permanent-entry page recovered real WebRTC video without reload, and the selected remote UDP candidate changed to the new address. Component PIDs, renderer identity, configuration and certificate remained unchanged; the old IP became unreachable. This verifies the isolated Linux deployment and Chrome client, not a local Windows cutover, physical Wi-Fi behavior or Android migration.
+HTTPS protects HTTP signaling and control traffic; WebRTC ICE/UDP remains a distinct media path. Explicit NAT mappings, reachable candidates and the configured UDP range must remain valid after a network change. Successful page loading is not proof of media or microphone delivery.
 
-Verification must cover page assets from an external working directory, two different request IPs, a stable hostname, IPv6 authority formatting, and rejection of unrelated CORS origins. A deliberate DHCP/NIC change is not part of automated tests on a shared development host because it would interrupt unrelated projects and remote sessions.
+## HTTPS settings
 
-## Native HTTPS deployment
-
-The existing native listeners support TLS without another server process. A deployment must choose its stable browser hostname and certificate trust model before changing the running HTTP installation. A managed domain can use a publicly trusted certificate; a private LAN hostname requires a private certificate authority trusted by each client. Certificate issuance, name resolution and browser trust are separate deployment requirements. A generated self-signed certificate alone is not evidence of a working browser microphone.
-
-Apply the following settings as one service maintenance operation, preserving the existing configuration for rollback. Paths refer to protected deployment files, not repository fixtures. Certificate private keys must be readable only by the service/worker identities that actually serve TLS and the administrator.
-
-| Configuration | Required HTTPS value |
+| Setting | Required relationship |
 | --- | --- |
-| Orchestrator `server.tls_cert`, `server.tls_key` | Matching PEM certificate chain and private key for the management hostname |
-| Gateway `web_server.certificate.certificate_pem`, `private_key_pem` | Matching PEM chain and key for the gateway hostname |
-| Gateway `web_server.control_plane_url` | `https://<stable-management-host>:9000`; the browser configuration preserves this scheme |
-| Orchestrator `server.cors_origins` | `https://{host}:8080` for the same-host layout, or the exact separately hosted gateway origin |
-| Orchestrator `moonlight_web.public_url` | Empty for same-host links; an explicit HTTPS URL for a separately hosted gateway |
-| Orchestrator `moonlight_web.base_url` | An HTTPS gateway URL whose hostname matches the certificate and whose chain the service trusts |
-| Orchestrator `components.web_server.health_check.url` | The certificate-valid HTTPS gateway URL ending in `/stream.html`; keep certificate verification enabled |
+| `server.tls_cert`, `server.tls_key` | Management certificate chain and matching private key |
+| Gateway `web_server.certificate` | Gateway chain/key; same serving pair for managed same-host issuance |
+| Gateway `web_server.control_plane_url` | Correct HTTPS control origin; loopback is valid internally when covered by the certificate |
+| `server.cors_origins` | Actual HTTPS gateway origin or same-host template |
+| `moonlight_web.public_url` | Empty for derived same-host links, otherwise explicit reachable HTTPS override |
+| `moonlight_web.base_url` | Internal gateway HTTPS URL, system-trusted issuer and matching hostname |
+| Gateway health-check URL | Correct HTTPS `/stream.html` URL with certificate verification enabled |
 
-The default internal HTTP loopback addresses are appropriate while those listeners serve HTTP. Once a native listener switches to HTTPS, every caller of that listener must switch with it. With private certificates, a loopback internal URL is valid only if that IP is covered by the certificate and the calling service trusts its issuer. Otherwise use a stable certificate-covered hostname resolving to this server. Do not disable certificate verification to compensate for a hostname or trust mismatch. The Orchestrator gateway client and media-state publisher use system trust; the health checker also verifies certificates by default. Browser trust alone therefore does not establish internal service trust.
+An initial HTTP-to-HTTPS change updates all callers of both listeners, not just the browser URL. The gateway client and media-state publisher use system trust. Trust installed only in a browser does not establish trust for the service identity.
 
-Run the existing native configuration preflights before restarting. After restart, check all component health, browser login and viewing invitation redemption, actual video/audio transport, control transfer, and browser microphone permission through the HTTPS hostname without certificate-error overrides. ICE/UDP remains the media transport and retains its configured LAN firewall scope; HTTPS does not replace those UDP rules. A successful TLS file/key preflight proves parsing and key correspondence, not browser trust or a completed voice acceptance.
+`server.lan_tls` uses an existing deployment CA and explicit hosts. At service startup it renews/reissues the serving leaf before starting the local gateway, preserving the CA and existing leaf key. It does not silently create a replacement CA. Unchanged valid identity does not reissue unnecessarily. Read-only `check-config` does not create or update a leaf.
 
-The installed LAN HTTP and example result is recorded in `docs/evidence/local-lan-demo-20261104.json`. That receipt explicitly does not claim HTTPS, a physical remote client, human speech, or a real DHCP change.
+The current implementation does not automatically discover arbitrary new DHCP addresses and update the certificate. Add the actual new IP to configured hosts, review explicit URLs/origins/binds/ICE settings, preflight, and restart. Reusing the same CA avoids reinstalling client trust and rebuilding clients. Never disable TLS verification to hide an identity mismatch.
+
+## Stable names and saved links
+
+A numeric bookmark cannot rewrite its hostname after DHCP changes. Update only the origin of a permanent `/watch#key=…` link, preserving its capability. Android's server-address editor preserves that key as well.
+
+A stable DNS/mDNS name can avoid numeric bookmark changes when it resolves correctly and appears in the certificate. Reuse Sunshine's Windows DnsServiceRegister or Linux Avahi publication instead of adding another discovery daemon. Linux packages include Avahi runtime and name-resolution dependencies.
+
+Multicast isolation, VLANs, guest Wi-Fi and client resolver support still require verification; local resolution on the server is not proof of remote reachability. Name discovery does not establish trusted HTTPS identity.
+
+## Validation
+
+Check authority derivation under HTTP/1, HTTP/2 and IPv6; reject unrelated CORS origins. Verify both listeners with normal certificate checks, then actual admission, decoded media, control transfer and microphone routing. Preserve CA, application/watch identities and configured component ownership.
+
+The [isolated Linux address-change evidence](../docs/evidence/lan-address-recovery-20261107.json) proves its recorded environment, not every Windows or Android migration. Shared-host NIC changes and reboot require the existing maintenance boundary. See current deployment status for the separately established local endpoint and media results.

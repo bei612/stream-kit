@@ -1,10 +1,12 @@
 # 纳管源码与原生构建
 
+本文维护上游导入来源及构建边界，产品当前状态见[发布与部署基线](../docs/release-status.md)，完整构建见[开发指南](../docs/development.md)。导入清单中的日期和 `integration_status` 保留导入时含义，不作为当前 APK/安装器是否已发布的判断；Moonlight Qt 纳管不表示已交付统一受管桌面客户端。
+
 `moonlight-android.json` 记录官方 Android v12.2 及 moonlight-common-c、enet、nanors 的来源、固定提交和归档摘要，全部作为普通文件纳管。二开复用原生触摸识别器，接入统一观看链接、权限状态和共享 WebRTC 会话；详见 [Android 接入契约](../contracts/android-client.md)。平台签名预览 APK 已发布，最新下载与逐项验收边界见该契约；不把上游 GameStream 直连或协议单元检查当作统一会话串流验收。上游快照内的 OpenSSL/Opus 静态库是保留的上游构建输入，不是本项目重编译证据。
 
 `usbip-win2.json` 锁定可选 Windows 虚拟音频驱动的上游提交和归档摘要。`third_party/usbip-win2` 纳入该版本全部 313 个普通源码、资源及文档文件，只省略 `.gitmodules`；原有 vcpkg gitlink 仅作为上游开发工具记录，不作为本项目 submodule。平台不构建或分发上游 GUI、CLI、SDK，也不执行其自动更新 submodule 的 `bootstrap.bat`。平台的音频协议、设备生命周期和安装流程分别由原生 Rust/Go 实现。
 
-可选驱动包只使用核验过的原版 Microsoft 签名 UDE 与配套过滤驱动，精确文件清单见 `orchestrator/internal/audiodevice/usbip-driver.json`。源码归档用于统一审查和维护，不代表本项目已重编译并取得内核签名。上游开发文档中的测试证书、testsigning 等做法不适用于产品安装；不执行这些操作。正式安装包不包含本源码目录、vcpkg、示例或验收工具。Windows 真实端点和录音联调通过前，此可选分支不默认进入公开安装包。
+驱动包只使用核验过的原版 Microsoft 签名 UDE 与配套过滤驱动，精确文件清单见 `orchestrator/internal/audiodevice/usbip-driver.json`。源码归档用于统一审查和维护，不代表本项目已重编译并取得内核签名。上游开发文档中的测试证书、testsigning 等做法不适用于产品安装；不执行这些操作。正式安装包不包含本源码目录、vcpkg、示例或验收工具。当前 Windows 产品构建已默认集成该开源虚拟音频控制器及共享 Audio 类身份，具体签名、安装与隐私边界见[Windows 安装](../deploy/windows/README.md)。
 
 `pulseaudio-rs.json` 记录 Linux 音频协议依赖 `pulseaudio 0.3.2` 的 crates.io 归档 SHA-256 和上游提交，MIT 许可证保留在 `third_party/pulseaudio-rs/LICENSE.md`。独立音频组件和媒体网关的 Cargo 根清单均将该依赖指向同一份仓库源码；两个生产锁文件与依赖自身的回归测试锁文件分别纳管。二开限制每轮接收批次并保留未读状态，使连续录音时仍能调度时延、暂停和删除命令；不通过遗留后台线程或强杀设备进程宣称释放成功。持续可读与分片回归测试、Linux 独立设备对检查由 `linux-native-capture` 执行，实际通过状态以对应提交的运行结果为准。
 

@@ -1,7 +1,12 @@
-Stream-Kit provides one native installer per supported server platform: Windows x64 and Ubuntu 24.04 amd64. Each package contains the single-administrator control service and management UI, Sunshine renderer, and Web/PWA media gateway from one source revision.
+# Stream Kit 发布规则
 
-Windows supports `/VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART`; Windows UAC remains applicable. On Ubuntu use `sudo bash INSTALLER.run --user RENDER_USER`. Installation and runtime do not require Node.js/npm or compiler toolchains. Development examples, UE SDK probes, Playwright and acceptance fixtures are excluded.
+服务端每平台一个统一安装器，Android 独立签名 APK。操作与产物检查见[开发指南](../docs/development.md)，当前可下载版本及验收边界见[发布与部署基线](../docs/release-status.md)。
 
-Both installer manifests, SHA-256 checksums and the source SBOM accompany the downloads. Verify the checksum before installation. Windows product builds include the open-source virtual-audio controller and shared Audio class identity, recorded in the installer manifest. Select the resulting input in the target recording application. Remote browser microphone access requires trusted HTTPS and client permission.
-
-See `deploy/PLATFORM.md`, `deploy/windows/README.md` and `deploy/linux/README.md` in the source archive for initialization, protected credentials, runtime dependencies and data retention. Publisher code signing is outside this delivery scope. Product version selection does not replace deployment acceptance; a stable release is published only after the applicable delivery checks have been completed.
+- 发布源身份冻结；组件由同源清单验证，文件大小/SHA-256、平台和必需资源一致。
+- 客户包只含产品运行文件及必需依赖，不含 Example、probe、音源、验收脚本、测试凭据、开发 CA、签名私钥或工具链。
+- 运行代码、安装配方及验收器提交分别记录。仅验收/文档变更不重建运行时；安装器专属复用载荷需明确标注来源。
+- 发布任务复用已核验原始产物，精确 Windows 安装验收必须匹配该 EXE 的源码和 SHA。Git 推送权限不等于 Release API 上传权限，发布优先使用既有 Actions 流程。
+- 标签、公开附件、校验和、来源清单、许可证/SBOM 和下载说明一致；检查附件实际可下载，不用工作流成功代替文件核验。
+- Android 沿用项目持久 release 密钥，APK 版本码递增，校验签名和升级身份；私钥不入库、不进 APK、不打印。
+- 发布渠道及未验证边界如实标明。未签商业发行者证书不是本次阻塞；内核驱动签名和第三方许可仍必须核查。
+- 不覆盖历史附件或改写失败证据；不能因发布新包宣称已有部署已自动更新，也不能以本机组件维护代替统一安装器验收。

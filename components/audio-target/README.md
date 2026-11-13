@@ -1,82 +1,44 @@
-# 渲染节点音频目标适配
+# 原生音频目标与虚拟设备
 
-2026-10-31 已下载并检查两套 Windows 驱动候选源码，锁定提交与结论见 [候选核查记录](../../third_party-manifests/windows-audio-evaluation.json)。[Virtual-Audio-Driver 当前检查版本](https://github.com/VirtualDrivers/Virtual-Audio-Driver/blob/bb34fba15faf569a6ae9bdea360bc1cf4821354e/Source/Main/minwavertstream.cpp) 的录音路径填充静音，不能用作本项目所需的播放到录音桥；[RadioVoice 当前检查版本](https://github.com/doctorspider42/radio-voice/blob/872f7d570f093f94b514ebdcfbbb1a23ecc458d9/README.md) 的安装说明要求测试签名及关闭 Secure Boot，不能直接作为现场生产方案。两者均未安装，未更改安全策略、默认音频设备或现有服务。源码下载和端点枚举均不代表目标录音验收完成。
+此组件把已授权客户端麦克风 PCM 写入明确选择的服务器端点，供目标应用从配对录音端点读取。程序音不回灌到目标录音。设备枚举、输出、虚拟设备和开发 probe 分层，生产不调用 AudioRelay 或依赖 VB-CABLE。
 
-此组件将会话总线输出的麦克风 PCM 写入明确指定的本机播放端点，供虚拟声卡另一侧的录音端点被目标程序采集。它不把程序声音送回录音端点，不切换默认设备，不安装驱动，不运行 AudioRelay，也不使用设备名称猜测或默认设备回退。
+## 音频 I/O
 
-平台 I/O 统一封装在锁定版本的 [CPAL 0.18.2](https://github.com/RustAudio/cpal) 后面：Windows 使用 WASAPI，Linux 启用 PulseAudio 和 ALSA。当前输入格式为每帧 20ms、48kHz、双声道 f32；设备侧支持 48kHz 单/双声道 f32、i16、i32，单声道进行双声道平均。申请不超过 20ms 的设备回调缓冲；不支持该格式的设备明确返回错误，重采样适配仍需扩展。
+I/O 复用锁定的 CPAL，Windows 使用 WASAPI，Linux 使用 PulseAudio/ALSA。当前会话总线输入为 48 kHz、双声道 f32、20 ms 帧；支持设备侧相应 48 kHz 单/双声道 f32/i16/i32，单声道作双声道平均。不支持格式返回明确错误，不用默认设备回退掩盖配置问题。
 
-PCM 队列预分配三个槽位；过期 60ms 的数据不播放，满队列覆盖最老帧。实时回调不分配或释放堆内存，不阻塞等待锁，不记录日志；资源暂不可用时输出静音。控制者切换、禁麦或会话授权失效时清空队列。设备失效会停止接受数据；可恢复的 underrun 与实时调度权限不足单独计数，不能被误判成永久故障。
+PCM 队列预分配三个槽位，超过 60 ms 的数据丢弃，队列满覆盖最老帧。实时回调不分配/释放堆内存、不等待锁、不输出日志；无有效资源时输出静音。控制者切换、禁麦或会话失效清空队列，设备致命错误停止接受数据。
 
-`TargetStatus` 的设备采样计数包括静音；设备打开或回调运行**不证明目标程序已经录到声音**。端点之间实际连通性、目标程序选用的输入设备、回声和延迟必须单独验收。
+`AudioTarget` 拥有原生设备，`TargetMonitor` 只持统计，不延长设备生命周期。设备关闭、代次变化和过期不会携带成功信息。回调活性通过单调时间观测，超过 2 秒未回调报告停滞；状态查询处理错误优先级，不新增常驻线程。
 
-网关运行观测按当前目标代次生成：设备关闭即为故障，不以错误文本为空推断设备打开；本机目标配置已应用但没有设备时也明确报错。原生错误优先于并发读取到的打开标志，错误同时进入签名观测的故障字段。停用会话、切换中状态和旧代次不携带设备成功信息。144 项网关测试及 Go 签名协议回归覆盖这些状态和接收端一致性；它们是状态逻辑验收，不是虚拟端点连通或目标程序录音验收。
+设备采样计数包含静音，设备打开和 PCM 队列流动均不证明目标程序实际录到；录音端点连通、目标选择、回声和延迟须独立核对。
 
-## Windows 原生虚拟设备实现状态（2026-11-01）
+## Windows 虚拟音频
 
-`src/virtual_device` 在本组件内实现音频专用 USB Audio Class 2 设备、USB/IP 管理/传输协议和有界 PCM 调度，不引入 HID 游戏手柄 SDK、.NET 或另一个音频中继产品。采用固定 48 kHz、双声道、16 bit PCM；播放与录音各一个端点，统一时钟。设备序列号和 USB 身份由部署端显式提供，源码没有使用其他声卡或手柄的身份作为默认值。
+`src/virtual_device` 实现音频专用 USB Audio Class 2 描述符、USB/IP 协议和有界 PCM 调度：固定 48 kHz、双声道 16 bit、播放/录音各一端点并共享时钟。只接受本机回环传输，校验请求和设备归属；关闭时回收线程/连接，流停止、取消和重新配置均清队列。
 
-传输仅接受回环连接，校验导入的设备和请求序列；连接关闭时回收读取线程。待处理请求和 PCM 队列均有限额，语音超过 60 ms 后丢弃；停止流、取消请求和设备重新配置均处理队列生命周期。协议模型依据锁定的 usbip-win2 v.0.9.8.1；音频描述符与时钟控制遵循 [Windows USB Audio 2.0 驱动要求](https://learn.microsoft.com/windows-hardware/drivers/audio/usb-2-0-audio-drivers)。这部分是音频组件源码，不是安装进客户环境的测试程序。
+控制器适配只接受锁定 usbip-win2 ABI，附加到本机端口和明确总线 ID；释放前复核归属，禁止全局端口清理。网关拥有运行期附件，启动失败或异常退出释放，既有组件托管器负责恢复。
 
-已通过 16 项新增检查，包括真实本机 TCP 连接上的导入、设备配置、播放 PCM 到录音 PCM 及断开清理；测试设备身份仅存在于 `cfg(test)` 代码。它们不等于 Windows PnP 已枚举出真实音频端点。尚待完成签名 USB/IP 主控制器的受管理安装/附加/卸载、平台服务接入、正式设备身份、系统音频端点与目标程序实录验证。当前模块不会自动安装驱动、创建监听或更改默认设备，也未替代现有可用的虚拟音频设备。
+安装器/控制服务负责已签名控制器驱动安装和端点准备，音频库不是独立驱动向导。当前正式 Windows 构建已集成该路径，旧的“尚未接入安装器”候选结论不再适用。源码归档、签名库存和共享 Audio 类设备身份见[Windows 安装](../../deploy/windows/README.md)。
 
-后续已实现 `Controller` 与 `ManagedDevice`：通过 Windows Configuration Manager 查询控制器，只接受固定 0.9.8.1 ABI；附加限定本机端口与随机生成的设备总线 ID，释放前重新核对完整位置，禁止全局端口清理。管理对象关闭时先标记停止，再释放所属设备、关闭连接、回收工作线程。新增 6 项驱动报文与生命周期检查通过，并对传输返回类型变更执行原有 TCP PCM 检查；驱动操作的报文检查不实际安装或附加设备。本机只读原生枚举返回 0 个 USB/IP 主控制器，因此内核附加/释放尚未实机验证。安装集成、平台服务调用、正式设备身份及系统端点录音仍未完成；安装器不会调用这一开发中接口。
+每部署持久序列号来自发布身份配置，不硬编码测试设备身份；不启用 testsigning、不借用虚拟显示驱动充当音频设备。开发工具 `examples/virtual_device.rs` 不进入产品。
 
-## 原生回调活性
+## Linux 与远端目标
 
-设备句柄打开不等于音频回调仍在运行。原生输出回调记录单调时钟时间；现有状态查询发现超过 2 秒未回调时，通过 error 字段报告 audio output callback stalled。网关沿用设备故障状态将其送达统一管理页面，不增加线程或轮询器。首次播放有相同宽限期；回调恢复后暂态停滞自动消失，原生致命错误保持优先并仍需重开设备。关闭后的监视对象不会报告回调停滞。
+Linux 使用渲染用户已有 PulseAudio/PipeWire-Pulse 音频服务，专用 sink/source 由控制服务准备与释放，不改系统默认设备。原生模块复用和归属检查见[Linux 部署](../../deploy/linux/README.md)。
 
-此检查确认回调活性，不证明虚拟线缆连通、录音端可用或 UE5 已收到声音。实时回调仅增加单调时钟读取和原子写入，错误字符串只在状态查询时生成。未修改系统默认设备，未为设备自动安装驱动。
+远端音频目标仍走签名节点状态、短时路由授权与有界 PCM 传输；不是匿名网络声卡，也不代表跨主机应用调度已交付。精确协议见[远端音频契约](../../contracts/audio-devices/remote-target.md)。
 
-Windows 原生音频组件 all-targets 测试 20 项、Clippy 和网关 144 项测试通过；新增活性测试使用受控时间，未执行物理设备拔插或 UE5 录音验收。此变更未替换长稳测试使用的 release 网关。
+## 枚举与路由
 
-## 网关集成
+使用网关的 `audio-devices` 原生命令或管理页“服务器音频设备”获取稳定 ID。只读枚举不打开播放/采集流、不装驱动。选择必须在实际渲染用户环境下核对，不能把 Session 0 或其他用户的默认设备当目标端点。
 
-`AudioTarget` 独占原生设备；`TargetMonitor` 只持有统计状态。保留管理观测或旧浏览器对象不会延长设备生命周期；设备销毁后监视对象报告关闭。端点录音验收还会检查持有监视对象时释放目标设备的结果。
+配置和实际路由由统一会话管理；客户端麦克风设备 ID 与服务器 render/capture ID 不同。配对测试、目标输出及远端接收共享设备归属检查，防止重复占用或默默选另一设备。
 
-由新编译的网关执行 `web-server audio-devices` 获取稳定设备 ID。只枚举，不打开采集/播放流。Linux 需在拥有图形/音频会话权限的用户上下文执行；不能拿 Windows 服务 Session 0 或任意 Linux system service 的默认设备代替目标用户的端点。
-
-统一管理页“系统设置 → 服务器音频设备”也可按需读取同一原生设备目录及当前配置绑定。请求由单管理员认证，经控制面与网关双向签名交互；不增加轮询、后台服务或默认设备回退。缺失端点和设备方向在页面显示，协议与验收边界见 [音频设备目录 v1](../../contracts/audio-devices/README.md)。此目录不改变路由，不等价于目标程序实录通过。
-
-受管理模式在统一管理页的渲染会话中配置目标，实时生效无需重启。控制面持久化期望配置，网关返回当前目标代次的等待、打开或失败状态；失败后可显式重试。详见 [路由设计](../../contracts/audio-devices/routing-design.md)。
-
-以下静态配置仅供非受管理模式使用。设置管理密钥后禁止同时配置静态绑定，需要先迁入管理会话：
-
-```json
-{
-  "local_audio_targets": [
-    {
-      "host_id": 123,
-      "app_id": 456,
-      "endpoint": {
-        "render_device_id": "pulseaudio:provisioned_virtual_sink",
-        "capture_device_id": "pulseaudio:provisioned_virtual_microphone"
-      }
-    }
-  ]
-}
-```
-
-示例 ID 是配置占位值，必须换成实际枚举结果。Windows 使用枚举出的 `wasapi:...` ID。必须由已部署的专用虚拟设备提供两端，目标程序也必须配置为使用该录音端点。填写任意两个物理设备不能建立虚拟连线。
-
-每个 host/app 绑定独立端点，重复应用、重复播放或录音端点被拒绝。本机目标仅用于网关与渲染程序位于同一个节点的部署，Sunshine 主机地址必须是明确的回环 IP。远端主机的麦克风不能误写到网关本机，跨节点传输仍需继续实现。管理配置实时切换；仅非受管理模式的静态配置需要重启。控制权、广播和禁麦策略继续使用实时签名状态。
-
-已配置端点不可用时，上游启动返回 HTTP 503，不启动应用也不回退到默认扬声器。未配置本机端点时，网关仍支持控制者麦克风混音广播；只有上游实际支持 Foundation 麦克风扩展时才尝试原协议上行。统一管理页通过签名运行观测分别显示上游与目标设备状态，观测失效后显示未确认；不能以浏览器麦克风功能可用推断目标录音完成。协议见 `contracts/media-state/README.md`。
-
-## 验证
+## 开发验证
 
 ```sh
-cargo test --locked
+cargo test --locked --all-targets
 cargo clippy --locked --all-targets -- -D warnings
-cargo run --locked --example devices
-# 该命令会向明确指定的端点播放测试音，并打开对应录音端点：
-cargo run --locked --example verify_pair -- RENDER_DEVICE_ID CAPTURE_DEVICE_ID
 ```
 
-Linux 安装 Ubuntu 官方 `build-essential pkg-config libasound2-dev libpulse-dev pulseaudio pulseaudio-utils` 后，在仓库根目录运行 `sh scripts/test-audio-target-linux.sh`。脚本启动独立用户 PulseAudio 实例，只加载虚拟 sink/source 和限定在私有目录内的 Unix socket，不加载硬件模块或 TCP listener，不更改现有服务及系统默认设备。结束时停止自己创建的进程，结果保存到 `artifacts/audio-target/`。PulseAudio 虚拟端点机制参见[官方模块文档](https://wiki.freedesktop.org/www/Software/PulseAudio/Documentation/User/Modules/)。
-
-`verify_pair` 现在分别记录播放前静音、997 Hz 测试音和清空目标队列后的静音。静音窗口为 500 ms，要求至少收到 12000 个采样帧、RMS 小于 0.001 且峰值小于 0.003；未收到采集回调不能视为静音。清空后先留出 300 ms 排空操作系统已提交缓冲，再测量残留，因此此结果不代表撤权延迟小于 300 ms。输出的 `baseline` 和 `after_clear` 保留独立数值；已有 `captured_frames` 和 `tone_amplitude` 继续表示播放窗口。测试音连通和前后静音均满足才通过，避免持续背景音或残留被单次频率测量掩盖。
-
-2026-10-31 此静音检查的 Windows 全目标测试共 18 项及严格 Clippy 通过，包含缺少采集回调、短时脉冲、持续背景音、无效采样和测量窗口重置。CI 改为执行全目标测试，以包含验收示例。没有在本轮执行 Linux 或 Windows 虚拟端点实录，以下历史 Linux 成功记录不包含新增静音判据。
-
-2026-10-30 本机证据：Windows 与 Ubuntu 26.04/WSL 的组件测试和严格 Clippy 检查通过；Linux 隔离虚拟端点录到了 150 包发送的 997Hz 测试信号。WSLg 现有 Pulse 服务枚举返回协议错误，不能把隔离测试当作该服务已兼容的证据。Windows 当前仅枚举到 Realtek/ToDesk，未配置项目专用虚拟录音设备，也没有据此改动现有设备或驱动。浏览器→网关→目标录音端点、Windows 实录、UE5 实录与生产音频质量验收尚未完成。
+真实录音需显式端点和真实信号。开发用 `audio-probe` 与 [Example](../../example/README.md) 独立发布，不随服务器安装器或 Android APK 交付。原生回调、驱动枚举、目标实录和客户端广播分别证明，当前版本及对应验收边界见[发布基线](../../docs/release-status.md)。

@@ -38,6 +38,4 @@ SKM1 每帧固定 7716 字节：magic、目标代次、控制代次、序号、�
 
 管理页区分 pending、device_failed、remote_transport 等状态。remote_transport 只表示传输已连接；实际录音仍需目标应用验证。控制面路由错误显示在会话状态，不仅输出日志。
 
-此前原生接收入口和授权 HTTP 验证见 artifacts/media-contract/win32-x64/run-0d624L/result.json；发送模块真实回环 WebSocket 定向检查见 .local/validation/node-sender-tests.log。本次会话集成完成相关 Go 包回归、源端控制者/代次定向测试、网关编译与静态检查、管理页生产构建和目标节点选择保存浏览器检查，结果位于 .local/validation/remote-route-tests.log 和 artifacts/session-audio/admin-browser-result.json。浏览器页面采用模拟 API；这些证据不等于两台真实服务器和 UE5 完成录音。
-
-当前已验证发布构建的本机及独立接收网关原生录音，以及观众同时收到程序音和受控浏览器麦克风音。剩余重点为实际物理麦克风和 UE5 场景、跨机器部署、Windows 服务身份运行及安装升级交付。4 小时长稳已按用户确认完成，不再补跑 24 小时；Linux 和移动端本轮无需真机验收。
+实际本机端点、独立接收节点与跨物理主机是不同验收范围；传输连通不等于目标应用录音。当前发布和验收边界统一见[发布与部署基线](../../docs/release-status.md)，不沿用历史候选中的安装、真人语音或稳定性待办作为当前未完成结论。

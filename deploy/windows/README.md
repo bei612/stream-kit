@@ -1,381 +1,101 @@
-# Windows unified setup
+# Windows 统一安装与维护
 
-The first-install wizard and silent mode use the same native `init-platform` and
-`service` commands. Setup elevates once. It does not change PowerShell execution
-policy or firewall policy and never reboots the machine automatically.
+Windows x64 使用一个 EXE 安装 Orchestrator、Sunshine 和媒体网关。安装器源码为 [stream-kit.iss](stream-kit.iss)；构建及发布见[开发指南](../../docs/development.md)。当前安装包和本机维护版本见[基线](../../docs/release-status.md)。
 
-Setup itself registers `StreamKitOrchestrator` as an automatic LocalSystem
-Windows service, verifies that startup setting, and installs service recovery
-actions. Initialization enables automatic startup for both managed components:
-Sunshine and the Web media gateway. There is one Windows service owning these
-two workers; no separate Startup-folder shortcuts or post-install service
-configuration are required. At boot the control service starts independently of
-desktop login. Rendering waits for the configured user's active desktop session;
-it retries after login and resolves the session by user identity rather than
-assuming the previous boot's session number. Setup does not enable Windows
-automatic login. Driver restart-required installation still registers the
-automatic service before returning 3010.
+## 安装前提与默认值
 
-Source policy and clean-installer acceptance are separate checks. The startup
-policy check creates an isolated SCM service; the product acceptance runs the
-actual unified installer on a clean hosted Windows runner, checks automatic
-startup and both workers, then exercises service restart and uninstall. Neither
-check alone demonstrates a full machine reboot. Current product acceptance and
-local reboot evidence must identify their respective source revisions.
+需要管理员权限，以及实际运行图形/音频程序的 Windows 用户会话。程序默认 `C:\Program Files\StreamKit`，数据默认 `C:\ProgramData\StreamKit`；程序和数据分开。首次安装拒绝覆盖已有程序目录、数据目录或服务注册，目前没有通用原位升级模式。
 
-VB-CABLE packaging and installation support has been removed. The product
-does not download it, request a vendor authorization record, or install it.
-Existing compatible endpoints remain selectable through normal audio routing.
+新安装默认监听本机 HTTP：管理 9000、网关 8080，Sunshine 基础端口 47989、内部管理 47990。LAN 和 HTTPS 需按部署环境配置，不能把本机初始地址发给其他设备。
 
-The free USB audio provider is being integrated. Its bundled installer branch
-uses `orchestrator audio-driver install` inside the same elevated setup process.
-The reviewed package contains only the usbip-win2 0.9.8.1 host-controller and
-companion-filter INF/SYS/CAT files plus the BSD license (248,304 bytes total).
-Both catalogs are checked with the official Windows SDK `signtool verify /kp` at
-packaging time. The native installer verifies the same embedded file inventory;
-the customer does not need Node, an SDK, a separate driver wizard or the vendor's
-complete USB/IP application. No test certificate or test-signing policy is used.
+普通运行不安装 Node.js/npm、SDK 或编译器。必要 MSVC release CRT 以应用本地文件分发，摘要与 `WINDOWS-RUNTIME.json` 纳入组件清单；不会每次启动安装系统级运行库。
 
-The pinned signed runtime files are tracked in `deploy/windows/usb-audio-driver`;
-the complete matching upstream source is in `third_party/usbip-win2`. Packaging
-needs no vendor installer download. Only these seven runtime/license files are
-eligible for inclusion, never the upstream GUI or development utilities.
+## 静默与向导
 
-Build selection is `--usb-audio-driver PACKAGE_DIR --signtool OFFICIAL_SIGNTOOL_EXE
---usb-audio-identity RELEASE_IDENTITY_JSON`
-on `scripts/build-windows-installer.mjs`. An older control binary without the native
-driver command is rejected before packaging. Product CI uses the committed
-`deploy/windows/usb-audio-identity.json` profile by default: the freely shared
-Audio class VID/PID `16c0:27e0`, with an owner-controlled email prefix. The
-[published sharing rules](https://github.com/obdev/v-usb/blob/801242072fa035e1839e3571df0d9a18e9cec95c/usbdrv/USB-IDs-for-free.txt)
-permit Audio class use with the system class driver and the prescribed device
-namespace; this is not an exclusive allocation or a USB-IF certification claim.
-No external PID application, paid driver or V-USB firmware is required.
-The identity JSON contains integer `vendor_id`, `product_id` and optional
-`serial_prefix` (required for this shared pair); it never supplies a fixed serial.
-Namespaced initialization requires `virtual_audio_configuration_version: 2`;
-older payloads are rejected even with `--reuse-payload`.
-
-The same native `init-platform` operation receives the release identity, generates
-a fresh 15-character random suffix after the release profile's prefix, and persists the complete serial in gateway
-configuration before preflight. Driver installation then runs within the same
-elevated installer, followed by service startup (or manual-reboot deferral).
-Subsequent gateway restarts reuse that persisted serial. Customers do not need
-to launch a device helper or manually edit the configuration after installation.
-
-Installation serializes concurrent attempts, reuses a healthy matching existing
-controller, and refuses incompatible/partial existing installations. DriverStore
-staging omits `pnputil /install`; the native device install targets only its newly
-created root node. The companion filter's upstream AddDevice handler attaches
-only above the USB/IP virtual controller. On failure, cleanup is limited to the
-new node, retaining potentially shared DriverStore packages. Windows-reported
-restart requirements return 3010 and defer service startup; no automatic restart
-is performed. Setup does not call an API to select system defaults. Windows can
-automatically select an unprepared virtual output during first-time enumeration.
-The platform now prepares its configured device before launching the interactive
-gateway: the native gateway briefly owns the attachment, while the privileged
-controller applies the documented render-only endpoint policy and refreshes only
-that device's existing Microsoft inbox audio driver. Successful preparation is
-persisted on both owned interfaces; ordinary starts read that state and skip
-attachment and driver refresh. Capture remains explicitly selectable by recording
-applications. The preparation command opens no HTTP listener and sends no PCM.
-
-The actual native gateway preparation command, production controller preparation
-API, persisted completion, PCM and subsequent endpoint restart have passed in an
-isolated Windows environment. The matching published installer has also passed
-first driver installation, silent setup, administrator login, native PCM,
-interactive gateway restart, complete LocalSystem SCM restart and uninstall on
-a disposable Windows Server 2022 runner. Both media components recovered with
-stable audio endpoint identities. This does not establish absence of a transient default change
-during the first unprepared enumeration. See
-`docs/evidence/windows-endpoint-policy-20261101.json` for the evidence boundary.
-
-Gateway configuration now includes `virtual_audio` (default `null`). When enabled,
-its `vendor_id`, `product_id` and stable `serial` identify the deployment's USB
-audio device. These values have no fabricated production defaults; the test
-identity used in unit tests is not a production assignment. The unified management
-page edits these fields and marks them as gateway-restart settings. Linux rejects
-this Windows-specific provider and continues using native PulseAudio provisioning.
-
-The gateway starts the provider before serving requests and releases its own
-attachment when startup fails or the server shuts down. Device work runs off the
-async server thread. Configuration inspection and native device enumeration do
-not start the provider or install anything. Render/capture selection continues
-through the existing explicit endpoint routing. Unified Windows deployments keep
-the gateway's native `config check` preflight configured with the same options as
-its normal launch; the controller uses those options for device preparation.
-Direct standalone gateway execution does not replace privileged preparation.
-The bounded `components/audio-target/examples/virtual_device.rs` utility is for
-development only and is excluded from runtime packages.
-
-An unexpected native transport exit now drains the gateway and releases its
-owned attachment; the existing component supervisor applies the configured
-restart policy. Normal stop continues to use the same bounded cleanup path.
-
-Windows recording privacy applies to the configured interactive render account,
-including virtual recording endpoints. If opening an endpoint reports access
-denied, enable microphone access and desktop-app microphone access in Windows
-Settings for that account. Driver installation alone does not grant recording
-consent; see [Microsoft's microphone permission instructions](https://support.microsoft.com/en-us/windows/privacy/turn-on-app-permissions-for-your-microphone-in-windows).
-Customer installers do not change these privacy settings. The separate
-GitHub-hosted synthetic fixture configures its disposable test user only, after
-requiring an empty sound-device inventory and an allowing machine policy; it is
-never used on customer machines. See
-`docs/evidence/windows-ci-recording-access-20261101.json` for the before/after
-Windows API status and actual PCM result.
-
-**Native device acceptance completed on 2026-11-01:** elevated installation created
-one healthy controller with its companion filter, without reboot. Both endpoints
-enumerated and retained their IDs across restarts. Actual 48 kHz playback/capture,
-post-clear silence and clean device release passed. The software cable uses
-line-level terminal descriptors so Windows does not apply physical-microphone
-voice enhancement to already-processed remote PCM. Its two streams share one USB
-frame clock and a per-connection high-resolution Windows waitable timer.
-The local CPAL source fixes first-packet discontinuity handling; genuine later
-capture errors still fail acceptance. See `docs/evidence/windows-native-audio-installed-20261101.json`.
-
-**Gateway-owned recording completed on 2026-11-01:** the source-built gateway at
-`525b1377` delivered browser-generated microphone PCM through this provider into
-UE5 AudioCaptureCore. Two browsers shared one upstream; controller delivery,
-transfer, viewer/old-controller/released rejection and audience mixing passed.
-All five UE5 phases reported zero dropped capture frames. This route did not use
-VB-CABLE. The previously accepted encoder/example were retained for this focused
-integration run, so it is not a matching-revision release-bundle acceptance.
-Evidence: `docs/evidence/browser-native-audio-ue5-20261101.json`.
-
-The matching installer and complete LocalSystem service lifecycle acceptance are
-recorded in `docs/evidence/windows-installer-509c94cf.json`. The shared Audio class
-release identity is selected and verified. Physical human speech acceptance for
-that historical candidate was deferred separately; generated PCM does not
-establish it. Subsequent local human-speech evidence is recorded in
-`docs/evidence/human-voice-installed-20261105.json`, with its own version and
-environment boundaries. The published
-`v0.1.0-rc.1` candidate includes this provider and retains that acceptance limit;
-older preview assets remain unchanged.
-
-The wizard accepts a program directory, a separate new data directory and the
-single administrator's credentials. Internal media credentials and the shared
-media ticket key are generated independently. Initial listeners are private:
-control `127.0.0.1:9000`, gateway `127.0.0.1:8080`, Sunshine base port `47989`.
-Configure browser-accessible HTTPS and media networking in the management page
-before remote use. Application selection and audio routing remain deployment
-settings; installing files does not constitute media acceptance.
-
-From source `928c012a`, the first managed application launch automatically
-enrolls the configured local renderer when the gateway host catalog is empty.
-This also applies when opening a permanent application link. The orchestrator
-approves only the pending pairing request whose fresh client certificate
-fingerprint matches the administrator-authorized gateway challenge. Subsequent
-launches reuse the paired renderer; no separate Sunshine PIN page is required.
-An offline renderer, ambiguous matching hosts or rejected pairing still causes
-an explicit launch failure. The configured renderer address and credentials must
-remain valid. Existing manually paired deployments retain their host identity.
-See `docs/evidence/managed-enrollment-20261107.json` for the exact Linux runtime
-acceptance scope; that record does not establish a local Windows deployment.
-
-Native initialization verifies all three component inventories and matching
-source revisions before invoking binaries. It resolves the desktop session's
-actual user, including when elevation uses a different administrator account.
-Only an active session with the configured SID is accepted. The LocalSystem
-control service subsequently uses its existing authenticated user-session worker.
-Configuration for the control service is restricted to administrators/System;
-the rendering user receives access only to media/app/temp directories. Data is
-prepared in a protected sibling staging directory, checked, then renamed into
-place. Failed staging directories remain protected for diagnosis.
-
-Existing program/data directories or service registrations are refused. This
-installer does not yet implement in-place upgrades or database rollback.
-Setup prepares the configured virtual audio endpoint through the same native
-operation used by service startup, before registering the service. A Windows
-request to restart during either driver installation or endpoint preparation
-retains the automatic service and returns `3010`; it does not claim the platform
-is ready or restart the computer. Other post-install failures return a nonzero
-failure code even when silent mode suppresses the error dialog. Exit code `0`
-requires completed initialization and verified service readiness.
-Uninstall stops and removes only its matching native service and retains runtime
-data. Native `service start` waits for SCM Running and then up to 90 seconds for
-the control health response to match the installed build, with every configured
-autostart component running and each managed process reporting a positive PID.
-The probe connects directly without proxies or redirects; HTTPS verifies the
-configured server certificate and its identity. A service-start failure attempts
-to remove the service created by setup and
-retains data/logs; cleanup failure is reported rather than force-killing processes.
-
-## Silent installation
-
-From an elevated deployment context:
+向导和静默走同一组原生初始化、驱动及服务命令。静默优先，在管理员终端执行实际下载文件：
 
 ```powershell
-.\stream-kit-preview-COMMIT-windows-amd64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART /DIR="C:\Program Files\StreamKit" /DATADIR="C:\ProgramData\StreamKit" /ADMINFILE="C:\protected\administrator.json" /SESSIONID=1 /USERSID="S-1-5-21-..."
+.\INSTALLER.exe /VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART
 ```
 
-`ADMINFILE` is optional. Without it, silent setup generates a unique administrator
-password in the administrator/System-protected `orchestrator.json` data file.
-No shared default password is used. When supplied, `ADMINFILE` contains JSON
-`name` and `password` fields and must be readable only
-by the installer administrator. The caller owns and removes this supplied file.
-Credentials are not command-line values. Interactive setup instead creates and
-removes a private temporary credential file. A deployment agent running in
-Session 0 must supply both the target session ID and SID; normal interactive
-installation resolves them from its current desktop session. The data parent
-must already exist. Silent mode preserves nonzero setup failure codes and never
-automatically reboots.
+Windows UAC 仍适用；静默模式不会绕过系统提权，也不会自动重启电脑或修改 PowerShell 执行策略。
 
-Override initial listeners using `/CONTROLPORT=19000 /GATEWAYPORT=18080
-/RENDERERPORT=48989`. Native initialization derives component URLs, health checks,
-and browser origins from these values together and rejects overlapping native
-TCP listeners. Normal defaults remain 9000, 8080, and 47989. The management
-shortcut follows the selected control port. These options also allow deployment
-beside an existing development instance without stopping it.
+| 参数 | 用途 |
+| --- | --- |
+| `/DIR="C:\Program Files\StreamKit"` | 不可变运行文件位置 |
+| `/DATADIR="C:\ProgramData\StreamKit"` | 外部运行数据；父目录需存在 |
+| `/ADMINFILE="C:\protected\administrator.json"` | 可选私有管理员凭据 JSON |
+| `/CONTROLPORT=19000` | 自定义管理端口 |
+| `/GATEWAYPORT=18080` | 自定义网关端口 |
+| `/RENDERERPORT=48989` | Sunshine 原生基础端口，相关偏移一并派生 |
+| `/SESSIONID=… /USERSID="…"` | 非交互 Session 0 部署需明确提供目标桌面会话及 SID |
 
-Initialization probes the control/gateway TCP listeners and Sunshine's native
-TCP (-5, 0, +1, +21) and UDP (+9, +10, +11) offsets before creating runtime data
-or credentials. A busy listener reports its component, protocol and port. The
-temporary probes close on success and failure; they are not persistent port
-reservations. Later startup races remain covered by service readiness. Setup
-surfaces bounded listener/readiness diagnostics in its error and installation
-log without copying general child configuration output or credentials.
+正常交互安装从当前桌面确定真实渲染用户，即使用另一管理员身份提权也不应绑定错误用户。会话 ID 只用于初始化识别，后续开机按用户 SID 查找活动会话，不沿用旧会话号。
 
-## Build
+`ADMINFILE` 包含 `name` 和 `password`；密码要求 12–1024 UTF-8 字节。文件权限仅授予安装管理员，凭据不放进命令行。未提供时静默生成独立密码并保存在管理员/System 可读的 `orchestrator.json`。安装器只报告位置，不打印内容；外部提供文件由部署方保管和清理。
 
-`windows-product-release` is the unified GitHub Actions build entry point. Manual
-dispatch builds the three runtime components and one installer as downloadable
-artifacts. After a successful run, push a new `v*-preview.*` tag at that run's
-source commit through the project's authorized Git transport, then dispatch the
-workflow with `promote_run_id`, `installer_acceptance_run_id` and `release_tag`.
-The acceptance run must have succeeded for the exact Windows installer source
-and SHA-256. Promotion verifies that evidence, both native installers and the
-source SBOM, and publishes those exact files without building
-again or replacing release assets. Tag pushes do not start new builds in the
-current workflow. The default Actions token uploads the release; it does not
-need a deploy key or an additional workflow-writing OAuth grant. The
-workflow uses the same checked-in builders as local packaging. CMake 3.31.8 and
-Inno Setup 7.1.1 come from their official releases with locked SHA-256; Inno's
-publisher signature is checked before running the build-tool installer. Node,
-Go, Rust, MSVC and MSYS2 are installed on the temporary CI build host, never by
-the product setup on the deployment host. Build success does not certify host
-installation, GPU/audio hardware or physical microphone acceptance. The MSYS2
-package inventory is retained with logs; changing distribution repositories are
-not claimed to produce byte-identical binaries.
+## 自动启动关系
 
-The unified workflow shares a Cargo output directory across native components,
-the official binding generator and its WASM shim. Dependency cache entries are
-retained if a later step fails. Cargo still resolves the locked dependencies and
-the release builders still compile workspace binaries and verify source stamps;
-cached objects do not replace successful build or acceptance results. The cache
-policy follows [rust-cache's documented inputs](https://github.com/Swatinem/rust-cache).
+安装器本身完成：
 
-MSVC (Rust dependencies) and UCRT/MinGW (Sunshine/codecs) use separate compiler
-search environments. The renderer build clears inherited MSVC SDK library and
-include variables in its child shell; its CI step inherits minimal Windows paths
-and adds only the official CMake and selected Node build-tool directories.
-The first full CI reached codec-probe linkage but selected Microsoft SDK import
-libraries through MSVC's `LIB`, producing GUID multiple definitions. An isolated
-local reproduction failed under the inherited context and passed with the
-production UCRT adapter, retaining all nine codec registrations. Evidence:
-`docs/evidence/windows-ucrt-library-context-20261101.json`. This does not mark
-the failed full CI run as successful; the corrected workflow still needs its
-own complete result.
+1. 校验整包及原生配置，准备数据和必要音频设备。
+2. 注册唯一 SCM 服务 `StreamKitOrchestrator`，配置 Automatic、LocalSystem 及故障恢复。
+3. 启用 Sunshine、媒体网关的组件自动启动与恢复策略。
+4. 正常启动时检查控制端构建身份、自动组件 running 和实际 PID；不能只凭 SCM Running 报就绪。
 
-Use the official Inno Setup 7.1.1 distribution. Its license and commercial-use
-information are available at https://jrsoftware.org/isorder.php and in the
-compiler distribution; no compiler binary is vendored in this repository.
+控制服务可在登录前启动，Sunshine 和网关通过已认证的用户会话工作进程启动，等待配置用户的活动桌面。系统自动登录不会被开启。不要额外注册 Sunshine 服务、任务计划或启动文件夹项。
+
+| 结果 | 含义 |
+| --- | --- |
+| `0` | 本次初始化及配置的服务就绪检查完成 |
+| `3010` | 驱动/端点准备要求人工重启；自动服务关系仍已建立，不代表当前可串流 |
+| 其他非零 | 失败，核对安装日志及保留的数据；静默不能把失败吞成成功 |
+
+服务重启检查与整机重启验收不同；自动配置也不保证未登录桌面时有图像采集。
+
+## 开源虚拟音频
+
+产品不下载、不分发、不安装 VB-CABLE，也不要求其商业授权。已有兼容端点仍可通过统一路由选择。
+
+正式 Windows 包使用开源软件虚拟音频和固定的 usbip-win2 控制器/过滤驱动运行文件。驱动源码归档位于 `third_party/usbip-win2`，允许分发的 INF/SYS/CAT/许可证库存见 `orchestrator/internal/audiodevice/usbip-driver.json`。这是已签名的上游驱动，不声称本项目重新编译并取得内核签名。
+
+打包使用官方 Windows SDK `signtool verify /kp` 检查目录签名，安装时核对嵌入清单；不启用 testsigning、不安装开发测试证书。使用公开允许共享的 Audio 类 `16c0:27e0` 与产品身份前缀，每次部署生成独立持久序列号；无需外部申请独占 USB 编号，不是 USB-IF 认证声明。
+
+驱动安装在同一次已提权流程中进行，重用健康兼容控制器；冲突/半安装状态明确拒绝，失败只清理本次节点，保留可能共享的 DriverStore。专用音频设备在网关启动前准备默认输出策略，后续启动复用完成状态，不反复装驱动。首次未准备的枚举仍可能短暂影响系统默认设备，不能据空设备测试承诺所有客户已有默认设置绝无变化。
+
+录音应用须选择专用 capture 端点。Windows 录音隐私仍由指定用户的系统设置管理；安装驱动不会自动授予桌面应用录音权限，客户安装器不会修改用户隐私策略。虚拟显示驱动不提供这个音频能力。
+
+## 维护命令与检查
+
+在管理员 PowerShell 维护服务：
+
+```powershell
+Get-Service StreamKitOrchestrator
+Restart-Service StreamKitOrchestrator
+```
+
+先在管理端停止应用，等待终态再重启。原生预检：
+
+```powershell
+& 'C:\Program Files\StreamKit\orchestrator\orchestrator.exe' check-config --config 'C:\ProgramData\StreamKit\orchestrator.json'
+```
+
+`check-config` 不签发证书、不打开监听、不启动应用；通过不代替服务身份、桌面和媒体检查。LAN IP/TLS 变更按[地址手册](../../docs/lan-address-configuration.md)执行，既有 CA、应用和固定观看密钥保留。
+
+## 卸载与更新
+
+卸载停止并移除匹配的服务和程序，保留配置、数据库和应用数据。卸载不等于删除用户数据，也不应移除外部本机应用。
+
+当前安装器不提供通用原位升级或数据库自动降级。维护前停止串流，备份受保护数据及旧完整组件，核对前后端/协议兼容后整体替换对应组件。不要把新文件覆盖到运行中的目录，也不要只换一个 EXE 而遗漏同源静态资源或依赖。
+
+## 构建与精确发布
+
+构建使用干净来源、组件清单和统一包验证；必须排除 Example、音源、probe、Playwright、签名私钥和开发 CA。官方 CMake、Inno Setup 与签名工具由构建环境提供，不装进客户机。
 
 ```text
-node scripts/build-windows-installer.mjs PLATFORM_BUNDLE NEW_OUTPUT OFFICIAL_ISCC_EXE
+node scripts/build-windows-installer.mjs PLATFORM_BUNDLE NEW_OUTPUT OFFICIAL_ISCC_EXE --usb-audio-driver deploy/windows/usb-audio-driver --signtool OFFICIAL_SIGNTOOL_EXE --usb-audio-identity deploy/windows/usb-audio-identity.json
 ```
 
-The platform must be assembled from clean, matching source-built components at
-the current commit. The control manifest must declare initialization version 1.
-Both installers require exactly control, media gateway and Sunshine. The shared
-installer policy rejects example components, acceptance directories, development
-toolchains and test executables, even when their file hashes are self-consistent.
-There is no example shortcut in a customer installation. Assemble the runtime
-with `node scripts/package-platform-release.mjs CONTROL GATEWAY RENDERER OUTPUT`.
-Developers may separately build the audio/video example using
-`node scripts/build-example-release.mjs NEW_EXAMPLE_DIRECTORY`; it remains an
-independent diagnostic artifact and is not an installer input. UE SDK probes,
-Playwright and acceptance scripts are also development-only. Historical preview
-releases that included an example are not relabeled as production releases.
-The builder verifies payload hashes and records the resulting installer hash,
-compiler hash and source revision. The executable is currently unsigned and the
-channel remains preview. Publisher code signing is not required by the current
-delivery scope; the absence of a commercial signing certificate is not a release
-blocker. Compilation/unit tests are not installation acceptance. The installer
-recipe `4b3b418c` with payload `c5522af9` passed real silent install, administrator
-login, LocalSystem control service and both media components running, and silent
-uninstall with runtime data retained. See
-`contracts/windows-installation/20261031.json`. A separate SCM streaming run
-failed its final missing gateway-log archive check; the original failure is
-retained. `20261031-scm-supplement.json` independently verifies its generated
-microphone/target/audience metrics and exactly one native Sunshine connection.
-It does not turn the failed automation task green or prove a newer release,
-physical microphone delivery, or bundled-driver/reboot acceptance.
+安装器专属修正可在明确审查下用 `--reuse-payload` 复用不可变原始载荷，清单区分 payload 与 installer_source_commit，不表示旧二进制包含新运行代码。CI 发布复用原始安装器并核对其安装验收 SHA，不为写发布说明重复编译。
 
-For an installer-only correction, append `--reuse-payload` to reuse an immutable,
-hash-verified platform bundle instead of recompiling its executable components.
-The Windows product workflow retains this input as the internal Actions artifact
-`windows-product-payload-<commit>` for seven days, before compiling the installer.
-Download that artifact into a new directory when reviewing an installer-only
-change. The builder rechecks every file against the payload manifest and records
-the payload and installer source revisions separately. This artifact is not
-uploaded to customer Releases; the public Windows download remains one installer.
-All payload components must still have the same payload source revision. The
-installer manifest records `commit` for that payload, `installer_source_commit`
-for its clean setup recipe, and `reused_payload`; the EXE filename gains the
-recipe revision suffix. Reuse does not claim that older binaries contain newer
-runtime changes. It is for explicitly reviewed installer-only releases.
-
-## Native Windows runtime dependencies
-
-The production Windows bundle packages the imported Microsoft release CRT
-beside the gateway. The shared packager reads dependencies with
-the initialized MSVC toolchain, checks architecture and Microsoft's valid
-Authenticode signature, and includes the unmodified redistributable files,
-copyright notice and `WINDOWS-RUNTIME.json` in each component's hash inventory.
-It uses the toolchain's release redist directory, never System32/debug files.
-The packaged gateway's version is checked afterward. Developer audio-probe
-bundles use the same dependency packager separately; the probe, its startup
-check and its test fixtures are excluded from the customer installer.
-No host-wide Visual C++ installer or Node.js installation is invoked. This is
-[Microsoft's application-local redistribution model](https://learn.microsoft.com/en-us/cpp/windows/redistributing-visual-cpp-files).
-
-## Promote an existing CI product build
-
-For a stable candidate, dispatch `windows-product-release.yml` with
-`release_version=MAJOR.MINOR.PATCH`. An empty version retains preview behavior.
-The optional `usb_audio_identity` input overrides the committed product profile
-with integer `vendor_id`, `product_id` and optional `serial_prefix` fields.
-Without an override, the shared Audio class profile is used and the pinned,
-signed virtual-audio controller is included in the same installer.
-The workflow validates this input before compilation and uses the initialized
-official Windows SDK signature tool to verify the payload. The installer creates
-a persistent serial for each installation; CI fixture identities and test
-executables are not substituted into this input. Selecting this profile is not
-evidence of exclusive identity allocation or completed installation acceptance.
-The shared product identity sets both installer filenames, Windows product/file
-versions, Debian package version and manifest channel/version. This selects
-packaging metadata; it does not claim deployment or audio acceptance has passed.
-
-Dispatch the same workflow with `promote_run_id` and a new `release_tag` to publish
-existing artifacts. A stable tag must be exactly `vMAJOR.MINOR.PATCH` matching both
-installer manifests. A preview uses its matching `v0.1.0-preview.DATE.N` tag and
-remains a GitHub prerelease. A product built with an explicit final version may
-first be published as `vMAJOR.MINOR.PATCH-rc.N` (positive N), always marked as a
-GitHub prerelease. Its installer version and bytes remain unchanged; final
-publication can later promote the same successful build after remaining checks
-are completed. This does not convert a preview payload into a stable payload.
-Candidate publication requires reviewed `deploy/releases/MAJOR.MINOR.PATCH-rc.N.md`
-notes committed in the publication revision, stating the artifact source and
-remaining acceptance. The workflow tests promotion rules before uploading and
-records the publication revision separately from the immutable build/tag source.
-Promotion cannot relabel preview artifacts as stable,
-mix channels/versions, or change the bytes. Promotion requires a completed successful manual product run on
-main, checks its repository/workflow/source revision, both native installer
-manifests/checksums and source SBOM, then publishes those existing artifacts.
-It does not rebuild executables or repeat acceptance. The tag identifies the
-payload's commit, even if the promotion workflow was subsequently improved.
-Failed/cancelled runs and mixed revisions are rejected. Existing releases are
-not overwritten; an existing tag is reusable only for the exact same commit.
-Using the repository token prevents recursive tag builds, as described in
-[GitHub's triggering documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow).
+安装器本身暂不使用商业发行者证书，本次不要求购买；这不取消附带内核驱动签名及依赖许可要求。

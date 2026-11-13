@@ -2,8 +2,8 @@
 
 The gateway owns its native configuration types and validation rules. Both
 `App::new` and the `config check` command use `Config::validate` before creating
-storage or media resources. The control plane must use this native validation
-boundary when native configuration editing is integrated; it must not maintain
+storage or media resources. The integrated control plane uses this native validation
+boundary for native configuration editing; it must not maintain
 a second, divergent copy of the Rust rules.
 
 ```text
@@ -46,8 +46,10 @@ the source file.
 `scripts/test-gateway-config.cjs <binary>` exercises the real executable,
 including overridden values, missing files, failure exit status and absence of
 storage side effects. It is included in the Windows/Linux build workflow.
-The unified management UI remains separate integration work; this preflight
-alone is not that integration.
+The unified management UI edits this native configuration through the signed
+API below. Preflight alone does not prove saved settings are active. Current
+published/deployed revisions and actual checks are tracked in
+[release status](../docs/release-status.md).
 
 ## Signed native configuration API v1
 
