@@ -1,0 +1,261 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-14",
+  "runtime_source": "3ae2c44dfe37d9061cfaed9d03166548cad16540",
+  "scope": "Installed native Windows control and media gateway maintenance; standalone Example only; no UE, ToDesk, NIC, CA or reboot changes",
+  "installation": {
+    "result": "passed",
+    "control_sha256": "44decb164534cd1bf4357a2e282fc47bf1a0c15989ab7ed962af076a59d8b510",
+    "gateway_sha256": "1b100db885bb604a30c8a8b8ea28ca3b10f4941dd86206aa971a4b8369f42be2",
+    "sunshine_source": "47c02726c0161ebdec50911422d62845a9b6e59a",
+    "sunshine_unchanged": true,
+    "service": "StreamKitOrchestrator",
+    "service_state": "Running",
+    "start_mode": "Auto",
+    "apps_preserved": true,
+    "local_receipt": ".local/management/runtime-maintenance-result.json",
+    "rollback": "Previous complete control and gateway components plus state retained by maintenance procedure; no rollback exercised"
+  },
+  "acceptance": {
+    "tool": "playwright-cli",
+    "origin": "https://127.0.0.1:9000",
+    "certificate_validation": "normal browser trust; no ignoreHTTPSErrors override",
+    "permanent_entry": {
+      "passed": true,
+      "source": "3ae2c44dfe37d9061cfaed9d03166548cad16540",
+      "scope": "Installed HTTPS permanent entry launches standalone Example; two native WebRTC viewers decode",
+      "viewers": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "frames": 4192,
+          "authority": {
+            "managed": true,
+            "verified": true,
+            "control": false,
+            "microphone": false,
+            "ended": false
+          }
+        },
+        {
+          "width": 1920,
+          "height": 1080,
+          "frames": 796,
+          "authority": {
+            "managed": true,
+            "verified": true,
+            "control": false,
+            "microphone": false,
+            "ended": false
+          }
+        }
+      ]
+    },
+    "authority": {
+      "passed": true,
+      "scope": "Real installed management buttons grant, transfer and revoke unique authority; both viewers continue decoding",
+      "granted": [
+        {
+          "managed": true,
+          "verified": true,
+          "control": true,
+          "microphone": true,
+          "ended": false
+        },
+        {
+          "managed": true,
+          "verified": true,
+          "control": false,
+          "microphone": false,
+          "ended": false
+        }
+      ],
+      "transferred": [
+        {
+          "managed": true,
+          "verified": true,
+          "control": false,
+          "microphone": false,
+          "ended": false
+        },
+        {
+          "managed": true,
+          "verified": true,
+          "control": true,
+          "microphone": true,
+          "ended": false
+        }
+      ],
+      "revoked": [
+        {
+          "managed": true,
+          "verified": true,
+          "control": false,
+          "microphone": false,
+          "ended": false
+        },
+        {
+          "managed": true,
+          "verified": true,
+          "control": false,
+          "microphone": false,
+          "ended": false
+        }
+      ]
+    },
+    "disconnect": {
+      "first_connection": [
+        {
+          "managed": true,
+          "verified": false,
+          "control": false,
+          "microphone": false,
+          "ended": true
+        },
+        {
+          "managed": true,
+          "verified": true,
+          "control": false,
+          "microphone": false,
+          "ended": false
+        }
+      ],
+      "other_viewer_continues_decoding": true
+    },
+    "stop": {
+      "applications": [
+        {
+          "id": "67c824d9-0f53-4dd7-8ce2-ef0123fe8d2a",
+          "status": "stopped",
+          "can_edit": true
+        },
+        {
+          "id": "18f482ef-5d7b-4528-a5e7-6fbd8a150980",
+          "status": "stopped",
+          "can_edit": true
+        }
+      ],
+      "passed": true,
+      "errors": [],
+      "activeSessions": 0,
+      "connections": 0,
+      "media": {
+        "reachable": true,
+        "lease_valid": true,
+        "acknowledged_at_ms": 1794586588711,
+        "lease_expires_at_ms": 1794586598711,
+        "applied_revisions": {},
+        "observed_at_ms": 1794586588711,
+        "observations_valid": true,
+        "observations_expires_at_ms": 1794586591711,
+        "observations": {}
+      }
+    },
+    "health": {
+      "apps_summary": {
+        "error": 0,
+        "ready": 0,
+        "running": 0,
+        "total": 2
+      },
+      "build_time": "2026-11-13T10:18:24.000Z",
+      "commit": "3ae2c44dfe37d9061cfaed9d03166548cad16540",
+      "components": {
+        "sunshine": {
+          "crash_count": 0,
+          "pid": 21248,
+          "status": "running"
+        },
+        "web_server": {
+          "crash_count": 0,
+          "pid": 6156,
+          "status": "running"
+        }
+      },
+      "version": "git-3ae2c44dfe37"
+    },
+    "responsive_widths": [
+      390,
+      1440
+    ],
+    "horizontal_overflow": false,
+    "screenshots": [
+      {
+        "path": ".playwright-cli/runtime-3ae2c44d-viewer-0.png",
+        "sha256": "5fa7efa41a3b244bb377bdd0219cdda0e8670c9be220751c2017ac822ba09af4"
+      },
+      {
+        "path": ".playwright-cli/runtime-3ae2c44d-viewer-1.png",
+        "sha256": "ba9a97481d929aaebc988c35386b5da38d96cb042db7e9912ee6f2101421d3ee"
+      },
+      {
+        "path": ".playwright-cli/runtime-3ae2c44d-control-transfer.png",
+        "sha256": "1d51d516d22a27c6c2a964db239f5f3f90b6847629d0c339c928911033445b4f"
+      },
+      {
+        "path": ".playwright-cli/runtime-3ae2c44d-role-0.png",
+        "sha256": "5d7af636fe932b031affa3c193a8b938e5363cabd0cb1776fd1aebc51437cd6b"
+      },
+      {
+        "path": ".playwright-cli/runtime-3ae2c44d-role-1.png",
+        "sha256": "a3c9624df35b7db3c18c5eb6bbcb53f20ce58011370defe855c8505a6718cd22"
+      },
+      {
+        "path": ".playwright-cli/runtime-3ae2c44d-sessions-390.png",
+        "sha256": "d5c39c73383ff93900f29dd31f76ccc906eb57fad9a523f45df8f0c09e5319b5"
+      },
+      {
+        "path": ".playwright-cli/runtime-3ae2c44d-sessions-1440.png",
+        "sha256": "a7532acda9977f5b2c7854e9ba55eb50e6b1e6aa8f04decc90802a54ce2d05ac"
+      },
+      {
+        "path": ".playwright-cli/runtime-3ae2c44d-one-disconnected.png",
+        "sha256": "3c0df2b425b078935d33fc10d9cd4c562450edaebd6a10ac1974e09b02356ad1"
+      },
+      {
+        "path": ".playwright-cli/runtime-3ae2c44d-stopped-390.png",
+        "sha256": "09d0a341b29cc7786331e14e21dc6a6ce2d646a0bd907c03c7f8a103b8dafc0c"
+      },
+      {
+        "path": ".playwright-cli/runtime-3ae2c44d-stopped-1440.png",
+        "sha256": "61caa7735c70e4945b205bbb8681abc04cf147395f3f7bb1a6451d661a2e4538"
+      }
+    ],
+    "visual_review": "Actual Example picture, viewer roles, management controls and responsive states inspected",
+    "console": "Expected 410 heartbeat after administrative disconnect; two browser warnings (iframe allowfullscreen precedence and unsupported interactive-widgets). Final pageerror listener recorded zero errors.",
+    "harness_correction": "Initial wait queried the permanent entry top-level page instead of its production viewer iframe and timed out. Corrected only local acceptance scripts to inspect the real frame; no product code or protocol change."
+  },
+  "resource_observation": {
+    "scope": "Single process snapshot after application stop, not a leak-free endurance proof",
+    "example_process_absent": true,
+    "processes": [
+      {
+        "name": "orchestrator",
+        "pid": 44328,
+        "private_bytes": 66138112,
+        "handles": 416
+      },
+      {
+        "name": "sunshine",
+        "pid": 21248,
+        "private_bytes": 45858816,
+        "handles": 675
+      },
+      {
+        "name": "web-server",
+        "pid": 6156,
+        "private_bytes": 13180928,
+        "handles": 218
+      }
+    ],
+    "components_restarted_during_acceptance": false
+  },
+  "not_claimed": [
+    "Universal absence of OOM",
+    "New 4-hour or 24-hour endurance",
+    "Whole-machine reboot and login recovery",
+    "New LAN-address full media migration",
+    "Android or physical microphone/audio/native-input revalidation",
+    "New public unified installer or GitHub release"
+  ]
+}
