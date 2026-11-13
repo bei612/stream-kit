@@ -1,9 +1,9 @@
 import { type HTMLAttributes, type TdHTMLAttributes, type ThHTMLAttributes } from 'react'
 import { cn } from '@/lib/utils'
 
-export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>) {
+export function Table({ className, label = '数据列表', ...props }: HTMLAttributes<HTMLTableElement> & { label?: string }) {
   return (
-    <div className="border rounded-lg overflow-hidden">
+    <div className="table-scroll" role="region" aria-label={label} tabIndex={0}>
       <table className={cn('w-full text-sm', className)} {...props} />
     </div>
   )

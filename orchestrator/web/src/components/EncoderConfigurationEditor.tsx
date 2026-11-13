@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Label, Select } from '@/components/ui/input'
 import { Alert } from '@/components/ui/alert'
+import { ContentGrid } from '@/components/layout/Page'
 
 type Draft={mode:'text'|'json'|'reset';text:string}
 
@@ -101,6 +102,7 @@ export function EncoderConfigurationEditor() {
         {(reloadRequired||!!Object.keys(drafts).length)&&<p className="text-xs text-muted-foreground">请先保存或撤销编辑，并重新读取已保存配置。</p>}
       </div>}
       <fieldset disabled={busy||reloadRequired} className="space-y-3 min-w-0">
+        <ContentGrid variant="fields">
         {visibleKeys.map(key=>{
           const draft=Object.hasOwn(drafts,key)?drafts[key]:undefined,hidden=view?.redacted_keys.includes(key)
           const original=view?.values[key]
@@ -121,6 +123,7 @@ export function EncoderConfigurationEditor() {
             {draft&&<Button size="sm" variant="ghost" onClick={()=>setDrafts(current=>Object.fromEntries(Object.entries(current).filter(([name])=>name!==key)))}>撤销此项修改</Button>}
           </div>
         })}
+        </ContentGrid>
         {view&&<div className="rounded-lg border border-border p-3 space-y-2">
           <Label htmlFor="encoder-new-key">添加原生参数</Label>
           {!!view.fields?.length&&<Select aria-label="选择常用编码参数" value="" onChange={e=>{if(e.target.value)edit(e.target.value,{mode:'text',text:''})}}><option value="">选择尚未配置的常用参数</option>{availableFields.map(field=><option key={field.key} value={field.key}>{field.label} · {field.key}</option>)}</Select>}

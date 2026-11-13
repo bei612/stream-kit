@@ -4,9 +4,10 @@ import { api } from '@/api/client'
 import { managementKeys } from '@/api/query-client'
 import { useQuery } from '@/hooks/useQuery'
 import QueryWrapper from '@/components/QueryWrapper'
+import { ContentGrid, EmptyState, Metric, Page } from '@/components/layout/Page'
 import StatusBadge from '@/components/StatusBadge'
 import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { LinkButton } from '@/components/ui/button'
 import { Upload, ExternalLink } from 'lucide-react'
 
 const componentNames: Record<string, string> = {
@@ -45,12 +46,11 @@ export default function Dashboard() {
   const components = comps.data ?? []
 
   return (
-    <QueryWrapper loading={comps.loading && apps.loading} error={comps.error || apps.error} onRetry={() => { comps.refresh(); apps.refresh() }}>
-      <div className="space-y-6">
-        <div className="page-heading"><div><p className="page-eyebrow">工作空间总览</p><h2>工作台</h2><p className="page-description">查看服务与应用状态，开始或管理一场串流。</p></div><Link to="/stream-sessions"><Button variant="outline">管理渲染会话 <ExternalLink size={15} /></Button></Link></div>
+    <Page title="工作台" eyebrow="工作空间总览" description="查看服务与应用状态，开始或管理一场串流。" actions={<LinkButton to="/stream-sessions">管理渲染会话 <ExternalLink size={15} /></LinkButton>}>
+    <QueryWrapper loading={comps.loading || apps.loading} error={comps.error || apps.error} onRetry={() => { comps.refresh(); apps.refresh() }}>
 
         {/* Component status cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <ContentGrid>
           {components.map(c => (
             <Card key={c.name}>
               <div className="flex items-center justify-between mb-2">
@@ -62,44 +62,33 @@ export default function Dashboard() {
             </Card>
           ))}
           {components.length === 0 && !comps.loading && (
-            <div className="col-span-3 text-center text-muted-foreground py-8">未配置任何组件</div>
+            <EmptyState title="未配置任何组件" description="在系统设置中核对组件配置。" />
           )}
-        </div>
+        </ContentGrid>
 
         {/* App overview */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <ContentGrid variant="metrics">
           {[
             { label: '应用总数', value: appStats.total, color: 'text-foreground' },
             { label: '运行中', value: appStats.running, color: 'text-green-500' },
             { label: '就绪', value: appStats.ready, color: 'text-blue-500' },
             { label: '异常', value: appStats.error, color: 'text-red-300' },
           ].map(({ label, value, color }) => (
-            <Card key={label}>
-              <div className={`text-3xl font-bold ${color}`}>{value}</div>
-              <div className="text-xs text-muted-foreground mt-1">{label}</div>
-            </Card>
+            <Metric key={label} label={label} value={value} className={color} />
           ))}
-        </div>
+        </ContentGrid>
 
-        <div className="flex gap-3">
-          <Link to="/upload">
-            <Button>
-              <Upload className="w-4 h-4" /> 添加应用
-            </Button>
-          </Link>
-          <Link to="/apps">
-            <Button variant="outline">
-              <ExternalLink className="w-4 h-4" /> 应用列表
-            </Button>
-          </Link>
+        <div className="action-row">
+          <LinkButton to="/upload" variant="primary"><Upload className="w-4 h-4" /> 添加应用</LinkButton>
+          <LinkButton to="/apps"><ExternalLink className="w-4 h-4" /> 应用列表</LinkButton>
         </div>
 
         {health.data && (
-          <div className="text-xs text-muted-foreground">
+          <div className="break-all text-xs text-muted-foreground">
             版本: {health.data.version} ({health.data.commit})
           </div>
         )}
-      </div>
     </QueryWrapper>
+    </Page>
   )
 }

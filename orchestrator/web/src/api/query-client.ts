@@ -15,5 +15,6 @@ export const managementKeys = {
   app: (id: string | undefined) => ['management', 'app', id ?? null] as const,
   candidates: (id: string | undefined) => ['management', 'candidates', id ?? null] as const,
   overview: ['management', 'stream-session-overview'] as const,
+  runningConfiguration: ['management', 'running-configuration'] as const,
   logs: (page: number, targetType: string) => ['management', 'logs', page, targetType] as const,
 }

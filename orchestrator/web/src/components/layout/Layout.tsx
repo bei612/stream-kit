@@ -1,6 +1,6 @@
-import { type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router'
-import { LayoutDashboard, Box, AppWindow, Upload, ScrollText, Settings, Radio, ChevronRight } from 'lucide-react'
+import { LayoutDashboard, Box, AppWindow, Upload, ScrollText, Settings, Radio, ChevronRight, Menu, X } from 'lucide-react'
 import { useWSStore } from '@/stores/websocket'
 
 const navItems = [
@@ -16,19 +16,27 @@ const navItems = [
 export default function Layout({ children }: { children: ReactNode }) {
   const location = useLocation()
   const connected = useWSStore(state => state.connected)
+  const [navigationOpen, setNavigationOpen] = useState(false)
+  const menuButton = useRef<HTMLButtonElement>(null)
   const activeItem = navItems.find(item => item.path !== '/' && location.pathname.startsWith(item.path)) ?? navItems[0]
 
   return (
     <div className="app-shell">
-      <nav className="app-navigation" aria-label="主导航">
-        <div>
+      <a href="#main-content" className="skip-link">跳到页面内容</a>
+      <nav className="app-navigation" aria-label="主导航" data-expanded={navigationOpen} onKeyDown={event => {
+        if (event.key === 'Escape' && navigationOpen) { setNavigationOpen(false); menuButton.current?.focus() }
+      }}>
+        <div className="navigation-heading">
           <Link to="/" className="app-brand">
             <span className="brand-mark"><Radio size={22} aria-hidden="true" /></span>
             <span><span className="brand-name">STREAM KIT</span><span className="brand-caption block">云渲染 · 统一控制台</span></span>
           </Link>
+          <button ref={menuButton} type="button" className="navigation-toggle" aria-label={navigationOpen ? '收起导航' : '展开导航'} aria-expanded={navigationOpen} aria-controls="workspace-navigation" onClick={() => setNavigationOpen(value => !value)}>
+            {navigationOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
         <p className="nav-caption">工作空间</p>
-        <div className="nav-links">
+        <div id="workspace-navigation" className="nav-links">
           {navItems.map(({ path, label, icon: Icon }) => {
             const active = path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
             return (
@@ -37,6 +45,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                 to={path}
                 className="nav-link"
                 aria-current={active ? 'page' : undefined}
+                onClick={() => setNavigationOpen(false)}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
                 {label}
@@ -50,10 +59,12 @@ export default function Layout({ children }: { children: ReactNode }) {
 
       <div className="workspace">
         <header className="workspace-bar">
+          <div className="workspace-container workspace-bar-content">
           <div className="workspace-path"><span>控制台</span><ChevronRight size={13} aria-hidden="true" /><span className="text-card-foreground">{activeItem.label}</span></div>
           <div className="workspace-identity"><span className="connection-indicator" data-connected={connected}>{connected ? '实时连接' : '连接恢复中'}</span><span className="admin-avatar" title="管理员">管</span></div>
+          </div>
         </header>
-        <main id="main-content" className="workspace-main">{children}</main>
+        <main id="main-content" tabIndex={-1} className="workspace-container workspace-main">{children}</main>
       </div>
     </div>
   )

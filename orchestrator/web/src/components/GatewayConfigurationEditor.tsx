@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Label, Select, Textarea } from '@/components/ui/input'
 import { Alert } from '@/components/ui/alert'
+import { ContentGrid } from '@/components/layout/Page'
 
 const labels:Record<string,string> = {
   virtual_audio:'Windows 虚拟麦克风',vendor_id:'USB 厂商标识（十进制）',product_id:'USB 产品标识（十进制）',serial:'稳定设备序列号',
@@ -131,10 +132,10 @@ export function GatewayConfigurationEditor() {
     const object=value!==null && typeof value==='object' && !Array.isArray(value)
     const rows=Array.isArray(value)&&value.some(v=>v!==null&&typeof v==='object')
     const collection=Array.isArray(value)&&(rows||value.length===0)&&!['urls','ips'].includes(key)
-    if(object&&path.split('/').length===2) return <div key={path} className="space-y-4">{Object.entries(value).map(([k,v])=>field(v,path+'/'+pointer(k),k))}</div>
-    if((object||collection)&&!replaced) return <div key={path} className="space-y-3 rounded-lg border border-border p-3 min-w-0">
+    if(object&&path.split('/').length===2) return <ContentGrid key={path} variant="fields">{Object.entries(value).map(([k,v])=>field(v,path+'/'+pointer(k),k))}</ContentGrid>
+    if((object||collection)&&!replaced) return <div key={path} className="field-span space-y-3 rounded-lg border border-border p-3 min-w-0">
       <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-medium">{labels[key]||key}</h4>{collection&&<Button size="sm" variant="outline" onClick={()=>{setReplacements(r=>({...r,[path]:true}));edit(path,'','json')}}>替换列表</Button>}</div>
-      {object?Object.entries(value).map(([k,v])=>field(v,path+'/'+pointer(k),k)):Array.isArray(value)&&value.map((v,i)=>field(v,path+'/'+i,`${i+1}`))}
+      <ContentGrid variant="fields">{object?Object.entries(value).map(([k,v])=>field(v,path+'/'+pointer(k),k)):Array.isArray(value)&&value.map((v,i)=>field(v,path+'/'+i,`${i+1}`))}</ContentGrid>
       {collection&&Array.isArray(value)&&value.length===0&&<p className="text-xs text-muted-foreground">未配置条目。</p>}
     </div>
     let kind:Kind=typeof value==='boolean'?'boolean':typeof value==='number'?'number':typeof value==='string'?'string':Array.isArray(value)||key==='urls'||key==='ips'?'lines':nullableStrings.has(key)||key==='credential'?'string':'json'
@@ -178,7 +179,7 @@ export function GatewayConfigurationEditor() {
       {!!view?.overridden_paths.length&&<Alert variant="warning">部分字段由启动参数或环境变量覆盖，修改文件后仍可能使用部署值。</Alert>}
       {error&&<Alert variant="error" role="alert">{error}</Alert>}
       {notice&&<Alert variant="success" role="status">{notice}</Alert>}
-      <fieldset disabled={busy} className="space-y-3 min-w-0">{view&&Object.entries(view.values).map(([key,value])=><details key={key} className="rounded-lg border border-border bg-muted/20 p-4"><summary className="cursor-pointer font-medium">{labels[key]||key}<span className="float-right text-xs font-normal text-muted-foreground">重启生效</span></summary><div className="mt-4">{field(value,'/'+pointer(key),key)}</div></details>)}</fieldset>
+      <fieldset disabled={busy} className="space-y-3 min-w-0">{view&&Object.entries(view.values).map(([key,value])=><details key={key} className="rounded-lg border border-border bg-muted/20 p-4"><summary className="configuration-summary"><span>{labels[key]||key}</span><span className="text-xs font-normal text-muted-foreground">重启生效</span></summary><div className="mt-4">{field(value,'/'+pointer(key),key)}</div></details>)}</fieldset>
       <div className="flex flex-wrap gap-3"><Button onClick={save} disabled={busy||!Object.keys(drafts).length}>保存网关配置</Button><Button variant="outline" onClick={load} disabled={busy}>{Object.keys(drafts).length?'放弃网关修改并重新读取':'重新读取网关配置'}</Button></div>
     </CardContent>
   </Card>

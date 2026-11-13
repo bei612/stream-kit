@@ -5,7 +5,7 @@ import type { Pagination } from '@/api/response'
 interface UseQueryOptions<T> {
   queryKey: QueryKey
   queryFn: (signal: AbortSignal) => Promise<{ data?: T; pagination?: Pagination }>
-  pollInterval?: number
+  pollInterval?: number | false
   wsInvalidateEvents?: string[]
   enabled?: boolean
 }

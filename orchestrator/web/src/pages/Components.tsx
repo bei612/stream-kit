@@ -4,6 +4,7 @@ import { managementKeys } from '@/api/query-client'
 import { useQuery } from '@/hooks/useQuery'
 import { useResourceCommand } from '@/hooks/useAppCommand'
 import QueryWrapper from '@/components/QueryWrapper'
+import { ContentGrid, EmptyState, Page } from '@/components/layout/Page'
 import StatusBadge from '@/components/StatusBadge'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -44,10 +45,9 @@ export default function Components() {
   }
 
   return (
+    <Page title="组件管理" eyebrow="运行服务" description="管理编码器与媒体网关，查看运行状态和日志。">
     <QueryWrapper loading={loading} error={error} onRetry={refresh}>
-      <div className="space-y-6">
-        <div className="page-heading"><div><p className="page-eyebrow">运行服务</p><h2>组件管理</h2><p className="page-description">管理编码器与媒体网关，查看运行状态和日志。</p></div></div>
-
+      <ContentGrid>
         {components.map(c => {
           const pending = command.pending[c.name]
           const uptime = ['running', 'starting', 'unhealthy'].includes(c.status) && c.started_at && !c.started_at.startsWith('0001')
@@ -63,7 +63,7 @@ export default function Components() {
                   </span>
                   <span className="ml-3"><StatusBadge status={c.status} /></span>
                 </div>
-                <div className="flex gap-2">
+                <div className="action-row">
                   <Button size="sm" onClick={() => void command.run(c.name, 'start', () => api.startComponent(c.name))} disabled={!!pending || ['running','starting','unhealthy'].includes(c.status) || c.pid > 0}>
                     <Play className="w-3 h-3" /> {pending === 'start' ? '正在启动…' : '启动'}
                   </Button>
@@ -76,7 +76,7 @@ export default function Components() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4 text-sm text-muted-foreground mb-3">
+              <div className="component-facts text-sm text-muted-foreground mb-3">
                 <div>PID: <span className="text-card-foreground">{c.pid || '-'}</span></div>
                 <div>运行时长: <span className="text-card-foreground">{uptime > 0 ? formatDuration(uptime) : '-'}</span></div>
                 <div>崩溃次数: <span className="text-card-foreground">{c.crash_count}</span></div>
@@ -90,7 +90,7 @@ export default function Components() {
                 <button onClick={() => loadLogs(c.name)} className="text-xs text-primary hover:underline mb-1">加载日志</button>
                 {logErrors[c.name] && <Alert role="alert" variant="error">{logErrors[c.name]}</Alert>}
                 {logs[c.name] && (
-                  <div className="bg-black text-green-400 text-xs font-mono p-2 rounded max-h-48 overflow-auto">
+                  <div className="bg-black text-green-400 text-xs font-mono p-3 rounded max-h-48 overflow-auto min-w-0 break-all" role="region" aria-label={`${componentDisplayName(c.name)}日志`} tabIndex={0}>
                     {logs[c.name].length === 0
                       ? <div className="text-muted-foreground">暂无日志</div>
                       : logs[c.name].map((line, i) => <div key={i}>{line}</div>)}
@@ -101,10 +101,9 @@ export default function Components() {
           )
         })}
 
-        {components.length === 0 && !loading && (
-          <div className="text-center text-muted-foreground py-12">未配置任何组件。请在 config.json 中配置 components。</div>
-        )}
-      </div>
+      </ContentGrid>
+      {components.length === 0 && <EmptyState title="未配置任何组件" description="请在系统设置中核对编码器与网关配置。" />}
     </QueryWrapper>
+    </Page>
   )
 }

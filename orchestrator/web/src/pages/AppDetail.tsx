@@ -3,13 +3,15 @@ import { Link, useParams, useNavigate } from 'react-router'
 import { useAppCommand, type AppCommand } from '@/hooks/useAppCommand'
 import { useQuery } from '@/hooks/useQuery'
 import { useConfigurationDraft } from '@/hooks/useConfigurationDraft'
+import { ContentGrid, Page } from '@/components/layout/Page'
+import QueryWrapper from '@/components/QueryWrapper'
 import { api } from '@/api/client'
 import { managementKeys } from '@/api/query-client'
 import { openViewingStream } from '@/lib/stream-access'
 import AppWatchLink from '@/components/AppWatchLink'
 import StatusBadge from '@/components/StatusBadge'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { Button, LinkButton } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/input'
 import { Alert } from '@/components/ui/alert'
 import { formatBytes, formatTime, argsToLines, linesToArgs } from '@/lib/utils'
@@ -67,30 +69,21 @@ function AppDetailContent({id}: {id: string | undefined}) {
   })
   const handleStopStream = () => execute('stop', async () => { await api.stopApp(id!) })
 
-  if (loadError && !app) return (
-    <div className="text-center py-12">
-      <p className="text-destructive mb-3">{loadError}</p>
-      <Button variant="outline" onClick={refresh}>重试</Button>
-    </div>
-  )
-  if (!app) return <div className="text-muted-foreground">加载中...</div>
+  const back = <LinkButton to="/apps" variant="ghost" size="sm"><ArrowLeft className="w-4 h-4" />返回应用列表</LinkButton>
+  if (!app) return <Page title="应用详情" eyebrow="渲染内容" description="管理程序、启动配置和固定观看入口。" back={back}>
+    <QueryWrapper loading={!loadError} error={loadError} onRetry={refresh}>{null}</QueryWrapper>
+  </Page>
 
   const settingsEditable = app.lifecycle?.can_edit === true
   const settingsDisabled = !!pending || !!loadError || !settingsEditable
 
   return (
-    <div className="max-w-5xl space-y-6">
-      <Button variant="ghost" size="sm" onClick={() => navigate('/apps')}>
-        <ArrowLeft className="w-4 h-4" /> 返回应用列表
-      </Button>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 className="min-w-0 break-words text-2xl font-bold text-card-foreground">{app.name}</h2>
-        <div className="shrink-0"><StatusBadge status={app.status} /></div>
-      </div>
+    <Page title={app.name} eyebrow="应用详情" description="管理程序、启动配置和固定观看入口。" badge={<StatusBadge status={app.status} />} back={back}>
       {loadError && <Alert variant="warning" role="status">状态刷新失败：{loadError}。当前显示上次读取的状态。</Alert>}
 
       {command.error && <Alert variant="error" role="alert">{command.error}</Alert>}
+      <ContentGrid variant="detail">
+      <div className="page-stack">
       {/* Stream controls */}
       <Card>
         <CardHeader>
@@ -190,11 +183,13 @@ function AppDetailContent({id}: {id: string | undefined}) {
         </div>
       </details>
 
+      </div>
+      <aside className="page-stack" aria-label="程序信息和维护">
       {/* Info */}
-      <details className="rounded-xl border border-border bg-card p-5">
+      <details open className="panel">
         <summary className="cursor-pointer text-sm font-medium">程序信息与添加记录</summary>
         <div className="mt-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+          <ContentGrid variant="fields" className="text-sm">
             <div>
               <span className="text-muted-foreground">入口文件：</span>
               <span className="break-all text-card-foreground">{app.source==='local'?app.exe_path:(app.exe_relative_path || '-')}</span>
@@ -211,13 +206,13 @@ function AppDetailContent({id}: {id: string | undefined}) {
               <span className="text-muted-foreground">状态：</span>
               <StatusBadge status={app.status} />
             </div>
-          </div>
+          </ContentGrid>
 
         </div>
       </details>
 
       {/* Danger zone */}
-      <details className="rounded-xl border border-border bg-card p-5">
+      <details className="panel">
         <summary className="cursor-pointer text-sm text-muted-foreground">移除应用</summary>
         <div className="mt-4"><p className="mb-3 text-xs text-muted-foreground">{app.source === 'local' ? '移除平台中的注册信息，保留本机原程序。' : '移除注册信息并删除此应用上传的文件。'}</p>
           <Button variant="destructive" size="sm" disabled={!!pending || !!loadError} onClick={handleDelete}>
@@ -225,6 +220,8 @@ function AppDetailContent({id}: {id: string | undefined}) {
           </Button>
         </div>
       </details>
-    </div>
+      </aside>
+      </ContentGrid>
+    </Page>
   )
 }

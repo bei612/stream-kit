@@ -3,6 +3,7 @@ import { api } from '@/api/client'
 import { managementKeys } from '@/api/query-client'
 import { useQuery } from '@/hooks/useQuery'
 import QueryWrapper from '@/components/QueryWrapper'
+import { EmptyState, Page } from '@/components/layout/Page'
 import { Select } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -24,32 +25,30 @@ export default function Logs() {
   const hasPrev = (pagination?.page ?? page) > 1
 
   return (
-    <QueryWrapper loading={loading} error={error} onRetry={refresh}>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="page-heading"><div><p className="page-eyebrow">操作记录</p><h2>操作日志</h2><p className="page-description">检索服务与应用操作，定位运行问题。</p></div></div>
+    <Page title="操作日志" eyebrow="操作记录" description="检索服务与应用操作，定位运行问题。" actions={
           <Select
+            aria-label="日志类型"
             value={filter}
             onChange={e => { setFilter(e.target.value); setPage(1) }}
-            className="w-auto"
+            className="sm:w-auto"
           >
             <option value="">全部类型</option>
             <option value="component">组件</option>
             <option value="app">应用</option>
             <option value="system">系统</option>
           </Select>
-        </div>
-
+    }>
+    <QueryWrapper loading={loading} error={error} onRetry={refresh}>
         {logs.length === 0 && !loading ? (
-          <div className="text-center py-12 text-muted-foreground">暂无日志</div>
+          <EmptyState title="暂无日志" description="当前筛选下没有操作记录，可切换日志类型查看。" />
         ) : (
-          <Table>
+          <Table label="操作日志" className="min-w-[44rem] table-fixed">
             <TableHead>
               <TableRow>
-                <Th>时间</Th>
-                <Th>操作</Th>
-                <Th>目标</Th>
-                <Th>结果</Th>
+                <Th className="w-44">时间</Th>
+                <Th className="w-28">操作</Th>
+                <Th className="w-32">目标</Th>
+                <Th className="w-20">结果</Th>
                 <Th>描述</Th>
               </TableRow>
             </TableHead>
@@ -64,7 +63,7 @@ export default function Logs() {
                       {log.result === 'success' ? '成功' : '失败'}
                     </Badge>
                   </Td>
-                  <Td className="text-muted-foreground text-xs max-w-xs truncate">{log.message}</Td>
+                  <Td className="text-muted-foreground text-xs whitespace-normal">{log.message}</Td>
                 </TableRow>
               ))}
             </TableBody>
@@ -72,13 +71,13 @@ export default function Logs() {
         )}
 
         {(hasPrev || hasMore) && (
-          <div className="flex justify-center gap-2">
+          <nav aria-label="日志分页" className="action-row justify-center">
             <Button variant="outline" size="sm" onClick={() => setPage(p => p - 1)} disabled={!hasPrev}>上一页</Button>
             <span className="px-3 py-1 text-sm text-muted-foreground">第 {page} 页</span>
             <Button variant="outline" size="sm" onClick={() => setPage(p => p + 1)} disabled={!hasMore}>下一页</Button>
-          </div>
+          </nav>
         )}
-      </div>
     </QueryWrapper>
+    </Page>
   )
 }

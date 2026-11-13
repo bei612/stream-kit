@@ -1,75 +1,64 @@
-import { useEffect, useState } from 'react'
+import { useCallback } from 'react'
 import { useNavigate } from 'react-router'
 import { api } from '@/api/client'
-import type { SanitizedConfiguration } from '@/api/management'
+import { managementKeys } from '@/api/query-client'
+import { useQuery } from '@/hooks/useQuery'
 import { clearToken } from '@/lib/utils'
 import { useWSStore } from '@/stores/websocket'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { ContentGrid, Page } from '@/components/layout/Page'
+import QueryWrapper from '@/components/QueryWrapper'
 import { LogOut } from 'lucide-react'
 import { AudioDevices } from '@/components/AudioDevices'
-import { Alert } from '@/components/ui/alert'
 import { ConfigurationEditor } from '@/components/ConfigurationEditor'
 import { GatewayConfigurationEditor } from '@/components/GatewayConfigurationEditor'
 import { EncoderConfigurationEditor } from '@/components/EncoderConfigurationEditor'
 import { RenderNodes } from '@/components/RenderNodes'
 
+const sections = [
+  { id: 'service-settings', label: '管理服务', editor: <ConfigurationEditor /> },
+  { id: 'render-nodes', label: '渲染节点', editor: <RenderNodes /> },
+  { id: 'gateway-settings', label: '媒体网关', editor: <GatewayConfigurationEditor /> },
+  { id: 'encoder-settings', label: '渲染编码器', editor: <EncoderConfigurationEditor /> },
+  { id: 'audio-devices', label: '音频设备', editor: <AudioDevices /> },
+]
+
 export default function Settings() {
-  const [config, setConfig] = useState<SanitizedConfiguration | null>(null)
-  const [configError, setConfigError] = useState('')
+  const configuration = useQuery({
+    queryKey: managementKeys.runningConfiguration,
+    queryFn: useCallback((signal: AbortSignal) => api.getConfig(signal), []),
+    pollInterval: false,
+  })
   const navigate = useNavigate()
-
-  useEffect(() => {
-    api.getConfig().then(r => setConfig(r.data ?? null)).catch((error:unknown) => setConfigError(error instanceof Error?error.message:'无法读取服务配置'))
-  }, [])
-
   const handleLogout = () => {
     useWSStore.getState().disconnect()
     clearToken()
     navigate('/login', { replace: true })
   }
 
-  return (
-    <div className="max-w-2xl space-y-6">
-      <div className="page-heading"><div><p className="page-eyebrow">工作空间配置</p><h2>系统设置</h2><p className="page-description">管理服务参数、查看生效状态与音频设备。</p></div></div>
-
-      {/* Logout */}
-      <Card>
-        <CardHeader>
-          <CardTitle>账户</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Button
-            variant="outline"
-            onClick={handleLogout}
-            className="border-red-400/30 text-red-300 hover:bg-red-900/20"
-          >
-            <LogOut className="w-4 h-4" /> 退出登录
-          </Button>
-        </CardContent>
-      </Card>
-
-      <ConfigurationEditor />
-      <RenderNodes />
-      <GatewayConfigurationEditor />
-      <EncoderConfigurationEditor />
-      <AudioDevices />
-
-      {/* Current config display */}
-      {configError && <Alert variant="error" role="alert">配置读取失败：{configError}</Alert>}
-      {config && (
-        <Card>
-          <CardHeader>
-            <CardTitle>当前配置（脱敏）</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="mb-3 text-xs text-muted-foreground">密码、环境变量值、启动命令和 webhook 地址已隐藏。此处为当前运行配置，仅供查看。</p>
-            <pre className="text-xs bg-muted p-3 rounded-md overflow-auto max-h-96 font-mono text-card-foreground">
-              {JSON.stringify(config, null, 2)}
-            </pre>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  )
+  return <Page title="系统设置" eyebrow="工作空间配置" description="按服务管理参数，区分已保存配置与当前运行状态。"
+    actions={<Button variant="outline" onClick={handleLogout}><LogOut className="w-4 h-4" />退出登录</Button>}>
+    <ContentGrid variant="settings">
+      <nav className="settings-navigation" aria-label="设置分区">
+        {sections.map(section => <a key={section.id} href={'#' + section.id}>{section.label}</a>)}
+        <a href="#runtime-configuration">运行配置</a>
+      </nav>
+      <div className="settings-content">
+        {sections.map(section => <section key={section.id} id={section.id} aria-label={section.label}>{section.editor}</section>)}
+        <section id="runtime-configuration" aria-label="运行配置">
+          <Card>
+            <CardHeader><CardTitle>当前配置（脱敏）</CardTitle>
+              <p className="text-sm text-muted-foreground">当前进程的运行配置，仅供查看；已保存但待重启的修改在各分区中显示。</p>
+            </CardHeader>
+            <CardContent>
+              <QueryWrapper loading={configuration.loading} error={configuration.error} onRetry={configuration.refresh}>
+                {configuration.data && <pre className="text-xs bg-muted p-3 rounded-md overflow-auto max-h-96 font-mono text-card-foreground" tabIndex={0} aria-label="脱敏运行配置">{JSON.stringify(configuration.data, null, 2)}</pre>}
+              </QueryWrapper>
+            </CardContent>
+          </Card>
+        </section>
+      </div>
+    </ContentGrid>
+  </Page>
 }

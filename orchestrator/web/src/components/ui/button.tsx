@@ -1,5 +1,6 @@
 import { type ButtonHTMLAttributes } from 'react'
 import { cn } from '@/lib/utils'
+import { Link, type LinkProps } from 'react-router'
 
 const variants = {
   primary: 'bg-primary text-primary-foreground hover:bg-primary/80',
@@ -20,17 +21,21 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: keyof typeof sizes
 }
 
+function buttonClasses(variant: keyof typeof variants, size: keyof typeof sizes, className?: string) {
+  return cn('inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md font-medium transition-colors',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+    variants[variant], sizes[size], className)
+}
+
+export function LinkButton({ className, variant = 'outline', size = 'md', ...props }:
+  LinkProps & { variant?: keyof typeof variants; size?: keyof typeof sizes }) {
+  return <Link className={buttonClasses(variant, size, className)} {...props} />
+}
+
 export function Button({ className, variant = 'primary', size = 'md', ...props }: ButtonProps) {
   return (
     <button
-      className={cn(
-        'inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md font-medium transition-colors',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        'disabled:pointer-events-none disabled:opacity-50',
-        variants[variant],
-        sizes[size],
-        className,
-      )}
+      className={buttonClasses(variant, size, className)}
       {...props}
     />
   )

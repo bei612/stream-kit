@@ -5,6 +5,7 @@ import type { AudioInventory } from '@/api/audio-devices'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { AudioPairCheck } from '@/components/AudioPairCheck'
+import { ContentGrid } from '@/components/layout/Page'
 
 export function AudioDevices() {
   const [inventory, setInventory] = useState<AudioInventory | null>(null)
@@ -61,10 +62,10 @@ export function AudioDevices() {
           {!inventory.configured_routes.length && <p className="rounded-md bg-muted/40 p-3 text-sm text-muted-foreground">尚未配置本机音频绑定。客户端之间的麦克风广播不代表声音已送入目标程序。</p>}
           {inventory.configured_routes.map(route => <div key={`${route.host_id}:${route.app_id}`} className="space-y-2">
             <p className="text-xs text-muted-foreground">主机 {route.host_id} / 应用 {route.app_id}</p>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <ContentGrid variant="fields">
               {endpoint(route.endpoint.render_device_id, 'output')}
               {endpoint(route.endpoint.capture_device_id, 'input')}
-            </div>
+            </ContentGrid>
           </div>)}
         </section>
         <details className="rounded-md border border-border p-3">

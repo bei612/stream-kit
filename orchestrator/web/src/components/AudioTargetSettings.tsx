@@ -4,6 +4,7 @@ import { api } from '@/api/client'
 import type { AudioDevice } from '@/api/audio-devices'
 import type { AudioTarget, RenderSession } from '@/api/sessions'
 import { Button } from '@/components/ui/button'
+import { ContentGrid } from '@/components/layout/Page'
 
 export function AudioTargetSettings({ session, busy, action }: {
   session: RenderSession
@@ -83,10 +84,10 @@ export function AudioTargetSettings({ session, busy, action }: {
         <p className="text-xs leading-relaxed text-muted-foreground">请选择目标程序所在节点已部署的虚拟音频配对端点，并在目标程序中选择对应输入；任意两个物理设备不能建立音频连线。</p>
         <Button type="button" size="sm" variant="outline" disabled={reading || (draft.mode==='remote' && !draft.node_id)} onClick={readDevices}>{reading ? '正在读取…' : '刷新音频设备'}</Button>
         {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
-        <div className="grid min-w-0 gap-3 md:grid-cols-2">
+        <ContentGrid variant="fields">
           {selection('output','render_device_id','网关写入端 · 输出设备')}
           {selection('input','capture_device_id','目标程序读取端 · 输入设备')}
-        </div>
+        </ContentGrid>
       </>}
       {draft.mode === 'upstream' && <p className="text-xs text-muted-foreground">需要上游实际支持麦克风扩展。不支持时，客户端之间仍可广播语音，但目标程序不会收到。</p>}
       {draft.mode === 'disabled' && <p className="text-xs text-muted-foreground">停止向目标程序发送麦克风；客户端语音广播仍由上方广播设置控制。</p>}

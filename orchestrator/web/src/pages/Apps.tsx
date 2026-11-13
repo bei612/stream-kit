@@ -6,8 +6,9 @@ import { useAppCommand } from '@/hooks/useAppCommand'
 import { Alert } from '@/components/ui/alert'
 import { useQuery } from '@/hooks/useQuery'
 import QueryWrapper from '@/components/QueryWrapper'
+import { ContentGrid, EmptyState, Page } from '@/components/layout/Page'
 import StatusBadge from '@/components/StatusBadge'
-import { Button } from '@/components/ui/button'
+import { Button, LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { formatBytes, formatTime } from '@/lib/utils'
 import { openViewingStream } from '@/lib/stream-access'
@@ -30,25 +31,14 @@ export default function Apps() {
   const handleStop = (id: string) => command.run(id, 'stop', async () => { await api.stopApp(id) })
 
   return (
+    <Page title="应用管理" eyebrow="渲染内容" description="管理上传包和本机程序，启动或结束串流。" actions={<LinkButton to="/upload" variant="primary"><Upload className="w-4 h-4" />添加应用</LinkButton>}>
     <QueryWrapper loading={loading} error={error} onRetry={refresh}>
-      <div className="space-y-4">
         {command.error && <Alert variant="error" role="alert">{command.error}</Alert>}
-        <div className="page-heading">
-          <div><p className="page-eyebrow">渲染内容</p><h2>应用管理</h2><p className="page-description">管理上传包和本机程序，启动或结束串流。</p></div>
-          <Link to="/upload">
-            <Button>
-              <Upload className="w-4 h-4" /> 添加应用
-            </Button>
-          </Link>
-        </div>
 
         {apps.length === 0 ? (
-          <div className="text-center py-16 text-muted-foreground">
-            <p className="text-lg mb-2">暂无应用</p>
-            <p className="text-sm">点击“添加应用”，上传压缩包或指定本机程序路径</p>
-          </div>
+          <EmptyState title="暂无应用" description="上传压缩包或指定服务器已有的程序路径，即可创建应用。" action={<LinkButton to="/upload" variant="primary">添加应用</LinkButton>} />
         ) : (
-          <div className="grid gap-4 xl:grid-cols-2">
+          <ContentGrid>
             {apps.map(app => {
               const pending = command.pending[app.id]
               return <Card key={app.id} className="flex min-w-0 flex-col gap-5">
@@ -73,9 +63,9 @@ export default function Apps() {
                 </div>
               </Card>
             })}
-          </div>
+          </ContentGrid>
         )}
-      </div>
     </QueryWrapper>
+    </Page>
   )
 }

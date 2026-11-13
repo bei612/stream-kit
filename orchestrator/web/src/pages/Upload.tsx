@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import { api } from '@/api/client'
 import { argsToLines, linesToArgs } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
+import { ContentGrid, Page } from '@/components/layout/Page'
 import { Input, Textarea, Select, Label } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
@@ -97,10 +98,10 @@ export default function UploadPage() {
     : ''
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div className="page-heading"><div><p className="page-eyebrow">应用部署</p><h2>添加应用</h2><p className="page-description">上传应用包，或连接服务器上已有的程序。</p></div></div>
-
-      <div className="flex gap-2" role="group" aria-label="应用来源">
+    <Page title="添加应用" eyebrow="应用部署" description="上传应用包，或连接服务器上已有的程序。">
+      <ContentGrid variant="detail">
+      <div className="page-stack">
+      <div className="action-row" role="group" aria-label="应用来源">
         <Button type="button" variant={source==='archive'?'primary':'outline'} aria-pressed={source==='archive'} disabled={uploading} onClick={()=>{setSource('archive');setError('');setProgress(-1)}}>上传压缩包</Button>
         <Button type="button" variant={source==='local'?'primary':'outline'} aria-pressed={source==='local'} disabled={uploading} onClick={()=>{setSource('local');setError('');setProgress(-1)}}>本机已有程序</Button>
       </div>
@@ -114,18 +115,19 @@ export default function UploadPage() {
         {source==='archive' ? <Card
           onDragOver={e => e.preventDefault()}
           onDrop={handleDrop}
-          onClick={() => fileRef.current?.click()}
-          className="border-2 border-dashed p-8 text-center cursor-pointer hover:border-primary transition-colors"
+          className="border-2 border-dashed p-8 text-center hover:border-primary transition-colors"
         >
           {file ? (
-            <div className="flex items-center justify-center gap-2">
-              <span className="text-sm font-medium text-card-foreground">{file.name}</span>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <span className="min-w-0 break-all text-sm font-medium text-card-foreground">{file.name}</span>
               <span className="text-xs text-muted-foreground">
                 ({(file.size / 1024 / 1024).toFixed(1)} MB)
               </span>
               <button
                 type="button"
-                onClick={e => { e.stopPropagation(); setFile(null) }}
+                aria-label="移除所选压缩包"
+                disabled={uploading}
+                onClick={() => { setFile(null); if (fileRef.current) fileRef.current.value = '' }}
                 className="text-red-300 hover:text-red-300"
               >
                 <X className="w-4 h-4" />
@@ -134,9 +136,9 @@ export default function UploadPage() {
           ) : (
             <div>
               <UploadIcon className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-              <p className="text-sm text-muted-foreground">
+              <Button type="button" variant="ghost" className="max-w-full whitespace-normal" disabled={uploading} onClick={() => fileRef.current?.click()}>
                 拖拽文件到此处，或点击选择文件
-              </p>
+              </Button>
               <p className="text-xs text-muted-foreground mt-1">
                 支持 ZIP、7z、RAR、TAR 及 gzip / bzip2 / xz / zstd 压缩的 TAR
               </p>
@@ -178,8 +180,9 @@ export default function UploadPage() {
         {/* Args mode selector */}
         <CaptureModeField value={captureMode} onChange={setCaptureMode} disabled={uploading} />
         <div>
-          <Label>启动参数</Label>
+          <Label htmlFor="application-args-mode">启动参数</Label>
           <Select
+            id="application-args-mode"
             value={argsMode}
             onChange={e => setArgsMode(e.target.value)}
           >
@@ -204,10 +207,11 @@ export default function UploadPage() {
         {/* Custom args (multi-line) */}
         {argsMode === 'custom' && (
           <div>
-            <label className="block text-xs text-muted-foreground mb-1">
+            <label htmlFor="new-application-args" className="block text-xs text-muted-foreground mb-1">
               每行一个参数，含空格的路径请用引号包裹
             </label>
             <Textarea
+              id="new-application-args"
               value={customArgsText}
               onChange={e => setCustomArgsText(e.target.value)}
               rows={5}
@@ -257,6 +261,23 @@ export default function UploadPage() {
           </Button>
         )}
       </form>
-    </div>
+      </div>
+      <Card className="form-aside">
+        <h3>{source === 'local' ? '连接服务器已有程序' : '准备应用压缩包'}</h3>
+        <ul>
+          {source === 'local' ? <>
+            <li>填写服务器本机的绝对路径，而非当前访问设备的路径。</li>
+            <li>程序所需资源与运行库应已安装；工作目录影响相对资源加载。</li>
+            <li>移除平台注册会保留外部原程序与工作目录。</li>
+          </> : <>
+            <li>支持 ZIP、7z、RAR、TAR 及常用压缩 TAR，程序文件应完整包含在包中。</li>
+            <li>加密包、分卷包及链接文件不作为应用包支持。</li>
+            <li>完成解压后可选择真实启动入口，再生成固定观看链接。</li>
+          </>}
+          <li>单个渲染主机同时串流一个应用，多个客户端共享画面。</li>
+        </ul>
+      </Card>
+      </ContentGrid>
+    </Page>
   )
 }

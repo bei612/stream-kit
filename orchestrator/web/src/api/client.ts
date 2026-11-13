@@ -212,7 +212,7 @@ export const api = {
   },
 
   // System
-  getConfig: () => request<SanitizedConfiguration>('/config'),
+  getConfig: (signal?: AbortSignal) => request<SanitizedConfiguration>('/config', { signal }),
   getConfiguration: () => request<ConfigurationView>('/configuration'),
   getGatewayConfiguration: () => request<GatewayConfigurationView>('/gateway-configuration'),
   saveGatewayConfiguration: (revision:string, changes:Record<string,ConfigValue>) => request<GatewayConfigurationView>('/gateway-configuration', {method:'PATCH',body:JSON.stringify({revision,changes})}),

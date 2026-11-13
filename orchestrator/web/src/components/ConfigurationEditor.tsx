@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input, Label, Select, Textarea } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
+import { ContentGrid } from '@/components/layout/Page'
 
 const labels:Record<string,string> = {
   render_nodes:'渲染节点连接',control_secret:'节点独立签名密钥',name:'显示名称',
@@ -83,10 +84,10 @@ export function ConfigurationEditor() {
     if(value && typeof value==='object' && !Array.isArray(value) || dictionary) {
       const entries=value && typeof value==='object' && !Array.isArray(value)?value:{}
       const extra=(added[path]||[]).filter(k=>!(k in entries))
-      return <div key={path} className={path.split('/').length>2?'space-y-4 rounded-lg border border-border p-3':'space-y-4'}>
+      return <div key={path} className={path.split('/').length>2?'field-span space-y-4 rounded-lg border border-border p-3':'field-span space-y-4'}>
         {path.split('/').length>2&&<h3 className="font-medium text-sm">{labels[key]||key}</h3>}
         {path.startsWith('/render_nodes/')&&path.split('/').length===3&&original(path)!==null&&<Button type="button" variant="outline" aria-label={`移除节点 ${key}`} onClick={()=>setRemoved(items=>[...items,path])}>移除节点</Button>}
-        {Object.entries(entries).map(([k,v])=>fields(v,path+'/'+pointer(k),k))}
+        <ContentGrid variant="fields">{Object.entries(entries).map(([k,v])=>fields(v,path+'/'+pointer(k),k))}</ContentGrid>
         {path==='/render_nodes'&&<p className="text-xs text-muted-foreground">每个节点使用独立密钥。远端连接要求 HTTPS；保存后重启管理服务生效。节点设备目录不代表跨节点音频路由已建立。</p>}
         {extra.map(k=>fields(path==='/render_nodes'?{name:k,base_url:'',control_secret:''}:'',path+'/'+pointer(k),k))}
         {dictionary && <div className="flex flex-wrap gap-2">
@@ -99,7 +100,7 @@ export function ConfigurationEditor() {
     const sensitive=hidden||['password','jwt_secret','media_ticket_secret','control_secret','webhook_url','args','preflight_args'].includes(key)||path.includes('/env/')||path.startsWith('/templates/')
     const text=drafts[path]??(hidden?'':Array.isArray(value)?value.join('\n'):value===null?'':String(value))
     const title=labels[key]||key
-    return <div key={path} className="space-y-1">
+    return <div key={path} className={Array.isArray(value)?'field-span min-w-0 space-y-1':'min-w-0 space-y-1'}>
       <Label htmlFor={id}>{title}</Label>
       {path==='/server/lan_tls/hosts'&&<p className="text-xs text-muted-foreground">每行填写一个服务器 IP 或主机名，不含协议和端口。地址变化后更新此处并重启服务，沿用原 CA 签发服务证书；客户端不用重新安装信任或重新编译。管理服务和本机网关须使用相同服务证书路径。不要更换已有 CA。</p>}
 	  {key==='windows_session_id'&&<p className="text-xs text-muted-foreground">仅 Windows 服务部署使用。会话 ID 与用户 SID 必须匹配已登录的活动会话；控制服务需以 LocalSystem 运行。ID 设为 0 且清空 SID 时使用直接启动。修改后需重启控制服务。</p>}
@@ -119,7 +120,7 @@ export function ConfigurationEditor() {
       {notice&&<Alert variant="success" role="status">{notice}</Alert>}
       <fieldset disabled={busy} className="space-y-3 min-w-0">
         {view&&Object.entries(view.values).map(([key,value])=><details key={key} className="rounded-lg border border-border bg-muted/20 p-4">
-          <summary className="cursor-pointer font-medium">{labels[key]||key}<span className="float-right text-xs font-normal text-muted-foreground">重启生效</span></summary>
+          <summary className="configuration-summary"><span>{labels[key]||key}</span><span className="text-xs font-normal text-muted-foreground">重启生效</span></summary>
           <div className="mt-4 space-y-4">{fields(value,'/'+pointer(key),key)}</div>
         </details>)}
       </fieldset>

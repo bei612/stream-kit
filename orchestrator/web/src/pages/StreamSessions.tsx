@@ -5,6 +5,7 @@ import { currentMediaObservation, overviewServerTime, type MediaObservation, typ
 import { useQuery } from '@/hooks/useQuery'
 import { useConfigurationDraft } from '@/hooks/useConfigurationDraft'
 import QueryWrapper from '@/components/QueryWrapper'
+import { ContentGrid, EmptyState, Metric, Page } from '@/components/layout/Page'
 import StatusBadge from '@/components/StatusBadge'
 import { Link, useSearchParams } from 'react-router'
 import { Select } from '@/components/ui/input'
@@ -48,7 +49,7 @@ function AudioSettings({ session, busy, action }: { session: RenderSession; busy
   const policyDraft = useConfigurationDraft(session.policy, (a, b) => a.max_viewers === b.max_viewers && a.controller_disconnect_policy === b.controller_disconnect_policy && a.allow_viewer_microphone === b.allow_viewer_microphone)
   const capacity = policyDraft.value.max_viewers
   const setCapacity = (max_viewers: number) => policyDraft.edit({...policyDraft.value, max_viewers})
-  return <div className="border-t border-border mt-4 pt-4 grid gap-6 lg:grid-cols-2">
+  return <ContentGrid variant="fields" className="border-t border-border mt-4 pt-4">
     <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); if (stale) return; void action(async () => {
       const result = await api.updateStreamAudio(session.session_id, audio, baseline)
       if (result.data) audioDraft.reset()
@@ -88,7 +89,7 @@ function AudioSettings({ session, busy, action }: { session: RenderSession; busy
         </div>
       </fieldset>
     </form>
-  </div>
+  </ContentGrid>
 }
 
 const HISTORY_PAGE_SIZE = 10
@@ -134,17 +135,15 @@ export default function StreamSessions() {
     finally { try { await Promise.all([refresh(), apps.refresh()]) } finally { inFlight.current = false; setBusy(false) } }
   }
 
-  return <QueryWrapper loading={loading} error={error} onRetry={refresh}>
-    <div className="space-y-6">
-      <div className="page-heading">
-        <div><p className="page-eyebrow">连接与协作</p><h2>串流会话</h2><p className="page-description">按应用管理观看连接、唯一控制权和实时音频。</p></div>
-        <Button variant="outline" onClick={() => { void refresh(); void apps.refresh() }} disabled={busy}><RefreshCw className="w-4 h-4" /> 刷新</Button>
-      </div>
-      <div className="session-summary" aria-label="当前会话概览">
-        <div><strong>{overview.current.length}</strong><span>当前会话</span></div>
-        <div><strong>{overview.clients}</strong><span>在线客户端</span></div>
-        <div><strong>{overview.controllers}</strong><span>在线控制者</span></div>
-      </div>
+  return <Page title="串流会话" eyebrow="连接与协作" description="按应用管理观看连接、唯一控制权和实时音频。" actions={
+    <Button variant="outline" onClick={() => { void refresh(); void apps.refresh() }} disabled={busy}><RefreshCw className="w-4 h-4" />刷新</Button>
+  }>
+    <QueryWrapper loading={loading} error={error} onRetry={refresh}>
+      <ContentGrid variant="metrics">
+        <Metric label="当前会话" value={overview.current.length} />
+        <Metric label="在线客户端" value={overview.clients} />
+        <Metric label="在线控制者" value={overview.controllers} />
+      </ContentGrid>
       <div className="flex flex-wrap items-end gap-3">
         <label className="min-w-0 flex-1 space-y-2 text-xs text-muted-foreground" htmlFor="session-app">查看应用
           <Select id="session-app" value={selectedApp} onChange={event => { const next = new URLSearchParams(search); if (event.target.value) next.set('app', event.target.value); else next.delete('app'); setSearch(next); setHistoryPage(1) }}>
@@ -167,7 +166,7 @@ export default function StreamSessions() {
       {apps.error && <p role="status" className="text-sm text-amber-400">应用名称和运行状态暂时无法更新，连接列表仍按会话数据显示。</p>}
       {view === 'history' ? <Card>
         <div className="mb-4"><h3 className="font-semibold">已结束的应用串流</h3><p className="mt-1 text-sm text-muted-foreground">仅保留最近 7 天、最多 100 条已结束记录。连接和控制权已释放，历史配置不再生效。</p></div>
-        <div className="overflow-x-auto">
+        <div className="table-scroll" role="region" aria-label="已结束的应用串流" tabIndex={0}>
           <table className="w-full text-left text-sm">
             <thead className="text-xs text-muted-foreground"><tr className="border-b border-border"><th className="py-3 pr-4">应用 / 会话</th><th className="py-3 pr-4">创建时间</th><th className="py-3 pr-4">最后更新</th><th className="py-3">状态</th></tr></thead>
             <tbody>{overview.history.slice((page - 1) * HISTORY_PAGE_SIZE, page * HISTORY_PAGE_SIZE).map(session => {
@@ -216,7 +215,7 @@ export default function StreamSessions() {
             </div> : <>
             <section aria-label="客户端与控制权">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h4 className="font-medium">客户端与控制权</h4><p className="text-xs text-muted-foreground">同一时间仅一个客户端可操作应用、发送麦克风</p></div>
-              <div className="grid gap-3 lg:grid-cols-2">
+              <ContentGrid>
                 {connections.map((connection) => {
                   const live = isLiveConnection(connection, now)
                   const isController = connection.connection_id === session.controller_connection_id && live
@@ -231,16 +230,16 @@ export default function StreamSessions() {
                     </div>
                   </div>
                 })}
-              </div>
+              </ContentGrid>
               {connections.length === 0 && <div className="rounded-lg border border-dashed border-border py-8 text-center text-sm text-muted-foreground">暂无客户端连接。客户端通过应用的永久观看链接接入后，会显示在这里。</div>}
             </section>
             <div className="mt-5 rounded-lg border border-border bg-muted/20 p-4">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-medium">音频路由</h4><span className="text-xs text-muted-foreground">唯一控制者 → 目标程序 / 观看端</span></div>
-              <div className="grid gap-3 text-xs sm:grid-cols-3">
+              <ContentGrid variant="fields" className="text-xs">
                 <div><p className="text-muted-foreground">目标程序接收语音</p><p className="mt-1 font-medium">{!session.audio.microphone_enabled || session.audio.target.mode === 'disabled' ? '已关闭' : ({local:'服务器录音设备', remote:'远程渲染节点', upstream:'原生音频通道'} as Record<string,string>)[session.audio.target.mode]}</p></div>
                 <div><p className="text-muted-foreground">观看端接收声音</p><p className="mt-1 font-medium">{session.audio.microphone_enabled && session.audio.broadcast_controller_microphone ? '程序声音 + 控制者麦克风' : '程序声音'}</p></div>
                 <div><p className="text-muted-foreground">当前麦克风</p><p className="mt-1 font-medium">{controller?.microphone_live ? '控制者正在发送' : controller ? '控制者未开启' : '等待分配控制权'}</p></div>
-              </div>
+              </ContentGrid>
             </div>
             <details className="mt-4 border-t border-border pt-4">
               <summary className="cursor-pointer text-sm font-medium">音频与连接设置 <span className="ml-2 text-xs font-normal text-muted-foreground">当前会话 · 保存后实时应用</span></summary>
@@ -258,7 +257,7 @@ export default function StreamSessions() {
             </>}
           </Card>
         })}
-        {overview.current.length === 0 && <Card className="py-12 text-center"><h3 className="font-medium">{selectedApp ? '此应用当前没有串流会话' : '当前没有串流会话'}</h3><p className="mt-2 text-sm text-muted-foreground">从应用管理启动串流，或使用应用的永久观看链接接入。</p></Card>}
+        {overview.current.length === 0 && <EmptyState title={selectedApp ? '此应用当前没有串流会话' : '当前没有串流会话'} description="从应用管理启动串流，或使用应用的永久观看链接接入。" />}
       </>}
       <details className="rounded-lg border border-border px-4 py-3 text-sm text-muted-foreground">
         <summary className="cursor-pointer font-medium text-foreground">会话和客户端有什么区别？</summary>
@@ -268,6 +267,6 @@ export default function StreamSessions() {
           <p>已结束记录仅供查阅历史状态，不代表在线设备，也不占用观看名额。永久观看链接属于应用，不会因会话结束而失效。</p>
         </div>
       </details>
-    </div>
-  </QueryWrapper>
+    </QueryWrapper>
+  </Page>
 }
