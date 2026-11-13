@@ -1,0 +1,64 @@
+{
+  "date": "2026-11-13",
+  "control_commit": "a616beba91d65d5456a599444c74ec49e7e95a4f",
+  "source_dirty": false,
+  "binary_sha256": "06040c1be74361e1461c9ac2961ba0beeb6dc15e7f4c4b74d36941382f0ad267",
+  "dist_index_sha256": "4199dbadbe2599e0b31f63052a2c31f044ad7bcf2e368289b77fd228cb2e03ef",
+  "build": {
+    "typescript": "passed",
+    "eslint": "passed",
+    "production_bundle": "passed",
+    "native_bundle_verification": "passed"
+  },
+  "isolated_real_backend": {
+    "implementation": "Native Go control service, SQLite and built SPA; no mocked responses",
+    "routes": 8,
+    "viewport_widths": [390, 820, 1440],
+    "route_layout_checks_passed": 24,
+    "interactions": [
+      "Mobile navigation selection, Escape and focus restoration",
+      "Upload source selection and local-program form",
+      "Settings section navigation retains unsaved draft; explicit authoritative reload"
+    ],
+    "exact_bundle_native_acceptance": "passed",
+    "exact_bundle_cases": [
+      "Authentication through actual native API",
+      "Owned native component start, restart, stop and missing-executable error",
+      "Repeated action produces a single mutation",
+      "Actual configuration revision conflict preserves draft; reload and save persist",
+      "Empty current sessions and history; no fabricated rows"
+    ],
+    "boundary": "Unconfigured media components intentionally return actual unavailable responses. This environment does not establish media acceptance."
+  },
+  "installed_management": {
+    "platform": "Windows",
+    "transport": "HTTPS with existing trusted deployment CA; no TLS bypass",
+    "tool": "playwright-cli",
+    "routes": ["dashboard", "components", "apps", "upload", "sessions", "logs", "settings", "app-detail"],
+    "viewport_widths": [390, 1440],
+    "route_layout_checks_passed": 16,
+    "settings_boundary_widths": [320, 1023, 1024, 1920],
+    "single_main_heading": true,
+    "consistent_heading_and_container_alignment": true,
+    "document_horizontal_overflow": false,
+    "javascript_errors": [],
+    "http_errors": [],
+    "actual_configuration_expansion_and_encoder_search": "passed",
+    "mobile_navigation_focus_and_section_links": "passed",
+    "screenshots": "Captured for all route/viewport checks and configuration sections; settings and application-detail screenshots visually reviewed. Private artifacts remain outside the product and public repository.",
+    "boundary": "Read-only page navigation and local UI interaction; no application launch, production configuration write, renderer or gateway replacement."
+  },
+  "deployment": {
+    "complete_control_component_installed": true,
+    "service": "StreamKitOrchestrator",
+    "startup": "Auto",
+    "control_and_two_media_components": "running",
+    "application_ids_preserved": true,
+    "deployment_ca_and_keys_preserved": true,
+    "gateway_commit": "40146db2ffa8b15040906cf130be8e89548c48da",
+    "sunshine_commit": "47c02726c0161ebdec50911422d62845a9b6e59a",
+    "gateway_and_sunshine_binary_hashes_preserved": true,
+    "rollback": "The first directory replacement was rejected by Windows and restored the previous service. Subsequent maintenance passed a staged-directory move preflight, installed the complete reviewed bundle and verified component readiness.",
+    "boundary": "Component maintenance, not a new unified installer or public release. Full host reboot and media acceptance at the new LAN address remain outside this layout acceptance."
+  }
+}
