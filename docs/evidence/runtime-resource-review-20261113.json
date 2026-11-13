@@ -3,7 +3,14 @@
   "date": "2026-11-13",
   "scope": "Native Windows source review and targeted regressions of managed control, media gateway, browser, lifecycle and resource retention",
   "baseline_commit": "d3e5c45a",
-  "runtime_source": "The commit containing this evidence; installed revisions remain independently recorded in docs/release-status.md",
+  "runtime_source": "3ae2c44dfe37d9061cfaed9d03166548cad16540",
+  "candidate_bundles": {
+    "control": {"path":".local/control-3ae2c44d", "files":10, "executable_sha256":"44decb164534cd1bf4357a2e282fc47bf1a0c15989ab7ed962af076a59d8b510", "manifest_sha256":"46026192d804ce4fb861924fc752c40d522cf9f6182b04b0e5c87242eff17ed6"},
+    "gateway": {"path":".local/gateway-3ae2c44d-complete", "files":35, "executable_sha256":"1b100db885bb604a30c8a8b8ea28ca3b10f4941dd86206aa971a4b8369f42be2", "manifest_sha256":"00e9dd91c69bf03f8d0a43268af49249a73c0df2d0531b8a8a14c486d203e884", "native_web_wasm_build":"passed", "crt":"Official MSVC 14.36 release redistributable, application-local vcruntime140.dll, Microsoft signature verified"},
+    "preflight":"Both complete bundles verified against exact source, idle installed applications, valid existing service and media state; no certificate/network/ToDesk changes",
+    "deployment":"Windows UAC pending at recording time; no installed-version media/playwright acceptance claimed",
+    "initial_packaging_failure":".local/review-gateway-build.log: VS developer environment pointed to an incomplete 14.44 x64 redist directory. Completed official build uses installed matching MSVC 14.36 release CRT; no source patch or host-wide runtime installation. Partial output is not a release bundle."
+  },
   "findings_fixed": [
     {"id":"RR-01","severity":"high","issue":"VideoStream retained first-seen metadata for consumed frames indefinitely","fix":"Metadata is removed with consumed/discarded/expired frames; orphan frames expire; depayloader retains at most 64 frames"},
     {"id":"RR-02","severity":"high","issue":"Dropping a peer after failed/cancelled negotiation retained its ordinary-runtime driver and UDP socket","fix":"Both runtimes signal durable shutdown and wake blocked senders on final peer drop","baseline_reproduced":true},
@@ -17,7 +24,7 @@
     {"id":"RR-10","severity":"medium","issue":"Native management HTTP server had no explicit header or idle deadline","fix":"10-second header deadline and 60-second idle deadline without imposing a short whole-upload timeout"}
   ],
   "verification": {
-    "go": {"command":"go test ./internal/... ./cmd/orchestrator/...", "passed_packages":19, "result":"passed", "vet":"passed", "local_log":".local/review-go-tests.log"},
+    "go": {"command":"go test ./internal/... ./cmd/orchestrator/...", "passed_packages":19, "result":"passed", "vet":"passed", "linux_amd64_cross_build":"passed; not native Linux execution", "local_log":".local/review-go-tests.log"},
     "gateway": {"command":"cargo test --locked --release --bin web-server", "passed":178, "failed":0, "local_log":".local/review-gateway-tests-final.log", "new_native_cases":["Correct paired certificate accepted and wrong pin rejected over actual TLS","9 MiB chunked HTTP response rejected by body budget, not timeout","20000 native packetized frames delivered; partial current frame uses 100 ms deadline","20000 incomplete frames remain within 64 retained frames","Actual native DataChannel handles cannot expand the remote callback queue","10000 cover changes and byte-budget eviction"]},
     "webrtc_library": {"command":"cargo test --locked --release --lib", "passed":52, "failed":0, "udp_drop_cycles":24, "reactor_pool_sizes":[0,1], "local_log":".local/review-webrtc-tests.log"},
     "web_typescript": {"command":"tsc --noEmit", "result":"passed"},
