@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "passed": true,
+  "run_id": 43594973857,
+  "run_url": "https://github.com/bei612/stream-kit/actions/runs/43594973857",
+  "identity": {
+    "runtime_commit": "db01e6c639612f5796b0055c1885d4fa512686ff",
+    "installer_sha256": "4e8a643856f00cc81ad37bcec10b97fa8637acfb42d176d34e3e77c760898c5c",
+    "payload_sha256": "bb80441b414e88ebf6c07a061444e9b3cd0d7abfb3edf6c01e030c4746bbf1d5",
+    "product_run_id": 43592679124,
+    "product_linux_job_id": 132440560856,
+    "android_release_tag": null,
+    "android_release_id": null,
+    "android_run_id": 43592683322,
+    "apk_file": "stream-kit-android-0.1.0.apk",
+    "apk_source_commit": "db01e6c639612f5796b0055c1885d4fa512686ff",
+    "apk_sha256": "4f7a866b90e47f81b3476cc1293320f774a85260d5945707ae6831afe3b39f67",
+    "apk_signer_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f",
+    "apk_signature_verified": true,
+    "acceptance_commit": "bf441b951ff9802ea6dbf2124165d7812be13758",
+    "runtime_rebuilt": false,
+    "apk_rebuilt": false
+  },
+  "input": {
+    "passed": true,
+    "phases": [
+      {
+        "label": "android_controller",
+        "before": {
+          "keys": 0,
+          "clicks": 0
+        },
+        "after": {
+          "keys": 1,
+          "clicks": 1
+        }
+      },
+      {
+        "label": "old_android_denied",
+        "before": {
+          "keys": 1,
+          "clicks": 1
+        },
+        "after": {
+          "keys": 1,
+          "clicks": 1
+        }
+      },
+      {
+        "label": "web_controller",
+        "before": {
+          "keys": 1,
+          "clicks": 1
+        },
+        "after": {
+          "keys": 2,
+          "clicks": 2
+        }
+      },
+      {
+        "label": "web_revoked",
+        "before": {
+          "keys": 2,
+          "clicks": 2
+        },
+        "after": {
+          "keys": 2,
+          "clicks": 2
+        }
+      },
+      {
+        "label": "android_regranted",
+        "before": {
+          "keys": 2,
+          "clicks": 2
+        },
+        "after": {
+          "keys": 3,
+          "clicks": 3
+        }
+      },
+      {
+        "label": "android_revoked",
+        "before": {
+          "keys": 3,
+          "clicks": 3
+        },
+        "after": {
+          "keys": 3,
+          "clicks": 3
+        }
+      }
+    ],
+    "scope": "Published Android APK and real Web viewer share one native renderer; actual target key/touch delivery and cooperative transfer/revocation. Hostile Web packet rejection has separate Windows evidence. No physical-device, audio-quality or local ToDesk coexistence claim.",
+    "android_connection_id": "195b1a7a-6847-45bc-9e70-8f47bb4c4b92",
+    "web_connection_id": "83b599d0-0f87-431b-8ddf-e517ff89e8cb"
+  },
+  "finished_at": "2026-11-14T12:32:48.856Z",
+  "previous_failure": {
+    "run_id": 43593963101,
+    "error": "Target input timeout: Android key delivered",
+    "phase": "android_regranted",
+    "observer_issue": "Role observer did not verify that its own toolbar action completed. Real UI restoration is now observed before injecting native input.",
+    "product_changed": false
+  },
+  "limits": [
+    "Isolated Linux renderer and official Android emulator; not a local Windows installation or physical device acceptance.",
+    "The Windows product job for this source later failed on a missing static Qt dependency. These successful Linux/APK artifacts are evidence, not a releasable complete product."
+  ]
+}
