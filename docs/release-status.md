@@ -1,6 +1,6 @@
 # 发布与部署基线
 
-核对日期：2026-11-14。本页集中维护可下载版本、本机部署、候选产物和剩余边界。历史证据保留原始来源，不把旧版通过结果当作新产物验收。
+核对日期：2026-11-15。本页集中维护可下载版本、本机部署、候选产物和剩余边界。历史证据保留原始来源，不把旧版通过结果当作新产物验收。
 
 ## 当前版本
 
@@ -8,9 +8,9 @@
 | --- | --- | --- |
 | 公开 Windows / Ubuntu 24.04 amd64 服务端 | [v0.1.0-preview.20261110.5](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261110.5)，`3d4a3b5c61fea72354318cea637b3428052e5cfc` | 未包含本轮完整修复 |
 | 公开签名 Android | [v0.1.0-android-preview.20261109.6](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261109.6)，`df7cd87b3352a638aa3a6aa7073d39074c02a43c`，versionCode 1000013 | 尚未更新公开下载 |
-| 本机完整运行组件 | `ce52bdace58abb4dc13dc3eec4727daa6549a88f` | 控制端、网关和 Sunshine 同源；维护部署成功，默认 Web 先入的 H.264 混合连接问题待更新 |
-| 冻结的 0.1.0 候选 | `f8ede8b2e933fb597e97dec999cceae9a3e614e1` | [统一产品构建成功](https://github.com/bei612/stream-kit/actions/runs/43609416420)，Windows/Linux 已下载核对摘要，本机更新等待 Windows UAC |
-| 同源签名 Android 候选 | 0.1.0 / versionCode 1000015 | [构建成功](https://github.com/bei612/stream-kit/actions/runs/43609422069)，已安装专用模拟器，等待新 Windows 联合回归 |
+| 本机完整运行组件 | `f8ede8b2e933fb597e97dec999cceae9a3e614e1` | 控制端、网关和 Sunshine 同源；维护成功，实际 Web 先入、Android 后入联合回归通过 |
+| 冻结的 0.1.0 候选 | `f8ede8b2e933fb597e97dec999cceae9a3e614e1` | [统一产品构建成功](https://github.com/bei612/stream-kit/actions/runs/43609416420)，Windows/Linux 已下载核对摘要，精确安装器及实际页面验收通过 |
+| 同源签名 Android 候选 | 0.1.0 / versionCode 1000015 | [构建成功](https://github.com/bei612/stream-kit/actions/runs/43609422069)，专用模拟器实际图像、程序音、麦克风及撤权通过，已核对安装字节和重启后摘要 |
 
 尚未完成正式 0.1.0 发布。本机运行、构建成功或单项验收通过不能单独代表整个 Goal 完成。发布复用已验收的原始字节，tag 指向冻结运行源码；文档及验收器的后续提交不改变产物身份。
 
@@ -38,11 +38,12 @@ LAN IP 是现场值，不是内置地址。更换 IP 后按[地址与证书](lan
 | 控制请求和操作锁 | [生产复审](evidence/production-readiness-review-20261114.json)：控制体统一 1 MiB，固定长度/chunked 超限返回 413，上传保留独立预算；锁仅保留活动所有者，20,000 次完成后归零 |
 | 浏览器帧生命周期 | Canvas reader 取消、finally 释放、迟到帧关闭；原生 Chrome 100 次换轨/关闭及异常分支通过，MSE/WebCodecs 原生检查通过，已纳入本机和候选 |
 | 本机实际 UI / 循环 | [ce52bdac 验收](evidence/runtime-installed-ce52bdac-20261114.json)：严格 HTTPS、永久入口启动 Example、双端 1920×1080、唯一控制授予/交接/撤销、断开隔离、停止后可编辑；100 次真实进入/解码/工具栏退出，各批恢复单连接，无页面异常 |
-| 默认 H.264 混合连接 | ce52 Web 先入声明 High 4:4:4，Android 后入被拒。f8ede8b2 将两端默认统一为普通 H.264 掩码 0x0001，高阶格式仍可显式选择实验性 auto；Web 构建及原生 Java 四项通过，等待新 Windows 实际联合回归 |
+| 默认 H.264 混合连接 | ce52 Web 先入声明 High 4:4:4，Android 后入被拒。f8ede8b2 将两端默认统一为普通 H.264 掩码 0x0001，高阶格式仍可显式选择实验性 auto；[新本机联合回归](evidence/runtime-installed-f8ede8b2-20261115.json)证明 Web 先启动、Android 后加入，同一会话持续解码，实际 H.264 profile-level-id=64001f |
 | 精确 Windows 安装器 | [f8ede8b2 安装验收](evidence/windows-installer-f8ede8b2-20261114.json)：原始字节静默安装、自启动、网关恢复、SCM 重启、144000 帧原生录音、卸载及数据保留通过；不代替本机维护或整机重启 |
 | 实际资源观察 | [ce52bdac 原始计数](evidence/runtime-resources-ce52bdac-20261114.json)：45.64 分钟混合负载采样未含 SCM 主服务；补充 14.51 分钟已预热单观看端完整采样，主服务 64.63→64.28 MiB、网关 19.99→20.00 MiB、浏览器进程合计 566.26→581.92 MiB，句柄未持续累积。为部署已就绪的新包提前结束窗口；不标成计划时长完成，不推断长期无泄漏 |
 | 新候选 Linux 实际页面 | [f8ede8b2 页面验收](evidence/management-live-f8ede8b2-20261114.json)：原始统一包、可信 HTTPS、真实双 WebRTC 解码、唯一控制交接、参数保存恢复及桌面/手机截图；不含 Android 音频或长跑 |
 | Windows Android / Web 音频 | [ce52 音频验收](evidence/android-audio-windows-ce52bdac-20261114.json)：Android 程序音 239999 帧 / 49 窗口，Web 程序音、合成麦克风到真实录音端点和观众、撤权静音通过。采用 Android 先入，仅证明音频链路；参数、路由、音量均恢复，无保存 PCM |
+| 新本机同源联合验收 | [f8ede8b2 实际运行](evidence/runtime-installed-f8ede8b2-20261115.json)：Web 先入；Android 程序音 49/49 窗口、Web 程序音通过，Android 合成麦克风到原生录音端点及 Web 观众，撤权后两端静音、零采集丢帧；停止后零活动会话/连接/媒体观测。测试参数、路由和音量恢复，模拟器已停止，服务 Auto/LocalSystem/Running |
 | 原生输入和独立地址恢复 | [输入六阶段](evidence/android-input-db01e6c6-20261114.json)、[独立 Linux 网卡迁移](evidence/lan-address-recovery-db01e6c6-20261114.json)保留实际来源，不代替本机 Windows 主网卡或新 APK 验收 |
 | 管理端统一布局 | [布局与交互](evidence/management-layout-a616beba.json)：8 路由共用容器/栅格/导航，覆盖手机、平板、桌面、草稿保留与冲突；新候选实际页面另见上行，维护契约见[管理布局](management-layout.md) |
 
@@ -50,9 +51,7 @@ LAN IP 是现场值，不是内置地址。更换 IP 后按[地址与证书](lan
 
 ## 交付待办
 
-1. 在 Windows UAC 确认后，将已通过精确安装验收的 f8ede8b2 完整同源组件部署到本机。
-2. 用新 APK 验证默认 Web 先入、Android 后入的共享串流及音频撤权；不重复未受影响的四小时和 100 次循环。
-3. 更新联合回归证据、review、提交并发布 Windows/Linux 安装器及同源签名 APK；资源采样已收齐，不为额外观察延迟交付。
+本机更新及受影响的联合回归已完成，当前只剩发布同源 Windows/Linux 安装器和 Android APK，并检查公开附件身份。资源采样已收齐，不重复未受影响的四小时或 100 次循环。完整跨平台 CI 六项已通过；一次 Ubuntu 任务因官方 Chrome 下载的 HTTP/2 中断重试，只重跑失败任务，未重建冻结产品。
 
 ## 持续边界
 
