@@ -2,9 +2,7 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -47,10 +45,8 @@ func (h *SessionHandler) AudioTarget(c *gin.Context) {
 			CaptureDeviceID string `json:"capture_device_id"`
 		} `json:"target"`
 	}
-	decoder := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, 16384))
-	decoder.DisallowUnknownFields()
-	if decoder.Decode(&req) != nil || decoder.Decode(new(any)) != io.EOF || req.ExpectedEpoch == 0 {
-		errResponse(c, 400, "AUDIO_TARGET_INVALID", "无效的音频目标配置或配置版本")
+	if err := decodeRequestJSON(c, &req, 16384, true); err != nil || req.ExpectedEpoch == 0 {
+		requestError(c, err, "AUDIO_TARGET_INVALID", "无效的音频目标配置或配置版本")
 		return
 	}
 	target := session.AudioTarget{NodeID: req.Target.NodeID, Mode: req.Target.Mode, RenderDeviceID: req.Target.RenderDeviceID, CaptureDeviceID: req.Target.CaptureDeviceID}
@@ -102,16 +98,34 @@ func (h *SessionHandler) Get(c *gin.Context) {
 	okResponse(c, s)
 }
 func (h *SessionHandler) Ensure(c *gin.Context) {
-	host, _ := strconv.ParseInt(c.PostForm("host_id"), 10, 64)
-	app, _ := strconv.ParseInt(c.PostForm("app_id"), 10, 64)
-	if host == 0 || app == 0 {
+	var host, app int64
+	switch c.ContentType() {
+	case "application/x-www-form-urlencoded", "multipart/form-data":
+		var err error
+		if c.ContentType() == "multipart/form-data" {
+			err = c.Request.ParseMultipartForm(1 << 20)
+			if c.Request.MultipartForm != nil {
+				defer c.Request.MultipartForm.RemoveAll()
+			}
+		} else {
+			err = c.Request.ParseForm()
+		}
+		if err != nil {
+			requestError(c, err, "CONFIG_INVALID", "invalid session request")
+			return
+		}
+		host, _ = strconv.ParseInt(c.Request.PostForm.Get("host_id"), 10, 64)
+		app, _ = strconv.ParseInt(c.Request.PostForm.Get("app_id"), 10, 64)
+	default:
 		var req struct {
 			HostID int64 `json:"host_id"`
 			AppID  int64 `json:"app_id"`
 		}
-		if c.ShouldBindJSON(&req) == nil {
-			host, app = req.HostID, req.AppID
+		if err := decodeRequestJSON(c, &req, 0, false); err != nil {
+			requestError(c, err, "CONFIG_INVALID", "host_id and app_id are required")
+			return
 		}
+		host, app = req.HostID, req.AppID
 	}
 	if host == 0 || app == 0 {
 		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", "host_id and app_id are required")
@@ -129,8 +143,8 @@ func (h *SessionHandler) Connect(c *gin.Context) {
 	var req struct {
 		UserID string `json:"user_id"`
 	}
-	if c.ShouldBindJSON(&req) != nil {
-		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", "invalid connection request")
+	if err := decodeRequestJSON(c, &req, 0, false); err != nil {
+		requestError(c, err, "CONFIG_INVALID", "invalid connection request")
 		return
 	}
 	conn, err := h.Manager.AddConnection(c.Param("session_id"), req.UserID)
@@ -154,8 +168,8 @@ func (h *SessionHandler) Heartbeat(c *gin.Context) {
 		Microphone bool `json:"microphone"`
 		Live       bool `json:"microphone_live"`
 	}
-	if c.ShouldBindJSON(&req) != nil {
-		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", "invalid heartbeat")
+	if err := decodeRequestJSON(c, &req, 0, false); err != nil {
+		requestError(c, err, "CONFIG_INVALID", "invalid heartbeat")
 		return
 	}
 	if err := h.Manager.Heartbeat(c.Param("session_id"), c.Param("connection_id"), req.Microphone, req.Live); err != nil {
@@ -226,8 +240,8 @@ func (h *SessionHandler) Transfer(c *gin.Context) {
 		ExpectedControllerID *string `json:"expected_controller_connection_id"`
 		ExpectedControlEpoch uint64  `json:"expected_control_epoch"`
 	}
-	if c.ShouldBindJSON(&req) != nil || req.ExpectedControllerID == nil || req.ExpectedControlEpoch == 0 {
-		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", "expected controller and control epoch are required")
+	if err := decodeRequestJSON(c, &req, 0, false); err != nil || req.ExpectedControllerID == nil || req.ExpectedControlEpoch == 0 {
+		requestError(c, err, "CONFIG_INVALID", "expected controller and control epoch are required")
 		return
 	}
 	if err := h.Manager.Transfer(c.Param("session_id"), c.Param("connection_id"), *req.ExpectedControllerID, req.ExpectedControlEpoch); err != nil {
@@ -242,8 +256,8 @@ func (h *SessionHandler) Audio(c *gin.Context) {
 		session.AudioConfig
 		Expected *session.AudioConfig `json:"expected_audio"`
 	}
-	if c.ShouldBindJSON(&req) != nil || req.Expected == nil {
-		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", "invalid audio config")
+	if err := decodeRequestJSON(c, &req, 0, false); err != nil || req.Expected == nil {
+		requestError(c, err, "CONFIG_INVALID", "invalid audio config")
 		return
 	}
 	if err := h.Manager.CompareAndSetAudio(c.Param("session_id"), req.AudioConfig, *req.Expected); err != nil {
@@ -262,8 +276,8 @@ func (h *SessionHandler) Policy(c *gin.Context) {
 		session.Policy
 		Expected *session.Policy `json:"expected_policy"`
 	}
-	if c.ShouldBindJSON(&req) != nil || req.Expected == nil {
-		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", "invalid session policy")
+	if err := decodeRequestJSON(c, &req, 0, false); err != nil || req.Expected == nil {
+		requestError(c, err, "CONFIG_INVALID", "invalid session policy")
 		return
 	}
 	if err := h.Manager.CompareAndSetPolicy(c.Param("session_id"), req.Policy, *req.Expected); err != nil {

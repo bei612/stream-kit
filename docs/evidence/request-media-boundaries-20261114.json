@@ -1,0 +1,244 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-11-14T11:48:36.528Z",
+  "base_commit": "d95b2ccb78ebd4423df6db0d32c28ed11e168880",
+  "scope": "Source checks only; installed runtime and public release are unchanged",
+  "request": {
+    "production_router_native_http": true,
+    "both_content_length_and_chunked": true,
+    "status_413_code": "REQUEST_TOO_LARGE",
+    "strict_and_compatible_json": true,
+    "gin_validation_preserved": true,
+    "extra_document_rejected": true,
+    "trailing_whitespace_budgeted": true,
+    "invalid_forms_do_not_create_sessions": true,
+    "valid_json_urlencoded_and_multipart": true,
+    "real_2MiB_tar_extraction": true
+  },
+  "checks": [
+    "go test ./internal/... ./cmd/orchestrator/...",
+    "go vet ./internal/server/... ./internal/app/...",
+    "TypeScript --noEmit",
+    "cargo fmt --all",
+    "native Chrome decoder and track ownership"
+  ],
+  "native_track": {
+    "passed": true,
+    "scope": "Native canvas capture and track replacement/cleanup using repository renderer; not installed media acceptance",
+    "source_sha256": {
+      "stream/video/media_stream_track_processor_pipe.ts": "ac51562364f5574f1b73d86172cc58adc121f47c2547ad5082cc063f5362803f",
+      "util.ts": "ee047464f6dbadb651c8a1882bd7f0fc8b9fca13ff1fb044e8aec5fca2a46658",
+      "stream/pipeline/pipes.ts": "d52625258fc251dbe7a089c0c012f32769e6b07961fbaccc462f91373fd9a9c1",
+      "stream/video.ts": "3aa8a7023abf06da0b22d704abf4140e0447d64e49d57cb83f4f0f6371d37f3d",
+      "api_bindings.ts": "549df98ba2aa0fab10f5cf0a8f30b4622723eae4574749b9ee9cdda7a23c6b29",
+      "stream/video/canvas_frame.ts": "1baf9743cd5bca454aab5c57e309790df39aa60d402816960729e5d0b7b1b238",
+      "libopenh264/index.ts": "767b680eec05b6613986549900d89edd1ffda8e36735d517fa676228378b1d45",
+      "stream/video/canvas.ts": "41c1c57d873bebeaffb59ed25b0ed68ceea3b31cfb6a95f22d1b987c61cf4111",
+      "stream/video/index.ts": "1b7868b6fab1408e097a4110bf2d4c2515f403f7571f2c45a9920a2eed2837c3"
+    },
+    "browser": "157.0.8103.38",
+    "native": {
+      "cycles": 100,
+      "replacedReadersReleased": 100,
+      "cleanupReadersReleased": 100,
+      "edgeCases": [
+        "no-frame",
+        "setup-close",
+        "concurrent-setup",
+        "source-ended",
+        "render-error"
+      ]
+    },
+    "pageerrors": [],
+    "consoleerrors": [
+      "Video track processing failed InvalidStateError: Failed to execute 'getContext' on 'OffscreenCanvas': OffscreenCanvas object is detached\n    at BaseCanvasVideoRenderer.useCanvasContext (eval at requireModule (eval at evaluate (:370:30)), <anonymous>:73:44)\n    at CanvasFrameDrawPipe.drawCurrentFrameIfReady (eval at requireModule (eval at evaluate (:370:30)), <anonymous>:105:46)\n    at CanvasFrameDrawPipe.onFrameSubmitted (eval at requireModule (eval at evaluate (:370:30)), <anonymous>:55:18)\n    at CanvasFrameDrawPipe.submitFrame (eval at requireModule (eval at evaluate (:370:30)), <anonymous>:95:14)\n    at VideoMediaStreamTrackProcessorPipe.readTrack (eval at requireModule (eval at evaluate (:370:30)), <anonymous>:69:31)"
+    ]
+  },
+  "native_decoder": {
+    "passed": true,
+    "scope": "Native browser H264 encode/decode using repository WebCodecs and MSE pipelines; synthetic frames, real native buffers and lifecycle",
+    "source_sha256": {
+      "stream/video/video_decoder_pipe.ts": "3262ccbe314683df078967788b23b4a7cab0cb80ec26a0f4592e3b79053b8f08",
+      "util.ts": "ee047464f6dbadb651c8a1882bd7f0fc8b9fca13ff1fb044e8aec5fca2a46658",
+      "stream/pipeline/pipes.ts": "d52625258fc251dbe7a089c0c012f32769e6b07961fbaccc462f91373fd9a9c1",
+      "stream/video.ts": "3aa8a7023abf06da0b22d704abf4140e0447d64e49d57cb83f4f0f6371d37f3d",
+      "api_bindings.ts": "549df98ba2aa0fab10f5cf0a8f30b4622723eae4574749b9ee9cdda7a23c6b29",
+      "stream/video/codec_level.ts": "9e3dff28af90bd557951ddc2c9ac8b6d1406e6bc8137f87a79ac6a2e0c724734",
+      "stream/video/annex_b_translator.ts": "43544b4137f7a758178e7938a682b31f6529aedbaa353264856578d37be59206",
+      "stream/buffer.ts": "5175de7cef996f5bc7e8fe161e5347603097a3d3ab7811029af9879f01aa56d6",
+      "stream/video/canvas_frame.ts": "1baf9743cd5bca454aab5c57e309790df39aa60d402816960729e5d0b7b1b238",
+      "libopenh264/index.ts": "767b680eec05b6613986549900d89edd1ffda8e36735d517fa676228378b1d45",
+      "stream/video/canvas.ts": "41c1c57d873bebeaffb59ed25b0ed68ceea3b31cfb6a95f22d1b987c61cf4111",
+      "stream/video/index.ts": "1b7868b6fab1408e097a4110bf2d4c2515f403f7571f2c45a9920a2eed2837c3",
+      "stream/video/media_source_decoder.ts": "ea23d56f72b82a5e08e558616843855750703c98199bc51e09ecc9980465a649",
+      "stream/video/video_element.ts": "d31ad69a55287efdabc8f99500b8cde038924492f86b7268946cbf37603dfd35"
+    },
+    "browser": "157.0.8103.38",
+    "verification": {
+      "encoded_frames": 6,
+      "cases": [
+        {
+          "overflow": false,
+          "drawOnSubmit": true,
+          "frames": 3,
+          "timestamps": [
+            0,
+            33333,
+            66666
+          ],
+          "colors": [
+            [
+              255,
+              1,
+              0,
+              255
+            ],
+            [
+              0,
+              255,
+              1,
+              255
+            ],
+            [
+              255,
+              1,
+              0,
+              255
+            ]
+          ],
+          "translator": false
+        },
+        {
+          "overflow": true,
+          "drawOnSubmit": true,
+          "frames": 6,
+          "timestamps": [
+            0,
+            33333,
+            66666,
+            99999,
+            133332,
+            166665
+          ],
+          "colors": [
+            [
+              255,
+              1,
+              0,
+              255
+            ],
+            [
+              0,
+              255,
+              1,
+              255
+            ],
+            [
+              255,
+              1,
+              0,
+              255
+            ],
+            [
+              0,
+              255,
+              1,
+              255
+            ],
+            [
+              255,
+              1,
+              0,
+              255
+            ],
+            [
+              0,
+              255,
+              1,
+              255
+            ]
+          ],
+          "translator": false
+        },
+        {
+          "overflow": false,
+          "drawOnSubmit": false,
+          "frames": 3,
+          "timestamps": [
+            0,
+            33333,
+            66666
+          ],
+          "colors": [
+            [
+              255,
+              1,
+              0,
+              255
+            ],
+            [
+              255,
+              1,
+              0,
+              255
+            ]
+          ],
+          "translator": false
+        },
+        {
+          "overflow": true,
+          "drawOnSubmit": false,
+          "frames": 6,
+          "timestamps": [
+            0,
+            33333,
+            66666,
+            99999,
+            133332,
+            166665
+          ],
+          "colors": [
+            [
+              0,
+              255,
+              1,
+              255
+            ],
+            [
+              0,
+              255,
+              1,
+              255
+            ]
+          ],
+          "translator": false
+        }
+      ],
+      "mseCases": [
+        {
+          "case": "continuous native MSE retention",
+          "frames": 360,
+          "first": 6.2,
+          "last": 11.999999,
+          "pendingBytes": 0
+        },
+        {
+          "case": "native append backlog overflow",
+          "frames": 500,
+          "expectedFailures": 1
+        },
+        {
+          "case": "cleanup before sourceopen releases pending setup"
+        }
+      ],
+      "errors": []
+    },
+    "finished_at": "2026-11-14T11:45:32.121Z"
+  },
+  "not_claimed": [
+    "candidate installer acceptance",
+    "installed media acceptance for this source",
+    "Android playout fixed",
+    "168 hour endurance"
+  ]
+}

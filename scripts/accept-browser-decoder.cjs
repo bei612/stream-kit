@@ -159,8 +159,10 @@ const result = {passed:false, scope:'Native browser H264 encode/decode using rep
       const base = new UrlVideoElementRenderer();
       const pipe = new MediaSourceDecoder(base);
       const pending = pipe.setup(setup);
-      pipe.cleanup(); await bounded(pending);
+      pipe.cleanup(); pipe.cleanup(); await bounded(pending);
+      pipe.submitDecodeUnit(units[0]);
       check(!base.videoElement.hasAttribute('src'), 'Early MSE cleanup retained source');
+      check(pipe.sourceBuffer === null && pipe.buffers.length === 0 && pipe.bufferedBytes === 0, 'Early MSE cleanup resurrected resources');
       mseCases.push({case:'cleanup before sourceopen releases pending setup'});
     }
     check(errors.length === 0, errors.join('; '));

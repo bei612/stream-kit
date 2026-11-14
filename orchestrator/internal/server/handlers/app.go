@@ -1,9 +1,7 @@
 package handlers
 
 import (
-	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"strconv"
 
@@ -36,14 +34,8 @@ func (h *AppHandler) CaptureCapabilities(c *gin.Context) {
 
 func (h *AppHandler) RegisterLocal(c *gin.Context) {
 	var req app.LocalAppRequest
-	decoder := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, 16384))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&req); err != nil {
-		errResponse(c, 400, "CONFIG_INVALID", "本机程序配置格式错误")
-		return
-	}
-	if err := decoder.Decode(new(any)); err != io.EOF {
-		errResponse(c, 400, "CONFIG_INVALID", "请求包含多余数据")
+	if err := decodeRequestJSON(c, &req, 16384, true); err != nil {
+		requestError(c, err, "CONFIG_INVALID", "本机程序配置格式错误")
 		return
 	}
 	record, err := h.Manager.RegisterLocal(req)
@@ -87,14 +79,8 @@ func (h *AppHandler) Update(c *gin.Context) {
 		Args         *string            `json:"args"`
 		ArgsTemplate *string            `json:"args_template"`
 	}
-	decoder := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, 16384))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&req); err != nil {
-		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", "请求格式错误")
-		return
-	}
-	if err := decoder.Decode(new(any)); err != io.EOF {
-		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", "请求包含多余数据")
+	if err := decodeRequestJSON(c, &req, 16384, true); err != nil {
+		requestError(c, err, "CONFIG_INVALID", "请求格式错误")
 		return
 	}
 
@@ -146,8 +132,8 @@ func (h *AppHandler) SelectExe(c *gin.Context) {
 	var req struct {
 		ExePath string `json:"exe_path" binding:"required"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", "请提供 exe_path")
+	if err := decodeRequestJSON(c, &req, 0, false); err != nil {
+		requestError(c, err, "CONFIG_INVALID", "请提供 exe_path")
 		return
 	}
 

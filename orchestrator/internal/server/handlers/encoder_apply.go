@@ -2,10 +2,7 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"io"
-	"net/http"
 	"net/netip"
 	"net/url"
 	"time"
@@ -34,10 +31,8 @@ func EncoderConfigurationApply(client EncoderStateClient, manager ComponentResta
 			Revision string `json:"revision"`
 			Instance string `json:"instance_id"`
 		}
-		decoder := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, 1024))
-		decoder.DisallowUnknownFields()
-		if decoder.Decode(&edit) != nil || decoder.Decode(new(any)) != io.EOF || len(edit.Revision) != 66 || edit.Revision[0] != '"' || edit.Revision[65] != '"' || !hexSize(edit.Revision[1:65], 32) || !hexSize(edit.Instance, 32) {
-			errResponse(c, 400, "CONFIGURATION_INVALID", "请提交已保存配置版本和编码器启动实例")
+		if err := decodeRequestJSON(c, &edit, 1024, true); err != nil || len(edit.Revision) != 66 || edit.Revision[0] != '"' || edit.Revision[65] != '"' || !hexSize(edit.Revision[1:65], 32) || !hexSize(edit.Instance, 32) {
+			requestError(c, err, "CONFIGURATION_INVALID", "请提交已保存配置版本和编码器启动实例")
 			return
 		}
 		if client == nil || manager == nil || !local {

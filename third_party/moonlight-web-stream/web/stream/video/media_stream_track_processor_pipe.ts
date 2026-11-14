@@ -22,6 +22,7 @@ export class VideoMediaStreamTrackProcessorPipe implements TrackVideoRenderer {
 
     private running: boolean = false
     private disposed = false
+    private setupPromise: Promise<void> | null = null
     private track: MediaStreamTrack | null = null
     private reader: ReadableStreamDefaultReader<VideoFrame> | null = null
     private trackProcessor: MediaStreamTrackProcessor | null = null
@@ -79,14 +80,21 @@ export class VideoMediaStreamTrackProcessorPipe implements TrackVideoRenderer {
         }
     }
 
-    async setup(setup: VideoRendererSetup) {
-        if (this.disposed || this.running) return
-        if ("setup" in this.base && typeof this.base.setup == "function") {
-            await this.base.setup(setup)
-        }
-        if (this.disposed) return
-        this.running = true
-        this.startReader()
+    setup(setup: VideoRendererSetup): Promise<void> {
+        if (this.disposed || this.running) return Promise.resolve()
+        if (this.setupPromise) return this.setupPromise
+        // A pipeline may receive overlapping setup/track/close events. Only
+        // one initialization owns the base renderer and can start a reader.
+        this.setupPromise = Promise.resolve().then(async () => {
+            if (this.disposed) return
+            if ("setup" in this.base && typeof this.base.setup == "function") {
+                await this.base.setup(setup)
+            }
+            if (this.disposed) return
+            this.running = true
+            this.startReader()
+        }).finally(() => { this.setupPromise = null })
+        return this.setupPromise
     }
     cleanup() {
         if (this.disposed) return

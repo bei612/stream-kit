@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -126,10 +125,13 @@ func TestClientHeartbeatBodyBudget(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			io.Copy(io.Discard, response.Body)
+			var rejection struct {
+				Code string `json:"code"`
+			}
+			decodeErr := json.NewDecoder(response.Body).Decode(&rejection)
 			response.Body.Close()
-			if response.StatusCode != 400 && response.StatusCode != 413 {
-				t.Fatalf("oversized heartbeat accepted: HTTP %d", response.StatusCode)
+			if decodeErr != nil || response.StatusCode != 413 || rejection.Code != "REQUEST_TOO_LARGE" {
+				t.Fatalf("oversized heartbeat response: HTTP %d, code %q, error %v", response.StatusCode, rejection.Code, decodeErr)
 			}
 			after, _ := manager.Get(s.ID)
 			if after.Revision != before.Revision {
@@ -150,5 +152,62 @@ func TestClientHeartbeatBodyBudget(t *testing.T) {
 	}
 	if err = json.NewDecoder(response.Body).Decode(&body); err != nil || response.StatusCode != 200 || body.Status != "ok" {
 		t.Fatalf("normal heartbeat failed: HTTP %d, %v", response.StatusCode, err)
+	}
+}
+
+func TestSessionEnsureFormBudgetDoesNotAcceptPartialFields(t *testing.T) {
+	for _, multipartBody := range []bool{false, true} {
+		for _, oversized := range []bool{false, true} {
+			var body bytes.Buffer
+			contentType := "application/x-www-form-urlencoded"
+			if multipartBody {
+				form := multipart.NewWriter(&body)
+				form.WriteField("host_id", "1")
+				form.WriteField("app_id", "2")
+				if oversized {
+					form.WriteField("padding", strings.Repeat("x", 2<<20))
+				}
+				form.Close()
+				contentType = form.FormDataContentType()
+			} else {
+				body.WriteString("host_id=1&app_id=2")
+				if oversized {
+					body.WriteString("&padding=" + strings.Repeat("x", 2<<20))
+				}
+			}
+			cfg := &config.Config{Server: config.ServerConfig{JWTSecret: "isolated-form-budget"}}
+			manager := session.NewManager(nil)
+			server := httptest.NewServer(New(cfg, nil, nil, nil, nil, manager, zap.NewNop()).Engine)
+			now := time.Now()
+			token := identity.Sign(identity.Management, handlers.Claims{Sub: "admin", Iat: now.Unix(), Exp: now.Add(time.Minute).Unix()}, handlers.ResolveJWTSecret(cfg.Server.JWTSecret, ""))
+			req, _ := http.NewRequest(http.MethodPost, server.URL+"/api/v1/stream-sessions", &body)
+			req.ContentLength = -1
+			req.Header.Set("Content-Type", contentType)
+			req.Header.Set("Authorization", "Bearer "+token)
+			response, err := (&http.Client{Timeout: 5 * time.Second}).Do(req)
+			if err != nil {
+				server.Close()
+				t.Fatal(err)
+			}
+			var result struct {
+				Code string `json:"code"`
+			}
+			err = json.NewDecoder(response.Body).Decode(&result)
+			response.Body.Close()
+			server.Close()
+			want := 200
+			if oversized {
+				want = 413
+			}
+			if err != nil || response.StatusCode != want {
+				t.Fatalf("multipart=%v oversized=%v: HTTP %d, %v", multipartBody, oversized, response.StatusCode, err)
+			}
+			if oversized && (result.Code != "REQUEST_TOO_LARGE" || len(manager.List()) != 0) {
+				t.Fatal("oversized form created a session or lost size error")
+			}
+			if !oversized && len(manager.List()) != 1 {
+				t.Fatal("valid form did not create a session")
+			}
+		}
 	}
 }

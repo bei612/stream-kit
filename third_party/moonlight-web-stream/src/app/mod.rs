@@ -44,13 +44,13 @@ pub mod password;
 pub mod remote_routes;
 #[cfg(test)]
 mod request_client_tests;
-#[cfg(test)]
-mod video_lifetime_tests;
 pub mod role;
 pub mod storage;
 pub mod stream;
 pub mod upstream;
 pub mod user;
+#[cfg(test)]
+mod video_lifetime_tests;
 
 #[derive(Debug, Error)]
 pub enum AppError {

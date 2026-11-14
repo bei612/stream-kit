@@ -21,7 +21,11 @@ func TestLocalApplicationRejectsUnknownAndMultipleJSONBeforeMutation(t *testing.
 		request := httptest.NewRequest("POST", "/local", bytes.NewBufferString(body))
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, request)
-		if response.Code != 400 {
+		want := 400
+		if len(body) > 16384 {
+			want = 413
+		}
+		if response.Code != want {
 			t.Fatalf("untrusted body status %d", response.Code)
 		}
 	}

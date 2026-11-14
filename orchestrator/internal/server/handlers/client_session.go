@@ -82,8 +82,8 @@ func (h *ClientSessionHandler) Invite(c *gin.Context) {
 		HostID int64 `json:"host_id"`
 		AppID  int64 `json:"app_id"`
 	}
-	if c.ShouldBindJSON(&req) != nil {
-		errResponse(c, 400, "CONFIG_INVALID", "host_id and app_id are required")
+	if err := decodeRequestJSON(c, &req, 0, false); err != nil {
+		requestError(c, err, "CONFIG_INVALID", "host_id and app_id are required")
 		return
 	}
 	h.invite(c, req.HostID, req.AppID)
@@ -112,9 +112,8 @@ func (h *ClientSessionHandler) Join(c *gin.Context) {
 	var req struct {
 		ClientType string `json:"client_type"`
 	}
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 4096)
-	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
-		errResponse(c, 400, "CONFIG_INVALID", "invalid client metadata")
+	if err := decodeRequestJSON(c, &req, 4096, false); err != nil && !errors.Is(err, io.EOF) {
+		requestError(c, err, "CONFIG_INVALID", "invalid client metadata")
 		return
 	}
 	connection, err := h.sessions.Manager.AddClientConnection(claims.SessionID, "guest:"+uuid.NewString(), req.ClientType)
@@ -187,8 +186,8 @@ func (h *ClientSessionHandler) Heartbeat(c *gin.Context) {
 		Microphone bool `json:"microphone"`
 		Live       bool `json:"microphone_live"`
 	}
-	if c.ShouldBindJSON(&req) != nil {
-		errResponse(c, 400, "CONFIG_INVALID", "invalid heartbeat")
+	if err := decodeRequestJSON(c, &req, 0, false); err != nil {
+		requestError(c, err, "CONFIG_INVALID", "invalid heartbeat")
 		return
 	}
 	if err := h.sessions.Manager.Heartbeat(c.Param("session_id"), c.Param("connection_id"), req.Microphone, req.Live); err != nil {

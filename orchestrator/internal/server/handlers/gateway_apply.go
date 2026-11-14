@@ -3,10 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
-	"io"
-	"net/http"
 	"net/netip"
 	"net/url"
 	"time"
@@ -34,10 +31,8 @@ func GatewayConfigurationApply(client GatewayConfigurationClient, manager Compon
 			Revision string `json:"revision"`
 			Instance string `json:"instance_id"`
 		}
-		decoder := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, 1024))
-		decoder.DisallowUnknownFields()
-		if decoder.Decode(&request) != nil || decoder.Decode(new(any)) != io.EOF || !hexSize(request.Revision, 32) || !hexSize(request.Instance, 16) {
-			errResponse(c, 400, "CONFIGURATION_INVALID", "请提交已保存配置版本及当前网关实例")
+		if err := decodeRequestJSON(c, &request, 1024, true); err != nil || !hexSize(request.Revision, 32) || !hexSize(request.Instance, 16) {
+			requestError(c, err, "CONFIGURATION_INVALID", "请提交已保存配置版本及当前网关实例")
 			return
 		}
 		if client == nil || manager == nil || !local {

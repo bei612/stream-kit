@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 
@@ -113,10 +112,8 @@ func (h *SystemHandler) Configuration(c *gin.Context) {
 			Revision string                     `json:"revision"`
 			Changes  map[string]json.RawMessage `json:"changes"`
 		}
-		d := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, 1<<20))
-		d.DisallowUnknownFields()
-		if d.Decode(&request) != nil || d.Decode(new(any)) != io.EOF {
-			errResponse(c, 400, "CONFIG_INVALID", "配置请求格式无效")
+		if err := decodeRequestJSON(c, &request, 1<<20, true); err != nil {
+			requestError(c, err, "CONFIG_INVALID", "配置请求格式无效")
 			return
 		}
 		view, err = h.Settings.Save(request.Revision, request.Changes)

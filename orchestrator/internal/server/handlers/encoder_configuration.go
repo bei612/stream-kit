@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"sort"
 
@@ -41,10 +40,8 @@ func EncoderConfiguration(client EncoderConfigurationClient) gin.HandlerFunc {
 				Revision string                     `json:"revision"`
 				Changes  map[string]json.RawMessage `json:"changes"`
 			}
-			decoder := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, 256*1024))
-			decoder.DisallowUnknownFields()
-			if decoder.Decode(&edit) != nil || decoder.Decode(new(any)) != io.EOF || edit.Revision == "" || len(edit.Changes) == 0 || len(edit.Changes) > 256 {
-				fail(sunshine.ErrConfigurationInvalid)
+			if err := decodeRequestJSON(c, &edit, 256*1024, true); err != nil || edit.Revision == "" || len(edit.Changes) == 0 || len(edit.Changes) > 256 {
+				requestError(c, err, "CONFIGURATION_INVALID", "配置版本、字段或内容无效")
 				return
 			}
 			for key, value := range edit.Changes {

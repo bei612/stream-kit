@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -27,10 +26,8 @@ func GatewayConfiguration(client GatewayConfigurationClient) gin.HandlerFunc {
 			Changes  map[string]json.RawMessage `json:"changes"`
 		}
 		if c.Request.Method == http.MethodPatch {
-			decoder := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, 256*1024))
-			decoder.DisallowUnknownFields()
-			if decoder.Decode(&edit) != nil || decoder.Decode(new(any)) != io.EOF || edit.Revision == "" || len(edit.Changes) == 0 || len(edit.Changes) > 256 {
-				errResponse(c, 400, "CONFIGURATION_INVALID", "请提交配置版本和修改字段")
+			if err := decodeRequestJSON(c, &edit, 256*1024, true); err != nil || edit.Revision == "" || len(edit.Changes) == 0 || len(edit.Changes) > 256 {
+				requestError(c, err, "CONFIGURATION_INVALID", "请提交配置版本和修改字段")
 				return
 			}
 		}

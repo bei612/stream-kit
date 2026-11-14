@@ -179,16 +179,6 @@ test('late OpenH264 module loading cannot allocate a decoder after cleanup', asy
   pipe.cleanup(); pipe.cleanup(); resolve({}); await setup
   assert.equal(allocations, 0); assert.equal(cleanups, 1); assert.equal(setups, 0)
 })
-test('MediaSource readiness after cleanup cannot restart its output', async () => {
-  let resolve, cleanups = 0, setups = 0, revoked = 0
-  const exports = {}, ready = new Promise(r => { resolve = r })
-  vm.runInNewContext(compile('media_source_decoder'), { exports,
-    document: { removeEventListener() {} }, URL: { revokeObjectURL() { revoked++ } }, require() { return {} } })
-  const pipe = Object.create(exports.MediaSourceDecoder.prototype)
-  Object.assign(pipe, { disposed: false, onReadyPromise: ready, url: 'blob:test',
-    base: { setUrl() {}, setup() { setups++ }, cleanup() { cleanups++ } } })
-  const setup = pipe.setup({ width: 1280, height: 720, fps: 60 })
-  pipe.cleanup(); pipe.cleanup(); resolve(); await setup
-  pipe.submitDecodeUnit({})
-  assert.equal(cleanups, 1); assert.equal(setups, 0); assert.equal(revoked, 1)
-})
+// MSE sourceopen/cleanup is covered by accept-browser-decoder.cjs using the
+// real constructor, native MediaSource and URL renderer. A prototype-only VM
+// object omits constructor-owned resources and cannot validate this lifecycle.

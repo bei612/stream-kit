@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"crypto/sha256"
-	"errors"
 	"net/http"
 	"sync"
 	"time"
@@ -173,14 +172,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		Username string `json:"username" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, loginMaxBytes)
-	if err := c.ShouldBindJSON(&req); err != nil {
-		var tooLarge *http.MaxBytesError
-		if errors.As(err, &tooLarge) {
-			errResponse(c, http.StatusRequestEntityTooLarge, "REQUEST_TOO_LARGE", "登录请求过大")
-			return
-		}
-		errResponse(c, http.StatusBadRequest, "CONFIG_INVALID", "请提供用户名和密码")
+	if err := decodeRequestJSON(c, &req, loginMaxBytes, false); err != nil {
+		requestError(c, err, "CONFIG_INVALID", "请提供用户名和密码")
 		return
 	}
 
