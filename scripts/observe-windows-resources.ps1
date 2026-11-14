@@ -19,6 +19,19 @@ $componentPaths = @{}
 foreach ($component in @('orchestrator','media-gateway','sunshine')) {
     $componentPaths[$component] = (Join-Path $runtimeRoot $component) + '\'
 }
+$serviceExecutable = Join-Path $runtimeRoot 'orchestrator\orchestrator.exe'
+$escapedExecutable = [regex]::Escape($serviceExecutable)
+$ownedCommandPattern = '^(?:"' + $escapedExecutable + '"|' + $escapedExecutable + ') --config (?:"[^"\r\n]+"|[^"\s]+)$'
+function Get-OwnedService {
+    $service = Get-CimInstance Win32_Service -Filter "Name='StreamKitOrchestrator'"
+    if (!$service -or $service.PathName -notmatch $ownedCommandPattern -or $service.StartName -ne 'LocalSystem' -or $service.ServiceType -ne 'Own Process') { throw 'SCM service does not belong to the selected runtime' }
+    if ($service.State -ne 'Running' -or !$service.ProcessId) { throw 'Owned SCM service is not running' }
+    return $service
+}
+# A normal desktop account may read a LocalSystem process's counters but not
+# its ExecutablePath. Identify that process through SCM ownership, rather than
+# silently counting only the user-session workers as the control component.
+$initialService = Get-OwnedService
 $browserOwners = @{}
 foreach ($browserId in $BrowserProcessId) {
     $process = Get-CimInstance Win32_Process -Filter "ProcessId=$browserId"
@@ -37,10 +50,11 @@ $samplesFile = Join-Path $outputRoot 'samples.jsonl'
 $summaryFile = Join-Path $outputRoot 'result.json'
 $watch = [Diagnostics.Stopwatch]::StartNew()
 $count = 0
-$result = [ordered]@{schema_version=1;complete=$false;platform_source=$manifest.commit;component_sources=$componentSources;duration_seconds=$DurationSeconds;warmup_seconds=$WarmupSeconds;interval_seconds=$IntervalSeconds;started_at=[DateTime]::UtcNow.ToString('o');samples=0;pcm_saved=$false;scope='External process private bytes, working set, handles and threads. No heap proof or 168-hour acceptance.';instances=@{};error=$null}
+$result = [ordered]@{schema_version=1;complete=$false;platform_source=$manifest.commit;component_sources=$componentSources;scm_service_required=$true;initial_service_pid=[int]$initialService.ProcessId;duration_seconds=$DurationSeconds;warmup_seconds=$WarmupSeconds;interval_seconds=$IntervalSeconds;started_at=[DateTime]::UtcNow.ToString('o');samples=0;pcm_saved=$false;scope='External process private bytes, working set, handles and threads. No heap proof or 168-hour acceptance.';instances=@{};error=$null}
 try {
     while ($watch.Elapsed.TotalSeconds -lt $DurationSeconds) {
         $elapsed = $watch.Elapsed.TotalSeconds
+        $service = Get-OwnedService
         $processes = @(Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CreationDate,ExecutablePath,Name,PrivatePageCount,WorkingSetSize,HandleCount,ThreadCount)
         $browserTree = @{}
         foreach ($process in $processes) {
@@ -60,10 +74,15 @@ try {
             foreach ($name in $componentPaths.Keys) {
                 if ($process.ExecutablePath -and $process.ExecutablePath.StartsWith($componentPaths[$name],[StringComparison]::OrdinalIgnoreCase)) { $component=$name; break }
             }
+            $isService = [int]$process.ProcessId -eq [int]$service.ProcessId
+            if ($isService) {
+                if ($process.Name -ne 'orchestrator.exe' -or !$process.CreationDate -or $null -eq $process.PrivatePageCount -or ($process.ExecutablePath -and $process.ExecutablePath -ne $serviceExecutable)) { throw 'SCM process identity or resource counters unavailable' }
+                $component = 'orchestrator'
+            }
             if (!$component -and $browserTree.ContainsKey([int]$process.ProcessId)) { $component='owned-browser' }
             if (!$component) { continue }
             $birth = $process.CreationDate.ToUniversalTime().ToString('o')
-            $row = [ordered]@{component=$component;pid=[int]$process.ProcessId;created_at=$birth;private_bytes=[long]$process.PrivatePageCount;working_set_bytes=[long]$process.WorkingSetSize;handles=[int]$process.HandleCount;threads=[int]$process.ThreadCount}
+            $row = [ordered]@{component=$component;service_process=$isService;pid=[int]$process.ProcessId;created_at=$birth;private_bytes=[long]$process.PrivatePageCount;working_set_bytes=[long]$process.WorkingSetSize;handles=[int]$process.HandleCount;threads=[int]$process.ThreadCount}
             $rows += $row
             $identity = "$($process.ProcessId)/$birth"
             if (!$result.instances.ContainsKey($identity)) {
@@ -80,6 +99,7 @@ try {
             }
         }
         if ($rows.Count -gt 256) { throw 'Process count exceeded observation budget' }
+        if (@($rows | Where-Object {$_.service_process}).Count -ne 1 -or [int](Get-OwnedService).ProcessId -ne [int]$service.ProcessId) { throw 'SCM service process missing or changed during the sample' }
         foreach ($component in $componentPaths.Keys) {
             if (!@($rows | Where-Object {$_.component -eq $component}).Count) { throw "No observable process for $component; use an elevated terminal and a running deployment" }
         }

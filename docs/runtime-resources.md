@@ -67,4 +67,6 @@ Windows 外部观察工具为 `scripts/observe-windows-resources.ps1`。在实�
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/observe-windows-resources.ps1 -ProgramDirectory 'C:\Program Files\StreamKit' -OutputDirectory D:\Acceptance\resources -BrowserProcessId 12345
 ```
 
-替换实际路径和专用浏览器 PID；不指定浏览器时只覆盖服务端。若无法读取服务进程信息，使用管理员终端。缺少组件、权限或采样容量超限会失败并保留原因，不输出虚假的稳定结论。`samples.jsonl` 是有界逐次证据，`result.json` 保留各进程预热后首末值与峰值；`complete` 仅表示采样完成，需结合实际负载、重新连接/释放结果和进程代次判断是否收敛，不能直接等同“无泄漏”。
+替换实际路径和专用浏览器 PID；不指定浏览器时只覆盖服务端。工具通过 SCM 的程序路径、LocalSystem 身份和独立服务类型确认主服务归属，再读取其 PID/创建时间及原生计数；普通桌面权限下 `ExecutablePath` 为空，不能成为漏掉主服务而只统计桌面工作进程的理由。每次采样必须恰有一个 `service_process=true`，并复核采样前后 SCM PID 一致。新版结果以 `scm_service_required=true` 标明此覆盖；旧样本缺少该字段时须单独核对其是否实际包含主服务，不能自动视作完整服务端证据。
+
+若连原生进程计数也无法读取，使用管理员终端。缺少主服务、组件、权限或采样容量超限会失败并保留原因，不输出虚假的稳定结论。`samples.jsonl` 是有界逐次证据，`result.json` 保留各进程预热后首末值与峰值；`complete` 仅表示采样完成，需结合实际负载、重新连接/释放结果和进程代次判断是否收敛，不能直接等同“无泄漏”。
