@@ -60,3 +60,11 @@ Android `ManagedSession` 以主线程操作代次排除迟到结果，心跳单�
 部署需明确客户端数量、分辨率、码率和日志/磁盘预算；`max_viewers=0` 是管理员显式取消人数限制，不具有容量或 OOM 安全保证。渲染应用自身（例如 UE）、编码驱动和浏览器/Android 系统原生内存不等同网关队列，不能只看 JavaScript 堆或 Go 堆下结论。
 
 已有四小时结果按原版本保留。按当前发布决策，完成修复和候选产物定向验收后可以发布正式版，168 小时持续观察作为后续验证，不阻塞首次正式发布。代码预算与回收回归不能替代七天实际运行证据；当前未完成该项，也不以定时重启、强制 GC 或隐藏采集错误代替生命周期修复。逐项审查及剩余边界见[生产复审](evidence/production-readiness-review-20261114.json)。
+
+Windows 外部观察工具为 `scripts/observe-windows-resources.ps1`。在实际 Example 多端负载运行时，指定安装目录、新建证据目录及本次专用浏览器的根进程 ID；默认记录 60 分钟，前 15 分钟预热，每 15 秒采样。工具读取三个组件和指定浏览器子树的私有字节、工作集、句柄、线程，按 PID 加创建时间区分进程代次，分别记录平台和组件来源。它不启动应用、不改服务、不采集语音，也不进入生产安装包。
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/observe-windows-resources.ps1 -ProgramDirectory 'C:\Program Files\StreamKit' -OutputDirectory D:\Acceptance\resources -BrowserProcessId 12345
+```
+
+替换实际路径和专用浏览器 PID；不指定浏览器时只覆盖服务端。若无法读取服务进程信息，使用管理员终端。缺少组件、权限或采样容量超限会失败并保留原因，不输出虚假的稳定结论。`samples.jsonl` 是有界逐次证据，`result.json` 保留各进程预热后首末值与峰值；`complete` 仅表示采样完成，需结合实际负载、重新连接/释放结果和进程代次判断是否收敛，不能直接等同“无泄漏”。

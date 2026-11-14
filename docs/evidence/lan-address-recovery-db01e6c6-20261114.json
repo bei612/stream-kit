@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "passed": true,
+  "scope": "Separate client network and Avahi/DBus namespaces; exact native runtime HTTPS, renderer discovery and browser WebRTC recovery across an actual test-NIC IP change. No local Windows deployment, physical LAN, Android migration or new audio-quality acceptance.",
+  "acceptance_commit": "ed98409f5454687cce52509c4ba32f07af1105de",
+  "observations": [
+    {
+      "address": "198.18.31.1",
+      "resolved": "stream-kit-server.local\t198.18.31.1",
+      "renderer_service": "=;sknet-peer;IPv4;runnervm8axu0;_nvstream._tcp;local;stream-kit-server.local;198.18.31.1;47989;",
+      "control_https": true,
+      "gateway_https": true,
+      "configs": [
+        {
+          "requested": "default",
+          "http_version": "2",
+          "control_plane_url": "https://stream-kit-server.local:19000/"
+        },
+        {
+          "requested": "http1.1",
+          "http_version": "1.1",
+          "control_plane_url": "https://stream-kit-server.local:19000/"
+        }
+      ],
+      "public_control_host_correct": true
+    },
+    {
+      "address": "198.18.31.2",
+      "resolved": "stream-kit-server.local\t198.18.31.2",
+      "renderer_service": "=;sknet-peer;IPv4;runnervm8axu0;_nvstream._tcp;local;stream-kit-server.local;198.18.31.2;47989;",
+      "control_https": true,
+      "gateway_https": true,
+      "configs": [
+        {
+          "requested": "default",
+          "http_version": "2",
+          "control_plane_url": "https://stream-kit-server.local:19000/"
+        },
+        {
+          "requested": "http1.1",
+          "http_version": "1.1",
+          "control_plane_url": "https://stream-kit-server.local:19000/"
+        }
+      ],
+      "public_control_host_correct": true
+    }
+  ],
+  "stage": "complete",
+  "runtime_commit": "db01e6c639612f5796b0055c1885d4fa512686ff",
+  "configuration_hashes": {
+    "control": "65d12df141a6259b6838a60f6137f29af119ed3f9d67c57f470fe0b85549a0b6",
+    "gateway": "719ca4ca3132275c07edc1861e21fe214c0e41cac529018eeac9bbe6546db53b",
+    "renderer": "53d7631ac2fd538dd3b0849b25cc552d4d6306f73877f0cb08ff53c2518bf015"
+  },
+  "certificate_sha256": "e233c1195bf780b9eb0f57938c727d371af5666d5b03d75e97466ccb3e90624e",
+  "initial_pids": [
+    {
+      "name": "sunshine",
+      "pid": 6180
+    },
+    {
+      "name": "web_server",
+      "pid": 6215
+    }
+  ],
+  "fresh_gateway_before_launch": true,
+  "media_before": {
+    "peer_count": 1,
+    "state": "connected",
+    "frames": 50,
+    "audio_packets": 82,
+    "presented_frames": 13,
+    "width": 1280,
+    "remote_address": "198.18.31.1",
+    "remote_port": 59640
+  },
+  "renderer_enrollment": {
+    "automatic": true,
+    "host_count": 1,
+    "host_id": 2396680484,
+    "paired": true,
+    "fixture_pairing_mutations": 0
+  },
+  "media_after": {
+    "peer_count": 2,
+    "state": "connected",
+    "frames": 46,
+    "audio_packets": 74,
+    "presented_frames": 28,
+    "width": 1280,
+    "remote_address": "198.18.31.2",
+    "remote_port": 44108
+  },
+  "media_reconnected_without_reload": true,
+  "old_address_unreachable": true,
+  "renderer_identity_preserved": true,
+  "components_not_restarted": true,
+  "configuration_and_certificate_unchanged": true,
+  "target_stopped": true,
+  "finished_at": "2026-11-14T12:19:25.823Z",
+  "run_id": 43594022547,
+  "run_url": "https://github.com/bei612/stream-kit/actions/runs/43594022547"
+}
