@@ -5,7 +5,7 @@
   "observation_only": true,
   "scheduled_windows_completed": false,
   "stop_reason": "Verified next runtime became available; intentionally ended external observation before maintenance instead of delaying delivery for an additional arbitrary sampling window. Original reports and all raw samples retained.",
-  "scope": "Owned Windows runtime and CLI browser only; no Android memory claim, no forced GC, no restart during observations, no 168-hour or OOM-free claim",
+  "scope": "Owned Windows runtime and CLI browser only; no Android memory claim, no forced GC, no runtime-service restart during observations, no 168-hour or OOM-free claim",
   "observations": [
     {
       "folder": ".local/resource-ce52-installed-20261114",
