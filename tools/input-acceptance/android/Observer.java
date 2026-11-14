@@ -22,7 +22,7 @@ public final class Observer extends Instrumentation {
     private final Rect window = new Rect();
     private int visited;
     private String requestedClick;
-    private boolean diagnosticsRequested, playoutControlRequested, toolbarVisible, statisticsVisible;
+    private boolean diagnosticsRequested, playoutControlRequested, volumeCalibrationRequested, toolbarVisible, statisticsVisible;
     private String playback = "unknown", sound = "unknown";
     private long audioPackets = -1, videoPackets = -1, videoFrames = -1;
     private String audioCodec;
@@ -33,6 +33,7 @@ public final class Observer extends Instrumentation {
         super.onCreate(arguments);
         diagnosticsRequested = arguments != null && "diagnostics".equals(arguments.getString("action"));
         playoutControlRequested = arguments != null && "playout-control".equals(arguments.getString("action"));
+        volumeCalibrationRequested = arguments != null && "calibrate-volume".equals(arguments.getString("action"));
         if (arguments != null && "click".equals(arguments.getString("action"))) {
             requestedClick = arguments.getString("target");
             if (!"打开串流工具栏".equals(requestedClick) && !"麦克风已关闭".equals(requestedClick))
@@ -44,6 +45,11 @@ public final class Observer extends Instrumentation {
     @Override public void onStart() {
         Bundle result = new Bundle();
         try {
+            if (volumeCalibrationRequested) {
+                result = calibrateVolume();
+                finish(Activity.RESULT_OK, result);
+                return;
+            }
             if (playoutControlRequested) {
                 result = playoutControl();
                 finish("complete".equals(result.getString("tone_result"))
@@ -93,6 +99,28 @@ public final class Observer extends Instrumentation {
             result.putString("error_type", error.getClass().getSimpleName());
             finish(Activity.RESULT_CANCELED, result);
         }
+    }
+
+    // Explicit fixture preparation on the disposable emulator only. AudioManager
+    // supplies this test APK's real package attribution; no shell/root identity,
+    // hidden Binder calls, AppOps changes or fixed-volume/safety-policy overrides.
+    // The caller independently polls the observed stream volume before playback.
+    private Bundle calibrateVolume() {
+        if (!"ranchu".equals(android.os.Build.HARDWARE)
+                && !"goldfish".equals(android.os.Build.HARDWARE))
+            throw new IllegalStateException("Emulator fixture required");
+        AudioManager audio = (AudioManager) getTargetContext().getSystemService(android.content.Context.AUDIO_SERVICE);
+        if (audio == null || audio.isVolumeFixed()) throw new IllegalStateException("Adjustable audio required");
+        Bundle result = new Bundle();
+        int before = audio.getStreamVolume(AudioManager.STREAM_MUSIC);
+        int maximum = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+        if (maximum <= 0 || before < 0 || before > maximum) throw new IllegalStateException("Invalid music volume range");
+        result.putInt("volume_before", before);
+        result.putInt("volume_maximum", maximum);
+        audio.setStreamVolume(AudioManager.STREAM_MUSIC, maximum, 0);
+        result.putInt("volume_after", audio.getStreamVolume(AudioManager.STREAM_MUSIC));
+        result.putString("volume_set", "submitted");
+        return result;
     }
 
     // A real public STREAM_MUSIC source, independent of the product and JavaADM.

@@ -147,15 +147,15 @@ boot_after=$(adb -s "$serial" shell cat /proc/sys/kernel/random/boot_id | tr -d 
 [[ $(adb -s "$serial" shell id -u | tr -d '\r') == 2000 ]]
 printf '%s\n' '{"fixture_only":true,"owned_avd":"StreamKit_Audio_CI","post_install_guest_reboot":true,"boot_identity_changed":true,"host_rebooted":false,"shell_uid":2000}' > "$evidence/installed-guest-baseline.json"
 # Calibrate only this disposable official AVD's STREAM_MUSIC gain before the
-# release APK starts. Keep the PCM acceptance threshold unchanged. AOSP's
-# MediaShellCommand's --get reports current/min/max. Set through AudioService's
-# own official shell command, retaining its MANAGE_AUDIO_POLICY check. Unlike
-# VolumeCtrl, this uses the service's AudioManager context for attribution.
-# The explicitly selected API 35 guest uses its public VolumeCtrl setter;
-# API 36 uses AudioManagerShellCommand. This is version dispatch, never a
-# retry with different privileges or a fallback after a permission failure.
-# https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/services/core/java/com/android/server/media/VolumeCtrl.java
-# https://android.googlesource.com/platform/frameworks/base/+/refs/heads/android16-release/services/core/java/com/android/server/audio/AudioManagerShellCommand.java
+# release APK starts. Keep the PCM acceptance threshold unchanged.
+# Public AudioManager in the separate testOnly APK owns package attribution.
+# Android 15 VolumeCtrl passes cmd.getClass().getPackage().getName(), the
+# internal service package rather than the shell caller's registered package;
+# its acknowledgement does not prove AudioService accepted the operation.
+# Independently observe through the read-only MediaShellCommand on both APIs.
+# No retries with alternate privileges, AppOps edits or safety-policy bypass.
+# https://android.googlesource.com/platform/frameworks/base/+/refs/heads/android15-release/services/core/java/com/android/server/media/VolumeCtrl.java
+# https://developer.android.com/reference/android/media/AudioManager#setStreamVolume(int,int,int)
 node - "$serial" "$evidence/media-volume.json" <<'NODE'
 const fs = require('node:fs');
 const {spawnSync} = require('node:child_process');
@@ -170,8 +170,8 @@ const started = performance.now();
 const result = {
   schemaVersion: 2, fixture_only: true, host_changed: false, avd_serial: serial,
   stream: 3, before: null, after: null, min: null, max: null, set_attempts: 0,
-  set_interface: 'cmd audio set-volume', get_interface: 'cmd media_session volume --get',
-  shell_uid: null, audio_service_before: null, set_command_supported: false,
+  set_interface: 'testOnly AudioManager.setStreamVolume', get_interface: 'cmd media_session volume --get',
+  shell_uid: null, native_volume_before: null, native_volume_after: null, set_command_supported: false,
   timeout_ms: 5000, elapsed_ms: 0, observation_attempts: 0, observations_count: 0, observations: [],
   phase: 'avd_identity',
   status: 'pending', failure_class: null,
@@ -228,39 +228,29 @@ async function calibrate() {
     result.guest_sdk = Number(adb(['shell', 'getprop', 'ro.build.version.sdk']).trim());
     if (![35,36].includes(result.guest_sdk) || result.guest_sdk !== Number(process.env.ANDROID_TEST_API || 36))
       fail('MEDIA_VOLUME_GUEST_VERSION_MISMATCH');
-    result.set_interface = result.guest_sdk === 35 ? 'cmd media_session volume --set' : 'cmd audio set-volume';
     result.phase = 'before_get';
     const before = getVolume();
     Object.assign(result, {before: before.current, min: before.min, max: before.max});
     save();
-    // Android 16's handler does not route an explicit "help" subcommand to
-    // onHelp. Query its real read-only API instead of treating empty help as
-    // evidence that the setter is missing. No privilege changes are attempted.
-    if (result.guest_sdk === 36) {
-      result.phase = 'audio_service_get';
-      const serviceOutput = adb(['shell', 'cmd', 'audio', 'get-stream-volume', '3']);
-      const serviceMatch = serviceOutput.match(/^AudioManager\.getStreamVolume\(3\) -> (\d+)\s*$/m);
-      if (!serviceMatch) fail('MEDIA_VOLUME_COMMAND_UNAVAILABLE');
-      result.audio_service_before = Number(serviceMatch[1]);
-      save();
-      if (result.audio_service_before !== before.current) fail('MEDIA_VOLUME_READERS_DISAGREE');
-    }
     // Set once. Observe actual state until the deadline, rather than retrying
     // writes or assuming that a successful shell status means volume changed.
     result.set_attempts = 1;
     result.phase = 'set';
     save();
-    if (result.guest_sdk === 35) {
-      // Android 15 VolumeCtrl.java: setStreamVolume with shell attribution.
-      // Require its acknowledgement AND the independent observed volume below.
-      const setOutput = adb(['shell', 'cmd', 'media_session', 'volume', '--stream', '3', '--set', String(before.max)]);
-      if (!setOutput.split('\n').includes('[V] will set volume to index=' + before.max))
-        fail('MEDIA_VOLUME_COMMAND_UNAVAILABLE');
-    } else {
-      const setOutput = adb(['shell', 'cmd', 'audio', 'set-volume', '3', String(before.max)]);
-      if (setOutput.trim() !== 'calling AudioManager.setStreamVolume(3, ' + before.max + ', 0)')
-        fail('MEDIA_VOLUME_COMMAND_UNAVAILABLE');
-    }
+    const setOutput = adb(['shell', 'am', 'instrument', '-w', '-r', '-e', 'action', 'calibrate-volume',
+      'io.github.bei612.streamkit.inputobserver/.Observer']);
+    if (!/^INSTRUMENTATION_CODE: -1\s*$/m.test(setOutput)
+        || !/^INSTRUMENTATION_RESULT: volume_set=submitted\s*$/m.test(setOutput))
+      fail('MEDIA_VOLUME_COMMAND_REJECTED');
+    const nativeValue = key => {
+      const matches = [...setOutput.matchAll(new RegExp('^INSTRUMENTATION_RESULT: '+key+'=(\\d+)\\s*$', 'gm'))];
+      if (matches.length !== 1) fail('MEDIA_VOLUME_RANGE_UNAVAILABLE');
+      return Number(matches[0][1]);
+    };
+    result.native_volume_before = nativeValue('volume_before');
+    result.native_volume_after = nativeValue('volume_after');
+    if (result.native_volume_before !== before.current || nativeValue('volume_maximum') !== before.max)
+      fail('MEDIA_VOLUME_READERS_DISAGREE');
     result.set_command_supported = true;
     save();
     const observedAt = performance.now(), deadline = observedAt + result.timeout_ms;

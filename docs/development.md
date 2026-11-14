@@ -75,6 +75,8 @@ cd third_party/moonlight-android
 
 本机调试使用官方 Android SDK/Emulator，复用已有 AVD；实体平板通过正常 USB 授权接入，离线不代表可发送操作。不改 ToDesk，不安装第三方游戏模拟器，不为验证擅自重启宿主机。
 
+Android 音频 CI 的环境准备和产品判定分开：独立 `testOnly` 观察工具仅在一次性官方模拟器中用公开 `AudioManager` 与普通 `MODIFY_AUDIO_SETTINGS` 权限设置媒体音量，随后用只读接口独立确认；固定音量或安全策略拒绝仍导致失败，不修改 AppOps，也不改宿主机音频设备。先验证独立系统音的真实输出，再验证未修改的签名产品 APK 的程序音、麦克风和撤权。观察工具、音频源及校准代码均不进入正式包；环境校准通过不等于产品音频通过。接口依据见 [AudioManager](https://developer.android.com/reference/android/media/AudioManager#setStreamVolume(int,int,int))；旧 [VolumeCtrl](https://android.googlesource.com/platform/frameworks/base/+/refs/heads/android15-release/services/core/java/com/android/server/media/VolumeCtrl.java) 的输出不能单独作为设置成功证据。
+
 ## 检查按影响执行
 
 | 变更 | 最小相关检查 |
