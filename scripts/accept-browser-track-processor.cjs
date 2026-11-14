@@ -3,7 +3,7 @@
 const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),crypto=require('node:crypto');
 const {createRequire}=require('node:module');
 const root=path.resolve(__dirname,'..'),web=path.join(root,'third_party/moonlight-web-stream/web');
-const ts=require('../orchestrator/web/node_modules/typescript');
+const ts=createRequire(path.join(web,'../package.json'))('typescript');
 const {chromium}=createRequire(path.join(web,'../package.json'))('playwright');
 const modules={},hashes={};
 function load(file){

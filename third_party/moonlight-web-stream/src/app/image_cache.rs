@@ -28,10 +28,10 @@ impl ImageCache {
     }
 
     pub fn insert(&mut self, key: Key, image: Bytes) {
-        if let Some(index) = self.entries.iter().position(|(entry, _)| *entry == key) {
-            if let Some((_, previous)) = self.entries.remove(index) {
-                self.bytes -= previous.len();
-            }
+        if let Some(index) = self.entries.iter().position(|(entry, _)| *entry == key)
+            && let Some((_, previous)) = self.entries.remove(index)
+        {
+            self.bytes -= previous.len();
         }
         if image.len() > MAX_BYTES {
             return;
@@ -79,7 +79,10 @@ mod tests {
         let key = (UserId(1), HostId(2), AppId(99));
         cache.insert(key, Bytes::from_static(b"replacement"));
         assert_eq!(cache.bytes, 31 * 1024 * 1024 + 11);
-        assert_eq!(cache.get(&key).unwrap().as_ref(), b"replacement");
+        assert_eq!(
+            cache.get(&key).expect("replacement is cached").as_ref(),
+            b"replacement"
+        );
         cache.remove_host(HostId(2));
         assert!(cache.entries.is_empty());
         assert_eq!(cache.bytes, 0);

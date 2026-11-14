@@ -274,13 +274,8 @@ jobs:
         run: npm ci --ignore-scripts
         working-directory: third_party/moonlight-web-stream
       - name: Install browser engines
-        run: npx --no-install playwright install --with-deps chromium firefox webkit chrome
+        run: npx --no-install playwright install --with-deps chromium firefox webkit
         working-directory: third_party/moonlight-web-stream
-      - name: Verify native codec buffers and track ownership
-        working-directory: .
-        run: |
-          node scripts/accept-browser-decoder.cjs
-          node scripts/accept-browser-track-processor.cjs
       - name: Verify real management API and SPA across browser engines
         working-directory: .
         env:
@@ -295,8 +290,6 @@ jobs:
         with:
           name: management-browser-interactions
           path: |
-            artifacts/browser-decoder/
-            artifacts/browser-track-processor/
             artifacts/management-native/
           if-no-files-found: warn
 
@@ -379,7 +372,14 @@ jobs:
       - run: npx --no-install playwright install --with-deps chromium firefox
       - name: Install WebKit media test runtime on Linux
         if: runner.os == 'Linux'
-        run: npx --no-install playwright install --with-deps webkit
+        run: npx --no-install playwright install --with-deps webkit chrome
+      # These native pipelines import the generated gateway protocol. Keep
+      # them after the gateway build, with that package's locked dependencies.
+      - name: Verify native codec buffers and track ownership
+        if: runner.os == 'Linux'
+        run: |
+          node ../../scripts/accept-browser-decoder.cjs
+          node ../../scripts/accept-browser-track-processor.cjs
       - run: node ../../scripts/smoke-gateway-browser.cjs ../../artifacts/release/gateway/dist
       - run: node ../../scripts/smoke-gateway-browser.cjs ../../artifacts/release/gateway/dist
         env:
@@ -393,7 +393,10 @@ jobs:
         if: always()
         with:
           name: viewer-browser-evidence-${{ runner.os }}-${{ runner.arch }}
-          path: artifacts/gateway-browser
+          path: |
+            artifacts/gateway-browser/
+            artifacts/browser-decoder/
+            artifacts/browser-track-processor/
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         with:

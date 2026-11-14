@@ -30,7 +30,9 @@ fn native_video_reassembly_bounds_missing_frames_and_preserves_delivery() {
         max_data_shards_per_block: 100,
         fec: None,
     });
-    let source = "127.0.0.1:48000".parse().unwrap();
+    let source = "127.0.0.1:48000"
+        .parse()
+        .expect("test video source address");
     let mut stream = VideoStream::new(
         Instant::ZERO,
         VideoStreamConfig {
@@ -56,7 +58,7 @@ fn native_video_reassembly_bounds_missing_frames_and_preserves_delivery() {
                 },
                 &frame,
             )
-            .unwrap();
+            .expect("packetize frame");
         while let Some(packet) = payload.poll_packet() {
             stream
                 .handle_receive(
@@ -66,7 +68,7 @@ fn native_video_reassembly_bounds_missing_frames_and_preserves_delivery() {
                         data: &packet,
                     },
                 )
-                .unwrap();
+                .expect("receive native frame packet");
         }
         assert!(matches!(
             stream.poll_event(),
@@ -77,17 +79,17 @@ fn native_video_reassembly_bounds_missing_frames_and_preserves_delivery() {
     // A partially received *current* frame uses the 100 ms deadline, not frame 0.
     payload
         .push_frame(0, None, ServerFrameType::PFrame, &frame)
-        .unwrap();
+        .expect("packetize incomplete frame");
     let now = Instant::ZERO + Duration::from_micros(20000 * 16667);
     stream
         .handle_receive(
             now,
             Receive {
                 source,
-                data: &payload.poll_packet().unwrap(),
+                data: &payload.poll_packet().expect("poll incomplete frame packet"),
             },
         )
-        .unwrap();
+        .expect("receive incomplete frame packet");
     assert_eq!(
         stream.poll_timeout(),
         Some(now + Duration::from_millis(100))
@@ -98,10 +100,10 @@ fn native_video_reassembly_bounds_missing_frames_and_preserves_delivery() {
     for _ in 0..20000 {
         payload
             .push_frame(0, None, ServerFrameType::PFrame, &frame)
-            .unwrap();
+            .expect("packetize loss frame");
         receiver
-            .handle_packet(&payload.poll_packet().unwrap())
-            .unwrap();
+            .handle_packet(&payload.poll_packet().expect("poll loss frame packet"))
+            .expect("receive loss frame packet");
         while payload.poll_packet().is_some() {} // actual packet loss
         assert!(receiver.known_frames().count() <= 64);
     }

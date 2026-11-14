@@ -21,8 +21,12 @@ use std::{
 
 #[tokio::test]
 async fn paired_tls_identity_and_streamed_response_budget() {
-    let (server_cert, server_key) = RustCryptoBackend.generate_client_identity().unwrap();
-    let (other_cert, other_key) = RustCryptoBackend.generate_client_identity().unwrap();
+    let (server_cert, server_key) = RustCryptoBackend
+        .generate_client_identity()
+        .expect("generate server identity");
+    let (other_cert, other_key) = RustCryptoBackend
+        .generate_client_identity()
+        .expect("generate unrelated identity");
     let server_cert = server_cert.to_pem();
     let server_key = server_key.to_pem();
     let other_cert = other_cert.to_pem();
@@ -34,25 +38,28 @@ async fn paired_tls_identity_and_streamed_response_budget() {
                 vec![CertificateDer::from(server_cert.contents().to_vec())],
                 PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(server_key.contents().to_vec())),
             )
-            .unwrap(),
+            .expect("configure native TLS server"),
     );
     for (correct_pin, length, expected_ok) in [
         (true, 32, true),
         (false, 32, false),
         (true, 9 * 1024 * 1024, false),
     ] {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let address = listener.local_addr().unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind native TLS listener");
+        let address = listener.local_addr().expect("read listener address");
         let config = server.clone();
         let serving = std::thread::spawn(move || {
-            let (socket, _) = listener.accept().unwrap();
+            let (socket, _) = listener.accept().expect("accept native socket");
             socket
                 .set_read_timeout(Some(Duration::from_secs(5)))
-                .unwrap();
+                .expect("set read deadline");
             socket
                 .set_write_timeout(Some(Duration::from_secs(5)))
-                .unwrap();
-            let mut tls = StreamOwned::new(ServerConnection::new(config).unwrap(), socket);
+                .expect("set write deadline");
+            let mut tls = StreamOwned::new(
+                ServerConnection::new(config).expect("create native TLS connection"),
+                socket,
+            );
             let mut request = [0u8; 4096];
             if tls.read(&mut request).is_err() {
                 return;
@@ -77,7 +84,8 @@ async fn paired_tls_identity_and_streamed_response_budget() {
         } else {
             &other_cert
         };
-        let client = TokioHyperClient::with_certificates(&other_key, &other_cert, pin).unwrap();
+        let client = TokioHyperClient::with_certificates(&other_key, &other_cert, pin)
+            .expect("create pinned request client");
         let result = client
             .send_https_with_bytes::<AppBoxArtEndpoint>(
                 ClientInfo {
@@ -101,7 +109,7 @@ async fn paired_tls_identity_and_streamed_response_budget() {
             assert!(
                 result
                     .as_ref()
-                    .unwrap_err()
+                    .expect_err("oversized response must fail")
                     .to_string()
                     .contains("response exceeds 8 MiB")
             );
@@ -115,6 +123,6 @@ async fn paired_tls_identity_and_streamed_response_budget() {
         if let Ok(bytes) = result {
             assert_eq!(bytes.len(), length);
         }
-        serving.join().unwrap();
+        serving.join().expect("join TLS server");
     }
 }
