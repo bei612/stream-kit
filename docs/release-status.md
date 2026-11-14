@@ -79,6 +79,10 @@ Android 输入/音频验收必须显式指定 `product_run_id`，并在 `android
 
 联合 Android 检查另发现实际编码兼容缺陷：先进入的默认 Web H.264 同时声明 High 4:4:4，Windows 编码器选择该格式后，普通 H.264 Android 观看端报 `WebRtcClientCodecNotSupported`。这不是 TLS 或声音问题，不能靠先启动 Android 算修复。Web/Android 默认 H.264 已统一限制为普通 H.264 掩码 `0x0001`，实验性 auto 保持可选高阶格式；该改动尚未进入已安装 `ce52bdac`，需要新同源候选及 Web 先入、Android 后入的真实回归。现阶段不发布 `ce52bdac` 为正式完成版本。
 
+当前候选改为 `f8ede8b2e933fb597e97dec999cceae9a3e614e1`，产品任务 `43609416420` 正在构建，签名 Android 任务 `43609422069` 已成功（versionCode `1000015`）。Web 生产构建及原生 Java `MediaProfileTest` 四项通过；未将候选静态资源混拷到现场。已安装 `ce52bdac` 的[实际页面与循环证据](evidence/runtime-installed-ce52bdac-20261114.json)记录 100 次真实进入/解码/工具栏退出，常驻观看端保持解码，每批结束均恢复单连接、页面错误为零。
+
+在独立的 Android 先入普通 H.264 会话中，[ce52bdac Windows 音频检查](evidence/android-audio-windows-ce52bdac-20261114.json)已通过：Android 239999 帧/49 窗口检测到程序音，Web 也检测到程序音；Android 合成麦克风到达本机真实录音端点及 Web 观众，撤权后两端恢复静音，采集丢帧为零、目标路由恢复。无保存 PCM、不要求真人讲话、不改宿主机默认设备。该结果不覆盖上述 Web 先入缺陷，也不冒充 f8ede8b2 新产物验收；已有 Linux 模拟器负例仍保留。
+
 `db01e6c6` 的[地址迁移](evidence/lan-address-recovery-db01e6c6-20261114.json)已通过：独立测试网卡换 IP、HTTPS/发现及 WebRTC 恢复，组件不重启、证书和身份保持；不代表共享 Windows 主机或 Android 实际地址迁移。[Android/Web 输入六阶段](evidence/android-input-db01e6c6-20261114.json)也已通过，包含首次授权、交接、撤权和再次授权。初次输入失败的验收工具没有确认自身打开的工具栏已收起；补齐真实 UI 状态确认后使用同一 APK/服务端通过，未改产品输入权限。
 
 候选音频任务 `43593967541` 在官方 API 36 模拟器的独立系统音对照阶段失败，未进入产品。新同源候选的 API 35 任务 `43596786945` 在音量校准失败：旧 shell setter 确认后 14 次独立回读仍为 5/15，未进入产品。AOSP `VolumeCtrl` 传入内部服务包名，音频服务还会校验调用身份；不能把 shell 确认当成音量已生效。独立 testOnly 工具改用自身包身份调用公开 `AudioManager.setStreamVolume`，声明普通 `MODIFY_AUDIO_SETTINGS` 权限，限定模拟器，随后仍由只读 shell 独立确认。任务 `43597503785` 已实际确认从 5/15 变为 15/15，但随后因要求 Android 16 才有的音频权限控制器启动日志而拒绝 API 35。现按 AOSP 版本分别检查：API 36 保留原控制器要求，API 35 明确该项不适用并确认其实际音频服务创建；两者继续要求真实系统音与产品音频通过。不会修改 AppOps、系统安全策略、产品 APK 或音频门槛；仍未获得新候选完整音频通过结果。已终止的 Windows 构建不可继续作为新验收输入，不放宽来源校验。

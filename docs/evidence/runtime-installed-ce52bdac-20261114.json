@@ -1,0 +1,245 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-14",
+  "source": "ce52bdace58abb4dc13dc3eec4727daa6549a88f",
+  "scope": "Installed Windows complete runtime maintenance and actual playwright-cli UI, standalone Example only",
+  "maintenance": {
+    "success": true,
+    "components": [
+      "orchestrator",
+      "media-gateway",
+      "sunshine"
+    ],
+    "trust_changed": false,
+    "configuration_preserved": true,
+    "applications_preserved": true,
+    "installer_and_drivers_retained": true
+  },
+  "startup_failure": {
+    "root_cause": "Maintenance omitted the empty Sunshine executable-adjacent config directory created by elevated fresh installation. Desktop user cannot create it under Program Files.",
+    "native_reproduction": {
+      "exit_code": 0,
+      "elapsed_ms": 10046,
+      "error": "filesystem error: cannot create directories: Permission denied"
+    },
+    "resolution": "Provision empty bootstrap directory in elevated staging; reject nonempty local state; do not widen executable-directory permissions.",
+    "initial_rollback": true
+  },
+  "open": {
+    "passed": true,
+    "source": "ce52bdace58abb4dc13dc3eec4727daa6549a88f",
+    "scope": "Installed HTTPS permanent entry launches standalone Example; two native WebRTC viewers decode",
+    "viewers": [
+      {
+        "width": 1920,
+        "height": 1080,
+        "frames": 58,
+        "authority": {
+          "managed": true,
+          "verified": true,
+          "control": false,
+          "microphone": false,
+          "ended": false
+        }
+      },
+      {
+        "width": 1920,
+        "height": 1080,
+        "frames": 8,
+        "authority": {
+          "managed": true,
+          "verified": true,
+          "control": false,
+          "microphone": false,
+          "ended": false
+        }
+      }
+    ]
+  },
+  "control": {
+    "passed": true,
+    "scope": "Real installed management buttons grant, transfer and revoke unique authority; both viewers continue decoding",
+    "granted": [
+      {
+        "managed": true,
+        "verified": true,
+        "control": true,
+        "microphone": true,
+        "ended": false
+      },
+      {
+        "managed": true,
+        "verified": true,
+        "control": false,
+        "microphone": false,
+        "ended": false
+      }
+    ],
+    "transferred": [
+      {
+        "managed": true,
+        "verified": true,
+        "control": false,
+        "microphone": false,
+        "ended": false
+      },
+      {
+        "managed": true,
+        "verified": true,
+        "control": true,
+        "microphone": true,
+        "ended": false
+      }
+    ],
+    "revoked": [
+      {
+        "managed": true,
+        "verified": true,
+        "control": false,
+        "microphone": false,
+        "ended": false
+      },
+      {
+        "managed": true,
+        "verified": true,
+        "control": false,
+        "microphone": false,
+        "ended": false
+      }
+    ]
+  },
+  "cleanup": {
+    "passed": true,
+    "afterFirstDisconnect": [
+      {
+        "managed": true,
+        "verified": false,
+        "control": false,
+        "microphone": false,
+        "ended": true
+      },
+      {
+        "managed": true,
+        "verified": true,
+        "control": false,
+        "microphone": false,
+        "ended": false
+      }
+    ],
+    "apps": [
+      {
+        "id": "67c824d9-0f53-4dd7-8ce2-ef0123fe8d2a",
+        "status": "stopped",
+        "can_edit": true
+      },
+      {
+        "id": "18f482ef-5d7b-4528-a5e7-6fbd8a150980",
+        "status": "stopped",
+        "can_edit": true
+      }
+    ],
+    "health": {
+      "apps_summary": {
+        "error": 0,
+        "ready": 0,
+        "running": 0,
+        "total": 2
+      },
+      "build_time": "2026-11-14T12:37:34.000Z",
+      "commit": "ce52bdace58abb4dc13dc3eec4727daa6549a88f",
+      "components": {
+        "sunshine": {
+          "crash_count": 0,
+          "pid": 41760,
+          "status": "running"
+        },
+        "web_server": {
+          "crash_count": 0,
+          "pid": 36680,
+          "status": "running"
+        }
+      },
+      "version": "git-ce52bdace58a"
+    },
+    "media": {
+      "reachable": true,
+      "lease_valid": true,
+      "acknowledged_at_ms": 1794669013914,
+      "lease_expires_at_ms": 1794669023914,
+      "applied_revisions": {},
+      "observed_at_ms": 1794669013914,
+      "observations_valid": true,
+      "observations_expires_at_ms": 1794669016914,
+      "observations": {}
+    }
+  },
+  "screenshots": [
+    {
+      "file": "runtime-ce52bdac-clients-before.png",
+      "sha256": "8b360a4941c9126a79792849562ad155a97afc2547c6f5a4c709afd37c931a71"
+    },
+    {
+      "file": "runtime-ce52bdac-control-transfer.png",
+      "sha256": "acf91e1b5a7a7ee7031f39ce1e69ee30052eca43680074a03a52e82285ff0433"
+    },
+    {
+      "file": "runtime-ce52bdac-one-disconnected.png",
+      "sha256": "2fa2d9dd67f86008c91b9b9be41eb7ddb2648f1154bab0c496974100541b16ab"
+    },
+    {
+      "file": "runtime-ce52bdac-role-0.png",
+      "sha256": "acdcb0db9dde0a3bec3ef90e5b2e6fb575d2915499c69b7875b50403aaa2227a"
+    },
+    {
+      "file": "runtime-ce52bdac-role-1.png",
+      "sha256": "8dd187df8df62d9a15060b97a8e99a86afda90614f307b9d1127949a41912934"
+    },
+    {
+      "file": "runtime-ce52bdac-sessions-1440.png",
+      "sha256": "bf5be8c68da3b41d9e4010bdd2ca787909acbf359839a7d653a8a9c02ef87d62"
+    },
+    {
+      "file": "runtime-ce52bdac-sessions-390.png",
+      "sha256": "ea2263c2a5a321ba510507ff80346fc27d34c6f64bf6107e463054ae0b99c010"
+    },
+    {
+      "file": "runtime-ce52bdac-stopped-editable.png",
+      "sha256": "a9bd5c130c7b9f93f8ed47f157497517997f6bb770df4e5d6306bf1aa04f8b72"
+    },
+    {
+      "file": "runtime-ce52bdac-viewer-0.png",
+      "sha256": "0a332d79b48c0182446b50d5014353c2b7c2aab350c5a45b6f58fac5932f0521"
+    },
+    {
+      "file": "runtime-ce52bdac-viewer-1.png",
+      "sha256": "097d7e2f8626765da0fe9cbd2a8932c1290649068af823bf8cdc395d82975089"
+    }
+  ],
+  "visually_reviewed": [
+    "runtime-ce52bdac-sessions-390.png",
+    "runtime-ce52bdac-control-transfer.png"
+  ],
+  "known_failure": {
+    "web_first_format": "H264High8_444",
+    "android_supported_formats": 1,
+    "gateway_error": "WebRtcClientCodecNotSupported",
+    "fixed_source": "f8ede8b2e933fb597e97dec999cceae9a3e614e1",
+    "fix_installed": false
+  },
+  "exclusions": [
+    "not a fresh local installer acceptance",
+    "not a whole-host reboot",
+    "not an Android audio pass",
+    "not a 168-hour or OOM-free claim"
+  ],
+  "viewer_lifecycle": {
+    "passed": true,
+    "cycles": 100,
+    "constant_viewer": true,
+    "independent_transient_pages": true,
+    "exit_via_actual_toolbar": true,
+    "all_batches_returned_to_one_connection": true,
+    "page_errors": [],
+    "min_frames": 5
+  }
+}

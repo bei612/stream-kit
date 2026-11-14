@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-14",
+  "runtime_source": "ce52bdace58abb4dc13dc3eec4727daa6549a88f",
+  "apk_source": "ce52bdace58abb4dc13dc3eec4727daa6549a88f",
+  "apk_sha256": "9d6dd691cba611b00f658b1bc0c6cf474b5a2e434a3b3a3e0e358312c975f740",
+  "scope": "Official Windows Android API 36 emulator, signed APK 1000014, Android-first ordinary H264 session then native Web viewer, independent Example and actual native virtual audio capture",
+  "program_android": {
+    "scope": "Official emulator output RPC on owned Windows AVD; no saved PCM or physical speech",
+    "milliseconds": 5122,
+    "bytes": 479998,
+    "frames": 239999,
+    "windows": 49,
+    "program_997_median": 0.15697119774446933,
+    "pcm_rms": 0.11036745319958233,
+    "peak": 0.16314697265625,
+    "windows_above_point01": 49,
+    "grpc_error_code": null,
+    "host_microphone_connected": false,
+    "sustained_program_pass": true
+  },
+  "program_web": {
+    "frequency": 997,
+    "windows": 30,
+    "median_db": -36.524024963378906,
+    "sample_rate": 44100,
+    "track_live": true,
+    "context_running": true
+  },
+  "microphone": {
+    "scope": "Exact signed Android 0.1.0 and installed Windows runtime ce52bdace58abb4dc13dc3eec4727daa6549a88f, synthetic 1499Hz microphone, owned native target and real CLI Web viewer; no saved voice or PCM",
+    "passed": true,
+    "target_baseline": {
+      "analyzed_frames": 48000,
+      "frequency_hz": 1499,
+      "mean_amplitude": 0.0000011324759831037209,
+      "peak_amplitude": 0.000001191983235525293,
+      "sample_rate": 48000,
+      "windows": 10
+    },
+    "audience_baseline": {
+      "frequency": 1499,
+      "windows": 30,
+      "median_db": -127.03590393066406,
+      "sample_rate": 44100,
+      "track_live": true,
+      "context_running": true
+    },
+    "capture_started": true,
+    "authorized_audience": {
+      "frequency": 1499,
+      "windows": 30,
+      "median_db": -21.22626495361328,
+      "sample_rate": 44100,
+      "track_live": true,
+      "context_running": true
+    },
+    "authorized_target": {
+      "analyzed_frames": 206400,
+      "frequency_hz": 1499,
+      "mean_amplitude": 0.3153974720317975,
+      "peak_amplitude": 0.5426919728356844,
+      "sample_rate": 48000,
+      "windows": 43
+    },
+    "authorized_status": {
+      "captured_frames": 208320,
+      "dropped_frames": 0,
+      "error": null,
+      "input_state": "idle",
+      "output_state": "idle",
+      "peak": 0,
+      "played_frames": 0,
+      "rms": 0,
+      "sample_rate": 48000,
+      "state": "idle"
+    },
+    "revoked_audience": {
+      "frequency": 1499,
+      "windows": 30,
+      "median_db": -130.5597381591797,
+      "sample_rate": 44100,
+      "track_live": true,
+      "context_running": true
+    },
+    "revoked_target": {
+      "analyzed_frames": 206400,
+      "frequency_hz": 1499,
+      "mean_amplitude": 2.8966092652642323e-7,
+      "peak_amplitude": 3.1823910242509883e-7,
+      "sample_rate": 48000,
+      "windows": 43
+    },
+    "revoked_status": {
+      "captured_frames": 208800,
+      "dropped_frames": 0,
+      "error": null,
+      "input_state": "idle",
+      "output_state": "idle",
+      "peak": 0,
+      "played_frames": 0,
+      "rms": 0,
+      "sample_rate": 48000,
+      "state": "idle"
+    },
+    "injection_error_code": null,
+    "target_restored": true
+  },
+  "synthetic_signals": true,
+  "host_microphone_connected": false,
+  "pcm_saved": false,
+  "physical_speech": false,
+  "default_output_changed": false,
+  "temporary_emulator_volume": 15,
+  "original_emulator_volume": 5,
+  "remaining": "Restore emulator volume and Example temporary launch arguments when owned acceptance finishes",
+  "boundary": "Does not resolve or replace the retained Web-first H264 High444 incompatibility; not new f8ede8b2 runtime acceptance"
+}
