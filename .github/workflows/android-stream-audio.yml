@@ -14,6 +14,12 @@ on:
         description: 'Successful signed APK candidate run; select this OR android_release_tag'
         type: string
         required: false
+      android_api_level:
+        description: 'Official guest API for explicit compatibility/fixture comparison; failures on other APIs remain recorded'
+        type: choice
+        required: true
+        default: '36'
+        options: ['36', '35']
 permissions:
   contents: read
   actions: read
@@ -26,6 +32,7 @@ jobs:
       PRODUCT_RUN_ID: ${{ inputs.product_run_id }}
       ANDROID_RELEASE_TAG: ${{ inputs.android_release_tag }}
       ANDROID_RUN_ID: ${{ inputs.android_run_id }}
+      ANDROID_TEST_API: ${{ inputs.android_api_level }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -55,7 +62,8 @@ jobs:
           artifacts/input-runtime/opt/stream-kit/orchestrator/orchestrator verify-platform artifacts/input-runtime/opt/stream-kit
           npm ci --prefix third_party/moonlight-web-stream --ignore-scripts --no-audit --no-fund
           npm ci --prefix scripts/android/emulator-audio --ignore-scripts --no-audit --no-fund
-          android --sdk="$ANDROID_HOME" sdk install 'emulator' 'system-images;android-36;google_apis;x86_64' 'platforms;android-36' 'build-tools;36.0.0'
+          [[ "$ANDROID_TEST_API" == 35 || "$ANDROID_TEST_API" == 36 ]]
+          android --sdk="$ANDROID_HOME" sdk install 'emulator' "system-images;android-$ANDROID_TEST_API;google_apis;x86_64" 'platforms;android-36' 'build-tools;36.0.0'
           node scripts/verify-input-acceptance-sources.mjs apk
           mkdir -p artifacts/input-example
           cc -std=c11 -O2 -Wall -Wextra -Werror tools/audio-acceptance/x11-program.c -lX11 -lm -o artifacts/input-example/x11-audio-program

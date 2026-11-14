@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 [[ ${GITHUB_ACTIONS:-} == true && ${RUNNER_ENVIRONMENT:-} == github-hosted && $EUID != 0 ]]
+[[ ${ANDROID_TEST_API:-36} == 35 || ${ANDROID_TEST_API:-36} == 36 ]]
 test -c /dev/kvm
 scratch=$(mktemp -d "$RUNNER_TEMP/stream-kit-audio.XXXXXXXX")
 evidence="$GITHUB_WORKSPACE/artifacts/android-audio-evidence"
@@ -80,7 +81,7 @@ openbox > "$evidence/window-manager.log" 2>&1 &
 wm_pid=$!
 
 sudo chmod a+rw /dev/kvm
-avdmanager create avd --name StreamKit_Audio_CI --package 'system-images;android-36;google_apis;x86_64' --device pixel_6 <<< no
+avdmanager create avd --name StreamKit_Audio_CI --package "system-images;android-${ANDROID_TEST_API:-36};google_apis;x86_64" --device pixel_6 <<< no
 PULSE_SINK=streamkit_android "$ANDROID_HOME/emulator/emulator" -avd StreamKit_Audio_CI -port 5580 -memory 4096 -no-snapshot -no-boot-anim -gpu swiftshader -grpc 8554 -grpc-use-token \
   > "$evidence/emulator.log" 2>&1 &
 emulator_pid=$!

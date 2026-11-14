@@ -32,8 +32,9 @@ function androidParticipant({adb,serial,report,save=()=>{}}) {
     const role=output.match(/INSTRUMENTATION_RESULT: role=(controller|viewer|other)\b/);
     const bounds=output.match(/INSTRUMENTATION_RESULT: window=(\d+),(\d+),(\d+),(\d+)/);
     const status=output.match(/INSTRUMENTATION_RESULT: state=([a-z_]+)\b/),root=output.match(/INSTRUMENTATION_RESULT: root=(client|no_root|other_app)\b/),opened=output.match(/INSTRUMENTATION_RESULT: toolbar_opened=(true|false)\b/);
-    assert.ok(role&&bounds&&status&&root&&opened&&allowedStates.has(status[1]),'Incomplete Android UI snapshot');
-    return {role:role[1],bounds:bounds.slice(1).map(Number),state:status[1],root:root[1],toolbar_opened:opened[1]==='true'};
+    const closed=output.match(/INSTRUMENTATION_RESULT: toolbar_closed=(true|false)\b/);
+    assert.ok(role&&bounds&&status&&root&&opened&&closed&&allowedStates.has(status[1]),'Incomplete Android UI snapshot');
+    return {role:role[1],bounds:bounds.slice(1).map(Number),state:status[1],root:root[1],toolbar_opened:opened[1]==='true',toolbar_closed:closed[1]==='true'};
   };
   const playoutErrors=async()=>{
     // These message prefixes and start-error enums are from the actual pinned
@@ -78,7 +79,7 @@ function androidParticipant({adb,serial,report,save=()=>{}}) {
         const view=snapshot(),[left,top,right,bottom]=view.bounds,sample={at_ms:Date.now(),...view};wait.samples.push(sample);
         if(!wait.first_terminal&&terminalStates.has(view.state))wait.first_terminal=sample;
         if(state)save();
-        return view.role===wait.expected_role&&right>left&&bottom>top?view:false;
+        return view.role===wait.expected_role&&view.toolbar_closed&&right>left&&bottom>top?view:false;
       },'Android role update',30000);
       wait.completed_at_ms=Date.now();if(state)save();return result;
     } catch(error){
@@ -133,14 +134,16 @@ async function verifyAndroidInput({android,page,api,sessionId,app,example,report
   state.android_connection_id=native;state.web_connection_id=web;
   const webRole=controller=>page.waitForFunction(r=>window.app.getStream().mediaAccess.role===r,controller?'controller':'viewer',{timeout:15000});
   async function nativeInput(label,allowed) {
-    await android.role(allowed);focus();const before=snapshot();android.key();
+    await android.role(allowed);focus();const before=snapshot();
+    state.pending_phase={label,allowed,before,started_at_ms:Date.now()};save();
+    android.key();
     if(allowed)await until(()=>snapshot().keys>before.keys,'Android key delivered');
     await android.tap(allowed);
     if(allowed)await until(()=>snapshot().clicks>before.clicks,'Android touch delivered');
     else await delay(1000);
     focus();const after=snapshot();
     if(!allowed)assert.deepEqual(after,before,'Viewer Android reached the target');
-    state.phases.push({label,before,after});save();
+    state.phases.push({label,before,after});delete state.pending_phase;save();
   }
   try {
     const first=await api(route+'/controller/'+native,'POST');await nativeInput('android_controller',true);

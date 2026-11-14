@@ -73,12 +73,17 @@ public final class Observer extends Instrumentation {
                         android.os.SystemClock.sleep(50);
                         snapshot();
                     }
-                } finally { clickDescription("收起工具栏"); }
+                } finally { closeToolbar(); }
             }
+            // A queued accessibility click is not proof that the panel closed.
+            // An open panel intentionally owns keyboard input in the product.
+            // Re-observe a client root before handing control back to adb input.
+            boolean toolbarClosed = closeToolbar();
             result.putString("role", role);
             result.putString("state", state);
             result.putString("root", rootKind);
             result.putString("toolbar_opened", String.valueOf(opened));
+            result.putString("toolbar_closed", String.valueOf(toolbarClosed));
             result.putString("window", window.left + "," + window.top + "," + window.right + "," + window.bottom);
             result.putString("snapshot", "complete");
             finish(Activity.RESULT_OK, result);
@@ -248,6 +253,20 @@ public final class Observer extends Instrumentation {
         do {
             snapshot();
             if (toolbarVisible) return true;
+            android.os.SystemClock.sleep(50);
+        } while (android.os.SystemClock.elapsedRealtime() < deadline);
+        return false;
+    }
+
+    private boolean closeToolbar() {
+        long deadline = android.os.SystemClock.elapsedRealtime() + 2000;
+        boolean requested = false;
+        do {
+            snapshot();
+            if ("client".equals(rootKind)) {
+                if (!toolbarVisible) return true;
+                if (!requested) requested = clickDescription("收起工具栏");
+            }
             android.os.SystemClock.sleep(50);
         } while (android.os.SystemClock.elapsedRealtime() < deadline);
         return false;
