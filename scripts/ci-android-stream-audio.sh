@@ -361,6 +361,9 @@ try {
     && process.env.RUNNER_ENVIRONMENT === 'github-hosted' && process.getuid() !== 0
     && serial === 'emulator-5580', 'OWNED_AVD_REQUIRED');
   check(command('shell_identity', ['id', '-u']) === '2000', 'SHELL_IDENTITY_REQUIRED');
+  result.guest_sdk = Number(command('guest_version', ['getprop', 'ro.build.version.sdk']));
+  check([35,36].includes(result.guest_sdk)
+    && result.guest_sdk === Number(process.env.ANDROID_TEST_API || 36), 'GUEST_VERSION_MISMATCH');
   check(command('package_handler_barrier', ['cmd', 'package', 'wait-for-handler',
     '--timeout', '10000']) === 'Success', 'PACKAGE_HANDLER_ACK_INVALID');
   for (const name of ['io.github.bei612.streamkit', 'io.github.bei612.streamkit.inputobserver']) {
@@ -378,8 +381,19 @@ try {
     ['dumpsys', 'activity', '-a', 'broadcasts', 'filter', '--action',
       'android.intent.action.PACKAGE_ADDED'], true));
   result.audio_service_lifecycle = lifecycle(command('audio_lifecycle_diagnostic', ['dumpsys', 'audio'], true));
-  check(result.audio_service_lifecycle.events.some(event => event.event === 'controller_start_task_complete'),
-    'INITIAL_AUDIO_CONTROLLER_NOT_OBSERVED');
+  // AudioServerPermissionProvider and this completion event were introduced
+  // in Android 16. Android 15 does not emit it; its AudioService creation is
+  // recorded separately, then the same real PCM positive control is required.
+  // AOSP android15-release/AudioService.java vs android16-release, method
+  // initializeAudioServerPermissionProvider. Do not invent an API 35 NPC result.
+  if (result.guest_sdk === 36) {
+    check(result.audio_service_lifecycle.events.some(event => event.event === 'controller_start_task_complete'),
+      'INITIAL_AUDIO_CONTROLLER_NOT_OBSERVED');
+  } else {
+    result.npc_package_table_readiness = 'not_applicable_android15';
+    check(result.audio_service_lifecycle.events.some(event => event.event === 'service_created'),
+      'INITIAL_AUDIO_SERVICE_NOT_OBSERVED');
+  }
   result.installed_baseline = JSON.parse(fs.readFileSync('artifacts/android-audio-evidence/installed-guest-baseline.json', 'utf8'));
   check(result.installed_baseline.post_install_guest_reboot === true
     && result.installed_baseline.boot_identity_changed === true
