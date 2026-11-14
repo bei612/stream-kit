@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-14",
+  "baseline": "c227e11b",
+  "fixed_source": "472d3f6866b6181826d48e542979019409af7b1d",
+  "verdict": "Core features demonstrated; whole-product production readiness and 168-hour server/client reliability not yet established",
+  "scope": "Single-agent native Windows review of authoritative lifecycle, API allocation, archive extraction, service ownership, media resources, browser and Android lifetimes, source/installed/download identity. No UE or ToDesk changes, service restart, NIC change, or new endurance run.",
+  "confirmed_findings": [
+    {
+      "id": "PR-01", "severity": "high", "component": "control API",
+      "path": "orchestrator/internal/server/handlers/client_session.go",
+      "finding": "Heartbeat JSON had no body limit; a valid viewer could cause arbitrarily large decoder allocations. Several administrative commands had the same missing cross-cutting boundary.",
+      "baseline_reproduction": "Both 4 MiB Content-Length and actual chunked HTTP heartbeat returned 200 on the production router before correction.",
+      "fix": "API-wide 1 MiB body ceiling, including chunked input; tighter existing handler budgets retained. Registered upload route uses its configured file budget plus bounded multipart allowance.",
+      "validation": "Native HTTP rejects oversized heartbeats before session mutation and still accepts normal heartbeat; native 2 MiB TAR upload/extraction through authenticated production router matches original bytes.",
+      "status": "fixed in source; not deployed or released"
+    },
+    {
+      "id": "PR-02", "severity": "medium", "component": "application operations",
+      "path": "orchestrator/internal/app/manager.go",
+      "finding": "sync.Map retained a mutex for every attempted application ID permanently, including completed/deleted/invalid IDs.",
+      "baseline_reproduction": "20000 completed operation IDs left 20000 entries.",
+      "fix": "Nonblocking atomic acquisition retains only an active unique owner; CompareAndDelete releases only that owner.",
+      "validation": "20000 completed IDs leave zero entries; 100 parallel contenders rejected; stale release cannot unlock replacement operation.",
+      "status": "fixed in source; not deployed or released"
+    },
+    {
+      "id": "PR-03", "severity": "high", "component": "Web Canvas video lifecycle",
+      "path": "third_party/moonlight-web-stream/web/stream/video/media_stream_track_processor_pipe.ts",
+      "finding": "Track replacement overwrote the previous locked reader; cleanup called cancel on a locked ReadableStream instead of its owning reader. Pending reads and native resources could outlive renderer cleanup.",
+      "baseline_reproduction": "Real Chrome canvas capture rendered replacement frames, but the old reader remained locked; native regression timed out waiting for release.",
+      "baseline_evidence": "artifacts/browser-track-processor/2026-11-14T09-13-47-684Z/result.json",
+      "fix": "Reader-owned cancellation, finally lock release, stale-frame close, one-frame native buffer, idempotent cleanup and event-driven track availability. Renderer does not stop transport-owned tracks.",
+      "validation": "Chrome 157 native canvas capture and repository renderer: 20 replacements and 20 cleanups released readers, source tracks retained correct ownership, pageerrors zero.",
+      "passing_evidence": "artifacts/browser-track-processor/2026-11-14T09-14-21-157Z/result.json",
+      "status": "fixed in source; not deployed or released"
+    },
+    {
+      "id": "PR-04", "severity": "high", "component": "delivery",
+      "finding": "Public installers still contain source 3d4a3b5c, installed control/gateway contain 3ae2c44d, and this review fixes source 472d3f68. Public downloads therefore do not deliver the current reviewed fixes.",
+      "validation": "Live gh release list and installed executable SHA-256 checked; no publication inferred from git push.",
+      "status": "open: build, accept and publish exact unified artifacts"
+    }
+  ],
+  "breadth_review": [
+    {"area":"Admission, stop, control and recovery","paths":["orchestrator/internal/session/lifecycle.go","orchestrator/internal/session/resume.go","orchestrator/internal/server/handlers/watch.go","orchestrator/internal/app/session_lifecycle.go"],"result":"Terminal generations revoke active/resumable capabilities; shared lifecycle lock protects admission and stop; post-launch watch-key recheck retained. No additional confirmed defect in reviewed paths."},
+    {"area":"Archive ownership and decompression","paths":["orchestrator/internal/app/archive.go","orchestrator/internal/app/upload_archive.go","third_party/sevenzip/internal/limits/decoder.go"],"result":"Upload serialization and cancellation, confined extraction, payload/entry budgets, TAR metadata budget and integrated 7z dictionary/header budgets present. Actual large upload exercised with new API budget."},
+    {"area":"Windows service and worker ownership","paths":["deploy/windows/stream-kit.iss","orchestrator/internal/windowsservice/service_windows.go","orchestrator/internal/component/worker_process_windows.go"],"result":"Installer registers Auto/LocalSystem service and recovery; native worker uses selected user, suspended creation and kill-on-job-close ownership. Source and prior installation evidence do not prove whole-machine reboot/login recovery."},
+    {"area":"Native gateway and shared media","paths":["third_party/moonlight-web-stream/src/app/media.rs","third_party/moonlight-web-stream/src/app/upstream.rs","third_party/moonlight-web-stream/src/api/stream/webrtc/stream.rs"],"result":"Peer removal and shared upstream ownership, lease checks, bounded audio/video/control queues and prior peer-drop fix reviewed. Legacy unbounded WebSocket route remains rejected in managed mode. Prior native tests reused; no new Rust changes or GPU-driver endurance claim."},
+    {"area":"Web decode, audio and statistics lifetime","paths":["third_party/moonlight-web-stream/web/stream/video/video_decoder_pipe.ts","third_party/moonlight-web-stream/web/stream/audio/audio_buffer_pipe.ts","third_party/moonlight-web-stream/web/stream/index.ts","third_party/moonlight-web-stream/web/stream/stats.ts"],"result":"Startup frame/byte limits, audio node/time limits, native frame disposal and stop-owned heartbeat/stats cancellation present. Canvas reader defect recorded separately. Review is not proof against all browser-native leaks."},
+    {"area":"Management frontend","paths":["orchestrator/web/src/api/query-client.ts","orchestrator/web/src/hooks/useQuery.ts"],"result":"Central query cache has no retained inactive queries, requests receive abort signal, event subscriptions clean up, stale resource refresh guarded. Existing installed responsive evidence retained."},
+    {"area":"Android","paths":["third_party/moonlight-android/app/src/main/java/com/limelight/streamkit/ManagedSession.java","third_party/moonlight-android/app/src/main/java/com/limelight/streamkit/NativePeer.java","third_party/moonlight-android/app/src/main/java/com/limelight/streamkit/ManagedApi.java","third_party/moonlight-android/app/src/main/java/com/limelight/streamkit/WatchLinkStore.java"],"result":"Operation generations, single heartbeat/retry, bounded HTTP body and DataChannel send buffer, explicit peer/factory/audio disposal and executor draining reviewed. No additional confirmed continuous-retention defect found in these paths; no new APK/emulator endurance performed."},
+    {"area":"Persistent and diagnostic resources","paths":["orchestrator/internal/session/history.go","orchestrator/internal/session/resume.go","orchestrator/cmd/orchestrator/log_retention.go","orchestrator/internal/config/config.go"],"result":"History/resume budgets and configured log rotation/operation-log pruning retained; disabling limits or unlimited viewers is not a bounded-capacity promise."}
+  ],
+  "verification": {
+    "go": "go test ./internal/... ./cmd/orchestrator/... passed; unaffected cached results reused",
+    "go_vet": "go vet ./internal/server/... ./internal/app/... passed",
+    "web_typescript": "tsc --noEmit passed",
+    "native_browser": "scripts/accept-browser-track-processor.cjs passed with actual native APIs; synthetic canvas source only",
+    "installed_baseline": "3ae2c44d remains installed; service Running/Auto and executable hashes reconfirmed. Previous playwright-cli Example evidence remains valid for that version only.",
+    "public_release": "Live GitHub query returned v0.1.0-preview.20261110.5 as newest service release; prerelease true"
+  },
+  "remaining_required": [
+    "Deploy and release unified artifacts containing reviewed fixes, with matching installation and real core-flow acceptance",
+    "Actual unattended whole-machine reboot/login recovery",
+    "Current Windows LAN-address full video/audio/input and Android recovery evidence",
+    "Resolve existing Linux-emulator Android audio failure without relabelling it passed",
+    "Evidence supporting latest 7x24 reliability requirement for server, Web and Android; no 168-hour run completed"
+  ],
+  "not_new_mandatory_scope": ["General automatic in-place upgrade", "Automatic database downgrade", "Commercial publisher certificate", "Repeating accepted four-hour test as 24-hour test", "Linux/mobile physical acceptance"],
+  "limits": ["One active rendered application per host", "No guarantee of no OOM on every GPU/driver/client/rendered application", "No new full dependency vulnerability scan or independent penetration assessment", "This source review is not installed-version acceptance for the new fixes"]
+}
