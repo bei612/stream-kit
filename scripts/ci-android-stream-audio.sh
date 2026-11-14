@@ -390,11 +390,6 @@ if (result.status !== 'passed') {
 NODE
 adb -s "$serial" shell input keyevent KEYCODE_WAKEUP
 adb -s "$serial" shell wm dismiss-keyguard
-# A separate testOnly system tone must establish the common emulator output
-# before the production APK enters. Its PCM/results never enter product metrics.
-node scripts/android/emulator-playout-control.cjs --serial "$serial" \
-  --adb "$ANDROID_HOME/platform-tools/adb" --probe artifacts/input-example/audio-probe \
-  --output "$evidence/system-playout-control.json" --volume-evidence "$evidence/media-volume.json"
 # Locate the official owned emulator discovery entry, retaining its token only
 # in this private scratch directory. Never print/upload discovery or token data.
 node - "$scratch/grpc.json" <<'NODE'
@@ -405,6 +400,11 @@ for(const root of [os.tmpdir(),'/run/user/'+process.getuid(),path.join(os.homedi
 assert.equal(matches.size,1,'Expected one authenticated official emulator discovery entry');
 fs.writeFileSync(process.argv[2],JSON.stringify({address:'127.0.0.1:8554',token:[...matches.values()][0]}),{mode:0o600});
 NODE
+# A separate testOnly system tone must establish the common emulator output
+# before the production APK enters. Its PCM/results never enter product metrics.
+node scripts/android/emulator-playout-control.cjs --serial "$serial" \
+  --adb "$ANDROID_HOME/platform-tools/adb" --probe artifacts/input-example/audio-probe \
+  --output "$evidence/system-playout-control.json" --volume-evidence "$evidence/media-volume.json" --grpc-config "$scratch/grpc.json"
 runtime=artifacts/input-runtime/opt/stream-kit
 node scripts/accept-source-stream.cjs --sunshine "$runtime/sunshine/bin/sunshine" --gateway "$runtime/media-gateway/web-server" \
   --orchestrator "$runtime/orchestrator/orchestrator" --web-assets "$runtime/media-gateway/dist" \

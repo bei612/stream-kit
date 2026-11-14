@@ -10,6 +10,7 @@ const readline = require('node:readline');
 const {promisify} = require('node:util');
 const {setTimeout: delay} = require('node:timers/promises');
 const {startAudioProbe} = require('../lib/audio-probe.cjs');
+const {observeEmulatorPlayout} = require('./emulator-playout-observation.cjs');
 const execFile = promisify(cp.execFile);
 const CLIENT = 'io.github.bei612.streamkit';
 const OBSERVER = CLIENT + '.inputobserver';
@@ -19,12 +20,12 @@ const RATE = 48000, FRAMES = 192000, LIMIT_MS = 6500;
 const options = {};
 for (let index = 2; index < process.argv.length; index += 2) {
   const key = process.argv[index];
-  if (!['--serial', '--adb', '--probe', '--output', '--volume-evidence'].includes(key)
+  if (!['--serial', '--adb', '--probe', '--output', '--volume-evidence', '--grpc-config'].includes(key)
       || options[key] || !process.argv[index + 1]) throw Error('Invalid control arguments');
   options[key] = process.argv[index + 1];
 }
 const serial = options['--serial'], adb = options['--adb'];
-let probe, tone, nativeLogs, evidenceReady = false;
+let probe, tone, nativeLogs, rpcClient, stopPlayout, evidenceReady = false;
 const result = {schema_version: 1, fixture_only: true, product_audio_result: null,
   product_app_entered: false, host_changed: false, volume_changed: false,
   status: 'pending', passed: false, started_at_ms: Date.now(), phase: 'guards',
@@ -95,7 +96,10 @@ async function af() {
     basis: 'recognized_client_session_rows',track_count: owned.length,
     active_track_count: owned.filter(row => row.identity[1] === 'yes').length,
     underrun_frames: {status: underruns.length && underruns.every(row => row.frames !== null) ? 'observed' : 'unknown',
-      tracks: underruns}};
+      tracks: underruns},
+    // Own test-only track rows contain numeric native state, no application
+    // text, URLs or credentials. Preserve columns to diagnose HAL starvation.
+    diagnostic_track_rows: owned.map(({line})=>line.trim()).filter(line=>line.length<=512&&/^[A-Za-z0-9_ .:/<*?=()+-]+$/.test(line)).slice(0,4)};
 }
 // Exact Android 16 native error templates; field names follow source arguments.
 // Unknown messages retain only unnamed negative values, never inferred errno.
@@ -255,6 +259,11 @@ function startTone() {
     'playout-control', OBSERVER + '/.Observer'], {stdio: ['ignore', 'pipe', 'pipe']});
   let resolveReady, rejectReady, resolved = false, closed = false, bytes = 0, timedOut = false;
   const status = {}, final = {};
+  // ToneGenerator::stopTone may wait up to 3 s for its native callback. A
+  // startup deadline must not consume the independent playback/teardown time.
+  // AOSP android16-release media/libaudioclient/ToneGenerator.cpp.
+  let timeoutPhase = 'startup';
+  let timer = setTimeout(() => { timedOut = true; child.kill(); }, 10000);
   const ready = new Promise((resolve, reject) => { resolveReady = resolve; rejectReady = reject; });
   const lines = readline.createInterface({input: child.stdout});
   const numbers = new Set(['tone_duration_ms', 'tone_stream', 'tone_volume_percent', 'tone_process_id',
@@ -270,18 +279,19 @@ function startTone() {
         'tone_stop_failed', 'tone_release_failed'].includes(match[3])) target.error_type = match[3];
     }
     if (!resolved && /^INSTRUMENTATION_STATUS_CODE:/.test(line) && status.tone_started === true) {
+      clearTimeout(timer); timeoutPhase = 'playback_and_native_cleanup';
+      timer = setTimeout(() => { timedOut = true; child.kill(); }, 6000 + 3000 + 2500);
       resolved = true; resolveReady({...status,host_observed_at_ms: Date.now()});
     }
   });
   for (const stream of [child.stdout, child.stderr]) stream.on('data', data => {
     bytes += data.length; if (bytes > 16384) child.kill();
   });
-  const timer = setTimeout(() => { timedOut = true; child.kill(); }, 10000);
   const done = new Promise(resolve => {
     const finish = (code, signal) => {
       if (closed) return; closed = true; clearTimeout(timer); lines.close();
       if (!resolved) rejectReady(Error('CONTROL_TONE_NOT_STARTED'));
-      resolve({code,signal,timed_out: timedOut,...final,host_finished_at_ms: Date.now()});
+      resolve({code,signal,timed_out: timedOut,timeout_phase:timedOut?timeoutPhase:null,...final,host_finished_at_ms: Date.now()});
     };
     child.once('error', () => finish(null, 'spawn_failed'));
     child.once('close', finish);
@@ -332,6 +342,19 @@ async function main() {
     && result.tone.tone_low_hz === 697 && result.tone.tone_high_hz === 1209
     && result.tone.tone_process_id > 0 && result.tone.tone_session_id > 0, 'CONTROL_TONE_START_INVALID');
   check((await android(['shell', 'pidof', OBSERVER])).trim().split(/\s+/).map(Number).includes(result.tone.tone_process_id), 'CONTROL_TONE_OWNER_INVALID');
+  if(options['--grpc-config']){
+    const configFile=fs.realpathSync(options['--grpc-config']);
+    check(configFile.startsWith(fs.realpathSync(process.env.RUNNER_TEMP)+path.sep),'CONTROL_RPC_CONFIG_INVALID');
+    const config=JSON.parse(fs.readFileSync(configFile,'utf8'));
+    check(config.address==='127.0.0.1:8554'&&typeof config.token==='string'&&config.token.length>16,'CONTROL_RPC_IDENTITY_INVALID');
+    const grpc=require('./emulator-audio/node_modules/@grpc/grpc-js'),loader=require('./emulator-audio/node_modules/@grpc/proto-loader');
+    const proto=grpc.loadPackageDefinition(loader.loadSync(path.join(process.env.ANDROID_HOME,'emulator/lib/emulator_controller.proto'),{longs:String,defaults:true}));
+    rpcClient=new proto.android.emulation.control.EmulatorController(config.address,grpc.credentials.createInsecure());
+    const metadata=new grpc.Metadata();metadata.add('authorization','Bearer '+config.token);
+    // Independent QEMU tap: diagnostics only. Native PA tone amplitudes below
+    // remain the acceptance verdict; these samples never become product audio.
+    stopPlayout=observeEmulatorPlayout(rpcClient,metadata);
+  }
   await pa(true);
   result.phase = 'capture'; const started = Date.now(); result.capture_started_at_ms = started;
   result.initial_status = await command('capture', {device_id: 'pulseaudio:' + SOURCE}); save();
@@ -349,6 +372,8 @@ async function main() {
   result.capture_completed_before_tone_completion_observed = !tone.closed;
   check(result.capture_completed_before_tone_completion_observed, 'CONTROL_TONE_ENDED_DURING_CAPTURE');
   result.active_track = await track;
+  result.final_active_track = await af();
+  if(stopPlayout){result.qemu_playout=await stopPlayout();stopPlayout=null;}
   check(result.capture.captured_frames >= FRAMES && result.capture.dropped_frames === 0
     && result.capture_finished_at_ms - started <= LIMIT_MS, 'CONTROL_CAPTURE_WINDOW_INVALID');
   result.signals = [];
@@ -384,6 +409,8 @@ async function main() {
   result.status = 'passed'; result.passed = true;
 }
 main().catch(error => {result.status = 'failed'; result.failure_class = error.controlCode || 'CONTROL_FAILED'; process.exitCode = 1;}).finally(async () => {
+  if(stopPlayout){result.qemu_playout=await stopPlayout();stopPlayout=null;}
+  rpcClient?.close();
   if (probe) {
     try { await command('stop_capture'); }
     catch { result.failure_class ||= 'CONTROL_PROBE_STOP_FAILED'; result.status = 'failed'; result.passed = false; process.exitCode = 1; }
