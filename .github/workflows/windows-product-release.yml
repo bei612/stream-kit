@@ -144,6 +144,7 @@ jobs:
             mingw-w64-ucrt-x86_64-openssl
             mingw-w64-ucrt-x86_64-opus
             mingw-w64-ucrt-x86_64-qt6-static
+            mingw-w64-ucrt-x86_64-libb2
             mingw-w64-ucrt-x86_64-libtiff
             mingw-w64-ucrt-x86_64-harfbuzz
             mingw-w64-ucrt-x86_64-freetype
@@ -152,7 +153,9 @@ jobs:
         shell: msys2 {0}
         run: |
           set -euo pipefail
-          pkg-config --static --exists libtiff-4 harfbuzz freetype2 libcurl miniupnpc opus
+          # Static Qt's Core configuration imports Libb2. It must be present
+          # before spending time compiling the independently vendored codecs.
+          pkg-config --static --exists libb2 libtiff-4 harfbuzz freetype2 libcurl miniupnpc opus
           mkdir -p artifacts/windows-product/logs
           pacman -Q > artifacts/windows-product/logs/ucrt-packages.txt
       - uses: actions/cache/restore@v4

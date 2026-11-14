@@ -56,6 +56,8 @@ node scripts/package-platform-release.mjs CONTROL_BUNDLE GATEWAY_BUNDLE RENDERER
 
 Sunshine 源码构建入口 `scripts/build-sunshine.sh`，Windows 在 UCRT64 环境执行；Linux 统一布局设 `SUNSHINE_PACKAGE_LAYOUT=platform`。不要用运行时测试目录代替正式 renderer staging。组件打包说明见 [CONTROL](../deploy/CONTROL-BUNDLE.md)、[GATEWAY](../deploy/GATEWAY-BUNDLE.md)、[RENDERER](../deploy/RENDERER-BUNDLE.md)。
 
+Windows 静态 Qt 的链接依赖须显式安装，包括 UCRT64 的 `libb2`、`libtiff`、`harfbuzz` 和 `freetype`；仅安装 `qt6-static` 不保证其全部静态依赖已就绪。统一构建工作流在编译编解码库前执行 `pkg-config --static` 检查，包版本随构建日志保存。继续使用已固定的官方 CMake，不通过关闭托盘或删 Qt 依赖绕过缺包。
+
 统一包的布局以 `orchestrator/internal/bundle/layouts.json` 为唯一来源，原生 `verify-platform` 与打包器共同使用。源码身份、平台/架构、必需静态资源和全部库存摘要一致才能组装。文件清单不是发行者签名或完整许可审查。
 
 ## 原生安装器与 APK
