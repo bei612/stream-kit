@@ -94,12 +94,14 @@ func (m *Manager) IsUploading() bool {
 
 // TryLock attempts to acquire a per-app lock. Returns unlock function or error if already locked.
 func (m *Manager) TryLock(appID string) (func(), error) {
-	val, _ := m.locks.LoadOrStore(appID, &sync.Mutex{})
-	mu := val.(*sync.Mutex)
-	if !mu.TryLock() {
+	// There are no queued waiters: contention returns immediately. Retain only
+	// active operations, and remove by owner identity so a stale completion
+	// cannot unlock a replacement operation. Use a non-zero-sized unique token.
+	owner := new(byte)
+	if _, loaded := m.locks.LoadOrStore(appID, owner); loaded {
 		return nil, ErrOperationConflict
 	}
-	return mu.Unlock, nil
+	return func() { m.locks.CompareAndDelete(appID, owner) }, nil
 }
 
 func (m *Manager) updateStatus(appID string, status model.AppStatus, errMsg string) error {

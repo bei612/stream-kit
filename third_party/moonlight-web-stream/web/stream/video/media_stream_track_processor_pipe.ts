@@ -4,12 +4,6 @@ import { addPipePassthrough } from "../pipeline/pipes"
 import { allVideoCodecs } from "../video"
 import { FrameVideoRenderer, TrackVideoRenderer, VideoRendererSetup } from "./index"
 
-function wait(time: number): Promise<void> {
-    return new Promise((resolve, _reject) => {
-        setTimeout(resolve, time)
-    })
-}
-
 export class VideoMediaStreamTrackProcessorPipe implements TrackVideoRenderer {
     static readonly pipeName = "VideoMediaStreamTrackProcessorPipe"
 
@@ -27,7 +21,9 @@ export class VideoMediaStreamTrackProcessorPipe implements TrackVideoRenderer {
     readonly implementationName: string
 
     private running: boolean = false
-    private newProcessor: boolean = false
+    private disposed = false
+    private track: MediaStreamTrack | null = null
+    private reader: ReadableStreamDefaultReader<VideoFrame> | null = null
     private trackProcessor: MediaStreamTrackProcessor | null = null
 
     private base: FrameVideoRenderer
@@ -40,59 +36,64 @@ export class VideoMediaStreamTrackProcessorPipe implements TrackVideoRenderer {
     }
 
     setTrack(track: MediaStreamTrack): void {
-        this.trackProcessor = new MediaStreamTrackProcessor({ track })
-        this.newProcessor = true
+        if (this.disposed) return
+        this.track = track
+        if (this.running) this.startReader()
     }
 
-    private async readTrack() {
-        let reader: ReadableStreamDefaultReader<VideoFrame> | null = null
+    private cancelReader() {
+        const reader = this.reader
+        this.reader = null
+        this.trackProcessor = null
+        // Cancel the owner of the lock, not the locked ReadableStream. This
+        // also resolves a pending read when a track has stopped producing.
+        if (reader) void reader.cancel().catch(error => console.error("Video reader cancellation failed", error))
+    }
 
-        while (this.running) {
-            if (!reader || this.newProcessor) {
-                this.newProcessor = false
+    private startReader() {
+        this.cancelReader()
+        if (!this.track || this.disposed || !this.running) return
+        this.trackProcessor = new MediaStreamTrackProcessor({ track: this.track, maxBufferSize: 1 })
+        const reader = this.reader = this.trackProcessor.readable.getReader()
+        void this.readTrack(reader)
+    }
 
-                if (this.trackProcessor?.readable.locked) {
-                    // Shouldn't happen
-                    throw "Canvas video track processor is locked"
-                }
-
-                const newReader = this.trackProcessor?.readable.getReader()
-                if (newReader) {
-                    reader = newReader
-                }
-                await wait(100)
-                continue
+    private async readTrack(reader: ReadableStreamDefaultReader<VideoFrame>) {
+        try {
+            while (this.running && this.reader === reader) {
+                const { done, value } = await reader.read()
+                if (done) return
+                // Replacement/cleanup can complete while native read resolves.
+                if (!this.running || this.reader !== reader) { value.close(); return }
+                try { this.base.submitFrame(value) }
+                catch (error) { value.close(); throw error }
             }
-
-            // TODO: byob?
-            const { done, value } = await reader.read()
-            if (done) {
-                console.error("Track Processor is done!")
-                return
-            }
-
-            this.base.submitFrame(value)
+        } catch (error) {
+            if (this.running && this.reader === reader) console.error("Video track processing failed", error)
+        } finally {
+            if (this.reader === reader) { this.reader = null; this.trackProcessor = null }
+            // Cancel also drains native buffered frames after rendering errors.
+            try { await reader.cancel() }
+            catch (error) { console.error("Video reader cleanup failed", error) }
+            finally { reader.releaseLock() }
         }
     }
 
-    setup(setup: VideoRendererSetup) {
-        this.running = true
-        this.readTrack()
-
+    async setup(setup: VideoRendererSetup) {
+        if (this.disposed || this.running) return
         if ("setup" in this.base && typeof this.base.setup == "function") {
-            return this.base.setup(setup)
+            await this.base.setup(setup)
         }
+        if (this.disposed) return
+        this.running = true
+        this.startReader()
     }
     cleanup() {
+        if (this.disposed) return
+        this.disposed = true
         this.running = false
-        try {
-            if (this.trackProcessor) {
-                this.trackProcessor.readable.cancel()
-            }
-        } catch (e) {
-            console.error(e)
-        }
-        this.trackProcessor = null
+        this.track = null
+        this.cancelReader()
 
         if ("cleanup" in this.base && typeof this.base.cleanup == "function") {
             return this.base.cleanup(...arguments)

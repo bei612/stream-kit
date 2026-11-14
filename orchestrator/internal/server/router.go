@@ -74,6 +74,7 @@ func (s *Server) setupMiddleware() {
 
 func (s *Server) setupRoutes() {
 	api := s.Engine.Group("/api/v1")
+	api.Use(RequestBodyBudget(s.Config.Storage.MaxUploadSize))
 
 	// Public endpoints (no auth)
 	h := handlers.NewSystemHandler(s.Config, s.Store, s.CompManager, s.Logger)

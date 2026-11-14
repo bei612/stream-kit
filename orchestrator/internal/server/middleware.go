@@ -1,6 +1,7 @@
 package server
 
 import (
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -14,6 +15,32 @@ import (
 )
 
 const RequestIDKey = "request_id"
+
+const controlRequestMaxBytes int64 = 1 << 20
+
+// Every control API body has an allocation boundary, including unknown JSON
+// fields and chunked requests. Individual handlers may impose tighter limits.
+// Only the registered archive-upload route gets the configured file budget.
+func RequestBodyBudget(maxUploadBytes int64) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		limit := controlRequestMaxBytes
+		if c.Request.Method == http.MethodPost && c.FullPath() == "/api/v1/apps/upload" {
+			if maxUploadBytes <= 0 || maxUploadBytes > math.MaxInt64-controlRequestMaxBytes {
+				c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"status": "error", "code": "CONFIG_INVALID", "message": "上传大小限制无效", "request_id": getReqID(c)})
+				return
+			}
+			limit = maxUploadBytes + controlRequestMaxBytes
+		}
+		if c.Request.ContentLength > limit {
+			c.AbortWithStatusJSON(http.StatusRequestEntityTooLarge, gin.H{"status": "error", "code": "REQUEST_TOO_LARGE", "message": "请求内容超限", "request_id": getReqID(c)})
+			return
+		}
+		if c.Request.Body != nil {
+			c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, limit)
+		}
+		c.Next()
+	}
+}
 
 func getReqID(c *gin.Context) string {
 	if id, ok := c.Get(RequestIDKey); ok {
