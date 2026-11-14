@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-15",
+  "passed": true,
+  "release": "v0.1.0",
+  "url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0",
+  "repository_public": true,
+  "prerelease": false,
+  "draft": false,
+  "source": "f8ede8b2e933fb597e97dec999cceae9a3e614e1",
+  "remote_tag_source": "f8ede8b2e933fb597e97dec999cceae9a3e614e1",
+  "product_run": 43609416420,
+  "android_run": 43609422069,
+  "windows_installer_acceptance_run": 43612640053,
+  "linux_page_acceptance_run": 43610667398,
+  "promotion_run": 43613696666,
+  "ci_run": 43609388458,
+  "android_version_code": 1000015,
+  "android_signing_certificate_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f",
+  "published_at": "2026-11-14T16:06:05Z",
+  "checked_at": "2026-11-14T16:09:56.218Z",
+  "runtime_rebuilt_for_publication": false,
+  "installed_windows_source": "f8ede8b2e933fb597e97dec999cceae9a3e614e1",
+  "public_binary_downloads": [
+    {
+      "name": "stream-kit-0.1.0-f8ede8b2e933-windows-amd64-setup.exe",
+      "sha256": "d2c68b816b7cf9ad6bf2177ba5cb1c3891a6a37604d60b7e81fd31cfe5f2ab95",
+      "bytes": 97628627,
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0/stream-kit-0.1.0-f8ede8b2e933-windows-amd64-setup.exe"
+    },
+    {
+      "name": "stream-kit-0.1.0-f8ede8b2e933-ubuntu24.04-amd64-setup.run",
+      "sha256": "50fe20fd1e7a91d887365c543b1db8386e1836ed58cb95808c6182ca218e30d8",
+      "bytes": 62445581,
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0/stream-kit-0.1.0-f8ede8b2e933-ubuntu24.04-amd64-setup.run"
+    },
+    {
+      "name": "stream-kit-android-0.1.0.apk",
+      "sha256": "459d155b746d1e9440a7f9c31870be390a89a1234c3e2ed0581f679ce044b540",
+      "bytes": 33168297,
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0/stream-kit-android-0.1.0.apk"
+    }
+  ],
+  "assets": [
+    {
+      "name": "android-dependency-notices.json",
+      "bytes": 11433,
+      "digest": "sha256:65896f681d26f3927e0a114fba30192e14282e8fc34a2230d6b0e5f06245f755",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0/android-dependency-notices.json"
+    },
+    {
+      "name": "android-provenance.json",
+      "bytes": 4817,
+      "digest": "sha256:365c1c45f32649b2d85b6336282740894cf66812acc0289c1ae7193fdbef72c0",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0/android-provenance.json"
+    },
+    {
+      "name": "android-runtime-dependencies.json",
+      "bytes": 3415,
+      "digest": "sha256:22a584a4428aa2ec47ab878e76e9c3c4167d59da03140c78c01bfbee63810533",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0/android-runtime-dependencies.json"
+    },
+    {
+      "name": "android-sbom.cdx.json",
+      "bytes": 20027,
+      "digest": "sha256:92a9768a725a526eafc6fef332b391d9c714dea6db6886818d828982539f8cdf",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0/android-sbom.cdx.json"
+    },
+    {
+      "name": "Android-SHA256SUMS.txt",
+      "bytes": 579,
+      "digest": "sha256:3ee3da5c7bc12d79de6b68f52ff49c3c4cb52c3e6392c56bebb315fd6289fd42",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0/Android-SHA256SUMS.txt"
+    },
+    {
+      "name": "installer-manifest.json",
+      "bytes": 2288,
+      "digest": "sha256:93ae0dd42fa47cde3ed0bf20a1fb2b5d4dd7bf42d8c0eca5c4444e8dbc3bf332",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0/installer-manifest.json"
+    },
+    {
+      "name": "linux-installer-manifest.json",
+      "bytes": 1352,
+      "digest": "sha256:803ab6acd1f2d2d6e630f1e087f8f45cfb8167227c1ee915f42ff458b8159641",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0/linux-installer-manifest.json"
+    },
+    {
+      "name": "Linux-SHA256SUMS.txt",
+      "bytes": 124,
+      "digest": "sha256:120c0173487ebcdc2dc9e30e0e72265ce5e8b7b6d6990a6e6e432dc85d3b64e3",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0/Linux-SHA256SUMS.txt"
+    },
+    {
+      "name": "SHA256SUMS.txt",
+      "bytes": 120,
+      "digest": "sha256:ec1e7543b7d20b63cb6c885d054ec3bf164502237dc51df1f992d5107df528dc",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0/SHA256SUMS.txt"
+    },
+    {
+      "name": "stream-kit-0.1.0-f8ede8b2e933-ubuntu24.04-amd64-setup.run",
+      "bytes": 62445581,
+      "digest": "sha256:50fe20fd1e7a91d887365c543b1db8386e1836ed58cb95808c6182ca218e30d8",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0/stream-kit-0.1.0-f8ede8b2e933-ubuntu24.04-amd64-setup.run"
+    },
+    {
+      "name": "stream-kit-0.1.0-f8ede8b2e933-windows-amd64-setup.exe",
+      "bytes": 97628627,
+      "digest": "sha256:d2c68b816b7cf9ad6bf2177ba5cb1c3891a6a37604d60b7e81fd31cfe5f2ab95",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0/stream-kit-0.1.0-f8ede8b2e933-windows-amd64-setup.exe"
+    },
+    {
+      "name": "stream-kit-android-0.1.0-distribution.zip",
+      "bytes": 33168273,
+      "digest": "sha256:2f5cac4264af3751f07f4b7218bfcaf13d6e57211a38e0074d5ea75a68433726",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0/stream-kit-android-0.1.0-distribution.zip"
+    },
+    {
+      "name": "stream-kit-android-0.1.0.apk",
+      "bytes": 33168297,
+      "digest": "sha256:459d155b746d1e9440a7f9c31870be390a89a1234c3e2ed0581f679ce044b540",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0/stream-kit-android-0.1.0.apk"
+    },
+    {
+      "name": "stream-kit-sbom.spdx.json",
+      "bytes": 7575028,
+      "digest": "sha256:2dc1663be38c680e4d43369181918f27d5a730b81d115627c5bdec533a30e948",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0/stream-kit-sbom.spdx.json"
+    }
+  ],
+  "scope": "Public release bytes downloaded anew and SHA-256 matched to exact accepted source-bound installers and signed APK; every Android publication asset matched against original local bytes. Local same-source runtime maintenance and media acceptance recorded separately.",
+  "remaining": [
+    "Shared Windows host whole-system reboot acceptance",
+    "Actual shared-host main-NIC migration with Windows/Android complete media recovery",
+    "No 168-hour OOM-free claim or new physical-device acoustics claim"
+  ]
+}

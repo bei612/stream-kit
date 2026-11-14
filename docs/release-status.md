@@ -6,13 +6,12 @@
 
 | 对象 | 版本 / 来源 | 状态 |
 | --- | --- | --- |
-| 公开 Windows / Ubuntu 24.04 amd64 服务端 | [v0.1.0-preview.20261110.5](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261110.5)，`3d4a3b5c61fea72354318cea637b3428052e5cfc` | 未包含本轮完整修复 |
-| 公开签名 Android | [v0.1.0-android-preview.20261109.6](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-android-preview.20261109.6)，`df7cd87b3352a638aa3a6aa7073d39074c02a43c`，versionCode 1000013 | 尚未更新公开下载 |
+| 公开 Windows / Ubuntu 24.04 amd64 服务端 | [v0.1.0](https://github.com/bei612/stream-kit/releases/tag/v0.1.0)，`f8ede8b2e933fb597e97dec999cceae9a3e614e1` | 正式渠道，每平台一个安装器，包含本轮完整修复 |
+| 公开签名 Android | [v0.1.0 同一 Release](https://github.com/bei612/stream-kit/releases/tag/v0.1.0)，同源 `f8ede8b2`，versionCode 1000015 | 已公开 APK、来源、校验和、依赖许可证和 SBOM，沿用持久发行签名 |
 | 本机完整运行组件 | `f8ede8b2e933fb597e97dec999cceae9a3e614e1` | 控制端、网关和 Sunshine 同源；维护成功，实际 Web 先入、Android 后入联合回归通过 |
-| 冻结的 0.1.0 候选 | `f8ede8b2e933fb597e97dec999cceae9a3e614e1` | [统一产品构建成功](https://github.com/bei612/stream-kit/actions/runs/43609416420)，Windows/Linux 已下载核对摘要，精确安装器及实际页面验收通过 |
-| 同源签名 Android 候选 | 0.1.0 / versionCode 1000015 | [构建成功](https://github.com/bei612/stream-kit/actions/runs/43609422069)，专用模拟器实际图像、程序音、麦克风及撤权通过，已核对安装字节和重启后摘要 |
+| 同源 Android 实测 | 0.1.0 / versionCode 1000015 | [构建来源](https://github.com/bei612/stream-kit/actions/runs/43609422069)，专用模拟器实际图像、程序音、麦克风及撤权通过，安装字节及重启后摘要一致；模拟器已停止 |
 
-尚未完成正式 0.1.0 发布。本机运行、构建成功或单项验收通过不能单独代表整个 Goal 完成。发布复用已验收的原始字节，tag 指向冻结运行源码；文档及验收器的后续提交不改变产物身份。
+正式 0.1.0 已发布，当前核心功能达到本页所列产物与环境的发布条件；整个 Goal 仍有下文的整机重启和真实地址迁移等验收边界。发布复用[原始产品构建](https://github.com/bei612/stream-kit/actions/runs/43609416420)的字节，经[发布任务](https://github.com/bei612/stream-kit/actions/runs/43613696666)校验并上传；tag 指向冻结运行源码，文档及验收器后续提交不改变产物身份。
 
 ## 本机 Windows
 
@@ -49,9 +48,9 @@ LAN IP 是现场值，不是内置地址。更换 IP 后按[地址与证书](lan
 
 检查使用独立 Example、外部采样器和专用模拟器，不进入生产安装包或 APK。不启动或修改其他代理维护的 UE，不修改 ToDesk、宿主机默认音频或客户端信任来绕过问题。
 
-## 交付待办
+## 交付结果
 
-本机更新及受影响的联合回归已完成，当前只剩发布同源 Windows/Linux 安装器和 Android APK，并检查公开附件身份。资源采样已收齐，不重复未受影响的四小时或 100 次循环。完整跨平台 CI 六项已通过；一次 Ubuntu 任务因官方 Chrome 下载的 HTTP/2 中断重试，只重跑失败任务，未重建冻结产品。
+同源 Windows/Linux 安装器、Android APK、源码 tag、校验和及许可证材料已发布；本机完整组件维护与受影响的联合回归已完成。资源采样已收齐，不重复未受影响的四小时或 100 次循环。完整跨平台 CI 六项已通过；一次 Ubuntu 任务因官方 Chrome 下载的 HTTP/2 中断重试，只重跑失败任务，未重建冻结产品。公开附件与实际下载核验见[0.1.0 发布证据](evidence/release-0.1.0-20261115.json)。
 
 ## 持续边界
 
