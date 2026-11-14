@@ -8,6 +8,8 @@ Official Moonlight Android v12.2 and recursive source dependencies are imported 
 
 Managed playback uses the gateway's WebRTC endpoint and shared renderer upstream. It does not use upstream NvConnection as a separate admission path, does not add an Android-only encoder, and does not bypass managed mode's rejection of legacy WebSocket streaming.
 
+The default `videoCodec=h264` preference is mask `0x0001` on Web and Android: ordinary H.264, excluding High 4:4:4. The first viewer establishes the single upstream format, so silently including High 4:4:4 can lock subsequent Android viewers out even when both select H.264. Both WebRTC and WebSocket codec preferences use the same Web selector. Experimental `auto` still advertises optional profiles; it is not a guarantee that heterogeneous later viewers can join. This change does not renegotiate a running upstream, add transcoding or restart other viewers.
+
 Upstream native platform, gesture recognition and keyboard translation are reused through transport adapters. `PointerInput` separates touch recognizers from NvConnection; `ManagedInput` emits existing gateway input packets. GFE-prefixed `0x80xx` virtual keys are normalized to canonical Windows keys consistently for down/up; invalid values are rejected.
 
 ## Admission

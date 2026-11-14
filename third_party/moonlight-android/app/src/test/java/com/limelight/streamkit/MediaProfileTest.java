@@ -8,8 +8,8 @@ import static org.junit.Assert.*;
 
 public class MediaProfileTest {
     @Test public void sendsSameCodecPreferenceAsWebInsteadOfOpeningUnrestrictedUpstream() throws Exception {
-        assertEquals(5, MediaProfile.preferredVideoFormats(new JSONObject()));
-        for (Object[] pair : new Object[][]{{"h264", 5}, {"h265", 3840}, {"av1", 61440}, {"auto", 65285}}) {
+        assertEquals(1, MediaProfile.preferredVideoFormats(new JSONObject()));
+        for (Object[] pair : new Object[][]{{"h264", 1}, {"h265", 3840}, {"av1", 61440}, {"auto", 65285}}) {
             assertEquals((int) pair[1], MediaProfile.preferredVideoFormats(new JSONObject().put("videoCodec", pair[0])));
         }
         assertThrows(IllegalArgumentException.class, () -> MediaProfile.preferredVideoFormats(new JSONObject().put("videoCodec", "unexpected")));

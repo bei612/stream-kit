@@ -47,7 +47,9 @@ final class MediaProfile {
     /** Same x-moonlight-preferred-codec mask as Web getVideoCodecHint and Rust VideoFormats. */
     static int preferredVideoFormats(JSONObject defaults) {
         switch (defaults.optString("videoCodec", "h264")) {
-            case "h264": return 0x0005;
+            // Match Web's shared compatibility profile; High 4:4:4 is opt-in
+            // through experimental auto, never implied by the H.264 default.
+            case "h264": return 0x0001;
             case "h265": return 0x0f00;
             case "av1": return 0xf000;
             case "auto": return 0xff05;

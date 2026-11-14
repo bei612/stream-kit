@@ -66,8 +66,11 @@ export function getStreamerSize(settings: Settings, viewerScreenSize: [number, n
 function getVideoCodecHint(settings: Settings): VideoFormats {
     let videoCodecHint = emptyVideoCodecs()
     if (settings.videoCodec == "h264") {
+        // H.264 is the shared Web/Android compatibility choice. Advertising
+        // High 4:4:4 here lets the first Chrome viewer select an upstream that
+        // later Android decoders cannot join. Keep that optional profile in
+        // the explicit experimental auto mode, not the default H.264 choice.
         videoCodecHint.h264 = true
-        videoCodecHint.h264High8444 = true
     } else if (settings.videoCodec == "h265") {
         videoCodecHint.h265 = true
         videoCodecHint.h265Main10 = true

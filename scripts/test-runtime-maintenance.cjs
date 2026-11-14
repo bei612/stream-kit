@@ -1,7 +1,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os');
-const {inside,ordinary,inventory,copyTree,commandPath,execute,serviceStartTimeout}=require('./maintain-windows-runtime.cjs');
+const {inside,ordinary,inventory,copyTree,commandPath,execute,serviceStartTimeout,rendererBootstrap}=require('./maintain-windows-runtime.cjs');
 
 test('maintenance watchdog preserves native startup deadlines and bounded failure metadata',()=>{
   assert.ok(serviceStartTimeout>60000+90000);
@@ -30,6 +30,13 @@ test('maintenance confines paths and verifies real copied bytes without followin
   t.after(()=>{assert.ok(path.resolve(base).startsWith(temp+path.sep));fs.rmSync(base,{recursive:true});});
   const source=path.join(base,'source'),outside=path.join(base,'other');
   fs.mkdirSync(source);fs.mkdirSync(outside);fs.mkdirSync(path.join(source,'nested'));
+  fs.mkdirSync(path.join(source,'sunshine'));
+  rendererBootstrap(source);assert.ok(!fs.existsSync(path.join(source,'sunshine','config')));
+  rendererBootstrap(source,true);rendererBootstrap(source,true);
+  assert.deepEqual(fs.readdirSync(path.join(source,'sunshine','config')),[]);
+  fs.writeFileSync(path.join(source,'sunshine','config','state'),'private');
+  assert.throws(()=>rendererBootstrap(source,true),/local state/);
+  fs.unlinkSync(path.join(source,'sunshine','config','state'));
   fs.writeFileSync(path.join(source,'nested','state.bin'),Buffer.alloc(100000,31));
   assert.equal(commandPath(path.join(base,'file.json')),path.join(base,'file.json'));
   assert.equal(commandPath(path.join(base,'with space.json')),'"'+path.join(base,'with space.json')+'"');

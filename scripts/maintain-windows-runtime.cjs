@@ -75,6 +75,23 @@ function copyTree(source, target, limit) {
   assert.deepEqual(inventory(target,limit),original,'Copied files differ');
 }
 
+// Sunshine's Windows appdata() always resolves to <executable>/config, even
+// when all state is explicitly redirected to ProgramData. Fresh installation
+// creates this empty bootstrap directory while provisioning credentials as
+// administrator. A payload-only maintenance copy must establish it too, before
+// the unprivileged desktop worker starts. Never import legacy local state.
+function rendererBootstrap(root, create=false) {
+  const component=ordinary(inside(root,path.join(root,'sunshine')));
+  const directory=inside(component,path.join(component,'config'));
+  if(!fs.existsSync(directory)){
+    if(create)fs.mkdirSync(directory);
+    return;
+  }
+  ordinary(directory);
+  assert.ok(fs.statSync(directory).isDirectory(),'Renderer bootstrap must be a directory');
+  assert.equal(fs.readdirSync(directory).length,0,'Renderer has local state; migrate it explicitly before component maintenance');
+}
+
 class RuntimeMaintenance {
   constructor(options) {
     assert.equal(process.platform,'win32','Windows runtime maintenance only');
@@ -150,6 +167,8 @@ class RuntimeMaintenance {
     this.save('validating');
     assert.equal(shell('[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)').trim(),'True','Use an elevated maintenance terminal');
     this.verifyCandidate(this.source);
+    rendererBootstrap(this.root);
+    rendererBootstrap(this.source);
     this.service();
     this.configBytes=fs.readFileSync(this.configFile);this.config=JSON.parse(this.configBytes.toString('utf8').replace(/^\uFEFF/,''));
     for(const [key,folder,file] of [['sunshine','sunshine','sunshine.exe'],['web_server','media-gateway','web-server.exe']]){
@@ -196,7 +215,9 @@ class RuntimeMaintenance {
     this.stage=inside(this.root,path.join(this.root,'.maintenance-incoming-'+stamp));
     this.backup=inside(this.root,path.join(this.root,'.maintenance-previous-'+stamp));
     this.state=inside(this.data,path.join(this.data,'runtime-maintenance-'+stamp));
-    copyTree(this.source,this.stage,2*1024**3);this.verifyCandidate(this.stage);
+    copyTree(this.source,this.stage,2*1024**3);
+    rendererBootstrap(this.stage,true);
+    this.verifyCandidate(this.stage);
     // Verify that native preflight released its files before stopping the
     // installed service. Antivirus/file locks must fail while it still runs.
     const moveCheck=this.stage+'-move-check';
@@ -300,4 +321,4 @@ async function main() {
   await new RuntimeMaintenance(options).run();
 }
 if(require.main===module)main().catch(error=>{console.error(error.message);process.exitCode=1;});
-module.exports={inside,ordinary,inventory,copyTree,commandPath,execute,serviceStartTimeout};
+module.exports={inside,ordinary,inventory,copyTree,commandPath,execute,serviceStartTimeout,rendererBootstrap};
