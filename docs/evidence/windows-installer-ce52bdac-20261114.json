@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-14",
+  "passed": true,
+  "source_commit": "ce52bdace58abb4dc13dc3eec4727daa6549a88f",
+  "product_run": 43595814290,
+  "acceptance_run": 43600425253,
+  "acceptance_url": "https://github.com/bei612/stream-kit/actions/runs/43600425253",
+  "installer_sha256": "5756aff30a1c80db7a4585395611e8e038f273322460c7a27c7ab5995ac56df4",
+  "install_exit": 0,
+  "admin_login": true,
+  "service": {
+    "state": "Running",
+    "start_mode": "Auto",
+    "account": "LocalSystem"
+  },
+  "native_audio": {
+    "captured_frames": 144000,
+    "tone_amplitude": 0.09817148408715153,
+    "dropped_frames": 0,
+    "xruns": 0,
+    "baseline_quiet": true,
+    "after_clear_quiet": true,
+    "closed_after_drop": true
+  },
+  "gateway_restarted": true,
+  "scm_restarted": true,
+  "uninstall_exit": 0,
+  "service_removed": true,
+  "data_preserved": true,
+  "defaults_preserved": true,
+  "limits": [
+    "Isolated hosted Windows installation, not the shared local deployment",
+    "No whole-machine reboot, browser video, Android or physical voice acceptance",
+    "Existing empty host audio defaults may become the first available endpoint; no existing nonempty default was replaced"
+  ]
+}

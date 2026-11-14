@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-14",
+  "passed": true,
+  "runtime_source": "ce52bdace58abb4dc13dc3eec4727daa6549a88f",
+  "acceptance_source": "c50741804d3bacc4a4c0cc6772ea47f5ee63ede3",
+  "product_run": 43595814290,
+  "acceptance_run": 43600106421,
+  "acceptance_url": "https://github.com/bei612/stream-kit/actions/runs/43600106421",
+  "installer_sha256": "c1252aa7effd77953ffe9abf200c5fd36d2fc057596eccfbd37f95f586c6277d",
+  "payload_sha256": "edc468bade9816d4a6cef7c35400cf0a43083cc0f9947f5cf191b09f7fd5a1b9",
+  "runtime_rebuilt": false,
+  "playwright_cli": "0.1.22",
+  "scope": "Existing real playwright-cli management acceptance against an isolated Linux deployment of verified production runtime; no local Windows, native-exit, Android, audio, target-input or stability acceptance",
+  "checks": [
+    "trusted HTTPS and exact deployed control commit",
+    "permanent link visible before launch",
+    "real Example launch and two decoded WebRTC viewers",
+    "UI grant, transfer and revoke with server authority checks",
+    "canonical en/zh viewer authority, lifecycle-only connection prompts and ready UI pipelines",
+    "ended viewers have no stale permission notifications",
+    "Example stop; UI argument edit/save and original argument restoration with actual API agreement; read-only history",
+    "desktop/mobile screenshots and console errors"
+  ],
+  "screenshots": [
+    {
+      "name": "app-before-launch-desktop.png",
+      "bytes": 156470,
+      "sha256": "f12fc47deb392e396b62db2639bdba5766bcb168fe1be377fdd77624965a60d3"
+    },
+    {
+      "name": "app-before-launch-mobile.png",
+      "bytes": 135656,
+      "sha256": "deea9ce0165859943952ad5a5a19325f5c124d00ace8a3d820759e38fcd48b19"
+    },
+    {
+      "name": "history-desktop.png",
+      "bytes": 103688,
+      "sha256": "1fc60e792c50fcfea951d11ff9da06ed0007cced01c842bc9d1e1f6bc0bdfc46"
+    },
+    {
+      "name": "history-mobile.png",
+      "bytes": 84313,
+      "sha256": "b3e7f9d942c901a9a49e0f2bb79570415bd91c13988242238cbe501718cd3f67"
+    },
+    {
+      "name": "sessions-transfer-desktop.png",
+      "bytes": 155761,
+      "sha256": "03ea53055f818f5a800e61cb14d4a3576610e7d0d7b9cb6254f90efc116d16b7"
+    },
+    {
+      "name": "sessions-transfer-mobile.png",
+      "bytes": 132907,
+      "sha256": "21da258b9de26408576c5e41c45131f86a04263377217dc8700dcb045871d0a4"
+    },
+    {
+      "name": "stopped-arguments-restored.png",
+      "bytes": 141834,
+      "sha256": "e8e05908cb438d8ca5fde202dd7a3f6683115f674f7cf1dfd5c7994d6477a15a"
+    },
+    {
+      "name": "stopped-arguments-saved.png",
+      "bytes": 141834,
+      "sha256": "e8e05908cb438d8ca5fde202dd7a3f6683115f674f7cf1dfd5c7994d6477a15a"
+    },
+    {
+      "name": "viewer-after-transfer.png",
+      "bytes": 29595,
+      "sha256": "d59f2f5b114cb9511d152642e8f3afadfa44dd2c212efd637042818faca5ce3d"
+    },
+    {
+      "name": "viewer-before-grant.png",
+      "bytes": 28840,
+      "sha256": "477148c6a798b91b2759294bf83e6ccc60e8a160333e625a3491d8d88a15aea4"
+    },
+    {
+      "name": "viewer-ended.png",
+      "bytes": 8165,
+      "sha256": "144c1714ab08782daa4a53e30dc8fdfa378bd224114bc087d4bcfc08e2652ad9"
+    }
+  ],
+  "visual_review": [
+    "sessions-transfer-desktop.png",
+    "sessions-transfer-mobile.png"
+  ],
+  "limits": [
+    "No local Windows install or whole-machine reboot proof",
+    "No native target input, audio, Android or long-running memory acceptance",
+    "No production credentials or permanent watch keys retained"
+  ]
+}

@@ -53,7 +53,7 @@
 
 **尚不能宣布整个产品生产就绪或 7×24 无 OOM 风险。** 核心串流能力已有实际证据，但当前源码、本机组件与公开下载包尚未合并为同一交付基线；旧版验收不覆盖全部新修复。
 
-2026-11-14 [广度及资源生命周期复审](evidence/production-readiness-review-20261114.json)新增确认三处缺陷，均已在源码 `472d3f68` 修复并定向验证，**尚未构建部署或发布**：
+2026-11-14 [广度及资源生命周期复审](evidence/production-readiness-review-20261114.json)新增确认三处缺陷，均已在源码 `472d3f68` 修复并定向验证，**已纳入下文完整候选包，尚未部署到本机或正式发布**：
 
 | 风险 | 修复和验证 |
 | --- | --- |
@@ -71,7 +71,11 @@
 
 Android 输入/音频验收必须显式指定 `product_run_id`，并在 `android_run_id` 与 `android_release_tag` 中二选一。候选模式要求服务端与 APK 来源相同，复用签名原始字节并验证 APK 内嵌来源、签名及 SBOM；地址迁移验收也必须显式指定产品任务，不回退旧预发布。
 
-当前候选冻结在 `ce52bdace58abb4dc13dc3eec4727daa6549a88f`，版本 `0.1.0`；统一产品任务 `43595814290` 的 Linux 安装包已成功，Windows 仍在构建；签名 Android 任务 `43595818809` 已成功，versionCode `1000014`。本地已核对 Linux 安装包 SHA-256 `c1252aa7effd77953ffe9abf200c5fd36d2fc057596eccfbd37f95f586c6277d`、APK SHA-256 `9d6dd691cba611b00f658b1bc0c6cf474b5a2e434a3b3a3e0e358312c975f740` 与各自产物清单一致；这不是安装或音频通过记录。前一候选 `db01e6c639612f5796b0055c1885d4fa512686ff` 的 Linux 包及 APK 成功，但 Windows 产品任务 `43592679124` 缺少静态 Qt Core 的 Libb2 依赖，不能发布完整产品。已明确安装官方 UCRT64 Libb2 并在编解码库编译前检查；两个候选之间没有修改产品运行代码。之后的验收工具修改不改变冻结产物身份。人工完整运行时维护入口及回退边界见[部署维护](../deploy/README.md)，尚未用此工具更新本机。
+当前候选冻结在 `ce52bdace58abb4dc13dc3eec4727daa6549a88f`，版本 `0.1.0`；统一 Windows/Linux 产品任务 `43595814290` 与签名 Android 任务 `43595818809` 均成功，APK versionCode `1000014`。Linux 安装包 SHA-256 `c1252aa7effd77953ffe9abf200c5fd36d2fc057596eccfbd37f95f586c6277d`、APK SHA-256 `9d6dd691cba611b00f658b1bc0c6cf474b5a2e434a3b3a3e0e358312c975f740` 已与本地下载字节核对；本机官方模拟器安装后的 APK 回读摘要也一致。完整 Windows 载荷已通过原生 `verify-platform`，三个组件均为同一源码。前一候选 `db01e6c6` 的 Windows 构建缺少静态 Qt Libb2，现已显式安装官方依赖并通过构建；七个运行/协议/部署源码目录的 Git tree 与新候选一致。后续验收工具修改不重编或改写冻结产物。
+
+新候选的[Windows 精确安装](evidence/windows-installer-ce52bdac-20261114.json)通过：原始安装器 SHA-256 `5756aff30a1c80db7a4585395611e8e038f273322460c7a27c7ab5995ac56df4`，静默安装、自启动、网关恢复、SCM 重启、144000 帧原生录音及卸载/数据保留均通过，不代表整机重启。新候选的[Linux 实际页面](evidence/management-live-ce52bdac-20261114.json)通过：复用原始包，经 playwright-cli 检查可信 HTTPS、固定入口、双端解码、唯一控制交接、停止后参数保存恢复及桌面/手机截图。两者均不是本机 Windows 维护结果。
+
+本机完整组件更新已发起，仍等待 Windows UAC 确认，尚未停止原服务或替换组件。现有操作授权不替代系统弹窗确认。人工维护保留应用、观看密钥和 CA，含完整备份及失败回退，入口与边界见[部署维护](../deploy/README.md)。当前公开下载包和本机版本仍以上表为准，尚未发布正式 `0.1.0`。
 
 `db01e6c6` 的[地址迁移](evidence/lan-address-recovery-db01e6c6-20261114.json)已通过：独立测试网卡换 IP、HTTPS/发现及 WebRTC 恢复，组件不重启、证书和身份保持；不代表共享 Windows 主机或 Android 实际地址迁移。[Android/Web 输入六阶段](evidence/android-input-db01e6c6-20261114.json)也已通过，包含首次授权、交接、撤权和再次授权。初次输入失败的验收工具没有确认自身打开的工具栏已收起；补齐真实 UI 状态确认后使用同一 APK/服务端通过，未改产品输入权限。
 
