@@ -113,6 +113,13 @@
   "default_output_changed": false,
   "temporary_emulator_volume": 15,
   "original_emulator_volume": 5,
-  "remaining": "Restore emulator volume and Example temporary launch arguments when owned acceptance finishes",
-  "boundary": "Does not resolve or replace the retained Web-first H264 High444 incompatibility; not new f8ede8b2 runtime acceptance"
+  "boundary": "Does not resolve or replace the retained Web-first H264 High444 incompatibility; not new f8ede8b2 runtime acceptance",
+  "cleanup": {
+    "emulator_volume_restored": 5,
+    "example_arguments_restored": "",
+    "native_probe_closed": true,
+    "target_restored": true,
+    "controller_revoked": true,
+    "owned_emulator_stopped": true
+  }
 }
