@@ -1,7 +1,28 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os');
-const {inside,ordinary,inventory,copyTree,commandPath}=require('./maintain-windows-runtime.cjs');
+const {inside,ordinary,inventory,copyTree,commandPath,execute,serviceStartTimeout}=require('./maintain-windows-runtime.cjs');
+
+test('maintenance watchdog preserves native startup deadlines and bounded failure metadata',()=>{
+  assert.ok(serviceStartTimeout>60000+90000);
+  assert.throws(()=>execute(process.execPath,['-e',"process.stderr.write('private-value');process.exit(7)"]),error=>{
+    assert.equal(error.commandFailure.exit_code,7);
+    assert.ok(!JSON.stringify(error).includes('private-value'));
+    assert.ok(!error.message.includes('private-value'));
+    return true;
+  });
+  assert.throws(()=>execute(process.execPath,['-e','setInterval(()=>{},1000)'],undefined,200),error=>{
+    assert.equal(error.commandFailure.code,'ETIMEDOUT');
+    assert.equal(error.commandFailure.timeout_ms,200);
+    assert.ok(error.commandFailure.elapsed_ms<10000);
+    return true;
+  });
+  const child=require('node:child_process').spawnSync(process.execPath,['-e',
+    "const {execute}=require('./scripts/maintain-windows-runtime.cjs');try{execute(process.execPath,['-e',\"process.stderr.write('private-value');process.exit(7)\"])}catch{process.exitCode=3}"],
+    {cwd:path.join(__dirname,'..'),encoding:'utf8',windowsHide:true,timeout:10000});
+  assert.equal(child.status,3);
+  assert.equal(child.stdout,'');assert.equal(child.stderr,'');
+});
 
 test('maintenance confines paths and verifies real copied bytes without following junctions',t=>{
   const base=fs.mkdtempSync(path.join(os.tmpdir(),'stream-kit-maintenance-'));

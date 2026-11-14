@@ -51,9 +51,20 @@ function inventory(directory, limit) {
   }
   visit(directory); return entries;
 }
-function execute(executable, args, cwd) {
-  try { return cp.execFileSync(executable,args,{cwd,encoding:'utf8',windowsHide:true,timeout:90000,maxBuffer:4<<20}); }
-  catch (error) { throw Error(`${path.basename(executable)} command failed (exit ${error.status ?? 'unknown'})`); }
+// Native service start owns a 60 s SCM wait followed by a 90 s readiness
+// deadline. The caller must let it report its result before its own watchdog.
+const serviceStartTimeout = 180000;
+function execute(executable, args, cwd, timeout=90000) {
+  const started=Date.now();
+  try { return cp.execFileSync(executable,args,{cwd,encoding:'utf8',stdio:['ignore','pipe','pipe'],windowsHide:true,timeout,maxBuffer:4<<20}); }
+  catch (error) {
+    // Do not include arguments, stdout or stderr: other maintenance commands
+    // operate on credentials and protected deployment state.
+    const failure=Error(`${path.basename(executable)} command failed (${error.code==='ETIMEDOUT'?'timeout':`exit ${error.status ?? 'unknown'}`})`);
+    failure.commandFailure={executable:path.basename(executable),exit_code:error.status??null,
+      code:error.code??null,signal:error.signal??null,elapsed_ms:Date.now()-started,timeout_ms:timeout};
+    throw failure;
+  }
 }
 const shell = script => execute(path.join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0/powershell.exe'),
   ['-NoProfile','-NonInteractive','-Command',"$ErrorActionPreference='Stop';"+script]);
@@ -214,7 +225,7 @@ class RuntimeMaintenance {
     }
     execute(this.binary,['verify-platform',this.root]);
     this.save('starting_service');this.started=true;
-    execute(this.binary,['service','start','--config',this.configFile]);
+    execute(this.binary,['service','start','--config',this.configFile],undefined,serviceStartTimeout);
     await this.waitReady(this.report.source);
     assert.deepEqual((await this.api('/apps')).map(app=>app.id).sort(),this.apps,'Application identities changed');
     assert.ok(fs.readFileSync(this.configFile).equals(this.configBytes),'Maintenance must preserve configuration');
@@ -251,7 +262,7 @@ class RuntimeMaintenance {
     }
     const oldRecord=path.join(this.backup,'control-maintenance.json');
     if(fs.existsSync(oldRecord))this.move(oldRecord,path.join(this.root,'control-maintenance.json'),this.root);
-    execute(this.binary,['service','start','--config',this.configFile]);
+    execute(this.binary,['service','start','--config',this.configFile],undefined,serviceStartTimeout);
     await this.waitReady(this.report.previous_source);this.report.rollback=true;
   }
   async run() {
@@ -262,6 +273,15 @@ class RuntimeMaintenance {
     }catch(error){
       this.report.success=false;
       this.report.error=error.message;
+      this.report.failed_step=this.report.step;
+      if(error.commandFailure)this.report.command_failure=error.commandFailure;
+      if(this.started){
+        try{
+          const health=await this.api('/health');
+          this.report.failed_health={commit:health.commit,components:Object.fromEntries(
+            Object.entries(health.components||{}).map(([name,value])=>[name,{status:value.status,pid:value.pid,crash_count:value.crash_count}]))};
+        }catch{this.report.failed_health={unavailable:true};}
+      }
       try{await this.rollback();}catch(rollbackError){this.report.rollback=false;this.report.rollback_error=rollbackError.message;}
       this.save('failed');throw Error('Runtime maintenance failed; inspect the result file');
     }
@@ -280,4 +300,4 @@ async function main() {
   await new RuntimeMaintenance(options).run();
 }
 if(require.main===module)main().catch(error=>{console.error(error.message);process.exitCode=1;});
-module.exports={inside,ordinary,inventory,copyTree,commandPath};
+module.exports={inside,ordinary,inventory,copyTree,commandPath,execute,serviceStartTimeout};
