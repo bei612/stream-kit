@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-14",
+  "passed": true,
+  "source": "f8ede8b2e933fb597e97dec999cceae9a3e614e1",
+  "installer_source": "f8ede8b2e933fb597e97dec999cceae9a3e614e1",
+  "product_run": 43609416420,
+  "acceptance_run": 43612640053,
+  "acceptance_source": "bb89b6c040c644ebd8eb3e141b6c9410aac44f74",
+  "acceptance_url": "https://github.com/bei612/stream-kit/actions/runs/43612640053",
+  "installer_file": "stream-kit-0.1.0-f8ede8b2e933-windows-amd64-setup.exe",
+  "installer_sha256": "d2c68b816b7cf9ad6bf2177ba5cb1c3891a6a37604d60b7e81fd31cfe5f2ab95",
+  "install_exit": 0,
+  "uninstall_exit": 0,
+  "admin_login": true,
+  "service": {
+    "State": "Running",
+    "StartMode": "Auto",
+    "StartName": "LocalSystem"
+  },
+  "service_after_restart": {
+    "State": "Running",
+    "StartMode": "Auto",
+    "StartName": "LocalSystem"
+  },
+  "gateway_restarted": true,
+  "scm_restarted": true,
+  "defaults_preserved": true,
+  "service_removed": true,
+  "data_preserved": true,
+  "pair": {
+    "passed": true,
+    "captured_frames": 144000,
+    "tone_amplitude": 0.09817148408715153,
+    "tone": {
+      "captured_frames": 144000,
+      "tone_amplitude": 0.09817148408715153,
+      "rms": 0.0700544095464206,
+      "peak": 0.10003662109375,
+      "quiet": false
+    },
+    "first_error_after_frames": null,
+    "submitted_packets": 150,
+    "target": {
+      "device_open": true,
+      "device_sample_frames": 221856,
+      "dropped_frames": 0,
+      "xruns": 0,
+      "realtime_denied": false,
+      "error": null
+    },
+    "baseline": {
+      "captured_frames": 24000,
+      "tone_amplitude": 8.772706585683166e-8,
+      "rms": 0.000020666131971797438,
+      "peak": 0.00006103515625,
+      "quiet": true
+    },
+    "after_clear": {
+      "captured_frames": 24000,
+      "tone_amplitude": 1.2137949093373441e-7,
+      "rms": 0.00002070177781622203,
+      "peak": 0.00006103515625,
+      "quiet": true
+    },
+    "drain_before_silence_ms": 300,
+    "closed_after_drop": true
+  },
+  "scope": "One private unified installer with its configured virtual audio device; native PCM, service lifecycle and reuse checks. No browser, human speech or public release claim.",
+  "whole_host_reboot": false,
+  "raw_evidence_sha256": "377590b4830cb9111b5c4fcd31fabd8698de669149e75db96a581b3efed815b2"
+}

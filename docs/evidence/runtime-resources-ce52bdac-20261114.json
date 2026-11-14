@@ -1,0 +1,288 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-14",
+  "source": "ce52bdace58abb4dc13dc3eec4727daa6549a88f",
+  "observation_only": true,
+  "scheduled_windows_completed": false,
+  "stop_reason": "Verified next runtime became available; intentionally ended external observation before maintenance instead of delaying delivery for an additional arbitrary sampling window. Original reports and all raw samples retained.",
+  "scope": "Owned Windows runtime and CLI browser only; no Android memory claim, no forced GC, no restart during observations, no 168-hour or OOM-free claim",
+  "observations": [
+    {
+      "folder": ".local/resource-ce52-installed-20261114",
+      "raw_sha256": "92009aec8f929751ef410c46d233f3ee8a0339beaa62a459ff0d0f1510dbc0bd",
+      "report_sha256": "db8f1ef75c7acdfde415d2d2871c9deaafb2e4006053bbe817d90ea78e26b4a9",
+      "samples": 181,
+      "first_at": "2026-11-14T15:10:06.0623008Z",
+      "last_at": "2026-11-14T15:55:44.6651467Z",
+      "observed_seconds": 2738.6127421,
+      "scm_required": false,
+      "all_samples_include_exactly_one_scm": false,
+      "sampling_error": null,
+      "load": "Mixed lifecycle/audio activity then one Web viewer; this old observer omitted the SCM parent and is not full server coverage",
+      "metrics": {
+        "orchestrator": {
+          "first": {
+            "private_bytes": 109559808,
+            "handles": 340,
+            "threads": 28,
+            "process_count": 2
+          },
+          "last": {
+            "private_bytes": 112263168,
+            "handles": 376,
+            "threads": 34,
+            "process_count": 2
+          },
+          "peak_private_bytes": 113356800,
+          "min_private_bytes": 109559808,
+          "peak_handles": 376
+        },
+        "sunshine": {
+          "first": {
+            "private_bytes": 238501888,
+            "handles": 1338,
+            "threads": 148,
+            "process_count": 1
+          },
+          "last": {
+            "private_bytes": 241291264,
+            "handles": 1275,
+            "threads": 146,
+            "process_count": 1
+          },
+          "peak_private_bytes": 241291264,
+          "min_private_bytes": 43757568,
+          "peak_handles": 1382
+        },
+        "owned-browser": {
+          "first": {
+            "private_bytes": 728522752,
+            "handles": 5657,
+            "threads": 390,
+            "process_count": 11
+          },
+          "last": {
+            "private_bytes": 609886208,
+            "handles": 5044,
+            "threads": 336,
+            "process_count": 10
+          },
+          "peak_private_bytes": 1001177088,
+          "min_private_bytes": 414289920,
+          "peak_handles": 5729
+        },
+        "media-gateway": {
+          "first": {
+            "private_bytes": 18354176,
+            "handles": 234,
+            "threads": 32,
+            "process_count": 1
+          },
+          "last": {
+            "private_bytes": 20971520,
+            "handles": 269,
+            "threads": 30,
+            "process_count": 1
+          },
+          "peak_private_bytes": 25378816,
+          "min_private_bytes": 15032320,
+          "peak_handles": 300
+        }
+      }
+    },
+    {
+      "folder": ".local/resource-ce52-full-20261114",
+      "raw_sha256": "51161780485c109c9d4f57a99cc1768e111663b0ee960f9c71847198fcf22927",
+      "report_sha256": "98be3687cef5db852deb82f6627f5e5dd56c79960fe6556d8eb108aa83ac5fc2",
+      "samples": 57,
+      "first_at": "2026-11-14T15:41:18.7536606Z",
+      "last_at": "2026-11-14T15:55:49.1978742Z",
+      "observed_seconds": 870.412981,
+      "scm_required": true,
+      "all_samples_include_exactly_one_scm": true,
+      "sampling_error": null,
+      "load": "One Web viewer plus management page; runtime already warm after 100 viewer lifecycles and audio checks",
+      "metrics": {
+        "orchestrator-scm": {
+          "first": {
+            "private_bytes": 67764224,
+            "handles": 513,
+            "threads": 26,
+            "process_count": 1
+          },
+          "last": {
+            "private_bytes": 67399680,
+            "handles": 424,
+            "threads": 26,
+            "process_count": 1
+          },
+          "peak_private_bytes": 68087808,
+          "min_private_bytes": 67100672,
+          "peak_handles": 513
+        },
+        "orchestrator": {
+          "first": {
+            "private_bytes": 112324608,
+            "handles": 370,
+            "threads": 33,
+            "process_count": 2
+          },
+          "last": {
+            "private_bytes": 112263168,
+            "handles": 376,
+            "threads": 34,
+            "process_count": 2
+          },
+          "peak_private_bytes": 112615424,
+          "min_private_bytes": 112132096,
+          "peak_handles": 376
+        },
+        "sunshine": {
+          "first": {
+            "private_bytes": 240611328,
+            "handles": 1366,
+            "threads": 146,
+            "process_count": 1
+          },
+          "last": {
+            "private_bytes": 241291264,
+            "handles": 1275,
+            "threads": 146,
+            "process_count": 1
+          },
+          "peak_private_bytes": 241291264,
+          "min_private_bytes": 240574464,
+          "peak_handles": 1368
+        },
+        "owned-browser": {
+          "first": {
+            "private_bytes": 593768448,
+            "handles": 5046,
+            "threads": 336,
+            "process_count": 10
+          },
+          "last": {
+            "private_bytes": 610189312,
+            "handles": 5044,
+            "threads": 336,
+            "process_count": 10
+          },
+          "peak_private_bytes": 612319232,
+          "min_private_bytes": 593768448,
+          "peak_handles": 5048
+        },
+        "media-gateway": {
+          "first": {
+            "private_bytes": 20963328,
+            "handles": 269,
+            "threads": 30,
+            "process_count": 1
+          },
+          "last": {
+            "private_bytes": 20971520,
+            "handles": 269,
+            "threads": 30,
+            "process_count": 1
+          },
+          "peak_private_bytes": 20971520,
+          "min_private_bytes": 20963328,
+          "peak_handles": 269
+        }
+      }
+    }
+  ],
+  "browser_counters": {
+    "first": {
+      "at": "2026-11-14T15:51:47.016Z",
+      "observations": [
+        {
+          "pathname": "/stream-sessions",
+          "embedded": false,
+          "nodes": 247,
+          "heap": {
+            "used": 8811992,
+            "total": 10470312,
+            "limit": 4395630592
+          },
+          "videos": []
+        },
+        {
+          "pathname": "/watch",
+          "embedded": false,
+          "nodes": 11,
+          "heap": {
+            "used": 7379499,
+            "total": 9084099,
+            "limit": 4395630592
+          },
+          "videos": []
+        },
+        {
+          "pathname": "/watch",
+          "embedded": true,
+          "nodes": 158,
+          "heap": {
+            "used": 7379499,
+            "total": 9084099,
+            "limit": 4395630592
+          },
+          "videos": [
+            {
+              "width": 1920,
+              "height": 1080,
+              "frames": 40221,
+              "dropped": 67
+            }
+          ]
+        }
+      ],
+      "scope": "Read-only browser counters; no forced GC or heap snapshots"
+    },
+    "last": {
+      "at": "2026-11-14T15:55:48.886Z",
+      "observations": [
+        {
+          "pathname": "/stream-sessions",
+          "embedded": false,
+          "nodes": 247,
+          "heap": {
+            "used": 8127287,
+            "total": 10563375,
+            "limit": 4395630592
+          },
+          "videos": []
+        },
+        {
+          "pathname": "/watch",
+          "embedded": false,
+          "nodes": 11,
+          "heap": {
+            "used": 6959134,
+            "total": 8754534,
+            "limit": 4395630592
+          },
+          "videos": []
+        },
+        {
+          "pathname": "/watch",
+          "embedded": true,
+          "nodes": 158,
+          "heap": {
+            "used": 6959134,
+            "total": 8754534,
+            "limit": 4395630592
+          },
+          "videos": [
+            {
+              "width": 1920,
+              "height": 1080,
+              "frames": 47477,
+              "dropped": 71
+            }
+          ]
+        }
+      ],
+      "scope": "Read-only browser counters; no forced GC or heap snapshots"
+    }
+  }
+}
