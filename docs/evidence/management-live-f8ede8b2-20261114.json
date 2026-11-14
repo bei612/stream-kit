@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-14",
+  "passed": true,
+  "runtime_source": "f8ede8b2e933fb597e97dec999cceae9a3e614e1",
+  "acceptance_source": "23180624dd160211b036c08466d9e08c5d58db8d",
+  "product_run": 43609416420,
+  "acceptance_run": 43610667398,
+  "acceptance_url": "https://github.com/bei612/stream-kit/actions/runs/43610667398",
+  "installer_sha256": "50fe20fd1e7a91d887365c543b1db8386e1836ed58cb95808c6182ca218e30d8",
+  "payload_sha256": "5f50fb7e4d4b9f8dafa6011026c78b5249c657d6e364ef0ce4f62f1f157fa302",
+  "runtime_rebuilt": false,
+  "playwright_cli": "0.1.22",
+  "scope": "Verified Linux unified product, actual HTTPS UI and two native WebRTC clients; no local Windows, Android, audio or long-duration claim",
+  "checks": [
+    "trusted HTTPS and exact deployed control commit",
+    "permanent link visible before launch",
+    "real Example launch and two decoded WebRTC viewers",
+    "UI grant, transfer and revoke with server authority checks",
+    "canonical en/zh viewer authority, lifecycle-only connection prompts and ready UI pipelines",
+    "ended viewers have no stale permission notifications",
+    "Example stop; UI argument edit/save and original argument restoration with actual API agreement; read-only history",
+    "desktop/mobile screenshots and console errors"
+  ],
+  "argument_restoration": {
+    "values_in_evidence": false,
+    "args_restored": true,
+    "idle_state_confirmed": true
+  },
+  "screenshots": [
+    {
+      "name": "app-before-launch-desktop.png",
+      "bytes": 156469,
+      "sha256": "07909ae66ada9edf41613c74f793b2fee81c693659ec19cad2686f1b0820f15f"
+    },
+    {
+      "name": "app-before-launch-mobile.png",
+      "bytes": 135595,
+      "sha256": "e1063822396b5acec233c1f7cb9304eea8dfbc6953ee5c17ab3d101c2aa63910"
+    },
+    {
+      "name": "history-desktop.png",
+      "bytes": 104537,
+      "sha256": "67155bc98137aa9c470fe4d35618388ca8178324deec2167b0ad2076fc8daaa9"
+    },
+    {
+      "name": "history-mobile.png",
+      "bytes": 84760,
+      "sha256": "540f0a7165ee3d176922f4d500244b0077b3c7e92d464fd70425623e14464bcb"
+    },
+    {
+      "name": "sessions-transfer-desktop.png",
+      "bytes": 156551,
+      "sha256": "44739a444b6a0a5f5c8a66b685966e6e9095f2de43a171aaef9c4536c6f614cc"
+    },
+    {
+      "name": "sessions-transfer-mobile.png",
+      "bytes": 133743,
+      "sha256": "1bf66409545f8d4a1703731eec815f5da2a658be91a9134a1a70199b5a61bdd7"
+    },
+    {
+      "name": "stopped-arguments-restored.png",
+      "bytes": 141784,
+      "sha256": "36f9a15e0511bcfe38b38f5eba4060e4914ffda008ee26323e93512436e4212c"
+    },
+    {
+      "name": "stopped-arguments-saved.png",
+      "bytes": 141784,
+      "sha256": "36f9a15e0511bcfe38b38f5eba4060e4914ffda008ee26323e93512436e4212c"
+    },
+    {
+      "name": "viewer-after-transfer.png",
+      "bytes": 22238,
+      "sha256": "da919c6eb5cba81c9034536b759831459114d95f681440814f8520922f945848"
+    },
+    {
+      "name": "viewer-before-grant.png",
+      "bytes": 21811,
+      "sha256": "3e574a210b56e43055b8efb651d64886387e2def5923e14570a4faba99a635e0"
+    },
+    {
+      "name": "viewer-ended.png",
+      "bytes": 8165,
+      "sha256": "144c1714ab08782daa4a53e30dc8fdfa378bd224114bc087d4bcfc08e2652ad9"
+    }
+  ],
+  "visually_reviewed": [
+    "sessions-transfer-mobile.png",
+    "app-before-launch-desktop.png"
+  ]
+}
