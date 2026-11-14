@@ -118,6 +118,16 @@ IP 变化后的处理必须覆盖控制面和数据面：
 
 Windows 当前安装器用于首次部署，拒绝覆盖现有程序/数据/服务，不提供通用原位升级。组件维护需明确匹配来源、文件清单及前后端契约，不能宣传为已重装同源整包。Linux 安装器校验既有配置并保留账号，更新前仍需停止服务、备份并核对版本兼容。
 
+已安装 Windows 部署的人工维护入口为 `scripts/maintain-windows-runtime.cjs`，使用开发机 Node 在管理员终端运行；客户安装及运行不依赖系统 Node。先下载受信候选任务的完整 `platform` 载荷并核对发布摘要，停止活动应用，再执行只读预检：
+
+```powershell
+node scripts/maintain-windows-runtime.cjs --platform D:\Release\platform --program-dir 'C:\Program Files\StreamKit' --data-dir C:\ProgramData\StreamKit --origin https://127.0.0.1:9000 --expected-commit <完整源码SHA> --result D:\Release\preflight.json
+```
+
+以上路径、端口和 SHA 须替换为实际部署值。预检通过后，在相同命令追加 `--apply`，并换一个不存在的结果文件路径。工具检查 SCM 归属、自启动策略、受信 HTTPS、应用和媒体空闲、配置及三个组件的完整原生清单；拒绝链接目录、交叉目录、混合来源和外置组件路径。结果必须放在候选及安装/数据目录之外。预检仅写结果文件，不改服务和运行配置。
+
+实际维护先暂存并检查文件可移动，再由 SCM 停止服务，等待归属进程退出，冷备份数据库、配对状态、配置、证书和目录权限，然后整体替换控制端、网关与 Sunshine。保留原安装器、卸载器和已安装驱动。启动后核对三个组件、来源、应用身份及配置/信任未变；失败则恢复本次冷备份及原组件。备份在安装目录的 `.maintenance-previous-*` 和受限数据目录的 `runtime-maintenance-*`，不自动删除。不支持活动业务下更新，也不承诺任意历史数据库降级；这是人工维护工具，不能替代新安装器、自启动或整机重启验收。
+
 卸载只处理本平台匹配的服务和程序，保留运行数据；外部本机程序也不应删除。Windows 如报告需重启，按维护窗口人工重启，不强制结束其他项目。Linux 用 `sudo apt-get remove stream-kit`，保留记录的渲染用户数据。
 
 ## 故障排查
