@@ -47,11 +47,7 @@ export function linuxRuntimeSource(run, jobs, repository, runID, producerProfile
   return { commit: run.head_sha, producerProfile, linuxJob: linux[0] }
 }
 
-export function releaseIdentity(release, provenance, signing, source, tag) {
-  assert.match(tag, /^v[0-9]+\.[0-9]+\.[0-9]+-android-preview\.[0-9]+(?:\.[0-9]+)*$/)
-  assert.equal(release.tag_name, tag)
-  assert.equal(release.draft, false)
-  assert.ok(release.published_at)
+function apkIdentity(provenance, signing, source) {
   assert.equal(provenance.schema_version, 1)
   assert.equal(provenance.application_id, 'io.github.bei612.streamkit')
   assert.equal(signing.application_id, provenance.application_id)
@@ -59,6 +55,27 @@ export function releaseIdentity(release, provenance, signing, source, tag) {
   assert.match(provenance.source_commit, /^[a-f0-9]{40}$/)
   assert.match(provenance.apk_sha256, /^[a-f0-9]{64}$/)
   assert.equal(provenance.signing_certificate_sha256, signing.certificate_sha256.replace(/[\s:]/g, '').toLowerCase())
+}
+
+export function androidCandidateSource(run, repository, runID) {
+  assert.match(runID, /^[1-9][0-9]*$/)
+  assert.equal(String(run.id), runID)
+  assert.equal(run.status, 'completed')
+  assert.equal(run.conclusion, 'success')
+  assert.equal(run.path, '.github/workflows/android-release.yml')
+  assert.equal(run.head_repository.full_name, repository)
+  assert.equal(run.head_branch, 'main')
+  assert.equal(run.event, 'workflow_dispatch')
+  assert.match(run.head_sha, /^[a-f0-9]{40}$/)
+  return run.head_sha
+}
+
+export function releaseIdentity(release, provenance, signing, source, tag) {
+  assert.match(tag, /^v[0-9]+\.[0-9]+\.[0-9]+(?:-rc\.[0-9]+|-android(?:-preview\.[0-9]+(?:\.[0-9]+)*)?)?$/)
+  assert.equal(release.tag_name, tag)
+  assert.equal(release.draft, false)
+  assert.ok(release.published_at)
+  apkIdentity(provenance, signing, source)
   const apk = release.assets.filter(asset => asset.name.endsWith('.apk'))
   assert.equal(apk.length, 1)
   assert.match(apk[0].name, /^stream-kit-[a-zA-Z0-9.-]+\.apk$/)
@@ -95,12 +112,27 @@ function verifyDownloads() {
   const payload = installer.subarray(offset + marker.length)
   assert.equal(digest(payload), manifest.payload.sha256)
   fs.writeFileSync(file('runtime.deb'), payload)
-  const release = read(file('android-release.json'))
-  const provenanceBytes = verifiedAsset(release, 'provenance.json')
-  const provenance = JSON.parse(provenanceBytes)
-  const apk = releaseIdentity(release, provenance, read('third_party-manifests/android-signing.json'), read(file('android-source.json')), process.env.ANDROID_RELEASE_TAG)
-  assert.equal(digest(verifiedAsset(release, apk.name)), provenance.apk_sha256)
-  const sbom = JSON.parse(verifiedAsset(release, 'sbom.cdx.json'))
+  assert.ok(Boolean(process.env.ANDROID_RUN_ID) !== Boolean(process.env.ANDROID_RELEASE_TAG), 'Select exactly one APK producer')
+  let provenance, apkFile, sbom, release = null, androidRun = null
+  if (process.env.ANDROID_RUN_ID) {
+    androidRun = read(file('android-run.json'))
+    const source = androidCandidateSource(androidRun, process.env.GITHUB_REPOSITORY, process.env.ANDROID_RUN_ID)
+    assert.equal(source, commit, 'Candidate APK and server must have the same source')
+    provenance = read(file('provenance.json'))
+    apkIdentity(provenance, read('third_party-manifests/android-signing.json'), {sha:source})
+    const apks = fs.readdirSync(directory).filter(name => name.endsWith('.apk'))
+    assert.equal(apks.length, 1)
+    apkFile = apks[0]
+    assert.match(apkFile, /^stream-kit-[a-zA-Z0-9.-]+\.apk$/)
+    assert.equal(digest(fs.readFileSync(file(apkFile))), provenance.apk_sha256)
+    sbom = read(file('sbom.cdx.json'))
+  } else {
+    release = read(file('android-release.json'))
+    provenance = JSON.parse(verifiedAsset(release, 'provenance.json'))
+    apkFile = releaseIdentity(release, provenance, read('third_party-manifests/android-signing.json'), read(file('android-source.json')), process.env.ANDROID_RELEASE_TAG).name
+    assert.equal(digest(verifiedAsset(release, apkFile)), provenance.apk_sha256)
+    sbom = JSON.parse(verifiedAsset(release, 'sbom.cdx.json'))
+  }
   assert.equal(sbom.bomFormat, 'CycloneDX')
   assert.ok(sbom.metadata.component.hashes.some(h => h.alg === 'SHA-256' && h.content === provenance.apk_sha256))
   assert.ok(sbom.metadata.properties.some(p => p.name === 'stream-kit:source-commit' && p.value === provenance.source_commit))
@@ -108,7 +140,8 @@ function verifyDownloads() {
   fs.writeFileSync(path.join(evidence, 'provenance.json'), JSON.stringify({
     runtime_commit: commit, installer_sha256: manifest.installer.sha256, payload_sha256: manifest.payload.sha256,
     product_run_id: run.id, product_linux_job_id: read(file('product-jobs.json')).jobs.find(j => j.name === 'Linux product / Source-built Linux unified installer').id,
-    android_release_tag: release.tag_name, android_release_id: release.id, apk_file: apk.name,
+    android_release_tag: release?.tag_name ?? null, android_release_id: release?.id ?? null,
+    android_run_id: androidRun?.id ?? null, apk_file: apkFile,
     apk_source_commit: provenance.source_commit, apk_sha256: provenance.apk_sha256,
     apk_signer_sha256: provenance.signing_certificate_sha256, apk_signature_verified: false,
     acceptance_commit: process.env.GITHUB_SHA, runtime_rebuilt: false, apk_rebuilt: false,
@@ -137,6 +170,7 @@ function verifyAPK() {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const mode = process.argv[2]
   if (mode === 'product-run') console.log(productSource(read(file('product-run.json')), read(file('product-jobs.json')), process.env.GITHUB_REPOSITORY, process.env.PRODUCT_RUN_ID))
+  else if (mode === 'android-run') console.log(androidCandidateSource(read(file('android-run.json')), process.env.GITHUB_REPOSITORY, process.env.ANDROID_RUN_ID))
   else if (mode === 'downloads') verifyDownloads()
   else if (mode === 'apk') verifyAPK()
   else throw Error('Expected product-run, downloads or apk')

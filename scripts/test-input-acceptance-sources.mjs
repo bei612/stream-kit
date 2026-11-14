@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { productSource, releaseIdentity } from './verify-input-acceptance-sources.mjs'
+import { productSource, releaseIdentity, androidCandidateSource } from './verify-input-acceptance-sources.mjs'
 
 const sha = 'a'.repeat(40)
 const run = () => ({ id: 123, status: 'in_progress', path: '.github/workflows/windows-product-release.yml', head_repository: { full_name: 'bei612/stream-kit' }, head_branch: 'main', event: 'workflow_dispatch', head_sha: sha })
@@ -28,4 +28,13 @@ test('APK metadata binds a published tag, source commit and persistent signing i
   assert.throws(() => releaseIdentity(release, provenance, signing, { sha: 'b'.repeat(40) }, tag))
   assert.throws(() => releaseIdentity(release, provenance, { ...signing, certificate_sha256: 'e'.repeat(64) }, { sha }, tag))
   assert.throws(() => releaseIdentity({ ...release, assets: [...release.assets, ...release.assets] }, provenance, signing, { sha }, tag))
+})
+
+test('candidate APK requires a successful owned signing workflow, not an arbitrary artifact producer', () => {
+  const candidate = {...run(),status:'completed',conclusion:'success',path:'.github/workflows/android-release.yml'}
+  assert.equal(androidCandidateSource(candidate, 'bei612/stream-kit', '123'), sha)
+  for (const patch of [{status:'in_progress'}, {conclusion:'failure'}, {id:124}, {event:'pull_request'},
+    {path:'.github/workflows/android-client.yml'}, {head_branch:'other'}, {head_repository:{full_name:'fork/stream-kit'}}, {head_sha:'invalid'}]) {
+    assert.throws(() => androidCandidateSource({...candidate,...patch}, 'bei612/stream-kit', '123'))
+  }
 })

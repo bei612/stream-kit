@@ -3,9 +3,9 @@ on:
   workflow_dispatch:
     inputs:
       product_run_id:
-        description: 'Owned product run with successful Linux job; blank uses the pinned published runtime'
+        description: 'Explicit owned product run with successful Linux job'
         type: string
-        required: false
+        required: true
 permissions:
   contents: read
   actions: read
@@ -24,42 +24,27 @@ jobs:
       - name: Download existing runtime without rebuilding
         run: |
           set -euo pipefail
-          if [[ -z "$PRODUCT_RUN_ID" ]]; then
-            gh release download v0.1.0-preview.20261106.2 --pattern '*ubuntu24.04-amd64-setup.run' --pattern linux-installer-manifest.json --dir artifacts/network-download
-            mv artifacts/network-download/linux-installer-manifest.json artifacts/network-download/installer-manifest.json
-          else
-            [[ "$PRODUCT_RUN_ID" =~ ^[1-9][0-9]*$ ]]
-            mkdir -p artifacts/network-download
-            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PRODUCT_RUN_ID" > artifacts/network-download/product-run.json
-            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PRODUCT_RUN_ID/jobs?filter=latest&per_page=100" > artifacts/network-download/product-jobs.json
-            commit=$(node <<'JS'
-          const fs=require('fs'),a=require('assert/strict'),r=JSON.parse(fs.readFileSync('artifacts/network-download/product-run.json'));
-          a.ok(r.status==='in_progress'||(r.status==='completed'&&r.conclusion==='success'));
-          a.equal(r.path,'.github/workflows/windows-product-release.yml');
-          a.equal(r.head_repository.full_name,process.env.GITHUB_REPOSITORY);
-          a.equal(r.head_branch,'main');a.equal(r.event,'workflow_dispatch');
-          const jobs=JSON.parse(fs.readFileSync('artifacts/network-download/product-jobs.json')).jobs;
-          const linux=jobs.filter(j=>j.name==='Linux product / Source-built Linux unified installer');
-          a.equal(linux.length,1);a.equal(linux[0].status,'completed');a.equal(linux[0].conclusion,'success');
-          a.match(r.head_sha,/^[a-f0-9]{40}$/);console.log(r.head_sha);
+          [[ "$PRODUCT_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          mkdir -p artifacts/network-download
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PRODUCT_RUN_ID" > artifacts/network-download/product-run.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PRODUCT_RUN_ID/jobs?filter=latest&per_page=100" > artifacts/network-download/product-jobs.json
+          commit=$(node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import {productSource} from './scripts/verify-input-acceptance-sources.mjs';
+          const read=name=>JSON.parse(fs.readFileSync('artifacts/network-download/'+name+'.json'));
+          console.log(productSource(read('product-run'),read('product-jobs'),process.env.GITHUB_REPOSITORY,process.env.PRODUCT_RUN_ID));
           JS
-            )
-            gh run download "$PRODUCT_RUN_ID" --name "linux-product-installer-$commit" --dir artifacts/network-product
-            cp artifacts/network-product/installer/installer-manifest.json artifacts/network-download/
-            cp artifacts/network-product/installer/*-setup.run artifacts/network-download/
-          fi
+          )
+          gh run download "$PRODUCT_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "linux-product-installer-$commit" --dir artifacts/network-product
+          cp artifacts/network-product/installer/installer-manifest.json artifacts/network-download/
+          cp artifacts/network-product/installer/*-setup.run artifacts/network-download/
       - name: Verify provenance and extract native runtime
         run: |
           set -euo pipefail
           node <<'JS'
           const fs=require('fs'),crypto=require('crypto'),assert=require('assert/strict');
           const dir='artifacts/network-download/',m=JSON.parse(fs.readFileSync(dir+'installer-manifest.json'));
-          if(process.env.PRODUCT_RUN_ID){
-            assert.equal(m.commit,JSON.parse(fs.readFileSync(dir+'product-run.json')).head_sha);
-          }else{
-            assert.equal(m.commit,'d36cead6fd856925b283daddcc4af6cd1cdb7dd0');
-            assert.equal(m.installer.sha256,'6df089ad4f46ef9628d1299ac7392dae6baa9604f1e60764ef286785eec55a62');
-          }
+          assert.equal(m.commit,JSON.parse(fs.readFileSync(dir+'product-run.json')).head_sha);
           assert.equal(m.platform,'linux');assert.equal(m.payload_profile,'runtime');assert.equal(m.architecture,'amd64');
           assert.match(m.installer.file,/^stream-kit-[a-z0-9.-]+-ubuntu24\.04-amd64-setup\.run$/);
           assert.match(m.payload.sha256,/^[a-f0-9]{64}$/);
