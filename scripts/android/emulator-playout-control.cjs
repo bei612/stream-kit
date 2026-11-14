@@ -362,6 +362,9 @@ async function main() {
   let status, nextPA = started;
   while (Date.now() - started < LIMIT_MS) {
     status = await command('status');
+    // Preserve the actual failing native state, not just a generic assertion.
+    // Status contains bounded metrics only; no PCM, routes or credentials.
+    result.last_capture_status = status;
     check(!tone.closed, 'CONTROL_TONE_ENDED_DURING_CAPTURE');
     check(status.input_state === 'capture' && status.sample_rate === RATE && status.dropped_frames === 0 && !status.error, 'CONTROL_CAPTURE_FAILED');
     if (Date.now() >= nextPA) { await pa(true); nextPA = Date.now() + 500; }
@@ -412,7 +415,7 @@ main().catch(error => {result.status = 'failed'; result.failure_class = error.co
   if(stopPlayout){result.qemu_playout=await stopPlayout();stopPlayout=null;}
   rpcClient?.close();
   if (probe) {
-    try { await command('stop_capture'); }
+    try { result.cleanup_capture_status = await command('stop_capture'); }
     catch { result.failure_class ||= 'CONTROL_PROBE_STOP_FAILED'; result.status = 'failed'; result.passed = false; process.exitCode = 1; }
     try { await probe.close(); result.probe_closed = true; }
     catch { result.probe_closed = false; result.failure_class ||= 'CONTROL_PROBE_CLEANUP_FAILED'; result.status = 'failed'; result.passed = false; process.exitCode = 1; }

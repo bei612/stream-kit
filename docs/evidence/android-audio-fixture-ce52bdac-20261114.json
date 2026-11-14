@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-14",
+  "product_source": "ce52bdace58abb4dc13dc3eec4727daa6549a88f",
+  "product_run": 43595814290,
+  "android_run": 43595818809,
+  "android_apk_sha256": "9d6dd691cba611b00f658b1bc0c6cf474b5a2e434a3b3a3e0e358312c975f740",
+  "environment": "GitHub hosted Ubuntu 24.04, official Android API 35 emulator, separate testOnly observer",
+  "product_audio_passed": false,
+  "product_app_entered": false,
+  "runs": [
+    {
+      "id": 43596786945,
+      "failure": "MEDIA_VOLUME_COMMAND_TIMEOUT",
+      "set_interface": "cmd media_session volume --set",
+      "initial_volume": 5,
+      "requested_volume": 15,
+      "observed_volume": 5,
+      "independent_observations": 14
+    },
+    {
+      "id": 43597503785,
+      "failure": "INITIAL_AUDIO_CONTROLLER_NOT_OBSERVED",
+      "volume_calibration_passed": true,
+      "set_interface": "testOnly AudioManager.setStreamVolume",
+      "initial_volume": 5,
+      "observed_volume": 15,
+      "independent_observations": 1,
+      "lifecycle_note": "AudioServerPermissionProvider completion event belongs to Android 16; Android 15 emits AudioService creation instead. Version-aware checks preserve the real PCM requirements."
+    },
+    {
+      "id": 43598159248,
+      "acceptance_source": "5567e6cf",
+      "failure": "CONTROL_CAPTURE_FAILED",
+      "volume_calibration_passed": true,
+      "installation_synchronization_passed": true,
+      "native_tone_started": true,
+      "native_tone_stopped_and_released": true,
+      "initial_capture_sample_rate": 48000,
+      "initial_capture_frames": 24,
+      "initial_capture_dropped_frames": 0,
+      "probe_closed": true,
+      "limitation": "Failing poll state was not retained, so input state, dropped frames and native error cannot be distinguished. Initial capture metrics are not the failed poll metrics. No product sound or microphone verdict was reached."
+    }
+  ],
+  "subsequent_tool_change": "Retain last native capture status and cleanup status. No audio threshold or deadline change; no automatic rerun.",
+  "boundaries": [
+    "No production APK, media protocol or runtime payload changed.",
+    "No AppOps, privileged permission, safety policy or host sound-device change.",
+    "No PCM or voice file retained.",
+    "Windows emulator verification remains separate and cannot explain or overwrite this failure."
+  ]
+}
