@@ -14,13 +14,15 @@ import Watch from '@/pages/Watch'
 import { useWSStore } from '@/stores/websocket'
 import { useEffect } from 'react'
 import { isLoggedIn, getToken, clearToken } from '@/lib/utils'
+import { getManagementMessage, useManagementLocale } from '@/i18n'
 
 function NotFound() {
+  const { t } = useManagementLocale()
   return (
     <div className="text-center py-16">
       <h2 className="text-4xl font-bold mb-4">404</h2>
-      <p className="text-muted-foreground mb-4">页面不存在</p>
-      <Link to="/" className="text-blue-500 hover:underline">返回仪表盘</Link>
+      <p className="text-muted-foreground mb-4">{t('common.notFound')}</p>
+      <Link to="/" className="text-blue-500 hover:underline">{t('common.backHome')}</Link>
     </div>
   )
 }
@@ -43,13 +45,17 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
     if (this.state.hasError) {
       return (
         <div className="p-8 text-center">
-          <h2 className="text-2xl font-bold text-red-300 mb-4">页面出错了</h2>
-          <p className="text-muted-foreground mb-4">{this.state.error?.message}</p>
+          <h2 className="text-2xl font-bold text-red-300 mb-4">{getManagementMessage('common.fatalTitle')}</h2>
+          <p className="text-muted-foreground mb-4">{getManagementMessage('common.fatalDescription')}</p>
+          <details className="mx-auto mb-4 max-w-xl text-left text-xs text-muted-foreground">
+            <summary className="cursor-pointer">{getManagementMessage('common.details')}</summary>
+            <pre className="mt-2 overflow-auto whitespace-pre-wrap">{this.state.error?.message}</pre>
+          </details>
           <button
             onClick={() => { this.setState({ hasError: false }); window.location.href = '/' }}
             className="px-4 py-2 rounded bg-primary text-primary-foreground"
           >
-            返回首页
+            {getManagementMessage('common.backHome')}
           </button>
         </div>
       )
@@ -64,7 +70,8 @@ function TokenExpiryChecker() {
       const token = getToken()
       if (!token) return
       try {
-        const payload = JSON.parse(atob(token.split('.')[1]))
+        const encoded = token.split('.')[1]
+        const payload = JSON.parse(atob(encoded.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - encoded.length % 4) % 4)))
         if (payload.exp && payload.exp * 1000 < Date.now()) {
           clearToken()
           window.dispatchEvent(new CustomEvent('auth-error'))

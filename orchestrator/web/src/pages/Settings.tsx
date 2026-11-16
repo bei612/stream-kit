@@ -15,16 +15,17 @@ import { ConfigurationEditor } from '@/components/ConfigurationEditor'
 import { GatewayConfigurationEditor } from '@/components/GatewayConfigurationEditor'
 import { EncoderConfigurationEditor } from '@/components/EncoderConfigurationEditor'
 import { RenderNodes } from '@/components/RenderNodes'
-
-const sections = [
-  { id: 'service-settings', label: '管理服务', editor: <ConfigurationEditor /> },
-  { id: 'render-nodes', label: '渲染节点', editor: <RenderNodes /> },
-  { id: 'gateway-settings', label: '媒体网关', editor: <GatewayConfigurationEditor /> },
-  { id: 'encoder-settings', label: '渲染编码器', editor: <EncoderConfigurationEditor /> },
-  { id: 'audio-devices', label: '音频设备', editor: <AudioDevices /> },
-]
+import { useManagementLocale } from '@/i18n'
 
 export default function Settings() {
+  const { t } = useManagementLocale()
+  const sections = [
+    { id: 'service-settings', label: t('settings.service'), editor: <ConfigurationEditor /> },
+    { id: 'render-nodes', label: t('settings.nodes'), editor: <RenderNodes /> },
+    { id: 'gateway-settings', label: t('settings.gateway'), editor: <GatewayConfigurationEditor /> },
+    { id: 'encoder-settings', label: t('settings.encoder'), editor: <EncoderConfigurationEditor /> },
+    { id: 'audio-devices', label: t('settings.audio'), editor: <AudioDevices /> },
+  ]
   const configuration = useQuery({
     queryKey: managementKeys.runningConfiguration,
     queryFn: useCallback((signal: AbortSignal) => api.getConfig(signal), []),
@@ -37,23 +38,23 @@ export default function Settings() {
     navigate('/login', { replace: true })
   }
 
-  return <Page title="系统设置" eyebrow="工作空间配置" description="按服务管理参数，区分已保存配置与当前运行状态。"
-    actions={<Button variant="outline" onClick={handleLogout}><LogOut className="w-4 h-4" />退出登录</Button>}>
+  return <Page title={t('settings.title')} eyebrow={t('settings.eyebrow')} description={t('settings.description')}
+    actions={<Button variant="outline" onClick={handleLogout}><LogOut className="w-4 h-4" />{t('settings.logout')}</Button>}>
     <ContentGrid variant="settings">
-      <nav className="settings-navigation" aria-label="设置分区">
+      <nav className="settings-navigation" aria-label={t('settings.sections')}>
         {sections.map(section => <a key={section.id} href={'#' + section.id}>{section.label}</a>)}
-        <a href="#runtime-configuration">运行配置</a>
+        <a href="#runtime-configuration">{t('settings.runtime')}</a>
       </nav>
       <div className="settings-content">
         {sections.map(section => <section key={section.id} id={section.id} aria-label={section.label}>{section.editor}</section>)}
-        <section id="runtime-configuration" aria-label="运行配置">
+        <section id="runtime-configuration" aria-label={t('settings.runtime')}>
           <Card>
-            <CardHeader><CardTitle>当前配置（脱敏）</CardTitle>
-              <p className="text-sm text-muted-foreground">当前进程的运行配置，仅供查看；已保存但待重启的修改在各分区中显示。</p>
+            <CardHeader><CardTitle>{t('settings.currentSanitized')}</CardTitle>
+              <p className="text-sm text-muted-foreground">{t('settings.currentDescription')}</p>
             </CardHeader>
             <CardContent>
               <QueryWrapper loading={configuration.loading} error={configuration.error} onRetry={configuration.refresh}>
-                {configuration.data && <pre className="text-xs bg-muted p-3 rounded-md overflow-auto max-h-96 font-mono text-card-foreground" tabIndex={0} aria-label="脱敏运行配置">{JSON.stringify(configuration.data, null, 2)}</pre>}
+                {configuration.data && <pre className="text-xs bg-muted p-3 rounded-md overflow-auto max-h-96 font-mono text-card-foreground" tabIndex={0} aria-label={t('settings.currentSanitized')}>{JSON.stringify(configuration.data, null, 2)}</pre>}
               </QueryWrapper>
             </CardContent>
           </Card>

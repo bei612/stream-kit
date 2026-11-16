@@ -9,16 +9,16 @@ import StatusBadge from '@/components/StatusBadge'
 import { Card } from '@/components/ui/card'
 import { LinkButton } from '@/components/ui/button'
 import { Upload, ExternalLink } from 'lucide-react'
+import { useManagementLocale, type MessageKey } from '@/i18n'
 
-const componentNames: Record<string, string> = {
-  sunshine: '串流编码器',
-  web_server: '串流网关',
-}
-function componentDisplayName(name: string) {
-  return componentNames[name] || name
+function componentDisplayName(name: string, t: (key: MessageKey) => string) {
+  if (name === 'sunshine') return t('dashboard.encoder')
+  if (name === 'web_server') return t('dashboard.gateway')
+  return name
 }
 
 export default function Dashboard() {
+  const { t } = useManagementLocale()
   const health = useQuery({ queryKey: managementKeys.health, queryFn: api.health, pollInterval: 15000 })
   const comps = useQuery({
     queryKey: managementKeys.components,
@@ -46,7 +46,7 @@ export default function Dashboard() {
   const components = comps.data ?? []
 
   return (
-    <Page title="工作台" eyebrow="工作空间总览" description="查看服务与应用状态，开始或管理一场串流。" actions={<LinkButton to="/stream-sessions">管理渲染会话 <ExternalLink size={15} /></LinkButton>}>
+    <Page title={t('dashboard.title')} eyebrow={t('dashboard.eyebrow')} description={t('dashboard.description')} actions={<LinkButton to="/stream-sessions">{t('dashboard.manageSessions')} <ExternalLink size={15} /></LinkButton>}>
     <QueryWrapper loading={comps.loading || apps.loading} error={comps.error || apps.error} onRetry={() => { comps.refresh(); apps.refresh() }}>
 
         {/* Component status cards */}
@@ -54,38 +54,38 @@ export default function Dashboard() {
           {components.map(c => (
             <Card key={c.name}>
               <div className="flex items-center justify-between mb-2">
-                <span className="font-medium text-card-foreground">{componentDisplayName(c.name)}</span>
+                <span className="font-medium text-card-foreground">{componentDisplayName(c.name, t)}</span>
                 <StatusBadge status={c.status} />
               </div>
               <div className="text-xs text-muted-foreground">PID: {c.pid || '-'}</div>
-              <Link to={`/components#${encodeURIComponent(c.name)}`} className="mt-3 inline-flex min-h-9 items-center gap-1 text-xs text-primary hover:underline">管理组件 <ExternalLink className="h-3 w-3" /></Link>
+            <Link to={`/components#${encodeURIComponent(c.name)}`} className="mt-3 inline-flex min-h-9 items-center gap-1 text-xs text-primary hover:underline">{t('dashboard.manageComponent')} <ExternalLink className="h-3 w-3" /></Link>
             </Card>
           ))}
           {components.length === 0 && !comps.loading && (
-            <EmptyState title="未配置任何组件" description="在系统设置中核对组件配置。" />
+            <EmptyState title={t('dashboard.noComponents')} description={t('dashboard.noComponentsDescription')} />
           )}
         </ContentGrid>
 
         {/* App overview */}
         <ContentGrid variant="metrics">
           {[
-            { label: '应用总数', value: appStats.total, color: 'text-foreground' },
-            { label: '运行中', value: appStats.running, color: 'text-green-500' },
-            { label: '就绪', value: appStats.ready, color: 'text-blue-500' },
-            { label: '异常', value: appStats.error, color: 'text-red-300' },
+            { label: t('dashboard.totalApps'), value: appStats.total, color: 'text-foreground' },
+            { label: t('dashboard.runningApps'), value: appStats.running, color: 'text-green-500' },
+            { label: t('dashboard.readyApps'), value: appStats.ready, color: 'text-blue-500' },
+            { label: t('dashboard.errorApps'), value: appStats.error, color: 'text-red-300' },
           ].map(({ label, value, color }) => (
             <Metric key={label} label={label} value={value} className={color} />
           ))}
         </ContentGrid>
 
         <div className="action-row">
-          <LinkButton to="/upload" variant="primary"><Upload className="w-4 h-4" /> 添加应用</LinkButton>
-          <LinkButton to="/apps"><ExternalLink className="w-4 h-4" /> 应用列表</LinkButton>
+          <LinkButton to="/upload" variant="primary"><Upload className="w-4 h-4" /> {t('dashboard.addApp')}</LinkButton>
+          <LinkButton to="/apps"><ExternalLink className="w-4 h-4" /> {t('dashboard.appList')}</LinkButton>
         </div>
 
         {health.data && (
           <div className="break-all text-xs text-muted-foreground">
-            版本: {health.data.version} ({health.data.commit})
+            {t('dashboard.version')}: {health.data.version} ({health.data.commit})
           </div>
         )}
     </QueryWrapper>

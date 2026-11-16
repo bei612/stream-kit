@@ -11,17 +11,17 @@ import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
 import { Play, Square, RotateCcw } from 'lucide-react'
 import { formatDuration } from '@/lib/utils'
+import { useManagementLocale, type MessageKey } from '@/i18n'
 
-const componentNames: Record<string, string> = {
-  sunshine: '串流编码器',
-  web_server: '串流网关',
-}
 type ComponentCommand = 'start' | 'stop' | 'restart'
-function componentDisplayName(name: string) {
-  return componentNames[name] || name
+function componentDisplayName(name: string, t: (key: MessageKey) => string) {
+  if (name === 'sunshine') return t('dashboard.encoder')
+  if (name === 'web_server') return t('dashboard.gateway')
+  return name
 }
 
 export default function Components() {
+  const { t } = useManagementLocale()
   const { data, loading, error, refresh } = useQuery({
     queryKey: managementKeys.components,
     queryFn: useCallback((signal: AbortSignal) => api.listComponents(signal), []),
@@ -40,12 +40,12 @@ export default function Components() {
       const res = await api.getComponentLogs(name, 50)
       setLogs(prev => ({ ...prev, [name]: res.data || [] }))
     } catch (e: unknown) {
-      setLogErrors(previous => ({ ...previous, [name]: e instanceof Error ? e.message : '读取组件日志失败' }))
+      setLogErrors(previous => ({ ...previous, [name]: e instanceof Error ? e.message : t('components.logsError') }))
     }
   }
 
   return (
-    <Page title="组件管理" eyebrow="运行服务" description="管理编码器与媒体网关，查看运行状态和日志。">
+    <Page title={t('components.title')} eyebrow={t('components.eyebrow')} description={t('components.description')}>
     <QueryWrapper loading={loading} error={error} onRetry={refresh}>
       <ContentGrid>
         {components.map(c => {
@@ -59,40 +59,40 @@ export default function Components() {
               <div className="flex flex-wrap items-center justify-between gap-4 mb-3">
                 <div>
                   <span className="text-lg font-medium capitalize text-card-foreground">
-                    {componentDisplayName(c.name)}
+                    {componentDisplayName(c.name, t)}
                   </span>
                   <span className="ml-3"><StatusBadge status={c.status} /></span>
                 </div>
                 <div className="action-row">
                   <Button size="sm" onClick={() => void command.run(c.name, 'start', () => api.startComponent(c.name))} disabled={!!pending || ['running','starting','unhealthy'].includes(c.status) || c.pid > 0}>
-                    <Play className="w-3 h-3" /> {pending === 'start' ? '正在启动…' : '启动'}
+                    <Play className="w-3 h-3" /> {pending === 'start' ? t('components.starting') : t('components.start')}
                   </Button>
                   <Button size="sm" variant="destructive" onClick={() => void command.run(c.name, 'stop', () => api.stopComponent(c.name))} disabled={!!pending || c.status === 'stopped'}>
-                    <Square className="w-3 h-3" /> {pending === 'stop' ? '正在停止…' : '停止'}
+                    <Square className="w-3 h-3" /> {pending === 'stop' ? t('components.stopping') : t('components.stop')}
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => void command.run(c.name, 'restart', () => api.restartComponent(c.name))} disabled={!!pending}>
-                    <RotateCcw className="w-3 h-3" /> {pending === 'restart' ? '正在重启…' : '重启'}
+                    <RotateCcw className="w-3 h-3" /> {pending === 'restart' ? t('components.restarting') : t('components.restart')}
                   </Button>
                 </div>
               </div>
 
               <div className="component-facts text-sm text-muted-foreground mb-3">
                 <div>PID: <span className="text-card-foreground">{c.pid || '-'}</span></div>
-                <div>运行时长: <span className="text-card-foreground">{uptime > 0 ? formatDuration(uptime) : '-'}</span></div>
-                <div>崩溃次数: <span className="text-card-foreground">{c.crash_count}</span></div>
+                <div>{t('components.uptime')}: <span className="text-card-foreground">{uptime > 0 ? formatDuration(uptime) : '-'}</span></div>
+                <div>{t('components.crashCount')}: <span className="text-card-foreground">{c.crash_count}</span></div>
               </div>
 
-              {c.last_error && !command.errors[c.name] && <div className="text-xs text-red-300 mb-2">错误: {c.last_error}</div>}
+              {c.last_error && !command.errors[c.name] && <div className="text-xs text-red-300 mb-2">{t('components.error')}: {c.last_error}</div>}
               {command.errors[c.name] && <Alert role="alert" variant="error">{command.errors[c.name]}</Alert>}
-              {pending && <p className="text-xs text-muted-foreground mb-2" role="status">正在执行组件操作，启停结果以健康检查状态为准。</p>}
+              {pending && <p className="text-xs text-muted-foreground mb-2" role="status">{t('components.pending')}</p>}
 
               <div>
-                <button onClick={() => loadLogs(c.name)} className="text-xs text-primary hover:underline mb-1">加载日志</button>
+                <button onClick={() => loadLogs(c.name)} className="text-xs text-primary hover:underline mb-1">{t('components.loadLogs')}</button>
                 {logErrors[c.name] && <Alert role="alert" variant="error">{logErrors[c.name]}</Alert>}
                 {logs[c.name] && (
-                  <div className="bg-black text-green-400 text-xs font-mono p-3 rounded max-h-48 overflow-auto min-w-0 break-all" role="region" aria-label={`${componentDisplayName(c.name)}日志`} tabIndex={0}>
+                  <div className="bg-black text-green-400 text-xs font-mono p-3 rounded max-h-48 overflow-auto min-w-0 break-all" role="region" aria-label={`${componentDisplayName(c.name, t)}${t('components.logs')}`} tabIndex={0}>
                     {logs[c.name].length === 0
-                      ? <div className="text-muted-foreground">暂无日志</div>
+                      ? <div className="text-muted-foreground">{t('components.noLogs')}</div>
                       : logs[c.name].map((line, i) => <div key={i}>{line}</div>)}
                   </div>
                 )}
@@ -102,7 +102,7 @@ export default function Components() {
         })}
 
       </ContentGrid>
-      {components.length === 0 && <EmptyState title="未配置任何组件" description="请在系统设置中核对编码器与网关配置。" />}
+      {components.length === 0 && <EmptyState title={t('dashboard.noComponents')} description={t('components.noComponentsDescription')} />}
     </QueryWrapper>
     </Page>
   )

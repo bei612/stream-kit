@@ -7,8 +7,10 @@ import { Radio, ArrowRight } from 'lucide-react'
 import { Input, Label } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
+import { LanguageSwitcher, useManagementLocale } from '@/i18n'
 
 export default function Login() {
+  const { t } = useManagementLocale()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -36,16 +38,16 @@ export default function Login() {
     <div className="login-shell">
       <section className="login-intro">
         <div className="flex items-center gap-3"><span className="brand-mark"><Radio size={22} /></span><span className="brand-name">STREAM KIT</span></div>
-        <h1>云端渲染，<br />统一掌控。</h1>
-        <p>从应用启动到客户端连接，在一个工作空间管理串流、控制权与音频。</p>
-        <div className="login-facts"><span>应用与节点</span><span>共享串流</span><span>控制权与音频</span></div>
+        <h1>{t('login.heroTitle')}<br />{t('login.heroTitleSecond')}</h1>
+        <p>{t('login.heroDescription')}</p>
+        <div className="login-facts"><span>{t('login.factApps')}</span><span>{t('login.factStreams')}</span><span>{t('login.factControl')}</span></div>
       </section>
-      <section className="login-form-area" aria-label="管理员登录">
+      <section className="login-form-area" aria-label={t('login.console')}>
       <div className="login-form">
         <div className="mb-8">
-          <p className="page-eyebrow">管理控制台</p>
-          <h2>欢迎回来</h2>
-          <p className="text-sm text-muted-foreground mt-2">使用管理员账号登录工作空间。</p>
+          <div className="flex items-center justify-between gap-3"><p className="page-eyebrow">{t('login.console')}</p><LanguageSwitcher /></div>
+          <h2>{t('login.welcome')}</h2>
+          <p className="text-sm text-muted-foreground mt-2">{t('login.formDescription')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -54,26 +56,26 @@ export default function Login() {
           )}
 
           <div>
-            <Label htmlFor="username">用户名</Label>
+            <Label htmlFor="username">{t('login.username')}</Label>
             <Input
               id="username"
               type="text"
               value={username}
               onChange={e => setUsername(e.target.value)}
-              placeholder="请输入用户名"
+              placeholder={t('login.usernamePlaceholder')}
               autoFocus
               autoComplete="username"
             />
           </div>
 
           <div>
-            <Label htmlFor="password">密码</Label>
+            <Label htmlFor="password">{t('login.password')}</Label>
             <Input
               id="password"
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              placeholder="请输入密码"
+              placeholder={t('login.passwordPlaceholder')}
               autoComplete="current-password"
             />
           </div>
@@ -83,10 +85,10 @@ export default function Login() {
             disabled={loading || !username || !password}
             className="w-full"
           >
-            {loading ? '登录中...' : '登录控制台'}<ArrowRight size={16} aria-hidden="true" />
+            {loading ? t('login.submitting') : t('login.submit')}<ArrowRight size={16} aria-hidden="true" />
           </Button>
         </form>
-        <p className="text-xs text-muted-foreground mt-6">观看客户端请使用管理员提供的观看链接。</p>
+        <p className="text-xs text-muted-foreground mt-6">{t('login.viewerHint')}</p>
       </div>
       </section>
     </div>

@@ -9,8 +9,10 @@ import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
 import { Upload as UploadIcon, X } from 'lucide-react'
 import CaptureModeField, { type CaptureMode } from '@/components/CaptureModeField'
+import { useManagementLocale } from '@/i18n'
 
 export default function UploadPage() {
+  const { t } = useManagementLocale()
   const [captureMode,setCaptureMode]=useState<CaptureMode>('desktop')
   const [source,setSource]=useState<'archive'|'local'>('archive')
   const [exePath,setExePath]=useState('')
@@ -58,9 +60,9 @@ export default function UploadPage() {
     if (source==='local') {
       try {
         const result=await api.registerLocalApp({name,exe_path:exePath,working_dir:workingDir,args:argsMode==='custom'?linesToArgs(customArgsText):'',args_template:argsMode!=='none'&&argsMode!=='custom'?argsMode:'',capture_mode:captureMode})
-        if (!result.data?.id) throw new Error('服务器未返回已登记的应用')
+        if (!result.data?.id) throw new Error(t('upload.registerNoId'))
         navigate(`/apps/${result.data.id}`)
-      } catch (err:unknown) { setError(err instanceof Error ? err.message : '登记应用失败') } finally { setUploading(false) }
+      } catch (err:unknown) { setError(err instanceof Error ? err.message : t('upload.registerFailed')) } finally { setUploading(false) }
       return
     }
 
@@ -80,12 +82,12 @@ export default function UploadPage() {
       const { promise, abort } = api.uploadApp(fd, setProgress)
       abortRef.current = abort
       const res = await promise
-      if (!res.data?.app_id) throw new Error('服务器未返回已上传的应用')
+      if (!res.data?.app_id) throw new Error(t('upload.uploadNoId'))
       setProgress(100)
       setUploading(false)
       navigate(`/apps/${res.data.app_id}`)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : '上传应用失败')
+      setError(err instanceof Error ? err.message : t('upload.uploadFailed'))
       setUploading(false)
     } finally {
       abortRef.current = null
@@ -98,16 +100,16 @@ export default function UploadPage() {
     : ''
 
   return (
-    <Page title="添加应用" eyebrow="应用部署" description="上传应用包，或连接服务器上已有的程序。">
+    <Page title={t('upload.title')} eyebrow={t('upload.eyebrow')} description={t('upload.description')}>
       <ContentGrid variant="detail">
       <div className="page-stack">
-      <div className="action-row" role="group" aria-label="应用来源">
-        <Button type="button" variant={source==='archive'?'primary':'outline'} aria-pressed={source==='archive'} disabled={uploading} onClick={()=>{setSource('archive');setError('');setProgress(-1)}}>上传压缩包</Button>
-        <Button type="button" variant={source==='local'?'primary':'outline'} aria-pressed={source==='local'} disabled={uploading} onClick={()=>{setSource('local');setError('');setProgress(-1)}}>本机已有程序</Button>
+      <div className="action-row" role="group" aria-label={t('upload.source')}>
+        <Button type="button" variant={source==='archive'?'primary':'outline'} aria-pressed={source==='archive'} disabled={uploading} onClick={()=>{setSource('archive');setError('');setProgress(-1)}}>{t('upload.archive')}</Button>
+        <Button type="button" variant={source==='local'?'primary':'outline'} aria-pressed={source==='local'} disabled={uploading} onClick={()=>{setSource('local');setError('');setProgress(-1)}}>{t('upload.local')}</Button>
       </div>
 
       {source==='archive' && blocked && !uploading && (
-        <Alert variant="warning">当前有其他应用正在上传或解压中，请等待完成后再上传。</Alert>
+        <Alert variant="warning">{t('upload.blocked')}</Alert>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -125,7 +127,7 @@ export default function UploadPage() {
               </span>
               <button
                 type="button"
-                aria-label="移除所选压缩包"
+                aria-label={t('upload.removeArchive')}
                 disabled={uploading}
                 onClick={() => { setFile(null); if (fileRef.current) fileRef.current.value = '' }}
                 className="text-red-300 hover:text-red-300"
@@ -137,10 +139,10 @@ export default function UploadPage() {
             <div>
               <UploadIcon className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
               <Button type="button" variant="ghost" className="max-w-full whitespace-normal" disabled={uploading} onClick={() => fileRef.current?.click()}>
-                拖拽文件到此处，或点击选择文件
+                {t('upload.dropzone')}
               </Button>
               <p className="text-xs text-muted-foreground mt-1">
-                支持 ZIP、7z、RAR、TAR 及 gzip / bzip2 / xz / zstd 压缩的 TAR
+                {t('upload.formats')}
               </p>
             </div>
           )}
@@ -158,21 +160,21 @@ export default function UploadPage() {
             }}
           />
         </Card> : <Card className="p-5 space-y-4">
-          <p className="text-sm text-muted-foreground">填写当前服务器的绝对路径。程序文件保留在原位置，平台注册不会启动程序；移除注册仅清理平台日志和配置。</p>
-          <div><Label htmlFor="local-executable">程序绝对路径</Label><Input id="local-executable" value={exePath} onChange={e=>setExePath(e.target.value)} placeholder="D:\Apps\MyApp\MyApp.exe 或 /opt/myapp/myapp" required autoComplete="off" /></div>
-          <div><Label htmlFor="local-working-dir">工作目录（可选）</Label><Input id="local-working-dir" value={workingDir} onChange={e=>setWorkingDir(e.target.value)} placeholder="留空时使用程序所在目录" autoComplete="off" /></div>
-          <p className="text-xs text-muted-foreground">Windows 使用 EXE；Linux 支持 ELF 程序或启动脚本，已有文件须具备执行权限。启动参数在下方配置，下次启动时生效。</p>
+          <p className="text-sm text-muted-foreground">{t('upload.localDescription')}</p>
+          <div><Label htmlFor="local-executable">{t('upload.executablePath')}</Label><Input id="local-executable" value={exePath} onChange={e=>setExePath(e.target.value)} placeholder={t('upload.executablePlaceholder')} required autoComplete="off" /></div>
+          <div><Label htmlFor="local-working-dir">{t('upload.workingDir')}</Label><Input id="local-working-dir" value={workingDir} onChange={e=>setWorkingDir(e.target.value)} placeholder={t('upload.workingDirPlaceholder')} autoComplete="off" /></div>
+          <p className="text-xs text-muted-foreground">{t('upload.localHint')}</p>
         </Card>}
 
         {/* App name */}
         <div>
-          <Label htmlFor="application-name">应用名称</Label>
+          <Label htmlFor="application-name">{t('upload.appName')}</Label>
           <Input
             id="application-name"
             type="text"
             value={name}
             onChange={e => setName(e.target.value)}
-            placeholder="如：我的应用"
+            placeholder={t('upload.appNamePlaceholder')}
             required
           />
         </div>
@@ -180,24 +182,24 @@ export default function UploadPage() {
         {/* Args mode selector */}
         <CaptureModeField value={captureMode} onChange={setCaptureMode} disabled={uploading} />
         <div>
-          <Label htmlFor="application-args-mode">启动参数</Label>
+          <Label htmlFor="application-args-mode">{t('upload.launchArgs')}</Label>
           <Select
             id="application-args-mode"
             value={argsMode}
             onChange={e => setArgsMode(e.target.value)}
           >
-            <option value="none">无参数（直接运行）</option>
+            <option value="none">{t('upload.noArgs')}</option>
             {Object.entries(templates).map(([key]) => (
-              <option key={key} value={key}>模板：{key}</option>
+              <option key={key} value={key}>{t('upload.template')}: {key}</option>
             ))}
-            <option value="custom">自定义参数</option>
+            <option value="custom">{t('upload.customArgs')}</option>
           </Select>
         </div>
 
         {/* Template preview (read-only) */}
         {templatePreview && (
           <div>
-            <label className="block text-xs text-muted-foreground mb-1">模板参数预览</label>
+            <label className="block text-xs text-muted-foreground mb-1">{t('upload.templatePreview')}</label>
             <pre className="px-3 py-2 border rounded-md bg-muted text-xs font-mono whitespace-pre-wrap text-card-foreground">
               {templatePreview}
             </pre>
@@ -208,7 +210,7 @@ export default function UploadPage() {
         {argsMode === 'custom' && (
           <div>
             <label htmlFor="new-application-args" className="block text-xs text-muted-foreground mb-1">
-              每行一个参数，含空格的路径请用引号包裹
+              {t('upload.argsHelp')}
             </label>
             <Textarea
               id="new-application-args"
@@ -225,7 +227,7 @@ export default function UploadPage() {
         {progress >= 0 && (
           <div>
             <div className="flex justify-between text-xs text-muted-foreground mb-1">
-              <span>上传进度</span>
+              <span>{t('upload.progress')}</span>
               <span>{Math.round(progress)}%</span>
             </div>
             <div className="w-full bg-muted rounded-full h-2">
@@ -247,7 +249,7 @@ export default function UploadPage() {
           disabled={!name || uploading || (source==='archive'? !file || blocked : !exePath)}
           className="w-full"
         >
-          {uploading ? (source==='archive'?'上传中...':'注册中...') : (source==='archive'?'开始上传':'注册本机程序')}
+          {uploading ? (source==='archive'?t('upload.uploading'):t('upload.registering')) : (source==='archive'?t('upload.startUpload'):t('upload.registerLocal'))}
         </Button>
 
         {uploading && source==='archive' && (
@@ -257,13 +259,13 @@ export default function UploadPage() {
             onClick={() => abortRef.current?.()}
             className="w-full border-red-400/30 text-red-300 hover:bg-red-900/20"
           >
-            取消上传
+            {t('upload.cancel')}
           </Button>
         )}
       </form>
       </div>
       <Card className="form-aside">
-        <h3>{source === 'local' ? '连接服务器已有程序' : '准备应用压缩包'}</h3>
+        <h3>{source === 'local' ? t('upload.localAsideTitle') : t('upload.archiveAsideTitle')}</h3>
         <ul>
           {source === 'local' ? <>
             <li>填写服务器本机的绝对路径，而非当前访问设备的路径。</li>

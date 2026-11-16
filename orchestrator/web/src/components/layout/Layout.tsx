@@ -2,40 +2,41 @@ import { useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router'
 import { LayoutDashboard, Box, AppWindow, Upload, ScrollText, Settings, Radio, ChevronRight, Menu, X } from 'lucide-react'
 import { useWSStore } from '@/stores/websocket'
-
-const navItems = [
-  { path: '/', label: '工作台', icon: LayoutDashboard },
-  { path: '/components', label: '组件管理', icon: Box },
-  { path: '/apps', label: '应用管理', icon: AppWindow },
-  { path: '/upload', label: '添加应用', icon: Upload },
-  { path: '/stream-sessions', label: '渲染会话', icon: Radio },
-  { path: '/logs', label: '操作日志', icon: ScrollText },
-  { path: '/settings', label: '系统设置', icon: Settings },
-]
+import { LanguageSwitcher, useManagementLocale } from '@/i18n'
 
 export default function Layout({ children }: { children: ReactNode }) {
   const location = useLocation()
   const connected = useWSStore(state => state.connected)
+  const { t } = useManagementLocale()
+  const navItems = [
+    { path: '/', label: t('nav.dashboard'), icon: LayoutDashboard },
+    { path: '/components', label: t('nav.components'), icon: Box },
+    { path: '/apps', label: t('nav.apps'), icon: AppWindow },
+    { path: '/upload', label: t('nav.upload'), icon: Upload },
+    { path: '/stream-sessions', label: t('nav.sessions'), icon: Radio },
+    { path: '/logs', label: t('nav.logs'), icon: ScrollText },
+    { path: '/settings', label: t('nav.settings'), icon: Settings },
+  ]
   const [navigationOpen, setNavigationOpen] = useState(false)
   const menuButton = useRef<HTMLButtonElement>(null)
   const activeItem = navItems.find(item => item.path !== '/' && location.pathname.startsWith(item.path)) ?? navItems[0]
 
   return (
     <div className="app-shell">
-      <a href="#main-content" className="skip-link">跳到页面内容</a>
-      <nav className="app-navigation" aria-label="主导航" data-expanded={navigationOpen} onKeyDown={event => {
+      <a href="#main-content" className="skip-link">{t('common.skipToContent')}</a>
+      <nav className="app-navigation" aria-label={t('common.mainNavigation')} data-expanded={navigationOpen} onKeyDown={event => {
         if (event.key === 'Escape' && navigationOpen) { setNavigationOpen(false); menuButton.current?.focus() }
       }}>
         <div className="navigation-heading">
           <Link to="/" className="app-brand">
             <span className="brand-mark"><Radio size={22} aria-hidden="true" /></span>
-            <span><span className="brand-name">STREAM KIT</span><span className="brand-caption block">云渲染 · 统一控制台</span></span>
+            <span><span className="brand-name">STREAM KIT</span><span className="brand-caption block">{t('nav.workspace')}</span></span>
           </Link>
-          <button ref={menuButton} type="button" className="navigation-toggle" aria-label={navigationOpen ? '收起导航' : '展开导航'} aria-expanded={navigationOpen} aria-controls="workspace-navigation" onClick={() => setNavigationOpen(value => !value)}>
+          <button ref={menuButton} type="button" className="navigation-toggle" aria-label={navigationOpen ? t('nav.collapse') : t('nav.expand')} aria-expanded={navigationOpen} aria-controls="workspace-navigation" onClick={() => setNavigationOpen(value => !value)}>
             {navigationOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
-        <p className="nav-caption">工作空间</p>
+        <p className="nav-caption">{t('nav.workspace')}</p>
         <div id="workspace-navigation" className="nav-links">
           {navItems.map(({ path, label, icon: Icon }) => {
             const active = path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
@@ -54,14 +55,14 @@ export default function Layout({ children }: { children: ReactNode }) {
           })}
         </div>
 
-        <div className="nav-footer">一个控制台，连接所有画面。</div>
+        <div className="nav-footer">{t('nav.footer')}</div>
       </nav>
 
       <div className="workspace">
         <header className="workspace-bar">
           <div className="workspace-container workspace-bar-content">
-          <div className="workspace-path"><span>控制台</span><ChevronRight size={13} aria-hidden="true" /><span className="text-card-foreground">{activeItem.label}</span></div>
-          <div className="workspace-identity"><span className="connection-indicator" data-connected={connected}>{connected ? '实时连接' : '连接恢复中'}</span><span className="admin-avatar" title="管理员">管</span></div>
+          <div className="workspace-path"><span>{t('login.console')}</span><ChevronRight size={13} aria-hidden="true" /><span className="text-card-foreground">{activeItem.label}</span></div>
+          <div className="workspace-identity"><span className="connection-indicator" data-connected={connected}>{connected ? t('common.connected') : t('common.reconnecting')}</span><LanguageSwitcher /><span className="admin-avatar" title={t('nav.admin')}>A</span></div>
           </div>
         </header>
         <main id="main-content" tabIndex={-1} className="workspace-container workspace-main">{children}</main>

@@ -17,6 +17,7 @@ import { Alert } from '@/components/ui/alert'
 import { formatBytes, formatTime, argsToLines, linesToArgs } from '@/lib/utils'
 import { ArrowLeft, Trash2, Save, RotateCcw, Play, Square, Users, ArrowUpRight } from 'lucide-react'
 import CaptureModeField, { type CaptureMode } from '@/components/CaptureModeField'
+import { useManagementLocale } from '@/i18n'
 
 export default function AppDetail() {
   const { id } = useParams<{ id: string }>()
@@ -24,6 +25,7 @@ export default function AppDetail() {
 }
 
 function AppDetailContent({id}: {id: string | undefined}) {
+  const { t } = useManagementLocale()
   const navigate = useNavigate()
   const {data:app, error:loadError, refresh} = useQuery({
     queryKey: managementKeys.app(id),
@@ -55,11 +57,11 @@ function AppDetailContent({id}: {id: string | undefined}) {
     const confirmed = await execute('save', async () => { await api.updateApp(id!, {args:linesToArgs(args), capture_mode:captureMode}) })
     if (confirmed) {
       settingsDraft.reset()
-      setSaveNotice({kind:'success',message:'配置已保存，下次启动应用时生效。'})
+      setSaveNotice({kind:'success',message:t('appDetail.savedNotice')})
     }
   }
   const handleDelete = () => {
-    if (!app || !confirm(app.source === 'local' ? `移除 "${app.name}" 的平台注册？原程序及工作目录会保留。` : `确定删除应用 "${app.name}" 及上传文件？`)) return
+    if (!app || !confirm(app.source === 'local' ? `${t('appDetail.removeConfirmLocalPrefix')} "${app.name}"${t('appDetail.removeConfirmLocalSuffix')}` : `${t('appDetail.deleteConfirmPrefix')} "${app.name}"${t('appDetail.deleteConfirmSuffix')}`)) return
     return execute('delete', async () => { await api.deleteApp(id!); navigate('/apps') })
   }
   const handleSelectExe = (exePath: string) => execute('select', async () => { await api.selectExe(id!, exePath) })
@@ -69,8 +71,8 @@ function AppDetailContent({id}: {id: string | undefined}) {
   })
   const handleStopStream = () => execute('stop', async () => { await api.stopApp(id!) })
 
-  const back = <LinkButton to="/apps" variant="ghost" size="sm"><ArrowLeft className="w-4 h-4" />返回应用列表</LinkButton>
-  if (!app) return <Page title="应用详情" eyebrow="渲染内容" description="管理程序、启动配置和固定观看入口。" back={back}>
+  const back = <LinkButton to="/apps" variant="ghost" size="sm"><ArrowLeft className="w-4 h-4" />{t('appDetail.back')}</LinkButton>
+  if (!app) return <Page title={t('appDetail.title')} eyebrow={t('apps.eyebrow')} description={t('appDetail.description')} back={back}>
     <QueryWrapper loading={!loadError} error={loadError} onRetry={refresh}>{null}</QueryWrapper>
   </Page>
 
@@ -78,8 +80,8 @@ function AppDetailContent({id}: {id: string | undefined}) {
   const settingsDisabled = !!pending || !!loadError || !settingsEditable
 
   return (
-    <Page title={app.name} eyebrow="应用详情" description="管理程序、启动配置和固定观看入口。" badge={<StatusBadge status={app.status} />} back={back}>
-      {loadError && <Alert variant="warning" role="status">状态刷新失败：{loadError}。当前显示上次读取的状态。</Alert>}
+    <Page title={app.name} eyebrow={t('appDetail.eyebrow')} description={t('appDetail.description')} badge={<StatusBadge status={app.status} />} back={back}>
+      {loadError && <Alert variant="warning" role="status">{t('appDetail.refreshFailed')}: {loadError}。{t('appDetail.showingLastState')}</Alert>}
 
       {command.error && <Alert variant="error" role="alert">{command.error}</Alert>}
       <ContentGrid variant="detail">
@@ -88,36 +90,36 @@ function AppDetailContent({id}: {id: string | undefined}) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            串流控制
+            {t('appDetail.streamControl')}
             {app.status === 'running' && (
               <span className="inline-flex items-center gap-1.5 text-xs font-normal text-emerald-400">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                运行中
+                {t('status.running')}
               </span>
             )}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {!['ready','stopped','crashed','running'].includes(app.status) && <p className="text-sm text-muted-foreground">
-            {app.status==='register_failed'?'完成编码器注册后即可启动串流。':'应用尚未准备完成，请等待处理完成或按下方提示选择入口。'}
+            {app.status==='register_failed'?t('appDetail.registerFirst'):t('appDetail.notReady')}
           </p>}
-          <p className="mb-4 text-sm text-muted-foreground">启动应用并进入观看；连接后的控制权与麦克风路由在客户端页面管理。</p>
+          <p className="mb-4 text-sm text-muted-foreground">{t('appDetail.streamDescription')}</p>
           <div className="flex flex-wrap items-center gap-3">
             {app.lifecycle?.can_launch && (
               <>
               <Button onClick={handleLaunch} disabled={!!pending || !!loadError}>
-                <Play className="w-4 h-4" /> {launching ? '打开中...' : app.status === 'running' ? '进入串流' : '启动串流'}
+                <Play className="w-4 h-4" /> {launching ? t('appDetail.opening') : app.status === 'running' ? t('apps.enterStream') : t('apps.startStream')}
               </Button>
               </>
             )}
             {app.lifecycle?.can_stop && (
               <>
                 <Button variant="destructive" onClick={handleStopStream} disabled={!!pending || !!loadError}>
-                  <Square className="w-4 h-4" /> {stopping ? '停止中...' : '停止串流（含程序）'}
+                  <Square className="w-4 h-4" /> {stopping ? t('appDetail.stopping') : t('appDetail.stopWithProcess')}
                 </Button>
               </>
             )}
-            <Link to={`/stream-sessions?app=${encodeURIComponent(app.id)}`} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-border px-4 text-sm hover:bg-accent"><Users className="h-4 w-4" />管理客户端与音频<ArrowUpRight className="h-3.5 w-3.5" /></Link>
+            <Link to={`/stream-sessions?app=${encodeURIComponent(app.id)}`} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-border px-4 text-sm hover:bg-accent"><Users className="h-4 w-4" />{t('appDetail.manageClients')}<ArrowUpRight className="h-3.5 w-3.5" /></Link>
           </div>
           <AppWatchLink appId={app.id} />
         </CardContent>
@@ -127,7 +129,7 @@ function AppDetailContent({id}: {id: string | undefined}) {
       {/* Exe selection dialog */}
       {app.status === 'detecting' && candidates.length > 0 && (
         <Alert variant="warning">
-          <p className="font-medium mb-2">检测到多个可执行文件，请选择入口：</p>
+          <p className="font-medium mb-2">{t('appDetail.multipleExecutables')}</p>
           <div className="space-y-2">
             {candidates.map(c => (
               <Button
@@ -146,22 +148,22 @@ function AppDetailContent({id}: {id: string | undefined}) {
       {/* Register failed retry */}
       {app.status === 'register_failed' && (
         <Alert variant="error">
-          <p className="font-medium mb-1">配置尚未在编码器中应用成功</p>
-          <p className="text-sm mb-2">{app.error_message}。检查编码器状态后，可重试已保存的配置。</p>
+          <p className="font-medium mb-1">{t('appDetail.registerFailedTitle')}</p>
+          <p className="text-sm mb-2">{app.error_message}。{t('appDetail.registerFailedDescription')}</p>
           <Button size="sm" onClick={handleRetryRegister} disabled={retrying||saving}>
-            <RotateCcw className="w-3 h-3" /> {retrying?'正在提交…':'重试注册'}
+            <RotateCcw className="w-3 h-3" /> {retrying?t('appDetail.submitting'):t('appDetail.retryRegister')}
           </Button>
         </Alert>
       )}
 
       {/* Args editing */}
       <details open={settingsEditable || argsDirty} className="rounded-xl border border-border bg-card p-5">
-        <summary className="cursor-pointer text-sm font-medium">采集与启动配置 <span className="ml-2 text-xs font-normal text-muted-foreground">{settingsEditable ? '下次启动应用生效' : '停止串流后可修改'}</span></summary>
+        <summary className="cursor-pointer text-sm font-medium">{t('appDetail.captureAndLaunch')} <span className="ml-2 text-xs font-normal text-muted-foreground">{settingsEditable ? t('appDetail.appliesNextLaunch') : t('appDetail.editAfterStop')}</span></summary>
         <div className="mt-4 space-y-3">
-          {!settingsEditable && <Alert variant="info" role="status">{app.status==='running'?'请先停止串流，再修改采集范围和启动参数。':'应用正在处理，请等待处理完成后修改配置。'}</Alert>}
+          {!settingsEditable && <Alert variant="info" role="status">{app.status==='running'?t('appDetail.stopBeforeEdit'):t('appDetail.waitBeforeEdit')}</Alert>}
           <CaptureModeField value={captureMode} disabled={settingsDisabled} onChange={mode=>{settingsDraft.edit({...settingsDraft.value,captureMode:mode});setSaveNotice(null)}} />
-          <label htmlFor="application-args" className="block text-sm font-medium">启动参数</label>
-          <p id="application-args-help" className="text-xs text-muted-foreground">每行一个参数，含空格的路径请用引号包裹</p>
+          <label htmlFor="application-args" className="block text-sm font-medium">{t('appDetail.launchArgs')}</label>
+          <p id="application-args-help" className="text-xs text-muted-foreground">{t('appDetail.launchArgsHelp')}</p>
           <Textarea
             id="application-args"
             aria-describedby="application-args-help"
@@ -169,7 +171,7 @@ function AppDetailContent({id}: {id: string | undefined}) {
             value={args}
             onChange={e => { settingsDraft.edit({...settingsDraft.value,args:e.target.value});setSaveNotice(null) }}
             rows={5}
-            placeholder={"无启动参数"}
+            placeholder={t('appDetail.noLaunchArgs')}
             className="font-mono"
           />
           {saveNotice && <Alert variant={saveNotice.kind} role={saveNotice.kind==='error'?'alert':'status'}>{saveNotice.message}</Alert>}
@@ -178,32 +180,32 @@ function AppDetailContent({id}: {id: string | undefined}) {
             disabled={settingsDisabled || (linesToArgs(args) === (app.args || '') && captureMode===(app.capture_mode||'desktop'))}
             size="sm"
           >
-            <Save className="w-3 h-3" /> {saving ? '保存中...' : '保存'}
-          </Button>{argsDirty && <><Button variant="outline" size="sm" disabled={!!pending} onClick={settingsDraft.reset}>载入服务器配置</Button><span className="text-xs text-muted-foreground">正在编辑 · 尚未确认应用</span></>}</div>
+            <Save className="w-3 h-3" /> {saving ? t('appDetail.saving') : t('appDetail.save')}
+          </Button>{argsDirty && <><Button variant="outline" size="sm" disabled={!!pending} onClick={settingsDraft.reset}>{t('appDetail.reloadServerConfig')}</Button><span className="text-xs text-muted-foreground">{t('appDetail.draftNotice')}</span></>}</div>
         </div>
       </details>
 
       </div>
-      <aside className="page-stack" aria-label="程序信息和维护">
+      <aside className="page-stack" aria-label={t('appDetail.infoAndMaintenance')}>
       {/* Info */}
       <details open className="panel">
-        <summary className="cursor-pointer text-sm font-medium">程序信息与添加记录</summary>
+        <summary className="cursor-pointer text-sm font-medium">{t('appDetail.info')}</summary>
         <div className="mt-4">
           <ContentGrid variant="fields" className="text-sm">
             <div>
-              <span className="text-muted-foreground">入口文件：</span>
+              <span className="text-muted-foreground">{t('appDetail.entryFile')}：</span>
               <span className="break-all text-card-foreground">{app.source==='local'?app.exe_path:(app.exe_relative_path || '-')}</span>
             </div>
             <div>
-              <span className="text-muted-foreground">来源：</span>
-              <span className="text-card-foreground">{app.source==='local'?'本机程序（外部管理文件）':`上传包 · ${formatBytes(app.extracted_size_bytes || app.file_size_bytes)}`}</span>
+              <span className="text-muted-foreground">{t('appDetail.source')}：</span>
+              <span className="text-card-foreground">{app.source==='local'?t('appDetail.localExternal'):t('appDetail.uploadedPackage')+` · ${formatBytes(app.extracted_size_bytes || app.file_size_bytes)}`}</span>
             </div>
             <div>
-              <span className="text-muted-foreground">添加时间：</span>
+              <span className="text-muted-foreground">{t('appDetail.addedAt')}：</span>
               <span className="text-card-foreground">{formatTime(app.created_at)}</span>
             </div>
             <div>
-              <span className="text-muted-foreground">状态：</span>
+              <span className="text-muted-foreground">{t('appDetail.status')}：</span>
               <StatusBadge status={app.status} />
             </div>
           </ContentGrid>
@@ -213,10 +215,10 @@ function AppDetailContent({id}: {id: string | undefined}) {
 
       {/* Danger zone */}
       <details className="panel">
-        <summary className="cursor-pointer text-sm text-muted-foreground">移除应用</summary>
-        <div className="mt-4"><p className="mb-3 text-xs text-muted-foreground">{app.source === 'local' ? '移除平台中的注册信息，保留本机原程序。' : '移除注册信息并删除此应用上传的文件。'}</p>
+        <summary className="cursor-pointer text-sm text-muted-foreground">{t('appDetail.remove')}</summary>
+        <div className="mt-4"><p className="mb-3 text-xs text-muted-foreground">{app.source === 'local' ? t('appDetail.removeLocalDescription') : t('appDetail.removeUploadedDescription')}</p>
           <Button variant="destructive" size="sm" disabled={!!pending || !!loadError} onClick={handleDelete}>
-            <Trash2 className="w-3 h-3" /> {app.source==='local'?'移除平台注册':'删除应用'}
+            <Trash2 className="w-3 h-3" /> {app.source==='local'?t('appDetail.removeRegistration'):t('appDetail.deleteApp')}
           </Button>
         </div>
       </details>

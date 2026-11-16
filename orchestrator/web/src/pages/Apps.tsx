@@ -13,8 +13,10 @@ import { Card } from '@/components/ui/card'
 import { formatBytes, formatTime } from '@/lib/utils'
 import { openViewingStream } from '@/lib/stream-access'
 import { Play, Square, Upload, ArrowUpRight, Users, Monitor } from 'lucide-react'
+import { useManagementLocale } from '@/i18n'
 
 export default function Apps() {
+  const { t } = useManagementLocale()
   const { data, loading, error, refresh } = useQuery({
     queryKey: managementKeys.apps,
     queryFn: useCallback((signal: AbortSignal) => api.listApps(signal), []),
@@ -31,12 +33,12 @@ export default function Apps() {
   const handleStop = (id: string) => command.run(id, 'stop', async () => { await api.stopApp(id) })
 
   return (
-    <Page title="应用管理" eyebrow="渲染内容" description="管理上传包和本机程序，启动或结束串流。" actions={<LinkButton to="/upload" variant="primary"><Upload className="w-4 h-4" />添加应用</LinkButton>}>
+    <Page title={t('apps.title')} eyebrow={t('apps.eyebrow')} description={t('apps.description')} actions={<LinkButton to="/upload" variant="primary"><Upload className="w-4 h-4" />{t('apps.add')}</LinkButton>}>
     <QueryWrapper loading={loading} error={error} onRetry={refresh}>
         {command.error && <Alert variant="error" role="alert">{command.error}</Alert>}
 
         {apps.length === 0 ? (
-          <EmptyState title="暂无应用" description="上传压缩包或指定服务器已有的程序路径，即可创建应用。" action={<LinkButton to="/upload" variant="primary">添加应用</LinkButton>} />
+          <EmptyState title={t('apps.empty')} description={t('apps.emptyDescription')} action={<LinkButton to="/upload" variant="primary">{t('apps.add')}</LinkButton>} />
         ) : (
           <ContentGrid>
             {apps.map(app => {
@@ -46,20 +48,20 @@ export default function Apps() {
                   <div className="flex min-w-0 gap-3">
                     <div className="rounded-lg bg-primary/10 p-2.5 text-primary self-start"><Monitor className="h-5 w-5" /></div>
                     <div className="min-w-0"><Link to={`/apps/${app.id}`} className="block break-words text-base font-semibold hover:text-primary">{app.name}</Link>
-                      <p className="mt-1 text-xs text-muted-foreground">{app.source === 'local' ? '本机程序' : '上传应用'} · {app.capture_mode === 'application' ? '指定程序采集' : '桌面采集'}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{app.source === 'local' ? t('apps.local') : t('apps.uploaded')} · {app.capture_mode === 'application' ? t('apps.applicationCapture') : t('apps.desktopCapture')}</p>
                     </div>
                   </div>
                   <div className="shrink-0"><StatusBadge status={app.status} /></div>
                 </div>
                 <div className="text-xs text-muted-foreground space-y-1">
-                  <p className="truncate" title={app.exe_path || app.exe_relative_path}>入口：{app.exe_path || app.exe_relative_path || '等待配置'}</p>
-                  <p>添加于 {formatTime(app.created_at)}{app.source !== 'local' && ` · ${formatBytes(app.extracted_size_bytes || app.file_size_bytes)}`}</p>
+                  <p className="truncate" title={app.exe_path || app.exe_relative_path}>{t('apps.entry')}: {app.exe_path || app.exe_relative_path || t('apps.pendingConfiguration')}</p>
+                  <p>{t('apps.addedAt')} {formatTime(app.created_at)}{app.source !== 'local' && ` · ${formatBytes(app.extracted_size_bytes || app.file_size_bytes)}`}</p>
                 </div>
                 <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-border pt-4">
-                  {app.lifecycle?.can_launch && <Button size="sm" disabled={!!pending} onClick={() => handleLaunch(app.id)}><Play className="h-3.5 w-3.5" />{pending === 'launch' ? '正在打开…' : app.status === 'running' ? '进入串流' : '启动串流'}</Button>}
-                  {app.lifecycle?.can_stop && <Button size="sm" variant="outline" disabled={!!pending} onClick={() => handleStop(app.id)}><Square className="h-3.5 w-3.5" />{pending === 'stop' ? '正在停止…' : '停止串流'}</Button>}
-                  <Link to={`/apps/${app.id}`} className="inline-flex min-h-9 items-center gap-1 px-2 text-xs text-muted-foreground hover:text-primary">配置与观看链接 <ArrowUpRight className="h-3.5 w-3.5" /></Link>
-                  <Link to={`/stream-sessions?app=${encodeURIComponent(app.id)}`} className="inline-flex min-h-9 items-center gap-1 px-2 text-xs text-muted-foreground hover:text-primary"><Users className="h-3.5 w-3.5" />客户端</Link>
+                  {app.lifecycle?.can_launch && <Button size="sm" disabled={!!pending} onClick={() => handleLaunch(app.id)}><Play className="h-3.5 w-3.5" />{pending === 'launch' ? t('apps.opening') : app.status === 'running' ? t('apps.enterStream') : t('apps.startStream')}</Button>}
+                  {app.lifecycle?.can_stop && <Button size="sm" variant="outline" disabled={!!pending} onClick={() => handleStop(app.id)}><Square className="h-3.5 w-3.5" />{pending === 'stop' ? t('apps.stopping') : t('apps.stopStream')}</Button>}
+                  <Link to={`/apps/${app.id}`} className="inline-flex min-h-9 items-center gap-1 px-2 text-xs text-muted-foreground hover:text-primary">{t('apps.configureLink')} <ArrowUpRight className="h-3.5 w-3.5" /></Link>
+                  <Link to={`/stream-sessions?app=${encodeURIComponent(app.id)}`} className="inline-flex min-h-9 items-center gap-1 px-2 text-xs text-muted-foreground hover:text-primary"><Users className="h-3.5 w-3.5" />{t('apps.clients')}</Link>
                 </div>
               </Card>
             })}

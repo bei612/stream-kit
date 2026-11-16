@@ -1,26 +1,20 @@
 import { Badge } from '@/components/ui/badge'
+import { useManagementLocale } from '@/i18n'
 
-const statusMap: Record<string, { label: string; variant: 'success' | 'warning' | 'danger' | 'info' | 'muted' | 'default' }> = {
-  running: { label: '运行中', variant: 'success' },
-  ready: { label: '就绪', variant: 'info' },
-  stopped: { label: '已停止', variant: 'muted' },
-  starting: { label: '启动中', variant: 'warning' },
-  unhealthy: { label: '不健康', variant: 'warning' },
-  crashed: { label: '已崩溃', variant: 'danger' },
-  error: { label: '错误', variant: 'danger' },
-  uploading: { label: '上传中', variant: 'default' },
-  extracting: { label: '解压中', variant: 'default' },
-  detecting: { label: '检测中', variant: 'warning' },
-  registering: { label: '注册中', variant: 'default' },
-  register_failed: { label: '注册失败', variant: 'danger' },
+const statusMap: Record<string, { key: string; variant: 'success' | 'warning' | 'danger' | 'info' | 'muted' | 'default' }> = {
+  running: { key: 'status.running', variant: 'success' }, ready: { key: 'status.ready', variant: 'info' }, stopped: { key: 'status.stopped', variant: 'muted' },
+  starting: { key: 'status.starting', variant: 'warning' }, unhealthy: { key: 'status.unhealthy', variant: 'warning' }, crashed: { key: 'status.crashed', variant: 'danger' },
+  error: { key: 'status.error', variant: 'danger' }, uploading: { key: 'status.uploading', variant: 'default' }, extracting: { key: 'status.extracting', variant: 'default' },
+  detecting: { key: 'status.detecting', variant: 'warning' }, registering: { key: 'status.registering', variant: 'default' }, register_failed: { key: 'status.register_failed', variant: 'danger' },
 }
 
 export default function StatusBadge({ status }: { status: string }) {
-  const info = statusMap[status] || { label: status, variant: 'muted' as const }
+  const { t } = useManagementLocale()
+  const info = statusMap[status]
   return (
-    <Badge variant={info.variant}>
+    <Badge variant={info?.variant ?? 'muted'}>
       <span className="w-1.5 h-1.5 rounded-full bg-current" />
-      {info.label}
+      {info ? t(info.key as Parameters<typeof t>[0]) : status}
     </Badge>
   )
 }

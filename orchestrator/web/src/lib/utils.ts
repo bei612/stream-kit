@@ -47,8 +47,9 @@ export function isLoggedIn(): boolean {
   const token = getToken()
   if (!token) return false
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]))
-    return payload.exp * 1000 > Date.now()
+    const encoded = token.split('.')[1]
+    const payload = JSON.parse(atob(encoded.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - encoded.length % 4) % 4)))
+    return typeof payload.exp === 'number' && payload.exp * 1000 > Date.now()
   } catch {
     return false
   }

@@ -80,6 +80,8 @@ input[type="number"] { font-variant-numeric: tabular-nums; }
 .connection-indicator::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: hsl(var(--sk-warning)); }
 .connection-indicator[data-connected="true"]::before { background: hsl(var(--sk-success)); }
 .admin-avatar { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: hsl(var(--muted)); font-size: 12px; }
+.locale-switcher { display: inline-flex; align-items: center; }
+.locale-switcher select { min-height: 32px; border: 1px solid hsl(var(--border)); border-radius: 7px; background: hsl(var(--card)); color: hsl(var(--muted-foreground)); padding: 0 8px; font-size: 12px; }
 .workspace-main { padding-block: 32px 48px; container: workspace / inline-size; }
 .page-stack { display: grid; gap: var(--page-gap); min-width: 0; }
 .page-stack > *, .content-grid > *, .panel-content > *, .settings-content > * { min-width: 0; }
