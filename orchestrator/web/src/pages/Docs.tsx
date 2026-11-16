@@ -26,8 +26,11 @@ export default function Docs() {
           </nav>
         </aside>
         <div className="docs-content">
+          <p className="docs-screenshot-note">{t('docs.screenshotNote')}</p>
           <DocSection id="overview" title={t('docs.overviewTitle')}>
             <p>{t('docs.overviewBody')}</p>
+            <h3 className="docs-subtitle">{t('docs.serverUsageTitle')}</h3>
+            <p>{t('docs.serverUsageBody')}</p>
             <div className="docs-role-grid">
               <Card><span className="docs-role-icon"><CheckCircle2 size={17} /></span><strong>{t('brand.serverConsole')}</strong><p>{t('docs.serverRole')}</p></Card>
               <Card><span className="docs-role-icon"><CircleHelp size={17} /></span><strong>{t('brand.client')}</strong><p>{t('docs.clientRole')}</p></Card>
@@ -47,6 +50,8 @@ export default function Docs() {
           <DocSection id="apps" title={t('docs.appsTitle')}>
             <p>{t('docs.appsBody')}</p>
             <GuideFigure src="/docs/screenshots/apps.png" alt={t('docs.appsFigure')} caption={t('docs.appsFigure')} />
+            <GuideFigure src="/docs/screenshots/upload.png" alt={t('docs.uploadFigure')} caption={t('docs.uploadFigure')} />
+            <GuideFigure src="/docs/screenshots/components.png" alt={t('docs.componentsFigure')} caption={t('docs.componentsFigure')} />
           </DocSection>
 
           <DocSection id="sessions" title={t('docs.sessionsTitle')}>
@@ -56,11 +61,20 @@ export default function Docs() {
 
           <DocSection id="audio" title={t('docs.audioTitle')}>
             <p>{t('docs.audioBody')}</p>
+            <h3 className="docs-subtitle">{t('docs.clientUsageTitle')}</h3>
+            <p>{t('docs.clientUsageBody')}</p>
+            <ol className="docs-steps">
+              <li><b>1</b><span>{t('docs.clientStepOpen')}</span></li>
+              <li><b>2</b><span>{t('docs.clientStepPermission')}</span></li>
+              <li><b>3</b><span>{t('docs.clientStepControl')}</span></li>
+            </ol>
+            <GuideFigure src="/docs/screenshots/client.png" alt={t('docs.clientFigure')} caption={t('docs.clientFigure')} />
             <div className="docs-note"><CircleHelp size={17} /><span>{t('docs.audioNote')}</span></div>
           </DocSection>
 
           <DocSection id="operations" title={t('docs.troubleshootTitle')}>
             <p>{t('docs.troubleshootBody')}</p>
+            <GuideFigure src="/docs/screenshots/logs.png" alt={t('docs.logsFigure')} caption={t('docs.logsFigure')} />
             <div className="docs-links">
               <Link to="/components">{t('nav.components')}</Link>
               <Link to="/apps">{t('nav.apps')}</Link>

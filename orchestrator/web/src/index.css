@@ -149,8 +149,10 @@ input[type="number"] { font-variant-numeric: tabular-nums; }
 .docs-toc a { color: hsl(var(--muted-foreground)); font-size: 13px; }
 .docs-toc a:hover, .docs-toc a:focus-visible { color: hsl(var(--primary)); text-decoration: underline; }
 .docs-content { display: grid; gap: var(--page-gap); min-width: 0; }
+.docs-screenshot-note { padding: 10px 12px; border-left: 3px solid hsl(var(--primary)); color: hsl(var(--muted-foreground)); font-size: 12px; background: hsl(var(--primary) / .05); }
 .docs-section { scroll-margin-block-start: 24px; display: grid; gap: 14px; min-width: 0; }
 .docs-section h2 { font-size: 19px; font-weight: 650; letter-spacing: -.01em; }
+.docs-subtitle { font-size: 15px; font-weight: 600; }
 .docs-section > p { color: hsl(var(--muted-foreground)); font-size: 14px; max-width: 70ch; }
 .docs-role-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 14px; }
 .docs-role-grid .card { display: grid; gap: 7px; }
