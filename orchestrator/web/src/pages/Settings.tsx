@@ -1,15 +1,10 @@
 import { useCallback } from 'react'
-import { useNavigate } from 'react-router'
 import { api } from '@/api/client'
 import { managementKeys } from '@/api/query-client'
 import { useQuery } from '@/hooks/useQuery'
-import { clearToken } from '@/lib/utils'
-import { useWSStore } from '@/stores/websocket'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { ContentGrid, Page } from '@/components/layout/Page'
 import QueryWrapper from '@/components/QueryWrapper'
-import { LogOut } from 'lucide-react'
 import { AudioDevices } from '@/components/AudioDevices'
 import { ConfigurationEditor } from '@/components/ConfigurationEditor'
 import { GatewayConfigurationEditor } from '@/components/GatewayConfigurationEditor'
@@ -31,15 +26,7 @@ export default function Settings() {
     queryFn: useCallback((signal: AbortSignal) => api.getConfig(signal), []),
     pollInterval: false,
   })
-  const navigate = useNavigate()
-  const handleLogout = () => {
-    useWSStore.getState().disconnect()
-    clearToken()
-    navigate('/login', { replace: true })
-  }
-
-  return <Page title={t('settings.title')} eyebrow={t('settings.eyebrow')} description={t('settings.description')}
-    actions={<Button variant="outline" onClick={handleLogout}><LogOut className="w-4 h-4" />{t('settings.logout')}</Button>}>
+  return <Page title={t('settings.title')} eyebrow={t('settings.eyebrow')} description={t('settings.description')}>
     <ContentGrid variant="settings">
       <nav className="settings-navigation" aria-label={t('settings.sections')}>
         {sections.map(section => <a key={section.id} href={'#' + section.id}>{section.label}</a>)}
