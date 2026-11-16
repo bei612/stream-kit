@@ -35,11 +35,11 @@
 
 [Setup]
 AppId={{E7FD370E-32FD-4989-8FE8-C5F9D56187BC}
-AppName=Stream-Kit
+AppName=云端渲染服务端
 AppVersion={#ProductVersion}
 VersionInfoVersion={#WindowsProductVersion}
 DefaultDirName={autopf}\StreamKit
-DefaultGroupName=Stream-Kit
+DefaultGroupName=云端渲染服务端
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -74,10 +74,10 @@ Source: "{#UsbAudioDriverRoot}\*"; DestDir: "{app}\drivers\usbip"; Flags: ignore
 Root: HKLM; Subkey: "Software\StreamKit"; ValueType: string; ValueName: "DataDirectory"; ValueData: "{code:DataDirectory}"; Flags: uninsdeletevalue
 
 [Icons]
-Name: "{group}\Stream-Kit 管理控制台"; Filename: "{code:ControlURL}"
+Name: "{group}\云端渲染服务端管理控制台"; Filename: "{code:ControlURL}"
 
 [Run]
-Filename: "{code:ControlURL}"; Description: "打开 Stream-Kit 管理控制台"; Flags: postinstall shellexec skipifsilent unchecked
+Filename: "{code:ControlURL}"; Description: "打开 云端渲染服务端管理控制台"; Flags: postinstall shellexec skipifsilent unchecked
 
 [Code]
 const

@@ -1,6 +1,6 @@
 {
-  "name": "Stream Kit",
-  "short_name": "Stream Kit",
+  "name": "云端渲染客户端",
+  "short_name": "云端渲染客户端",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#0c0f18",

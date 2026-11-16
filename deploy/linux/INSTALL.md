@@ -1,4 +1,4 @@
-# Stream Kit：Ubuntu 24.04 安装与运行
+# 云端渲染：Ubuntu 24.04 安装与运行
 
 本安装包包含管理服务、管理页面、Sunshine 和 Web/PWA 网关，适用于 Ubuntu 24.04 amd64。先核对下载文件 SHA-256，版本限制以对应发布说明为准。运行不需要 Node.js/npm、Go、Rust 或 CMake。
 

@@ -37,15 +37,15 @@ export default function Login() {
   return (
     <div className="login-shell">
       <section className="login-intro">
-        <div className="flex items-center gap-3"><span className="brand-mark"><Radio size={22} /></span><span className="brand-name">STREAM KIT</span></div>
+        <div className="flex items-center gap-3"><span className="brand-mark"><Radio size={22} /></span><span className="brand-name">{t('brand.name')}</span></div>
         <h1>{t('login.heroTitle')}<br />{t('login.heroTitleSecond')}</h1>
         <p>{t('login.heroDescription')}</p>
         <div className="login-facts"><span>{t('login.factApps')}</span><span>{t('login.factStreams')}</span><span>{t('login.factControl')}</span></div>
       </section>
-      <section className="login-form-area" aria-label={t('login.console')}>
+      <section className="login-form-area" aria-label={t('brand.serverConsole')}>
       <div className="login-form">
         <div className="mb-8">
-          <div className="flex items-center justify-between gap-3"><p className="page-eyebrow">{t('login.console')}</p><LanguageSwitcher /></div>
+          <div className="flex items-center justify-between gap-3"><p className="page-eyebrow">{t('brand.serverConsole')}</p><LanguageSwitcher /></div>
           <h2>{t('login.welcome')}</h2>
           <p className="text-sm text-muted-foreground mt-2">{t('login.formDescription')}</p>
         </div>

@@ -1,4 +1,4 @@
-# Stream Kit 管理前端
+# 云端渲染服务端管理前端
 
 这是统一管理页与永久观看入口，非 Vite 示例项目。使用 React、TypeScript、React Router、Tailwind、TanStack Query 与 Zustand；精确依赖以 package-lock.json 为准。
 

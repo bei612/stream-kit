@@ -1,4 +1,4 @@
-# Stream Kit 使用手册
+# 云端渲染使用手册
 
 本文适用于统一管理端、Web/PWA 观看端及 Android 客户端。安装、服务启停见[部署运维](../deploy/README.md)，当前版本和本机地址见[发布与部署基线](release-status.md)。
 

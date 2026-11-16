@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router'
-import { LayoutDashboard, Box, AppWindow, Upload, ScrollText, Settings, Radio, ChevronRight, Menu, X } from 'lucide-react'
+import { LayoutDashboard, Box, AppWindow, Upload, ScrollText, Settings, Radio, ChevronRight, Menu, X, BookOpen } from 'lucide-react'
 import { useWSStore } from '@/stores/websocket'
 import { LanguageSwitcher, useManagementLocale } from '@/i18n'
 
@@ -19,7 +19,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   ]
   const [navigationOpen, setNavigationOpen] = useState(false)
   const menuButton = useRef<HTMLButtonElement>(null)
-  const activeItem = navItems.find(item => item.path !== '/' && location.pathname.startsWith(item.path)) ?? navItems[0]
+  const activeItem = navItems.find(item => item.path !== '/' && location.pathname.startsWith(item.path)) ?? (location.pathname === '/docs' ? { path: '/docs', label: t('nav.guide'), icon: BookOpen } : navItems[0])
 
   return (
     <div className="app-shell">
@@ -30,7 +30,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         <div className="navigation-heading">
           <Link to="/" className="app-brand">
             <span className="brand-mark"><Radio size={22} aria-hidden="true" /></span>
-            <span><span className="brand-name">STREAM KIT</span><span className="brand-caption block">{t('nav.workspace')}</span></span>
+            <span><span className="brand-name">{t('brand.name')}</span><span className="brand-caption block">{t('brand.serverConsole')}</span></span>
           </Link>
           <button ref={menuButton} type="button" className="navigation-toggle" aria-label={navigationOpen ? t('nav.collapse') : t('nav.expand')} aria-expanded={navigationOpen} aria-controls="workspace-navigation" onClick={() => setNavigationOpen(value => !value)}>
             {navigationOpen ? <X size={20} /> : <Menu size={20} />}
@@ -55,13 +55,16 @@ export default function Layout({ children }: { children: ReactNode }) {
           })}
         </div>
 
-        <div className="nav-footer">{t('nav.footer')}</div>
+        <div className="nav-footer">
+          <Link to="/docs#overview" className="nav-help-link" onClick={() => setNavigationOpen(false)}><BookOpen className="w-4 h-4" /> {t('nav.guide')}</Link>
+          <p>{t('nav.footer')}</p>
+        </div>
       </nav>
 
       <div className="workspace">
         <header className="workspace-bar">
           <div className="workspace-container workspace-bar-content">
-          <div className="workspace-path"><span>{t('login.console')}</span><ChevronRight size={13} aria-hidden="true" /><span className="text-card-foreground">{activeItem.label}</span></div>
+          <div className="workspace-path"><span>{t('brand.serverConsole')}</span><ChevronRight size={13} aria-hidden="true" /><span className="text-card-foreground">{activeItem.label}</span></div>
           <div className="workspace-identity"><span className="connection-indicator" data-connected={connected}>{connected ? t('common.connected') : t('common.reconnecting')}</span><LanguageSwitcher /><span className="admin-avatar" title={t('nav.admin')}>A</span></div>
           </div>
         </header>

@@ -1,6 +1,10 @@
 import type { ReactNode } from 'react'
+import { Link, useLocation } from 'react-router'
+import { BookOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
+import { InfoTooltip } from '@/components/ui/tooltip'
+import { useManagementLocale } from '@/i18n'
 
 interface PageProps {
   title: ReactNode
@@ -14,6 +18,9 @@ interface PageProps {
 
 /** Every management route shares the same width, heading and action boundary. */
 export function Page({ title, description, eyebrow, actions, badge, back, children }: PageProps) {
+  const location = useLocation()
+  const { t } = useManagementLocale()
+  const helpAnchor = location.pathname === '/' ? 'dashboard' : location.pathname.startsWith('/stream-sessions') ? 'sessions' : location.pathname.startsWith('/settings') ? 'settings' : location.pathname.startsWith('/components') ? 'components' : location.pathname.startsWith('/upload') || location.pathname.startsWith('/apps') ? 'apps' : location.pathname.startsWith('/logs') ? 'operations' : 'overview'
   return <div className="page-stack">
     {back && <div className="page-back">{back}</div>}
     <header className="page-heading">
@@ -22,7 +29,7 @@ export function Page({ title, description, eyebrow, actions, badge, back, childr
         <div className="page-title-row"><h1>{title}</h1>{badge}</div>
         <p className="page-description">{description}</p>
       </div>
-      {actions && <div className="page-actions">{actions}</div>}
+      <div className="page-actions"><Link to={`/docs#${helpAnchor}`} className="page-help-link"><BookOpen className="h-4 w-4" /> {t('common.readGuide')}</Link>{actions}</div>
     </header>
     {children}
   </div>
@@ -48,6 +55,6 @@ export function EmptyState({ title, description, action }: {
   </div>
 }
 
-export function Metric({ label, value, className }: { label: string; value: ReactNode; className?: string }) {
-  return <Card className="metric-card"><span>{label}</span><strong className={className}>{value}</strong></Card>
+export function Metric({ label, value, className, description }: { label: string; value: ReactNode; className?: string; description?: ReactNode }) {
+  return <Card className="metric-card"><span className="metric-label">{label}{description && <InfoTooltip label={`${label} ${typeof description === 'string' ? description : '说明'}`} side="right">{description}</InfoTooltip>}</span><strong className={className}>{value}</strong></Card>
 }

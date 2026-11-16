@@ -30,7 +30,7 @@ public final class ManagedApi {
         public final int status;
         public final String code;
         Failure(int status, String code) {
-            super("Stream Kit request failed (" + status + ", " + code + ")");
+            super("云端渲染客户端请求失败 (" + status + ", " + code + ")");
             this.status = status;
             this.code = code;
         }

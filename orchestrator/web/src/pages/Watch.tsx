@@ -60,7 +60,7 @@ function WatchAttempt({ hash, retry }: { hash: string; retry: () => void }) {
     allow="autoplay; fullscreen; microphone; gamepad" allowFullScreen referrerPolicy="no-referrer" />
   return <main className="min-h-dvh flex items-center justify-center bg-background px-6 text-foreground">
     <div className="max-w-lg text-center space-y-4">
-      <p className="text-xs tracking-widest text-muted-foreground">STREAM KIT</p>
+      <p className="text-xs tracking-widest text-muted-foreground">{t('brand.client')}</p>
       <h1 className="text-2xl font-semibold">{error ? t('watch.unavailable') : t('watch.entering')}</h1>
       <p role="status" className="text-sm text-muted-foreground">{error || t('watch.preparing')}</p>
       {error && <button className="rounded-md bg-primary text-primary-foreground px-5 py-2" onClick={retry}>{t('watch.retry')}</button>}

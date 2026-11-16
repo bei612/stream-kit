@@ -137,9 +137,9 @@ export default function StreamSessions() {
   }>
     <QueryWrapper loading={loading} error={error} onRetry={refresh}>
       <ContentGrid variant="metrics">
-        <Metric label={t('sessions.current')} value={overview.current.length} />
-        <Metric label={t('sessions.onlineClients')} value={overview.clients} />
-        <Metric label={t('sessions.onlineControllers')} value={overview.controllers} />
+        <Metric label={t('sessions.current')} value={overview.current.length} description={t('sessions.currentHelp')} />
+        <Metric label={t('sessions.onlineClients')} value={overview.clients} description={t('sessions.onlineClientsHelp')} />
+        <Metric label={t('sessions.onlineControllers')} value={overview.controllers} description={t('sessions.onlineControllersHelp')} />
       </ContentGrid>
       <div className="flex flex-wrap items-end gap-3">
         <label className="min-w-0 flex-1 space-y-2 text-xs text-muted-foreground" htmlFor="session-app">{t('sessions.viewApp')}

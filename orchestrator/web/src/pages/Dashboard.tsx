@@ -69,12 +69,12 @@ export default function Dashboard() {
         {/* App overview */}
         <ContentGrid variant="metrics">
           {[
-            { label: t('dashboard.totalApps'), value: appStats.total, color: 'text-foreground' },
-            { label: t('dashboard.runningApps'), value: appStats.running, color: 'text-green-500' },
-            { label: t('dashboard.readyApps'), value: appStats.ready, color: 'text-blue-500' },
-            { label: t('dashboard.errorApps'), value: appStats.error, color: 'text-red-300' },
-          ].map(({ label, value, color }) => (
-            <Metric key={label} label={label} value={value} className={color} />
+            { label: t('dashboard.totalApps'), value: appStats.total, color: 'text-foreground', description: t('dashboard.totalAppsHelp') },
+            { label: t('dashboard.runningApps'), value: appStats.running, color: 'text-green-500', description: t('dashboard.runningAppsHelp') },
+            { label: t('dashboard.readyApps'), value: appStats.ready, color: 'text-blue-500', description: t('dashboard.readyAppsHelp') },
+            { label: t('dashboard.errorApps'), value: appStats.error, color: 'text-red-300', description: t('dashboard.errorAppsHelp') },
+          ].map(({ label, value, color, description }) => (
+            <Metric key={label} label={label} value={value} className={color} description={description} />
           ))}
         </ContentGrid>
 

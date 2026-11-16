@@ -9,6 +9,7 @@ import Upload from '@/pages/Upload'
 import Logs from '@/pages/Logs'
 import Settings from '@/pages/Settings'
 import StreamSessions from '@/pages/StreamSessions'
+import Docs from '@/pages/Docs'
 import Login from '@/pages/Login'
 import Watch from '@/pages/Watch'
 import { useWSStore } from '@/stores/websocket'
@@ -137,6 +138,7 @@ export default function App() {
                   <Route path="/logs" element={<Logs />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/stream-sessions" element={<StreamSessions />} />
+                  <Route path="/docs" element={<Docs />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Layout>

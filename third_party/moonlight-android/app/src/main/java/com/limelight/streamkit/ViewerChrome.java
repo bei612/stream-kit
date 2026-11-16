@@ -61,7 +61,7 @@ final class ViewerChrome {
     entry = column();
     entry.setPadding(dp(28), dp(24), dp(28), dp(24));
     entry.setBackground(background(SURFACE, 18));
-    TextView title = label("STREAM KIT", 24, Color.WHITE);
+    TextView title = label("云端渲染客户端", 24, Color.WHITE);
     title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
     entry.addView(title);
     status = label("打开应用观看链接，连接云端画面", 14, MUTED);
@@ -106,7 +106,7 @@ final class ViewerChrome {
     sidebar.addView(actions);
     LinearLayout heading = new LinearLayout(activity);
     heading.setGravity(Gravity.CENTER_VERTICAL);
-    TextView brand = label("STREAM KIT", 17, Color.WHITE);
+    TextView brand = label("云端渲染客户端", 17, Color.WHITE);
     brand.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
     heading.addView(brand, new LinearLayout.LayoutParams(0, dp(44), 1));
     Button close = button("×", SURFACE);

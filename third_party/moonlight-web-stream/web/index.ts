@@ -115,7 +115,7 @@ class MainApp implements Component {
         // Top Line
         this.topLine.classList.add("top-line")
 
-        this.moonlightTextElement.textContent = "Stream Kit"
+        this.moonlightTextElement.textContent = "云端渲染客户端"
         this.topLine.appendChild(this.moonlightTextElement)
 
         this.topLine.appendChild(this.topLineActions)

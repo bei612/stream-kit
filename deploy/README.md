@@ -1,4 +1,4 @@
-# Stream Kit 部署与运维
+# 云端渲染 部署与运维
 
 本手册用于长期运行维护；平台安装参数分别见 [Windows](windows/README.md) 和 [Linux](linux/INSTALL.md)。当前发布及本机组件身份集中见[发布与部署基线](../docs/release-status.md)。
 
