@@ -1,13 +1,15 @@
-import { useRef, useState, type ReactNode } from 'react'
-import { Link, useLocation } from 'react-router'
-import { LayoutDashboard, Box, AppWindow, Upload, ScrollText, Settings, Radio, ChevronRight, Menu, X, BookOpen } from 'lucide-react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router'
+import { LayoutDashboard, Box, AppWindow, Upload, ScrollText, Settings, Radio, ChevronRight, Menu, X, BookOpen, LogOut } from 'lucide-react'
 import { useWSStore } from '@/stores/websocket'
 import { LanguageSwitcher, useManagementLocale } from '@/i18n'
+import { clearToken } from '@/lib/utils'
 
 export default function Layout({ children }: { children: ReactNode }) {
   const location = useLocation()
   const connected = useWSStore(state => state.connected)
   const { t } = useManagementLocale()
+  const navigate = useNavigate()
   const navItems = [
     { path: '/', label: t('nav.dashboard'), icon: LayoutDashboard },
     { path: '/components', label: t('nav.components'), icon: Box },
@@ -18,7 +20,34 @@ export default function Layout({ children }: { children: ReactNode }) {
     { path: '/settings', label: t('nav.settings'), icon: Settings },
   ]
   const [navigationOpen, setNavigationOpen] = useState(false)
+  const [accountOpen, setAccountOpen] = useState(false)
   const menuButton = useRef<HTMLButtonElement>(null)
+  const accountMenu = useRef<HTMLDivElement>(null)
+  const accountButton = useRef<HTMLButtonElement>(null)
+  const handleLogout = () => {
+    useWSStore.getState().disconnect()
+    clearToken()
+    setAccountOpen(false)
+    navigate('/login', { replace: true })
+  }
+  useEffect(() => {
+    if (!accountOpen) return
+    const onPointerDown = (event: PointerEvent) => {
+      if (!accountMenu.current?.contains(event.target as Node)) setAccountOpen(false)
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setAccountOpen(false)
+        accountButton.current?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [accountOpen])
   const activeItem = navItems.find(item => item.path !== '/' && location.pathname.startsWith(item.path)) ?? (location.pathname === '/docs' ? { path: '/docs', label: t('nav.guide'), icon: BookOpen } : navItems[0])
 
   return (
@@ -65,7 +94,13 @@ export default function Layout({ children }: { children: ReactNode }) {
         <header className="workspace-bar">
           <div className="workspace-container workspace-bar-content">
           <div className="workspace-path"><span>{t('brand.serverConsole')}</span><ChevronRight size={13} aria-hidden="true" /><span className="text-card-foreground">{activeItem.label}</span></div>
-          <div className="workspace-identity"><span className="connection-indicator" data-connected={connected}>{connected ? t('common.connected') : t('common.reconnecting')}</span><LanguageSwitcher /><span className="admin-avatar" title={t('nav.admin')}>A</span></div>
+          <div className="workspace-identity"><span className="connection-indicator" data-connected={connected}>{connected ? t('common.connected') : t('common.reconnecting')}</span><LanguageSwitcher /><div className="account-menu" ref={accountMenu}>
+            <button ref={accountButton} type="button" className="admin-avatar account-trigger" title={t('nav.account')} aria-label={t('nav.account')} aria-expanded={accountOpen} aria-haspopup="menu" onClick={() => setAccountOpen(value => !value)}>A</button>
+            {accountOpen && <div className="account-popover" role="menu">
+              <div className="account-popover-heading"><span className="account-popover-label">{t('nav.admin')}</span><span className="account-popover-caption">{t('brand.serverConsole')}</span></div>
+              <button type="button" className="account-menu-item" role="menuitem" onClick={handleLogout}><LogOut className="w-4 h-4" />{t('nav.logout')}</button>
+            </div>}
+          </div></div>
           </div>
         </header>
         <main id="main-content" tabIndex={-1} className="workspace-container workspace-main">{children}</main>

@@ -82,7 +82,16 @@ input[type="number"] { font-variant-numeric: tabular-nums; }
 .connection-indicator { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: hsl(var(--muted-foreground)); }
 .connection-indicator::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: hsl(var(--sk-warning)); }
 .connection-indicator[data-connected="true"]::before { background: hsl(var(--sk-success)); }
+.account-menu { position: relative; }
 .admin-avatar { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: hsl(var(--muted)); font-size: 12px; }
+.account-trigger { border: 1px solid transparent; color: inherit; cursor: pointer; transition: border-color .15s, background-color .15s; }
+.account-trigger:hover, .account-trigger[aria-expanded="true"] { border-color: hsl(var(--border)); background: hsl(var(--accent)); }
+.account-popover { position: absolute; z-index: 40; top: calc(100% + 10px); right: 0; width: 190px; padding: 6px; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--card)); box-shadow: 0 16px 36px hsl(var(--foreground) / .16); }
+.account-popover-heading { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px 9px; border-bottom: 1px solid hsl(var(--border)); }
+.account-popover-label { color: hsl(var(--card-foreground)); font-size: 13px; font-weight: 600; }
+.account-popover-caption { color: hsl(var(--muted-foreground)); font-size: 11px; }
+.account-menu-item { display: flex; align-items: center; width: 100%; gap: 8px; margin-top: 4px; padding: 9px 10px; border: 0; border-radius: 6px; background: transparent; color: hsl(var(--card-foreground)); cursor: pointer; font-size: 13px; text-align: left; }
+.account-menu-item:hover, .account-menu-item:focus-visible { background: hsl(var(--accent)); outline: none; }
 .locale-switcher { display: inline-flex; align-items: center; }
 .locale-switcher select { min-height: 32px; border: 1px solid hsl(var(--border)); border-radius: 7px; background: hsl(var(--card)); color: hsl(var(--muted-foreground)); padding: 0 8px; font-size: 12px; }
 .workspace-main { padding-block: 32px 48px; container: workspace / inline-size; }
