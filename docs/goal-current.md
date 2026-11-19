@@ -1,4 +1,4 @@
-# Stream Kit 交付目标与完成条件
+# 云端渲染 交付目标与完成条件
 
 本文件维护 Stream Kit 的长期交付范围，不承载逐次执行日志。实际版本和未完成验收集中见[发布与部署基线](release-status.md)。本目标仅适用于 Stream Kit，不恢复其他项目的历史任务；文档中的目标不代表系统 Goal 状态被自动改为 active 或 complete。
 
