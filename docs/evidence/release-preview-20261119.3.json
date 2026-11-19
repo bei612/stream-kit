@@ -1,0 +1,107 @@
+{
+  "date": "2026-11-20",
+  "published": true,
+  "release": "v0.1.0-preview.20261119.3",
+  "url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.3",
+  "source": "954a1e6e73ef95231e78c9d77d77d932749aa043",
+  "product_run": 44556558891,
+  "installer_acceptance_run": 44568294522,
+  "promotion_run": 44569208733,
+  "android_run": 44556808891,
+  "assets": [
+    {
+      "name": "android-dependency-notices.json",
+      "bytes": 11433,
+      "sha256": "65896f681d26f3927e0a114fba30192e14282e8fc34a2230d6b0e5f06245f755",
+      "verification": "Previously verified build bytes matched published GitHub storage digest"
+    },
+    {
+      "name": "android-provenance.json",
+      "bytes": 4836,
+      "sha256": "c12613633bf7b42d7f56b4b4b51daf93e28d22081cb9ad94701b87892a11bf4a",
+      "verification": "Previously verified build bytes matched published GitHub storage digest"
+    },
+    {
+      "name": "android-runtime-dependencies.json",
+      "bytes": 3415,
+      "sha256": "22a584a4428aa2ec47ab878e76e9c3c4167d59da03140c78c01bfbee63810533",
+      "verification": "Previously verified build bytes matched published GitHub storage digest"
+    },
+    {
+      "name": "android-sbom.cdx.json",
+      "bytes": 20084,
+      "sha256": "39a5f41243e82645c9b7ccdfb4c1ace7ae3da7778819623efc93da49c59d787d",
+      "verification": "Previously verified build bytes matched published GitHub storage digest"
+    },
+    {
+      "name": "Android-SHA256SUMS.txt",
+      "bytes": 617,
+      "sha256": "c460aefeddcbe2264e7dc8a37d3868421cc7f6dc02411f50f8712792fd7047b2",
+      "verification": "Complete anonymous release download matched GitHub storage digest"
+    },
+    {
+      "name": "installer-manifest.json",
+      "bytes": 2312,
+      "sha256": "bbdd95223c538daeda46717767cdf0589667bf69b9307a3b6f2fa517f230e78a",
+      "verification": "Complete anonymous release download matched GitHub storage digest"
+    },
+    {
+      "name": "linux-installer-manifest.json",
+      "bytes": 1408,
+      "sha256": "a476a852b782c2da8b6434a7fc03cc267896bde04d92328e0a63e24ee62e78b2",
+      "verification": "Complete anonymous release download matched GitHub storage digest"
+    },
+    {
+      "name": "Linux-SHA256SUMS.txt",
+      "bytes": 126,
+      "sha256": "1555073ac8581cb886c9606236d63e94c0acfc72acf1d20097fbf63300dbe620",
+      "verification": "Complete anonymous release download matched GitHub storage digest"
+    },
+    {
+      "name": "SHA256SUMS.txt",
+      "bytes": 122,
+      "sha256": "f51609f621c2b8ff4f8079f34b36dd394aa39ef13c35b7fdbc6e5bea3ba93439",
+      "verification": "Complete anonymous release download matched GitHub storage digest"
+    },
+    {
+      "name": "stream-kit-android-0.1.0-preview.20261119.3-distribution.zip",
+      "bytes": 33168123,
+      "sha256": "688f4a3a1ad9c73c93b8f70b32a5b3a2eaaefaa5607e75979f3f9a40625e740d",
+      "verification": "Previously verified build bytes matched published GitHub storage digest"
+    },
+    {
+      "name": "stream-kit-android-0.1.0-preview.20261119.3.apk",
+      "bytes": 33168220,
+      "sha256": "e5ce080863b9b3f7bc52cc176a9ddc6e0a1b9eaf97068552090c96f908379539",
+      "verification": "Previously verified build bytes matched published GitHub storage digest"
+    },
+    {
+      "name": "stream-kit-preview-954a1e6e73ef-ubuntu24.04-amd64-setup.run",
+      "bytes": 62855347,
+      "sha256": "2fd41e6c97628637189644765585ed8759e2491d8a83c6873f06b1725a0daa82",
+      "verification": "Previously verified build bytes matched published GitHub storage digest"
+    },
+    {
+      "name": "stream-kit-preview-954a1e6e73ef-windows-amd64-setup.exe",
+      "bytes": 98019654,
+      "sha256": "5b5bf5a5f8795fa5b524aefaf773cf395faff61128fbe58cfd8e8e8486e80e01",
+      "verification": "Complete anonymous release download matched GitHub storage digest"
+    },
+    {
+      "name": "stream-kit-sbom.spdx.json",
+      "bytes": 7588090,
+      "sha256": "d8928b5468cec94584c8bd80a2ad86e4fcfbdda73893e13126569c90f27fcb2d",
+      "verification": "Complete anonymous release download matched GitHub storage digest"
+    }
+  ],
+  "scope": "All fourteen asset digests and byte sizes match verified build bytes; seven assets including the Windows installer were fully downloaded anonymously. Other large payloads were not redundantly downloaded after artifact verification.",
+  "installed_windows_source": "954a1e6e73ef95231e78c9d77d77d932749aa043",
+  "installed_android_version_code": 1000018,
+  "prior_restart_outcome": "docs/evidence/windows-installer-restart-954a1e6e-20261120.json",
+  "remaining": [
+    "Current shared Windows primary-NIC migration and full-OS reboot not exercised.",
+    "Physical tablet input into Example remains unverified while the host foreground is LockApp; no forced unlock or ToDesk change.",
+    "No claim of post-3010 reboot acceptance or 168-hour OOM-free operation."
+  ],
+  "validation_tooling": "The first local validator rejected a PowerShell-projected assets wrapper. Replaced the capture with unmodified public GitHub JSON; asset-count and digest assertions were retained. No product or acceptance threshold changed."
+}

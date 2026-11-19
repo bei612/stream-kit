@@ -9,7 +9,7 @@
     "android": 44556808891,
     "android_version": "0.1.0-preview.20261119.3",
     "android_version_code": 1000018,
-    "status_at_recording": "2026-11-20: cross-platform six jobs, Windows/Linux product builds and Android build succeeded; complete Windows runtime and physical Android installed at 954a1e6e; first fresh Windows installer returned 3010, separate exact-byte acceptance 44568294522 pending",
+    "status_at_recording": "2026-11-20: cross-platform, Windows/Linux product and Android builds passed; Windows/Android installed at 954a1e6e; exact Windows installer passed run 44568294522 after separately retained 3010 outcome; published v0.1.0-preview.20261119.3 with fourteen verified assets",
     "duplicate_linux_run": "44556521077 cancelled intentionally; product run already includes the same-source Linux build"
   },
   "scope": "Shared management concept-help component and Chinese-language native acceptance; no media protocol, control authority, credentials, device driver or application change",
@@ -110,7 +110,7 @@
   },
   "boundaries": [
     "Windows Chrome touch context is browser emulation, not physical-tablet evidence",
-    "Cross-platform and installed management acceptance passed; first fresh Windows installer returned documented restart outcome 3010. Exact-byte no-reboot PCM/service branch is checked separately.",
+    "Cross-platform, installed management and exact-installer no-reboot acceptance passed. The first fresh installation returned 3010; that environment has no post-reboot acceptance.",
     "Ubuntu gateway job failed on dependency-source connection, not a proven gateway runtime failure",
     "npm installation reported 19 dependency advisories (1 low, 9 moderate, 9 high), including development dependencies; separate --omit=dev audit reports one high React Router dependency. Applicability needs advisory-by-advisory review; not bulk-upgraded or claimed audited"
   ],
