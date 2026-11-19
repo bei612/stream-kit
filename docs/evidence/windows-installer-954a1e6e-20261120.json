@@ -1,0 +1,153 @@
+{
+  "date": "2026-11-20",
+  "product_run": 44556558891,
+  "acceptance_run": 44568294522,
+  "source": "954a1e6e73ef95231e78c9d77d77d932749aa043",
+  "passed": true,
+  "result_sha256": "3fb4c024727b50d3c2c73a0947292f4b26462d36075dd4ce019a94125fe830c1",
+  "result": {
+    "passed": true,
+    "scope": "One private unified installer with its configured virtual audio device; native PCM, service lifecycle and reuse checks. No browser, human speech or public release claim.",
+    "commit": "954a1e6e73ef95231e78c9d77d77d932749aa043",
+    "installer_source_commit": "954a1e6e73ef95231e78c9d77d77d932749aa043",
+    "installer_sha256": "5b5bf5a5f8795fa5b524aefaf773cf395faff61128fbe58cfd8e8e8486e80e01",
+    "identity": {
+      "vendor_id": 5824,
+      "product_id": 10208,
+      "serial_prefix": "lkdtc2012@gmail.com:"
+    },
+    "program": "C:\\Program Files\\StreamKit-Audio-Acceptance-954a1e6e-90cb42",
+    "data": "C:\\ProgramData\\StreamKit-Audio-Acceptance-954a1e6e-90cb42",
+    "started_at": "2026-11-19T16:39:03.658Z",
+    "defaults_before": {
+      "communication_render": "",
+      "communication_capture": "",
+      "render": "",
+      "capture": ""
+    },
+    "controllers_before": [],
+    "diagnostics": {
+      "before-install": "devices-before-install.json",
+      "after-install": "devices-after-install.json",
+      "setupapi": {
+        "file": "setupapi-install-delta.log",
+        "baseline_bytes": 1083000,
+        "observed_bytes": 1117820,
+        "start_offset": 1083000,
+        "captured_bytes": 34820,
+        "truncated": false,
+        "log_replaced_or_truncated": false,
+        "baseline_missing": false
+      }
+    },
+    "install_exit": 0,
+    "virtual_audio_serial": "lkdtc2012@gmail.com:DAJPOAVSF6CMXAW",
+    "admin_login": true,
+    "service": {
+      "Name": "StreamKitOrchestrator",
+      "State": "Running",
+      "StartMode": "Auto",
+      "StartName": "LocalSystem",
+      "ProcessId": 1436,
+      "PathName": "\"C:\\Program Files\\StreamKit-Audio-Acceptance-954a1e6e-90cb42\\orchestrator\\orchestrator.exe\" --config C:\\ProgramData\\StreamKit-Audio-Acceptance-954a1e6e-90cb42\\orchestrator.json"
+    },
+    "endpoints": {
+      "render_device_id": "wasapi:{0.0.0.00000000}.{1eabbdfa-dff3-4bff-b7de-e26fe35e7fe7}",
+      "capture_device_id": "wasapi:{0.0.1.00000000}.{5ce66d91-3fa3-44f4-9683-431a045dbb9e}"
+    },
+    "pair": {
+      "passed": true,
+      "captured_frames": 144000,
+      "tone_amplitude": 0.0980051352881112,
+      "tone": {
+        "captured_frames": 144000,
+        "tone_amplitude": 0.0980051352881112,
+        "rms": 0.0699950340930827,
+        "peak": 0.10003662109375,
+        "quiet": false
+      },
+      "first_error_after_frames": null,
+      "submitted_packets": 150,
+      "target": {
+        "device_open": true,
+        "device_sample_frames": 221376,
+        "dropped_frames": 0,
+        "xruns": 0,
+        "realtime_denied": false,
+        "error": null
+      },
+      "baseline": {
+        "captured_frames": 24000,
+        "tone_amplitude": 4.803296287248009e-8,
+        "rms": 0.000020692403284284457,
+        "peak": 0.00006103515625,
+        "quiet": true
+      },
+      "after_clear": {
+        "captured_frames": 24000,
+        "tone_amplitude": 1.448046141805392e-7,
+        "rms": 0.00002080834897298789,
+        "peak": 0.00006103515625,
+        "quiet": true
+      },
+      "drain_before_silence_ms": 300,
+      "closed_after_drop": true
+    },
+    "defaults_during": {
+      "communication_render": "",
+      "communication_capture": "\\\\?\\SWD#MMDEVAPI#{0.0.1.00000000}.{5ce66d91-3fa3-44f4-9683-431a045dbb9e}#{2eef81be-33fa-4800-9670-1cd474972c3f}",
+      "render": "",
+      "capture": "\\\\?\\SWD#MMDEVAPI#{0.0.1.00000000}.{5ce66d91-3fa3-44f4-9683-431a045dbb9e}#{2eef81be-33fa-4800-9670-1cd474972c3f}"
+    },
+    "defaults_preserved": true,
+    "gateway_stop": {
+      "exit_code": 0,
+      "pid": 804
+    },
+    "gateway_restarted": true,
+    "controllers_after": [
+      {
+        "PNPDeviceID": "ROOT\\USB\\0000",
+        "ConfigManagerErrorCode": 0
+      }
+    ],
+    "defaults_after_restart": {
+      "communication_render": "",
+      "communication_capture": "\\\\?\\SWD#MMDEVAPI#{0.0.1.00000000}.{5ce66d91-3fa3-44f4-9683-431a045dbb9e}#{2eef81be-33fa-4800-9670-1cd474972c3f}",
+      "render": "",
+      "capture": "\\\\?\\SWD#MMDEVAPI#{0.0.1.00000000}.{5ce66d91-3fa3-44f4-9683-431a045dbb9e}#{2eef81be-33fa-4800-9670-1cd474972c3f}"
+    },
+    "service_after_restart": {
+      "Name": "StreamKitOrchestrator",
+      "State": "Running",
+      "StartMode": "Auto",
+      "StartName": "LocalSystem",
+      "ProcessId": 3924,
+      "PathName": "\"C:\\Program Files\\StreamKit-Audio-Acceptance-954a1e6e-90cb42\\orchestrator\\orchestrator.exe\" --config C:\\ProgramData\\StreamKit-Audio-Acceptance-954a1e6e-90cb42\\orchestrator.json"
+    },
+    "defaults_after_service_restart": {
+      "communication_render": "",
+      "communication_capture": "\\\\?\\SWD#MMDEVAPI#{0.0.1.00000000}.{5ce66d91-3fa3-44f4-9683-431a045dbb9e}#{2eef81be-33fa-4800-9670-1cd474972c3f}",
+      "render": "",
+      "capture": "\\\\?\\SWD#MMDEVAPI#{0.0.1.00000000}.{5ce66d91-3fa3-44f4-9683-431a045dbb9e}#{2eef81be-33fa-4800-9670-1cd474972c3f}"
+    },
+    "scm_restarted": true,
+    "uninstall_exit": 0,
+    "service_removed": true,
+    "data_preserved": true,
+    "defaults_after": {
+      "communication_render": "",
+      "communication_capture": "",
+      "render": "",
+      "capture": ""
+    },
+    "finished_at": "2026-11-19T16:40:29.848Z"
+  },
+  "prior_restart_outcome": "docs/evidence/windows-installer-restart-954a1e6e-20261120.json",
+  "boundaries": [
+    "Same installer bytes accepted in one independent no-reboot environment. Earlier 3010 environment is retained, not rewritten as passing.",
+    "An Auto service and SCM restart are verified; this is not whole-OS reboot or post-3010 reboot evidence.",
+    "Baseline hosted machine had no audio endpoints. Capture became selectable while attached; there was no preexisting capture default to preserve. Render defaults remained empty.",
+    "Native PCM uses an isolated acceptance signal; no test signal or fixture is included in the runtime payload."
+  ]
+}
