@@ -1,0 +1,34 @@
+{
+  "date": "2026-11-20",
+  "source": "954a1e6e73ef95231e78c9d77d77d932749aa043",
+  "product_run": 44556558891,
+  "product_build": "success",
+  "acceptance_run": 44566970542,
+  "passed": false,
+  "installer_sha256": "5b5bf5a5f8795fa5b524aefaf773cf395faff61128fbe58cfd8e8e8486e80e01",
+  "install_exit": 3010,
+  "uninstall_exit": 0,
+  "service_removed_after_uninstall": true,
+  "data_preserved": true,
+  "native_pcm_and_service_restart_executed": false,
+  "finding": "SetupAPI records initial Microsoft usbaudio2 installation succeeding, then the configured device-scoped policy refresh through DiInstallDevice receiving PNP_VetoDevice / CR_REMOVE_VETOED. Windows requested a reboot. The installer retained an Auto service, returned 3010 and did not report readiness. The acceptance gate requires actual PCM and service lifecycle, so it correctly failed before those checks.",
+  "diagnostics": {
+    "controller_status": "OK",
+    "controller_problem_code": 0,
+    "controller_service": "usbip2_ude",
+    "audio_endpoints_after_provider_cleanup": 0,
+    "audio_services": "AudioEndpointBuilder and Audiosrv running",
+    "platform_service_before_cleanup": "Stopped / Auto",
+    "generic_pending_reboot_flags": false,
+    "setupapi_delta_bytes": 34968,
+    "setupapi_delta_truncated": false
+  },
+  "evidence_directory": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-954a1e6e\\installer-acceptance\\installer-acceptance",
+  "interpretation": "NeedReboot is a documented Windows installation outcome; generic reboot registry flags do not override that native return. This observation does not establish a source regression or a verified post-reboot recovery. Existing policy evidence also shows detach/reconnect without driver refresh fails to preserve output-default selection, so the refresh is not removed to force a pass.",
+  "follow_up": "One independent hosted installation of these exact bytes is requested to exercise the no-reboot PCM/service branch. No product rebuild, acceptance threshold reduction, automatic shared-host reboot or replacement of this failed record.",
+  "references": [
+    "https://learn.microsoft.com/en-us/windows/win32/api/newdev/nf-newdev-diinstalldevice",
+    "https://learn.microsoft.com/en-us/windows-hardware/drivers/audio/pkey-audiodevice-neversetasdefaultendpoint",
+    "docs/evidence/windows-endpoint-policy-20261101.json"
+  ]
+}

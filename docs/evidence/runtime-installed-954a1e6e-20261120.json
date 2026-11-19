@@ -1,0 +1,130 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-20",
+  "passed": true,
+  "source": "954a1e6e73ef95231e78c9d77d77d932749aa043",
+  "scope": "Complete installed Windows runtime maintenance and actual management SPA acceptance; no new media, primary-NIC migration or whole-OS boot claim",
+  "maintenance": {
+    "schema_version": 1,
+    "success": true,
+    "apply": true,
+    "source": "954a1e6e73ef95231e78c9d77d77d932749aa043",
+    "started_at": "2026-11-19T16:30:53.636Z",
+    "trust_changed": false,
+    "network_changed": false,
+    "step": "complete",
+    "previous_source": "1d81a373ac29b243227e8f0fb55c1d9da3d613fd",
+    "previous_components": {
+      "orchestrator": "1d81a373ac29b243227e8f0fb55c1d9da3d613fd",
+      "media-gateway": "1d81a373ac29b243227e8f0fb55c1d9da3d613fd",
+      "sunshine": "1d81a373ac29b243227e8f0fb55c1d9da3d613fd"
+    },
+    "runtime_backup": "C:\\Program Files\\StreamKit\\.maintenance-previous-1795105856052-3f6e04",
+    "state_backup": "C:\\ProgramData\\StreamKit\\runtime-maintenance-1795105856052-3f6e04",
+    "leaf_renewed": false,
+    "scope": "Complete runtime maintenance; original installer/uninstaller and signed drivers retained. Not a fresh installer acceptance.",
+    "finished_at": "2026-11-19T16:31:41.419Z"
+  },
+  "service": {
+    "Name": "StreamKitOrchestrator",
+    "State": "Running",
+    "StartMode": "Auto",
+    "StartName": "LocalSystem",
+    "ProcessId": 28680
+  },
+  "native_inventory": {
+    "passed": true,
+    "components": 3,
+    "source": "954a1e6e73ef95231e78c9d77d77d932749aa043"
+  },
+  "health": {
+    "passed": true,
+    "source": "954a1e6e73ef95231e78c9d77d77d932749aa043",
+    "components": {
+      "sunshine": {
+        "crash_count": 0,
+        "pid": 31532,
+        "status": "running"
+      },
+      "web_server": {
+        "crash_count": 0,
+        "pid": 37524,
+        "status": "running"
+      }
+    },
+    "apps_summary": {
+      "error": 0,
+      "ready": 1,
+      "running": 0,
+      "total": 2
+    },
+    "lan_origin": "https://192.168.0.119:9000",
+    "loopback_origin": "https://127.0.0.1:9000",
+    "https_errors_ignored": false,
+    "assets": [
+      "/assets/index-DkDzwuSd.js",
+      "/assets/index-BQYlHHxO.css"
+    ]
+  },
+  "browser": {
+    "tool": "playwright-cli",
+    "browser": "Chrome",
+    "ignore_https_errors": false,
+    "actual_deployment": true,
+    "routes": [
+      "/",
+      "/components",
+      "/apps",
+      "/stream-sessions",
+      "/settings",
+      "/logs",
+      "/upload",
+      "/docs"
+    ],
+    "widths": [
+      390,
+      768,
+      1440
+    ],
+    "document_width_equals_viewport": "24/24",
+    "languages": [
+      "zh-CN",
+      "en"
+    ],
+    "tooltip_hover_and_escape": true,
+    "javascript_errors": [],
+    "screenshots_visually_reviewed": true,
+    "screenshots": [
+      {
+        "file": "runtime-installed-954a1e6e-20261120-hover-390.png",
+        "sha256": "78c5e802e033e1a2a374e17667e0e672697d108d677a45c5b7c563b66fbc625d"
+      },
+      {
+        "file": "runtime-installed-954a1e6e-20261120-hover-768.png",
+        "sha256": "9e363767c87d08c202137ff81f08e86d959c2d125a01fba1db099df11918ecbc"
+      },
+      {
+        "file": "runtime-installed-954a1e6e-20261120-hover-1440.png",
+        "sha256": "b701dad49a3f30898652bf03a823537a39c71b86b45462046caa82050600d170"
+      },
+      {
+        "file": "runtime-installed-954a1e6e-20261120-english-mobile.png",
+        "sha256": "dacbc92240beb8afca580f760fcfaa2e9af0f61f7bdb73eb1daf5a14d6adee7f"
+      }
+    ],
+    "script": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-954a1e6e\\installed-check\\review.js",
+    "finish_result": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-954a1e6e\\installed-check\\finish-result.txt",
+    "closed_owned_browser": true
+  },
+  "prior_attempts": [
+    "Local review helper initially called Fetch Response.ok as a function. Corrected to its boolean property; first failed attempt retained in installed-check/first-attempt.txt. Production code unchanged.",
+    "Unprivileged native control config check reported protected configuration unavailable; elevated maintenance validated configuration and preserved its access protection.",
+    "Native curl Schannel diagnostic reported CRYPT_E_NO_REVOCATION_CHECK for the private CA. Actual browser LAN and loopback TLS succeeded without ignoring certificate errors; no trust or TLS policy changed."
+  ],
+  "boundaries": [
+    "Fresh Windows installer acceptance is a separate CI workflow; maintenance is not a fresh installer run.",
+    "Original installer/uninstaller and signed audio drivers retained; production runtime contains only the verified platform payload.",
+    "No UE launch, ToDesk change, physical microphone request, network switch or host reboot.",
+    "No repeated media or four-hour load check for this presentation-only change. Earlier results retain their original source identities."
+  ]
+}

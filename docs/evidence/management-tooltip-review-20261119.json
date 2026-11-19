@@ -1,6 +1,6 @@
 {
   "date": "2026-11-19",
-  "status": "source-reviewed-local-targeted-checks-passed-installation-pending",
+  "status": "source-reviewed-cross-platform-and-installed-management-checks-passed",
   "installed_runtime_commit": "1d81a373ac29b243227e8f0fb55c1d9da3d613fd",
   "fix_commit": "954a1e6e73ef95231e78c9d77d77d932749aa043",
   "candidate_runs": {
@@ -9,7 +9,7 @@
     "android": 44556808891,
     "android_version": "0.1.0-preview.20261119.3",
     "android_version_code": 1000018,
-    "status_at_recording": "2026-11-20: cross-platform all six jobs succeeded; four downloaded management suites verified; Android succeeded and physically installed; product Linux succeeded, Windows build still in progress",
+    "status_at_recording": "2026-11-20: cross-platform six jobs, Windows/Linux product builds and Android build succeeded; complete Windows runtime and physical Android installed at 954a1e6e; first fresh Windows installer returned 3010, separate exact-byte acceptance 44568294522 pending",
     "duplicate_linux_run": "44556521077 cancelled intentionally; product run already includes the same-source Linux build"
   },
   "scope": "Shared management concept-help component and Chinese-language native acceptance; no media protocol, control authority, credentials, device driver or application change",
@@ -94,7 +94,8 @@
         "sha256": "fd67399aa7866cdf73ac89b51b2ebb21bbfdb806813d6dc78ff5e536efb4fcb5",
         "unexpected_errors": 0
       }
-    ]
+    ],
+    "installed_validation": "docs/evidence/runtime-installed-954a1e6e-20261120.json"
   },
   "evidence": {
     "ci_failure_log": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-1d81a373\\cross-platform-44518792780-failed.log",
@@ -109,8 +110,9 @@
   },
   "boundaries": [
     "Windows Chrome touch context is browser emulation, not physical-tablet evidence",
-    "Cross-platform workflow 44556521128 and downloaded Chromium/Firefox/WebKit/component-command results passed; new Windows installed-version acceptance remains pending",
+    "Cross-platform and installed management acceptance passed; first fresh Windows installer returned documented restart outcome 3010. Exact-byte no-reboot PCM/service branch is checked separately.",
     "Ubuntu gateway job failed on dependency-source connection, not a proven gateway runtime failure",
     "npm installation reported 19 dependency advisories (1 low, 9 moderate, 9 high), including development dependencies; separate --omit=dev audit reports one high React Router dependency. Applicability needs advisory-by-advisory review; not bulk-upgraded or claimed audited"
-  ]
+  ],
+  "updated_at": "2026-11-20"
 }
