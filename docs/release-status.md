@@ -6,7 +6,7 @@
 
 本机 Windows 三个运行组件及其前端现已统一为 `1d81a373ac29b243227e8f0fb55c1d9da3d613fd`，完整原生库存校验通过；管理端资源为 `index-CgQg9KWJ.js` / `index-D0xbfk5M.css`。已结束此前旧后端与单独覆盖前端的混合安装状态。服务为 Auto / LocalSystem / Running；当前 IP 自动识别、双入口可信 HTTPS、Example 实际出画面、双端控制转交/撤销与权限同步、停止后编辑和全局头像退出已通过。见[本机同源维护与页面验收](evidence/runtime-installed-1d81a373-20261119.json)。
 
-新预发布运行源码冻结为 `1d81a373ac29b243227e8f0fb55c1d9da3d613fd`，包含局域网地址自动识别、控制端/网关证书热更新及 OpenSSL 4.1 兼容。Windows/Linux 完整产品[构建已通过](https://github.com/bei612/stream-kit/actions/runs/44512398135)，三个组件均同源；平板已覆盖安装同源 Android。[v0.1.0-preview.20261119.2](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.2) 已发布且全部附件下载核验通过。Windows 本机完整维护现已成功；此前就绪检查失败、回滚和提权取消保留在[历史尝试记录](evidence/windows-maintenance-attempt-1d81a373-20261119.json)，不改写为成功。
+已公开的最新预发布运行源码冻结为 `1d81a373ac29b243227e8f0fb55c1d9da3d613fd`，包含局域网地址自动识别、控制端/网关证书热更新及 OpenSSL 4.1 兼容。Windows/Linux 完整产品[构建已通过](https://github.com/bei612/stream-kit/actions/runs/44512398135)，三个组件均同源；该版 Android 的真机媒体证据保留，平板随后更新至下表 `954a1e6e` 候选。[v0.1.0-preview.20261119.2](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.2) 已发布且全部附件下载核验通过。Windows 本机完整维护现已成功；此前就绪检查失败、回滚和提权取消保留在[历史尝试记录](evidence/windows-maintenance-attempt-1d81a373-20261119.json)，不改写为成功。
 
 自动换址已通过[真实隔离网络验证](evidence/lan-autodiscovery-515b9918-20261119.json)：移除旧 IP 并新增 IP 后，6.93 秒内两个 HTTPS 入口更新身份，CA、私钥、配置与进程保持，WebRTC 自动恢复到新媒体地址。该实验实际运行 `515b9918`；其管理端和网关源码与 `1d81a373` 完全一致，记录仍保留原始运行身份。本页下方手动地址恢复记录证明的是更新前的本机状态。
 
