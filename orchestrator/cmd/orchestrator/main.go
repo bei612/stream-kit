@@ -166,6 +166,7 @@ func run(ctx context.Context, ready func()) error {
 		return fmt.Errorf("配置加载失败: %v", err)
 	}
 	var tlsConfig *tls.Config
+	var managedTLS *config.ManagedTLS
 	if cfg.Server.LANTLS.Enabled() {
 		err = config.CheckManagedTLS(cfg.Server)
 	} else {
@@ -195,13 +196,11 @@ func run(ctx context.Context, ready func()) error {
 	defer listener.Close()
 	if cfg.Server.LANTLS.Enabled() {
 		// Acquire the control socket before mutating the shared leaf identity.
-		if err := config.PrepareManagedTLS(cfg.Server); err != nil {
+		managedTLS, err = config.NewManagedTLS(cfg.Server)
+		if err != nil {
 			return fmt.Errorf("局域网 TLS 准备失败: %w", err)
 		}
-		tlsConfig, err = serverTLS(cfg.Server)
-		if err != nil {
-			return err
-		}
+		tlsConfig = managedTLS.TLSConfig()
 	}
 	// Ensure directories
 	for _, dir := range []string{cfg.Storage.AppsDir, cfg.Storage.TempDir, filepath.Dir(cfg.Storage.DBPath)} {
@@ -330,6 +329,17 @@ func run(ctx context.Context, ready func()) error {
 	background = append(background, util.SafeGo(logger, "operation-log-retention", func() {
 		runOperationLogRetention(streamCtx, st, cfg.Log.OperationLog, logger)
 	}))
+	if managedTLS != nil {
+		background = append(background, util.SafeGo(logger, "managed-lan-tls", func() {
+			managedTLS.Run(streamCtx, func(changed bool, err error) {
+				if err != nil {
+					logger.Warn("局域网 TLS 自动维护失败，保留当前监听证书", zap.Error(err))
+					return
+				}
+				logger.Info("局域网 TLS 身份已同步", zap.Bool("certificate_changed", changed))
+			})
+		}))
+	}
 	if srv.MediaControl != nil {
 		background = append(background, util.SafeGo(logger, "media-state-reconciler", func() { srv.MediaControl.Run(streamCtx, logger) }))
 		background = append(background, util.SafeGo(logger, "microphone-route-reconciler", func() { srv.MediaControl.RunRoutes(streamCtx, logger) }))

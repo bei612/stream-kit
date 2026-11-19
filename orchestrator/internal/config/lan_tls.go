@@ -39,6 +39,17 @@ func validateLANTLS(c ServerConfig) error {
 			}
 		}
 	}
+	if len(c.LANTLS.AutoInterfaces) > 32 {
+		return errors.New("局域网自动识别网卡最多 32 项")
+	}
+	for _, name := range c.LANTLS.AutoInterfaces {
+		if strings.TrimSpace(name) == "" || len(name) > 256 {
+			return errors.New("局域网自动识别网卡名称无效")
+		}
+	}
+	if c.LANTLS.AutoDetect && len(c.LANTLS.Hosts) == 0 {
+		return nil // loopback identities remain available before DHCP completes
+	}
 	_, _, err := certificateHosts(c.LANTLS.Hosts)
 	return err
 }
@@ -86,7 +97,7 @@ func certificateHosts(hosts []string) ([]string, []net.IP, error) {
 
 // PrepareManagedTLS reissues only the leaf, never replaces or creates a CA.
 // Management and the local media gateway must reference the same leaf files.
-// It runs before either listener/component starts, so a restart applies one identity.
+// Runtime refresh also uses this atomic leaf replacement; listeners retain the key.
 func PrepareManagedTLS(c ServerConfig) error { return managedTLS(c, true, time.Now()) }
 
 // CheckManagedTLS validates issuer, key and requested identities without writing files.
@@ -99,7 +110,14 @@ func managedTLS(c ServerConfig, persist bool, now time.Time) error {
 	if err := validateLANTLS(c); err != nil {
 		return err
 	}
-	dns, ips, _ := certificateHosts(c.LANTLS.Hosts)
+	hosts, err := managedCertificateHosts(c.LANTLS)
+	if err != nil {
+		return err
+	}
+	dns, ips, err := certificateHosts(hosts)
+	if err != nil {
+		return err
+	}
 	issuerPair, err := tls.LoadX509KeyPair(c.LANTLS.CACert, c.LANTLS.CAKey)
 	if err != nil {
 		return fmt.Errorf("读取原局域网 CA 失败（不会创建替代 CA）: %w", err)

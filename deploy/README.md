@@ -80,11 +80,11 @@ IP 变化后的处理必须覆盖控制面和数据面：
 
 - 保持内部组件间 loopback 地址，避免把它们改成 DHCP 地址。
 - 同机布局通常保持 `moonlight_web.public_url` 为空，CORS 用匹配实际 scheme/port 的 `{host}` 模板。
-- 把新 IP 加入原 CA 下 `server.lan_tls.hosts`，核对显式 bind、公开 URL、来源及 ICE/NAT 映射。
-- 原生预检后重启 Stream Kit，核对管理及网关 HTTPS，再检查真实媒体。
+- 已配置原 CA 的部署默认自动识别活动局域网私有地址，管理端和网关热更新证书；额外固定身份写入 `server.lan_tls.hosts`，多网卡可用 `auto_interfaces` 限定。
+- 普通 DHCP 地址变化无需重启。修改识别策略、显式 bind、公开 URL、来源或 ICE/NAT 映射时，原生预检后重启 Stream Kit，核对两个 HTTPS 入口及真实媒体。
 - 保留原 CA、服务私钥、应用数据库、配对身份和观看密钥。客户端只修改地址部分，不需要重新编译或重装原 CA。
 
-当前版本不会自动追踪任意 DHCP 地址并更新证书；旧数字 IP 书签不会自动改写。稳定主机名依赖 LAN 解析和证书身份，不是仅改显示文字。完整步骤见[网络与证书](../docs/lan-address-configuration.md)。
+自动发现不更改公网/NAT 配置或旧数字 IP 书签。稳定主机名依赖 LAN 解析和证书身份，不是仅改显示文字。完整步骤见[网络与证书](../docs/lan-address-configuration.md)。
 
 ## 配置保存与应用
 

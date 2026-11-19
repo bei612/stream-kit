@@ -36,7 +36,7 @@ sudo bash INSTALLER.run --user RENDER_USER
 
 ## 地址变化
 
-没有域名也可使用 LAN IP。新地址须加入原部署 CA 下的 `server.lan_tls.hosts`，核对显式公开 URL/来源/ICE 配置后预检并重启服务。保留原 CA、服务私钥和应用观看密钥，不需重新编译或重装客户端信任。
+没有域名也可使用 LAN IP。配置原部署 CA 后，`server.lan_tls.auto_detect` 默认启用，活动局域网私有地址变化自动更新两个 HTTPS 入口的证书，无须重启。固定身份可加入 `hosts`，多网卡可用 `auto_interfaces` 限定。显式公开 URL/来源/ICE 配置仍由管理员维护。保留原 CA、服务私钥和应用观看密钥，不需重新编译或重装客户端信任。
 
 固定数字 IP 书签需修改地址部分，key 保持不变。可使用证书覆盖的稳定主机名；Sunshine 复用 Avahi 发布 `主机名.local`，依赖组播/网络和客户端解析支持，不能保证跨 VLAN 或访客 Wi-Fi 可达。名称解析不替代 HTTPS 信任。
 

@@ -250,7 +250,20 @@ class RuntimeMaintenance {
     await this.waitReady(this.report.source);
     assert.deepEqual((await this.api('/apps')).map(app=>app.id).sort(),this.apps,'Application identities changed');
     assert.ok(fs.readFileSync(this.configFile).equals(this.configBytes),'Maintenance must preserve configuration');
-    for(const [file,digest]of this.trust)assert.equal(hash(file),digest,'Deployment trust changed');
+    // Managed leaf identities may legitimately renew during startup (DHCP or
+    // expiry). Root trust and every private key must remain byte-identical.
+    for(const [file,digest]of this.trust){
+      if(file===this.config.server.tls_cert&&this.config.server.lan_tls?.ca_cert)continue;
+      assert.equal(hash(file),digest,'Deployment trust or private key changed');
+    }
+    if(this.config.server.lan_tls?.ca_cert){
+      const leaf=new crypto.X509Certificate(fs.readFileSync(this.config.server.tls_cert));
+      const ca=new crypto.X509Certificate(fs.readFileSync(this.config.server.lan_tls.ca_cert));
+      const key=crypto.createPrivateKey(fs.readFileSync(this.config.server.tls_key));
+      assert.ok(!leaf.ca&&leaf.checkIssued(ca)&&leaf.verify(ca.publicKey)&&leaf.checkPrivateKey(key),'Renewed leaf changed issuer or key');
+      assert.ok(Date.parse(leaf.validFrom)<=Date.now()&&Date.parse(leaf.validTo)>Date.now(),'Renewed leaf validity is invalid');
+      this.report.leaf_renewed=hash(this.config.server.tls_cert)!==this.trust.get(this.config.server.tls_cert);
+    }
     this.report.scope='Complete runtime maintenance; original installer/uninstaller and signed drivers retained. Not a fresh installer acceptance.';
     const oldRecord=path.join(this.root,'control-maintenance.json');
     if(fs.existsSync(oldRecord))this.move(oldRecord,path.join(this.backup,'control-maintenance.json'),this.root);

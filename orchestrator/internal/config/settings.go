@@ -41,7 +41,9 @@ func NewSettings(cfg *Config) *Settings {
 func revision(data []byte) string { sum := sha256.Sum256(data); return hex.EncodeToString(sum[:]) }
 
 func decodeSettings(data []byte) (*Config, error) {
-	var cfg Config
+	// Existing managed-CA deployments gain address discovery without rewriting
+	// their desired configuration. Explicit false keeps manual-only identity.
+	cfg := Config{Server: ServerConfig{LANTLS: LANTLSConfig{AutoDetect: true}}}
 	d := json.NewDecoder(bytes.NewReader(data))
 	d.DisallowUnknownFields()
 	if err := d.Decode(&cfg); err != nil {

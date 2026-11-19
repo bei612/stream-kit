@@ -44,9 +44,11 @@ type ServerConfig struct {
 // LANTLS keeps the deployment trust anchor stable when its network addresses change.
 // Empty CA paths disable managed issuance and preserve externally managed TLS.
 type LANTLSConfig struct {
-	CACert string   `json:"ca_cert" mapstructure:"ca_cert"`
-	CAKey  string   `json:"ca_key" mapstructure:"ca_key"`
-	Hosts  []string `json:"hosts" mapstructure:"hosts"`
+	CACert         string   `json:"ca_cert" mapstructure:"ca_cert"`
+	CAKey          string   `json:"ca_key" mapstructure:"ca_key"`
+	Hosts          []string `json:"hosts" mapstructure:"hosts"`
+	AutoDetect     bool     `json:"auto_detect" mapstructure:"auto_detect"`
+	AutoInterfaces []string `json:"auto_interfaces" mapstructure:"auto_interfaces"`
 }
 
 type ComponentConfig struct {
@@ -307,7 +309,7 @@ func generateDefaultConfig(path string) error {
 		// Use the same typed schema as loading and editing. A first-run file
 		// must not depend on a separately maintained subset of JSON fields.
 		cfg := Config{
-			Server:     ServerConfig{BindAddress: "127.0.0.1:9000", Username: "admin", Password: rand.Text(), JWTSecret: rand.Text() + rand.Text()},
+			Server:     ServerConfig{BindAddress: "127.0.0.1:9000", Username: "admin", Password: rand.Text(), JWTSecret: rand.Text() + rand.Text(), LANTLS: LANTLSConfig{AutoDetect: true}},
 			Components: initialComponents(),
 			Storage:    StorageConfig{AppsDir: "./apps", TempDir: "./temp", DBPath: "./data/orchestrator.db", MaxUploadSize: 50 << 30, MaxExtractSize: 50 << 30, MaxFileCount: 100000},
 			Process:    ProcessConfig{MonitorInterval: 5, GracefulShutdownTimeout: 5},

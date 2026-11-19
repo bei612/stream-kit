@@ -339,7 +339,7 @@ async fn start(
     settings: Data<configuration::Settings>,
 ) -> Result<(), anyhow::Error> {
     config.validate().map_err(anyhow::Error::msg)?;
-    let tls = tls::load(&config).map_err(anyhow::Error::msg)?;
+    let tls = tls::start(&config).map_err(anyhow::Error::msg)?;
     let shutdown = shutdown::signal()?;
     let provider_config = config.virtual_audio.clone();
     let mut provider = tokio::task::spawn_blocking(move || {
@@ -362,7 +362,7 @@ async fn start(
 async fn serve(
     config: Config,
     settings: Data<configuration::Settings>,
-    tls: Option<rustls::ServerConfig>,
+    tls: Option<tls::Runtime>,
     shutdown: impl std::future::Future<Output = ()> + Send + 'static,
 ) -> Result<(), anyhow::Error> {
     let app = App::new(config.clone()).await?;
@@ -407,9 +407,12 @@ async fn serve(
     // budget. Reserve time for native audio detach after HTTP workers drain.
     .shutdown_timeout(2);
 
-    if let Some(config) = tls {
+    if let Some(tls) = tls {
         info!("[Server]: Running Https Server with ssl tls");
-        server.bind_rustls_0_23(bind_address, config)?.run().await?;
+        server
+            .bind_rustls_0_23(bind_address, tls.server_config())?
+            .run()
+            .await?;
     } else {
         server.bind(bind_address)?.run().await?;
     }
