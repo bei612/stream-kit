@@ -63,7 +63,9 @@ LAN IP 是现场值，不是内置地址。新版本在已有 CA、通配监听�
 
 正式 0.1.0 的 Windows/Linux 安装器、Android APK、源码 tag、校验和及许可证材料已发布；其本机完整组件维护与联合回归保留原始证据。资源采样已收齐，不重复未受影响的四小时或 100 次循环。原完整跨平台 CI 六项已通过；一次 Ubuntu 任务因官方 Chrome 下载的 HTTP/2 中断重试，只重跑失败任务，未重建原冻结产品。公开附件与实际下载核验见[0.1.0 发布证据](evidence/release-0.1.0-20261115.json)。
 
-新候选 Windows 安装器为 `stream-kit-preview-1d81a373ac29-windows-amd64-setup.exe`，97,995,563 字节，SHA-256 `568a2cd5736582a721f26a00a329e40909e4123327b1432b07b8d4669579a562`。首次[全新安装验收](https://github.com/bei612/stream-kit/actions/runs/44517278501)安装成功但返回原生驱动要求重启的 `3010`，PCM 和服务生命周期检查尚未执行；卸载和数据保留通过。这与本机保留已有驱动的完整运行时维护不同。验收器已增加有界的 PnP/SetupAPI 诊断，保持原通过门槛，对同一安装包复验，不重建或改写产物身份。
+新候选 Windows 安装器为 `stream-kit-preview-1d81a373ac29-windows-amd64-setup.exe`，97,995,563 字节，SHA-256 `568a2cd5736582a721f26a00a329e40909e4123327b1432b07b8d4669579a562`。[同一字节安装验收](evidence/windows-installer-1d81a373-20261119.json)已通过：安装/卸载退出码 0、真实 PCM 144,480 帧且零丢帧/缓冲异常、网关与 Auto / LocalSystem 服务重启恢复、默认设备和数据保留均通过。未重新构建产物。
+
+此前[首次全新安装](https://github.com/bei612/stream-kit/actions/runs/44517278501)安装成功但返回原生驱动要求重启的 `3010`，其 PCM 和服务生命周期检查未执行；卸载和数据保留通过。该真实结果保留，后一次成功不代表所有 Windows 环境首次装驱动都无需重启。验收器补充了有界 PnP/SetupAPI 诊断，保持原通过门槛；本机维护保留已有驱动，与全新驱动安装是不同路径。
 
 ## 持续边界
 

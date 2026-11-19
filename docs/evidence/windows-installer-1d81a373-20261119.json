@@ -1,0 +1,149 @@
+{
+    "passed":  true,
+    "scope":  "One private unified installer with its configured virtual audio device; native PCM, service lifecycle and reuse checks. No browser, human speech or public release claim.",
+    "commit":  "1d81a373ac29b243227e8f0fb55c1d9da3d613fd",
+    "installer_source_commit":  "1d81a373ac29b243227e8f0fb55c1d9da3d613fd",
+    "installer_sha256":  "568a2cd5736582a721f26a00a329e40909e4123327b1432b07b8d4669579a562",
+    "identity":  {
+                     "vendor_id":  5824,
+                     "product_id":  10208,
+                     "serial_prefix":  "lkdtc2012@gmail.com:"
+                 },
+    "program":  "C:\\Program Files\\StreamKit-Audio-Acceptance-1d81a373-0b3958",
+    "data":  "C:\\ProgramData\\StreamKit-Audio-Acceptance-1d81a373-0b3958",
+    "started_at":  "2026-11-19T11:54:39.935Z",
+    "defaults_before":  {
+                            "communication_render":  "",
+                            "communication_capture":  "",
+                            "render":  "",
+                            "capture":  ""
+                        },
+    "controllers_before":  [
+
+                           ],
+    "diagnostics":  {
+                        "before-install":  "devices-before-install.json",
+                        "after-install":  "devices-after-install.json",
+                        "setupapi":  {
+                                         "file":  "setupapi-install-delta.log",
+                                         "baseline_bytes":  1094028,
+                                         "observed_bytes":  1128848,
+                                         "start_offset":  1094028,
+                                         "captured_bytes":  34820,
+                                         "truncated":  false,
+                                         "log_replaced_or_truncated":  false,
+                                         "baseline_missing":  false
+                                     }
+                    },
+    "install_exit":  0,
+    "virtual_audio_serial":  "lkdtc2012@gmail.com:DUPCHCDAUASTBSV",
+    "admin_login":  true,
+    "service":  {
+                    "Name":  "StreamKitOrchestrator",
+                    "State":  "Running",
+                    "StartMode":  "Auto",
+                    "StartName":  "LocalSystem",
+                    "ProcessId":  7044,
+                    "PathName":  "\"C:\\Program Files\\StreamKit-Audio-Acceptance-1d81a373-0b3958\\orchestrator\\orchestrator.exe\" --config C:\\ProgramData\\StreamKit-Audio-Acceptance-1d81a373-0b3958\\orchestrator.json"
+                },
+    "endpoints":  {
+                      "render_device_id":  "wasapi:{0.0.0.00000000}.{98c7864a-209a-4432-82fc-a298c7526c61}",
+                      "capture_device_id":  "wasapi:{0.0.1.00000000}.{226ad886-2497-40c0-9d5f-b12d9817a4c3}"
+                  },
+    "pair":  {
+                 "passed":  true,
+                 "captured_frames":  144480,
+                 "tone_amplitude":  0.09804419244461554,
+                 "tone":  {
+                              "captured_frames":  144480,
+                              "tone_amplitude":  0.09804419244461554,
+                              "rms":  0.07000897923176283,
+                              "peak":  0.10003662109375,
+                              "quiet":  false
+                          },
+                 "first_error_after_frames":  null,
+                 "submitted_packets":  150,
+                 "target":  {
+                                "device_open":  true,
+                                "device_sample_frames":  221856,
+                                "dropped_frames":  0,
+                                "xruns":  0,
+                                "realtime_denied":  false,
+                                "error":  null
+                            },
+                 "baseline":  {
+                                  "captured_frames":  24000,
+                                  "tone_amplitude":  5.9007614857290686E-08,
+                                  "rms":  0.000020705526440574394,
+                                  "peak":  0.00006103515625,
+                                  "quiet":  true
+                              },
+                 "after_clear":  {
+                                     "captured_frames":  24000,
+                                     "tone_amplitude":  1.4924662260090242E-07,
+                                     "rms":  0.00002070833746352305,
+                                     "peak":  0.00006103515625,
+                                     "quiet":  true
+                                 },
+                 "drain_before_silence_ms":  300,
+                 "closed_after_drop":  true
+             },
+    "defaults_during":  {
+                            "communication_render":  "",
+                            "communication_capture":  "\\\\?\\SWD#MMDEVAPI#{0.0.1.00000000}.{226ad886-2497-40c0-9d5f-b12d9817a4c3}#{2eef81be-33fa-4800-9670-1cd474972c3f}",
+                            "render":  "",
+                            "capture":  "\\\\?\\SWD#MMDEVAPI#{0.0.1.00000000}.{226ad886-2497-40c0-9d5f-b12d9817a4c3}#{2eef81be-33fa-4800-9670-1cd474972c3f}"
+                        },
+    "defaults_preserved":  true,
+    "gateway_stop":  {
+                         "exit_code":  0,
+                         "pid":  2820
+                     },
+    "gateway_restarted":  true,
+    "controllers_after":  [
+                              {
+                                  "PNPDeviceID":  "ROOT\\USB\\0000",
+                                  "ConfigManagerErrorCode":  0
+                              }
+                          ],
+    "defaults_after_restart":  {
+                                   "communication_render":  "",
+                                   "communication_capture":  "\\\\?\\SWD#MMDEVAPI#{0.0.1.00000000}.{226ad886-2497-40c0-9d5f-b12d9817a4c3}#{2eef81be-33fa-4800-9670-1cd474972c3f}",
+                                   "render":  "",
+                                   "capture":  "\\\\?\\SWD#MMDEVAPI#{0.0.1.00000000}.{226ad886-2497-40c0-9d5f-b12d9817a4c3}#{2eef81be-33fa-4800-9670-1cd474972c3f}"
+                               },
+    "service_after_restart":  {
+                                  "Name":  "StreamKitOrchestrator",
+                                  "State":  "Running",
+                                  "StartMode":  "Auto",
+                                  "StartName":  "LocalSystem",
+                                  "ProcessId":  7600,
+                                  "PathName":  "\"C:\\Program Files\\StreamKit-Audio-Acceptance-1d81a373-0b3958\\orchestrator\\orchestrator.exe\" --config C:\\ProgramData\\StreamKit-Audio-Acceptance-1d81a373-0b3958\\orchestrator.json"
+                              },
+    "defaults_after_service_restart":  {
+                                           "communication_render":  "",
+                                           "communication_capture":  "\\\\?\\SWD#MMDEVAPI#{0.0.1.00000000}.{226ad886-2497-40c0-9d5f-b12d9817a4c3}#{2eef81be-33fa-4800-9670-1cd474972c3f}",
+                                           "render":  "",
+                                           "capture":  "\\\\?\\SWD#MMDEVAPI#{0.0.1.00000000}.{226ad886-2497-40c0-9d5f-b12d9817a4c3}#{2eef81be-33fa-4800-9670-1cd474972c3f}"
+                                       },
+    "scm_restarted":  true,
+    "uninstall_exit":  0,
+    "service_removed":  true,
+    "data_preserved":  true,
+    "defaults_after":  {
+                           "communication_render":  "",
+                           "communication_capture":  "",
+                           "render":  "",
+                           "capture":  ""
+                       },
+    "finished_at":  "2026-11-19T11:56:01.879Z",
+    "workflow_run":  "https://github.com/bei612/stream-kit/actions/runs/44518883757",
+    "previous_restart_required":  {
+                                      "workflow_run":  "https://github.com/bei612/stream-kit/actions/runs/44517278501",
+                                      "installer_sha256":  "568a2cd5736582a721f26a00a329e40909e4123327b1432b07b8d4669579a562",
+                                      "install_exit":  3010,
+                                      "uninstall_exit":  0,
+                                      "data_preserved":  true,
+                                      "boundary":  "Installation succeeded with a native restart request. PCM/service checks were not executed; the original run lacks SetupAPI diagnostics, so its precise native caller cannot be retrospectively established."
+                                  }
+}
