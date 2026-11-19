@@ -9,7 +9,7 @@
     "android": 44556808891,
     "android_version": "0.1.0-preview.20261119.3",
     "android_version_code": 1000018,
-    "status_at_recording": "in_progress",
+    "status_at_recording": "2026-11-20: cross-platform all six jobs succeeded; Android succeeded and physically installed; product Linux succeeded, Windows build still in progress; detailed management CI artifact download pending",
     "duplicate_linux_run": "44556521077 cancelled intentionally; product run already includes the same-source Linux build"
   },
   "scope": "Shared management concept-help component and Chinese-language native acceptance; no media protocol, control authority, credentials, device driver or application change",
@@ -56,7 +56,7 @@
   },
   "boundaries": [
     "Windows Chrome touch context is browser emulation, not physical-tablet evidence",
-    "No new installed-version or cross-platform success claim until those checks finish",
+    "Cross-platform workflow 44556521128 reports all six jobs successful; detailed artifact download still pending. New Windows installed-version acceptance remains pending",
     "Ubuntu gateway job failed on dependency-source connection, not a proven gateway runtime failure",
     "npm installation reported 19 dependency advisories (1 low, 9 moderate, 9 high), including development dependencies; separate --omit=dev audit reports one high React Router dependency. Applicability needs advisory-by-advisory review; not bulk-upgraded or claimed audited"
   ]
