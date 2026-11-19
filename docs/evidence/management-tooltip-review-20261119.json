@@ -9,7 +9,7 @@
     "android": 44556808891,
     "android_version": "0.1.0-preview.20261119.3",
     "android_version_code": 1000018,
-    "status_at_recording": "2026-11-20: cross-platform all six jobs succeeded; Android succeeded and physically installed; product Linux succeeded, Windows build still in progress; detailed management CI artifact download pending",
+    "status_at_recording": "2026-11-20: cross-platform all six jobs succeeded; four downloaded management suites verified; Android succeeded and physically installed; product Linux succeeded, Windows build still in progress",
     "duplicate_linux_run": "44556521077 cancelled intentionally; product run already includes the same-source Linux build"
   },
   "scope": "Shared management concept-help component and Chinese-language native acceptance; no media protocol, control authority, credentials, device driver or application change",
@@ -25,23 +25,76 @@
     "Native acceptance explicitly selects zh-CN and identifies the current-session action exactly"
   ],
   "review": {
-    "consumers": ["Metric in components/layout/Page.tsx", "components/StatusBadge.tsx"],
+    "consumers": [
+      "Metric in components/layout/Page.tsx",
+      "components/StatusBadge.tsx"
+    ],
     "state_boundary": "Open state is local presentation state; no query, application, session, control or audio mutation",
     "cleanup": "Floating node and autoUpdate listeners are removed on close/unmount; no added application timer",
     "tests": "Actual orchestrator, SQLite and built SPA; no mocked responses",
     "lint_and_production_build": "passed",
     "playwright_cli": {
       "passed": true,
-      "routes": ["/", "/components", "/apps", "/stream-sessions", "/settings", "/logs", "/upload", "/docs"],
-      "widths": [390, 768, 1440],
+      "routes": [
+        "/",
+        "/components",
+        "/apps",
+        "/stream-sessions",
+        "/settings",
+        "/logs",
+        "/upload",
+        "/docs"
+      ],
+      "widths": [
+        390,
+        768,
+        1440
+      ],
       "document_width_equals_viewport": "24/24",
-      "languages": ["zh-CN", "en"],
+      "languages": [
+        "zh-CN",
+        "en"
+      ],
       "javascript_errors": [],
       "scope": "Actual isolated native backend and newly built SPA, hover/Escape and screenshots; not installed runtime or media acceptance",
       "expected_unavailable": "Owned isolated deployment has no encoder or gateway. Observed HTTP404 component absence and HTTP503 gateway/encoder configuration and capture capability failures; retained in CLI console log",
       "cleanup": "Both owned CLI browsers closed; isolated native process 33716 path verified before stop; installed service remains Running/Automatic"
     },
-    "prior_attempts": "Retained locally: initial refs lint error; focus-visible test required real keyboard entry; narrow right-side tooltip required orthogonal flip; global tooltip locator conflicted during asynchronous blur; current-session button locator needed exact accessible name. No failure converted to success."
+    "prior_attempts": "Retained locally: initial refs lint error; focus-visible test required real keyboard entry; narrow right-side tooltip required orthogonal flip; global tooltip locator conflicted during asynchronous blur; current-session button locator needed exact accessible name. No failure converted to success.",
+    "downloaded_ci_suites": [
+      {
+        "suite": "chromium",
+        "passed": true,
+        "source": "954a1e6e73ef95231e78c9d77d77d932749aa043",
+        "result": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-954a1e6e\\management-ci\\chromium\\result.json",
+        "sha256": "2f9a52ed466563291d9b3b9b5fc46d57a631c11fcdc677ca5b7dc1198bdb8708",
+        "unexpected_errors": 0
+      },
+      {
+        "suite": "firefox",
+        "passed": true,
+        "source": "954a1e6e73ef95231e78c9d77d77d932749aa043",
+        "result": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-954a1e6e\\management-ci\\firefox\\result.json",
+        "sha256": "4e9af15b388a5c3cd91a120c7e58eb24b9375a1bc49d1bea46fea22c924df4f5",
+        "unexpected_errors": 0
+      },
+      {
+        "suite": "webkit",
+        "passed": true,
+        "source": "954a1e6e73ef95231e78c9d77d77d932749aa043",
+        "result": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-954a1e6e\\management-ci\\webkit\\result.json",
+        "sha256": "2cb0f3957e016d7f22c98fa6dd56b81b769b0732304a87828e054c680c589396",
+        "unexpected_errors": 0
+      },
+      {
+        "suite": "component-commands",
+        "passed": true,
+        "source": "954a1e6e73ef95231e78c9d77d77d932749aa043",
+        "result": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-954a1e6e\\management-ci\\component-commands\\result.json",
+        "sha256": "fd67399aa7866cdf73ac89b51b2ebb21bbfdb806813d6dc78ff5e536efb4fcb5",
+        "unexpected_errors": 0
+      }
+    ]
   },
   "evidence": {
     "ci_failure_log": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-1d81a373\\cross-platform-44518792780-failed.log",
@@ -56,7 +109,7 @@
   },
   "boundaries": [
     "Windows Chrome touch context is browser emulation, not physical-tablet evidence",
-    "Cross-platform workflow 44556521128 reports all six jobs successful; detailed artifact download still pending. New Windows installed-version acceptance remains pending",
+    "Cross-platform workflow 44556521128 and downloaded Chromium/Firefox/WebKit/component-command results passed; new Windows installed-version acceptance remains pending",
     "Ubuntu gateway job failed on dependency-source connection, not a proven gateway runtime failure",
     "npm installation reported 19 dependency advisories (1 low, 9 moderate, 9 high), including development dependencies; separate --omit=dev audit reports one high React Router dependency. Applicability needs advisory-by-advisory review; not bulk-upgraded or claimed audited"
   ]
