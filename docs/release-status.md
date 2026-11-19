@@ -4,7 +4,7 @@
 
 本机前端已单独更新到 `d9585be3`（管理端资源 `index-E9ej8kHI.js` / `index-D0xbfk5M.css`），含文档、标题及 header 头像退出菜单；后端可执行文件仍为 `f8ede8b2`。这不是全组件同源新版安装，旧 bundle 清单不代表后来覆盖的静态文件已通过完整包校验；本机需整体替换为下述已构建并校验的同源产物，不能把当前混合安装称为源码、运行时和 Release 完全一致。
 
-新预发布运行源码冻结为 `1d81a373ac29b243227e8f0fb55c1d9da3d613fd`，包含局域网地址自动识别、控制端/网关证书热更新及 OpenSSL 4.1 兼容。Windows/Linux 完整产品[构建已通过](https://github.com/bei612/stream-kit/actions/runs/44512398135)，本机下载的完整平台已通过原生库存校验，三个组件均同源；平板已覆盖安装同源 Android。[v0.1.0-preview.20261119.2](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.2) 已发布。Windows 本机完整维护已发起，但系统 UAC 确认尚未完成，不能将预发布产物称为本机已安装。
+新预发布运行源码冻结为 `1d81a373ac29b243227e8f0fb55c1d9da3d613fd`，包含局域网地址自动识别、控制端/网关证书热更新及 OpenSSL 4.1 兼容。Windows/Linux 完整产品[构建已通过](https://github.com/bei612/stream-kit/actions/runs/44512398135)，本机下载的完整平台已通过原生库存校验，三个组件均同源；平板已覆盖安装同源 Android。[v0.1.0-preview.20261119.2](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.2) 已发布。Windows 本机首轮维护在旧服务就绪检查失败后已回滚；修正后的再次提权被 Windows 返回取消，尚未执行新版替换，不能称为本机已安装。具体见[维护失败与回滚记录](evidence/windows-maintenance-attempt-1d81a373-20261119.json)。
 
 自动换址已通过[真实隔离网络验证](evidence/lan-autodiscovery-515b9918-20261119.json)：移除旧 IP 并新增 IP 后，6.93 秒内两个 HTTPS 入口更新身份，CA、私钥、配置与进程保持，WebRTC 自动恢复到新媒体地址。该实验实际运行 `515b9918`；其管理端和网关源码与 `1d81a373` 完全一致，记录仍保留原始运行身份。本页下方手动地址恢复记录证明的是更新前的本机状态。
 
@@ -61,7 +61,7 @@ LAN IP 是现场值，不是内置地址。新版本在已有 CA、通配监听�
 
 ## 交付结果
 
-新预发布 [v0.1.0-preview.20261119.2](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.2) 已通过[发布任务](https://github.com/bei612/stream-kit/actions/runs/44519865634)公开，14 个附件包括 Windows/Linux 安装器、Android APK/分发包、来源清单、SHA-256 及 SBOM；发布未重建运行产物。远端 tag 指向 `1d81a373`，GitHub 存储摘要与本地可对应的 10 个附件一致。实际下载已完成 11/14 个附件的字节数和摘要校验，其中 10 个为匿名下载，APK 通过 GitHub 资产 API 完成；两个服务端安装器及总 SBOM 的完整下载复核因本机到 GitHub 的连接/TLS 超时未完成，不记为通过。发布元数据、已完成下载和网络失败分别见[预发布证据](evidence/release-preview-20261119.2.json)。本机更新仍取决于前述 Windows UAC，公开发布不改变现场版本。
+新预发布 [v0.1.0-preview.20261119.2](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.2) 已通过[发布任务](https://github.com/bei612/stream-kit/actions/runs/44519865634)公开，14 个附件包括 Windows/Linux 安装器、Android APK/分发包、来源清单、SHA-256 及 SBOM；发布未重建运行产物。远端 tag 指向 `1d81a373`，GitHub 存储摘要与本地可对应的 10 个附件一致。全部 14 个附件已完成实际下载的字节数和 SHA-256 校验，其中 10 个为匿名下载，其余 4 个通过 GitHub 资产 API 完成。先前网络超时、CLI 二进制输出过滤及下载时限失败保留在[预发布证据](evidence/release-preview-20261119.2.json)，后续只完成未通过附件，未重跑已通过下载。本机仍是维护回滚后的旧后端，公开发布和下载通过不改变现场版本。
 
 正式 0.1.0 的 Windows/Linux 安装器、Android APK、源码 tag、校验和及许可证材料已发布；其本机完整组件维护与联合回归保留原始证据。资源采样已收齐，不重复未受影响的四小时或 100 次循环。原完整跨平台 CI 六项已通过；一次 Ubuntu 任务因官方 Chrome 下载的 HTTP/2 中断重试，只重跑失败任务，未重建原冻结产品。公开附件与实际下载核验见[0.1.0 发布证据](evidence/release-0.1.0-20261115.json)。
 

@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "date": "2026-11-19",
-  "checked_at": "2026-11-19T12:21:30.266Z",
+  "checked_at": "2026-11-19T13:49:00.627Z",
   "publication_verified": true,
-  "full_download_verification": false,
+  "full_download_verification": true,
   "release": "v0.1.0-preview.20261119.2",
   "url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.2",
   "repository_public": true,
@@ -125,7 +125,9 @@
       "sha256": "11cb1980506bd8091a126f8e2b1d286c20b3cf4596102db283bdc976c2ec6d00",
       "state": "uploaded",
       "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261119.2/stream-kit-preview-1d81a373ac29-ubuntu24.04-amd64-setup.run",
-      "unauthenticated_download_verified": false
+      "unauthenticated_download_verified": false,
+      "authenticated_download_verified": true,
+      "download_checked_at": "2026-11-19T13:49:00.626Z"
     },
     {
       "name": "stream-kit-preview-1d81a373ac29-windows-amd64-setup.exe",
@@ -134,7 +136,9 @@
       "state": "uploaded",
       "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261119.2/stream-kit-preview-1d81a373ac29-windows-amd64-setup.exe",
       "unauthenticated_download_verified": false,
-      "local_artifact_digest_matches": true
+      "local_artifact_digest_matches": true,
+      "authenticated_download_verified": true,
+      "download_checked_at": "2026-11-19T13:46:08.451Z"
     },
     {
       "name": "stream-kit-sbom.spdx.json",
@@ -142,18 +146,16 @@
       "sha256": "a933eacd5f4db5f56e845c1665d31be0c1189466c7bf92e6c1e84af857f72970",
       "state": "uploaded",
       "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261119.2/stream-kit-sbom.spdx.json",
-      "unauthenticated_download_verified": false
+      "unauthenticated_download_verified": false,
+      "authenticated_download_verified": true,
+      "download_checked_at": "2026-11-19T13:44:38.527Z"
     }
   ],
   "download_verification": {
-    "completed_assets": 11,
+    "completed_assets": 14,
     "total_assets": 14,
-    "method": "Ten assets over unauthenticated HTTPS; APK via authenticated GitHub asset API. All 11 completed downloads checked by streaming SHA-256 and byte count; three assets remain unverified. No binary copies retained.",
-    "pending_assets": [
-      "stream-kit-preview-1d81a373ac29-ubuntu24.04-amd64-setup.run",
-      "stream-kit-preview-1d81a373ac29-windows-amd64-setup.exe",
-      "stream-kit-sbom.spdx.json"
-    ],
+    "method": "Ten assets over unauthenticated HTTPS; remaining assets via authenticated GitHub asset API. All completed downloads checked by streaming SHA-256 and byte count; no binary copies retained.",
+    "pending_assets": [],
     "failures": [
       {
         "operation": "APK download",
@@ -172,7 +174,7 @@
         "error": "GitHub GraphQL and subsequently REST TLS handshake timeout; remaining asset downloads not reached"
       }
     ],
-    "interpretation": "Remaining downloads incomplete; see explicit per-asset verification flags.",
+    "interpretation": "All 14 asset downloads now verified against published digests. Earlier network failures retained; authenticated API completion does not claim every anonymous download route was rechecked.",
     "api_attempts": [
       {
         "name": "stream-kit-android-0.1.0-preview.20261119.2.apk",
@@ -210,11 +212,78 @@
         "bytes": 0,
         "finished_at": "2026-11-19T12:21:30.266Z",
         "time_limit_ms": 180000
+      },
+      {
+        "name": "stream-kit-preview-1d81a373ac29-ubuntu24.04-amd64-setup.run",
+        "started_at": "2026-11-19T13:40:20.534Z",
+        "method": "Authenticated GitHub Release asset API",
+        "passed": false,
+        "error": "GitHub API exit 1, signal null: the response contains terminal escape sequences; pass --allow-escape-sequences to output it anyway\n",
+        "bytes": 0,
+        "finished_at": "2026-11-19T13:42:38.731Z"
+      },
+      {
+        "name": "stream-kit-sbom.spdx.json",
+        "started_at": "2026-11-19T13:42:38.733Z",
+        "method": "Authenticated GitHub Release asset API",
+        "passed": false,
+        "error": "GitHub API exit 1, signal null: Get \"https://release-assets.githubusercontent.com/github-production-release-asset/1437836000/6fa72d99-52c6-4eb2-b6ff-4cb8302603e4?[redacted]\": net/http: TLS handshake timeout\n",
+        "bytes": 0,
+        "finished_at": "2026-11-19T13:42:50.200Z"
+      },
+      {
+        "name": "stream-kit-preview-1d81a373ac29-windows-amd64-setup.exe",
+        "started_at": "2026-11-19T13:40:20.635Z",
+        "method": "Authenticated GitHub Release asset API",
+        "passed": false,
+        "error": "GitHub API exit null, signal SIGTERM: ",
+        "bytes": 35032576,
+        "finished_at": "2026-11-19T13:43:20.669Z"
+      },
+      {
+        "name": "stream-kit-preview-1d81a373ac29-ubuntu24.04-amd64-setup.run",
+        "started_at": "2026-11-19T13:43:55.418Z",
+        "method": "Authenticated GitHub Release asset API",
+        "time_limit_ms": 900000,
+        "passed": false,
+        "error": "GitHub API exit 1, signal null: Get \"https://release-assets.githubusercontent.com/github-production-release-asset/1437836000/9c3da7bc-f0ef-419c-a75a-9fe1c87affa4?[redacted]\": net/http: TLS handshake timeout\n",
+        "bytes": 0,
+        "finished_at": "2026-11-19T13:44:06.872Z"
+      },
+      {
+        "name": "stream-kit-sbom.spdx.json",
+        "started_at": "2026-11-19T13:44:06.873Z",
+        "method": "Authenticated GitHub Release asset API",
+        "time_limit_ms": 900000,
+        "passed": true,
+        "sha256": "a933eacd5f4db5f56e845c1665d31be0c1189466c7bf92e6c1e84af857f72970",
+        "bytes": 7575028,
+        "finished_at": "2026-11-19T13:44:38.527Z"
+      },
+      {
+        "name": "stream-kit-preview-1d81a373ac29-windows-amd64-setup.exe",
+        "started_at": "2026-11-19T13:43:55.424Z",
+        "method": "Authenticated GitHub Release asset API",
+        "time_limit_ms": 900000,
+        "passed": true,
+        "sha256": "568a2cd5736582a721f26a00a329e40909e4123327b1432b07b8d4669579a562",
+        "bytes": 97995563,
+        "finished_at": "2026-11-19T13:46:08.451Z"
+      },
+      {
+        "name": "stream-kit-preview-1d81a373ac29-ubuntu24.04-amd64-setup.run",
+        "started_at": "2026-11-19T13:46:26.024Z",
+        "method": "Authenticated GitHub Release asset API",
+        "time_limit_ms": 900000,
+        "passed": true,
+        "sha256": "11cb1980506bd8091a126f8e2b1d286c20b3cf4596102db283bdc976c2ec6d00",
+        "bytes": 62842053,
+        "finished_at": "2026-11-19T13:49:00.626Z"
       }
     ]
   },
   "boundaries": [
-    "Windows full maintenance still waits for OS UAC; local backend remains f8ede8b2 with d9585be3 frontend overlay",
+    "Windows maintenance rolled back; corrected elevation was canceled before execution. Local backend remains f8ede8b2 with d9585be3 frontend overlay; see windows-maintenance-attempt-1d81a373-20261119.json",
     "Android installation verified separately; no new tablet media or Windows host NIC migration acceptance in this record",
     "Prerelease does not replace stable v0.1.0"
   ]

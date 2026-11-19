@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-19",
+  "target_source": "1d81a373ac29b243227e8f0fb55c1d9da3d613fd",
+  "new_runtime_installed": false,
+  "example_acceptance": "not_run",
+  "first_attempt": {
+    "started_at_local": "2026-11-19T21:35:45+08:00",
+    "finished_at_local": "2026-11-19T21:37:26+08:00",
+    "candidate_native_inventory": "passed: three components at 1d81a373",
+    "original_native_inventory": "passed: three components at f8ede8b2",
+    "idle_preflight": "passed: UE stopped, Example ready, no active upstream media",
+    "failure": "Original runtime did not become ready",
+    "observed_http_failure": "Repeated readiness logins reached HTTP 429 at /api/v1/login",
+    "first_underlying_readiness_error": "Not retained by the original single-error-file helper; do not infer that rate limiting was the initial failure",
+    "rollback": "Wrapper restored original configuration, leaf certificate and frontend overlay, then restarted the original service",
+    "official_full_runtime_maintenance_reached": false,
+    "raw_log": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-1d81a373\\deployment-attempt1.log"
+  },
+  "wrapper_correction": {
+    "authentication": "Probe HTTP readiness, authenticate once and reuse the token while observing real component and media state",
+    "identity_order": "Keep working TLS identities during old-runtime preparation; apply automatic-address configuration only after full new-runtime maintenance succeeds",
+    "diagnostics": "Retain bounded component/media readiness projection and HTTP status without credentials",
+    "rollback": "Separate new-runtime address-configuration rollback preserves the successfully installed runtime",
+    "validation": "Node syntax and native PowerShell parser checks passed; corrected elevated execution has not run",
+    "product_authentication_limit_changed": false,
+    "production_payload_changed": false
+  },
+  "second_attempt": {
+    "result": "Windows Start-Process RunAs returned: The operation was canceled by the user",
+    "cancellation_actor": "Not inferred from the operating-system message",
+    "deployment_started": false,
+    "elevated_process_pending": false,
+    "automatically_relaunched_after_cancellation": false
+  },
+  "rollback_observation": {
+    "installed_backend_source": "f8ede8b2e933fb597e97dec999cceae9a3e614e1",
+    "frontend_entry_script": "index-E9ej8kHI.js",
+    "frontend_entry_stylesheet": "index-D0xbfk5M.css",
+    "frontend_title": "云端渲染服务端",
+    "service": "StreamKitOrchestrator",
+    "service_state": "Running",
+    "service_start_mode": "Auto",
+    "service_pid": 9720,
+    "management_url": "https://192.168.0.119:9000/login",
+    "management_tls_status": 200,
+    "tls_verification_disabled": false,
+    "new_installed_marker_present": false
+  },
+  "boundary": "This is a failed maintenance and verified rollback record, not successful new-version installation, Example validation, physical IP migration, or a new production release acceptance."
+}
