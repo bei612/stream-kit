@@ -1,0 +1,172 @@
+{
+    "schema_version":  2,
+    "passed":  true,
+    "scope":  "Separate client network and Avahi/DBus namespaces; managed LAN identity discovery and live leaf reload on both native HTTPS listeners, renderer discovery and browser WebRTC recovery across an actual private test-NIC IP change without configuration edits or process restarts. No local Windows deployment, physical LAN, Android migration or new audio-quality acceptance.",
+    "acceptance_commit":  "a6faa1a2513ef08628b2c7e40c8537bbb2145de7",
+    "network":  {
+                    "subnet":  "10.253.16.0/24",
+                    "prefix":  24,
+                    "old_address":  "10.253.16.1",
+                    "new_address":  "10.253.16.2",
+                    "client_address":  "10.253.16.100"
+                },
+    "observations":  [
+                         {
+                             "address":  "10.253.16.1",
+                             "resolved":  "stream-kit-server.local\t10.253.16.1",
+                             "renderer_service":  "=;sknet-peer;IPv4;ip-10-0-132-128;_nvstream._tcp;local;stream-kit-server.local;10.253.16.1;47989;",
+                             "control_https":  true,
+                             "gateway_https":  true,
+                             "configs":  [
+                                             {
+                                                 "requested":  "default",
+                                                 "http_version":  "2",
+                                                 "control_plane_url":  "https://stream-kit-server.local:19000/"
+                                             },
+                                             {
+                                                 "requested":  "http1.1",
+                                                 "http_version":  "1.1",
+                                                 "control_plane_url":  "https://stream-kit-server.local:19000/"
+                                             }
+                                         ],
+                             "public_control_host_correct":  true
+                         },
+                         {
+                             "address":  "10.253.16.2",
+                             "resolved":  "stream-kit-server.local\t10.253.16.2",
+                             "renderer_service":  "=;sknet-peer;IPv4;ip-10-0-132-128;_nvstream._tcp;local;stream-kit-server.local;10.253.16.2;47989;",
+                             "control_https":  true,
+                             "gateway_https":  true,
+                             "configs":  [
+                                             {
+                                                 "requested":  "default",
+                                                 "http_version":  "2",
+                                                 "control_plane_url":  "https://stream-kit-server.local:19000/"
+                                             },
+                                             {
+                                                 "requested":  "http1.1",
+                                                 "http_version":  "1.1",
+                                                 "control_plane_url":  "https://stream-kit-server.local:19000/"
+                                             }
+                                         ],
+                             "public_control_host_correct":  true
+                         }
+                     ],
+    "stage":  "complete",
+    "runtime_commit":  "515b991876d5c02ac010f1e4e657f6791d7f87c3",
+    "configuration_hashes":  {
+                                 "control":  "c05e7503e909470a4915cf9fafbc188f0aab60e9d8e63c07bb893d67f1c7e82d",
+                                 "gateway":  "97e5354e222af1968fc1c63b570ba259b4f15adf02bc41ba3e9ef7b18d2458b2",
+                                 "renderer":  "3ca806d2925bd9a85ee81a80c78e6a14c453bca656e13fc84e91c01db86d2ffb"
+                             },
+    "initial_trust_hashes":  {
+                                 "ca_certificate":  "fbb653acb7e2251789d63fb10c1da29100c14de77e83631835b75afe17a13736",
+                                 "ca_key":  "491fb37f78218d0a3d752875273ea43d777b27667cdcfcf12649e7ea8b7ced95",
+                                 "leaf_key":  "2929ae4f61152dd15f857240ebd39aa9c3bac1624a6bcce7ab1b4feff01a351e"
+                             },
+    "control_pid":  6245,
+    "initial_pids":  [
+                         {
+                             "name":  "sunshine",
+                             "pid":  6257
+                         },
+                         {
+                             "name":  "web_server",
+                             "pid":  6292
+                         }
+                     ],
+    "tls_before":  {
+                       "leaf_sha256":  "806405052e30d553c45bc65dfd9acf35df76f55618e6e8db192e87585262122c",
+                       "listeners":  [
+                                         {
+                                             "port":  19000,
+                                             "numeric_ip_https":  true,
+                                             "fingerprint256":  "07:42:D8:BE:F6:B4:9E:6F:2C:2D:B1:34:A0:E4:84:86:F0:6F:1D:EA:D8:74:2E:82:96:BC:B8:ED:0D:41:8C:DC",
+                                             "subject_alt_name":  "DNS:localhost, DNS:stream-kit-server.local, IP Address:0:0:0:0:0:0:0:1, IP Address:10.253.16.1, IP Address:127.0.0.1"
+                                         },
+                                         {
+                                             "port":  18080,
+                                             "numeric_ip_https":  true,
+                                             "fingerprint256":  "07:42:D8:BE:F6:B4:9E:6F:2C:2D:B1:34:A0:E4:84:86:F0:6F:1D:EA:D8:74:2E:82:96:BC:B8:ED:0D:41:8C:DC",
+                                             "subject_alt_name":  "DNS:localhost, DNS:stream-kit-server.local, IP Address:0:0:0:0:0:0:0:1, IP Address:10.253.16.1, IP Address:127.0.0.1"
+                                         }
+                                     ]
+                   },
+    "fresh_gateway_before_launch":  true,
+    "media_before":  {
+                         "peer_count":  1,
+                         "state":  "connected",
+                         "frames":  54,
+                         "audio_packets":  87,
+                         "presented_frames":  19,
+                         "width":  1280,
+                         "remote_address":  "10.253.16.1",
+                         "remote_port":  55398
+                     },
+    "renderer_enrollment":  {
+                                "automatic":  true,
+                                "host_count":  1,
+                                "host_id":  1082598690,
+                                "paired":  true,
+                                "fixture_pairing_mutations":  0
+                            },
+    "tls_after":  {
+                      "leaf_sha256":  "cda71b4518a720c8559127008c860d5fd1c485e96c92a6369fd638e73d2bdd56",
+                      "listeners":  [
+                                        {
+                                            "port":  19000,
+                                            "numeric_ip_https":  true,
+                                            "fingerprint256":  "2D:C2:09:00:1E:31:FD:13:E7:91:99:30:9A:A2:64:50:8E:36:60:A1:61:34:6D:7C:A5:0C:84:83:13:C2:77:3F",
+                                            "subject_alt_name":  "DNS:localhost, DNS:stream-kit-server.local, IP Address:0:0:0:0:0:0:0:1, IP Address:10.253.16.2, IP Address:127.0.0.1"
+                                        },
+                                        {
+                                            "port":  18080,
+                                            "numeric_ip_https":  true,
+                                            "fingerprint256":  "2D:C2:09:00:1E:31:FD:13:E7:91:99:30:9A:A2:64:50:8E:36:60:A1:61:34:6D:7C:A5:0C:84:83:13:C2:77:3F",
+                                            "subject_alt_name":  "DNS:localhost, DNS:stream-kit-server.local, IP Address:0:0:0:0:0:0:0:1, IP Address:10.253.16.2, IP Address:127.0.0.1"
+                                        }
+                                    ]
+                  },
+    "tls_refresh_elapsed_ms":  6930,
+    "old_san_removed":  true,
+    "media_after":  {
+                        "peer_count":  2,
+                        "state":  "connected",
+                        "frames":  48,
+                        "audio_packets":  78,
+                        "presented_frames":  38,
+                        "width":  1280,
+                        "remote_address":  "10.253.16.2",
+                        "remote_port":  54255
+                    },
+    "media_reconnected_without_reload":  true,
+    "old_address_unreachable":  true,
+    "renderer_identity_preserved":  true,
+    "components_not_restarted":  true,
+    "control_not_restarted":  true,
+    "configuration_unchanged":  true,
+    "ca_and_private_keys_unchanged":  true,
+    "leaf_reissued":  true,
+    "target_stopped":  true,
+    "finished_at":  "2026-11-19T11:18:27.042Z",
+    "workflow_run":  "https://github.com/bei612/stream-kit/actions/runs/44510556698",
+    "provenance":  {
+                       "runtime_commit":  "515b991876d5c02ac010f1e4e657f6791d7f87c3",
+                       "installer_sha256":  "a093f7255fbd302e69413d1eb408e8a4079fef221725a97cc87860a4efe5817a",
+                       "product_run_id":  "44502856961",
+                       "acceptance_commit":  "a6faa1a2513ef08628b2c7e40c8537bbb2145de7",
+                       "runtime_rebuilt":  false
+                   },
+    "related_source":  {
+                           "commit":  "1d81a373ac29b243227e8f0fb55c1d9da3d613fd",
+                           "control_and_gateway_source_identical":  true,
+                           "verification":  "git diff 515b9918..1d81a373 -- orchestrator third_party/moonlight-web-stream is empty",
+                           "boundary":  "This record retains the actual 515b runtime identity; later renderer OpenSSL compatibility is separately built and validated."
+                       },
+    "earlier_fixture_failure":  {
+                                    "run":  "https://github.com/bei612/stream-kit/actions/runs/44508151713",
+                                    "reason":  "Non-elevated kill -0 on an elevated fixture process returned Operation not permitted before the runtime started.",
+                                    "fix_commit":  "a6faa1a2513ef08628b2c7e40c8537bbb2145de7",
+                                    "acceptance_limits_unchanged":  true
+                                }
+}

@@ -4,16 +4,20 @@
 
 本机前端已单独更新到 `d9585be3`（管理端资源 `index-E9ej8kHI.js` / `index-D0xbfk5M.css`），含文档、标题及 header 头像退出菜单；后端可执行文件仍为 `f8ede8b2`。这不是全组件同源新版安装，旧 bundle 清单不代表后来覆盖的静态文件已通过完整包校验；后续完整发行必须重新打包并验证，不能把当前混合安装称为源码、运行时和 Release 完全一致。
 
-当前源码新增局域网地址自动识别及控制端/网关证书热更新。默认沿用已配置 CA，私有地址发现周期 15 秒、网关证书刷新周期 5 秒，策略可在服务配置关闭或限定网卡。源码通过验证不等于本机已安装；完整候选和本机更新结果在实际完成后登记。本页下方 11 月 19 日手动地址恢复记录仅证明更新前的现场状态。
+新候选运行源码冻结为 `1d81a373ac29b243227e8f0fb55c1d9da3d613fd`，包含局域网地址自动识别、控制端/网关证书热更新及 OpenSSL 4.1 兼容。Windows/Linux 完整产品[构建已通过](https://github.com/bei612/stream-kit/actions/runs/44512398135)，本机下载的完整平台已通过原生库存校验，三个组件均同源；平板已覆盖安装同源 Android。Windows 本机完整维护已发起，但系统 UAC 确认尚未完成，不能将新候选称为本机已安装或公开已发布。
+
+自动换址已通过[真实隔离网络验证](evidence/lan-autodiscovery-515b9918-20261119.json)：移除旧 IP 并新增 IP 后，6.93 秒内两个 HTTPS 入口更新身份，CA、私钥、配置与进程保持，WebRTC 自动恢复到新媒体地址。该实验实际运行 `515b9918`；其管理端和网关源码与 `1d81a373` 完全一致，记录仍保留原始运行身份。本页下方手动地址恢复记录证明的是更新前的本机状态。
 
 ## 当前版本
 
 | 对象 | 版本 / 来源 | 状态 |
 | --- | --- | --- |
-| 公开 Windows / Ubuntu 24.04 amd64 服务端 | [v0.1.0](https://github.com/bei612/stream-kit/releases/tag/v0.1.0)，`f8ede8b2e933fb597e97dec999cceae9a3e614e1` | 正式渠道，每平台一个安装器，包含本轮完整修复 |
+| 公开 Windows / Ubuntu 24.04 amd64 服务端 | [v0.1.0](https://github.com/bei612/stream-kit/releases/tag/v0.1.0)，`f8ede8b2e933fb597e97dec999cceae9a3e614e1` | 11 月 15 日正式版，每平台一个安装器；不含本次自动换址功能 |
 | 公开签名 Android | [v0.1.0 同一 Release](https://github.com/bei612/stream-kit/releases/tag/v0.1.0)，同源 `f8ede8b2`，versionCode 1000015 | 已公开 APK、来源、校验和、依赖许可证和 SBOM，沿用持久发行签名 |
-| 本机完整运行组件 | `f8ede8b2e933fb597e97dec999cceae9a3e614e1` | 控制端、网关和 Sunshine 同源；维护成功，实际 Web 先入、Android 后入联合回归通过 |
-| 同源 Android 实测 | 0.1.0 / versionCode 1000015 | [构建来源](https://github.com/bei612/stream-kit/actions/runs/43609422069)，专用模拟器实际图像、程序音、麦克风及撤权通过，安装字节及重启后摘要一致；模拟器已停止 |
+| 本机后端组件 | `f8ede8b2e933fb597e97dec999cceae9a3e614e1` | 三个后端仍为旧版；前端单独覆盖范围见上文，新完整候选尚未替换 |
+| 新完整服务端候选 | `1d81a373`，Windows / Ubuntu 24.04 amd64 | 同源构建成功、Windows 原生 `verify-platform` 通过；安装器验收及公开发布状态见下文 |
+| 本机平板 Android | 0.1.0-preview.20261119.2 / versionCode 1000017，`1d81a373` | [实际安装证据](evidence/android-installed-1d81a373-20261119.json)：发行签名、25 项清单、8 项原生库及安装 APK 摘要通过，原书签/CA 保留；本轮仅验安装与入口，未执行平板媒体验收 |
+| 历史同源 Android 联合实测 | 0.1.0 / versionCode 1000015，`f8ede8b2` | [构建来源](https://github.com/bei612/stream-kit/actions/runs/43609422069)，专用模拟器实际图像、程序音、麦克风及撤权通过；不冒称新 APK 的媒体复验 |
 
 正式 0.1.0 已发布，当前核心功能达到本页所列产物与环境的发布条件；整个 Goal 仍有下文的整机重启和真实地址迁移等验收边界。发布复用[原始产品构建](https://github.com/bei612/stream-kit/actions/runs/43609416420)的字节，经[发布任务](https://github.com/bei612/stream-kit/actions/runs/43613696666)校验并上传；tag 指向冻结运行源码，文档及验收器后续提交不改变产物身份。
 
@@ -33,12 +37,13 @@
 
 Sunshine 即使使用外部配置，仍要求程序旁存在空 `config` 目录。首次安装会建立它，维护器现在也在管理员暂存阶段建立，并拒绝覆盖非空本地状态；不放宽 Program Files 权限。原失败及回滚、原生复现和后续成功分别保留，见[已安装验收](evidence/runtime-installed-ce52bdac-20261114.json)及[部署维护](../deploy/README.md)。
 
-LAN IP 是现场值，不是内置地址。更换 IP 后按[地址与证书](lan-address-configuration.md)更新 TLS 身份及必要的公开地址/来源/ICE 配置并重启，保留部署 CA 和观看密钥，无需重新编译或重装客户端 CA。数字 IP 书签不会自动改写；服务重启不等于整机重启验收。
+LAN IP 是现场值，不是内置地址。新版本在已有 CA、通配监听和自动识别启用时热更新当前私有地址；本机仍在运行的旧版需按实际地址维护 TLS 配置。显式公开地址/来源/ICE 覆盖仍由管理员管理，具体见[地址与证书](lan-address-configuration.md)。保留部署 CA 和观看密钥，数字 IP 书签不会自动改写；服务重启不等于整机重启验收。
 
 ## 修复与验收
 
 | 内容 | 证据与范围 |
 | --- | --- |
+| 自动识别地址与双入口热更新 | [真实隔离迁移](evidence/lan-autodiscovery-515b9918-20261119.json)：新 IP 的原 CA 校验、旧 SAN 移除、三进程/配置/私钥保持及 WebRTC 新地址恢复通过；首次脚本权限失败及修复单独保留，不等同于本机 Windows/Android 真机迁移 |
 | 服务端持续资源上限与释放 | [资源审查](evidence/runtime-resource-review-20261113.json)：帧元数据、握手失败连接、媒体队列、缓存、HTTP 响应和日志清理，已纳入本机及候选；资源所有权见[运行资源](runtime-resources.md) |
 | 控制请求和操作锁 | [生产复审](evidence/production-readiness-review-20261114.json)：控制体统一 1 MiB，固定长度/chunked 超限返回 413，上传保留独立预算；锁仅保留活动所有者，20,000 次完成后归零 |
 | 浏览器帧生命周期 | Canvas reader 取消、finally 释放、迟到帧关闭；原生 Chrome 100 次换轨/关闭及异常分支通过，MSE/WebCodecs 原生检查通过，已纳入本机和候选 |
@@ -56,7 +61,9 @@ LAN IP 是现场值，不是内置地址。更换 IP 后按[地址与证书](lan
 
 ## 交付结果
 
-同源 Windows/Linux 安装器、Android APK、源码 tag、校验和及许可证材料已发布；本机完整组件维护与受影响的联合回归已完成。资源采样已收齐，不重复未受影响的四小时或 100 次循环。完整跨平台 CI 六项已通过；一次 Ubuntu 任务因官方 Chrome 下载的 HTTP/2 中断重试，只重跑失败任务，未重建冻结产品。公开附件与实际下载核验见[0.1.0 发布证据](evidence/release-0.1.0-20261115.json)。
+正式 0.1.0 的 Windows/Linux 安装器、Android APK、源码 tag、校验和及许可证材料已发布；其本机完整组件维护与联合回归保留原始证据。资源采样已收齐，不重复未受影响的四小时或 100 次循环。原完整跨平台 CI 六项已通过；一次 Ubuntu 任务因官方 Chrome 下载的 HTTP/2 中断重试，只重跑失败任务，未重建原冻结产品。公开附件与实际下载核验见[0.1.0 发布证据](evidence/release-0.1.0-20261115.json)。
+
+新候选 Windows 安装器为 `stream-kit-preview-1d81a373ac29-windows-amd64-setup.exe`，97,995,563 字节，SHA-256 `568a2cd5736582a721f26a00a329e40909e4123327b1432b07b8d4669579a562`。首次[全新安装验收](https://github.com/bei612/stream-kit/actions/runs/44517278501)安装成功但返回原生驱动要求重启的 `3010`，PCM 和服务生命周期检查尚未执行；卸载和数据保留通过。这与本机保留已有驱动的完整运行时维护不同。验收器已增加有界的 PnP/SetupAPI 诊断，保持原通过门槛，对同一安装包复验，不重建或改写产物身份。
 
 ## 持续边界
 
