@@ -16,7 +16,7 @@
 | 公开签名 Android | [v0.1.0 同一 Release](https://github.com/bei612/stream-kit/releases/tag/v0.1.0)，同源 `f8ede8b2`，versionCode 1000015 | 已公开 APK、来源、校验和、依赖许可证和 SBOM，沿用持久发行签名 |
 | 本机运行组件及前端 | `1d81a373ac29b243227e8f0fb55c1d9da3d613fd` | 三组件完整维护与库存校验通过；实际 Web / Example 及自动当前 IP 身份通过，保留原安装器/卸载器和签名驱动 |
 | 新公开预发布服务端 / Android | [v0.1.0-preview.20261119.2](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.2)，`1d81a373` | Windows / Ubuntu 24.04 amd64 单文件安装器及持久签名 APK 已发布；本机运行组件和 Android 与之同源，尚未替代正式 0.1.0 |
-| 本机平板 Android | 0.1.0-preview.20261119.2 / versionCode 1000017，`1d81a373` | [实际安装证据](evidence/android-installed-1d81a373-20261119.json)：发行签名、25 项清单、8 项原生库及安装 APK 摘要通过，原书签/CA 保留；本轮仅验安装与入口，未执行平板媒体验收 |
+| 本机平板 Android | 0.1.0-preview.20261119.2 / versionCode 1000017，`1d81a373` | [安装证据](evidence/android-installed-1d81a373-20261119.json)及[真机定向验收](evidence/android-tablet-1d81a373-20261119.json)：Example 实际解码、Android/Web 共享会话、控制交接、撤权停麦及前后台恢复通过；原书签/CA 保留，目标输入与有效音频仍有下述边界，不能称真机全部通过 |
 | 历史同源 Android 联合实测 | 0.1.0 / versionCode 1000015，`f8ede8b2` | [构建来源](https://github.com/bei612/stream-kit/actions/runs/43609422069)，专用模拟器实际图像、程序音、麦克风及撤权通过；不冒称新 APK 的媒体复验 |
 
 正式 0.1.0 已发布，当前核心功能达到本页所列产物与环境的发布条件；整个 Goal 仍有下文的整机重启和真实地址迁移等验收边界。发布复用[原始产品构建](https://github.com/bei612/stream-kit/actions/runs/43609416420)的字节，经[发布任务](https://github.com/bei612/stream-kit/actions/runs/43613696666)校验并上传；tag 指向冻结运行源码，文档及验收器后续提交不改变产物身份。
@@ -43,6 +43,7 @@ LAN IP 是现场值，不是内置地址。本机新版已在已有 CA、通配�
 
 | 内容 | 证据与范围 |
 | --- | --- |
+| Android 实体平板定向验收 | [1d81a373 真机记录](evidence/android-tablet-1d81a373-20261119.json)：原生永久入口启动 Example，初始实际解码 90 帧，Android 与 Web 共用一上游；管理页转交控制后平板变旁观者并停止录音。切后台释放 Android 连接，Web 保持；回前台重新解码、以旁观者加入且未自动录音。原加密书签恢复摘要一致，两个 testOnly 辅助 APK 已卸载，全部测试会话已停止。目标输入失败/音频未验收和辅助工具失败如实保留 |
 | 本机最新同源运行与页面 | [1d81a373 实际验收](evidence/runtime-installed-1d81a373-20261119.json)：完整三组件库存、自动当前 LAN IP、原 CA 下双入口 HTTPS、真实永久链接启动 Example 并解码、双独立 Web 客户端共享会话与控制授予/转交/撤销及两端权限同步、停止后可编辑、全局头像退出和路由保护通过；6 张实际截图已目视核查，页面异常为 0；未启动 UE，不替代目标输入执行、音频、平板或真实换址验收 |
 | 自动识别地址与双入口热更新 | [真实隔离迁移](evidence/lan-autodiscovery-515b9918-20261119.json)：新 IP 的原 CA 校验、旧 SAN 移除、三进程/配置/私钥保持及 WebRTC 新地址恢复通过；首次脚本权限失败及修复单独保留，不等同于本机 Windows/Android 真机迁移 |
 | 服务端持续资源上限与释放 | [资源审查](evidence/runtime-resource-review-20261113.json)：帧元数据、握手失败连接、媒体队列、缓存、HTTP 响应和日志清理，已纳入本机及候选；资源所有权见[运行资源](runtime-resources.md) |
@@ -74,6 +75,7 @@ LAN IP 是现场值，不是内置地址。本机新版已在已有 CA、通配�
 
 - 2026-11-19 17:16 的实际开机记录对应升级前版本，三个组件自动启动已观察通过。新版 1d81a373 已验证 Auto 服务及组件重启恢复，尚未执行整机重启验收；不承诺每次开机均无故障。
 - 本机新 LAN 管理入口、自动当前 IP 身份和真实 Web 视频已通过；真实主网卡迁移后的 Windows/Android 完整媒体及输入恢复尚未验收。独立 Linux 实验不覆盖此环境。
+- 平板当前真机已通过视频、跨端会话/控制及录音生命周期定向验收，尚未全部通过。Example 键鼠计数未增加，Windows 拒绝向其窗口授予前台焦点；没有绕过系统焦点策略或改动 ToDesk。该 Example 未配置目标录音端点、未启用程序测试音，音频接收能量为 0，不能把包数或系统录音状态当成真实有效音频送达。旧版模拟器输入/音频证据保持有效但不冒充本次真机结果。
 - [Linux 模拟器音频负例](evidence/android-audio-fixture-ce52bdac-20261114.json)保留；旧 APK 在该环境的近静音未解释。Windows 通过不改写其他环境的失败，也不降低采集门槛。
 - 用户已接受原版本 20 客户端四小时稳定性，不重复 24 小时；真人语音保留[原始证据](evidence/human-voice-installed-20261105.json)。本轮不要求 Linux/手机真机、特定 UE 内部录音或物理设备声学验收。
 - 7×24 是设计目标，目前没有新版本服务端、Web、Android 的完整 168 小时证据，不能承诺永不 OOM。修复和精确产物定向验收通过后先发布，长期运行继续跟踪；不靠定时重启或强制 GC 替代释放。

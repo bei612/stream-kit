@@ -1,0 +1,368 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-11-19T15:01:08.084Z",
+  "source_commit": "1d81a373ac29b243227e8f0fb55c1d9da3d613fd",
+  "client": {
+    "application_id": "io.github.bei612.streamkit",
+    "version_code": 1000017,
+    "version": "0.1.0-preview.20261119.2",
+    "device": "ERAZER M10 4G",
+    "android": 13,
+    "transport": "paired wireless ADB",
+    "apk_replaced": false
+  },
+  "server": {
+    "origin": "https://192.168.0.119:9000",
+    "source_commit": "1d81a373ac29b243227e8f0fb55c1d9da3d613fd",
+    "scm_state": "Running",
+    "scm_start_mode": "Auto"
+  },
+  "scope": "Installed native release client plus real Chrome Playwright CLI management/viewer. Example only; no UE, ToDesk, CA, network or default audio changes.",
+  "bookmark": {
+    "method": "Same-signer testOnly Android instrumentation; bounded encrypted-file backup inside target private storage; no decryption or exported watch key",
+    "before_sha256": "973fe3297f2c5ffeb94d3cb4fdb5fb224e2c767e5e4719082d5e030fec4c0af0",
+    "after_sha256": "973fe3297f2c5ffeb94d3cb4fdb5fb224e2c767e5e4719082d5e030fec4c0af0",
+    "restored": true,
+    "recovery_copy_removed": true,
+    "original_entry_loaded_without_starting_app": true
+  },
+  "passed": {
+    "native_permanent_entry_started_example": true,
+    "trusted_https_original_ca": true,
+    "first_video": {
+      "decoded_frames": 90,
+      "packets": 512
+    },
+    "first_audio_transport": {
+      "codec": "OPUS",
+      "clock_rate": 48000,
+      "channels": 2,
+      "packets": 146,
+      "total_samples_received": 138240,
+      "concealed_samples": 0,
+      "total_audio_energy": 0
+    },
+    "web_video": {
+      "decoded_frames": 21,
+      "bytes": 328703
+    },
+    "shared_session": {
+      "session_id": "bda708cf-ad57-41b7-bf85-570db3b0be13",
+      "clients": [
+        "android",
+        "web"
+      ],
+      "single_upstream": true
+    },
+    "control": {
+      "initial": "both viewers",
+      "grant": "Android controller badge observed",
+      "transfer": "Web controller; Android viewer; appops no longer recording",
+      "android_recording_duration_before_revocation_ms": 15245
+    },
+    "lifecycle": {
+      "background_removed_android_connection": true,
+      "web_connection_retained": true,
+      "resume_rejoined_existing_session_as_viewer": true,
+      "resume_video_frames": 74,
+      "resume_audio_packets": 116,
+      "resume_microphone_running": false,
+      "background_recording_stopped_observed": true,
+      "background_stop_latency_bound_ms": 9256
+    },
+    "toolbar": {
+      "visually_reviewed": true,
+      "viewer_input_and_microphone_disabled": true,
+      "keyboard_mouse_touch_statistics_settings_sound_exit_visible": true
+    }
+  },
+  "limitations": [
+    "Not a full physical-tablet acceptance pass. No current physical target key/click success: Example displayed Keys 0/Clicks 0; Windows rejected ordinary SetForegroundWindow for owned Example. No focus-policy bypass or ToDesk changes attempted.",
+    "Audio transport and capture lifecycle are observed; program output energy was 0, no tone source was configured. Current Example microphone_target was unconfigured, so this run does not prove microphone delivery to server recording endpoint or audible mixing. Existing simulator audio evidence retains its original version and environment.",
+    "No microphone permission-denial experiment, physical acoustic quality check, real host address migration or whole-machine reboot in this run.",
+    "Immediate background observation still showed RECORD_AUDIO running; next observation 9.256 seconds after HOME showed stopped. No subsecond shutdown claim.",
+    "Accessibility helper reported state=unknown while collapsed toolbar hid status. Role badge and native statistics were independently observed. Several click attempts returned false; no success inferred. Attempted toolbar exit was not confirmed; cleanup used native instrumentation process restart and management stop.",
+    "First resumed sample included 90570 concealed samples of 175680 received. Later reconnect sample had 0 concealed / 109440 received; do not infer zero packet loss or no transient audio interruption."
+  ],
+  "tooling": {
+    "standalone_test_only": true,
+    "production_apk_modified": false,
+    "helper_packages_uninstalled": [
+      "io.github.bei612.streamkit.bookmarkguard",
+      "io.github.bei612.streamkit.inputobserver"
+    ],
+    "initial_build_failures": [
+      "PowerShell default script policy; invoked reviewed script with process-scoped execution policy",
+      "SDK android-36 unavailable; selected existing official android-37.0 platform",
+      "AtomicFile.exists not public; replaced by bounded base/new/bak existence checks",
+      "Windows PowerShell compression assembly not loaded; explicit assembly references added"
+    ],
+    "builds_after_correction": "Both helpers compiled, aligned and signature verified; bookmark signer matched product signer"
+  },
+  "observations": [
+    {
+      "observed_at": "2026-11-19T14:58:40.238Z",
+      "action": "role",
+      "value": {
+        "role": "controller",
+        "root": "client",
+        "snapshot": "complete",
+        "state": "unknown",
+        "toolbar_closed": "true",
+        "toolbar_opened": "false",
+        "window": "0,0,1200,2000"
+      }
+    },
+    {
+      "observed_at": "2026-11-19T14:58:41.273Z",
+      "action": "appops",
+      "value": {
+        "running": false,
+        "allowed": true,
+        "foreground": true
+      }
+    },
+    {
+      "observed_at": "2026-11-19T14:58:41.385Z",
+      "action": "background",
+      "value": {
+        "submitted": true
+      }
+    },
+    {
+      "observed_at": "2026-11-19T14:58:41.483Z",
+      "action": "appops",
+      "value": {
+        "running": false,
+        "allowed": true,
+        "foreground": true
+      }
+    },
+    {
+      "observed_at": "2026-11-19T14:59:09.399Z",
+      "action": "resume",
+      "value": {
+        "submitted": true
+      }
+    },
+    {
+      "observed_at": "2026-11-19T14:59:11.898Z",
+      "action": "role",
+      "value": {
+        "role": "viewer",
+        "root": "client",
+        "snapshot": "complete",
+        "state": "unknown",
+        "toolbar_closed": "true",
+        "toolbar_opened": "false",
+        "window": "0,0,1200,2000"
+      }
+    },
+    {
+      "observed_at": "2026-11-19T14:59:14.004Z",
+      "action": "diagnostics",
+      "value": {
+        "audio_channels": "2",
+        "audio_packets": "88",
+        "clock_rate": "48000",
+        "codec_name": "OPUS",
+        "concealed_samples": "90570",
+        "playback": "playing",
+        "reason": "complete",
+        "root": "client",
+        "snapshot": "complete",
+        "sound": "on",
+        "statistics_available": "true",
+        "statistics_closed": "true",
+        "statistics_fresh": "true",
+        "toolbar_closed": "true",
+        "total_audio_energy": "0.0",
+        "total_samples_duration": "3.87",
+        "total_samples_received": "175680",
+        "video_frames": "12",
+        "video_packets": "344"
+      }
+    },
+    {
+      "observed_at": "2026-11-19T14:59:14.411Z",
+      "action": "appops",
+      "value": {
+        "running": false,
+        "allowed": true,
+        "foreground": true
+      }
+    },
+    {
+      "observed_at": "2026-11-19T14:59:45.281Z",
+      "action": "role",
+      "value": {
+        "role": "controller",
+        "root": "client",
+        "snapshot": "complete",
+        "state": "unknown",
+        "toolbar_closed": "true",
+        "toolbar_opened": "false",
+        "window": "0,0,1200,2000"
+      }
+    },
+    {
+      "observed_at": "2026-11-19T14:59:46.353Z",
+      "action": "screenshot",
+      "value": {
+        "file": "pad-controller-toolbar.png"
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:00:03.026Z",
+      "action": "appops",
+      "value": {
+        "running": true,
+        "allowed": true,
+        "foreground": true
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:00:03.142Z",
+      "action": "background",
+      "value": {
+        "submitted": true
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:00:03.239Z",
+      "action": "appops",
+      "value": {
+        "running": true,
+        "allowed": true,
+        "foreground": true
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:00:12.398Z",
+      "action": "appops",
+      "value": {
+        "running": false,
+        "allowed": true,
+        "foreground": true
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:00:12.528Z",
+      "action": "resume",
+      "value": {
+        "submitted": true
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:00:14.036Z",
+      "action": "role",
+      "value": {
+        "role": "viewer",
+        "root": "client",
+        "snapshot": "complete",
+        "state": "unknown",
+        "toolbar_closed": "true",
+        "toolbar_opened": "true",
+        "window": "0,0,1200,2000"
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:00:15.876Z",
+      "action": "diagnostics",
+      "value": {
+        "audio_channels": "2",
+        "audio_packets": "116",
+        "clock_rate": "48000",
+        "codec_name": "OPUS",
+        "concealed_samples": "0",
+        "playback": "playing",
+        "reason": "complete",
+        "root": "client",
+        "snapshot": "complete",
+        "sound": "on",
+        "statistics_available": "true",
+        "statistics_closed": "true",
+        "statistics_fresh": "true",
+        "toolbar_closed": "true",
+        "total_audio_energy": "0.0",
+        "total_samples_duration": "2.37",
+        "total_samples_received": "109440",
+        "video_frames": "74",
+        "video_packets": "454"
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:00:15.975Z",
+      "action": "appops",
+      "value": {
+        "running": false,
+        "allowed": true,
+        "foreground": true
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:00:36.892Z",
+      "action": "screenshot",
+      "value": {
+        "file": "pad-exited.png"
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:00:58.495Z",
+      "action": "resume",
+      "value": {
+        "submitted": true
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:00:59.036Z",
+      "action": "screenshot",
+      "value": {
+        "file": "pad-original-restored.png"
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:00:59.139Z",
+      "action": "appops",
+      "value": {
+        "running": false,
+        "allowed": true,
+        "foreground": true
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:01:08.084Z",
+      "action": "screenshot",
+      "value": {
+        "file": "pad-restored-entry.png"
+      }
+    }
+  ],
+  "cleanup": {
+    "example_stopped": true,
+    "example_editable": true,
+    "active_sessions": 0,
+    "media_observations": 0,
+    "recording_active": false,
+    "test_browsers_closed": true,
+    "original_bookmark_restored": true
+  },
+  "screenshots": [
+    {
+      "file": "android-tablet-1d81a373-20261119-example.png",
+      "sha256": "03e2d841faa617f14ecd284b13ce1d53c7a94501a755f6165abb0cff0a476c98"
+    },
+    {
+      "file": "android-tablet-1d81a373-20261119-toolbar.png",
+      "sha256": "e5496f416fee81ab1ca5f58334ecdac4963686c0e2525397b6600baca88c874e"
+    },
+    {
+      "file": "android-tablet-1d81a373-20261119-control-transferred.png",
+      "sha256": "e1b8ad328c5a2998bb6ca227a4e1533c211f37ad7666ff5dd524ef56711dd67a"
+    },
+    {
+      "file": "android-tablet-1d81a373-20261119-restored-entry.png",
+      "sha256": "97c6994d6e09311fc5a2f344d87434adef6b783d8cb3f8be5b7678fd54d217b3"
+    }
+  ]
+}

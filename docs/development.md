@@ -77,6 +77,10 @@ cd third_party/moonlight-android
 
 本机调试使用官方 Android SDK/Emulator，复用已有 AVD；实体平板通过正常 USB 授权接入，离线不代表可发送操作。不改 ToDesk，不安装第三方游戏模拟器，不为验证擅自重启宿主机。
 
+已有观看书签的实体设备验收须先保护原入口。`tools/input-acceptance/android-build.ps1` 可用现有 Windows SDK 单独构建 `observer` 或 `bookmark` 测试 APK，输出目录必须是新目录。`observer` 使用临时测试签名；`bookmark` 使用独立保管的项目签名，通过 [Android 官方同签名 instrumentation](https://source.android.google.cn/docs/core/tests/development/instr-app-e2e?hl=en) 访问目标应用自己的加密文件，不解密、不导出密钥、不使用 root、不改正式 APK。两个辅助 APK 均标记 `testOnly`，不进入发布附件或生产安装包。
+
+书签保护工具组件为 `io.github.bei612.streamkit.bookmarkguard/.BookmarkGuard`。先用 `am instrument -w -e action backup -e version <实际 versionCode>` 执行备份，成功后才导入 Example；结束后以相同参数和 `action restore` 恢复，必须比较前后 `ciphertext_sha256`。Android 在每次调用前重启目标进程，工具不创建 Activity，避免与书签异步写入竞争。备份只留在目标应用私有目录；已有备份拒绝覆盖，恢复失败保留恢复副本。中断后先恢复，不能再次备份覆盖。确认恢复、无活动测试会话及无录音后卸载辅助 APK；不卸载正式客户端、不清空其数据，也不修改证书、默认音频或原始入口。
+
 Android 音频 CI 的环境准备和产品判定分开：独立 `testOnly` 观察工具仅在一次性官方模拟器中用公开 `AudioManager` 与普通 `MODIFY_AUDIO_SETTINGS` 权限设置媒体音量，随后用只读接口独立确认；固定音量或安全策略拒绝仍导致失败，不修改 AppOps，也不改宿主机音频设备。先验证独立系统音的真实输出，再验证未修改的签名产品 APK 的程序音、麦克风和撤权。观察工具、音频源及校准代码均不进入正式包；环境校准通过不等于产品音频通过。接口依据见 [AudioManager](https://developer.android.com/reference/android/media/AudioManager#setStreamVolume(int,int,int))；旧 [VolumeCtrl](https://android.googlesource.com/platform/frameworks/base/+/refs/heads/android15-release/services/core/java/com/android/server/media/VolumeCtrl.java) 的输出不能单独作为设置成功证据。
 
 ## 检查按影响执行
