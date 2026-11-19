@@ -76,7 +76,7 @@ avahi_pid=$!
 sudo --preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT,RUNNER_TEMP ip netns exec "$client_ns" \
   unshare --mount bash "$GITHUB_WORKSPACE/tools/network-acceptance/client.sh" "$scratch" &
 client_pid=$!
-for attempt in $(seq 1 100); do [[ -f "$scratch/client.pid" ]] && break; kill -0 "$client_pid"; sleep 0.1; done
+for attempt in $(seq 1 100); do [[ -f "$scratch/client.pid" ]] && break; sudo kill -0 "$client_pid"; sleep 0.1; done
 [[ -f "$scratch/client.pid" ]]
 tls="$scratch/tls"
 openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 3650 -subj '/CN=Stream Kit isolated network CI CA' \

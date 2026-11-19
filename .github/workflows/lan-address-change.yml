@@ -12,7 +12,7 @@ permissions:
 jobs:
   native-lan-address-change:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       GH_TOKEN: ${{ github.token }}
       PRODUCT_RUN_ID: ${{ inputs.product_run_id }}
