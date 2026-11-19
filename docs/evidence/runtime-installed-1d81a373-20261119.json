@@ -1,0 +1,197 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-19",
+  "passed": true,
+  "scope": "Complete same-source Windows runtime maintenance, automatic current LAN identity, trusted HTTPS and targeted actual Web/Example acceptance",
+  "source": "1d81a373ac29b243227e8f0fb55c1d9da3d613fd",
+  "release": "v0.1.0-preview.20261119.2",
+  "maintenance": {
+    "schema_version": 1,
+    "success": true,
+    "apply": true,
+    "source": "1d81a373ac29b243227e8f0fb55c1d9da3d613fd",
+    "started_at": "2026-11-19T14:25:46.242Z",
+    "trust_changed": false,
+    "network_changed": false,
+    "step": "complete",
+    "previous_source": "f8ede8b2e933fb597e97dec999cceae9a3e614e1",
+    "previous_components": {
+      "orchestrator": "f8ede8b2e933fb597e97dec999cceae9a3e614e1",
+      "media-gateway": "f8ede8b2e933fb597e97dec999cceae9a3e614e1",
+      "sunshine": "f8ede8b2e933fb597e97dec999cceae9a3e614e1"
+    },
+    "runtime_backup": "C:\\Program Files\\StreamKit\\.maintenance-previous-1795098350017-387ba2",
+    "state_backup": "C:\\ProgramData\\StreamKit\\runtime-maintenance-1795098350017-387ba2",
+    "leaf_renewed": true,
+    "scope": "Complete runtime maintenance; original installer/uninstaller and signed drivers retained. Not a fresh installer acceptance.",
+    "finished_at": "2026-11-19T14:26:35.757Z"
+  },
+  "automatic_identity": {
+    "health": {
+      "apps_summary": {
+        "error": 0,
+        "ready": 1,
+        "running": 0,
+        "total": 2
+      },
+      "build_time": "2026-11-19T11:10:01.000Z",
+      "commit": "1d81a373ac29b243227e8f0fb55c1d9da3d613fd",
+      "components": {
+        "sunshine": {
+          "crash_count": 0,
+          "pid": 11884,
+          "status": "running"
+        },
+        "web_server": {
+          "crash_count": 0,
+          "pid": 32832,
+          "status": "running"
+        }
+      },
+      "version": "git-1d81a373ac29"
+    },
+    "auto_default": true,
+    "manual_hosts_contain_current_ip": false,
+    "current_ip_verified": "192.168.0.119",
+    "ca_unchanged": true,
+    "subject_alt_name": "DNS:localhost, DNS:volcengine, DNS:volcengine.local, IP Address:0:0:0:0:0:0:0:1, IP Address:10.254.254.1, IP Address:99.99.99.99, IP Address:127.0.0.1, IP Address:172.16.0.23, IP Address:172.18.0.1, IP Address:192.168.0.119, IP Address:192.168.3.27, IP Address:192.168.3.66",
+    "listeners": [
+      {
+        "port": 9000,
+        "status": 200,
+        "authorized": true,
+        "fingerprint256": "53:F9:2D:1B:FE:0A:9A:75:D1:5A:1A:96:D8:AA:2D:A5:46:0C:F9:1D:52:F6:A5:05:5A:5D:C5:90:13:DC:37:14",
+        "subject_alt_name": "DNS:localhost, DNS:volcengine, DNS:volcengine.local, IP Address:0:0:0:0:0:0:0:1, IP Address:10.254.254.1, IP Address:99.99.99.99, IP Address:127.0.0.1, IP Address:172.16.0.23, IP Address:172.18.0.1, IP Address:192.168.0.119, IP Address:192.168.3.27, IP Address:192.168.3.66"
+      },
+      {
+        "port": 8080,
+        "status": 200,
+        "authorized": true,
+        "fingerprint256": "53:F9:2D:1B:FE:0A:9A:75:D1:5A:1A:96:D8:AA:2D:A5:46:0C:F9:1D:52:F6:A5:05:5A:5D:C5:90:13:DC:37:14",
+        "subject_alt_name": "DNS:localhost, DNS:volcengine, DNS:volcengine.local, IP Address:0:0:0:0:0:0:0:1, IP Address:10.254.254.1, IP Address:99.99.99.99, IP Address:127.0.0.1, IP Address:172.16.0.23, IP Address:172.18.0.1, IP Address:192.168.0.119, IP Address:192.168.3.27, IP Address:192.168.3.66"
+      }
+    ]
+  },
+  "service": {
+    "Name": "StreamKitOrchestrator",
+    "State": "Running",
+    "StartMode": "Auto",
+    "StartName": "LocalSystem",
+    "ProcessId": 8000
+  },
+  "native_platform_inventory": {
+    "passed": true,
+    "components": 3,
+    "source": "1d81a373ac29b243227e8f0fb55c1d9da3d613fd"
+  },
+  "browser": {
+    "tool": "playwright-cli",
+    "browser": "Chrome",
+    "ignore_https_errors": false,
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "actual_deployment": true,
+    "settings_auto_detect": true,
+    "global_header_logout_menu": true,
+    "permanent_link_started_example": true,
+    "example_id": "18f482ef-5d7b-4528-a5e7-6fbd8a150980",
+    "video": {
+      "bytes_received": 306792,
+      "frames_decoded": 29
+    },
+    "sessions_observed": 7,
+    "active_sessions_in_screenshot": 1,
+    "ended_records_in_screenshot": 6,
+    "logout_and_protected_route": true,
+    "auth_token_removed_from_browser": true,
+    "page_errors": 0,
+    "example_final_status": "stopped",
+    "example_final_editable": true,
+    "screenshots_visually_reviewed": true,
+    "screenshots": [
+      {
+        "file": "runtime-installed-1d81a373-20261119-settings.png",
+        "sha256": "bd0d2210c09741679bae665fb0f9e843c88d829b12ce4238d3b534ece34a036e"
+      },
+      {
+        "file": "runtime-installed-1d81a373-20261119-header-menu.png",
+        "sha256": "b7e533b23df7052da2b42d163c7ced8c8e7a61b05032a258114407b07cfbb300"
+      },
+      {
+        "file": "runtime-installed-1d81a373-20261119-example-web.png",
+        "sha256": "968b39b1a628f49b01ff3d10c63792c1f14d75f8d03d887317dc5a6c9160b864"
+      },
+      {
+        "file": "runtime-installed-1d81a373-20261119-sessions.png",
+        "sha256": "bc5b57a481008812a2c0a2f08eed16c6e50cba09c6562323e2bd9acb35fa7ee2"
+      },
+      {
+        "file": "runtime-installed-1d81a373-20261119-logged-out.png",
+        "sha256": "4835745acd02a36be6fbd13a7ff40b6d3278b2acfb183b731fb2323f43673839"
+      }
+    ]
+  },
+  "ue_started": false,
+  "network_configuration_changed": false,
+  "previous_attempt_record": "windows-maintenance-attempt-1d81a373-20261119.json",
+  "boundaries": [
+    "Complete runtime maintenance retained the existing installer/uninstaller and signed drivers; not a fresh local execution of the new installer",
+    "Automatic detection verified with current LAN IP absent from manual hosts; no physical NIC address migration performed",
+    "Service Auto and successful component restarts do not prove a whole-machine reboot of this version",
+    "Browser checks verified actual video, settings, session visibility, stopping/editing, logout and two-client control ownership/projection. They did not repeat target keyboard/mouse execution, audio or long-duration acceptance.",
+    "New Android tablet APK installation is recorded separately; this record does not claim full tablet media/lifecycle acceptance"
+  ],
+  "multi_client_control": {
+    "passed": true,
+    "tool": "playwright-cli",
+    "independent_contexts": 2,
+    "shared_session": true,
+    "clients": 2,
+    "video": [
+      {
+        "frames": 26,
+        "bytes": 290053
+      },
+      {
+        "frames": 26,
+        "bytes": 290053
+      }
+    ],
+    "control_epochs": [
+      1,
+      6,
+      10,
+      13
+    ],
+    "granted_roles": [
+      "true",
+      "false"
+    ],
+    "transferred_roles": [
+      "false",
+      "true"
+    ],
+    "released_roles": [
+      "false",
+      "false"
+    ],
+    "page_errors": 0,
+    "example_stopped_and_editable": true,
+    "actions": "Actual administrator UI grant/transfer/release buttons; server overview and both viewer authority badges observed",
+    "screenshot": {
+      "file": "runtime-installed-1d81a373-20261119-control-transfer.png",
+      "sha256": "231411f43903f48a813abd3c350cc64e395e14b0fe9591a7f0cc6ca09e836362",
+      "visually_reviewed": true
+    },
+    "initial_helper_failure": {
+      "error": "Timed out: one session with two independent clients",
+      "cause": "Helper compared native session.app_id to orchestrator application UUID; actual application association uses hostId plus sunshine_app_id",
+      "correction": "Matched the existing findSessionApplication contract, scoped to the renderer; reran only this targeted check",
+      "application_cleanup_verified": true,
+      "production_code_changed": false
+    },
+    "boundary": "Actual shared video and control ownership/projection checked; target keyboard/mouse execution, microphone sound and Android were not exercised in this check"
+  }
+}
