@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "date": "2026-11-19",
-  "checked_at": "2026-11-19T12:16:20.606Z",
+  "checked_at": "2026-11-19T12:21:30.266Z",
   "publication_verified": true,
   "full_download_verification": false,
   "release": "v0.1.0-preview.20261119.2",
@@ -115,7 +115,9 @@
       "state": "uploaded",
       "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261119.2/stream-kit-android-0.1.0-preview.20261119.2.apk",
       "unauthenticated_download_verified": false,
-      "local_artifact_digest_matches": true
+      "local_artifact_digest_matches": true,
+      "authenticated_download_verified": true,
+      "download_checked_at": "2026-11-19T12:19:43.178Z"
     },
     {
       "name": "stream-kit-preview-1d81a373ac29-ubuntu24.04-amd64-setup.run",
@@ -144,11 +146,10 @@
     }
   ],
   "download_verification": {
-    "completed_assets": 10,
+    "completed_assets": 11,
     "total_assets": 14,
-    "method": "Unauthenticated HTTPS; streaming SHA-256 and byte count against REST digest; no binary copies retained",
+    "method": "Ten assets over unauthenticated HTTPS; APK via authenticated GitHub asset API. All 11 completed downloads checked by streaming SHA-256 and byte count; three assets remain unverified. No binary copies retained.",
     "pending_assets": [
-      "stream-kit-android-0.1.0-preview.20261119.2.apk",
       "stream-kit-preview-1d81a373ac29-ubuntu24.04-amd64-setup.run",
       "stream-kit-preview-1d81a373ac29-windows-amd64-setup.exe",
       "stream-kit-sbom.spdx.json"
@@ -171,7 +172,46 @@
         "error": "GitHub GraphQL and subsequently REST TLS handshake timeout; remaining asset downloads not reached"
       }
     ],
-    "interpretation": "Publication and stored digests verified; complete public redownload not established. Do not treat network timeout as a binary mismatch or as successful download."
+    "interpretation": "Remaining downloads incomplete; see explicit per-asset verification flags.",
+    "api_attempts": [
+      {
+        "name": "stream-kit-android-0.1.0-preview.20261119.2.apk",
+        "started_at": "2026-11-19T12:18:30.237Z",
+        "method": "Authenticated GitHub Release asset API",
+        "passed": true,
+        "sha256": "a3f2bfb6f02343375c93391c55405a895062b104c7bd44d2e9d070ce0ac6260c",
+        "bytes": 33168226,
+        "finished_at": "2026-11-19T12:19:43.178Z"
+      },
+      {
+        "name": "stream-kit-preview-1d81a373ac29-windows-amd64-setup.exe",
+        "started_at": "2026-11-19T12:19:43.179Z",
+        "method": "Authenticated GitHub Release asset API",
+        "passed": false,
+        "error": "GitHub API exit 1, signal null: Get \"https://api.github.com/repos/bei612/stream-kit/releases/assets/767524578\": net/http: TLS handshake timeout\n",
+        "bytes": 0,
+        "finished_at": "2026-11-19T12:19:54.309Z"
+      },
+      {
+        "name": "stream-kit-sbom.spdx.json",
+        "started_at": "2026-11-19T12:19:54.310Z",
+        "method": "Authenticated GitHub Release asset API",
+        "passed": false,
+        "error": "GitHub API exit 1, signal null: Get \"https://release-assets.githubusercontent.com/github-production-release-asset/1437836000/6fa72d99-52c6-4eb2-b6ff-4cb8302603e4?[redacted]\": net/http: TLS handshake timeout\n",
+        "bytes": 0,
+        "finished_at": "2026-11-19T12:20:06.156Z"
+      },
+      {
+        "name": "stream-kit-preview-1d81a373ac29-ubuntu24.04-amd64-setup.run",
+        "started_at": "2026-11-19T12:18:30.242Z",
+        "method": "Authenticated GitHub Release asset API",
+        "passed": false,
+        "error": "GitHub API exit null, signal SIGTERM: ",
+        "bytes": 0,
+        "finished_at": "2026-11-19T12:21:30.266Z",
+        "time_limit_ms": 180000
+      }
+    ]
   },
   "boundaries": [
     "Windows full maintenance still waits for OS UAC; local backend remains f8ede8b2 with d9585be3 frontend overlay",

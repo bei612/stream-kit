@@ -61,7 +61,7 @@ LAN IP 是现场值，不是内置地址。新版本在已有 CA、通配监听�
 
 ## 交付结果
 
-新预发布 [v0.1.0-preview.20261119.2](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.2) 已通过[发布任务](https://github.com/bei612/stream-kit/actions/runs/44519865634)公开，14 个附件包括 Windows/Linux 安装器、Android APK/分发包、来源清单、SHA-256 及 SBOM；发布未重建运行产物。远端 tag 指向 `1d81a373`，GitHub 存储摘要与本地可对应的 10 个附件一致。匿名下载已完成 10/14 个附件的实际字节数和摘要校验；其余 APK、两个服务端安装器及总 SBOM 的完整下载复核因本机到 GitHub 的连接/TLS 超时未完成，不记为通过。发布元数据、已完成下载和网络失败分别见[预发布证据](evidence/release-preview-20261119.2.json)。本机更新仍取决于前述 Windows UAC，公开发布不改变现场版本。
+新预发布 [v0.1.0-preview.20261119.2](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.2) 已通过[发布任务](https://github.com/bei612/stream-kit/actions/runs/44519865634)公开，14 个附件包括 Windows/Linux 安装器、Android APK/分发包、来源清单、SHA-256 及 SBOM；发布未重建运行产物。远端 tag 指向 `1d81a373`，GitHub 存储摘要与本地可对应的 10 个附件一致。实际下载已完成 11/14 个附件的字节数和摘要校验，其中 10 个为匿名下载，APK 通过 GitHub 资产 API 完成；两个服务端安装器及总 SBOM 的完整下载复核因本机到 GitHub 的连接/TLS 超时未完成，不记为通过。发布元数据、已完成下载和网络失败分别见[预发布证据](evidence/release-preview-20261119.2.json)。本机更新仍取决于前述 Windows UAC，公开发布不改变现场版本。
 
 正式 0.1.0 的 Windows/Linux 安装器、Android APK、源码 tag、校验和及许可证材料已发布；其本机完整组件维护与联合回归保留原始证据。资源采样已收齐，不重复未受影响的四小时或 100 次循环。原完整跨平台 CI 六项已通过；一次 Ubuntu 任务因官方 Chrome 下载的 HTTP/2 中断重试，只重跑失败任务，未重建原冻结产品。公开附件与实际下载核验见[0.1.0 发布证据](evidence/release-0.1.0-20261115.json)。
 
