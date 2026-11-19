@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-19",
+  "checked_at": "2026-11-19T12:16:20.606Z",
+  "publication_verified": true,
+  "full_download_verification": false,
+  "release": "v0.1.0-preview.20261119.2",
+  "url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.2",
+  "repository_public": true,
+  "draft": false,
+  "prerelease": true,
+  "source": "1d81a373ac29b243227e8f0fb55c1d9da3d613fd",
+  "remote_tag_source": "1d81a373ac29b243227e8f0fb55c1d9da3d613fd",
+  "product_run": 44512398135,
+  "android_run": 44512406665,
+  "windows_installer_acceptance_run": 44518883757,
+  "promotion_run": 44519865634,
+  "promotion_conclusion": "success",
+  "runtime_rebuilt_for_publication": false,
+  "android_version_code": 1000017,
+  "android_signing_certificate_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f",
+  "assets": [
+    {
+      "name": "android-dependency-notices.json",
+      "bytes": 11433,
+      "sha256": "65896f681d26f3927e0a114fba30192e14282e8fc34a2230d6b0e5f06245f755",
+      "state": "uploaded",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261119.2/android-dependency-notices.json",
+      "unauthenticated_download_verified": true,
+      "local_artifact_digest_matches": true
+    },
+    {
+      "name": "android-provenance.json",
+      "bytes": 4836,
+      "sha256": "e3db788b6772b53ce9e3963c0d5030f699655b863fe75b95c5d1ea004019d483",
+      "state": "uploaded",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261119.2/android-provenance.json",
+      "unauthenticated_download_verified": true,
+      "local_artifact_digest_matches": true
+    },
+    {
+      "name": "android-runtime-dependencies.json",
+      "bytes": 3415,
+      "sha256": "22a584a4428aa2ec47ab878e76e9c3c4167d59da03140c78c01bfbee63810533",
+      "state": "uploaded",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261119.2/android-runtime-dependencies.json",
+      "unauthenticated_download_verified": true,
+      "local_artifact_digest_matches": true
+    },
+    {
+      "name": "android-sbom.cdx.json",
+      "bytes": 20084,
+      "sha256": "aacd5be451ab2b5e938369a3deff352fd9dea87c5068df122f177107deb26988",
+      "state": "uploaded",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261119.2/android-sbom.cdx.json",
+      "unauthenticated_download_verified": true,
+      "local_artifact_digest_matches": true
+    },
+    {
+      "name": "Android-SHA256SUMS.txt",
+      "bytes": 617,
+      "sha256": "0708608dbbfe451c507208f14341a1836121271881090f7ebe907fd04e9be12d",
+      "state": "uploaded",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261119.2/Android-SHA256SUMS.txt",
+      "unauthenticated_download_verified": true,
+      "local_artifact_digest_matches": true
+    },
+    {
+      "name": "installer-manifest.json",
+      "bytes": 2312,
+      "sha256": "be81c8195fb95e7e58dfcb4fa8f847eaf450507a1ce5e2a58cb7837770896548",
+      "state": "uploaded",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261119.2/installer-manifest.json",
+      "unauthenticated_download_verified": true,
+      "local_artifact_digest_matches": true
+    },
+    {
+      "name": "linux-installer-manifest.json",
+      "bytes": 1408,
+      "sha256": "811d21c0b4bcddd983c05c874a4a51d2763bb3c702d5c3a59507bb50305abed3",
+      "state": "uploaded",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261119.2/linux-installer-manifest.json",
+      "unauthenticated_download_verified": true
+    },
+    {
+      "name": "Linux-SHA256SUMS.txt",
+      "bytes": 126,
+      "sha256": "63d5464a1c99b4b7f4d7e0b0c59ccb1c785cff82ca1f9e8ee8a5e7ae72feb4dd",
+      "state": "uploaded",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261119.2/Linux-SHA256SUMS.txt",
+      "unauthenticated_download_verified": true
+    },
+    {
+      "name": "SHA256SUMS.txt",
+      "bytes": 122,
+      "sha256": "fd4b771a74ad66e642681a18d5126d090828f86a225bbd82689af9e62234144f",
+      "state": "uploaded",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261119.2/SHA256SUMS.txt",
+      "unauthenticated_download_verified": true,
+      "local_artifact_digest_matches": true
+    },
+    {
+      "name": "stream-kit-android-0.1.0-preview.20261119.2-distribution.zip",
+      "bytes": 33168119,
+      "sha256": "8332668dfc8a9513b80bd2d730c63189f5b174364c07f9ea2c7e96e932ad7783",
+      "state": "uploaded",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261119.2/stream-kit-android-0.1.0-preview.20261119.2-distribution.zip",
+      "unauthenticated_download_verified": true,
+      "local_artifact_digest_matches": true
+    },
+    {
+      "name": "stream-kit-android-0.1.0-preview.20261119.2.apk",
+      "bytes": 33168226,
+      "sha256": "a3f2bfb6f02343375c93391c55405a895062b104c7bd44d2e9d070ce0ac6260c",
+      "state": "uploaded",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261119.2/stream-kit-android-0.1.0-preview.20261119.2.apk",
+      "unauthenticated_download_verified": false,
+      "local_artifact_digest_matches": true
+    },
+    {
+      "name": "stream-kit-preview-1d81a373ac29-ubuntu24.04-amd64-setup.run",
+      "bytes": 62842053,
+      "sha256": "11cb1980506bd8091a126f8e2b1d286c20b3cf4596102db283bdc976c2ec6d00",
+      "state": "uploaded",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261119.2/stream-kit-preview-1d81a373ac29-ubuntu24.04-amd64-setup.run",
+      "unauthenticated_download_verified": false
+    },
+    {
+      "name": "stream-kit-preview-1d81a373ac29-windows-amd64-setup.exe",
+      "bytes": 97995563,
+      "sha256": "568a2cd5736582a721f26a00a329e40909e4123327b1432b07b8d4669579a562",
+      "state": "uploaded",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261119.2/stream-kit-preview-1d81a373ac29-windows-amd64-setup.exe",
+      "unauthenticated_download_verified": false,
+      "local_artifact_digest_matches": true
+    },
+    {
+      "name": "stream-kit-sbom.spdx.json",
+      "bytes": 7575028,
+      "sha256": "a933eacd5f4db5f56e845c1665d31be0c1189466c7bf92e6c1e84af857f72970",
+      "state": "uploaded",
+      "url": "https://github.com/bei612/stream-kit/releases/download/v0.1.0-preview.20261119.2/stream-kit-sbom.spdx.json",
+      "unauthenticated_download_verified": false
+    }
+  ],
+  "download_verification": {
+    "completed_assets": 10,
+    "total_assets": 14,
+    "method": "Unauthenticated HTTPS; streaming SHA-256 and byte count against REST digest; no binary copies retained",
+    "pending_assets": [
+      "stream-kit-android-0.1.0-preview.20261119.2.apk",
+      "stream-kit-preview-1d81a373ac29-ubuntu24.04-amd64-setup.run",
+      "stream-kit-preview-1d81a373ac29-windows-amd64-setup.exe",
+      "stream-kit-sbom.spdx.json"
+    ],
+    "failures": [
+      {
+        "operation": "APK download",
+        "curl_exit": 28,
+        "elapsed_ms": 240548,
+        "bytes_received": 0
+      },
+      {
+        "operation": "HEAD connection diagnosis",
+        "http_status": 0,
+        "connect_seconds": 0,
+        "timeout_ms": 15004
+      },
+      {
+        "operation": "API fallback prerequisites",
+        "error": "GitHub GraphQL and subsequently REST TLS handshake timeout; remaining asset downloads not reached"
+      }
+    ],
+    "interpretation": "Publication and stored digests verified; complete public redownload not established. Do not treat network timeout as a binary mismatch or as successful download."
+  },
+  "boundaries": [
+    "Windows full maintenance still waits for OS UAC; local backend remains f8ede8b2 with d9585be3 frontend overlay",
+    "Android installation verified separately; no new tablet media or Windows host NIC migration acceptance in this record",
+    "Prerelease does not replace stable v0.1.0"
+  ]
+}
