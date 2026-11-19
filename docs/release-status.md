@@ -18,7 +18,8 @@
 | 公开签名 Android | [v0.1.0 同一 Release](https://github.com/bei612/stream-kit/releases/tag/v0.1.0)，同源 `f8ede8b2`，versionCode 1000015 | 已公开 APK、来源、校验和、依赖许可证和 SBOM，沿用持久发行签名 |
 | 本机运行组件及前端 | `1d81a373ac29b243227e8f0fb55c1d9da3d613fd` | 三组件完整维护与库存校验通过；实际 Web / Example 及自动当前 IP 身份通过，保留原安装器/卸载器和签名驱动 |
 | 新公开预发布服务端 / Android | [v0.1.0-preview.20261119.2](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.2)，`1d81a373` | Windows / Ubuntu 24.04 amd64 单文件安装器及持久签名 APK 已发布；本机运行组件和 Android 与之同源，尚未替代正式 0.1.0 |
-| 本机平板 Android | 0.1.0-preview.20261119.2 / versionCode 1000017，`1d81a373` | [安装证据](evidence/android-installed-1d81a373-20261119.json)、[真机会话验收](evidence/android-tablet-1d81a373-20261119.json)及[真机音频补验](evidence/android-tablet-audio-1d81a373-20261119.json)：实际视频、共享会话/控制、录音生命周期、程序音接收、物理麦克风至服务器端点和 Web 观众及撤权静音通过；目标键鼠输入仍未通过，不称真机全部通过 |
+| 本机平板 Android | 0.1.0-preview.20261119.3 / versionCode 1000018，`954a1e6e` | [新安装证据](evidence/android-installed-954a1e6e-20261119.json)：签名、21 项库存校验、覆盖安装、原加密书签哈希保持和实际入口通过；Android 源码及 8 个原生库哈希与上一版相同。服务端仍为 `1d81a373`，不称新全套已安装 |
+| 上一版实体平板媒体验收 | 0.1.0-preview.20261119.2 / versionCode 1000017，`1d81a373` | [真机会话验收](evidence/android-tablet-1d81a373-20261119.json)及[真机音频补验](evidence/android-tablet-audio-1d81a373-20261119.json)：实际视频、共享会话/控制、录音生命周期、程序音接收、物理麦克风至服务器端点和 Web 观众及撤权静音通过；目标键鼠输入仍未通过，不称真机全部通过；未重复未受影响的媒体验收 |
 | 历史同源 Android 联合实测 | 0.1.0 / versionCode 1000015，`f8ede8b2` | [构建来源](https://github.com/bei612/stream-kit/actions/runs/43609422069)，专用模拟器实际图像、程序音、麦克风及撤权通过；不冒称新 APK 的媒体复验 |
 
 正式 0.1.0 已发布，当前核心功能达到本页所列产物与环境的发布条件；整个 Goal 仍有下文的整机重启和真实地址迁移等验收边界。发布复用[原始产品构建](https://github.com/bei612/stream-kit/actions/runs/43609416420)的字节，经[发布任务](https://github.com/bei612/stream-kit/actions/runs/43613696666)校验并上传；tag 指向冻结运行源码，文档及验收器后续提交不改变产物身份。
