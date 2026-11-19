@@ -34,6 +34,68 @@ fs.mkdirSync(output,{recursive:true});
 const result={passed:false,scope:'One private unified installer with its configured virtual audio device; native PCM, service lifecycle and reuse checks. No browser, human speech or public release claim.',commit:manifest.commit,installer_source_commit:manifest.installer_source_commit,installer_sha256:manifest.file.sha256,identity:manifest.audio_driver.identity,program,data,started_at:new Date().toISOString()};
 const save=()=>fs.writeFileSync(path.join(output,'result.json'),JSON.stringify(result,null,2)+'\n');
 const execute=(file,args)=>cp.spawnSync(file,args,{windowsHide:true,encoding:'utf8',timeout:240000});
+// Bounded, read-only evidence for native restart requests. Diagnostic failures
+// never replace the installer result or turn an unexecuted PCM check into a pass.
+const diagnosticLimit=4*1024*1024;
+const setupApiLog=process.env.SystemRoot?path.join(process.env.SystemRoot,'INF','setupapi.dev.log'):undefined;
+let setupApiBaseline,postInstallDiagnostics=false;
+function diagnosticFailure(label,error){
+ (result.diagnostic_errors??=[]).push({stage:label,message:String(error.message||error).slice(0,2048)});
+}
+function captureDeviceState(label){
+ try{
+  const snapshot=JSON.parse(ps(String.raw`
+$ErrorActionPreference='Stop';$v=[Console]::In.ReadToEnd()|ConvertFrom-Json
+$r=@{recorded_at=[DateTime]::UtcNow.ToString('o')}
+try{
+ $match='USB\VID_{0:X4}&PID_{1:X4}*' -f [int]$v.vendor_id,[int]$v.product_id
+ $all=@(Get-CimInstance Win32_PnPEntity)
+ $owned=@($all|Where-Object {($_.HardwareID -contains 'ROOT\USBIP_WIN2\UDE') -or ($_.PNPDeviceID -like $match)})
+ $r.devices_total=$owned.Count;$r.devices_truncated=$owned.Count -gt 32
+ $r.devices=@($owned|Select-Object -First 32|ForEach-Object {
+  $d=@{id=$_.PNPDeviceID;name=$_.Name;service=$_.Service;status=$_.Status;problem_code=$_.ConfigManagerErrorCode;hardware_ids=@($_.HardwareID|Select-Object -First 8)}
+  try{$d.properties=@(Get-PnpDeviceProperty -InstanceId $_.PNPDeviceID -KeyName 'DEVPKEY_Device_DevNodeStatus','DEVPKEY_Device_ProblemCode','DEVPKEY_Device_Parent','DEVPKEY_Device_DriverInfPath' -ErrorAction Stop|Select-Object KeyName,Data)}catch{$d.properties_error=$_.Exception.Message.Substring(0,[Math]::Min(512,$_.Exception.Message.Length))}
+  $d
+ })
+ $audio=@($all|Where-Object {$_.PNPClass -in @('MEDIA','AudioEndpoint')})
+ $r.audio_total=$audio.Count;$r.audio_truncated=$audio.Count -gt 128
+ $r.audio=@($audio|Select-Object -First 128 PNPDeviceID,Name,Service,Status,ConfigManagerErrorCode)
+}catch{$r.devices_error=$_.Exception.Message.Substring(0,[Math]::Min(512,$_.Exception.Message.Length))}
+try{$r.services=@(Get-CimInstance Win32_Service -Filter "Name='AudioEndpointBuilder' OR Name='Audiosrv' OR Name='StreamKitOrchestrator'"|Select-Object Name,State,StartMode)}catch{$r.services_error=$_.Exception.Message.Substring(0,[Math]::Min(512,$_.Exception.Message.Length))}
+try{
+ $rename=Get-ItemProperty -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager' -ErrorAction Stop
+ $r.pending_reboot=@{component_servicing=(Test-Path -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending');windows_update=(Test-Path -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired');file_rename=([bool]$rename.PendingFileRenameOperations -or [bool]$rename.PendingFileRenameOperations2)}
+}catch{$r.pending_reboot_error=$_.Exception.Message.Substring(0,[Math]::Min(512,$_.Exception.Message.Length))}
+$r|ConvertTo-Json -Depth 7 -Compress`,result.identity));
+  const body=JSON.stringify(snapshot,null,2)+'\n';
+  assert.ok(Buffer.byteLength(body)<=diagnosticLimit,'Device diagnostics exceed their size limit');
+  const file=`devices-${label}.json`;fs.writeFileSync(path.join(output,file),body);
+  (result.diagnostics??={})[label]=file;
+ }catch(error){diagnosticFailure(label,error)}
+}
+function beginSetupApiEvidence(){
+ try{const s=fs.statSync(setupApiLog);setupApiBaseline={size:s.size,ino:s.ino,birthtime:s.birthtimeMs}}
+ catch(error){if(error.code==='ENOENT')setupApiBaseline={size:0,missing:true};else diagnosticFailure('setupapi_before',error)}
+}
+function captureSetupApiEvidence(){
+ let fd;
+ try{
+  assert.ok(setupApiBaseline,'SetupAPI baseline unavailable; refusing to copy unrelated historical logs');
+  fd=fs.openSync(setupApiLog,'r');const s=fs.fstatSync(fd);
+  const replaced=!setupApiBaseline.missing&&(s.ino!==setupApiBaseline.ino||s.birthtimeMs!==setupApiBaseline.birthtime||s.size<setupApiBaseline.size);
+  const baseline=replaced?0:setupApiBaseline.size;
+  const start=Math.max(baseline,s.size-diagnosticLimit),bytes=Buffer.alloc(s.size-start);
+  let read=0;while(read<bytes.length){const count=fs.readSync(fd,bytes,read,bytes.length-read,start+read);if(count===0)break;read+=count}
+  const file='setupapi-install-delta.log';fs.writeFileSync(path.join(output,file),bytes.subarray(0,read));
+  (result.diagnostics??={}).setupapi={file,baseline_bytes:setupApiBaseline.size,observed_bytes:s.size,start_offset:start,captured_bytes:read,truncated:start>baseline,log_replaced_or_truncated:replaced,baseline_missing:!!setupApiBaseline.missing};
+ }catch(error){diagnosticFailure('setupapi_after',error)}
+ finally{if(fd!==undefined)try{fs.closeSync(fd)}catch(error){diagnosticFailure('setupapi_close',error)}}
+}
+function capturePostInstallDiagnostics(){
+ if(postInstallDiagnostics)return;
+ postInstallDiagnostics=true;
+ captureDeviceState('after-install');captureSetupApiEvidence();
+}
 // Installing the first input can supply a previously absent recording default.
 // Preserve every pre-existing input default and both output roles.
 const defaultsPreserved=(before,after)=>['render','communication_render','capture','communication_capture'].every(key=>((key==='capture'||key==='communication_capture')&&!before[key])||before[key]===after[key]);
@@ -60,9 +122,11 @@ async function endpoints(){
 (async()=>{
  try{
   result.defaults_before=defaults();result.controllers_before=controllerInventory();save();
+  captureDeviceState('before-install');beginSetupApiEvidence();
   const installation=execute(installer,['/VERYSILENT','/SUPPRESSMSGBOXES','/SP-','/NORESTART','/DIR='+program,'/DATADIR='+data,'/CONTROLPORT=19000','/GATEWAYPORT=18080','/RENDERERPORT=48989','/LOG='+path.join(output,'install.log')]);
   result.install_exit=installation.status;
   installed=fs.existsSync(path.join(program,'unins000.exe'));
+  capturePostInstallDiagnostics();
   assert.equal(installation.status,0,'Installer did not complete without reboot');
   const cfg=JSON.parse(fs.readFileSync(path.join(data,'orchestrator.json'),'utf8'));
   for(const key of ['sunshine','web_server'])assert.equal(cfg.components[key].auto_start,true,`${key} must start with the installed controller`);
@@ -123,6 +187,7 @@ async function endpoints(){
   result.passed=true;
  }catch(error){result.error=error.message}
  finally{
+  if(setupApiBaseline)capturePostInstallDiagnostics();
   if(installed){
    const removal=execute(path.join(program,'unins000.exe'),['/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/LOG='+path.join(output,'uninstall.log')]);
    result.uninstall_exit=removal.status;result.service_removed=service()===null;
