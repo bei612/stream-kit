@@ -1,0 +1,85 @@
+﻿{
+    "success":  true,
+    "new_address":  "192.168.0.119",
+    "started_at":  "2026-11-19T09:50:51.981Z",
+    "before_health":  {
+                          "apps_summary":  {
+                                               "error":  0,
+                                               "ready":  1,
+                                               "running":  0,
+                                               "total":  2
+                                           },
+                          "build_time":  "2026-11-14T15:17:28.000Z",
+                          "commit":  "f8ede8b2e933fb597e97dec999cceae9a3e614e1",
+                          "components":  {
+                                             "sunshine":  {
+                                                              "crash_count":  0,
+                                                              "pid":  12308,
+                                                              "status":  "running"
+                                                          },
+                                             "web_server":  {
+                                                                "crash_count":  0,
+                                                                "pid":  9944,
+                                                                "status":  "running"
+                                                            }
+                                         },
+                          "version":  "git-f8ede8b2e933"
+                      },
+    "gateway":  {
+                    "bind":  "0.0.0.0:8080",
+                    "certificate":  {
+                                        "private_key_pem":  "C:\\ProgramData\\StreamKit\\tls-1793801749740\\server\\server-key.pem",
+                                        "certificate_pem":  "C:\\ProgramData\\StreamKit\\tls-1793801749740\\server\\server.pem"
+                                    },
+                    "nat":  null,
+                    "control_plane_url":  "https://127.0.0.1:9000"
+                },
+    "backup":  "C:\\ProgramData\\StreamKit\\deployment-backups\\address-1795081852024",
+    "after_health":  {
+                         "apps_summary":  {
+                                              "error":  0,
+                                              "ready":  1,
+                                              "running":  0,
+                                              "total":  2
+                                          },
+                         "build_time":  "2026-11-14T15:17:28.000Z",
+                         "commit":  "f8ede8b2e933fb597e97dec999cceae9a3e614e1",
+                         "components":  {
+                                            "sunshine":  {
+                                                             "crash_count":  0,
+                                                             "pid":  12348,
+                                                             "status":  "running"
+                                                         },
+                                            "web_server":  {
+                                                               "crash_count":  0,
+                                                               "pid":  16892,
+                                                               "status":  "running"
+                                                           }
+                                        },
+                         "version":  "git-f8ede8b2e933"
+                     },
+    "gateway_tls":  true,
+    "trust_and_key_unchanged":  true,
+    "application_records_unchanged":  true,
+    "boot_observation":  {
+                             "service":  "StreamKitOrchestrator",
+                             "observed_before_any_service_operation":  true,
+                             "orchestrator":  "2026-11-19T17:16:47+08:00",
+                             "gateway":  "2026-11-19T17:16:48+08:00",
+                             "sunshine":  "2026-11-19T17:16:49+08:00",
+                             "start_mode":  "Automatic",
+                             "boot":  "2026-11-19T17:16:32+08:00",
+                             "account":  "LocalSystem"
+                         },
+    "frontend":  {
+                     "source_commit":  "d9585be373f583d60d5888473c19c4e00bfa30b1",
+                     "javascript":  "index-E9ej8kHI.js",
+                     "css":  "index-D0xbfk5M.css",
+                     "full_backend_rebuild":  false
+                 },
+    "limits":  [
+                   "No new full media session or UE application started.",
+                   "Boot process timestamps prove startup on this boot, not all future boots.",
+                   "New IP added to existing CA identity; future new IPs still require configured TLS hosts."
+               ]
+}
