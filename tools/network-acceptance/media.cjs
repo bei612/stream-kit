@@ -3,7 +3,7 @@
 const path=require('node:path'),assert=require('node:assert/strict');
 const {spawn}=require('node:child_process');
 const readline=require('node:readline');
-module.exports=async function startMedia({config,api,clientPID,report,save}){
+module.exports=async function startMedia({config,api,clientPID,network,report,save}){
   const base='https://127.0.0.1:18080';
   const auth=await fetch(base+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:config.moonlight_web.username,password:config.moonlight_web.password})});
   assert.ok(auth.ok);const cookie=auth.headers.get('set-cookie').split(';')[0];
@@ -41,9 +41,9 @@ module.exports=async function startMedia({config,api,clientPID,report,save}){
     await api(`/apps/${app.id}/stop`,'POST');
   };
   try{
-    report.media_before=await send({action:'start',url:new URL(watch.path,'https://stream-kit-server.local:19000').href});
+    report.media_before=await send({action:'start',url:new URL(watch.path,'https://stream-kit-server.local:19000').href,address:network.old_address});
     const registered=await hosts();assert.equal(registered.length,1);assert.equal(registered[0].paired,'Paired');
     report.renderer_enrollment={automatic:true,host_count:registered.length,host_id:registered[0].host_id,paired:true,fixture_pairing_mutations:0};save();
-    return {recover:async()=>{report.media_after=await send({action:'recover'});report.media_reconnected_without_reload=true;save();},close};
+    return {recover:async()=>{report.media_after=await send({action:'recover',address:network.new_address});report.media_reconnected_without_reload=true;save();},close};
   }catch(error){await close().catch(()=>{});throw error;}
 };

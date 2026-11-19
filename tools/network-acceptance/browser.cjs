@@ -64,9 +64,9 @@ async function command(message){
       new MutationObserver(observe).observe(document,{childList:true,subtree:true});observe();
     });
     page=await context.newPage();await page.goto(url.href,{timeout:30000});
-    const result=await waitMedia('198.18.31.1',1);initialPeerCount=result.peer_count;return result;
+    const result=await waitMedia(message.address,1);initialPeerCount=result.peer_count;return result;
   }
-  if(message.action==='recover')return waitMedia('198.18.31.2',initialPeerCount+1);
+  if(message.action==='recover')return waitMedia(message.address,initialPeerCount+1);
   if(message.action==='close'){await browser?.close();browser=null;return {closed:true};}
   throw Error('Unknown client operation');
 }

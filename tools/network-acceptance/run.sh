@@ -25,14 +25,31 @@ cleanup() {
   if [[ "$namespace_created" == true ]]; then sudo ip netns delete "$client_ns" 2>/dev/null || true; fi
 }
 trap cleanup EXIT
+# Select a private /24 disjoint from every existing non-default IPv4 route and
+# assigned network. The product intentionally does not discover 198.18/15.
+python3 - "$scratch/network.json" <<'PY'
+import ipaddress, json, subprocess, sys
+routes = json.loads(subprocess.check_output(['ip', '-j', '-4', 'route', 'show', 'table', 'all']))
+addresses = json.loads(subprocess.check_output(['ip', '-j', '-4', 'address', 'show']))
+occupied = [ipaddress.ip_network(r['dst'], strict=False) for r in routes if r.get('dst') not in (None, 'default', '0.0.0.0/0')]
+occupied += [ipaddress.ip_network(f"{a['local']}/{a['prefixlen']}", strict=False)
+             for interface in addresses for a in interface.get('addr_info', []) if a['family'] == 'inet']
+candidates = [f'10.253.{n}.0/24' for n in range(16, 240)] + [f'172.29.{n}.0/24' for n in range(16, 240)] + [f'192.168.{n}.0/24' for n in range(240, 255)]
+network = next((ipaddress.ip_network(n) for n in candidates if not any(ipaddress.ip_network(n).overlaps(other) for other in occupied)), None)
+if network is None:
+    raise SystemExit('No isolated RFC1918 fixture subnet available')
+with open(sys.argv[1], 'w') as output:
+    json.dump({'subnet': str(network), 'prefix': network.prefixlen, 'old_address': str(network[1]), 'new_address': str(network[2]), 'client_address': str(network[100])}, output)
+PY
+read -r old_address client_address prefix < <(python3 -c 'import json,sys; n=json.load(open(sys.argv[1])); print(n["old_address"],n["client_address"],n["prefix"])' "$scratch/network.json")
 sudo ip netns add "$client_ns"
 namespace_created=true
 sudo ip link add "$server_if" type veth peer name sknet-peer
 interface_created=true
 sudo ip link set sknet-peer netns "$client_ns"
-sudo ip address add 198.18.31.1/24 dev "$server_if"
+sudo ip address add "$old_address/$prefix" dev "$server_if"
 sudo ip link set "$server_if" up
-sudo ip -n "$client_ns" address add 198.18.31.100/24 dev sknet-peer
+sudo ip -n "$client_ns" address add "$client_address/$prefix" dev sknet-peer
 sudo ip -n "$client_ns" link set lo up
 sudo ip -n "$client_ns" link set sknet-peer up
 # No default route: the client can reach only the dedicated fixture LAN.
@@ -62,7 +79,7 @@ client_pid=$!
 for attempt in $(seq 1 100); do [[ -f "$scratch/client.pid" ]] && break; kill -0 "$client_pid"; sleep 0.1; done
 [[ -f "$scratch/client.pid" ]]
 tls="$scratch/tls"
-openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 1 -subj '/CN=Stream Kit isolated network CI CA' \
+openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 3650 -subj '/CN=Stream Kit isolated network CI CA' \
   -addext 'basicConstraints=critical,CA:TRUE' -addext 'keyUsage=critical,keyCertSign,cRLSign' \
   -keyout "$tls/ca.key" -out "$tls/ca.crt" >/dev/null 2>&1
 openssl req -new -newkey rsa:2048 -nodes -subj '/CN=stream-kit-server.local' \
@@ -74,7 +91,7 @@ extendedKeyUsage=serverAuth
 subjectAltName=DNS:stream-kit-server.local,IP:127.0.0.1
 CERT
 openssl x509 -req -in "$tls/server.csr" -CA "$tls/ca.crt" -CAkey "$tls/ca.key" -CAcreateserial \
-  -days 1 -sha256 -extfile "$tls/leaf.ext" -out "$tls/server.crt" >/dev/null 2>&1
+  -days 365 -sha256 -extfile "$tls/leaf.ext" -out "$tls/server.crt" >/dev/null 2>&1
 sudo install -m 644 "$tls/ca.crt" /usr/local/share/ca-certificates/stream-kit-isolated-network.crt
 sudo update-ca-certificates >/dev/null
 mkdir -p "$HOME/.pki/nssdb"
