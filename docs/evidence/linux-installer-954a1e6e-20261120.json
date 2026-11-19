@@ -1,0 +1,34 @@
+{
+  "date": "2026-11-20",
+  "source": "954a1e6e73ef95231e78c9d77d77d932749aa043",
+  "build_run": 44556558891,
+  "job": "Linux product / Source-built Linux unified installer",
+  "job_conclusion": "success",
+  "artifact": {
+    "name": "linux-product-installer-954a1e6e73ef95231e78c9d77d77d932749aa043",
+    "bytes": 62846848,
+    "sha256": "8884f7dc54994325171f7d9e9ac4a2fa75d3ef6d4668374dd3a6f8dd47c12f38",
+    "download": "Official authenticated GitHub artifact API redirect; no authorization header forwarded to blob storage; size and API SHA-256 verified before path-checked extraction"
+  },
+  "installer": {
+    "file": "stream-kit-preview-954a1e6e73ef-ubuntu24.04-amd64-setup.run",
+    "bytes": 62855347,
+    "sha256": "2fd41e6c97628637189644765585ed8759e2491d8a83c6873f06b1725a0daa82",
+    "manifest_hash_matches_local_bytes": true,
+    "platform": "linux",
+    "distribution": "ubuntu-24.04",
+    "architecture": "amd64",
+    "payload_profile": "runtime",
+    "runtime_requires_node": false
+  },
+  "native_acceptance": {
+    "passed": true,
+    "scope": "Package extraction, three-component initialization, service enablement links, configuration validation and refusal to overwrite an existing data directory",
+    "service_started": false,
+    "media_tested": false,
+    "actual_linux_host_installed": false
+  },
+  "evidence_directory": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-954a1e6e\\linux-installer",
+  "publication_at_recording": "Not yet published; same-source Windows product build and exact-installer acceptance remain pending",
+  "prior_download_failures": "Two gh artifact downloads failed on TLS handshakes; retained private diagnostics. Official REST transfer subsequently completed without changing source or rebuilding."
+}
