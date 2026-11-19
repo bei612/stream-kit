@@ -58,6 +58,8 @@ Sunshine 源码构建入口 `scripts/build-sunshine.sh`，Windows 在 UCRT64 环
 
 Windows 静态 Qt 的链接依赖须显式安装，包括 UCRT64 的 `libb2`、`libtiff`、`harfbuzz` 和 `freetype`；仅安装 `qt6-static` 不保证其全部静态依赖已就绪。统一构建工作流在编译编解码库前执行 `pkg-config --static` 检查，包版本随构建日志保存。继续使用已固定的官方 CMake，不通过关闭托盘或删 Qt 依赖绕过缺包。
 
+Sunshine 的 ASN.1 内容长度统一经过 `crypto::asn1_string_length`：OpenSSL 4.1 起使用返回 `size_t` 的 `ASN1_STRING_get_length`，旧版（包括 Linux 的 OpenSSL 3.x）保留旧 API 分支并拒绝将负长度转换为巨大无符号长度。生产签名读取与证书测试复用此入口，二进制内容不能用 `strlen` 计长。版本边界依据 [OpenSSL 官方 API 历史](https://docs.openssl.org/4.1/man3/ASN1_STRING_length/#history)及[4.1 头文件](https://github.com/openssl/openssl/blob/openssl-4.1.0/include/openssl/asn1.h.in)；升级依赖时保留 `-Werror` 和弃用检查，并运行 `CryptoTest.*`，由 Windows 与 Linux 正式构建分别覆盖新旧分支。
+
 统一包的布局以 `orchestrator/internal/bundle/layouts.json` 为唯一来源，原生 `verify-platform` 与打包器共同使用。源码身份、平台/架构、必需静态资源和全部库存摘要一致才能组装。文件清单不是发行者签名或完整许可审查。
 
 ## 原生安装器与 APK

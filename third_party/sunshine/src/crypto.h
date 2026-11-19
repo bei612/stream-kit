@@ -158,6 +158,13 @@ namespace crypto {
   std::string_view signature(const x509_t &x);
 
   /**
+   * @brief Return the byte length of an ASN.1 string across supported OpenSSL versions.
+   * @param value Non-null ASN.1 string whose content is being inspected.
+   * @return Content length, or zero if the length cannot be represented as size_t.
+   */
+  std::size_t asn1_string_length(const ASN1_STRING *value);
+
+  /**
    * @brief Generate cryptographically secure random bytes.
    *
    * @param bytes Number of random bytes to generate.

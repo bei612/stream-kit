@@ -13,6 +13,21 @@
 
 #include <src/crypto.h>
 
+TEST(CryptoTest, Asn1LengthPreservesEmptyAndBinaryContent) {
+  util::safe_ptr<ASN1_OCTET_STRING, ASN1_OCTET_STRING_free> value {ASN1_OCTET_STRING_new()};
+  ASSERT_NE(value.get(), nullptr);
+  EXPECT_EQ(crypto::asn1_string_length(value.get()), 0u);
+
+  constexpr std::array<unsigned char, 4> bytes {0x41, 0x00, 0xFF, 0x42};
+  ASSERT_EQ(ASN1_OCTET_STRING_set(value.get(), bytes.data(), static_cast<int>(bytes.size())), 1);
+  EXPECT_EQ(crypto::asn1_string_length(value.get()), bytes.size());
+  const std::string_view content {
+    reinterpret_cast<const char *>(ASN1_STRING_get0_data(value.get())),
+    crypto::asn1_string_length(value.get())
+  };
+  EXPECT_EQ(content, (std::string_view {reinterpret_cast<const char *>(bytes.data()), bytes.size()}));
+}
+
 TEST(CryptoTest, GeneratedCredentialsExposeSubjectAndVerifySignatures) {
   constexpr std::string_view common_name = "Sunshine Test Host";
   constexpr std::string_view payload = "payload";
@@ -40,7 +55,7 @@ TEST(CryptoTest, GeneratedCredentialsExposeSubjectAndVerifySignatures) {
 
   const std::string_view parsed_common_name {
     reinterpret_cast<const char *>(ASN1_STRING_get0_data(common_name_data)),
-    static_cast<std::size_t>(ASN1_STRING_length(common_name_data))
+    crypto::asn1_string_length(common_name_data)
   };
   ASSERT_EQ(parsed_common_name, common_name);
 

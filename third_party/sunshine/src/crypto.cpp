@@ -404,6 +404,20 @@ namespace crypto {
   }
 
   /**
+   * @brief Read an ASN.1 byte length without using APIs deprecated in OpenSSL 4.1.
+   * @param value Non-null ASN.1 string whose content is being inspected.
+   * @return Content length, or zero for an invalid negative legacy length.
+   */
+  std::size_t asn1_string_length(const ASN1_STRING *value) {
+#if OPENSSL_VERSION_NUMBER >= 0x40100000L
+    return ASN1_STRING_get_length(value);
+#else
+    const auto length = ASN1_STRING_length(value);
+    return length < 0 ? 0 : static_cast<std::size_t>(length);
+#endif
+  }
+
+  /**
    * @brief Return the certificate signature bytes.
    */
   std::string_view signature(const x509_t &x) {
@@ -414,7 +428,7 @@ namespace crypto {
 
     return {
       reinterpret_cast<const char *>(ASN1_STRING_get0_data(asn1)),
-      static_cast<std::size_t>(ASN1_STRING_length(asn1))
+      asn1_string_length(asn1)
     };
   }
 
