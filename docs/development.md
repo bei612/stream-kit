@@ -4,6 +4,8 @@
 
 ## 源码与依赖
 
+依赖告警按实际运行入口评估：管理端是静态 SPA 的 `BrowserRouter` 声明式模式，后端为 Go，不运行 React Router Framework/SSR/RSC 服务。不能把仅适用于这些服务模式的告警直接当作本机后端漏洞，也不能仅凭扫描数量为零宣布安全。客户端跳转仍须检查所有真实导航调用者；引入新模式或外部可控跳转前重新审查。保留原始扫描、上游公告、源码依据和未修补的包状态，定向升级而不执行无差别 `audit fix`。当前有版本边界的记录见[管理依赖审查](evidence/management-dependency-review-20261119.json)。
+
 生产源码为 `orchestrator/`、`third_party/sunshine/`、`third_party/moonlight-web-stream/`、`third_party/moonlight-android/` 及其纳管依赖。不要从 `docs/src/` 构建或用下载的原版二进制替换二开运行时。Moonlight Qt 是纳管参考组件，不是当前统一客户端发布入口。
 
 全部上游按普通文件纳管，不执行 `git submodule update`。来源清单记录导入时的上游版本、提交和归档摘要，不表示二开后文件仍与原归档逐字节相同，也不是部署状态索引。

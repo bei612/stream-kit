@@ -1,0 +1,34 @@
+{
+  "date": "2026-11-19",
+  "source_commit": "954a1e6e73ef95231e78c9d77d77d932749aa043",
+  "scope": "Applicability review of the management frontend runtime npm audit result; not an all-language vulnerability audit or penetration test",
+  "audit": {
+    "command": "npm audit --omit=dev --json",
+    "raw_report": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-1d81a373\\npm-runtime-audit.json",
+    "affected_dependency_count": 1,
+    "dependency": "react-router",
+    "audit_severity": "high",
+    "package_is_in_affected_version_range": true,
+    "package_upgrade_performed": false
+  },
+  "verified_application_structure": {
+    "routing": "orchestrator/web/src/App.tsx uses BrowserRouter, Routes and fixed Route declarations (Declarative Mode)",
+    "rendering": "orchestrator/web/src/main.tsx uses createRoot; no SSR hydration or RSC entry",
+    "server": "orchestrator/internal/server/router.go spaMiddleware serves static files/index.html; APIs are native Go handlers, not React Router server actions, single-fetch or manifest endpoints",
+    "navigation": "Reviewed all Link/LinkButton/Navigate/useNavigate consumers in orchestrator/web/src. Destinations are fixed internal routes or fixed /apps/, /stream-sessions, /components and /docs prefixes with IDs/query/hash values. No caller passes a raw attacker-supplied full navigation target. Login returns to fixed /, not location.state.from."
+  },
+  "advisories": [
+    {"id":"GHSA-49rj-9fvp-4h2h","source":"https://github.com/remix-run/react-router/security/advisories/GHSA-49rj-9fvp-4h2h","requirement":"Framework Mode and an existing application prototype pollution path","assessment":"Upstream explicitly excludes Declarative Mode; current application does not expose this server execution path"},
+    {"id":"GHSA-8x6r-g9mw-2r78","source":"https://github.com/remix-run/react-router/security/advisories/GHSA-8x6r-g9mw-2r78","requirement":"Framework Mode manifest endpoint","assessment":"Upstream explicitly excludes Declarative Mode; no such handler in native management server"},
+    {"id":"GHSA-rxv8-25v2-qmq8","source":"https://github.com/remix-run/react-router/security/advisories/GHSA-rxv8-25v2-qmq8","requirement":"Framework Mode single-fetch response encoding","assessment":"Upstream explicitly excludes Declarative Mode; native Go APIs do not use the affected serializer"},
+    {"id":"GHSA-84g9-w2xq-vcv6","source":"https://github.com/remix-run/react-router/security/advisories/GHSA-84g9-w2xq-vcv6","requirement":"Framework Mode document action CSRF checks","assessment":"Upstream explicitly excludes Declarative Mode; no framework document actions"},
+    {"id":"GHSA-wrjc-x8rr-h8h6","source":"https://github.com/remix-run/react-router/security/advisories/GHSA-wrjc-x8rr-h8h6","requirement":"Attacker-supplied paths passed to navigation mechanisms","assessment":"Potentially relevant to client routing; current caller review found no raw untrusted full navigation target. Fixed route prefixes are application evidence, not a patch to the affected dependency"},
+    {"id":"GHSA-h8fp-f39c-q6mh","source":"https://github.com/remix-run/react-router/security/advisories/GHSA-h8fp-f39c-q6mh","requirement":"Unstable RSC error redirect APIs","assessment":"No RSC APIs or RSC application entry"},
+    {"id":"GHSA-337j-9hxr-rhxg","source":"https://github.com/remix-run/react-router/security/advisories/GHSA-337j-9hxr-rhxg","requirement":"Framework Mode or manual Data Mode SSR/hydration with attacker-modified error fields","assessment":"Upstream explicitly excludes Declarative Mode; createRoot performs client rendering without hydration"},
+    {"id":"GHSA-chx6-hx7r-mcp5","source":"https://github.com/remix-run/react-router/security/advisories/GHSA-chx6-hx7r-mcp5","requirement":"Framework Mode manifest endpoint","assessment":"Upstream explicitly excludes Declarative Mode; not evidence of native service resource exhaustion"},
+    {"id":"GHSA-2j2x-hqr9-3h42","source":"https://github.com/remix-run/react-router/security/advisories/GHSA-2j2x-hqr9-3h42","requirement":"Untrusted input to framework redirect function","assessment":"Upstream explicitly excludes Declarative Mode; no application redirect-function caller"},
+    {"id":"GHSA-qwww-vcr4-c8h2","source":"https://github.com/remix-run/react-router/security/advisories/GHSA-qwww-vcr4-c8h2","requirement":"Unstable RSC action APIs","assessment":"No RSC APIs or framework action execution in this application"}
+  ],
+  "decision": "No currently exposed vector identified for these ten advisories from upstream conditions and current caller review. Preserve the frozen viewport-fix candidate while completing deployment; retain the dependency upgrade as maintenance debt. Do not represent npm audit as clean or the package as patched. Any new server rendering, RSC, data-router actions or arbitrary navigation must trigger reassessment before release.",
+  "remaining": "Development dependency advisories, native Rust/Go/C++ dependencies and future advisories are outside this bounded review. No comprehensive-security completion claim."
+}
