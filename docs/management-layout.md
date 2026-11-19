@@ -11,10 +11,13 @@
 | `components/ui/card.tsx` | 统一面板、二级标题、内容及内边距 |
 | `components/ui/table.tsx` | 可键盘访问的表格局部滚动，避免页面裁切 |
 | `components/ui/button.tsx` | Button 与 LinkButton 共用外观；导航不嵌套按钮 |
+| `components/ui/tooltip.tsx` | 全局概念说明；Floating UI 统一定位、视口避让、键盘/触屏与 ARIA 关联，关闭即卸载浮层和定位监听 |
 | `index.css` | 容器宽度、间距、布局断点及媒体/容器查询 |
 | `api/query-client.ts`、`hooks/useQuery.ts` | 原生管理接口投影、请求归属、缓存及取消，不承担布局状态 |
 
 Page 始终保留一个主标题，加载/失败仅替换数据区域。子区域使用面板标题，不能因为某页请求慢就让标题、操作和内容边界整体变化。
+
+气泡交互与定位采用 [Floating UI Tooltip](https://floating-ui.com/docs/tooltip) 和[跨轴避让规则](https://floating-ui.com/docs/flip#fallbackaxissidedirection)，通过公共浏览器事件工作，不注入 DOM 修补或新增轮询。中文页面验收明确设置浏览器 `locale: 'zh-CN'`；不能依赖 CI 主机语言。
 
 ## 布局规则
 
@@ -24,7 +27,8 @@ Page 始终保留一个主标题，加载/失败仅替换数据区域。子区�
 - 页面宽度 1024px 起显示侧栏，较窄宽度使用可展开导航。选中路由后收起，Esc 收起并恢复菜单按钮焦点；不另建浮层焦点系统。
 - 卡片、栅格子项、fieldset 和输入保持可收缩。长路径、错误和 ID 按区域折行；代码与表格局部滚动，不通过隐藏整页 overflow 掩盖错误。
 - 原生 details 保留其展开状态；系统设置所有编辑器保持挂载，分区跳转不卸载草稿，不借标签切换丢弃未保存修改。
-- 样式变量来自既有共享主题，不增加字体下载、重型动效或新的 UI/状态依赖。
+- 样式变量来自既有共享主题，不增加字体下载、重型动效或新的 UI/状态框架；小型定位能力复用锁定版本的 Floating UI，不自造碰撞和焦点系统。
+- 概念气泡只在打开时挂载，使用 Portal 和视口避让，关闭后不保留撑宽页面的绝对定位元素；键盘聚焦或触屏点击可打开，Escape/外部点击关闭，不修改业务状态。
 
 ## 前后端与状态边界
 

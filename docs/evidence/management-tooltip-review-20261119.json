@@ -1,0 +1,40 @@
+{
+  "date": "2026-11-19",
+  "status": "source-reviewed-local-targeted-checks-passed-installation-pending",
+  "installed_runtime_commit": "1d81a373ac29b243227e8f0fb55c1d9da3d613fd",
+  "scope": "Shared management concept-help component and Chinese-language native acceptance; no media protocol, control authority, credentials, device driver or application change",
+  "confirmed_defects": [
+    "CI run 44518792780: Windows/Linux control-bundle and management-browser checks used Chinese selectors with English browser defaults; locale detection in production is intentional",
+    "Installed management page at 390px had document.scrollWidth=639; three visibility:hidden tooltip spans extended beyond viewport",
+    "Current-session selector also matched the concept-help button after the earlier failure was resolved"
+  ],
+  "implementation": [
+    "Floating UI 0.27.20, exact package version and transitive lockfile, MIT notices included by existing build integration",
+    "Shared InfoTooltip unmounts when closed, portal/fixed positioning with shift and orthogonal flip, positioning listeners owned by mounted lifetime",
+    "Pointer hover, keyboard focus, touch tap, Escape/outside dismissal and ARIA description association use library interactions",
+    "Native acceptance explicitly selects zh-CN and identifies the current-session action exactly"
+  ],
+  "review": {
+    "consumers": ["Metric in components/layout/Page.tsx", "components/StatusBadge.tsx"],
+    "state_boundary": "Open state is local presentation state; no query, application, session, control or audio mutation",
+    "cleanup": "Floating node and autoUpdate listeners are removed on close/unmount; no added application timer",
+    "tests": "Actual orchestrator, SQLite and built SPA; no mocked responses",
+    "lint_and_production_build": "passed",
+    "prior_attempts": "Retained locally: initial refs lint error; focus-visible test required real keyboard entry; narrow right-side tooltip required orthogonal flip; global tooltip locator conflicted during asynchronous blur; current-session button locator needed exact accessible name. No failure converted to success."
+  },
+  "evidence": {
+    "ci_failure_log": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-1d81a373\\cross-platform-44518792780-failed.log",
+    "installed_overflow_cli": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-1d81a373\\inspect-overflow.js",
+    "native_control_bundle_locale_pass": "D:\\Projects\\fuzhougulou\\stream-kit\\artifacts\\control-bundle\\2026-11-19T15-25-21-766Z\\result.json",
+    "management_pass": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-1d81a373\\ci-management-tooltip-touch\\result.json",
+    "native_component_pass": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-1d81a373\\ci-management-tooltip-components\\result.json",
+    "keyboard_screenshot": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-1d81a373\\ci-management-tooltip-touch\\session-help-mobile.png",
+    "touch_screenshot": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-1d81a373\\ci-management-tooltip-touch\\session-help-touch.png"
+  },
+  "boundaries": [
+    "Windows Chrome touch context is browser emulation, not physical-tablet evidence",
+    "No new installed-version or cross-platform success claim until those checks finish",
+    "Ubuntu gateway job failed on dependency-source connection, not a proven gateway runtime failure",
+    "npm installation reported 19 dependency advisories (1 low, 9 moderate, 9 high), including development dependencies; not bulk-upgraded or claimed audited"
+  ]
+}

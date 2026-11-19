@@ -130,14 +130,7 @@ input[type="number"] { font-variant-numeric: tabular-nums; }
 .info-tooltip { position: relative; display: inline-flex; align-items: center; vertical-align: middle; }
 .info-tooltip-trigger { display: inline-grid; place-items: center; width: 22px; height: 22px; border: 0; border-radius: 999px; color: hsl(var(--muted-foreground)); background: transparent; padding: 0; }
 .info-tooltip-trigger:hover, .info-tooltip-trigger:focus-visible { color: hsl(var(--primary)); background: hsl(var(--primary) / .1); }
-.info-tooltip-popover { pointer-events: none; position: absolute; z-index: 40; width: min(20rem, calc(100vw - 2rem)); padding: 9px 11px; border: 1px solid hsl(var(--border)); border-radius: 8px; background: hsl(var(--card)); color: hsl(var(--card-foreground)); box-shadow: 0 12px 30px rgb(0 0 0 / .24); font-size: 12px; line-height: 1.55; opacity: 0; visibility: hidden; transition: opacity .15s ease, transform .15s ease; }
-.info-tooltip--top .info-tooltip-popover { left: 50%; bottom: calc(100% + 8px); transform: translate(-50%, 4px); }
-.info-tooltip--right .info-tooltip-popover { left: calc(100% + 8px); top: 50%; transform: translate(4px, -50%); }
-.info-tooltip--bottom .info-tooltip-popover { left: 50%; top: calc(100% + 8px); transform: translate(-50%, -4px); }
-.info-tooltip--left .info-tooltip-popover { right: calc(100% + 8px); top: 50%; transform: translate(-4px, -50%); }
-.info-tooltip:hover .info-tooltip-popover, .info-tooltip:focus-within .info-tooltip-popover { pointer-events: auto; opacity: 1; visibility: visible; transform: translate(0, 0); }
-.info-tooltip--top:hover .info-tooltip-popover, .info-tooltip--top:focus-within .info-tooltip-popover, .info-tooltip--bottom:hover .info-tooltip-popover, .info-tooltip--bottom:focus-within .info-tooltip-popover { transform: translate(-50%, 0); }
-.info-tooltip--right:hover .info-tooltip-popover, .info-tooltip--right:focus-within .info-tooltip-popover, .info-tooltip--left:hover .info-tooltip-popover, .info-tooltip--left:focus-within .info-tooltip-popover { transform: translate(0, -50%); }
+.info-tooltip-popover { z-index: 40; width: min(20rem, calc(100vw - 2rem)); padding: 9px 11px; border: 1px solid hsl(var(--border)); border-radius: 8px; background: hsl(var(--card)); color: hsl(var(--card-foreground)); box-shadow: 0 12px 30px rgb(0 0 0 / .24); font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
 .empty-state { display: grid; justify-items: center; gap: 10px; text-align: center; padding: 48px 20px; border: 1px dashed hsl(var(--border)); border-radius: var(--sk-radius); background: hsl(var(--card)); min-width: 0; }
 .empty-state h2 { font-size: 15px; font-weight: 600; }
 .empty-state p { max-width: 42rem; font-size: 13px; color: hsl(var(--muted-foreground)); overflow-wrap: anywhere; }

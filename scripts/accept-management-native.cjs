@@ -80,7 +80,8 @@ function copyAssets(source, destination) {
     report.dist_index_sha256 = crypto.createHash('sha256').update(fs.readFileSync(path.join(dist, 'index.html'))).digest('hex');
     const denied = await fetch(base + '/api/v1/stream-sessions'); assert.equal(denied.status, 401); report.cases.push('unauthenticated real API denied');
     browser = await launchBrowser(); report.browser_version = browser.version();
-    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } }), javascriptErrors = [], responseChecks = [], verifiedResourceFailures = [];
+    // Match the asserted accessibility labels through the public browser locale, without overriding app storage.
+    const page = await browser.newPage({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } }), javascriptErrors = [], responseChecks = [], verifiedResourceFailures = [];
     report.request_timeline = []; report.request_failures = []; report.navigations = []; report.javascript_errors = javascriptErrors;
     const pathname = value => { try { return new URL(value).pathname; } catch { return '[unavailable]'; } };
     const traced = new WeakMap(), queryRequests = []; let order = 0;
@@ -180,7 +181,43 @@ function copyAssets(source, destination) {
     assert.equal(await page.getByRole('button', { name: /授予控制权|转移控制权|释放控制权/ }).count(), 0); report.cases.push('real empty current/history and zero clients; no fabricated stopped or running rows');
     await page.setViewportSize({ width: 390, height: 844 }); await screenshot('sessions-history-mobile');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-    await page.getByRole('button', { name: /当前会话/ }).click(); await screenshot('sessions-current-mobile');
+    const helpButtons = page.locator('.info-tooltip-trigger');
+    assert.equal(await helpButtons.count(), 3, 'Session metrics must retain their concept help');
+    await page.mouse.move(0, 0);
+    for (let index = 0; index < await helpButtons.count(); index++) {
+      const trigger = helpButtons.nth(index);
+      await trigger.focus();
+      // Enter through real keyboard navigation so :focus-visible matches user behavior.
+      await page.keyboard.press('Shift+Tab'); await page.keyboard.press('Tab');
+      assert.equal(await trigger.evaluate(element => element === document.activeElement), true);
+      const describedBy = await trigger.getAttribute('aria-describedby');
+      assert.ok(describedBy, 'Visible explanation must describe its trigger');
+      const tooltip = page.locator(`[id="${describedBy}"]`); await tooltip.waitFor({ state: 'visible' });
+      assert.equal(await tooltip.getAttribute('role'), 'tooltip');
+      const bounds = await tooltip.boundingBox();
+      assert.ok(bounds && bounds.x >= 0 && bounds.x + bounds.width <= 390, `Concept help must fit the mobile viewport: ${JSON.stringify(bounds)}`);
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+      if (index === 1) await screenshot('session-help-mobile');
+      await page.keyboard.press('Escape');
+      await tooltip.waitFor({ state: 'detached' });
+    }
+    report.cases.push('All session metric explanations fit mobile viewport, have ARIA descriptions and unmount on Escape; closed explanations do not widen document');
+    const touchContext = await browser.newContext({ locale: 'zh-CN', viewport: { width: 390, height: 844 }, hasTouch: true, storageState: await page.context().storageState() });
+    try {
+      const touchPage = await touchContext.newPage();
+      touchPage.on('pageerror', error => javascriptErrors.push({ message: sanitize(error.message), scope: 'touch' }));
+      await touchPage.goto(base + '/stream-sessions');
+      await touchPage.locator('.info-tooltip-trigger').nth(1).tap();
+      const tooltip = touchPage.getByRole('tooltip'); await tooltip.waitFor({ state: 'visible' });
+      const bounds = await tooltip.boundingBox();
+      assert.ok(bounds && bounds.x >= 0 && bounds.x + bounds.width <= 390, `Touch explanation overflow: ${JSON.stringify(bounds)}`);
+      await touchPage.screenshot({ path: path.join(output, 'session-help-touch.png'), fullPage: true });
+      await touchPage.getByRole('heading', { name: '串流会话', exact: true }).tap();
+      await tooltip.waitFor({ state: 'detached' });
+      assert.equal(await touchPage.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+      report.cases.push('Browser touch context opens concept help by tapping and closes on outside tap without horizontal overflow; not physical-device evidence');
+    } finally { await touchContext.close(); }
+    await page.getByRole('button', { name: '当前会话 (0)', exact: true }).click(); await screenshot('sessions-current-mobile');
     await page.setViewportSize({ width: 1440, height: 1000 });
     await navigate('系统设置', '/settings'); await page.getByRole('heading', { name: '服务配置', exact: true }).waitFor();
     await page.locator('summary').filter({ hasText: '应用与存储' }).click();

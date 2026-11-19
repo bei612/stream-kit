@@ -81,7 +81,8 @@ async function main(){
     const pageBytes=Buffer.from(await(await fetch(origin+'/settings')).arrayBuffer());
     assert.equal(hash(pageBytes),hash(fs.readFileSync(path.join(bundle,'dist/index.html'))),'Page must come from executable sibling dist');
     browser=await launchBrowser();
-    const page=await browser.newPage({viewport:{width:1280,height:900}});
+    // These accessibility assertions exercise the Chinese UI; do not depend on the runner's language.
+    const page=await browser.newPage({locale:'zh-CN',viewport:{width:1280,height:900}});
     page.on('pageerror',error=>errors.push(error.message));
     await page.goto(origin+'/settings');
     await page.getByLabel('用户名').fill(credentials.username);
