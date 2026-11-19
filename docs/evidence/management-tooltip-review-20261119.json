@@ -2,6 +2,16 @@
   "date": "2026-11-19",
   "status": "source-reviewed-local-targeted-checks-passed-installation-pending",
   "installed_runtime_commit": "1d81a373ac29b243227e8f0fb55c1d9da3d613fd",
+  "fix_commit": "954a1e6e73ef95231e78c9d77d77d932749aa043",
+  "candidate_runs": {
+    "product": 44556558891,
+    "cross_platform": 44556521128,
+    "android": 44556808891,
+    "android_version": "0.1.0-preview.20261119.3",
+    "android_version_code": 1000018,
+    "status_at_recording": "in_progress",
+    "duplicate_linux_run": "44556521077 cancelled intentionally; product run already includes the same-source Linux build"
+  },
   "scope": "Shared management concept-help component and Chinese-language native acceptance; no media protocol, control authority, credentials, device driver or application change",
   "confirmed_defects": [
     "CI run 44518792780: Windows/Linux control-bundle and management-browser checks used Chinese selectors with English browser defaults; locale detection in production is intentional",
@@ -20,6 +30,17 @@
     "cleanup": "Floating node and autoUpdate listeners are removed on close/unmount; no added application timer",
     "tests": "Actual orchestrator, SQLite and built SPA; no mocked responses",
     "lint_and_production_build": "passed",
+    "playwright_cli": {
+      "passed": true,
+      "routes": ["/", "/components", "/apps", "/stream-sessions", "/settings", "/logs", "/upload", "/docs"],
+      "widths": [390, 768, 1440],
+      "document_width_equals_viewport": "24/24",
+      "languages": ["zh-CN", "en"],
+      "javascript_errors": [],
+      "scope": "Actual isolated native backend and newly built SPA, hover/Escape and screenshots; not installed runtime or media acceptance",
+      "expected_unavailable": "Owned isolated deployment has no encoder or gateway. Observed HTTP404 component absence and HTTP503 gateway/encoder configuration and capture capability failures; retained in CLI console log",
+      "cleanup": "Both owned CLI browsers closed; isolated native process 33716 path verified before stop; installed service remains Running/Automatic"
+    },
     "prior_attempts": "Retained locally: initial refs lint error; focus-visible test required real keyboard entry; narrow right-side tooltip required orthogonal flip; global tooltip locator conflicted during asynchronous blur; current-session button locator needed exact accessible name. No failure converted to success."
   },
   "evidence": {
@@ -29,12 +50,14 @@
     "management_pass": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-1d81a373\\ci-management-tooltip-touch\\result.json",
     "native_component_pass": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-1d81a373\\ci-management-tooltip-components\\result.json",
     "keyboard_screenshot": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-1d81a373\\ci-management-tooltip-touch\\session-help-mobile.png",
-    "touch_screenshot": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-1d81a373\\ci-management-tooltip-touch\\session-help-touch.png"
+    "touch_screenshot": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-1d81a373\\ci-management-tooltip-touch\\session-help-touch.png",
+    "cli_script_and_screenshots": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-954a1e6e\\cli-stage",
+    "runtime_dependency_audit": "D:\\Projects\\fuzhougulou\\stream-kit\\.local\\release-1d81a373\\npm-runtime-audit.json"
   },
   "boundaries": [
     "Windows Chrome touch context is browser emulation, not physical-tablet evidence",
     "No new installed-version or cross-platform success claim until those checks finish",
     "Ubuntu gateway job failed on dependency-source connection, not a proven gateway runtime failure",
-    "npm installation reported 19 dependency advisories (1 low, 9 moderate, 9 high), including development dependencies; not bulk-upgraded or claimed audited"
+    "npm installation reported 19 dependency advisories (1 low, 9 moderate, 9 high), including development dependencies; separate --omit=dev audit reports one high React Router dependency. Applicability needs advisory-by-advisory review; not bulk-upgraded or claimed audited"
   ]
 }
