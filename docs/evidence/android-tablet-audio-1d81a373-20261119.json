@@ -1,0 +1,1764 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-11-19T15:13:26.023Z",
+  "source_commit": "1d81a373ac29b243227e8f0fb55c1d9da3d613fd",
+  "device": "ERAZER M10 4G / Android 13",
+  "apk_version_code": 1000017,
+  "server_origin": "https://192.168.0.119:9000",
+  "session_id": "b90a580b-014d-4023-87bd-e201e82b9ef2",
+  "scope": "Native physical tablet, unchanged release APK and installed Windows runtime. Program tone from Example process tree; physical tablet microphone to native Windows capture endpoint and real Web audience. Energy/lifecycle evidence, not speech intelligibility or physical loudspeaker quality.",
+  "passed": true,
+  "full_tablet_acceptance": false,
+  "input_followup": {
+    "recorded_at": "2026-11-19T15:15:42Z",
+    "method": "Read-only GetForegroundWindow/GetWindowThreadProcessId and process identity; no input or window mutation",
+    "foreground_process": "LockApp",
+    "foreground_process_id": 12448,
+    "interactive_session_id": 1,
+    "interpretation": "Current host lock UI owns foreground; consistent with target focus admission rejection. Later observation does not prove the precise foreground owner at every earlier input attempt.",
+    "source_review": [
+      "third_party/sunshine/src/capture_target.cpp:15",
+      "third_party/sunshine/src/input.cpp:1153"
+    ]
+  },
+  "program": {
+    "method": "Four bounded 3-second 997 Hz Example tones on explicit project virtual output; Android ordinary decoded-audio statistics, not RTP packet count alone",
+    "samples": [
+      {
+        "observed_at": "2026-11-19T15:06:58.947Z",
+        "action": "diagnostics",
+        "value": {
+          "audio_channels": "2",
+          "audio_packets": "98",
+          "clock_rate": "48000",
+          "codec_name": "OPUS",
+          "concealed_samples": "0",
+          "playback": "playing",
+          "reason": "complete",
+          "root": "client",
+          "snapshot": "complete",
+          "sound": "on",
+          "statistics_available": "true",
+          "statistics_closed": "true",
+          "statistics_fresh": "true",
+          "toolbar_closed": "true",
+          "total_audio_energy": "0.012",
+          "total_samples_duration": "2.01",
+          "total_samples_received": "92160",
+          "video_frames": "66",
+          "video_packets": "339"
+        }
+      },
+      {
+        "observed_at": "2026-11-19T15:07:19.460Z",
+        "action": "diagnostics",
+        "value": {
+          "audio_channels": "2",
+          "audio_packets": "1100",
+          "clock_rate": "48000",
+          "codec_name": "OPUS",
+          "concealed_samples": "69498",
+          "playback": "playing",
+          "reason": "complete",
+          "root": "client",
+          "snapshot": "complete",
+          "sound": "on",
+          "statistics_available": "true",
+          "statistics_closed": "true",
+          "statistics_fresh": "true",
+          "toolbar_closed": "true",
+          "total_audio_energy": "0.0807",
+          "total_samples_duration": "22.23",
+          "total_samples_received": "1062720",
+          "video_frames": "657",
+          "video_packets": "2385"
+        }
+      }
+    ]
+  },
+  "microphone": {
+    "source": "Actual tablet RECORD_AUDIO capture; no synthetic microphone injection and no user speech requested",
+    "recording_endpoint": {
+      "baseline": {
+        "label": "baseline",
+        "started_at": "2026-11-19T15:08:27.580Z",
+        "capture_device": "wasapi:{0.0.1.00000000}.{670c5e77-1e23-4c96-8d93-3ef5289f249b}",
+        "pcm_saved": false,
+        "samples": [
+          {
+            "frames": 10080,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 20160,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 30240,
+            "peak": 0.00006103515625,
+            "rms": 0.000014592567497705865,
+            "dropped": 0
+          },
+          {
+            "frames": 40320,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 50400,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 60960,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 71040,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 81600,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 91680,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 101760,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 112320,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 121920,
+            "peak": 0.00006103515625,
+            "rms": 0.000014484133084480943,
+            "dropped": 0
+          },
+          {
+            "frames": 132000,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 141600,
+            "peak": 0.0000457763671875,
+            "rms": 0.000014861552260016867,
+            "dropped": 0
+          },
+          {
+            "frames": 152160,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 162240,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 171840,
+            "peak": 0.0000457763671875,
+            "rms": 0.000014653381643562759,
+            "dropped": 0
+          },
+          {
+            "frames": 182400,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 192480,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 203040,
+            "peak": 0.0000457763671875,
+            "rms": 0.000015416915452298662,
+            "dropped": 0
+          },
+          {
+            "frames": 213120,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 222720,
+            "peak": 0.0000457763671875,
+            "rms": 0.000015120408626500191,
+            "dropped": 0
+          },
+          {
+            "frames": 233280,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 243360,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 252960,
+            "peak": 0.0000457763671875,
+            "rms": 0.000015100791410609621,
+            "dropped": 0
+          },
+          {
+            "frames": 262560,
+            "peak": 0.00006103515625,
+            "rms": 0.000014436611917607597,
+            "dropped": 0
+          },
+          {
+            "frames": 273120,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 283200,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 292800,
+            "peak": 0.00006103515625,
+            "rms": 0.000014501797234862466,
+            "dropped": 0
+          }
+        ],
+        "final_status": {
+          "captured_frames": 292800,
+          "dropped_frames": 0,
+          "error": null,
+          "input_state": "idle",
+          "output_state": "idle",
+          "peak": 0,
+          "played_frames": 0,
+          "rms": 0,
+          "sample_rate": 48000,
+          "state": "idle"
+        },
+        "program_997": {
+          "analyzed_frames": 292800,
+          "frequency_hz": 997,
+          "mean_amplitude": 1.3300296215323407e-7,
+          "peak_amplitude": 2.158488429704917e-7,
+          "sample_rate": 48000,
+          "windows": 61
+        },
+        "max_peak": 0.00006103515625,
+        "max_rms": 0.000015416915452298662,
+        "capture_completed": true,
+        "clean_exit": true,
+        "finished_at": "2026-11-19T15:08:33.772Z"
+      },
+      "attempt_before_microphone_enabled": {
+        "label": "authorized",
+        "started_at": "2026-11-19T15:08:46.405Z",
+        "capture_device": "wasapi:{0.0.1.00000000}.{670c5e77-1e23-4c96-8d93-3ef5289f249b}",
+        "pcm_saved": false,
+        "samples": [
+          {
+            "frames": 10080,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 19680,
+            "peak": 0.00006103515625,
+            "rms": 0.00001464970312420178,
+            "dropped": 0
+          },
+          {
+            "frames": 29760,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 40320,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 50400,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 60960,
+            "peak": 0.0000457763671875,
+            "rms": 0.000014509228338211987,
+            "dropped": 0
+          },
+          {
+            "frames": 71040,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 81120,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 91680,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 101760,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 112320,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 122400,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 132480,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 143040,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 153120,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 163680,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 173280,
+            "peak": 0.00006103515625,
+            "rms": 0.00001460548862761505,
+            "dropped": 0
+          },
+          {
+            "frames": 183360,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 193920,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 203520,
+            "peak": 0.00006103515625,
+            "rms": 0.000014625770197052623,
+            "dropped": 0
+          },
+          {
+            "frames": 213600,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 224160,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 234240,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 243840,
+            "peak": 0.00006103515625,
+            "rms": 0.000014724929096694018,
+            "dropped": 0
+          },
+          {
+            "frames": 253440,
+            "peak": 0.00006103515625,
+            "rms": 0.000014581483130365644,
+            "dropped": 0
+          },
+          {
+            "frames": 264000,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 274080,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 283680,
+            "peak": 0.0000457763671875,
+            "rms": 0.000014590720687915806,
+            "dropped": 0
+          },
+          {
+            "frames": 293760,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          }
+        ],
+        "final_status": {
+          "captured_frames": 293760,
+          "dropped_frames": 0,
+          "error": null,
+          "input_state": "idle",
+          "output_state": "idle",
+          "peak": 0,
+          "played_frames": 0,
+          "rms": 0,
+          "sample_rate": 48000,
+          "state": "idle"
+        },
+        "program_997": {
+          "analyzed_frames": 292800,
+          "frequency_hz": 997,
+          "mean_amplitude": 3.000239881508595e-7,
+          "peak_amplitude": 5.095734105643189e-7,
+          "sample_rate": 48000,
+          "windows": 61
+        },
+        "max_peak": 0.00006103515625,
+        "max_rms": 0.000014724929096694018,
+        "capture_completed": true,
+        "clean_exit": true,
+        "finished_at": "2026-11-19T15:08:52.587Z"
+      },
+      "authorized": {
+        "label": "authorized-active",
+        "started_at": "2026-11-19T15:09:22.975Z",
+        "capture_device": "wasapi:{0.0.1.00000000}.{670c5e77-1e23-4c96-8d93-3ef5289f249b}",
+        "pcm_saved": false,
+        "samples": [
+          {
+            "frames": 9600,
+            "peak": 0.0254974365234375,
+            "rms": 0.004873600241650992,
+            "dropped": 0
+          },
+          {
+            "frames": 19680,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 30240,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 39840,
+            "peak": 0.0000762939453125,
+            "rms": 0.000014746873861622113,
+            "dropped": 0
+          },
+          {
+            "frames": 49920,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 60480,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 70560,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 80640,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 91200,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 101280,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 111840,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 121440,
+            "peak": 0.00067138671875,
+            "rms": 0.00013878649465424176,
+            "dropped": 0
+          },
+          {
+            "frames": 131520,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 141120,
+            "peak": 0.0161590576171875,
+            "rms": 0.004969436168407683,
+            "dropped": 0
+          },
+          {
+            "frames": 151200,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 161760,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 171360,
+            "peak": 0.00006103515625,
+            "rms": 0.000014865178355535025,
+            "dropped": 0
+          },
+          {
+            "frames": 181920,
+            "peak": 0.0009002685546875,
+            "rms": 0.00045280954668346925,
+            "dropped": 0
+          },
+          {
+            "frames": 192000,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 202080,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 212640,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 222240,
+            "peak": 0.0101165771484375,
+            "rms": 0.003505034696109266,
+            "dropped": 0
+          },
+          {
+            "frames": 232320,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 241920,
+            "peak": 0.0069122314453125,
+            "rms": 0.0016211537353398096,
+            "dropped": 0
+          },
+          {
+            "frames": 252480,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 262080,
+            "peak": 0.006317138671875,
+            "rms": 0.0019821596716063953,
+            "dropped": 0
+          },
+          {
+            "frames": 272160,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 282720,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 292320,
+            "peak": 0.00433349609375,
+            "rms": 0.0004842878497686014,
+            "dropped": 0
+          }
+        ],
+        "final_status": {
+          "captured_frames": 292320,
+          "dropped_frames": 0,
+          "error": null,
+          "input_state": "idle",
+          "output_state": "idle",
+          "peak": 0,
+          "played_frames": 0,
+          "rms": 0,
+          "sample_rate": 48000,
+          "state": "idle"
+        },
+        "program_997": {
+          "analyzed_frames": 288000,
+          "frequency_hz": 997,
+          "mean_amplitude": 0.00010409876915526516,
+          "peak_amplitude": 0.0020788865459046954,
+          "sample_rate": 48000,
+          "windows": 60
+        },
+        "max_peak": 0.0254974365234375,
+        "max_rms": 0.004969436168407683,
+        "capture_completed": true,
+        "clean_exit": true,
+        "finished_at": "2026-11-19T15:09:29.137Z"
+      },
+      "revoked": {
+        "label": "revoked",
+        "started_at": "2026-11-19T15:09:44.171Z",
+        "capture_device": "wasapi:{0.0.1.00000000}.{670c5e77-1e23-4c96-8d93-3ef5289f249b}",
+        "pcm_saved": false,
+        "samples": [
+          {
+            "frames": 10080,
+            "peak": 0.0000457763671875,
+            "rms": 0.000015306398504439454,
+            "dropped": 0
+          },
+          {
+            "frames": 19680,
+            "peak": 0.0000457763671875,
+            "rms": 0.000014774258980588596,
+            "dropped": 0
+          },
+          {
+            "frames": 29760,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 40320,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 50400,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 60960,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 71040,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 80640,
+            "peak": 0.0000457763671875,
+            "rms": 0.000014794309183976889,
+            "dropped": 0
+          },
+          {
+            "frames": 91200,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 100800,
+            "peak": 0.0000457763671875,
+            "rms": 0.000014627428353647379,
+            "dropped": 0
+          },
+          {
+            "frames": 110400,
+            "peak": 0.0000457763671875,
+            "rms": 0.000014779182913063443,
+            "dropped": 0
+          },
+          {
+            "frames": 120480,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 131040,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 141120,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 150720,
+            "peak": 0.0000457763671875,
+            "rms": 0.00001470844903658168,
+            "dropped": 0
+          },
+          {
+            "frames": 160800,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 171360,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 181920,
+            "peak": 0.0000457763671875,
+            "rms": 0.00001557343637328579,
+            "dropped": 0
+          },
+          {
+            "frames": 192000,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 202080,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 211680,
+            "peak": 0.0000457763671875,
+            "rms": 0.000014627612581666224,
+            "dropped": 0
+          },
+          {
+            "frames": 221280,
+            "peak": 0.0000457763671875,
+            "rms": 0.000014759659906884185,
+            "dropped": 0
+          },
+          {
+            "frames": 231840,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 241440,
+            "peak": 0.0000457763671875,
+            "rms": 0.00001473480828539121,
+            "dropped": 0
+          },
+          {
+            "frames": 251520,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 261600,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 272160,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 282240,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          },
+          {
+            "frames": 292800,
+            "peak": 0,
+            "rms": 0,
+            "dropped": 0
+          }
+        ],
+        "final_status": {
+          "captured_frames": 292800,
+          "dropped_frames": 0,
+          "error": null,
+          "input_state": "idle",
+          "output_state": "idle",
+          "peak": 0,
+          "played_frames": 0,
+          "rms": 0,
+          "sample_rate": 48000,
+          "state": "idle"
+        },
+        "program_997": {
+          "analyzed_frames": 292800,
+          "frequency_hz": 997,
+          "mean_amplitude": 2.4837936437569556e-7,
+          "peak_amplitude": 3.138836720756788e-7,
+          "sample_rate": 48000,
+          "windows": 61
+        },
+        "max_peak": 0.0000457763671875,
+        "max_rms": 0.00001557343637328579,
+        "capture_completed": true,
+        "clean_exit": true,
+        "finished_at": "2026-11-19T15:09:50.335Z"
+      }
+    },
+    "web_audience": {
+      "baseline": {
+        "observed_at": "2026-11-19T15:11:13.428Z",
+        "track_state": "live",
+        "context_state": "running",
+        "pcm_saved": false,
+        "samples": [
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          }
+        ],
+        "max_rms": 0,
+        "max_peak": 0,
+        "player": [
+          {
+            "muted": false,
+            "paused": false
+          }
+        ]
+      },
+      "attempt_before_microphone_enabled": {
+        "observed_at": "2026-11-19T15:11:38.395Z",
+        "track_state": "live",
+        "context_state": "running",
+        "pcm_saved": false,
+        "samples": [
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          }
+        ],
+        "max_rms": 0,
+        "max_peak": 0,
+        "player": [
+          {
+            "muted": false,
+            "paused": false
+          }
+        ]
+      },
+      "authorized": {
+        "observed_at": "2026-11-19T15:12:32.500Z",
+        "track_state": "live",
+        "context_state": "running",
+        "pcm_saved": false,
+        "samples": [
+          {
+            "rms": 0.00022936544481774027,
+            "peak": 0.0010008863173425198
+          },
+          {
+            "rms": 0.0007085972810252969,
+            "peak": 0.001829477259889245
+          },
+          {
+            "rms": 0.0030419381755105008,
+            "peak": 0.00854327529668808
+          },
+          {
+            "rms": 0.005549383142462874,
+            "peak": 0.014442218467593193
+          },
+          {
+            "rms": 0.004140682485824511,
+            "peak": 0.011024357751011848
+          },
+          {
+            "rms": 0.004213412223712329,
+            "peak": 0.01245158165693283
+          },
+          {
+            "rms": 0.008472815127674758,
+            "peak": 0.022300109267234802
+          },
+          {
+            "rms": 0.008097031787016188,
+            "peak": 0.026042956858873367
+          },
+          {
+            "rms": 0.00003199207158434352,
+            "peak": 0.00012830835476052016
+          },
+          {
+            "rms": 0.0000028920238325515244,
+            "peak": 0.000034653901821002364
+          },
+          {
+            "rms": 0.0005343375960263513,
+            "peak": 0.005167767405509949
+          },
+          {
+            "rms": 0.011647534216980487,
+            "peak": 0.036899350583553314
+          },
+          {
+            "rms": 0.0003106226221340706,
+            "peak": 0.0009725398849695921
+          },
+          {
+            "rms": 0.000009234372652389752,
+            "peak": 0.00006501085590571165
+          },
+          {
+            "rms": 0.0016586142196644991,
+            "peak": 0.0054004075936973095
+          },
+          {
+            "rms": 0.0435231233377858,
+            "peak": 0.12024211138486862
+          },
+          {
+            "rms": 0.0050539324256347,
+            "peak": 0.012539904564619064
+          },
+          {
+            "rms": 0.0001881242476427626,
+            "peak": 0.0007434675353579223
+          },
+          {
+            "rms": 0.0008633534322586476,
+            "peak": 0.002140691038221121
+          },
+          {
+            "rms": 0.002434207969418153,
+            "peak": 0.010129973292350769
+          },
+          {
+            "rms": 0.005354381884473666,
+            "peak": 0.010860620066523552
+          },
+          {
+            "rms": 0.000020542198637754812,
+            "peak": 0.00006844715971965343
+          },
+          {
+            "rms": 0.0016304773208604484,
+            "peak": 0.0061981831677258015
+          },
+          {
+            "rms": 0.0030026689502451716,
+            "peak": 0.0075095221400260925
+          },
+          {
+            "rms": 0.0028950264439494386,
+            "peak": 0.011514673009514809
+          },
+          {
+            "rms": 0.000007253250689668809,
+            "peak": 0.000065654530772008
+          },
+          {
+            "rms": 0.00010432551467754051,
+            "peak": 0.000632566399872303
+          },
+          {
+            "rms": 0.0001911656930575562,
+            "peak": 0.0009822065476328135
+          },
+          {
+            "rms": 0.02126793330128613,
+            "peak": 0.06593838334083557
+          },
+          {
+            "rms": 0.0057171062439531585,
+            "peak": 0.01040258351713419
+          }
+        ],
+        "max_rms": 0.0435231233377858,
+        "max_peak": 0.12024211138486862,
+        "player": [
+          {
+            "muted": false,
+            "paused": false
+          }
+        ]
+      },
+      "revoked": {
+        "observed_at": "2026-11-19T15:12:41.698Z",
+        "track_state": "live",
+        "context_state": "running",
+        "pcm_saved": false,
+        "samples": [
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          },
+          {
+            "rms": 0,
+            "peak": 0
+          }
+        ],
+        "max_rms": 0,
+        "max_peak": 0,
+        "player": [
+          {
+            "muted": false,
+            "paused": false
+          }
+        ]
+      }
+    },
+    "receiver_state": {
+      "observed_at": "2026-11-19T15:12:33.766Z",
+      "web_audio": [
+        {
+          "packets": 16286,
+          "bytes": 461685,
+          "energy": 0.01528291881651121,
+          "duration": 324.6699999998497,
+          "samples": 15584160,
+          "concealed": 720
+        }
+      ],
+      "session_id": "b90a580b-014d-4023-87bd-e201e82b9ef2",
+      "target": {
+        "epoch": 27,
+        "state": "device_open",
+        "device": {
+          "device_open": true,
+          "device_sample_frames": 13696416,
+          "dropped_frames": 9,
+          "xruns": 0,
+          "realtime_denied": false,
+          "error": null
+        },
+        "error": null
+      },
+      "clients": [
+        {
+          "type": "web",
+          "role": "viewer",
+          "microphone": false,
+          "microphone_live": false
+        },
+        {
+          "type": "android",
+          "role": "controller",
+          "microphone": true,
+          "microphone_live": true
+        }
+      ]
+    },
+    "measurements_are_separate_windows_in_same_shared_session": true,
+    "pcm_saved": false,
+    "system_recording_stopped_after_revocation": true
+  },
+  "setup": {
+    "management": "Playwright CLI actual app-args editor and session audio-target form; selected existing project-owned virtual output/input pair",
+    "no_driver_install": true,
+    "no_vb_cable_dependency": true,
+    "no_host_default_device_changes": true,
+    "original_args": "",
+    "temporary_args": "Explicit project WASAPI output and --tone-count=4",
+    "original_session_route": "upstream",
+    "temporary_session_route": "local"
+  },
+  "limitations": [
+    "Physical keyboard/mouse target validation remains incomplete because owned Example could not acquire Windows foreground focus. Focus checks correctly reject application input when another window owns focus; no bypass applied.",
+    "No current host primary-IP migration or new-runtime whole-machine reboot proof. No physical acoustic quality, speech recognition, or permission-denial assertion.",
+    "Initial Web audience was muted by ordinary autoplay policy. A real viewer click unmuted and resumed the unchanged player before the successful audience measurement. Initial zero-energy samples were not counted as audio success.",
+    "Several accessibility clicks returned false and microphone stayed disabled; those target/audience windows are retained as attempts_before_microphone_enabled. Later ordinary tap on the visible microphone control was confirmed by AppOps and server microphone_live before measuring.",
+    "Gateway output reported 9 dropped frames over 13696416 device sample frames and 0 xruns at the final active sample. Native target capture had 0 dropped frames. Do not claim the complete transport was lossless.",
+    "Android program sample contained 69498 concealed samples by 22.23 seconds, and Web final counter contained 720 concealed samples. This run does not prove sustained acoustic quality or glitch-free playback.",
+    "The initial native meter helper used an incorrect relative import and failed before opening any device; corrected before measurement. Product runtime was not rebuilt."
+  ],
+  "cleanup": {
+    "args_restored": true,
+    "example_status": "ready",
+    "editable": true,
+    "session_stopped": true,
+    "route_restored": "upstream",
+    "active_sessions": 0,
+    "media_observations": 0,
+    "bookmark_sha256_before_and_after": "973fe3297f2c5ffeb94d3cb4fdb5fb224e2c767e5e4719082d5e030fec4c0af0",
+    "bookmark_restored": true,
+    "helpers_uninstalled": true,
+    "recording_active": false,
+    "test_browsers_closed": true
+  },
+  "observations": [
+    {
+      "observed_at": "2026-11-19T15:06:57.095Z",
+      "action": "role",
+      "value": {
+        "role": "viewer",
+        "root": "client",
+        "snapshot": "complete",
+        "state": "unknown",
+        "toolbar_closed": "true",
+        "toolbar_opened": "false",
+        "window": "0,0,1200,2000"
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:06:58.947Z",
+      "action": "diagnostics",
+      "value": {
+        "audio_channels": "2",
+        "audio_packets": "98",
+        "clock_rate": "48000",
+        "codec_name": "OPUS",
+        "concealed_samples": "0",
+        "playback": "playing",
+        "reason": "complete",
+        "root": "client",
+        "snapshot": "complete",
+        "sound": "on",
+        "statistics_available": "true",
+        "statistics_closed": "true",
+        "statistics_fresh": "true",
+        "toolbar_closed": "true",
+        "total_audio_energy": "0.012",
+        "total_samples_duration": "2.01",
+        "total_samples_received": "92160",
+        "video_frames": "66",
+        "video_packets": "339"
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:07:19.460Z",
+      "action": "diagnostics",
+      "value": {
+        "audio_channels": "2",
+        "audio_packets": "1100",
+        "clock_rate": "48000",
+        "codec_name": "OPUS",
+        "concealed_samples": "69498",
+        "playback": "playing",
+        "reason": "complete",
+        "root": "client",
+        "snapshot": "complete",
+        "sound": "on",
+        "statistics_available": "true",
+        "statistics_closed": "true",
+        "statistics_fresh": "true",
+        "toolbar_closed": "true",
+        "total_audio_energy": "0.0807",
+        "total_samples_duration": "22.23",
+        "total_samples_received": "1062720",
+        "video_frames": "657",
+        "video_packets": "2385"
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:08:36.575Z",
+      "action": "role",
+      "value": {
+        "role": "controller",
+        "root": "client",
+        "snapshot": "complete",
+        "state": "unknown",
+        "toolbar_closed": "true",
+        "toolbar_opened": "true",
+        "window": "0,0,1200,2000"
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:08:46.361Z",
+      "action": "appops",
+      "value": {
+        "running": false,
+        "allowed": true,
+        "foreground": true
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:09:03.066Z",
+      "action": "screenshot",
+      "value": {
+        "file": "pad-audio-controller.png"
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:09:14.392Z",
+      "action": "appops",
+      "value": {
+        "running": true,
+        "allowed": true,
+        "foreground": true
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:09:35.539Z",
+      "action": "role",
+      "value": {
+        "role": "viewer",
+        "root": "client",
+        "snapshot": "complete",
+        "state": "unknown",
+        "toolbar_closed": "true",
+        "toolbar_opened": "false",
+        "window": "0,0,1200,2000"
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:09:35.640Z",
+      "action": "appops",
+      "value": {
+        "running": false,
+        "allowed": true,
+        "foreground": true
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:11:16.492Z",
+      "action": "role",
+      "value": {
+        "role": "controller",
+        "root": "client",
+        "snapshot": "complete",
+        "state": "unknown",
+        "toolbar_closed": "true",
+        "toolbar_opened": "true",
+        "window": "0,0,1200,2000"
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:11:17.122Z",
+      "action": "screenshot",
+      "value": {
+        "file": "pad-mic-ready.png"
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:11:35.065Z",
+      "action": "appops",
+      "value": {
+        "running": false,
+        "allowed": true,
+        "foreground": true
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:11:52.537Z",
+      "action": "screenshot",
+      "value": {
+        "file": "pad-audio-state.png"
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:12:08.198Z",
+      "action": "screenshot",
+      "value": {
+        "file": "pad-mic-granted.png"
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:12:17.180Z",
+      "action": "appops",
+      "value": {
+        "running": true,
+        "allowed": true,
+        "foreground": true
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:12:38.353Z",
+      "action": "role",
+      "value": {
+        "role": "viewer",
+        "root": "client",
+        "snapshot": "complete",
+        "state": "unknown",
+        "toolbar_closed": "true",
+        "toolbar_opened": "false",
+        "window": "0,0,1200,2000"
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:12:38.446Z",
+      "action": "appops",
+      "value": {
+        "running": false,
+        "allowed": true,
+        "foreground": true
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:13:25.929Z",
+      "action": "resume",
+      "value": {
+        "submitted": true
+      }
+    },
+    {
+      "observed_at": "2026-11-19T15:13:26.023Z",
+      "action": "appops",
+      "value": {
+        "running": false,
+        "allowed": true,
+        "foreground": true
+      }
+    }
+  ],
+  "tool_sources": [
+    {
+      "name": "pad-target-meter.cjs",
+      "sha256": "ddbaeadd852112b48dfee6a45fa50da082cf5c8cb77fe49673402bf90736cad2"
+    },
+    {
+      "name": "pad-audience-meter.js",
+      "sha256": "5e4f03f6d2814e56fb5b58301b6d1e801219f07bfa6333cf634b4d60910a39e9"
+    },
+    {
+      "name": "pad-web-audio.js",
+      "sha256": "ca53a1b542803c65c409f32e0930e0f425a7ac1b9f36001057c7768605e5841a"
+    }
+  ]
+}
