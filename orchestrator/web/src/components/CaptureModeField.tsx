@@ -9,16 +9,16 @@ export default function CaptureModeField({value,onChange,disabled=false}:{value:
   const { t } = useManagementLocale()
   const [supported,setSupported]=useState(false)
   const [loading,setLoading]=useState(true)
-  const [error,setError]=useState('')
+  const [failed,setFailed]=useState(false)
   useEffect(()=>{
     let active=true
     api.captureCapabilities().then(({data})=>{
-      if(active) setSupported(data?.schema_version===1 && data.capture_modes.includes('application'))
-    }).catch((e:unknown)=>{
-      if(active) setError(e instanceof Error?e.message:t('captureMode.capabilityError'))
+      if(active) setSupported(data?.schema_version===1 && Array.isArray(data.capture_modes) && data.capture_modes.includes('application'))
+    }).catch(()=>{
+      if(active) setFailed(true)
     }).finally(()=>{if(active) setLoading(false)})
     return ()=>{active=false}
-  },[t])
+  },[])
   return <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-4">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <Label htmlFor="capture-mode" className="mb-0">{t('captureMode.label')}</Label>
@@ -32,6 +32,6 @@ export default function CaptureModeField({value,onChange,disabled=false}:{value:
       {value==='application'?t('captureMode.applicationHelp'):t('captureMode.desktopHelp')}
       {' '}{t('captureMode.stopBeforeChange')}
     </p>
-    {(loading||error||!supported)&&<p className="text-xs text-muted-foreground" role="status">{loading?t('captureMode.checking'):error||t('captureMode.unsupported')}</p>}
+    {(loading||failed||!supported)&&<p className="text-xs text-muted-foreground" role="status">{t(loading?'captureMode.checking':failed?'captureMode.capabilityError':'captureMode.unsupported')}</p>}
   </div>
 }
