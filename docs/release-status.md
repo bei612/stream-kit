@@ -4,7 +4,9 @@
 
 本期 `0.1.1` 候选冻结源码为 `53c7385ac58d39408a3aaffef33d6a95ea06a737`。该源码包含归档上传空闲超时、直接落盘、媒体网关和解压依赖更新，以及 Go 1.27.4 工具链与 quic-go 补丁。Windows 11 原生 Go 定向测试通过，管理服务符号级扫描未发现已知漏洞。候选产物来自 [Windows 单安装器构建](https://github.com/bei612/stream-kit/actions/runs/45798220979)及 [Android 签名构建](https://github.com/bei612/stream-kit/actions/runs/45798220812)，Android versionCode 为 1000021。详见[工具链与依赖复核](evidence/windows11-runtime-dependency-review-53c7385a.json)。
 
-初始候选 `1fa79664` 的 Windows 11 隔离管理页已通过 ZIP、7z 和本机路径登记。本机服务端仍为 `954a1e6e`。实体平板已更新至签名候选 `53c7385a`，versionCode 1000021，原书签和服务器地址均已保留。新候选需完成 Windows 11 新安装、同源媒体与控制、真实 LAN 换址及发行验收。见[初始候选验收](evidence/windows11-android-candidate-1fa79664.json)、[签名候选平板覆盖安装](evidence/windows11-android-tablet-upgrade-53c7385a.json)。
+本机 Windows 三个运行组件及实体平板已更新至候选 `53c7385a`，保持原应用、CA、配置与平板书签。单安装器、静默安装、服务自动恢复和卸载已经在 Windows Server 2022 CI 通过。实装 Win11 与平板、Web 的共享画面、程序音、控制权交接及平板麦克风至目标录音端点和 Web 观众均已验证。当前仍需独立 Win11 首装与实际回退、现场 LAN 换址、完整输入撤权验收和依赖剩余项处理。见[同源实装与联验](evidence/windows11-android-joint-53c7385a.json)、[安装器验收](https://github.com/bei612/stream-kit/actions/runs/45806470686)。
+
+初始候选 `1fa79664` 的 Windows 11 隔离管理页已通过 ZIP、7z 和本机路径登记；最终安装候选的管理子包已在 Win11 隔离页面复核 7z。签名覆盖升级和书签校验保留各自实测版本。见[初始候选验收](evidence/windows11-android-candidate-1fa79664.json)、[签名候选平板覆盖安装](evidence/windows11-android-tablet-upgrade-53c7385a.json)。
 
 候选冻结后，源码 `e55bd5ec` 修正应用详情的固定观看链接和采集能力状态中英文混用。Windows 隔离页面验收已覆盖两种语言与链接启用、重置、关闭。该页面修复待随下一个完整同源安装包部署。见[应用详情语言核验](evidence/app-detail-localization-e55bd5ec.json)。
 
@@ -12,7 +14,7 @@
 
 源码 `954a1e6e` 新增共用概念气泡的视口避让和生命周期修复：原安装版手机宽度 390px 时隐藏气泡撑至 639px，已在实际安装页面复现。新同源产物现已完整安装；Playwright CLI 对实际安装页面的 8 路由 × 3 宽度及中英文气泡检查通过，四张截图已目视复核。键盘、触屏、配置冲突和组件启停另有同源 CI 证据。详见[已安装验收](evidence/runtime-installed-954a1e6e-20261120.json)和[修复审查](evidence/management-tooltip-review-20261119.json)。运行依赖审查发现一个 React Router 告警包；[逐公告适用性核查](evidence/management-dependency-review-20261119.json)未发现当前调用方式暴露所列攻击路径，包仍未升级，不声明扫描清零。
 
-本机 Windows 三个运行组件及其前端现已统一为 `954a1e6e73ef95231e78c9d77d77d932749aa043`，完整原生库存校验通过；管理端资源为 `index-DkDzwuSd.js` / `index-BQYlHHxO.css`。服务为 Auto / LocalSystem / Running，两个子组件均 running、崩溃计数 0；本次维护保留配置、CA、私钥、叶证书及应用身份，实际 LAN 与 loopback 管理入口可信 HTTPS 通过。见[本机最新维护与页面验收](evidence/runtime-installed-954a1e6e-20261120.json)。Example 出画面、跨端控制及音频等未受此次显示层修复影响的证据保留 `1d81a373` 来源，不冒称重新执行。
+历史 Win11 维护 `954a1e6e73ef95231e78c9d77d77d932749aa043` 保留本轮回退副本，三组件库存已验证。该版本的管理端资源为 `index-DkDzwuSd.js` / `index-BQYlHHxO.css`。当时服务为 Auto / LocalSystem / Running，两个子组件均 running、崩溃计数 0，原配置、信任和应用身份保留。见[954a1e6e 安装与页面验收](evidence/runtime-installed-954a1e6e-20261120.json)。
 
 已公开的最新预发布运行源码冻结为 `954a1e6e73ef95231e78c9d77d77d932749aa043`，沿用局域网地址自动识别、双入口证书热更新及 OpenSSL 4.1 兼容，并修复概念气泡布局。[v0.1.0-preview.20261119.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.3) 已公开 Windows/Linux 安装器、Android APK 及配套材料。首次部署该预发布时，本机三组件与平板同源。14 个附件的字节数和 GitHub 存储摘要已与已验证产物核对，其中 Windows 安装器及六份材料完成匿名全量下载。其余大文件复用先前构建附件校验。详见[发布证据](evidence/release-preview-20261119.3.json)。历史维护失败、回滚和重启要求分别保留原始记录。
 
@@ -24,9 +26,9 @@
 | --- | --- | --- |
 | 公开 Windows / Ubuntu 24.04 amd64 服务端 | [v0.1.0](https://github.com/bei612/stream-kit/releases/tag/v0.1.0)，`f8ede8b2e933fb597e97dec999cceae9a3e614e1` | 11 月 15 日正式版，每平台一个安装器；不含本次自动换址功能 |
 | 公开签名 Android | [v0.1.0 同一 Release](https://github.com/bei612/stream-kit/releases/tag/v0.1.0)，同源 `f8ede8b2`，versionCode 1000015 | 已公开 APK、来源、校验和、依赖许可证和 SBOM，沿用持久发行签名 |
-| 本机运行组件及前端 | `954a1e6e73ef95231e78c9d77d77d932749aa043` | 三组件完整维护、库存校验与实际管理页面检查通过，保留原安装器/卸载器和签名驱动；本次未重跑媒体 |
+| 本机运行组件及前端 | `53c7385ac58d39408a3aaffef33d6a95ea06a737` | 三组件及管理前端完整维护，保留原安装器、卸载器和签名驱动。库存、共享流、程序音及平板麦克风通过 [现场验收](evidence/windows11-android-joint-53c7385a.json) |
 | 最新公开预发布服务端 / Android | [v0.1.0-preview.20261119.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.3)，`954a1e6e` | Windows / Ubuntu 24.04 amd64 单文件安装器及持久签名 APK 已发布，14 个附件校验通过；尚未替代正式 0.1.0 |
-| 本机平板 Android | 0.1.1 候选 / versionCode 1000021，`53c7385a` | [签名、覆盖安装、书签恢复和实际入口](evidence/windows11-android-tablet-upgrade-53c7385a.json)通过，同源媒体待验。上一版输入与控制交接保留[954a1e6e 原始实测](evidence/android-input-tablet-954a1e6e-20261126.json) |
+| 本机平板 Android | 0.1.1 候选 / versionCode 1000021，`53c7385a` | [签名与覆盖安装](evidence/windows11-android-tablet-upgrade-53c7385a.json)及[同源视频、程序音、按键和麦克风联验](evidence/windows11-android-joint-53c7385a.json)通过。上一版完整输入证据见[954a1e6e 原始实测](evidence/android-input-tablet-954a1e6e-20261126.json) |
 | 上一版实体平板媒体验收 | 0.1.0-preview.20261119.2 / versionCode 1000017，`1d81a373` | [真机会话验收](evidence/android-tablet-1d81a373-20261119.json)及[真机音频补验](evidence/android-tablet-audio-1d81a373-20261119.json)：实际视频、共享会话/控制、录音生命周期、程序音接收、物理麦克风至服务器端点和 Web 观众及撤权静音通过；目标键鼠输入仍未通过，不称真机全部通过；未重复未受影响的媒体验收 |
 | 历史同源 Android 联合实测 | 0.1.0 / versionCode 1000015，`f8ede8b2` | [构建来源](https://github.com/bei612/stream-kit/actions/runs/43609422069)，专用模拟器实际图像、程序音、麦克风及撤权通过；不冒称新 APK 的媒体复验 |
 

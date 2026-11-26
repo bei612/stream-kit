@@ -31,7 +31,10 @@
     "advisory": "https://rustsec.org/advisories/RUSTSEC-2026-0258.html",
     "finding": "Actix HTTP still selects h2 0.3.27. The RustSec fix is published for h2 0.4.16.",
     "upstream_change": "https://github.com/hyperium/h2/commit/193833e87c639e39751f339a9c375a44c8bfab54",
-    "applicability": "The LAN media gateway uses Actix HTTPS. The upstream change is not a clean backport to the 0.3 branch, so the deployed dependency remains in scope for disposition."
+    "actix_tracking": "https://github.com/actix/actix-web/issues/4199",
+    "legacy_backport_proposal": "https://github.com/hyperium/h2/pull/948",
+    "actix_native_backend_draft": "https://github.com/actix/actix-web/pull/4321",
+    "applicability": "The LAN media gateway uses Actix HTTPS. The fixed h2 series changes HTTP types, and the released Actix dependency still uses 0.3. The Actix native backend migration is in draft. When a supported migration is available, verify the Windows runtime dependency tree and retest HTTPS, WebSocket, media and shutdown on that artifact."
   },
   "additional_windows_gateway_review": [
     {

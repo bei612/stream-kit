@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-11-26T11:26:33Z",
+  "source_commit": "53c7385ac58d39408a3aaffef33d6a95ea06a737",
+  "passed": true,
+  "scope": "Exact Windows 11 installed runtime, signed physical Android tablet and real Playwright CLI viewer. Verified shared video, control handoff, Android keyboard, program audio and microphone routing.",
+  "installer": {
+    "sha256": "e494411f8063057e4db5cb4767770f1852472a9886439043462f113ef1bd7676",
+    "bytes": 98077520,
+    "build_run": 45798220979,
+    "acceptance_run": 45806470686,
+    "acceptance_environment": "GitHub hosted Windows Server 2022",
+    "silent_install_exit": 0,
+    "scm_restarted": true,
+    "gateway_recovered": true,
+    "uninstall_exit": 0,
+    "data_preserved": true
+  },
+  "win11_maintenance": {
+    "os_build": "10.0.26200",
+    "previous_commit": "954a1e6e73ef95231e78c9d77d77d932749aa043",
+    "service": "StreamKitOrchestrator",
+    "state": "Running",
+    "startup": "Auto",
+    "runtime_components_verified": 3,
+    "rollback_copy_verified": true,
+    "rollback_performed": false,
+    "configuration_and_trust_preserved": true,
+    "host_restarted": false,
+    "network_changed": false
+  },
+  "android": {
+    "device": "ERAZER M10 4G",
+    "version_code": 1000021,
+    "signed_apk_sha256": "393c928d12c20db4220d76b7908705e112d2e04c9c462694efaa801abe102a6f",
+    "bookmark_ciphertext_sha256": "973fe3297f2c5ffeb94d3cb4fdb5fb224e2c767e5e4719082d5e030fec4c0af0",
+    "bookmark_restored": true,
+    "auxiliary_tools_removed": true
+  },
+  "shared_example": {
+    "session_id": "57d894d2-03f9-49ea-be39-1911b7d453b2",
+    "origin": "https://192.168.0.119:9000",
+    "tls_verification_enabled": true,
+    "subscribers": 2,
+    "web_video_frames_first_sample": 21,
+    "android_video_frames_sample": 324,
+    "management_control_transfer": "Web to Android and back to Web",
+    "android_keyboard_target_count_before": 0,
+    "android_keyboard_target_count_after": 1
+  },
+  "program_audio": {
+    "source": "Bounded 997 Hz signal from the Example process, with only the project WASAPI output selected",
+    "web_997_hz_amplitude": 0.07987350655809283,
+    "web_peak_window_rms": 0.05690766117698996,
+    "android_total_audio_energy": 0.0107,
+    "android_decoded_audio_samples": 83520,
+    "android_codec": "OPUS",
+    "separate_bounded_runs_with_both_clients": "Video shared a single upstream. Program audio was measured on each client in separate bounded playback runs."
+  },
+  "microphone": {
+    "source": "Actual physical tablet microphone, short ambient sample measured in memory",
+    "native_target_rms_baseline": 0.000010539431653392589,
+    "native_target_rms_authorized": 0.02193557256311363,
+    "native_target_rms_revoked": 0.000015045906239548804,
+    "native_target_samples_authorized": 288480,
+    "native_target_dropped_frames": 0,
+    "physical_capture_stopped_on_transfer": true,
+    "web_audience_rms_while_live": 0.018756162017790314,
+    "web_audience_rms_after_stop": 0,
+    "pcm_saved": false
+  },
+  "screenshots": [
+    {"file":"windows11-android-joint-53c7385a-pad-joint-key-before.png","sha256":"fbc3a4bfdb0a757527dc10bb8d3bebdfc0e74defd3ef69d6e46d0a28c2000135"},
+    {"file":"windows11-android-joint-53c7385a-pad-joint-key-after.png","sha256":"8d9c1eaf540707f440530b827e87983c7febc29e137af31186e80bd0985219b4"},
+    {"file":"windows11-android-joint-53c7385a-joint-management.png","sha256":"732175bee8dc677a66d927d593bc10c554972ed036132b9cbff163ff1305ae8b"},
+    {"file":"windows11-android-joint-53c7385a-pad-joint-microphone.png","sha256":"1a303941ee765ceba1e1cdc0f86e86481cccb27b6d7dcd4c65ee04dec5c12c68"},
+    {"file":"windows11-android-joint-53c7385a-program-audio.png","sha256":"1d08a8b9a884a7ad8af4a26047069c90456eb1068e9bd8212014b42c5ef17c37"}
+  ],
+  "cleanup": {"example_stopped":true,"original_args_restored":true,"original_audio_route":"upstream","active_sessions":0,"active_media":0,"owned_browser_closed":true},
+  "open_items": [
+    "Actual isolated Windows 11 clean installation, rollback operation and physical LAN migration remain unverified.",
+    "Win11 foreground ownership prevented subsequent target Web pointer and revocation tests after the desktop locked. The earlier tablet key test explicitly verified the Example foreground owner.",
+    "Exact-payload CI run 45809998961 logged positive native Web key and pointer delivery. Its revocation check was inconclusive because the expected fresh input frames were absent. It remains a failed run.",
+    "The first Web audio observation occurred before normal playback activation. The zero-energy observation is not counted as success. After a viewer click, the active microphone had measurable decoded audio and silence was restored when capture stopped.",
+    "A local audio route automation waiter expected PUT although the supported API uses PATCH. The later authoritative session state confirmed the real UI update. The microphone measurements followed that confirmation.",
+    "Stale reconnect and host-lock attempts were kept out of successful observations. The bounded successful audio tests used ADB only on the owned application, without unlocking the host or retaining audio samples."
+  ]
+}
