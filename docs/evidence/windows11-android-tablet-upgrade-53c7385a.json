@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "source_commit": "53c7385ac58d39408a3aaffef33d6a95ea06a737",
+  "observed_at": "2026-11-26T10:14:36.580Z",
+  "passed": true,
+  "scope": "Android signed APK verification and physical tablet in-place upgrade",
+  "build": {
+    "run_id": 45798220812,
+    "official_emulator_native_smoke": "passed",
+    "application_id": "io.github.bei612.streamkit",
+    "version": "0.1.1",
+    "version_code": 1000021,
+    "apk_sha256": "393c928d12c20db4220d76b7908705e112d2e04c9c462694efaa801abe102a6f",
+    "signing_certificate_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f",
+    "verified_signature_schemes": ["v2", "v3"],
+    "verified_inventory_entries": 21
+  },
+  "physical_upgrade": {
+    "device": "ERAZER M10 4G",
+    "transport": "ADB over the paired local network",
+    "previous_version_code": 1000019,
+    "installed_version_code": 1000021,
+    "original_bookmark_ciphertext_sha256": "973fe3297f2c5ffeb94d3cb4fdb5fb224e2c767e5e4719082d5e030fec4c0af0",
+    "restored_bookmark_ciphertext_sha256": "973fe3297f2c5ffeb94d3cb4fdb5fb224e2c767e5e4719082d5e030fec4c0af0",
+    "temporary_bookmark_guard_removed": true,
+    "entry_and_saved_origin_visually_verified": true
+  },
+  "screenshot": {
+    "file": "windows11-android-candidate-53c7385a-tablet-entry.png",
+    "sha256": "828d00c26d931306b44ba0553cd95429e139098091301d9e917c656de2e879e8",
+    "width": 1200,
+    "height": 2000
+  },
+  "scope_limit": "This evidence covers signature, emulator startup and tablet installation. At observation, the Windows server remained on 954a1e6e. Matched-source media, control and microphone acceptance remains open."
+}

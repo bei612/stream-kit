@@ -17,6 +17,7 @@
       "command": "go run golang.org/x/vuln/cmd/govulncheck@v1.10.0 -scan=symbol ./cmd/orchestrator",
       "result": "No vulnerabilities found."
     },
+    "remaining_windows_go_packages": "All remaining Go test packages passed with the locked toolchain and vendored dependencies.",
     "windows_test_packages_passed": [
       "./internal/server",
       "./internal/server/handlers",
@@ -32,6 +33,18 @@
     "upstream_change": "https://github.com/hyperium/h2/commit/193833e87c639e39751f339a9c375a44c8bfab54",
     "applicability": "The LAN media gateway uses Actix HTTPS. The upstream change is not a clean backport to the 0.3 branch, so the deployed dependency remains in scope for disposition."
   },
+  "additional_windows_gateway_review": [
+    {
+      "advisory": "https://rustsec.org/advisories/RUSTSEC-2023-0071.html",
+      "observed_path": "Windows gateway -> moonlight-common -> rsa 0.9.10. RustCryptoBackend uses RSA private operations for GameStream pairing.",
+      "scope": "The private key in this path belongs to the GameStream client identity; the LAN management and gateway server TLS keys have separate ownership. The upstream timing issue remains relevant to reviewing authenticated pairing and the trusted renderer boundary."
+    },
+    {
+      "advisory": "https://rustsec.org/advisories/RUSTSEC-2026-0204.html",
+      "observed_path": "Windows gateway -> moonlight-common -> fec-rs -> rayon-core -> crossbeam-deque -> crossbeam-epoch 0.9.18.",
+      "scope": "The affected formatting operation was not found in the application source. The transitive callers still require disposition."
+    }
+  ],
   "candidate_runs": {
     "windows": 45798220979,
     "android": 45798220812,
