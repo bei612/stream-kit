@@ -7,6 +7,10 @@ on:
         description: 'Product version MAJOR.MINOR.PATCH for a stable candidate; blank builds a preview'
         type: string
         required: false
+      include_linux:
+        description: 'Build the Linux installer alongside Windows'
+        type: boolean
+        default: true
       usb_audio_identity:
         description: 'Optional USB audio identity override; blank uses the committed shared Audio class profile'
         type: string
@@ -38,7 +42,7 @@ concurrency:
 jobs:
   linux:
     name: Linux product
-    if: inputs.promote_run_id == ''
+    if: inputs.promote_run_id == '' && inputs.include_linux
     uses: ./.github/workflows/linux-sunshine-build.yml
     with:
       release_version: ${{ inputs.release_version }}

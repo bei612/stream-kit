@@ -11,7 +11,7 @@ on:
         type: string
         required: false
       product_run_id:
-        description: 'Successful windows-product-release run to accept before publication; exclusive with release_tag'
+        description: 'Product run with a successful Windows installer build job; exclusive with release_tag'
         type: string
         required: false
 permissions:
@@ -95,7 +95,11 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $run = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:PRODUCT_RUN_ID" | ConvertFrom-Json
           if ($LASTEXITCODE -ne 0) { throw 'Cannot read product run' }
-          if ($run.status -ne 'completed' -or $run.conclusion -ne 'success' -or $run.path -ne '.github/workflows/windows-product-release.yml' -or $run.head_repository.full_name -ne $env:GITHUB_REPOSITORY) { throw 'Expected a successful owned product workflow' }
+          if ($run.path -ne '.github/workflows/windows-product-release.yml' -or $run.head_repository.full_name -ne $env:GITHUB_REPOSITORY -or $run.head_branch -ne 'main' -or $run.event -ne 'workflow_dispatch' -or $run.head_sha -notmatch '^[a-f0-9]{40}$') { throw 'Expected an owned product workflow' }
+          $jobs = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:PRODUCT_RUN_ID/jobs?filter=latest&per_page=100" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot read product jobs' }
+          $win = @($jobs.jobs | Where-Object { $_.name -eq 'Source-built Windows unified installer' -and $_.status -eq 'completed' -and $_.conclusion -eq 'success' })
+          if ($win.Count -ne 1) { throw 'Expected one successful Windows installer build job' }
           $env:EXPECTED_INSTALLER_COMMIT = $run.head_sha
           gh run download $env:PRODUCT_RUN_ID --name "windows-product-installer-$($run.head_sha)" --dir artifacts/installer-download
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

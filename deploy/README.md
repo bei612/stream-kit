@@ -136,6 +136,10 @@ Windows Sunshine 的原生启动仍要求可执行文件旁存在空 `config` �
 
 卸载只处理本平台匹配的服务和程序，保留运行数据；外部本机程序也不应删除。Windows 如报告需重启，按维护窗口人工重启，不强制结束其他项目。Linux 用 `sudo apt-get remove stream-kit`，保留记录的渲染用户数据。
 
+## Windows 11 与 Android 正式发布
+
+使用产品构建的 `include_linux=false` 与 Android 签名任务，从同一提交生成安装器和 APK。用独立安装验收任务检查原始 Windows EXE，并核对实际 Windows 11、实体 Android 和局域网运行证据。晋升时提供 `promote_run_id`、`installer_acceptance_run_id`、`android_run_id` 和同版本的 `release_tag`。任务从已有产物生成 Release 草稿，在 GitHub 校验各附件的尺寸与 SHA-256 后公开。Windows 产物检查以独立 Windows 构建任务成功为准，Linux 产物沿用其独立发布范围。
+
 ## 故障排查
 
 | 现象 | 优先检查 |

@@ -6,12 +6,20 @@ set -euo pipefail
 mkdir -p artifacts/promotion
 gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > artifacts/promotion/source-run.json
 jq -e --arg repo "$GITHUB_REPOSITORY" '
-  .status == "completed" and .conclusion == "success" and
   .path == ".github/workflows/windows-product-release.yml" and
   .head_repository.full_name == $repo and .head_branch == "main" and
   .event == "workflow_dispatch" and (.head_sha | test("^[a-f0-9]{40}$"))
 ' artifacts/promotion/source-run.json > /dev/null
 source_commit=$(jq -r .head_sha artifacts/promotion/source-run.json)
+if [[ -n ${ANDROID_RUN_ID:-} ]]; then
+  gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/jobs?filter=latest&per_page=100" > artifacts/promotion/source-jobs.json
+  jq -e '
+    def passed($name): [.jobs[] | select(.name == $name and .status == "completed" and .conclusion == "success")] | length == 1;
+    passed("Source-built Windows unified installer") and passed("Source SBOM")
+  ' artifacts/promotion/source-jobs.json > /dev/null
+else
+  jq -e '.status == "completed" and .conclusion == "success"' artifacts/promotion/source-run.json > /dev/null
+fi
 gh api "repos/$GITHUB_REPOSITORY/actions/runs/$INSTALLER_ACCEPTANCE_RUN_ID" > artifacts/promotion/acceptance-run.json
 jq -e --arg repo "$GITHUB_REPOSITORY" '
   .status == "completed" and .conclusion == "success" and
