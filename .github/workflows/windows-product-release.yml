@@ -19,6 +19,10 @@ on:
         description: 'Successful windows-installer-acceptance run for the exact installer; required for promotion'
         type: string
         required: false
+      android_run_id:
+        description: 'Successful signed Android run for Windows 11 + Android promotion; blank keeps the Windows + Linux profile'
+        type: string
+        required: false
       release_tag:
         description: 'Matching stable, candidate or preview tag: vMAJOR.MINOR.PATCH[-rc.N] or v0.1.0-preview.DATE.N'
         type: string
@@ -255,5 +259,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SOURCE_RUN_ID: ${{ inputs.promote_run_id }}
           INSTALLER_ACCEPTANCE_RUN_ID: ${{ inputs.installer_acceptance_run_id }}
+          ANDROID_RUN_ID: ${{ inputs.android_run_id }}
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: bash .github/scripts/promote-product-release.sh

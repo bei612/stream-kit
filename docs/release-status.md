@@ -2,6 +2,8 @@
 
 核对日期：2026-11-26。本页集中维护可下载版本、本机部署、候选产物和剩余边界。历史证据保留原始来源，不把旧版通过结果当作新产物验收。
 
+本期 `0.1.1` 候选运行源码 `1fa79664e421d8dc48c605bc2b6c5d4a60b00aed` 修复归档停传占用上传锁，并将归档直接写入受管临时文件。Windows 11 本机隔离的原生管理服务通过了实际浏览器 ZIP、7z 和本机路径登记；实体 Pad 以原发行签名覆盖安装候选 APK 并恢复原书签。本机正式服务端仍为 `954a1e6e`。本期候选的 Windows 11 安装、同源联合媒体及实际换址仍待完整验收。见[候选可核对证据](evidence/windows11-android-candidate-1fa79664.json)。
+
 实体 Android 平板的目标输入缺口现已补齐：[实际输入与控制交接验收](evidence/android-input-tablet-954a1e6e-20261126.json)使用已安装的 `954a1e6e` 原生 APK、同源 Windows 服务和 Playwright CLI 管理页。Example 实际按键/点击计数在平板授权后由 5/6 增至 6/7；移交给 Web、交回 Android 和释放控制后，旧控制端的输入均未改变目标计数。原加密书签完整恢复，临时工具已卸载，Example 停止且无活动测试会话。本次不修改生产源码、不重新构建或安装；整机重启、首次安装返回 3010 后的重启路径及本机主网卡真实换址仍未完成验收。
 
 源码 `954a1e6e` 新增共用概念气泡的视口避让和生命周期修复：原安装版手机宽度 390px 时隐藏气泡撑至 639px，已在实际安装页面复现。新同源产物现已完整安装；Playwright CLI 对实际安装页面的 8 路由 × 3 宽度及中英文气泡检查通过，四张截图已目视复核。键盘、触屏、配置冲突和组件启停另有同源 CI 证据。详见[已安装验收](evidence/runtime-installed-954a1e6e-20261120.json)和[修复审查](evidence/management-tooltip-review-20261119.json)。运行依赖审查发现一个 React Router 告警包；[逐公告适用性核查](evidence/management-dependency-review-20261119.json)未发现当前调用方式暴露所列攻击路径，包仍未升级，不声明扫描清零。
@@ -19,8 +21,8 @@
 | 公开 Windows / Ubuntu 24.04 amd64 服务端 | [v0.1.0](https://github.com/bei612/stream-kit/releases/tag/v0.1.0)，`f8ede8b2e933fb597e97dec999cceae9a3e614e1` | 11 月 15 日正式版，每平台一个安装器；不含本次自动换址功能 |
 | 公开签名 Android | [v0.1.0 同一 Release](https://github.com/bei612/stream-kit/releases/tag/v0.1.0)，同源 `f8ede8b2`，versionCode 1000015 | 已公开 APK、来源、校验和、依赖许可证和 SBOM，沿用持久发行签名 |
 | 本机运行组件及前端 | `954a1e6e73ef95231e78c9d77d77d932749aa043` | 三组件完整维护、库存校验与实际管理页面检查通过，保留原安装器/卸载器和签名驱动；本次未重跑媒体 |
-| 最新公开预发布服务端 / Android | [v0.1.0-preview.20261119.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.3)，`954a1e6e` | Windows / Ubuntu 24.04 amd64 单文件安装器及持久签名 APK 已发布，14 个附件校验通过；本机三组件和平板同源，尚未替代正式 0.1.0 |
-| 本机平板 Android | 0.1.0-preview.20261119.3 / versionCode 1000018，`954a1e6e` | [安装证据](evidence/android-installed-954a1e6e-20261119.json)和[实体平板输入补验](evidence/android-input-tablet-954a1e6e-20261126.json)：已安装原生客户端实际画面、目标按键/触屏点击、管理页控制移交/撤销及书签恢复通过。Android 源码及 8 个原生库哈希与上一版相同；音频保留原证据，未称新全套媒体复验 |
+| 最新公开预发布服务端 / Android | [v0.1.0-preview.20261119.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.3)，`954a1e6e` | Windows / Ubuntu 24.04 amd64 单文件安装器及持久签名 APK 已发布，14 个附件校验通过；尚未替代正式 0.1.0 |
+| 本机平板 Android | 0.1.1 候选 / versionCode 1000019，`1fa79664` | [覆盖安装及书签恢复](evidence/windows11-android-candidate-1fa79664.json)通过，实际同源全链路待验。上一版输入与控制交接保留[954a1e6e 原始实测](evidence/android-input-tablet-954a1e6e-20261126.json) |
 | 上一版实体平板媒体验收 | 0.1.0-preview.20261119.2 / versionCode 1000017，`1d81a373` | [真机会话验收](evidence/android-tablet-1d81a373-20261119.json)及[真机音频补验](evidence/android-tablet-audio-1d81a373-20261119.json)：实际视频、共享会话/控制、录音生命周期、程序音接收、物理麦克风至服务器端点和 Web 观众及撤权静音通过；目标键鼠输入仍未通过，不称真机全部通过；未重复未受影响的媒体验收 |
 | 历史同源 Android 联合实测 | 0.1.0 / versionCode 1000015，`f8ede8b2` | [构建来源](https://github.com/bei612/stream-kit/actions/runs/43609422069)，专用模拟器实际图像、程序音、麦克风及撤权通过；不冒称新 APK 的媒体复验 |
 

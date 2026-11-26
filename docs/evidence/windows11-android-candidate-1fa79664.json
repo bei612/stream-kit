@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-26",
+  "source_commit": "1fa79664e421d8dc48c605bc2b6c5d4a60b00aed",
+  "version": "0.1.1",
+  "scope": "Candidate upload, physical APK upgrade, and maintenance backup cleanup. Windows installer, joint media, and LAN migration require separate evidence.",
+  "upload": {
+    "passed": true,
+    "local_tests": "Six fresh native Go test packages passed. Real TLS HTTP/1.1 and HTTP/2 covered stalled uploads (408/UPLOAD_TIMEOUT), client cancellation, ownership cleanup and a slow upload whose total duration exceeded the idle limit.",
+    "browser": "Playwright CLI against isolated native Windows 11 management API and SQLite. ZIP, 7z and existing local Example executable each returned HTTP 200, persisted and reached ready. Upload lock and temporary storage were empty afterward. The renderer was unconfigured in this fixture so its capability endpoint correctly returned 503. No media result is inferred.",
+    "first_attempt": "The initial local fixture used the wrong commit linker target. The fixture was stopped and rebuilt using the production main.commit variable. It did not change the production build or test thresholds.",
+    "screenshots": [
+      "windows11-upload-1fa79664-zip.png",
+      "windows11-upload-1fa79664-7z.png",
+      "windows11-upload-1fa79664-local.png"
+    ]
+  },
+  "android": {
+    "passed": true,
+    "build_run": 45792338469,
+    "version_code_before": 1000018,
+    "installed_version_code": 1000019,
+    "application_id": "io.github.bei612.streamkit",
+    "device": "ERAZER M10 4G",
+    "transport": "paired wireless ADB",
+    "apk_sha256": "2c6db8928245189990cbf12f58450499ebce1679b94a4b017306df29a0b945e8",
+    "signing_certificate_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f",
+    "apk_signature_v2_and_v3_verified_locally": true,
+    "inventory_files_verified": 21,
+    "bookmark_before_sha256": "973fe3297f2c5ffeb94d3cb4fdb5fb224e2c767e5e4719082d5e030fec4c0af0",
+    "bookmark_after_restore_sha256": "973fe3297f2c5ffeb94d3cb4fdb5fb224e2c767e5e4719082d5e030fec4c0af0",
+    "test_helper_uninstalled": true,
+    "entry_verified_after_restore": true,
+    "media_run_in_upgrade_phase": false,
+    "screenshot": "android-0.1.1-candidate-entry-1fa79664.png"
+  },
+  "backup_cleanup": {
+    "passed": true,
+    "removed_directories": 37,
+    "logical_bytes_removed": 4981671520,
+    "active_runtime_verified": "954a1e6e73ef95231e78c9d77d77d932749aa043",
+    "retained_complete_rollback_runtime_verified": "1d81a373ac29b243227e8f0fb55c1d9da3d613fd",
+    "retained_matching_cold_state": true,
+    "service_pid_unchanged": 28680,
+    "system_rebooted": false
+  },
+  "dependency_review": {
+    "scope": "Web production npm advisories checked again. Platform-wide dependency approval awaits exact candidate inventory.",
+    "management": "One high audit entry for React Router. Existing declarative-route applicability review remains relevant to the unchanged route topology.",
+    "gateway_web": "No npm production advisory entries reported.",
+    "sunshine_web": "Six npm production package entries. Vue I18n uses bundled locale files and does not enable escapeParameter. The translated HTML at the startup-error heading has a fixed resource key and no interpolation arguments. The source-map advisory concerns indexed maps; no user-provided source-map consumer was found in native Web admin entry code. These are applicability observations, not upgrades or a platform-wide audit pass.",
+    "sunshine_sources": [
+      "https://github.com/intlify/vue-i18n/security/advisories/GHSA-83rm-6c8r-g728",
+      "https://github.com/intlify/vue-i18n/security/advisories/GHSA-8rc2-428q-7ww3",
+      "https://github.com/advisories/GHSA-68fv-2mgg-jv7q"
+    ]
+  }
+}
