@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-26",
+  "source_commit": "4bbffe10af95c68380afee9d8c1660cd91aee17e",
+  "passed": false,
+  "scope": "Windows 11 and Android release dependency review. OSV version matches are inventory findings, with reachability and remaining native inventory assessed separately.",
+  "inventory": {
+    "before": { "source_commit": "1fa79664e421d8dc48c605bc2b6c5d4a60b00aed", "queried_versions": 594, "package_version_matches": 28 },
+    "after": { "queried_versions": 591, "package_version_matches": 11, "go": 1, "rust": 10, "maven": 0 },
+    "sources": ["orchestrator/go.mod", "third_party/moonlight-web-stream/Cargo.lock", "components/audio-target/Cargo.lock", "signed Android Maven runtime inventory from build 45792338469"],
+    "limits": "Includes target and development crates. Does not determine binary reachability or cover the native Sunshine C++ dependency inventory, Go standard library or all npm inputs. Android dependency coordinates came from the earlier signed candidate, whose Android source subtree is unchanged."
+  },
+  "remediation": [
+    { "component": "LAN media gateway", "change": "Actix Web 4.20.0, Actix HTTP 3.22.1 and Actix Files 0.7.5, including current decoder dependencies", "references": ["https://rustsec.org/advisories/RUSTSEC-2026-0447.html", "https://rustsec.org/advisories/RUSTSEC-2026-0443.html", "https://rustsec.org/advisories/RUSTSEC-2026-0554.html"] },
+    { "component": "Archive ingestion", "change": "Vendored Klauspost Compress 1.20.2 and Brotli 1.2.7 using the public Go module proxy and Go sum validation", "references": ["https://pkg.go.dev/vuln/GO-2026-6865", "https://pkg.go.dev/vuln/GO-2026-6888"] },
+    { "component": "Rust TLS and URL handling", "change": "Gateway and audio-helper rustls 0.23.46 and rustls-webpki 0.103.17; gateway url 2.5.9", "references": ["https://rustsec.org/advisories/RUSTSEC-2026-0346.html", "https://rustsec.org/advisories/RUSTSEC-2026-0382.html", "https://rustsec.org/advisories/RUSTSEC-2026-0592.html"] }
+  ],
+  "verification": {
+    "windows_go_test_packages_passed": 6,
+    "windows_audio_tests_passed": 55,
+    "cargo_lock_resolution_verified": true,
+    "local_full_gateway_check": "Not complete. Official CMake 3.31.8 starts the Opus build, but Visual Studio Build Tools 2022 is not installed on the local host. CI is the full native build environment.",
+    "windows_candidate_run": 45796349624,
+    "android_candidate_run": 45796350595
+  },
+  "remaining": [
+    "Actix still uses h2 0.3.27. The upstream fixed h2 series is 0.4 and the 0.3 registry series has no corresponding published patch. Retain the finding pending disposition; do not describe this build as advisory-free.",
+    "The remaining quic-go report covers HTTP/3; installed management uses the standard Go HTTP server. The cookie report excludes Windows. These scope observations do not resolve the full residual Rust inventory.",
+    "Complete signed-artifact dependency and license verification, exact Windows 11 install and rollback, LAN migration and paired Android release media acceptance before applying the stable publication gate."
+  ]
+}

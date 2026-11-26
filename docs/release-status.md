@@ -2,7 +2,7 @@
 
 核对日期：2026-11-26。本页集中维护可下载版本、本机部署、候选产物和剩余边界。历史证据保留原始来源，不把旧版通过结果当作新产物验收。
 
-本期 `0.1.1` 候选运行源码 `1fa79664e421d8dc48c605bc2b6c5d4a60b00aed` 修复归档停传占用上传锁，并将归档直接写入受管临时文件。Windows 11 本机隔离的原生管理服务通过了实际浏览器 ZIP、7z 和本机路径登记；实体 Pad 以原发行签名覆盖安装候选 APK 并恢复原书签。本机正式服务端仍为 `954a1e6e`。本期候选的 Windows 11 安装、同源联合媒体及实际换址仍待完整验收。见[候选可核对证据](evidence/windows11-android-candidate-1fa79664.json)。
+本期 `0.1.1` 待验源码为 `4bbffe10af95c68380afee9d8c1660cd91aee17e`。该源码包含归档上传空闲超时、直接落盘及媒体网关和解压依赖更新。初始候选 `1fa79664` 的 Windows 11 隔离管理页 ZIP、7z 和本机路径登记，以及实体 Pad 覆盖升级和书签恢复均通过，证据保留其原版本。本机服务端仍为 `954a1e6e`，Android 仍安装初始候选。Windows 11 新安装、同源联合媒体、真实 LAN 换址及正式发布仍待验收。见[初始候选验收](evidence/windows11-android-candidate-1fa79664.json)及[运行依赖复核](evidence/windows11-runtime-dependency-review-4bbffe10.json)。
 
 实体 Android 平板的目标输入缺口现已补齐：[实际输入与控制交接验收](evidence/android-input-tablet-954a1e6e-20261126.json)使用已安装的 `954a1e6e` 原生 APK、同源 Windows 服务和 Playwright CLI 管理页。Example 实际按键/点击计数在平板授权后由 5/6 增至 6/7；移交给 Web、交回 Android 和释放控制后，旧控制端的输入均未改变目标计数。原加密书签完整恢复，临时工具已卸载，Example 停止且无活动测试会话。本次不修改生产源码、不重新构建或安装；整机重启、首次安装返回 3010 后的重启路径及本机主网卡真实换址仍未完成验收。
 
