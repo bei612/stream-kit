@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router'
-import { api } from '@/api/client'
+import { api, UploadTimeoutError } from '@/api/client'
 import { argsToLines, linesToArgs } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
 import { ContentGrid, Page } from '@/components/layout/Page'
@@ -29,6 +29,8 @@ export default function UploadPage() {
   const fileRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<(() => void) | null>(null)
   const navigate = useNavigate()
+
+  useEffect(() => () => abortRef.current?.(), [])
 
   useEffect(() => {
     api.getTemplates().then(r => setTemplates(r.data || {})).catch(() => {})
@@ -87,7 +89,7 @@ export default function UploadPage() {
       setUploading(false)
       navigate(`/apps/${res.data.app_id}`)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t('upload.uploadFailed'))
+      setError(err instanceof UploadTimeoutError ? t('upload.idleTimeout') : err instanceof Error ? err.message : t('upload.uploadFailed'))
       setUploading(false)
     } finally {
       abortRef.current = null

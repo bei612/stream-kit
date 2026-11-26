@@ -5,6 +5,8 @@ import type { ConfigurationView, GatewayConfigurationView, EncoderConfigurationV
 import type { ApplicationRecord, ApplicationView, ApplicationUpdate, ExecutableCandidate, ArchiveUpload, ComponentInfo, HealthStatus, OperationLog, SanitizedConfiguration } from './management'
 import { decodeApiResponse, type ApiResponse } from './response'
 
+export class UploadTimeoutError extends Error {}
+
 function expiredLoginError(): Error {
   clearToken()
   window.dispatchEvent(new CustomEvent('auth-error'))
@@ -179,20 +181,32 @@ export const api = {
     const promise = new Promise<ApiResponse<ArchiveUpload>>((resolve, reject) => {
       xhr.open('POST', `${API_BASE}/apps/upload`)
       xhr.setRequestHeader('Authorization', `Bearer ${getToken()}`)
-      xhr.timeout = 30 * 60 * 1000 // 30 minutes for large packages
-
-      if (onProgress) {
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) onProgress((e.loaded / e.total) * 100)
-        }
+      // Allow an active large transfer to continue. The client deadline is
+      // longer than the server idle window so its 408 can reach the UI first.
+      let timedOut = false
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const renewDeadline = () => {
+        clearTimeout(timer)
+        timer = setTimeout(() => {
+          timedOut = true
+          xhr.abort()
+        }, 90_000)
       }
-
-      xhr.ontimeout = () => reject(new Error('上传超时，请检查网络连接'))
-      xhr.onabort = () => reject(new Error('上传已取消'))
+      xhr.upload.onprogress = (e) => {
+        renewDeadline()
+        if (e.lengthComputable && e.total > 0) onProgress?.((e.loaded / e.total) * 100)
+      }
+      xhr.upload.onload = renewDeadline
+      xhr.onloadend = () => clearTimeout(timer)
+      xhr.onabort = () => reject(timedOut ? new UploadTimeoutError() : new Error('上传已取消'))
       xhr.onerror = () => reject(new Error('网络错误'))
       xhr.onload = () => {
         if (xhr.status === 401) {
           reject(expiredLoginError())
+          return
+        }
+        if (xhr.status === 408) {
+          reject(new UploadTimeoutError())
           return
         }
         try {
@@ -206,7 +220,13 @@ export const api = {
           reject(new Error('上传响应解析失败'))
         }
       }
-      xhr.send(formData)
+      renewDeadline()
+      try {
+        xhr.send(formData)
+      } catch (error) {
+        clearTimeout(timer)
+        reject(error)
+      }
     })
     return { promise, abort: () => xhr.abort() }
   },
