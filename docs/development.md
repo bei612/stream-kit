@@ -12,7 +12,7 @@
 
 | 技术 | 当前构建依据 |
 | --- | --- |
-| Go | `orchestrator/go.mod` + vendor；CI 使用 1.27.3 |
+| Go | `orchestrator/go.mod` + vendor。构建与验收使用 `.go-version` 锁定的补丁版本 |
 | 管理 Web | Node 26.4.0，`orchestrator/web/package-lock.json`；React 19、Vite 8、TypeScript、Tailwind、TanStack Query、Zustand |
 | Rust 网关 | `third_party/moonlight-web-stream/rust-toolchain.toml`，1.99.0，Cargo.lock、WASM target 与配套绑定生成器 |
 | Sunshine Windows | 原生 MSYS2 UCRT64、官方 CMake 3.31.8；不要混入 MSVC 的 LIB/INCLUDE 搜索环境 |
