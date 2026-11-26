@@ -1,0 +1,613 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-11-26T08:58:40.090Z",
+  "passed": true,
+  "scope": "Physical Android tablet native client target input, actual Chrome Playwright CLI management transfers, shared Example and cleanup. This closes the physical-tablet target-input gap only.",
+  "source_commit": "954a1e6e73ef95231e78c9d77d77d932749aa043",
+  "client": {
+    "device": "ERAZER_M10_4G",
+    "android": 13,
+    "version_code": 1000018,
+    "version": "0.1.0-preview.20261119.3",
+    "transport": "USB ADB",
+    "production_apk_modified": false
+  },
+  "server": {
+    "origin": "https://192.168.0.119:9000",
+    "https_errors_ignored": false,
+    "service": "StreamKitOrchestrator",
+    "start_mode": "Auto",
+    "state": "Running",
+    "pid": 28680,
+    "components": {
+      "sunshine": {
+        "crash_count": 0,
+        "pid": 31532,
+        "status": "running"
+      },
+      "web_server": {
+        "crash_count": 0,
+        "pid": 37524,
+        "status": "running"
+      }
+    }
+  },
+  "session": {
+    "id": "253f1d09-2f65-448f-b71e-758fba113439",
+    "app_id": 306497333,
+    "example_pid": 16032,
+    "clients": [
+      "web",
+      "android"
+    ],
+    "shared_upstream": true,
+    "subscribers": 2
+  },
+  "phases": [
+    {
+      "phase": "android_authorized_regrant",
+      "before": {
+        "keys": 5,
+        "clicks": 6
+      },
+      "after": {
+        "keys": 6,
+        "clicks": 7
+      },
+      "evidence": [
+        "pad-regrant-before.png",
+        "pad-regrant-after.png"
+      ],
+      "result": "Both Android key and touchscreen-generated mouse click reached the actual Example window"
+    },
+    {
+      "phase": "android_after_transfer_to_web",
+      "before": {
+        "keys": 4,
+        "clicks": 4
+      },
+      "after": {
+        "keys": 4,
+        "clicks": 4
+      },
+      "evidence": [
+        "pad-revoked-before.png",
+        "pad-revoked-after.png"
+      ],
+      "result": "Revoked Android key and tap did not reach Example"
+    },
+    {
+      "phase": "web_after_transfer",
+      "before": {
+        "keys": 4
+      },
+      "after": {
+        "keys": 5
+      },
+      "evidence": [
+        "web-after-transfer.png"
+      ],
+      "result": "Real Web viewer key reached Example as new controller; host activation clicks excluded from remote-click claims"
+    },
+    {
+      "phase": "web_after_transfer_back_to_android",
+      "before": {
+        "keys": 6,
+        "clicks": 7
+      },
+      "after": {
+        "keys": 6,
+        "clicks": 7
+      },
+      "evidence": [
+        "web-revoked-before.png",
+        "web-revoked-after.png"
+      ],
+      "result": "Old Web controller key and click denied"
+    },
+    {
+      "phase": "android_after_release",
+      "before": {
+        "keys": 6,
+        "clicks": 7
+      },
+      "after": {
+        "keys": 6,
+        "clicks": 7
+      },
+      "evidence": [
+        "pad-final-revoke-settled.png"
+      ],
+      "result": "Android key/tap after server release denied; final native badge viewer"
+    }
+  ],
+  "management": {
+    "tool": "playwright-cli",
+    "actual_installed_page": "/stream-sessions",
+    "actions": [
+      "Transfer control Android to Web",
+      "Transfer control Web to Android",
+      "Release control"
+    ],
+    "shared_live_clients": 2,
+    "alert_errors_at_transfer": [],
+    "screenshot": "management-control.png"
+  },
+  "focus": {
+    "windows_was_not_locked": true,
+    "initial_foreground": "Code",
+    "obscuring_window_process": "mstsc",
+    "ordinary_SetForegroundWindow_denied": true,
+    "activation": "Click verified unobscured client area of exact owned Example HWND; successful focus independently checked",
+    "note": "The original helper chose the window center, which was covered by mstsc. A visible owned point was used. No click was sent into mstsc; it was neither closed nor minimized. No ToDesk changes, input-queue attachment, synthetic key counter injection or foreground-policy changes.",
+    "local_activation_clicks_excluded_from_remote_counts": true
+  },
+  "cleanup": {
+    "bookmark_before_sha256": "973fe3297f2c5ffeb94d3cb4fdb5fb224e2c767e5e4719082d5e030fec4c0af0",
+    "bookmark_after_sha256": "973fe3297f2c5ffeb94d3cb4fdb5fb224e2c767e5e4719082d5e030fec4c0af0",
+    "bookmark_recovery_copy_removed": true,
+    "helpers_uninstalled": [
+      "io.github.bei612.streamkit.bookmarkguard",
+      "io.github.bei612.streamkit.inputobserver"
+    ],
+    "microphone_not_running": true,
+    "example_args": "",
+    "example_stopped": true,
+    "example_editable": true,
+    "active_sessions": 0,
+    "media_observations": 0,
+    "playwright_owned_browser_closed": true
+  },
+  "limitations": [
+    "ADB injected Android input events into the actual release app on physical hardware; no human touch or physical keyboard ergonomics claim.",
+    "Several initial focus requests failed when other host windows covered the helper point. They are not counted as product input failures or successful deliveries.",
+    "USB disappeared temporarily; mDNS advertised a wireless port that refused TCP. USB returned without changing device settings, restarting adb or asking for another authorization. This is not proof of wireless ADB reliability.",
+    "An initial statistics helper failed without returning a full snapshot. A later raw instrumentation observation returned 3567 decoded video frames; no zero-error helper claim.",
+    "The native authority badge was briefly stale after server mutation. Server-denied events did not change Example counts; no subsecond badge update or microphone-stop latency was measured in this run.",
+    "No new microphone or audio-quality acceptance. Earlier audio evidence retains its own source and environment.",
+    "No host primary-NIC migration, whole-OS reboot, post-3010 reboot, package rebuild or runtime reinstall.",
+    "Counts are visually reviewed from actual native screenshots, not an OCR or mocked target. Extra host activation clicks and unrelated intervals are not asserted as remote inputs.",
+    "Matching live component PIDs and zero current crash counters since the prior maintenance are point observations, not continuous 168-hour load or no-OOM evidence."
+  ],
+  "screenshots": [
+    {
+      "file": "android-input-tablet-954a1e6e-20261126-pad-regrant-before.png",
+      "sha256": "9bf2c8ad2d1e3fa6476e8ed2cb56d3a3726d015cd08f739d3de382f17c7c35fe",
+      "width": 1200,
+      "height": 2000
+    },
+    {
+      "file": "android-input-tablet-954a1e6e-20261126-pad-regrant-after.png",
+      "sha256": "87419d421f6a0479f4786261bb55d517eb92b41487b346b33f5e4830e33c315b",
+      "width": 1200,
+      "height": 2000
+    },
+    {
+      "file": "android-input-tablet-954a1e6e-20261126-pad-revoked-before.png",
+      "sha256": "ae7bc398357a7a7c66c8e7ea9481eaee3311975c51b72b0d871ab920a7a2be7a",
+      "width": 1200,
+      "height": 2000
+    },
+    {
+      "file": "android-input-tablet-954a1e6e-20261126-pad-revoked-after.png",
+      "sha256": "9abcd0e5d075096ba570a90f56dc243c963574b3162e93f3332770986d9c638e",
+      "width": 1200,
+      "height": 2000
+    },
+    {
+      "file": "android-input-tablet-954a1e6e-20261126-web-after-transfer.png",
+      "sha256": "173a0ee94c2f46353f82eb774f58cc45659dbb009b58fff6ec94f1bc8907bddf",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "file": "android-input-tablet-954a1e6e-20261126-web-revoked-before.png",
+      "sha256": "efafba50e7fc57f563d9877981b452a6226c7208b9d0644e41005b66c6d577ba",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "file": "android-input-tablet-954a1e6e-20261126-web-revoked-after.png",
+      "sha256": "1c3318ae52afc85a6b7dba43faeb09369303ab3402e038d7e41c77fcf9e37583",
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "file": "android-input-tablet-954a1e6e-20261126-pad-final-revoke-settled.png",
+      "sha256": "1aa3386dac7b312242cecaa5edefa37943b842e125270af0b0347e49d1da0fa8",
+      "width": 1200,
+      "height": 2000
+    },
+    {
+      "file": "android-input-tablet-954a1e6e-20261126-management-control.png",
+      "sha256": "7c3facc7fca04d8ef26ea58b432ccd45fed11d4f8851e7ff6a5d38f85bb6156b",
+      "width": 1440,
+      "height": 1000
+    }
+  ],
+  "observations": [
+    {
+      "time": "2026-11-26T08:52:11.221Z",
+      "action": "connect",
+      "result": {
+        "launched_example": true
+      }
+    },
+    {
+      "time": "2026-11-26T08:52:11.801Z",
+      "action": "observe",
+      "result": {
+        "role": "other",
+        "root": "client",
+        "snapshot": "complete",
+        "state": "connecting",
+        "toolbar_closed": "true",
+        "toolbar_opened": "false",
+        "window": "0,0,1200,2000"
+      }
+    },
+    {
+      "time": "2026-11-26T08:52:35.303Z",
+      "action": "observe",
+      "result": {
+        "role": "viewer",
+        "root": "client",
+        "snapshot": "complete",
+        "state": "unknown",
+        "toolbar_closed": "true",
+        "toolbar_opened": "true",
+        "window": "0,0,1200,2000"
+      }
+    },
+    {
+      "time": "2026-11-26T08:52:36.779Z",
+      "action": "key",
+      "result": {
+        "sent": true
+      }
+    },
+    {
+      "time": "2026-11-26T08:52:37.385Z",
+      "action": "screen",
+      "result": {
+        "screenshot": "pad-controller-key.png"
+      }
+    },
+    {
+      "time": "2026-11-26T08:52:53.937Z",
+      "action": "observe",
+      "result": {
+        "role": "controller",
+        "root": "client",
+        "snapshot": "complete",
+        "state": "unknown",
+        "toolbar_closed": "true",
+        "toolbar_opened": "false",
+        "window": "0,0,1200,2000"
+      }
+    },
+    {
+      "time": "2026-11-26T08:53:23.495Z",
+      "action": "screen",
+      "result": {
+        "screenshot": "pad-input-attempt.png"
+      }
+    },
+    {
+      "time": "2026-11-26T08:53:42.980Z",
+      "action": "screen",
+      "result": {
+        "screenshot": "pad-key-final.png"
+      }
+    },
+    {
+      "time": "2026-11-26T08:54:21.803Z",
+      "action": "key",
+      "result": {
+        "sent": true
+      }
+    },
+    {
+      "time": "2026-11-26T08:54:21.942Z",
+      "action": "tap",
+      "result": {
+        "sent": true,
+        "x": 600,
+        "y": 760
+      }
+    },
+    {
+      "time": "2026-11-26T08:54:22.547Z",
+      "action": "screen",
+      "result": {
+        "screenshot": "pad-controller-input.png"
+      }
+    },
+    {
+      "time": "2026-11-26T08:54:40.839Z",
+      "action": "tap",
+      "result": {
+        "sent": true,
+        "x": 600,
+        "y": 800
+      }
+    },
+    {
+      "time": "2026-11-26T08:54:41.450Z",
+      "action": "screen",
+      "result": {
+        "screenshot": "pad-touch.png"
+      }
+    },
+    {
+      "time": "2026-11-26T08:54:50.303Z",
+      "action": "tap",
+      "result": {
+        "sent": true,
+        "x": 600,
+        "y": 800
+      }
+    },
+    {
+      "time": "2026-11-26T08:54:51.068Z",
+      "action": "observe",
+      "result": {
+        "role": "controller",
+        "root": "client",
+        "snapshot": "complete",
+        "state": "unknown",
+        "toolbar_closed": "true",
+        "toolbar_opened": "true",
+        "window": "0,0,1200,2000"
+      }
+    },
+    {
+      "time": "2026-11-26T08:54:51.686Z",
+      "action": "screen",
+      "result": {
+        "screenshot": "pad-touch-confirm.png"
+      }
+    },
+    {
+      "time": "2026-11-26T08:55:24.030Z",
+      "action": "observe",
+      "result": {
+        "role": "controller",
+        "root": "client",
+        "snapshot": "complete",
+        "state": "unknown",
+        "toolbar_closed": "true",
+        "toolbar_opened": "false",
+        "window": "0,0,1200,2000"
+      }
+    },
+    {
+      "time": "2026-11-26T08:55:46.603Z",
+      "action": "observe",
+      "result": {
+        "role": "viewer",
+        "root": "client",
+        "snapshot": "complete",
+        "state": "unknown",
+        "toolbar_closed": "true",
+        "toolbar_opened": "false",
+        "window": "0,0,1200,2000"
+      }
+    },
+    {
+      "time": "2026-11-26T08:55:49.518Z",
+      "action": "screen",
+      "result": {
+        "screenshot": "pad-revoked-before.png"
+      }
+    },
+    {
+      "time": "2026-11-26T08:55:50.056Z",
+      "action": "key",
+      "result": {
+        "sent": true
+      }
+    },
+    {
+      "time": "2026-11-26T08:55:50.177Z",
+      "action": "tap",
+      "result": {
+        "sent": true,
+        "x": 600,
+        "y": 800
+      }
+    },
+    {
+      "time": "2026-11-26T08:55:50.699Z",
+      "action": "observe",
+      "result": {
+        "role": "viewer",
+        "root": "client",
+        "snapshot": "complete",
+        "state": "unknown",
+        "toolbar_closed": "true",
+        "toolbar_opened": "false",
+        "window": "0,0,1200,2000"
+      }
+    },
+    {
+      "time": "2026-11-26T08:55:51.296Z",
+      "action": "screen",
+      "result": {
+        "screenshot": "pad-revoked-after.png"
+      }
+    },
+    {
+      "time": "2026-11-26T08:56:43.629Z",
+      "action": "observe",
+      "result": {
+        "role": "controller",
+        "root": "client",
+        "snapshot": "complete",
+        "state": "unknown",
+        "toolbar_closed": "true",
+        "toolbar_opened": "false",
+        "window": "0,0,1200,2000"
+      }
+    },
+    {
+      "time": "2026-11-26T08:56:45.320Z",
+      "action": "screen",
+      "result": {
+        "screenshot": "pad-regrant-before.png"
+      }
+    },
+    {
+      "time": "2026-11-26T08:56:45.853Z",
+      "action": "key",
+      "result": {
+        "sent": true
+      }
+    },
+    {
+      "time": "2026-11-26T08:56:45.987Z",
+      "action": "tap",
+      "result": {
+        "sent": true,
+        "x": 600,
+        "y": 800
+      }
+    },
+    {
+      "time": "2026-11-26T08:56:46.527Z",
+      "action": "observe",
+      "result": {
+        "role": "controller",
+        "root": "client",
+        "snapshot": "complete",
+        "state": "unknown",
+        "toolbar_closed": "true",
+        "toolbar_opened": "false",
+        "window": "0,0,1200,2000"
+      }
+    },
+    {
+      "time": "2026-11-26T08:56:47.131Z",
+      "action": "screen",
+      "result": {
+        "screenshot": "pad-regrant-after.png"
+      }
+    },
+    {
+      "time": "2026-11-26T08:57:18.934Z",
+      "action": "observe",
+      "result": {
+        "role": "controller",
+        "root": "client",
+        "snapshot": "complete",
+        "state": "unknown",
+        "toolbar_closed": "true",
+        "toolbar_opened": "false",
+        "window": "0,0,1200,2000"
+      }
+    },
+    {
+      "time": "2026-11-26T08:57:19.541Z",
+      "action": "screen",
+      "result": {
+        "screenshot": "pad-final-revoke-before.png"
+      }
+    },
+    {
+      "time": "2026-11-26T08:57:20.071Z",
+      "action": "key",
+      "result": {
+        "sent": true
+      }
+    },
+    {
+      "time": "2026-11-26T08:57:20.202Z",
+      "action": "tap",
+      "result": {
+        "sent": true,
+        "x": 600,
+        "y": 800
+      }
+    },
+    {
+      "time": "2026-11-26T08:57:20.983Z",
+      "action": "observe",
+      "result": {
+        "role": "controller",
+        "root": "client",
+        "snapshot": "complete",
+        "state": "unknown",
+        "toolbar_closed": "true",
+        "toolbar_opened": "true",
+        "window": "0,0,1200,2000"
+      }
+    },
+    {
+      "time": "2026-11-26T08:57:21.586Z",
+      "action": "screen",
+      "result": {
+        "screenshot": "pad-final-revoke-after.png"
+      }
+    },
+    {
+      "time": "2026-11-26T08:57:35.059Z",
+      "action": "observe",
+      "result": {
+        "role": "viewer",
+        "root": "client",
+        "snapshot": "complete",
+        "state": "unknown",
+        "toolbar_closed": "true",
+        "toolbar_opened": "false",
+        "window": "0,0,1200,2000"
+      }
+    },
+    {
+      "time": "2026-11-26T08:57:35.664Z",
+      "action": "screen",
+      "result": {
+        "screenshot": "pad-final-revoke-settled.png"
+      }
+    }
+  ],
+  "final_state": {
+    "observed_at": "2026-11-26T08:58:40.090Z",
+    "health": {
+      "apps_summary": {
+        "error": 0,
+        "ready": 0,
+        "running": 0,
+        "total": 2
+      },
+      "build_time": "2026-11-19T15:35:24.000Z",
+      "commit": "954a1e6e73ef95231e78c9d77d77d932749aa043",
+      "components": {
+        "sunshine": {
+          "crash_count": 0,
+          "pid": 31532,
+          "status": "running"
+        },
+        "web_server": {
+          "crash_count": 0,
+          "pid": 37524,
+          "status": "running"
+        }
+      },
+      "version": "git-954a1e6e73ef"
+    },
+    "apps": [
+      {
+        "id": "67c824d9-0f53-4dd7-8ce2-ef0123fe8d2a",
+        "status": "stopped"
+      },
+      {
+        "id": "18f482ef-5d7b-4528-a5e7-6fbd8a150980",
+        "status": "stopped",
+        "args": "",
+        "can_edit": true
+      }
+    ],
+    "active_sessions": 0,
+    "active_media": 0
+  }
+}
