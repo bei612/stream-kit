@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-26",
+  "source_commit": "53c7385ac58d39408a3aaffef33d6a95ea06a737",
+  "passed": false,
+  "scope": "Windows 11 and Android release dependency review",
+  "previous_inventory": "docs/evidence/windows11-runtime-dependency-review-4bbffe10.json",
+  "go_orchestrator": {
+    "compiler": "go1.27.4 windows/amd64",
+    "compiler_archive_sha256": "178ab98950ac69ab25069307dc6ade79f3816e414cce95b4da166a115cde1e7e",
+    "quic_go": "v0.59.1",
+    "advisories_addressed": [
+      "https://pkg.go.dev/vuln/GO-2026-6859",
+      "https://pkg.go.dev/vuln/GO-2026-5676"
+    ],
+    "symbol_scan": {
+      "command": "go run golang.org/x/vuln/cmd/govulncheck@v1.10.0 -scan=symbol ./cmd/orchestrator",
+      "result": "No vulnerabilities found."
+    },
+    "windows_test_packages_passed": [
+      "./internal/server",
+      "./internal/server/handlers",
+      "./internal/app",
+      "./internal/config",
+      "./internal/session",
+      "./internal/windowsservice"
+    ]
+  },
+  "gateway_http2": {
+    "advisory": "https://rustsec.org/advisories/RUSTSEC-2026-0258.html",
+    "finding": "Actix HTTP still selects h2 0.3.27. The RustSec fix is published for h2 0.4.16.",
+    "upstream_change": "https://github.com/hyperium/h2/commit/193833e87c639e39751f339a9c375a44c8bfab54",
+    "applicability": "The LAN media gateway uses Actix HTTPS. The upstream change is not a clean backport to the 0.3 branch, so the deployed dependency remains in scope for disposition."
+  },
+  "candidate_runs": {
+    "windows": 45798220979,
+    "android": 45798220812,
+    "android_version_code": 1000021
+  }
+}

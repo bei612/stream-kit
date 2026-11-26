@@ -2,7 +2,9 @@
 
 核对日期：2026-11-26。本页集中维护可下载版本、本机部署、候选产物和剩余边界。历史证据保留原始来源，不把旧版通过结果当作新产物验收。
 
-本期 `0.1.1` 待验源码为 `4bbffe10af95c68380afee9d8c1660cd91aee17e`。该源码包含归档上传空闲超时、直接落盘及媒体网关和解压依赖更新。初始候选 `1fa79664` 的 Windows 11 隔离管理页 ZIP、7z 和本机路径登记，以及实体 Pad 覆盖升级和书签恢复均通过，证据保留其原版本。本机服务端仍为 `954a1e6e`，Android 仍安装初始候选。Windows 11 新安装、同源联合媒体、真实 LAN 换址及正式发布仍待验收。见[初始候选验收](evidence/windows11-android-candidate-1fa79664.json)及[运行依赖复核](evidence/windows11-runtime-dependency-review-4bbffe10.json)。
+本期 `0.1.1` 候选冻结源码为 `53c7385ac58d39408a3aaffef33d6a95ea06a737`。该源码包含归档上传空闲超时、直接落盘、媒体网关和解压依赖更新，以及 Go 1.27.4 工具链与 quic-go 补丁。Windows 11 原生 Go 定向测试通过，管理服务符号级扫描未发现已知漏洞。候选产物来自 [Windows 单安装器构建](https://github.com/bei612/stream-kit/actions/runs/45798220979)及 [Android 签名构建](https://github.com/bei612/stream-kit/actions/runs/45798220812)，Android versionCode 为 1000021。详见[工具链与依赖复核](evidence/windows11-runtime-dependency-review-53c7385a.json)。
+
+初始候选 `1fa79664` 的 Windows 11 隔离管理页已通过 ZIP、7z 和本机路径登记，实体平板也已通过覆盖升级及书签恢复。本机服务端仍为 `954a1e6e`，平板已安装初始候选。新候选需完成 Windows 11 新安装、同源媒体与控制、真实 LAN 换址及发行验收。见[初始候选验收](evidence/windows11-android-candidate-1fa79664.json)。
 
 实体 Android 平板的目标输入缺口现已补齐：[实际输入与控制交接验收](evidence/android-input-tablet-954a1e6e-20261126.json)使用已安装的 `954a1e6e` 原生 APK、同源 Windows 服务和 Playwright CLI 管理页。Example 实际按键/点击计数在平板授权后由 5/6 增至 6/7；移交给 Web、交回 Android 和释放控制后，旧控制端的输入均未改变目标计数。原加密书签完整恢复，临时工具已卸载，Example 停止且无活动测试会话。本次不修改生产源码、不重新构建或安装；整机重启、首次安装返回 3010 后的重启路径及本机主网卡真实换址仍未完成验收。
 
@@ -10,7 +12,7 @@
 
 本机 Windows 三个运行组件及其前端现已统一为 `954a1e6e73ef95231e78c9d77d77d932749aa043`，完整原生库存校验通过；管理端资源为 `index-DkDzwuSd.js` / `index-BQYlHHxO.css`。服务为 Auto / LocalSystem / Running，两个子组件均 running、崩溃计数 0；本次维护保留配置、CA、私钥、叶证书及应用身份，实际 LAN 与 loopback 管理入口可信 HTTPS 通过。见[本机最新维护与页面验收](evidence/runtime-installed-954a1e6e-20261120.json)。Example 出画面、跨端控制及音频等未受此次显示层修复影响的证据保留 `1d81a373` 来源，不冒称重新执行。
 
-已公开的最新预发布运行源码冻结为 `954a1e6e73ef95231e78c9d77d77d932749aa043`，沿用局域网地址自动识别、双入口证书热更新及 OpenSSL 4.1 兼容，并修复概念气泡布局。[v0.1.0-preview.20261119.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.3) 已公开 Windows/Linux 安装器、Android APK 及配套材料；本机三组件与平板均同源。14 个附件的字节数和 GitHub 存储摘要已与已验证产物核对，其中 Windows 安装器及六份材料完成匿名全量下载；其余大文件复用先前构建附件校验，未重复下载。详见[发布证据](evidence/release-preview-20261119.3.json)。历史维护失败、回滚和重启要求分别保留原始记录。
+已公开的最新预发布运行源码冻结为 `954a1e6e73ef95231e78c9d77d77d932749aa043`，沿用局域网地址自动识别、双入口证书热更新及 OpenSSL 4.1 兼容，并修复概念气泡布局。[v0.1.0-preview.20261119.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.3) 已公开 Windows/Linux 安装器、Android APK 及配套材料。首次部署该预发布时，本机三组件与平板同源。14 个附件的字节数和 GitHub 存储摘要已与已验证产物核对，其中 Windows 安装器及六份材料完成匿名全量下载。其余大文件复用先前构建附件校验。详见[发布证据](evidence/release-preview-20261119.3.json)。历史维护失败、回滚和重启要求分别保留原始记录。
 
 自动换址已通过[真实隔离网络验证](evidence/lan-autodiscovery-515b9918-20261119.json)：移除旧 IP 并新增 IP 后，6.93 秒内两个 HTTPS 入口更新身份，CA、私钥、配置与进程保持，WebRTC 自动恢复到新媒体地址。该实验实际运行 `515b9918`；其管理端和网关源码与 `1d81a373` 完全一致，记录仍保留原始运行身份。本页下方手动地址恢复记录证明的是更新前的本机状态。
 
