@@ -6,6 +6,8 @@
 
 初始候选 `1fa79664` 的 Windows 11 隔离管理页已通过 ZIP、7z 和本机路径登记。本机服务端仍为 `954a1e6e`。实体平板已更新至签名候选 `53c7385a`，versionCode 1000021，原书签和服务器地址均已保留。新候选需完成 Windows 11 新安装、同源媒体与控制、真实 LAN 换址及发行验收。见[初始候选验收](evidence/windows11-android-candidate-1fa79664.json)、[签名候选平板覆盖安装](evidence/windows11-android-tablet-upgrade-53c7385a.json)。
 
+候选冻结后，源码 `e55bd5ec` 修正应用详情的固定观看链接和采集能力状态中英文混用。Windows 隔离页面验收已覆盖两种语言与链接启用、重置、关闭。该页面修复待随下一个完整同源安装包部署。见[应用详情语言核验](evidence/app-detail-localization-e55bd5ec.json)。
+
 实体 Android 平板的目标输入缺口现已补齐：[实际输入与控制交接验收](evidence/android-input-tablet-954a1e6e-20261126.json)使用已安装的 `954a1e6e` 原生 APK、同源 Windows 服务和 Playwright CLI 管理页。Example 实际按键/点击计数在平板授权后由 5/6 增至 6/7；移交给 Web、交回 Android 和释放控制后，旧控制端的输入均未改变目标计数。原加密书签完整恢复，临时工具已卸载，Example 停止且无活动测试会话。本次不修改生产源码、不重新构建或安装；整机重启、首次安装返回 3010 后的重启路径及本机主网卡真实换址仍未完成验收。
 
 源码 `954a1e6e` 新增共用概念气泡的视口避让和生命周期修复：原安装版手机宽度 390px 时隐藏气泡撑至 639px，已在实际安装页面复现。新同源产物现已完整安装；Playwright CLI 对实际安装页面的 8 路由 × 3 宽度及中英文气泡检查通过，四张截图已目视复核。键盘、触屏、配置冲突和组件启停另有同源 CI 证据。详见[已安装验收](evidence/runtime-installed-954a1e6e-20261120.json)和[修复审查](evidence/management-tooltip-review-20261119.json)。运行依赖审查发现一个 React Router 告警包；[逐公告适用性核查](evidence/management-dependency-review-20261119.json)未发现当前调用方式暴露所列攻击路径，包仍未升级，不声明扫描清零。

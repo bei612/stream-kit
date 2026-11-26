@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-26",
+  "source_commit": "e55bd5ecad1eb0a602c650eefa7f9b3d2407f035",
+  "passed": true,
+  "scope": "Application detail link and capture status localization, with real management API and SQLite on Windows 11",
+  "browser_tool": "playwright-cli",
+  "management_assets": "index-BFeJmyq-.js / index-BQYlHHxO.css",
+  "isolated_backend_source": "53c7385ac58d39408a3aaffef33d6a95ea06a737",
+  "verified": {
+    "web_type_check_and_build": true,
+    "application_registration": "local Example, HTTP 200",
+    "locales": ["en", "zh-CN"],
+    "language_switch_kept_link_and_did_not_reread_application_state": true,
+    "link_lifecycle": [
+      {"method": "POST", "http_status": 200, "sqlite_result": "success"},
+      {"method": "PUT", "http_status": 200, "sqlite_result": "success"},
+      {"method": "DELETE", "http_status": 200, "sqlite_result": "success"}
+    ],
+    "isolated_bookmark_disabled_at_end": true
+  },
+  "screenshots": [
+    {"file": "app-detail-localization-e55bd5ec-english.png", "sha256": "ed3d8bfad12e6b4cf94276797ab05ac1da295845589fa2d3b7086074a0d94683"},
+    {"file": "app-detail-localization-e55bd5ec-chinese.png", "sha256": "bb3fcd65b4ae68d2bf0f7e59419ea02f0312bcc3991914d88d13fc419516b73b"}
+  ],
+  "scope_limit": "Capture capability returned HTTP 503 because the isolated backend has no encoder configured. The isolated run verifies the localized unavailable state. The execution wrapper failed to parse the structured browser summary. Browser checkpoints, screenshot review and read-only SQLite recovery verified the listed operations. The installed Windows application was not changed."
+}
