@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -152,14 +153,20 @@ func policyMatches(key registry.Key) (bool, error) {
 	}
 	defer ep.Close()
 	a, _, err := ep.GetStringValue(endpointAssociation)
+	if errors.Is(err, windows.ERROR_FILE_NOT_FOUND) {
+		return false, nil
+	}
 	if err != nil {
 		return false, err
 	}
 	n, _, err := ep.GetIntegerValue(endpointNeverDefault)
+	if errors.Is(err, windows.ERROR_FILE_NOT_FOUND) {
+		return false, nil
+	}
 	if err != nil {
 		return false, err
 	}
-	return a == endpointAny && n == 0x107, nil
+	return a == endpointAny && n == endpointMask, nil
 }
 
 // WindowsPolicyReady is read-only and includes disconnected devices. A marker
@@ -214,7 +221,9 @@ func PrepareWindowsPolicy(ctx context.Context, id WindowsIdentity) error {
 	if err := requireRunningAudioNode(n.device); err != nil {
 		return err
 	}
-	// Validate every destination before the first mutation.
+	configured := true
+	// Validate every destination before the first mutation. A previous attempt
+	// may already have written both policies and left migration to Windows.
 	for _, key := range n.keys {
 		owned, _, err := policyState(key)
 		if err != nil {
@@ -229,6 +238,24 @@ func PrepareWindowsPolicy(ctx context.Context, id WindowsIdentity) error {
 		} else if !errors.Is(err, windows.ERROR_FILE_NOT_FOUND) {
 			return err
 		}
+		matches, err := policyMatches(key)
+		if err != nil {
+			return err
+		}
+		configured = configured && owned && matches
+	}
+	applied := false
+	if configured {
+		applied, err = waitForEffectivePolicy(ctx, n.device)
+		if err != nil {
+			return err
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if applied {
+		return markPolicyPrepared(n)
 	}
 	for _, key := range n.keys {
 		state, _, err := registry.CreateKey(key, policyStateKey, registry.READ|registry.WRITE)
@@ -246,7 +273,7 @@ func PrepareWindowsPolicy(ctx context.Context, id WindowsIdentity) error {
 		}
 		err = ep.SetStringValue(endpointAssociation, endpointAny)
 		if err == nil {
-			err = ep.SetDWordValue(endpointNeverDefault, 0x107)
+			err = ep.SetDWordValue(endpointNeverDefault, endpointMask)
 		}
 		ep.Close()
 		if err != nil {
@@ -268,14 +295,20 @@ func PrepareWindowsPolicy(ctx context.Context, id WindowsIdentity) error {
 		return err
 	}
 	defer updated.close()
-	for _, key := range updated.keys {
+	return markPolicyPrepared(updated)
+}
+
+func markPolicyPrepared(n *policyNode) error {
+	for _, key := range n.keys {
 		matches, err := policyMatches(key)
 		if err != nil {
 			return err
 		}
 		if !matches {
-			return errors.New("audio policy did not survive driver refresh")
+			return errors.New("configured audio policy changed during preparation")
 		}
+	}
+	for _, key := range n.keys {
 		state, _, err := registry.CreateKey(key, policyStateKey, registry.READ|registry.WRITE)
 		if err != nil {
 			return err
@@ -289,6 +322,35 @@ func PrepareWindowsPolicy(ctx context.Context, id WindowsIdentity) error {
 	return nil
 }
 
+func waitForEffectivePolicy(ctx context.Context, device *windows.DevInfoData) (bool, error) {
+	container, err := audioNodeContainer(device)
+	if err != nil {
+		return false, err
+	}
+	// Plug and Play starts the class node before AudioEndpointBuilder publishes
+	// both endpoints. Give the latter time to expose the effective policy.
+	deadline := time.NewTimer(3 * time.Second)
+	defer deadline.Stop()
+	poll := time.NewTicker(150 * time.Millisecond)
+	defer poll.Stop()
+	for {
+		if err := ctx.Err(); err != nil {
+			return false, err
+		}
+		applied, err := effectiveEndpointPolicy(container)
+		if err != nil || applied {
+			return applied, err
+		}
+		select {
+		case <-ctx.Done():
+			return false, ctx.Err()
+		case <-deadline.C:
+			return false, nil
+		case <-poll.C:
+		}
+	}
+}
+
 // Registered interfaces survive unplugging. Their presence alone must not end
 // the attachment wait or allow policy writes/driver migration before PnP starts
 // the new live node for this identity.
@@ -299,6 +361,10 @@ func requireRunningAudioNode(device *windows.DevInfoData) error {
 			return errAudioNodeMissing
 		}
 		return fmt.Errorf("inspect configured audio node: %w", err)
+	}
+	const cmProblemNeedRestart = 0x0e // CM_PROB_NEED_RESTART from cfg.h.
+	if problem == cmProblemNeedRestart {
+		return ErrRestartRequired
 	}
 	if problem != 0 || status&windows.DN_STARTED == 0 {
 		return errAudioNodeMissing

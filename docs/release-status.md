@@ -2,9 +2,13 @@
 
 核对日期：2026-11-27。本页集中维护可下载版本、本机部署、候选产物和剩余边界。历史证据保留原始来源，不把旧版通过结果当作新产物验收。
 
-当前构建候选冻结于 `e253605d02e0fa686faeb76704fd966e8a3179d5`。Android `1000026` 已完成签名构建和正式混淆包的模拟器检查，本机核对了 v2/v3 项目签名、包内源码标识和 21 项文件摘要。APK 大小为 33,168,186 字节，SHA-256 为 `07e0ab526f791ce93a63b65b310b37c81ae99b97d8f6bd0f466e19479b8f0d45`。同源 Windows 和 Linux 安装器正在构建。[Android 候选](https://github.com/bei612/stream-kit/actions/runs/45987819711) · [同源安装器](https://github.com/bei612/stream-kit/actions/runs/45987827538)
+当前构建候选冻结于 `e253605d02e0fa686faeb76704fd966e8a3179d5`。Android `1000026` 已完成签名构建和正式混淆包的模拟器检查，本机核对了 v2/v3 项目签名、包内源码标识和 21 项文件摘要。APK 大小为 33,168,186 字节，SHA-256 为 `07e0ab526f791ce93a63b65b310b37c81ae99b97d8f6bd0f466e19479b8f0d45`。同源 Linux 原生安装通过，Windows 正在构建。[Android 候选](https://github.com/bei612/stream-kit/actions/runs/45987819711) · [同源安装器](https://github.com/bei612/stream-kit/actions/runs/45987827538)
+
+同源 Linux 隔离联验使用实际网卡换址并自动配对 Sunshine。两个 HTTPS 入口在 10.625 秒内更换证书，HTTP/1.1 和 HTTP/2 均验证通过，浏览器在原页面恢复到新直连地址。CA、私钥、运行配置和三个进程保持。Android `v0.1.0` 覆盖升级至同源 `1000026` 后保留书签，Android 和 Web 共享一个上游，输入交接及撤权、前后台恢复、Android 麦克风权限拒绝和客户端断网重连均通过。该联验范围是隔离 Linux 和官方 Android 模拟器。[LAN 联验](https://github.com/bei612/stream-kit/actions/runs/45990406636) · [Android 联验](https://github.com/bei612/stream-kit/actions/runs/45990418488)
 
 主线进一步处理了 Windows 自启动时的桌面会话切换。若 Windows 已列出活动会话、用户令牌暂时尚未就绪，组件沿用已有登录等待流程；已核实的指定会话仍优先。其他会话可能造成归属不明确时继续等待，权限错误仍明确报错。Windows 组件和控制服务测试通过；真实整机重启仍需独立验收。[Windows 会话令牌接口](https://learn.microsoft.com/en-us/windows/win32/api/wtsapi32/nf-wtsapi32-wtsqueryusertoken)
+
+Windows 安装因本机音频类驱动返回 `3010` 时，当前代码在自动启动阶段辨别指定 USB 音频设备的准备状态。源接口策略已写入时，通过 Core Audio 读取同一 PnP 容器的一对活动录放端点，确认防止抢占默认音频设备的策略已生效后完成准备；策略尚未生效时仍由系统执行原有的设备刷新流程。Windows 明确报告设备待重启时保留 `3010`。当前 Win11 对已安装设备的只读检查确认两个端点均为有效策略 `0x107`，无关容器不能通过。安装返回 `3010` 后整机重启的闭环仍待验收。[Windows 端点策略](https://learn.microsoft.com/en-us/windows-hardware/drivers/audio/pkey-audiodevice-neversetasdefaultendpoint)
 
 主线已将原生网关和 Moonlight 绑定的 `crossbeam-epoch` 锁定到 0.9.21，原生和 Web/WASM 的 RSA 配对后端统一锁定到 0.10.0。Windows 原生 Rust 及 Web/WASM 锁定编译检查通过。OpenSSL 生成的既有格式证书和 PKCS#8 私钥可由新后端读取，新生成的证书和配对签名也经 OpenSSL 交叉验证。下一份安装包仍需验证真实 Sunshine 配对。下文 `55d6d5a8` 候选使用更新前的依赖。[Crossbeam 公告](https://rustsec.org/advisories/RUSTSEC-2026-0204.html) · [RSA 公告](https://rustsec.org/advisories/RUSTSEC-2023-0071.html)
 
