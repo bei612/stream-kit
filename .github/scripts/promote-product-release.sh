@@ -3,6 +3,12 @@ set -euo pipefail
 [[ ${SOURCE_RUN_ID:-} =~ ^[1-9][0-9]*$ ]] || { echo 'Expected a successful product run ID' >&2; exit 1; }
 [[ ${INSTALLER_ACCEPTANCE_RUN_ID:-} =~ ^[1-9][0-9]*$ ]] || { echo 'Expected the successful Windows installer acceptance run ID' >&2; exit 1; }
 [[ ${RELEASE_TAG:-} =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-preview\.[0-9]+(\.[0-9]+)*|-rc\.[1-9][0-9]*)?$ ]] || { echo 'Expected a new stable, candidate or preview version tag' >&2; exit 1; }
+if [[ -n ${LINUX_RUN_ID:-} ]]; then
+  [[ $LINUX_RUN_ID =~ ^[1-9][0-9]*$ && -n ${ANDROID_RUN_ID:-} ]] || {
+    echo 'A separate Linux run ID is supported only when promoting a signed Android build' >&2
+    exit 1
+  }
+fi
 mkdir -p artifacts/promotion
 gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > artifacts/promotion/source-run.json
 jq -e --arg repo "$GITHUB_REPOSITORY" '
@@ -53,7 +59,17 @@ if [[ -n ${ANDROID_RUN_ID:-} ]]; then
   android=artifacts/promotion/android-candidate
   gh run download "$ANDROID_RUN_ID" --repo "$GITHUB_REPOSITORY" --name stream-kit-android-release-candidate --dir "$android"
   release_assets=artifacts/promotion/windows-android-assets
-  node scripts/verify-windows-android-promotion.mjs "$windows" "$android" "$sbom" "$acceptance" "$RELEASE_TAG" "$release_assets"
+  linux_args=()
+  if [[ -n ${LINUX_RUN_ID:-} ]]; then
+    linux_artifact=artifacts/promotion/linux-product-installer
+    gh api "repos/$GITHUB_REPOSITORY/actions/runs/$LINUX_RUN_ID" > artifacts/promotion/linux-run.json
+    gh api "repos/$GITHUB_REPOSITORY/actions/runs/$LINUX_RUN_ID/jobs?filter=latest&per_page=100" > artifacts/promotion/linux-jobs.json
+    node scripts/verify-windows-android-promotion.mjs --linux-run artifacts/promotion/linux-run.json \
+      artifacts/promotion/linux-jobs.json "$GITHUB_REPOSITORY" "$LINUX_RUN_ID" "$source_commit" "$RELEASE_TAG"
+    gh run download "$LINUX_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "linux-product-installer-$source_commit" --dir "$linux_artifact"
+    linux_args=("$linux_artifact/installer")
+  fi
+  node scripts/verify-windows-android-promotion.mjs "$windows" "$android" "$sbom" "$acceptance" "$RELEASE_TAG" "$release_assets" "${linux_args[@]}"
   test -f "$reviewed_notes"
   git fetch --no-tags origin "refs/tags/$RELEASE_TAG"
   [[ $(git rev-parse 'FETCH_HEAD^{commit}') == "$source_commit" ]] || { echo 'Release tag points to another revision' >&2; exit 1; }

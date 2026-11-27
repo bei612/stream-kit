@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {productRelease,manifestRelease,promotionProfile,verifyInstallerAcceptance} from './lib/product-release.mjs'
+import {verifyLinuxInstaller,verifyLinuxRun} from './verify-windows-android-promotion.mjs'
 const commit='a'.repeat(40)
 
 test('publication requires successful installation of the exact source and bytes with automatic services',()=>{
@@ -65,4 +66,36 @@ test('a release candidate and final release use the same immutable product versi
   for(const tag of ['v1.2.4-rc.1','v1.2.3-rc.0','v1.2.3-rc.01','v1.2.3-rc.-1','v1.2.3-rc.1\n','v1.2.3-rc.1/other'])assert.throws(()=>promotionProfile(windows,linux,tag))
   assert.throws(()=>promotionProfile(...manifests(),'v0.1.0-rc.1'))
   assert.throws(()=>promotionProfile(windows,{...linux,commit:'b'.repeat(40)},'v1.2.3-rc.1'))
+})
+
+test('optional Ubuntu payload must match the Windows source, platform and actual bytes',()=>{
+  const [windows,other]=manifests('1.2.3')
+  const digest='c'.repeat(64)
+  const linux={...other,platform:'linux',architecture:'amd64',distribution:'ubuntu-24.04',payload_profile:'runtime',
+    installer:{...other.installer,sha256:digest}}
+  verifyLinuxInstaller(windows,linux,'v1.2.3',file=>{
+    assert.equal(file,other.installer.file)
+    return digest
+  })
+  assert.throws(()=>verifyLinuxInstaller(windows,linux,'v1.2.3',()=> 'd'.repeat(64)),/bytes/)
+  for(const change of [{commit:'b'.repeat(40)}, {architecture:'arm64'}, {distribution:'ubuntu-22.04'},
+    {payload_profile:'test'}, {installer:{...linux.installer,file:'../setup.run'}}]){
+    let read=false
+    assert.throws(()=>verifyLinuxInstaller(windows,{...linux,...change},'v1.2.3',()=>{read=true;return digest}))
+    assert.equal(read,false)
+  }
+})
+
+test('a frozen Ubuntu build must use the matching version branch and original source commit',()=>{
+  const repository='bei612/stream-kit'
+  const run={id:123,status:'completed',conclusion:'success',head_repository:{full_name:repository},
+    path:'.github/workflows/linux-sunshine-build.yml',head_branch:'release/1.2.3',
+    event:'workflow_dispatch',head_sha:commit}
+  const jobs={jobs:[{name:'Source-built Linux unified installer',status:'completed',conclusion:'success',
+    head_sha:commit,run_id:123}]}
+  verifyLinuxRun(run,jobs,repository,'123',commit,'v1.2.3')
+  assert.throws(()=>verifyLinuxRun(run,jobs,repository,'123',commit,'v1.2.4'))
+  assert.throws(()=>verifyLinuxRun(run,jobs,repository,'123','b'.repeat(40),'v1.2.3'),/release source/)
+  assert.throws(()=>verifyLinuxRun({...run,event:'push'},jobs,repository,'123',commit,'v1.2.3'))
+  assert.throws(()=>verifyLinuxRun({...run,head_repository:{full_name:'fork/stream-kit'}},jobs,repository,'123',commit,'v1.2.3'))
 })

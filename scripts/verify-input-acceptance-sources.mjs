@@ -17,7 +17,7 @@ export function productSource(run, jobs, repository, runID) {
 
 // Consumers must explicitly select a producer. Existing productSource callers
 // remain restricted to the original unified-product workflow.
-export function linuxRuntimeSource(run, jobs, repository, runID, producerProfile) {
+export function linuxRuntimeSource(run, jobs, repository, runID, producerProfile, {headBranch = 'main'} = {}) {
   let workflow, events, jobName
   if (producerProfile === 'unified') {
     workflow = '.github/workflows/windows-product-release.yml'
@@ -35,7 +35,7 @@ export function linuxRuntimeSource(run, jobs, repository, runID, producerProfile
   assert.ok(run.status === 'in_progress' || (run.status === 'completed' && run.conclusion === 'success'))
   assert.equal(run.path, workflow)
   assert.equal(run.head_repository.full_name, repository)
-  assert.equal(run.head_branch, 'main')
+  assert.equal(run.head_branch, headBranch)
   assert.ok(events.includes(run.event))
   assert.match(run.head_sha, /^[a-f0-9]{40}$/)
   const linux = jobs.jobs.filter(job => job.name === jobName)

@@ -2,7 +2,9 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import { manifestRelease, verifyInstallerAcceptance } from './lib/product-release.mjs'
+import { fileURLToPath } from 'node:url'
+import { manifestRelease, promotionProfile, verifyInstallerAcceptance } from './lib/product-release.mjs'
+import { linuxRuntimeSource } from './verify-input-acceptance-sources.mjs'
 
 const read = file => JSON.parse(fs.readFileSync(file, 'utf8'))
 const sha256 = file => createHash('sha256').update(fs.readFileSync(file)).digest('hex')
@@ -21,7 +23,30 @@ function verifyUploaded(metadata, files) {
   assert.equal(expected.size, 0, 'Release draft is missing an asset')
 }
 
-function prepareAssets(windowsDirectory, androidDirectory, sourceSbom, acceptance, tag, output) {
+export function verifyLinuxRun(run, jobs, repository, runID, commit, tag) {
+  assert.match(tag, /^v[0-9]+\.[0-9]+\.[0-9]+$/)
+  const profile = run.path === '.github/workflows/linux-sunshine-build.yml' ? 'standalone-linux' : 'unified'
+  const headBranch = run.head_branch === 'main' ? 'main' : `release/${tag.slice(1)}`
+  if (headBranch !== 'main') {
+    assert.equal(profile, 'standalone-linux')
+    assert.equal(run.event, 'workflow_dispatch')
+  }
+  const source = linuxRuntimeSource(run, jobs, repository, runID, profile, {headBranch})
+  assert.equal(source.commit, commit, 'Linux and Windows installers must share the release source')
+}
+
+export function verifyLinuxInstaller(windows, linux, tag, digestFile) {
+  promotionProfile(windows, linux, tag)
+  if (linux.platform !== 'linux' || linux.architecture !== 'amd64' ||
+    linux.distribution !== 'ubuntu-24.04' || linux.payload_profile !== 'runtime') {
+    throw Error('Expected the native Ubuntu AMD64 runtime installer')
+  }
+  if (!/^[a-f0-9]{64}$/.test(linux.installer.sha256) || linux.installer.sha256 !== digestFile(linux.installer.file)) {
+    throw Error('Linux installer bytes do not match the verified manifest')
+  }
+}
+
+function prepareAssets(windowsDirectory, androidDirectory, sourceSbom, acceptance, tag, output, linuxDirectory) {
   const win = read(path.join(windowsDirectory, 'installer-manifest.json'))
   const version = manifestRelease(win)
   assert.equal(version.channel, 'stable', 'Windows + Android promotion requires a stable build')
@@ -78,6 +103,12 @@ function prepareAssets(windowsDirectory, androidDirectory, sourceSbom, acceptanc
     assert.ok(inventory.includes(`${sha256(path.join(androidDirectory, file))}  ${file}`), `Android inventory mismatch: ${file}`)
   }
 
+  let linux
+  if (linuxDirectory) {
+    linux = read(path.join(linuxDirectory, 'installer-manifest.json'))
+    verifyLinuxInstaller(win, linux, tag, file => sha256(path.join(linuxDirectory, file)))
+  }
+
   fs.mkdirSync(output, {recursive:true})
   assert.equal(fs.readdirSync(output).length, 0, 'Publication directory must be empty')
   const copy = (directory, from, to = from) => {
@@ -92,13 +123,23 @@ function prepareAssets(windowsDirectory, androidDirectory, sourceSbom, acceptanc
   fs.writeFileSync(path.join(output, 'SHA256SUMS.txt'), windowsChecksums)
   const androidChecksums = [...androidFiles].map(([from, to]) => copy(androidDirectory, from, to)).join('')
   fs.writeFileSync(path.join(output, 'Android-SHA256SUMS.txt'), androidChecksums)
+  if (linux) {
+    const linuxChecksums = copy(linuxDirectory, linux.installer.file)
+      + copy(linuxDirectory, 'installer-manifest.json', 'linux-installer-manifest.json')
+    fs.writeFileSync(path.join(output, 'Linux-SHA256SUMS.txt'), linuxChecksums)
+  }
 }
 
-const args = process.argv.slice(2)
-if (args[0] === '--uploaded') {
-  assert.ok(args.length >= 3)
-  verifyUploaded(args[1], args.slice(2))
-} else {
-  assert.equal(args.length, 6, 'Expected WINDOWS_DIR ANDROID_DIR SOURCE_SBOM INSTALLER_ACCEPTANCE TAG OUTPUT_DIR')
-  prepareAssets(...args)
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const args = process.argv.slice(2)
+  if (args[0] === '--uploaded') {
+    assert.ok(args.length >= 3)
+    verifyUploaded(args[1], args.slice(2))
+  } else if (args[0] === '--linux-run') {
+    assert.equal(args.length, 7, 'Expected --linux-run RUN_JSON JOBS_JSON REPOSITORY RUN_ID SOURCE_COMMIT RELEASE_TAG')
+    verifyLinuxRun(read(args[1]), read(args[2]), ...args.slice(3))
+  } else {
+    assert.ok(args.length === 6 || args.length === 7, 'Expected WINDOWS_DIR ANDROID_DIR SOURCE_SBOM INSTALLER_ACCEPTANCE TAG OUTPUT_DIR [LINUX_DIR]')
+    prepareAssets(...args)
+  }
 }
