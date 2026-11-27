@@ -2,17 +2,19 @@
 
 核对日期：2026-11-27。本页集中维护可下载版本、本机部署、候选产物和剩余边界。历史证据保留原始来源，不把旧版通过结果当作新产物验收。
 
-主线已将原生网关和 Moonlight 绑定的 `crossbeam-epoch` 锁定到 0.9.21，与现有 Web/WASM 锁一致，覆盖 [RUSTSEC-2026-0204](https://rustsec.org/advisories/RUSTSEC-2026-0204.html)。Windows 已核对两条原生依赖链，Moonlight 丢包重建相关代码的锁定编译检查通过。已冻结的 `55d6d5a8` 候选仍使用 0.9.18，旧包的依赖复核结论保持原样。
+主线已将原生网关和 Moonlight 绑定的 `crossbeam-epoch` 锁定到 0.9.21，原生和 Web/WASM 的 RSA 配对后端统一锁定到 0.10.0。Windows 原生 Rust 及 Web/WASM 锁定编译检查通过。OpenSSL 生成的既有格式证书和 PKCS#8 私钥可由新后端读取，新生成的证书和配对签名也经 OpenSSL 交叉验证。下一份安装包仍需验证真实 Sunshine 配对。下文 `55d6d5a8` 候选使用更新前的依赖。[Crossbeam 公告](https://rustsec.org/advisories/RUSTSEC-2026-0204.html) · [RSA 公告](https://rustsec.org/advisories/RUSTSEC-2023-0071.html)
 
 新发布候选冻结于 `55d6d5a8a85db6b0b9a5cefb4afa042305b8fd49`，修复管理服务对本机 HTTPS 媒体网关的信任。Win11 已用独立 CA 对照运行两版管理服务。旧版签名设备查询和配置读取均返回 503，修复版均返回 200，组件健康状态进入 `running`。同一 CA 签发的新证书在 3.984 秒内被网关热加载，进程 PID 保持，签名查询继续成功。该复核使用前一候选的同源码网关，Windows 信任库与现有部署保持原状。[Win11 原生复核](evidence/windows11-managed-gateway-ca-55d6d5a8-20261127.json)
 
-签名 Android APK（`1000025`）已下载并核对 21 项文件、发行签名 v2/v3 和包内源码标记，SHA-256 为 `42f5ec53825742e9e3cc36cb071351debc671b1eb6d618a2a5b4f76ce923a717`。同源 Ubuntu 安装包已通过原生初始化并下载校验，大小 62,809,265 字节，SHA-256 为 `baf0013d65e8c7ab5a1bae564165e7ea61093405bc4af784397c354753f1e415`。Windows 同源安装包仍在构建，完整音频联验等候 Windows 候选组件。[Android 签名构建](https://github.com/bei612/stream-kit/actions/runs/45975421542) · [服务端构建](https://github.com/bei612/stream-kit/actions/runs/45975421507)
+签名 Android APK（`1000025`）已下载并核对 21 项文件、发行签名 v2/v3 和包内源码标记，SHA-256 为 `42f5ec53825742e9e3cc36cb071351debc671b1eb6d618a2a5b4f76ce923a717`。同源 Ubuntu 安装包已通过原生初始化并下载校验，大小 62,809,265 字节，SHA-256 为 `baf0013d65e8c7ab5a1bae564165e7ea61093405bc4af784397c354753f1e415`。同源 Windows EXE 已下载，大小 98,063,895 字节，SHA-256 为 `39d7f383794ad51cd359925b22340c466f88e34b382b998d0c84922a8f9b9116`，安装器清单与原生三组件载荷清单一致。[Android 签名构建](https://github.com/bei612/stream-kit/actions/runs/45975421542) · [服务端构建](https://github.com/bei612/stream-kit/actions/runs/45975421507)
 
 该 Ubuntu 安装包的实际换址联验通过。原固定观看链接随发现记录指向新地址，两套 HTTPS 入口在 7.067 秒内更新证书并移除旧地址，HTTP/1.1 和 HTTP/2 均通过校验。原浏览器页面无须重载即转到新的直连 IPv4，恢复 48 帧视频和 79 个音频包。CA、私钥、应用配置和进程保持。现场 Windows 换址及 Android 音频继续使用独立验收。[同源实际换址联验](https://github.com/bei612/stream-kit/actions/runs/45977721472)
 
 正式 Android `v0.1.0` 直接覆盖升级至候选 `1000025` 已通过。原书签可打开，客户端以观看者身份入场且麦克风关闭。Android 和 Web 轮流获得控制权，六个阶段核对了目标按键、点击及旧控制者撤权。[同源覆盖升级与输入联验](https://github.com/bei612/stream-kit/actions/runs/45977721103)
 
-Win11 源码诊断已通过 Android、目标录音和 Web 音频联验。两端共享一个渲染上游，Android 接收程序声，同时将合成麦克风声送到目标录音设备和 Web。控制权撤回后，合成声源仍在继续，Web 麦克风频率从 −20.80 dB 降至 −127.14 dB，目标录音中的该频率峰值低于 0.000001，程序声保持。诊断使用新管理程序和签名 APK，网关与编码器采用源码未变的上一个构建。正式 Windows 同源产物的复核仍待完成。[Win11 跨端音频测量](evidence/windows11-managed-gateway-ca-55d6d5a8-20261127.json)
+Win11 使用同源三组件载荷和签名 APK 完成了 Android、目标录音和 Web 音频联验。Android 与 Web 共享一条渲染上游，程序声持续播放。撤权后，持续注入的麦克风测试信号在 Web 端从 −22.11 dB 降至 −127.28 dB，目标录音峰值低于 0.000001，录音无丢帧。独立模拟器和临时信任已回收。[Win11 同源音频证据](evidence/windows11-android-packaged-audio-55d6d5a8-20261127.json)
+
+同一 EXE 在 Windows Server 2022 托管安装验收中返回 `3010`。SetupAPI 记录了本次虚拟 USB 音频接口刷新时有设备句柄未释放，Windows 要求重启，服务启动及 PCM 环节未执行。卸载成功并保留了应用数据。主线已改为验证端点策略后释放临时设备，再由网关挂载并触发 Windows 正常枚举。新候选仍需通过 Windows 原生端点及完整安装、自启动验收。[托管安装验收](https://github.com/bei612/stream-kit/actions/runs/45984473224)
 
 上一发布候选冻结于 `ce49050f4dfcbd1e22d9d4f22093f6b965e6aac8`，含固定观看主机名与大型归档限额界面。[Windows 统一安装器](https://github.com/bei612/stream-kit/actions/runs/45939440963)已构建，大小 98,055,882 字节，SHA-256 为 `9ab0b300106e748fd21b62e5521c8dfe2c280cd252eed80d117844bc4f07fd8f`，原包与三组件清单均已核验。[Android 原生 APK](https://github.com/bei612/stream-kit/actions/runs/45939467986)的 versionCode 为 `1000024`，本地验证了 21 项文件和 v2/v3 发行签名，APK SHA-256 为 `f65455f6d07c7b66d14d86f51ed076cfea5e75a34c6693ede87697d996d6a0b7`。
 

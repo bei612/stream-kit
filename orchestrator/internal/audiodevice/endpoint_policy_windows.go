@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"unsafe"
@@ -162,8 +161,8 @@ func policyMatches(key registry.Key) (bool, error) {
 	return a == endpointAny && n == 0x107, nil
 }
 
-// WindowsPolicyReady is read-only and includes disconnected devices. A marker
-// is written only after successful driver migration, not merely property writes.
+// WindowsPolicyReady checks the persisted configuration, including disconnected
+// devices. AudioEndpointBuilder reads these values when the gateway attaches.
 func WindowsPolicyReady(id WindowsIdentity) (bool, error) {
 	n, err := openPolicyNode(id, false)
 	if errors.Is(err, errAudioNodeMissing) {
@@ -192,9 +191,10 @@ func WindowsPolicyReady(id WindowsIdentity) (bool, error) {
 	return true, nil
 }
 
-// PrepareWindowsPolicy runs with the native provider attached and no streams.
-// It never selects system defaults or changes another device's driver. A failed
-// operation leaves an incomplete marker so a retry cannot skip migration.
+// PrepareWindowsPolicy runs with the temporary native attachment and no streams.
+// The caller detaches it before normal gateway startup, so the next arrival
+// rebuilds the endpoints from the persisted properties. Reinstalling the active
+// class driver here races AudioEndpointBuilder and can require a system restart.
 func PrepareWindowsPolicy(ctx context.Context, id WindowsIdentity) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -256,26 +256,16 @@ func PrepareWindowsPolicy(ctx context.Context, id WindowsIdentity) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := refreshInboxAudioDriver(n.set, n.device); err != nil {
-		return err
-	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	// Refresh may replace interface registry handles. Reopen the exact node.
-	updated, err := openPolicyNode(id, true)
-	if err != nil {
-		return err
-	}
-	defer updated.close()
-	for _, key := range updated.keys {
+	for _, key := range n.keys {
 		matches, err := policyMatches(key)
 		if err != nil {
 			return err
 		}
 		if !matches {
-			return errors.New("audio policy did not survive driver refresh")
+			return errors.New("configured audio interface policy did not persist")
 		}
+	}
+	for _, key := range n.keys {
 		state, _, err := registry.CreateKey(key, policyStateKey, registry.READ|registry.WRITE)
 		if err != nil {
 			return err
@@ -290,8 +280,7 @@ func PrepareWindowsPolicy(ctx context.Context, id WindowsIdentity) error {
 }
 
 // Registered interfaces survive unplugging. Their presence alone must not end
-// the attachment wait or allow policy writes/driver migration before PnP starts
-// the new live node for this identity.
+// the attachment wait or allow policy writes before PnP starts the live node.
 func requireRunningAudioNode(device *windows.DevInfoData) error {
 	var status, problem uint32
 	if err := windows.CM_Get_DevNode_Status(&status, &problem, device.DevInst, 0); err != nil {
@@ -302,47 +291,6 @@ func requireRunningAudioNode(device *windows.DevInfoData) error {
 	}
 	if problem != 0 || status&windows.DN_STARTED == 0 {
 		return errAudioNodeMissing
-	}
-	return nil
-}
-
-func refreshInboxAudioDriver(set windows.DevInfo, device *windows.DevInfoData) error {
-	if err := requireRunningAudioNode(device); err != nil {
-		return err
-	}
-	root, err := windows.GetWindowsDirectory()
-	if err != nil {
-		return err
-	}
-	params, err := set.DeviceInstallParams(device)
-	if err != nil {
-		return err
-	}
-	params.Flags |= windows.DI_ENUMSINGLEINF | windows.DI_QUIETINSTALL
-	params.FlagsEx |= windows.DI_FLAGSEX_ALLOWEXCLUDEDDRVS
-	if err := params.SetDriverPath(filepath.Join(root, "INF", "usbaudio2.inf")); err != nil {
-		return err
-	}
-	if err := set.SetDeviceInstallParams(device, params); err != nil {
-		return err
-	}
-	if err := set.BuildDriverInfoList(device, windows.SPDIT_COMPATDRIVER); err != nil {
-		return err
-	}
-	defer set.DestroyDriverInfoList(device, windows.SPDIT_COMPATDRIVER)
-	driver, err := set.EnumDriverInfo(device, windows.SPDIT_COMPATDRIVER, 0)
-	if err != nil {
-		return err
-	}
-	var reboot uint32
-	ok, _, callErr := installDevice.Call(0, uintptr(set), uintptr(unsafe.Pointer(device)), uintptr(unsafe.Pointer(driver)), 0, uintptr(unsafe.Pointer(&reboot)))
-	runtime.KeepAlive(device)
-	runtime.KeepAlive(driver)
-	if ok == 0 {
-		return fmt.Errorf("refresh configured inbox audio driver: %w", callErr)
-	}
-	if reboot != 0 {
-		return ErrRestartRequired
 	}
 	return nil
 }
