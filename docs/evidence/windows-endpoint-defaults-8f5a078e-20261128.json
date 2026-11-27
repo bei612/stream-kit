@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "source_commit": "8f5a078e39c070c8b358b456df7fee3c2e437203",
+  "acceptance_commit": "13c5ba520c67376895a580ad0b4ae78582a642bd",
+  "passed": true,
+  "run_id": 46062127067,
+  "artifact_id": 15229094350,
+  "result_json_sha256": "39fa7cd04e7eeeeef4ccf3d97e56b9a6e367c586a28145aab6e1b5d8d474d973",
+  "unprotected_pair_displaced_roles": ["render", "communication_render", "capture", "communication_capture"],
+  "prepared_pair_preserved_roles": ["render", "communication_render", "capture", "communication_capture"],
+  "native_gateway_preparation": true,
+  "repeat_preparation_passed": true,
+  "prepared_identity_and_defaults_survived_reattach": true,
+  "explicit_endpoint_pcm": {
+    "passed": true,
+    "captured_frames": 144000,
+    "target_dropped_frames": 0,
+    "target_xruns": 0
+  },
+  "scope": "Disposable Windows runner with two owned synthetic pairs. The acceptance revision differs from the named source only in the native audio fixture and its workflow. The test preserves an existing default input and output and exercises direct endpoint selection. Original installer, reboot, and installed policy rollback are verified separately."
+}
