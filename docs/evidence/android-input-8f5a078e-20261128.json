@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "source_commit": "8f5a078e39c070c8b358b456df7fee3c2e437203",
+  "passed": true,
+  "product_run_id": 46061950270,
+  "android_build_run_id": 46061950017,
+  "acceptance_run_id": 46063575777,
+  "acceptance_source_commit": "94ed776e2c4cc49a181cd1d3efe9155bdc552acb",
+  "artifact_id": 15230561175,
+  "artifact_sha256": "46bde31c0e402d3cd8341c4cfaaf761abcbe4d7f57cd31bd37157e7b33669486",
+  "browser_result_sha256": "4f39d62737ca591dfb13fe95cad5fc57981db77a851130fb2498d46006363f52",
+  "linux_installer_sha256": "d059594ab06d32eecadcc2839b3af923646c51e2579b25a79c501f6eb6f89ed2",
+  "apk_sha256": "50fd1100021dd6371418cee8c08a441f22bb839d04cfc4d321cf0ef1f9f7946c",
+  "android_version_code": 1000032,
+  "apk_signature_verified": true,
+  "upgrade": {
+    "from_tag": "v0.1.0",
+    "baseline_version_code": 1000015,
+    "installation_identity_preserved": true,
+    "saved_bookmark_reopened": true,
+    "restored_as_viewer_with_microphone_off": true
+  },
+  "target_input": {
+    "single_shared_renderer": true,
+    "subscribers": 2,
+    "completed_phases": ["android_controller", "old_android_denied", "web_controller", "web_revoked", "android_regranted", "android_revoked"]
+  },
+  "foreground_recovery": {
+    "controller_released_in_background": true,
+    "same_native_instance_preserved": true,
+    "audio_packets": 170,
+    "decoded_video_frames": 49,
+    "observation_elapsed_ms": 4195,
+    "restored_as_viewer_with_microphone_off": true
+  },
+  "microphone_permission_denied": {
+    "system_prompt_denied": true,
+    "controller_retained": true,
+    "server_microphone_off": true
+  },
+  "client_network_recovery": {
+    "disconnected_until_expiry_ms": 17360,
+    "original_connection_resumed_as_viewer": true,
+    "microphone_disabled": true,
+    "audio_packets": 255,
+    "decoded_video_frames": 87,
+    "observation_elapsed_ms": 3734
+  },
+  "cleanup": {"example_stop_acknowledged": true, "renderer_restored_idle": true},
+  "scope": "Exact signed APK and Ubuntu runtime installer in the hosted Android emulator and browser. Upgrade, shared media, native target input, permission denial and lifecycle recovery were exercised. Positive return audio on Windows and site networking have separate acceptance."
+}
