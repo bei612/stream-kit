@@ -120,6 +120,22 @@
       "native_video_frames_in_last_diagnostics": 530,
       "microphone_route_reached": false,
       "failure_stage": "Opening Android streaming toolbar immediately after controller grant did not complete; microphone action returned toolbar_unavailable."
+    },
+    "microphone_input_measured": {
+      "acceptance_run_id": 45950448625,
+      "passed": false,
+      "system_playout_failure_class": "CONTROL_SYSTEM_PLAYOUT_MISSING",
+      "microphone_button_clicked": true,
+      "server_observed_microphone_live_before_injection": true,
+      "synthetic_packets_submitted": 253,
+      "native_recorded_frames_analyzed": 240000,
+      "native_recording_dropped_frames": 0,
+      "native_recording_1499_hz_mean_amplitude": 0.0000012285851628281549,
+      "web_audience_samples": 47,
+      "web_audience_max_1499_hz_db": -62.863773345947266,
+      "web_audience_minimum_pass_db": -60,
+      "guest_capture_source_independently_verified": false,
+      "revocation_audio_phase_reached": false
     }
   },
   "lan_migration": {
