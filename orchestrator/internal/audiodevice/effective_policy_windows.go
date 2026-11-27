@@ -13,7 +13,6 @@ import (
 )
 
 const (
-	endpointMask    = 0x107 // Render default selection guard for all roles.
 	variantUInt32   = 19
 	variantCLSID    = 72
 	endpointActive  = 1
@@ -98,7 +97,7 @@ func audioNodeContainer(dev *windows.DevInfoData) (windows.GUID, error) {
 	return id, nil
 }
 
-func effectiveEndpointPolicy(container windows.GUID) (bool, error) {
+func effectiveEndpointPolicy(container windows.GUID, policy WindowsEndpointPolicy) (bool, error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	const coinitMultithreaded = 0
@@ -114,7 +113,7 @@ func effectiveEndpointPolicy(container windows.GUID) (bool, error) {
 	}
 	defer syscall.SyscallN(enumerator.vtable.release, uintptr(unsafe.Pointer(enumerator)))
 	for _, flow := range []uintptr{flowRender, flowCapture} {
-		ready, err := enumerator.protectedEndpoint(container, flow)
+		ready, err := enumerator.protectedEndpoint(container, flow, policy.mask())
 		if err != nil || !ready {
 			return false, err
 		}
@@ -122,7 +121,7 @@ func effectiveEndpointPolicy(container windows.GUID) (bool, error) {
 	return true, nil
 }
 
-func (e *endpointEnumerator) protectedEndpoint(container windows.GUID, flow uintptr) (bool, error) {
+func (e *endpointEnumerator) protectedEndpoint(container windows.GUID, flow uintptr, mask uint32) (bool, error) {
 	var endpoints *endpointCollection
 	result, _, _ := syscall.SyscallN(e.vtable.enumerate, uintptr(unsafe.Pointer(e)), flow, endpointActive, uintptr(unsafe.Pointer(&endpoints)))
 	if err := hresult(result); err != nil {
@@ -136,7 +135,7 @@ func (e *endpointEnumerator) protectedEndpoint(container windows.GUID, flow uint
 	}
 	found := false
 	for index := uint32(0); index < count; index++ {
-		belongs, protected, err := endpoints.endpointPolicy(index, container)
+		belongs, protected, err := endpoints.endpointPolicy(index, container, mask)
 		if err != nil {
 			return false, err
 		}
@@ -150,7 +149,7 @@ func (e *endpointEnumerator) protectedEndpoint(container windows.GUID, flow uint
 	return found, nil
 }
 
-func (c *endpointCollection) endpointPolicy(index uint32, container windows.GUID) (bool, bool, error) {
+func (c *endpointCollection) endpointPolicy(index uint32, container windows.GUID, mask uint32) (bool, bool, error) {
 	var endpoint *audioEndpoint
 	result, _, _ := syscall.SyscallN(c.vtable.item, uintptr(unsafe.Pointer(c)), uintptr(index), uintptr(unsafe.Pointer(&endpoint)))
 	if err := hresult(result); err != nil {
@@ -176,7 +175,7 @@ func (c *endpointCollection) endpointPolicy(index uint32, container windows.GUID
 	if err := store.read(&neverDefaultProperty, &policy); err != nil {
 		return false, false, err
 	}
-	return true, policy.kind == variantUInt32 && uint32(policy.data[0])&endpointMask == endpointMask, nil
+	return true, policy.kind == variantUInt32 && uint32(policy.data[0]) == mask, nil
 }
 
 func (s *endpointStore) read(key *windows.DEVPROPKEY, out *propertyValue) error {

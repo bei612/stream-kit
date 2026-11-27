@@ -12,6 +12,14 @@ import (
 )
 
 func prepareComponentAudio(ctx context.Context, name string, cfg config.ComponentConfig) error {
+	return prepareComponentAudioPolicy(ctx, name, cfg, audiodevice.CurrentEndpointPolicy)
+}
+
+func restoreLegacyComponentAudio(ctx context.Context, name string, cfg config.ComponentConfig) error {
+	return prepareComponentAudioPolicy(ctx, name, cfg, audiodevice.LegacyRenderPolicy)
+}
+
+func prepareComponentAudioPolicy(ctx context.Context, name string, cfg config.ComponentConfig, policy audiodevice.WindowsEndpointPolicy) error {
 	// Unified Windows deployments launch media in the configured desktop
 	// session. Their controller retains installation privileges for device
 	// preparation; media execution keeps the interactive user's identity.
@@ -26,5 +34,5 @@ func prepareComponentAudio(ctx context.Context, name string, cfg config.Componen
 		return fmt.Errorf("managed gateway requires its native configuration preflight before audio preparation")
 	}
 	args = append(args[:len(args)-2], "prepare-audio")
-	return audiodevice.PrepareWindowsGateway(ctx, cfg.ExePath, args, cfg.WorkingDir, cfg.Env)
+	return audiodevice.PrepareWindowsGateway(ctx, cfg.ExePath, args, cfg.WorkingDir, cfg.Env, policy)
 }

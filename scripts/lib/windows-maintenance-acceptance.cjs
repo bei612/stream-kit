@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const net = require('node:net');
 const path = require('node:path');
 const {once} = require('node:events');
-const {RuntimeMaintenance, execute, serviceStartTimeout} = require('../maintain-windows-runtime.cjs');
+const {RuntimeMaintenance, execute, serviceStartTimeout, endpointPolicyVersion} = require('../maintain-windows-runtime.cjs');
 
 const read = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 
@@ -98,6 +98,11 @@ async function verifyWindowsMaintenance({program, data, output, candidate, candi
   assert.equal(record.rollback, true);
   assert.equal(record.previous_source, baselineCommit);
   assert.equal(record.source, candidateCommit);
+  const endpointPolicyChanged = endpointPolicyVersion(program) !== endpointPolicyVersion(candidate);
+  if (endpointPolicyChanged) {
+    assert.equal(record.audio_policy_migrated, true, 'Candidate endpoint policy was not applied before service startup');
+    assert.equal(record.audio_policy_rolled_back, true, 'Baseline endpoint policy was not restored');
+  }
   const health = await maintenance.api('/health');
   assert.equal(health.commit, baselineCommit);
   assert.ok(['sunshine', 'web_server'].every(name => health.components[name]?.status === 'running'));
@@ -106,7 +111,8 @@ async function verifyWindowsMaintenance({program, data, output, candidate, candi
   assert.deepEqual(trustFiles.map(digest), trustBefore, 'Deployment trust changed during rollback');
   return {passed: true, baseline_commit: baselineCommit, candidate_commit: candidateCommit,
     real_listener_conflict: true, original_runtime_ready: true, original_watch_link_preserved: true,
-    ca_and_private_keys_preserved: true, machine_trust_changed: false};
+    ca_and_private_keys_preserved: true, machine_trust_changed: false,
+    endpoint_policy_migrated_and_restored: endpointPolicyChanged};
 }
 
 module.exports = {verifyWindowsMaintenance};

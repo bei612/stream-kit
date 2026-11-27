@@ -81,6 +81,7 @@ manifest.verification_version=1
 manifest.platform_initialization_version=1
 manifest.virtual_audio_configuration_version=2
 manifest.native_audio_preparation_version=1
+if(target.platform==='windows')manifest.windows_endpoint_policy_version=2
 fs.writeFileSync(path.join(output,'bundle-manifest.json'),JSON.stringify(manifest,null,2)+'\n')
 if(target.canExecute&&!dirty)execFileSync(binary,['verify-bundle',output],{stdio:'inherit',windowsHide:true})
 console.log(JSON.stringify({output,version,source_dirty:dirty,files:files.length}))

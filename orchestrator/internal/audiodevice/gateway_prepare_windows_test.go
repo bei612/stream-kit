@@ -39,7 +39,7 @@ func TestPreparationPipeDisabledAndInvalidNeverActivate(t *testing.T) {
 	}
 	for _, mode := range []string{"disabled", "invalid", "unknown", "version"} {
 		t.Run(mode, func(t *testing.T) {
-			err := PrepareWindowsGateway(context.Background(), executable, []string{"-test.run=^TestPreparationPipeChild$"}, t.TempDir(), map[string]string{"STREAM_KIT_PREPARATION_CHILD": mode})
+			err := PrepareWindowsGateway(context.Background(), executable, []string{"-test.run=^TestPreparationPipeChild$"}, t.TempDir(), map[string]string{"STREAM_KIT_PREPARATION_CHILD": mode}, CurrentEndpointPolicy)
 			if (err == nil) != (mode == "disabled") {
 				t.Fatalf("unexpected preparation result: %v", err)
 			}

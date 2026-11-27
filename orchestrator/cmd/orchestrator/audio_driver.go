@@ -14,12 +14,12 @@ import (
 var errAudioDriverRestartRequired = audiodevice.ErrRestartRequired
 
 func audioDriverCommand(args []string) error {
-	if len(args) > 0 && args[0] == "prepare" {
+	if len(args) > 0 && (args[0] == "prepare" || args[0] == "restore-legacy-policy") {
 		if runtime.GOOS != "windows" {
-			return fmt.Errorf("audio-driver prepare is only supported on Windows")
+			return fmt.Errorf("audio-driver %s is only supported on Windows", args[0])
 		}
 		if len(args) != 3 || args[1] != "--config" || args[2] == "" {
-			return fmt.Errorf("usage: orchestrator audio-driver prepare --config CONFIG_FILE")
+			return fmt.Errorf("usage: orchestrator audio-driver %s --config CONFIG_FILE", args[0])
 		}
 		cfg, err := config.LoadExisting(args[2])
 		if err != nil {
@@ -27,6 +27,9 @@ func audioDriverCommand(args []string) error {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
+		if args[0] == "restore-legacy-policy" {
+			return prepareConfiguredGatewayAudio(ctx, cfg, restoreLegacyComponentAudio)
+		}
 		return prepareConfiguredGatewayAudio(ctx, cfg, prepareComponentAudio)
 	}
 	if len(args) != 2 || (args[0] != "verify" && args[0] != "install") {

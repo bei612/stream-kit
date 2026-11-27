@@ -21,6 +21,25 @@ const endpointNeverDefault = `{F3E80BEF-1723-4FF2-BCC4-7F83DC5E46D4},3`
 const endpointAny = `{00000000-0000-0000-0000-000000000000}`
 const policyStateKey = `StreamKit\AudioPolicy`
 
+type WindowsEndpointPolicy uint32
+
+const (
+	LegacyRenderPolicy    WindowsEndpointPolicy = 1
+	CurrentEndpointPolicy WindowsEndpointPolicy = 2
+)
+
+func (policy WindowsEndpointPolicy) mask() uint32 {
+	const (
+		roles   = 0x007 // Console, multimedia and communications.
+		render  = 0x100
+		capture = 0x200
+	)
+	if policy == LegacyRenderPolicy {
+		return render | roles
+	}
+	return render | capture | roles
+}
+
 var errAudioNodeMissing = errors.New("configured virtual audio interfaces are not enumerated")
 
 type policyNode struct {
@@ -121,29 +140,29 @@ func openPolicyNode(id WindowsIdentity, writable bool) (_ *policyNode, err error
 	return n, nil
 }
 
-func policyState(key registry.Key) (owned, complete bool, err error) {
+func policyState(key registry.Key) (owned bool, policy WindowsEndpointPolicy, err error) {
 	state, err := registry.OpenKey(key, policyStateKey, registry.READ)
 	if errors.Is(err, windows.ERROR_FILE_NOT_FOUND) {
-		return false, false, nil
+		return false, 0, nil
 	}
 	if err != nil {
-		return false, false, err
+		return false, 0, err
 	}
 	defer state.Close()
 	version, _, err := state.GetIntegerValue("Version")
 	if errors.Is(err, windows.ERROR_FILE_NOT_FOUND) {
-		return true, false, nil
+		return true, 0, nil
 	}
 	if err != nil {
-		return true, false, err
+		return true, 0, err
 	}
-	if version > 1 {
-		return true, false, errors.New("newer audio policy preparation is not supported")
+	if version > uint64(CurrentEndpointPolicy) {
+		return true, 0, errors.New("newer audio policy preparation is not supported")
 	}
-	return true, version == 1, nil
+	return true, WindowsEndpointPolicy(version), nil
 }
 
-func policyMatches(key registry.Key) (bool, error) {
+func policyMatches(key registry.Key, policy WindowsEndpointPolicy) (bool, error) {
 	ep, err := registry.OpenKey(key, `EP\0`, registry.READ)
 	if errors.Is(err, windows.ERROR_FILE_NOT_FOUND) {
 		return false, nil
@@ -166,12 +185,16 @@ func policyMatches(key registry.Key) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return a == endpointAny && n == endpointMask, nil
+	return a == endpointAny && n == uint64(policy.mask()), nil
 }
 
 // WindowsPolicyReady is read-only and includes disconnected devices. A marker
 // is written only after successful driver migration, not merely property writes.
 func WindowsPolicyReady(id WindowsIdentity) (bool, error) {
+	return windowsPolicyReady(id, CurrentEndpointPolicy)
+}
+
+func windowsPolicyReady(id WindowsIdentity, policy WindowsEndpointPolicy) (bool, error) {
 	n, err := openPolicyNode(id, false)
 	if errors.Is(err, errAudioNodeMissing) {
 		return false, nil
@@ -180,33 +203,40 @@ func WindowsPolicyReady(id WindowsIdentity) (bool, error) {
 		return false, err
 	}
 	defer n.close()
+	ready := true
 	for _, key := range n.keys {
-		_, complete, err := policyState(key)
+		_, prepared, err := policyState(key)
 		if err != nil {
 			return false, err
 		}
-		if !complete {
-			return false, nil
+		if prepared == 0 {
+			ready = false
+			continue
 		}
-		matches, err := policyMatches(key)
+		matches, err := policyMatches(key, prepared)
 		if err != nil {
 			return false, err
 		}
 		if !matches {
 			return false, errors.New("prepared audio interface policy was modified")
 		}
+		ready = ready && prepared == policy
 	}
-	return true, nil
+	return ready, nil
 }
 
 // PrepareWindowsPolicy runs with the native provider attached and no streams.
 // It never selects system defaults or changes another device's driver. A failed
 // operation leaves an incomplete marker so a retry cannot skip migration.
 func PrepareWindowsPolicy(ctx context.Context, id WindowsIdentity) error {
+	return prepareWindowsPolicy(ctx, id, CurrentEndpointPolicy)
+}
+
+func prepareWindowsPolicy(ctx context.Context, id WindowsIdentity, policy WindowsEndpointPolicy) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	ready, err := WindowsPolicyReady(id)
+	ready, err := windowsPolicyReady(id, policy)
 	if err != nil || ready {
 		return err
 	}
@@ -238,7 +268,7 @@ func PrepareWindowsPolicy(ctx context.Context, id WindowsIdentity) error {
 		} else if !errors.Is(err, windows.ERROR_FILE_NOT_FOUND) {
 			return err
 		}
-		matches, err := policyMatches(key)
+		matches, err := policyMatches(key, policy)
 		if err != nil {
 			return err
 		}
@@ -246,7 +276,7 @@ func PrepareWindowsPolicy(ctx context.Context, id WindowsIdentity) error {
 	}
 	applied := false
 	if configured {
-		applied, err = waitForEffectivePolicy(ctx, n.device)
+		applied, err = waitForEffectivePolicy(ctx, n.device, policy)
 		if err != nil {
 			return err
 		}
@@ -255,7 +285,7 @@ func PrepareWindowsPolicy(ctx context.Context, id WindowsIdentity) error {
 		return err
 	}
 	if applied {
-		return markPolicyPrepared(n)
+		return markPolicyPrepared(n, policy)
 	}
 	for _, key := range n.keys {
 		state, _, err := registry.CreateKey(key, policyStateKey, registry.READ|registry.WRITE)
@@ -273,7 +303,7 @@ func PrepareWindowsPolicy(ctx context.Context, id WindowsIdentity) error {
 		}
 		err = ep.SetStringValue(endpointAssociation, endpointAny)
 		if err == nil {
-			err = ep.SetDWordValue(endpointNeverDefault, endpointMask)
+			err = ep.SetDWordValue(endpointNeverDefault, policy.mask())
 		}
 		ep.Close()
 		if err != nil {
@@ -295,12 +325,19 @@ func PrepareWindowsPolicy(ctx context.Context, id WindowsIdentity) error {
 		return err
 	}
 	defer updated.close()
-	return markPolicyPrepared(updated)
+	applied, err = waitForEffectivePolicy(ctx, updated.device, policy)
+	if err != nil {
+		return err
+	}
+	if !applied {
+		return errors.New("configured audio endpoints did not publish the selected default policy")
+	}
+	return markPolicyPrepared(updated, policy)
 }
 
-func markPolicyPrepared(n *policyNode) error {
+func markPolicyPrepared(n *policyNode, policy WindowsEndpointPolicy) error {
 	for _, key := range n.keys {
-		matches, err := policyMatches(key)
+		matches, err := policyMatches(key, policy)
 		if err != nil {
 			return err
 		}
@@ -313,7 +350,7 @@ func markPolicyPrepared(n *policyNode) error {
 		if err != nil {
 			return err
 		}
-		err = state.SetDWordValue("Version", 1)
+		err = state.SetDWordValue("Version", uint32(policy))
 		state.Close()
 		if err != nil {
 			return err
@@ -322,14 +359,14 @@ func markPolicyPrepared(n *policyNode) error {
 	return nil
 }
 
-func waitForEffectivePolicy(ctx context.Context, device *windows.DevInfoData) (bool, error) {
+func waitForEffectivePolicy(ctx context.Context, device *windows.DevInfoData, policy WindowsEndpointPolicy) (bool, error) {
 	container, err := audioNodeContainer(device)
 	if err != nil {
 		return false, err
 	}
 	// Plug and Play starts the class node before AudioEndpointBuilder publishes
 	// both endpoints. Give the latter time to expose the effective policy.
-	deadline := time.NewTimer(3 * time.Second)
+	deadline := time.NewTimer(10 * time.Second)
 	defer deadline.Stop()
 	poll := time.NewTicker(150 * time.Millisecond)
 	defer poll.Stop()
@@ -337,7 +374,7 @@ func waitForEffectivePolicy(ctx context.Context, device *windows.DevInfoData) (b
 		if err := ctx.Err(); err != nil {
 			return false, err
 		}
-		applied, err := effectiveEndpointPolicy(container)
+		applied, err := effectiveEndpointPolicy(container, policy)
 		if err != nil || applied {
 			return applied, err
 		}

@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os');
 const {DatabaseSync}=require('node:sqlite');
-const {inside,ordinary,inventory,copyTree,commandPath,execute,serviceStartTimeout,rendererBootstrap,snapshotDatabase,restoreDatabase}=require('./maintain-windows-runtime.cjs');
+const {inside,ordinary,inventory,copyTree,commandPath,execute,serviceStartTimeout,rendererBootstrap,snapshotDatabase,restoreDatabase,endpointPolicyVersion}=require('./maintain-windows-runtime.cjs');
 
 test('maintenance watchdog preserves native startup deadlines and bounded failure metadata',()=>{
   assert.ok(serviceStartTimeout>60000+90000);
@@ -54,6 +54,20 @@ test('maintenance confines paths and verifies real copied bytes without followin
   fs.symlinkSync(outside,path.join(source,'linked'),process.platform==='win32'?'junction':'dir');
   assert.throws(()=>ordinary(path.join(source,'linked')));
   assert.throws(()=>inventory(source,100000));
+});
+
+test('legacy and current Windows bundles declare distinct endpoint policies',t=>{
+  const base=fs.mkdtempSync(path.join(os.tmpdir(),'stream-kit-maintenance-policy-'));
+  t.after(()=>fs.rmSync(base,{recursive:true}));
+  const component=path.join(base,'orchestrator');
+  fs.mkdirSync(component);
+  const manifest=path.join(component,'bundle-manifest.json');
+  fs.writeFileSync(manifest,'{}');
+  assert.equal(endpointPolicyVersion(base),1);
+  fs.writeFileSync(manifest,'{"windows_endpoint_policy_version":2}');
+  assert.equal(endpointPolicyVersion(base),2);
+  fs.writeFileSync(manifest,'{"windows_endpoint_policy_version":3}');
+  assert.throws(()=>endpointPolicyVersion(base),/Unsupported Windows endpoint policy version/);
 });
 
 test('rollback restores the cold SQLite database and rejects a changed snapshot before moving data',t=>{

@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "source_commit": "439f2a06376ba8363c1318c0d6e3d72b3ef45729",
+  "passed": false,
+  "run_id": 46057616037,
+  "artifact_id": 15227839437,
+  "result_json_sha256": "172bcf591af0f6d14cdf7045f4339d43a5a6bd5054ab9505d91373d1f2696ad5",
+  "installer_sha256": "4e541336d8ec87c6792901b4988f4c8b5d293ae46f1930021da5c9e10a1eaa08",
+  "windows_build": 26300,
+  "install_exit": 0,
+  "reboot_verified": true,
+  "automatic_processes": ["orchestrator", "sunshine", "web_server"],
+  "admin_login": true,
+  "native_capture_frames": 143040,
+  "native_dropped_frames": 0,
+  "gateway_restarted": true,
+  "uninstall_exit": 0,
+  "service_removed": true,
+  "data_preserved": true,
+  "audio_defaults": {
+    "original_roles_present": ["render", "communication_render", "capture", "communication_capture"],
+    "changed_to_product_after_install": ["capture", "communication_capture"],
+    "changed_to_product_after_reboot": ["capture", "communication_capture"],
+    "changed_to_product_after_gateway_restart": ["capture", "communication_capture"],
+    "all_original_roles_restored_after_uninstall": true
+  },
+  "scope": "Clean Windows 11 VM with HDA duplex audio and the exact installer. Boot recovery and explicit PCM succeeded. The original capture and communications capture defaults had already been displaced at the end of installation. The output roles stayed unchanged. All four defaults returned to their original devices when the package was removed."
+}

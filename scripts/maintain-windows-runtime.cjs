@@ -133,6 +133,13 @@ function rendererBootstrap(root, create=false) {
   assert.equal(fs.readdirSync(directory).length,0,'Renderer has local state; migrate it explicitly before component maintenance');
 }
 
+function endpointPolicyVersion(directory) {
+  const manifest=read(path.join(directory,'orchestrator/bundle-manifest.json'));
+  const version=manifest.windows_endpoint_policy_version === undefined ? 1 : manifest.windows_endpoint_policy_version;
+  assert.ok(version===1 || version===2,'Unsupported Windows endpoint policy version');
+  return version;
+}
+
 class RuntimeMaintenance {
   constructor(options) {
     assert.equal(process.platform,'win32','Windows runtime maintenance only');
@@ -209,6 +216,9 @@ class RuntimeMaintenance {
     this.save('validating');
     assert.equal(shell('[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)').trim(),'True','Use an elevated maintenance terminal');
     this.verifyCandidate(this.source);
+    this.previousAudioPolicy=endpointPolicyVersion(this.root);
+    this.candidateAudioPolicy=endpointPolicyVersion(this.source);
+    assert.ok(this.candidateAudioPolicy>=this.previousAudioPolicy,'Windows endpoint policy cannot be downgraded by runtime maintenance');
     rendererBootstrap(this.root);
     rendererBootstrap(this.source);
     this.service();
@@ -310,6 +320,12 @@ class RuntimeMaintenance {
       this.move(path.join(this.stage,name),current,this.root);
     }
     execute(this.binary,['verify-platform',this.root]);
+    if(this.candidateAudioPolicy!==this.previousAudioPolicy){
+      this.save('preparing_audio_policy');
+      this.audioPolicyMayHaveChanged=true;
+      execute(this.binary,['audio-driver','prepare','--config',this.configFile],undefined,serviceStartTimeout);
+      this.report.audio_policy_migrated=true;
+    }
     this.save('starting_service');this.started=true;
     await this.startService();
     await this.waitReady(this.report.source);
@@ -343,6 +359,11 @@ class RuntimeMaintenance {
     }
     const oldRecord=path.join(this.backup,'control-maintenance.json');
     if(fs.existsSync(oldRecord))this.move(oldRecord,path.join(this.root,'control-maintenance.json'),this.root);
+    if(this.audioPolicyMayHaveChanged){
+      const candidate=path.join(this.backup,'failed-orchestrator','orchestrator.exe');
+      execute(candidate,['audio-driver','restore-legacy-policy','--config',this.configFile],undefined,serviceStartTimeout);
+      this.report.audio_policy_rolled_back=true;
+    }
     await this.startService();
     await this.waitReady(this.report.previous_source);
     await this.verifyDeploymentState();
@@ -383,4 +404,4 @@ async function main() {
   await new RuntimeMaintenance(options).run();
 }
 if(require.main===module)main().catch(error=>{console.error(error.message);process.exitCode=1;});
-module.exports={RuntimeMaintenance,inside,ordinary,inventory,copyTree,commandPath,execute,serviceStartTimeout,rendererBootstrap,snapshotDatabase,restoreDatabase};
+module.exports={RuntimeMaintenance,inside,ordinary,inventory,copyTree,commandPath,execute,serviceStartTimeout,rendererBootstrap,snapshotDatabase,restoreDatabase,endpointPolicyVersion};

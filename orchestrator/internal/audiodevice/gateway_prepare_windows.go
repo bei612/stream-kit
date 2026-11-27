@@ -24,7 +24,7 @@ import (
 // PrepareWindowsGateway owns a short-lived native initialization command. The
 // gateway supplies only its effective device identity and holds an attachment
 // only when requested. There are no HTTP listeners, streams or test signals.
-func PrepareWindowsGateway(parent context.Context, executable string, args []string, directory string, environment map[string]string) (err error) {
+func PrepareWindowsGateway(parent context.Context, executable string, args []string, directory string, environment map[string]string, policy WindowsEndpointPolicy) (err error) {
 	ctx, cancel := context.WithTimeout(parent, 2*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, executable, args...)
@@ -90,7 +90,7 @@ func PrepareWindowsGateway(parent context.Context, executable string, args []str
 	if err = id.Validate(); err != nil {
 		return err
 	}
-	ready, err := WindowsPolicyReady(id)
+	ready, err := windowsPolicyReady(id, policy)
 	if err != nil || ready {
 		return err
 	}
@@ -118,7 +118,7 @@ func PrepareWindowsGateway(parent context.Context, executable string, args []str
 		return errors.New("another process is preparing this virtual audio device")
 	}
 	release = func() { windows.ReleaseMutex(mutex); windows.CloseHandle(mutex); runtime.UnlockOSThread() }
-	ready, err = WindowsPolicyReady(id)
+	ready, err = windowsPolicyReady(id, policy)
 	if err != nil || ready {
 		return err
 	}
@@ -159,7 +159,7 @@ func PrepareWindowsGateway(parent context.Context, executable string, args []str
 		case <-tick.C:
 		}
 	}
-	return PrepareWindowsPolicy(ctx, id)
+	return prepareWindowsPolicy(ctx, id, policy)
 }
 
 func strictPreparationJSON(raw []byte, target any) error {
