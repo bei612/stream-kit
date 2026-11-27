@@ -89,7 +89,14 @@
     "android_received_audio_packets_in_final_sample": 2445,
     "android_program_997_median_amplitude": 1.2565059219914467e-7,
     "android_microphone_route_reached": false,
-    "microphone_failure_stage": "The Android role was observed as controller, but a subsequent accessibility click returned false before microphone injection began."
+    "microphone_failure_stage": "The Android role was observed as controller, but a subsequent accessibility click returned false before microphone injection began.",
+    "follow_up": {
+      "acceptance_run_id": 45947735949,
+      "passed": false,
+      "system_playout_failure_class": "CONTROL_SYSTEM_PLAYOUT_MISSING",
+      "microphone_route_reached": false,
+      "failure_stage": "Native client process was alive. All five accessibility samples reported a different foreground package before viewer admission could be observed. Microphone UI and injection were not exercised."
+    }
   },
   "lan_migration": {
     "acceptance_run_id": 45941800647,
