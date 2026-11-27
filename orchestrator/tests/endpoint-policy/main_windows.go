@@ -36,7 +36,7 @@ func run() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 	prepare := func() error {
-		return audiodevice.PrepareWindowsGateway(ctx, os.Args[1], []string{"--config-path", os.Args[2], "prepare-audio"}, "", nil)
+		return audiodevice.PrepareWindowsGateway(ctx, os.Args[1], []string{"--config-path", os.Args[2], "prepare-audio"}, "", nil, audiodevice.CurrentEndpointPolicy)
 	}
 	if err := prepare(); err != nil {
 		return fmt.Errorf("first native gateway preparation: %w", err)

@@ -13,11 +13,11 @@ assert.equal(process.argv.length,5,'Expected audio-target debug directory, polic
 const native=path.resolve(process.argv[2]),policy=path.resolve(process.argv[3]),gateway=path.resolve(process.argv[4]);
 const output=path.resolve('artifacts/audio-playback/endpoint-policy');
 fs.mkdirSync(output,{recursive:true});
-const report={passed:false,scope:'Documented render-only endpoint policy on two owned synthetic devices in a disposable Windows runner. No customer installation or human speech claim.'};
+const report={passed:false,scope:'Windows rendering and capture defaults with two owned synthetic devices in a disposable runner. The prepared device is opened explicitly for PCM.'};
 const owners=[];
 let probe;
 const defaults=()=>JSON.parse(execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',
- `$ErrorActionPreference='Stop';$m=[Windows.Media.Devices.MediaDevice,Windows.Media.Devices,ContentType=WindowsRuntime];$r=[Windows.Media.Devices.AudioDeviceRole,Windows.Media.Devices,ContentType=WindowsRuntime];@{render=$m::GetDefaultAudioRenderId($r::Default);communications=$m::GetDefaultAudioRenderId($r::Communications)}|ConvertTo-Json -Compress`
+ `$ErrorActionPreference='Stop';$m=[Windows.Media.Devices.MediaDevice,Windows.Media.Devices,ContentType=WindowsRuntime];$r=[Windows.Media.Devices.AudioDeviceRole,Windows.Media.Devices,ContentType=WindowsRuntime];@{render=$m::GetDefaultAudioRenderId($r::Default);communication_render=$m::GetDefaultAudioRenderId($r::Communications);capture=$m::GetDefaultAudioCaptureId($r::Default);communication_capture=$m::GetDefaultAudioCaptureId($r::Communications)}|ConvertTo-Json -Compress`
 ],{encoding:'utf8',windowsHide:true,timeout:20000}));
 async function inventory(){
  const reply=await probe.command('devices');
@@ -67,7 +67,10 @@ async function waitRemoved(pair){
   const reference=await start('CIPolicyReference',0);
   report.reference=reference.pair;
   report.defaults_before=defaults();
-  assert.ok(report.defaults_before.render.toLowerCase().includes(reference.pair.render.slice('wasapi:'.length).toLowerCase()),'Reference must be the current Windows default output');
+  for(const [role, id] of Object.entries(report.defaults_before)){
+   const direction=role.endsWith('capture')?'capture':'render';
+   assert.ok(id?.toLowerCase().includes(reference.pair[direction].slice('wasapi:'.length).toLowerCase()),`Reference must own the ${role} default before the test`);
+  }
   const seed=await start('CIPolicyTarget',0);
   report.target=seed.pair;
   report.defaults_without_policy=defaults();
@@ -91,13 +94,13 @@ async function waitRemoved(pair){
   // the post-install identity, not the temporary enumeration used during setup.
   report.target_after_refresh=target.pair;
   report.pair=JSON.parse(execFileSync(path.join(native,'examples/verify_pair.exe'),[target.pair.render,target.pair.capture],{encoding:'utf8',windowsHide:true,timeout:30000}));
-  assert.equal(report.pair.passed,true,'Explicit PCM route failed after render policy');
+  assert.equal(report.pair.passed,true,'Explicit PCM route failed after applying the default device policy');
   report.defaults_with_policy=defaults();
-  assert.deepEqual(report.defaults_with_policy,report.defaults_before,'Prepared virtual output still displaced reference defaults');
+  assert.deepEqual(report.defaults_with_policy,report.defaults_before,'Prepared virtual pair still displaced reference defaults');
   await close(target);await waitRemoved(target.pair);
   const restarted=await start('CIPolicyTarget',2);
   assert.deepEqual(restarted.pair,target.pair,'Prepared endpoint identity changed across restart');
-  assert.deepEqual(defaults(),report.defaults_before,'Restarted prepared output displaced reference defaults');
+  assert.deepEqual(defaults(),report.defaults_before,'Restarted prepared pair displaced reference defaults');
   await close(restarted);await waitRemoved(restarted.pair);
   report.prepared_restart_passed=true;
   await close(reference);await waitRemoved(reference.pair);

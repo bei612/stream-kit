@@ -94,7 +94,7 @@ jobs:
       - name: Verify native PCM and owned device cleanup
         if: inputs.target == 'windows'
         run: node scripts/test-windows-virtual-audio.cjs components/audio-target/target/debug --pair-only
-      - name: Verify documented render endpoint policy in the disposable fixture
+      - name: Verify render and capture endpoint defaults in the disposable fixture
         if: inputs.target == 'windows-policy'
         run: |
           cargo build --locked --manifest-path third_party/moonlight-web-stream/Cargo.toml --bin web-server 2>&1 | Tee-Object -FilePath artifacts/audio-playback/native-gateway-build.log
