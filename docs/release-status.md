@@ -4,7 +4,13 @@
 
 新发布候选冻结于 `55d6d5a8a85db6b0b9a5cefb4afa042305b8fd49`，修复管理服务对本机 HTTPS 媒体网关的信任。Win11 已用独立 CA 对照运行两版管理服务。旧版签名设备查询和配置读取均返回 503，修复版均返回 200，组件健康状态进入 `running`。同一 CA 签发的新证书在 3.984 秒内被网关热加载，进程 PID 保持，签名查询继续成功。该复核使用前一候选的同源码网关，Windows 信任库与现有部署保持原状。[Win11 原生复核](evidence/windows11-managed-gateway-ca-55d6d5a8-20261127.json)
 
-签名 Android APK（`1000025`）已下载并核对 21 项文件、发行签名 v2/v3 和包内源码标记，SHA-256 为 `42f5ec53825742e9e3cc36cb071351debc671b1eb6d618a2a5b4f76ce923a717`。Windows 和 Ubuntu 同源安装包构建进行中，完整音频联验等候候选安装包。[Android 签名构建](https://github.com/bei612/stream-kit/actions/runs/45975421542) · [服务端构建](https://github.com/bei612/stream-kit/actions/runs/45975421507)
+签名 Android APK（`1000025`）已下载并核对 21 项文件、发行签名 v2/v3 和包内源码标记，SHA-256 为 `42f5ec53825742e9e3cc36cb071351debc671b1eb6d618a2a5b4f76ce923a717`。同源 Ubuntu 安装包已通过原生初始化并下载校验，大小 62,809,265 字节，SHA-256 为 `baf0013d65e8c7ab5a1bae564165e7ea61093405bc4af784397c354753f1e415`。Windows 同源安装包仍在构建，完整音频联验等候 Windows 候选组件。[Android 签名构建](https://github.com/bei612/stream-kit/actions/runs/45975421542) · [服务端构建](https://github.com/bei612/stream-kit/actions/runs/45975421507)
+
+该 Ubuntu 安装包的实际换址联验通过。原固定观看链接随发现记录指向新地址，两套 HTTPS 入口在 7.067 秒内更新证书并移除旧地址，HTTP/1.1 和 HTTP/2 均通过校验。原浏览器页面无须重载即转到新的直连 IPv4，恢复 48 帧视频和 79 个音频包。CA、私钥、应用配置和进程保持。现场 Windows 换址及 Android 音频继续使用独立验收。[同源实际换址联验](https://github.com/bei612/stream-kit/actions/runs/45977721472)
+
+正式 Android `v0.1.0` 直接覆盖升级至候选 `1000025` 已通过。原书签可打开，客户端以观看者身份入场且麦克风关闭。Android 和 Web 轮流获得控制权，六个阶段核对了目标按键、点击及旧控制者撤权。[同源覆盖升级与输入联验](https://github.com/bei612/stream-kit/actions/runs/45977721103)
+
+Win11 源码诊断已通过 Android、目标录音和 Web 音频联验。两端共享一个渲染上游，Android 接收程序声，同时将合成麦克风声送到目标录音设备和 Web。控制权撤回后，合成声源仍在继续，Web 麦克风频率从 −20.80 dB 降至 −127.14 dB，目标录音中的该频率峰值低于 0.000001，程序声保持。诊断使用新管理程序和签名 APK，网关与编码器采用源码未变的上一个构建。正式 Windows 同源产物的复核仍待完成。[Win11 跨端音频测量](evidence/windows11-managed-gateway-ca-55d6d5a8-20261127.json)
 
 上一发布候选冻结于 `ce49050f4dfcbd1e22d9d4f22093f6b965e6aac8`，含固定观看主机名与大型归档限额界面。[Windows 统一安装器](https://github.com/bei612/stream-kit/actions/runs/45939440963)已构建，大小 98,055,882 字节，SHA-256 为 `9ab0b300106e748fd21b62e5521c8dfe2c280cd252eed80d117844bc4f07fd8f`，原包与三组件清单均已核验。[Android 原生 APK](https://github.com/bei612/stream-kit/actions/runs/45939467986)的 versionCode 为 `1000024`，本地验证了 21 项文件和 v2/v3 发行签名，APK SHA-256 为 `f65455f6d07c7b66d14d86f51ed076cfea5e75a34c6693ede87697d996d6a0b7`。
 

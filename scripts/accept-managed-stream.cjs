@@ -364,6 +364,12 @@ async function main() {
   };
   await ready(gateway + '/config.js');
   await ready(control + '/api/v1/health');
+  if (expectedControlCommit) {
+    assert.match(expectedControlCommit,/^[a-f0-9]{40}$/);
+    result.observed_control_commit=(await json(control + '/api/v1/health')).data.commit;
+    assert.equal(result.observed_control_commit,expectedControlCommit);
+    save();
+  }
   if(applyManagedEncoder||serviceControl){await ready(infoURL,300);await checkIdleEncoder();}
   async function gatewayLogin() {
     const response = await fetch(gateway + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },

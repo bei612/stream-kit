@@ -17,7 +17,7 @@ const exec = promisify(execFile);
 const {values: args} = parseArgs({options: {
   observer: {type: 'string'}, output: {type: 'string'}, 'emulator-dir': {type: 'string'},
   'candidate-directory': {type: 'string'}, 'source-commit': {type: 'string'},
-  'stream-config': {type: 'string'},
+  'stream-config': {type: 'string'}, 'diagnostic-control': {type: 'string'},
 }});
 assert.equal(process.platform, 'win32');
 assert.ok(args.observer && args.output);
@@ -28,6 +28,7 @@ const adb = path.join(sdk, 'platform-tools/adb.exe');
 const candidateRoot = args['candidate-directory'] && path.resolve(args['candidate-directory']);
 assert.equal(Boolean(candidateRoot), Boolean(args['source-commit']));
 assert.ok(!args['stream-config'] || candidateRoot);
+assert.ok(!args['diagnostic-control'] || args['stream-config']);
 const avd = candidateRoot ? 'StreamKit_AudioFixture' : 'StreamKit_API_36';
 const serial = 'emulator-5582', controlPort = 8556;
 const observer = 'io.github.bei612.streamkit.inputobserver';
@@ -188,13 +189,52 @@ async function prepareStreamTrust(tlsDirectory, openssl) {
   } finally { await awaitGuestUser('2000','unroot'); }
 }
 
+async function calibrateGuestPlayout() {
+  const get = async () => {
+    const value = await guest('shell','cmd','media_session','volume','--stream','3','--get');
+    const match = value.match(/^\[V\] volume is (\d+) in range \[(\d+)\.\.(\d+)\]\s*$/m);
+    assert.ok(match, 'Android media volume range unavailable');
+    const [level,min,max] = match.slice(1).map(Number);
+    assert.ok(level >= min && level <= max && max > min);
+    return {level,min,max};
+  };
+  const before = await get();
+  const acknowledgement = await guest('shell','am','instrument','-w','-r','-e','action','calibrate-volume',`${observer}/.Observer`);
+  assert.match(acknowledgement,/^INSTRUMENTATION_CODE: -1\s*$/m);
+  assert.match(acknowledgement,/^INSTRUMENTATION_RESULT: volume_set=submitted\s*$/m);
+  const deadline = Date.now()+4000;
+  do {
+    const current = await get();
+    assert.equal(current.min,before.min);
+    assert.equal(current.max,before.max);
+    if (current.level === before.max) {
+      summary.guest_media_volume = {before:before.level,after:current.level,maximum:before.max};
+      return;
+    }
+    await delay(100);
+  } while (Date.now() < deadline);
+  throw Error('Android media volume did not reach the calibrated level');
+}
+
 async function qualifyStream(configFile, tlsDirectory) {
-  const config = JSON.parse(fs.readFileSync(args['stream-config'],'utf8'));
+  const config = JSON.parse(fs.readFileSync(args['stream-config'],'utf8').replace(/^\uFEFF/,''));
   const platform = fs.realpathSync(config.platform_directory);
   const manifest = JSON.parse(fs.readFileSync(path.join(platform,'platform-manifest.json'),'utf8'));
   assert.equal(manifest.platform,'windows');
-  assert.equal(manifest.commit,summary.candidate.source_commit);
   assert.equal(manifest.release_version,summary.candidate.version);
+  assert.match(manifest.commit,/^[a-f0-9]{40}$/);
+  const diagnostic = args['diagnostic-control'] ? fs.realpathSync(args['diagnostic-control']) : null;
+  if (diagnostic) {
+    const root = path.resolve(__dirname,'../..');
+    const local = fs.realpathSync(path.join(root,'.local'));
+    const relative = path.relative(local,diagnostic);
+    assert.ok(relative && !relative.startsWith('..') && !path.isAbsolute(relative) && fs.statSync(diagnostic).isFile());
+    await run('git',['-C',root,'diff','--quiet',manifest.commit,summary.candidate.source_commit,'--',
+      'third_party/sunshine','third_party/moonlight-web-stream','third_party/moonlight-common-rust',
+      'third_party/webrtc-rs','components/audio-target','third_party-manifests']);
+  } else {
+    assert.equal(manifest.commit,summary.candidate.source_commit);
+  }
   const component = relative => {
     const file = path.join(platform,relative);
     const entry = manifest.files.find(item=>item.path===relative);
@@ -208,6 +248,10 @@ async function qualifyStream(configFile, tlsDirectory) {
   const endpoints = startAudioProbe(path.resolve(config.audio_probe));
   let route;
   try {
+    // An empty-recording response proves that the current analysis protocol
+    // is present without opening any host capture device during preflight.
+    const envelope = await endpoints.command('envelope');
+    assert.equal(envelope.error,'Envelope analysis requires 10 ms to 10 seconds of finite recorded audio');
     const reply = await endpoints.command('devices');
     assert.ok(reply.data?.devices);
     const virtual = reply.data.devices.filter(device=>device.name.includes('Stream Kit Virtual Audio'));
@@ -223,14 +267,17 @@ async function qualifyStream(configFile, tlsDirectory) {
   await prepareStreamTrust(tlsDirectory,path.resolve(config.openssl));
   await guest('shell','input','keyevent','KEYCODE_WAKEUP');
   await guest('shell','wm','dismiss-keyguard');
+  await calibrateGuestPlayout();
   const reportDirectory = path.join(output,'stream');
+  const control = diagnostic || component('orchestrator/orchestrator.exe');
   const argv = [path.resolve(__dirname,'../accept-source-stream.cjs'),
-    '--sunshine',component('sunshine/sunshine.exe'), '--orchestrator',component('orchestrator/orchestrator.exe'),
+    '--sunshine',component('sunshine/sunshine.exe'), '--orchestrator',control,
     '--gateway',component('media-gateway/web-server.exe'), '--web-assets',path.join(platform,'media-gateway/dist'),
     '--example',path.resolve(config.example), '--example-output',route.program,
     '--audio-probe',path.resolve(config.audio_probe), '--target-render-device',route.render, '--target-capture-device',route.capture,
     '--android-audio','--android-serial',serial,'--android-adb',adb,'--android-grpc-config',configFile,
-    '--tls-dir',tlsDirectory,'--hold-seconds','0','--clients','2','--report-dir',reportDirectory];
+    '--tls-dir',tlsDirectory,'--hold-seconds','0','--clients','2','--report-dir',reportDirectory,
+    '--expected-control-commit',summary.candidate.source_commit];
   const environment = {...process.env, NODE_EXTRA_CA_CERTS:path.join(tlsDirectory,'ca.crt'),
     STREAM_KIT_AUDIO_EMULATOR_DIR:emulatorDir, STREAM_KIT_AUDIO_MICROPHONE_SOURCE:'emulator-rpc'};
   const log = fs.openSync(path.join(output,'stream-runner.log'),'wx');
@@ -248,8 +295,14 @@ async function qualifyStream(configFile, tlsDirectory) {
     await stopped;
   }
   const report = path.join(reportDirectory,'browser/result.json');
-  summary.product_stream = {passed:exit===0 && fs.existsSync(report) && JSON.parse(fs.readFileSync(report,'utf8')).passed===true,
-    report:fs.existsSync(report) ? 'stream/browser/result.json' : null};
+  const observation = fs.existsSync(report) ? JSON.parse(fs.readFileSync(report,'utf8')) : null;
+  summary.product_stream = {
+    passed:exit===0 && observation?.passed===true,
+    packaged_same_source:!diagnostic, gateway_and_encoder_artifact_commit:manifest.commit,
+    control_sha256:createHash('sha256').update(fs.readFileSync(control)).digest('hex'),
+    native_watch_link_opened:observation?.android_participant?.launches?.some(launch=>launch.mode==='view_link' && launch.acknowledged) ?? false,
+    report:observation ? 'stream/browser/result.json' : null,
+  };
   return summary.product_stream.passed;
 }
 
@@ -316,6 +369,8 @@ async function main() {
 
     summary.phase = 'install_test_observer';
     await installObserver();
+    await guest('shell','input','keyevent','KEYCODE_WAKEUP');
+    await guest('shell','wm','dismiss-keyguard');
     summary.phase = 'independent_microphone';
     fs.writeFileSync(configFile, JSON.stringify({address: '127.0.0.1:8556', token}), {flag: 'wx'});
     const measurement = path.join(output, 'system-microphone-control.json');
@@ -331,11 +386,12 @@ async function main() {
       await installSignedCandidate(environment);
     }
     summary.passed = summary.microphone.passed;
-    if (summary.passed && args['stream-config']) {
+    if (summary.candidate && args['stream-config']) {
       summary.phase = 'product_stream';
       summary.passed = false;
       tlsDirectory = fs.mkdtempSync(path.join(output,'tls-'));
-      summary.passed = await qualifyStream(configFile,tlsDirectory);
+      const productPassed = await qualifyStream(configFile,tlsDirectory);
+      summary.passed = summary.microphone.passed && productPassed;
     }
   } catch (error) {
     summary.failure = 'WINDOWS_FIXTURE_DID_NOT_COMPLETE';

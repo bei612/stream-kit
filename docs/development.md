@@ -93,6 +93,8 @@ Windows 上若需区分模拟器输入与产品回传，可先运行独立采集
 
 联验可再传入 `--stream-config <本机配置 JSON>`。填写 Windows 候选平台目录 `platform_directory`、Example 路径 `example`、原生测量工具 `audio_probe`、OpenSSL 路径 `openssl` 和独立的程序发声端点名称 `program_output`。工具使用临时 CA、独立回环监听和应用数据启动同源组件，向临时来宾导入 CA。Windows 上的 Chromium 测量进程只接受该次运行生成的回环证书公钥。Android 保持正常 TLS 验证。录音测量使用 Stream Kit 专用虚拟设备，且与程序发声端点分开。结束后清理临时 CA 与来宾。
 
+联验先核对录音探针支持当前分析协议，再通过 Android 测试探针校准临时来宾的媒体音量。需要在完整安装包出包前诊断问题时，可显式传入 `--diagnostic-control <.local 内的开发构建>`。只有网关和编码器源码与目标版本一致时才使用旧构建组件，且必须从运行中的管理服务核对源码提交。此方式生成的结果记录各组件实际来源，完整安装包仍需在默认同源模式下验证。
+
 ## 检查按影响执行
 
 | 变更 | 最小相关检查 |
