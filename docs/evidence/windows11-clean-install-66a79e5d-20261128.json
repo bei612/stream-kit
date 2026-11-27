@@ -49,5 +49,17 @@
     "renderer_log_present": false,
     "renderer_application_events": 0
   },
+  "direct_renderer_diagnostic": {
+    "run_id": 46040110449,
+    "artifact_id": 15220477430,
+    "artifact_sha256": "835b60d552c073434f68adb711dd50daf6ffa8a8edde8310bb44b3629a1d312c",
+    "native_init_exit": 1,
+    "renderer_version_exit": 0,
+    "direct_credential_command_exit": 0,
+    "credential_file_before_direct_command": false,
+    "credential_file_after_direct_command": true,
+    "same_prepared_configuration": true,
+    "scope": "Native initialization reproduced with the original payload. The renderer then ran successfully with the staged configuration in the same guest. The direct launch is not a clean installer or reboot acceptance."
+  },
   "scope": "Newly installed Microsoft evaluation guests with an emulated audio controller. The exact public package failed before the pre-reboot checkpoint. A separate initialization with the verified payload isolated the failing renderer command. The shared Win11 installation and workstation network were not involved."
 }

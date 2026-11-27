@@ -38,6 +38,8 @@ function Read-NativeInitialization($Identity) {
     $diagnosticStarted = Get-Date
     $diagnostic = Join-Path $PSScriptRoot 'diagnostic'
     if (Test-Path -LiteralPath $diagnostic -PathType Container) {
+        $startEvent = 'StreamKitNativeStart'
+        $stopEvent = 'StreamKitNativeStop'
         try {
             $payload = Join-Path $work 'diagnostic'
             Copy-Item -LiteralPath $diagnostic -Destination $payload -Recurse
@@ -49,11 +51,21 @@ function Read-NativeInitialization($Identity) {
             if ($Identity.serial_prefix) {
                 $nativeArguments += @('--usb-audio-serial-prefix',('"' + $Identity.serial_prefix + '"'))
             }
+            $processFilter = "ProcessName = 'sunshine.exe' OR ProcessName = 'web-server.exe'"
+            try {
+                Register-WmiEvent -Query "SELECT * FROM Win32_ProcessStartTrace WHERE $processFilter" -SourceIdentifier $startEvent | Out-Null
+                Register-WmiEvent -Query "SELECT * FROM Win32_ProcessStopTrace WHERE $processFilter" -SourceIdentifier $stopEvent | Out-Null
+            } catch {
+                $details.native_trace_error = $_.Exception.Message
+            }
+            $timer = [Diagnostics.Stopwatch]::StartNew()
             $process = Start-Process -FilePath $runtime -ArgumentList $nativeArguments -PassThru -WindowStyle Hidden `
                 -RedirectStandardOutput (Join-Path $work 'diagnostic-stdout.txt') -RedirectStandardError $nativeLog
+            $initializerProcess = $process.Id
             try {
                 $null = $process.Handle
                 if (-not $process.WaitForExit(75000)) { $process.Kill(); throw 'Native diagnostic exceeded its time limit' }
+                $details.native_elapsed_ms = $timer.ElapsedMilliseconds
                 $details.native_init_exit = $process.ExitCode
                 $details.native_init_error = Read-DiagnosticTail $nativeLog 12 3000
             } finally { $process.Dispose() }
@@ -72,6 +84,21 @@ function Read-NativeInitialization($Identity) {
                     $details.renderer_probe = & (Join-Path $work 'node.exe') $probe $renderer $config | ConvertFrom-Json
                 }
             }
+            $started = @(Get-Event -SourceIdentifier $startEvent -ErrorAction SilentlyContinue | ForEach-Object {
+                $_.SourceEventArgs.NewEvent
+            } | Where-Object ParentProcessID -eq $initializerProcess)
+            $stopped = @(Get-Event -SourceIdentifier $stopEvent -ErrorAction SilentlyContinue | ForEach-Object {
+                $_.SourceEventArgs.NewEvent
+            })
+            $details.native_children = @(foreach ($event in $started) {
+                $completion = $stopped | Where-Object ProcessID -eq $event.ProcessID | Select-Object -First 1
+                @{
+                    process = $event.ProcessName
+                    completed = [bool]$completion
+                    exit = $(if($completion){[uint32]$completion.ExitStatus})
+                    elapsed_ms = $(if($completion){[math]::Round(([long]$completion.TIME_CREATED - [long]$event.TIME_CREATED) / 10000, 1)})
+                }
+            })
             $details.renderer_application_events = @(Get-WinEvent -FilterHashtable @{
                 LogName = 'Application'; Id = 1000,1001,1002; StartTime = $diagnosticStarted
             } -MaxEvents 15 -ErrorAction SilentlyContinue | Where-Object Message -like '*sunshine.exe*' |
@@ -80,6 +107,11 @@ function Read-NativeInitialization($Identity) {
                 })
         } catch {
             $details.native_diagnostic_error = $_.Exception.Message
+        } finally {
+            foreach ($name in $startEvent,$stopEvent) {
+                Unregister-Event -SourceIdentifier $name -ErrorAction SilentlyContinue
+                Remove-Event -SourceIdentifier $name -ErrorAction SilentlyContinue
+            }
         }
     }
     return $details

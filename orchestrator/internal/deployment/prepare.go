@@ -326,6 +326,11 @@ func runNative(ctx context.Context, binary, directory string, args []string, inp
 	// executable and operation outcome, never raw stdout/stderr on failure.
 	output, err := cmd.Output()
 	if err != nil {
+		if cause := ctx.Err(); cause != nil {
+			// Windows terminates cancelled child processes with exit code 1.
+			// Preserve a bootstrap deadline or cancellation instead of hiding it.
+			err = cause
+		}
 		return nil, fmt.Errorf("%s configuration operation failed: %w", filepath.Base(binary), err)
 	}
 	return output, nil

@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stream-kit/orchestrator/internal/commandline"
 	"github.com/stream-kit/orchestrator/internal/config"
@@ -187,6 +188,21 @@ func TestPreparationRejectsMissingRendererCredentials(t *testing.T) {
 	err := prepareFiles(context.Background(), opts, filepath.Join(base, "program"), filepath.Join(base, "data"), stage, run)
 	if !errors.Is(err, os.ErrNotExist) || !strings.Contains(err.Error(), "renderer did not write staged credentials") {
 		t.Fatalf("credential command exited successfully without producing credentials: %v", err)
+	}
+}
+
+func TestNativeRunnerReportsDeadline(t *testing.T) {
+	const child = "STREAM_KIT_NATIVE_DEADLINE_TEST_CHILD"
+	if os.Getenv(child) == "1" {
+		time.Sleep(10 * time.Second)
+		return
+	}
+	t.Setenv(child, "1")
+	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
+	defer cancel()
+	_, err := runNative(ctx, os.Args[0], t.TempDir(), []string{"-test.run=^TestNativeRunnerReportsDeadline$"}, nil)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("native runner discarded its context deadline: %v", err)
 	}
 }
 
