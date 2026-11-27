@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "source_commit": "53c7385ac58d39408a3aaffef33d6a95ea06a737",
+  "observed_at": "2026-11-27T02:58:09.8324391Z",
+  "passed": true,
+  "scope": "Actual Win11 restart, registered automatic runtime startup and trusted HTTPS signaling after a physical WLAN address change.",
+  "restart_request_event_1074": "2026-11-27T02:47:54.6151197Z",
+  "boot_before": "2026-11-19T09:16:33.7982710Z",
+  "boot_after": "2026-11-27T02:50:00.5000000Z",
+  "service": {"name":"StreamKitOrchestrator","mode":"Auto","account":"LocalSystem","pid_before":28488,"pid_after":6148,"manual_start_performed":false},
+  "desktop_session_started_at": "2026-11-27T02:50:29Z",
+  "startup": [
+    {"process":"orchestrator.exe","session":0,"after_boot_seconds":14.42},
+    {"process":"sunshine.exe","session":1,"after_boot_seconds":30.768,"crashes":0},
+    {"process":"web-server.exe","session":1,"after_boot_seconds":30.908,"crashes":0}
+  ],
+  "lan": {
+    "interface":"WLAN",
+    "old_ip":"192.168.0.119",
+    "new_ip":"192.168.2.131",
+    "trusted_https_http_200":["127.0.0.1:9000","127.0.0.1:8080","192.168.2.131:9000","192.168.2.131:8080"],
+    "both_lan_listeners_leaf_sha256_der":"bf2ab5d68f4de043830931e3178655e90c3d6075f207e4918ef0a85810fe6f04",
+    "managed_ca_sha256_pem_unchanged":"a645db985b5443db29d01bdf99d57d95bc1f0ca428c9a92d2a2fa73144381e45",
+    "new_ip_in_manual_hosts":false,
+    "auto_discovery_enabled":true,
+    "example_permanent_key_preserved":true
+  },
+  "browser": {
+    "tool":"playwright-cli",
+    "management":"https://192.168.2.131:9000",
+    "signaling":"https://192.168.2.131:8080",
+    "permanent_link_started_example":true,
+    "video_frames_decoded":7066,
+    "selected_udp_peer":"172.18.0.1:51000",
+    "wlan_address_advertised":true,
+    "unrelated_host_candidates_observed":true,
+    "direct_wlan_udp_proven":false,
+    "screenshot":{"file":"windows11-reboot-and-lan-53c7385a-20261127.png","sha256":"006e0576df50e38ad1ff4bc8cca5f7a486cd7519b47e4497d9715bed6a4ce326"}
+  },
+  "android": {
+    "controller_transport":"USB ADB",
+    "tablet_wlan_test_address":"192.168.2.31",
+    "management_tcp":"No route to host",
+    "peer_neighbor_state":"FAILED",
+    "original_wifi_restored":true,
+    "saved_viewing_link_changed":false,
+    "post_change_media_verified":false
+  },
+  "cleanup":{"example_stopped":true,"active_sessions":0,"active_media":0,"temporary_browser_closed":true},
+  "limits":"The Win11 restart and automatic services passed. The current host selected a tunnel candidate rather than exercising a physical WLAN media path. Physical Android could not reach the host at link layer on the new WLAN, so full LAN migration acceptance is still open."
+}
