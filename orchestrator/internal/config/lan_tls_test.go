@@ -69,6 +69,40 @@ func leafCertificate(t *testing.T, cfg ServerConfig) *x509.Certificate {
 	return leaf
 }
 
+func TestStableWatchHostnameUsesSameCAAndDoesNotFollowNumericAddress(t *testing.T) {
+	cfg, roots := lanFixture(t)
+	cfg.BindAddress = "0.0.0.0:9000"
+	cfg.LANTLS.WatchHostname = "Render.Local"
+	const stable = "https://render.local:9000"
+	ca := fileDigest(t, cfg.LANTLS.CACert)
+	for _, address := range []string{"192.168.3.66", "192.168.4.27"} {
+		cfg.LANTLS.Hosts = []string{address}
+		if err := PrepareManagedTLS(cfg); err != nil {
+			t.Fatal(err)
+		}
+		leaf := leafCertificate(t, cfg)
+		for _, name := range []string{"render.local", address} {
+			if _, err := leaf.Verify(x509.VerifyOptions{Roots: roots, DNSName: name}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if cfg.StableWatchOrigin() != stable || fileDigest(t, cfg.LANTLS.CACert) != ca {
+			t.Fatal("numeric address changed the fixed origin or CA")
+		}
+	}
+	for _, invalid := range []string{"192.168.4.27", "localhost", "bad.localhost", "https://render.local", "render.local:9000"} {
+		cfg.LANTLS.WatchHostname = invalid
+		if validateLANTLS(cfg) == nil {
+			t.Fatalf("accepted invalid fixed watch hostname %q", invalid)
+		}
+	}
+	cfg.LANTLS.WatchHostname = "render.local"
+	cfg.BindAddress = "192.168.4.27:9000"
+	if validateLANTLS(cfg) == nil {
+		t.Fatal("fixed viewing with a DHCP-bound management listener should be rejected")
+	}
+}
+
 func TestLANAddressChangeRetainsClientTrustAndPrivateKeys(t *testing.T) {
 	cfg, roots := lanFixture(t)
 	caCert, caKey := fileDigest(t, cfg.LANTLS.CACert), fileDigest(t, cfg.LANTLS.CAKey)

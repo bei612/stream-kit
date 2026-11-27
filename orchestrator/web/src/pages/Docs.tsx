@@ -51,6 +51,7 @@ export default function Docs() {
             <p>{t('docs.appsBody')}</p>
             <GuideFigure src="/docs/screenshots/apps.png" alt={t('docs.appsFigure')} caption={t('docs.appsFigure')} />
             <GuideFigure src="/docs/screenshots/upload.png" alt={t('docs.uploadFigure')} caption={t('docs.uploadFigure')} />
+            <p>{t('docs.uploadStorage')}</p>
             <GuideFigure src="/docs/screenshots/components.png" alt={t('docs.componentsFigure')} caption={t('docs.componentsFigure')} />
           </DocSection>
 

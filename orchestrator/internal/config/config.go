@@ -47,6 +47,7 @@ type LANTLSConfig struct {
 	CACert         string   `json:"ca_cert" mapstructure:"ca_cert"`
 	CAKey          string   `json:"ca_key" mapstructure:"ca_key"`
 	Hosts          []string `json:"hosts" mapstructure:"hosts"`
+	WatchHostname  string   `json:"watch_hostname" mapstructure:"watch_hostname"`
 	AutoDetect     bool     `json:"auto_detect" mapstructure:"auto_detect"`
 	AutoInterfaces []string `json:"auto_interfaces" mapstructure:"auto_interfaces"`
 }

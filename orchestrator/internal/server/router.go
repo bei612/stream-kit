@@ -205,7 +205,7 @@ func (s *Server) setupRoutes() {
 		clientHandler := handlers.NewClientSessionHandler(sh, jwtSecret)
 		clientHandler.GatewayPublicURL = s.Config.MoonlightWeb.PublicURL
 		if s.AppManager != nil {
-			watch := handlers.NewWatchHandler(s.Store, s.AppManager, clientHandler)
+			watch := handlers.NewWatchHandler(s.Store, s.AppManager, clientHandler, s.Config.Server.StableWatchOrigin())
 			for _, method := range []string{"GET", "POST", "PUT", "DELETE"} {
 				authed.Handle(method, "/apps/:app_id/watch-link", watch.Manage)
 			}

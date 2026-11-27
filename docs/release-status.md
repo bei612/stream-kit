@@ -8,6 +8,10 @@
 
 Android 联验和隔离 LAN 换址验收可显式选择 Linux 安装器的构建工作流。两类验收直接消费固定构建的安装器并记录来源，Android 候选联验还会要求 APK 与安装器的源码提交完全相同。本候选已进入 [LAN 换址与媒体候选](https://github.com/bei612/stream-kit/actions/runs/45935146775)、[Android 与 Web 输入](https://github.com/bei612/stream-kit/actions/runs/45935149788)和 [Android 与 Web 音频](https://github.com/bei612/stream-kit/actions/runs/45935153698)实际联验。
 
+候选的隔离 LAN 换址联验通过。两个 HTTPS 入口在 10.25 秒内更换服务证书，保留 CA 和私钥。原浏览器页面自动恢复串流，换址前后只收到当前直连地址的 UDP 主机候选。Android 与 Web 使用同一上游，双方实测轮流向目标交付按键及触摸，交接和撤权后的输入保持被拒绝。Linux 模拟器音频联验的独立系统音基线未通过。修复探针状态读取与 PCM 写入的争用后，已采到 194739 帧且探针丢帧为零，基准音仍近静音，产品音频测试未进入。见[音频探针修复后的联验](https://github.com/bei612/stream-kit/actions/runs/45936840917)。
+
+Win11 独立实例已接收并解压实际 26 GiB TAR，解出的 Example 哈希一致。管理页的上传与解压限额来自运行配置，Playwright CLI 复核了桌面和窄屏以及实际 ZIP 上传。此证据对应本地开发构建。正式装机的暂存与应用目录仍应按可用空间部署。[真实大包验收](evidence/windows11-large-archive-20261127.json)
+
 本机 Windows 三个运行组件及实体平板已更新至候选 `53c7385a`，保持原应用、CA、配置与平板书签。单安装器、静默安装、服务自动恢复和卸载已经在 Windows Server 2022 CI 通过。实装 Win11 与平板、Web 的共享画面、程序音、控制权交接及平板麦克风至目标录音端点和 Web 观众均已验证。当前仍需独立 Win11 首装与实际回退、现场 LAN 换址、完整输入撤权验收和依赖剩余项处理。见[同源实装与联验](evidence/windows11-android-joint-53c7385a.json)、[安装器验收](https://github.com/bei612/stream-kit/actions/runs/45806470686)。
 
 2026-11-27 已实测 `53c7385a` 整机重启。控制服务在开机后 14.42 秒启动，Sunshine 和媒体网关随桌面会话在约 31 秒启动，均未手工启动。WLAN 由 `192.168.0.119` 变为 `192.168.2.131`，管理与媒体 HTTPS 在原 CA 下通过。原永久链接只换主机地址即可唤起 Example，同机浏览器实际选用了隧道候选。两个普通 Web 客户端的真实键盘交接和撤权通过，观察到两位控制者依次使目标计数增加，转交后及撤权后计数均保持。实体平板在新 WLAN 上对主机的邻居解析失败，跨机媒体待验收。见[Win11 重启与实际换址](evidence/windows11-reboot-and-lan-53c7385a-20261127.json)。

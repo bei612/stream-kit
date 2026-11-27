@@ -13,14 +13,15 @@ type WatchLauncher interface{ LaunchApp(string) (string, error) }
 // WatchHandler exchanges a durable application capability for the existing
 // short-lived viewing authority. It never grants management or control rights.
 type WatchHandler struct {
-	store    *store.Store
-	launcher WatchLauncher
-	clients  *ClientSessionHandler
-	limiter  *rateLimiter
+	store        *store.Store
+	launcher     WatchLauncher
+	clients      *ClientSessionHandler
+	limiter      *rateLimiter
+	stableOrigin string
 }
 
-func NewWatchHandler(st *store.Store, launcher WatchLauncher, clients *ClientSessionHandler) *WatchHandler {
-	return &WatchHandler{st, launcher, clients, newRateLimiter(60, time.Minute)}
+func NewWatchHandler(st *store.Store, launcher WatchLauncher, clients *ClientSessionHandler, stableOrigin string) *WatchHandler {
+	return &WatchHandler{store: st, launcher: launcher, clients: clients, limiter: newRateLimiter(60, time.Minute), stableOrigin: stableOrigin}
 }
 
 func (h *WatchHandler) Manage(c *gin.Context) {
@@ -53,7 +54,7 @@ func (h *WatchHandler) Manage(c *gin.Context) {
 	if token != "" {
 		path = "/watch#key=" + token
 	}
-	okResponse(c, gin.H{"enabled": token != "", "path": path})
+	okResponse(c, gin.H{"enabled": token != "", "path": path, "stable_origin": h.stableOrigin})
 }
 
 func (h *WatchHandler) Open(c *gin.Context) {

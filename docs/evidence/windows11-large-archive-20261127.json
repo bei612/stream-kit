@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "passed": true,
+  "date": "2026-11-27",
+  "platform": "Windows 11 amd64",
+  "source_base_commit": "27275b037e57744c11a1aa6ee61bb2c651cbd5f7",
+  "control_build": {
+    "go": "1.27.4",
+    "local_worktree_modified": true,
+    "orchestrator_sha256": "168151a9a6e49c44ff8a24ce2cd58b8ee39e877bdb03a20fd847888dbf1de38a"
+  },
+  "upload": {
+    "transport": "Native HTTP/1.1 multipart upload with chunked transfer encoding over loopback",
+    "archive": "POSIX PAX TAR with an actual Example executable and a 26 GiB resource",
+    "archive_bytes": 27921765888,
+    "extracted_bytes": 27921762816,
+    "large_resource_bytes": 27917287424,
+    "upload_elapsed_ms": 201844,
+    "http_status": 200,
+    "final_application_status": "ready",
+    "example_sha256_matches": true,
+    "temporary_archive_removed": true,
+    "isolated_uploaded_application_removed": true
+  },
+  "management_browser": {
+    "tool": "Playwright CLI with Chrome on Windows 11",
+    "desktop_viewport": "1440x1050",
+    "mobile_viewport": "390x844",
+    "mobile_layout_fits": true,
+    "active_upload_limit_bytes": 53687091200,
+    "active_extract_limit_bytes": 53687091200,
+    "actual_example_zip_post_status": 200,
+    "application_detail_opened": true
+  },
+  "scope": "Separate local instance on the project D: volume. The 26 GiB archive traversed the native HTTP service and extraction pipeline. The browser used the separately measured Example ZIP. No production installer, configured C: data locations, proxy upload path or release bytes were tested."
+}

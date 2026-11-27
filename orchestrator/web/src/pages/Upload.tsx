@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { api, UploadTimeoutError } from '@/api/client'
-import { argsToLines, linesToArgs } from '@/lib/utils'
+import { argsToLines, formatBytes, linesToArgs } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
 import { ContentGrid, Page } from '@/components/layout/Page'
 import { Input, Textarea, Select, Label } from '@/components/ui/input'
@@ -24,36 +24,41 @@ export default function UploadPage() {
   const [progress, setProgress] = useState(-1)
   const [error, setError] = useState('')
   const [uploading, setUploading] = useState(false)
-  const [blocked, setBlocked] = useState(false) // another upload in progress
+  const [archiveStatus, setArchiveStatus] = useState<Awaited<ReturnType<typeof api.uploadStatus>>['data']>()
   const [templates, setTemplates] = useState<Record<string, string>>({})
   const fileRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<(() => void) | null>(null)
   const navigate = useNavigate()
+  const blocked = archiveStatus?.uploading ?? false
+  const maxUpload = archiveStatus?.max_upload_size_bytes ?? 0
+  const maxExtract = archiveStatus?.max_extract_size_bytes ?? 0
+  const archiveTooLarge = !!file && maxUpload > 0 && file.size > maxUpload
 
   useEffect(() => () => abortRef.current?.(), [])
 
   useEffect(() => {
     api.getTemplates().then(r => setTemplates(r.data || {})).catch(() => {})
-    // Check if another upload is in progress
-    api.uploadStatus().then(r => setBlocked(r.data?.uploading || false)).catch(() => {})
-    const t = setInterval(() => {
-      api.uploadStatus().then(r => setBlocked(r.data?.uploading || false)).catch(() => {})
-    }, 3000)
-    return () => clearInterval(t)
+    const refreshArchiveStatus = () => api.uploadStatus().then(r => setArchiveStatus(r.data)).catch(() => {})
+    void refreshArchiveStatus()
+    const timer = setInterval(refreshArchiveStatus, 3000)
+    return () => clearInterval(timer)
   }, [])
+
+  const selectArchive = (selected?: File) => {
+    if (!selected || uploading) return
+    setFile(selected)
+    setError('')
+    if (!name) setName(selected.name.replace(/\.(tar\.(gz|bz2|xz|zst)|zip|7z|rar|tar|tgz|tbz2|txz|tzst)$/i, ''))
+  }
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
-    const f = e.dataTransfer.files[0]
-    if (f) {
-      setFile(f)
-      if (!name) setName(f.name.replace(/\.(tar\.(gz|bz2|xz|zst)|zip|7z|rar|tar|tgz|tbz2|txz|tzst)$/i, ''))
-    }
+    selectArchive(e.dataTransfer.files[0])
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name || (source==='archive' ? !file : !exePath)) return
+    if (!name || uploading || (source==='archive' ? !file || archiveTooLarge || blocked : !exePath)) return
 
     setUploading(true)
     setError('')
@@ -125,7 +130,7 @@ export default function UploadPage() {
             <div className="flex flex-wrap items-center justify-center gap-2">
               <span className="min-w-0 break-all text-sm font-medium text-card-foreground">{file.name}</span>
               <span className="text-xs text-muted-foreground">
-                ({(file.size / 1024 / 1024).toFixed(1)} MB)
+                ({formatBytes(file.size, true)})
               </span>
               <button
                 type="button"
@@ -153,14 +158,12 @@ export default function UploadPage() {
             type="file"
             accept=".zip,.7z,.rar,.tar,.tar.gz,.tgz,.tar.bz2,.tbz2,.tar.xz,.txz,.tar.zst,.tzst"
             className="hidden"
-            onChange={e => {
-              const f = e.target.files?.[0]
-              if (f) {
-                setFile(f)
-                if (!name) setName(f.name.replace(/\.(tar\.(gz|bz2|xz|zst)|zip|7z|rar|tar|tgz|tbz2|txz|tzst)$/i, ''))
-              }
-            }}
+            onChange={e => selectArchive(e.target.files?.[0])}
           />
+          {maxUpload > 0 && maxExtract > 0 && <p className="mt-2 text-xs text-muted-foreground">
+            {t('upload.archiveLimit')} {formatBytes(maxUpload, true)} · {t('upload.extractLimit')} {formatBytes(maxExtract, true)}
+          </p>}
+          {archiveTooLarge && <p role="alert" className="mt-2 text-sm text-destructive">{t('upload.archiveTooLarge')}</p>}
         </Card> : <Card className="p-5 space-y-4">
           <p className="text-sm text-muted-foreground">{t('upload.localDescription')}</p>
           <div><Label htmlFor="local-executable">{t('upload.executablePath')}</Label><Input id="local-executable" value={exePath} onChange={e=>setExePath(e.target.value)} placeholder={t('upload.executablePlaceholder')} required autoComplete="off" /></div>
@@ -248,7 +251,7 @@ export default function UploadPage() {
 
         <Button
           type="submit"
-          disabled={!name || uploading || (source==='archive'? !file || blocked : !exePath)}
+          disabled={!name || uploading || (source==='archive'? !file || blocked || archiveTooLarge : !exePath)}
           className="w-full"
         >
           {uploading ? (source==='archive'?t('upload.uploading'):t('upload.registering')) : (source==='archive'?t('upload.startUpload'):t('upload.registerLocal'))}

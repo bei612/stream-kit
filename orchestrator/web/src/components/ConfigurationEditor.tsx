@@ -6,6 +6,7 @@ import { Input, Label, Select, Textarea } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
 import { ContentGrid } from '@/components/layout/Page'
+import { useManagementLocale } from '@/i18n'
 
 const labels:Record<string,string> = {
   render_nodes:'渲染节点连接',control_secret:'节点独立签名密钥',name:'显示名称',
@@ -23,6 +24,7 @@ const lists = new Set(['cors_origins','events','exclude_paths','hosts','auto_int
 const pointer = (key:string) => key.replaceAll('~','~0').replaceAll('/','~1')
 
 export function ConfigurationEditor() {
+  const { t } = useManagementLocale()
   const [view,setView]=useState<ConfigurationView|null>(null)
   const [drafts,setDrafts]=useState<Record<string,string>>({})
   const [busy,setBusy]=useState(false)
@@ -99,9 +101,10 @@ export function ConfigurationEditor() {
     const hidden=view?.redacted_paths.includes(path), id='setting'+path
     const sensitive=hidden||['password','jwt_secret','media_ticket_secret','control_secret','webhook_url','args','preflight_args'].includes(key)||path.includes('/env/')||path.startsWith('/templates/')
     const text=drafts[path]??(hidden?'':Array.isArray(value)?value.join('\n'):value===null?'':String(value))
-    const title=labels[key]||key
+    const title=key==='watch_hostname'?t('configuration.watchHostname'):labels[key]||key
     return <div key={path} className={Array.isArray(value)?'field-span min-w-0 space-y-1':'min-w-0 space-y-1'}>
       <Label htmlFor={id}>{title}</Label>
+      {path==='/server/lan_tls/watch_hostname'&&<p className="text-xs text-muted-foreground">{t('configuration.watchHostnameHelp')}</p>}
       {path==='/server/lan_tls/hosts'&&<p className="text-xs text-muted-foreground">每行填写需要额外保留的 IP 或主机名，不含协议和端口。启用自动识别后，当前局域网 IP 自动加入证书，无须在此反复填写。管理服务和本机网关须共用服务证书，原 CA 不变。</p>}
       {path==='/server/lan_tls/auto_detect'&&<p className="text-xs text-muted-foreground">已有部署 CA 时默认启用。运行中每 15 秒核对活动网卡的私有地址；管理端和网关热更新证书，无须重装客户端信任。固定数字 IP 书签仍需换成新地址，或使用已配置的稳定主机名。此开关保存后重启生效，启用后的地址变化自动生效。</p>}
       {path==='/server/lan_tls/auto_interfaces'&&<p className="text-xs text-muted-foreground">留空识别所有活动非点对点网卡；多网卡或 VPN 环境可每行填写一个实际网卡名称，只识别指定网卡。不会自动修改监听范围、防火墙或公网 NAT 配置。</p>}

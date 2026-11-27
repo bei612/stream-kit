@@ -15,6 +15,10 @@ on:
         description: 'Require the gateway to offer only the accepted signaling IPv4 as a host media candidate'
         type: boolean
         default: false
+      verify_stable_watch_origin:
+        description: 'Open the permanent watching link using its configured fixed hostname'
+        type: boolean
+        default: false
 permissions:
   contents: read
   actions: read
@@ -27,6 +31,7 @@ jobs:
       PRODUCT_RUN_ID: ${{ inputs.product_run_id }}
       RUNTIME_PRODUCER_PROFILE: ${{ inputs.runtime_producer_profile }}
       REQUIRE_DIRECT_IPV4_MEDIA: ${{ inputs.require_direct_ipv4_media }}
+      VERIFY_STABLE_WATCH_ORIGIN: ${{ inputs.verify_stable_watch_origin }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

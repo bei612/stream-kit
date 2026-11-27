@@ -16,6 +16,7 @@ const clientPID=fs.readFileSync(path.join(scratch,'client.pid'),'utf8').trim();a
 const report={schema_version:2,passed:false,scope:'Separate client network and Avahi/DBus namespaces; managed LAN identity discovery and live leaf reload on both native HTTPS listeners, renderer discovery and browser WebRTC recovery across an actual private test-NIC IP change without configuration edits or process restarts. No local Windows deployment, physical LAN, Android migration or new audio-quality acceptance.',acceptance_commit:process.env.GITHUB_SHA,network,observations:[]};
 const requireDirectIPv4Media=process.env.REQUIRE_DIRECT_IPV4_MEDIA==='true';
 report.require_direct_ipv4_media=requireDirectIPv4Media;
+const stableWatchOrigin=process.env.VERIFY_STABLE_WATCH_ORIGIN==='true'?`https://${host}:19000`:null;
 const save=()=>fs.writeFileSync('artifacts/network-address-evidence/result.json',JSON.stringify(report,null,2));
 function run(file,args){return execFileSync(file,args,{encoding:'utf8',timeout:15000,stdio:['ignore','pipe','pipe']}).trim();}
 const client=(...args)=>run('sudo',['nsenter','-t',clientPID,'-m','-n','--',...args]);
@@ -30,6 +31,10 @@ async function main(){
   const c=JSON.parse(fs.readFileSync(cp)),g=JSON.parse(fs.readFileSync(gp));
   c.server.bind_address='0.0.0.0:19000';c.server.tls_cert=path.join(tls,'server.crt');c.server.tls_key=path.join(tls,'server.key');c.server.cors_origins=['https://{host}:18080'];
   c.server.lan_tls={ca_cert:path.join(tls,'ca.crt'),ca_key:path.join(tls,'ca.key'),hosts:[host,'localhost','127.0.0.1','::1'],auto_detect:true,auto_interfaces:['sknet-server']};
+  if(stableWatchOrigin){
+    c.server.lan_tls.hosts=c.server.lan_tls.hosts.filter(name=>name!==host);
+    c.server.lan_tls.watch_hostname=host;
+  }
   c.moonlight_web.base_url='https://127.0.0.1:18080';c.moonlight_web.public_url='';c.components.web_server.health_check.url='https://127.0.0.1:18080/stream.html';
   g.web_server.bind_address='0.0.0.0:18080';g.web_server.certificate={certificate_pem:c.server.tls_cert,private_key_pem:c.server.tls_key};g.web_server.session_cookie_secure=true;g.web_server.control_plane_url='https://127.0.0.1:19000';
   c.components.web_server.env={...c.components.web_server.env,WEBRTC_ICE_SERVER_COUNT:'0'};
@@ -98,7 +103,7 @@ async function main(){
   report.tls_before=await until(()=>liveTLS(network.old_address,network.new_address),'initial automatic numeric-IP TLS',45000);save();
   await observe(network.old_address);
   report.stage='start_remote_media';save();
-  media=await require('./media.cjs')({config:c,api,clientPID,network,report,save});
+  media=await require('./media.cjs')({config:c,api,clientPID,network,report,save,stableWatchOrigin});
   if(requireDirectIPv4Media)assert.deepEqual(report.media_before.remote_host_addresses,[network.old_address]);
   report.stage='change_owned_nic';save();
   const addresses=JSON.parse(run('ip',['-j','address','show','dev','sknet-server']))[0].addr_info.filter(x=>x.family==='inet');

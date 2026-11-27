@@ -28,11 +28,13 @@ func NewUploadHandler(mgr *app.Manager, cfg *config.Config, logger *zap.Logger) 
 	return &UploadHandler{Manager: mgr, Config: cfg, Logger: logger, idleTimeout: 60 * time.Second}
 }
 
-// Upload handles multipart file upload for v1.0.
-// tus protocol integration will be added in a future iteration.
-// UploadStatus returns whether an upload/extract is currently in progress.
+// UploadStatus reports the active archive limits and upload ownership.
 func (h *UploadHandler) UploadStatus(c *gin.Context) {
-	okResponse(c, gin.H{"uploading": h.Manager.IsUploading()})
+	okResponse(c, gin.H{
+		"uploading":              h.Manager.IsUploading(),
+		"max_upload_size_bytes":  h.Config.Storage.MaxUploadSize,
+		"max_extract_size_bytes": h.Config.Storage.MaxExtractSize,
+	})
 }
 
 func (h *UploadHandler) Upload(c *gin.Context) {

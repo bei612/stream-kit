@@ -18,11 +18,36 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
 
-func (c LANTLSConfig) Enabled() bool { return c.CACert != "" || c.CAKey != "" || len(c.Hosts) != 0 }
+func (c LANTLSConfig) Enabled() bool {
+	return c.CACert != "" || c.CAKey != "" || len(c.Hosts) != 0 || c.WatchHostname != ""
+}
+
+// StableWatchOrigin is the public entry for same-host managed LAN deployments.
+// Its DNS name is also included in the managed certificate on both listeners.
+func (c ServerConfig) StableWatchOrigin() string {
+	host := strings.ToLower(strings.TrimSpace(c.LANTLS.WatchHostname))
+	if !strings.Contains(host, ".") || strings.HasSuffix(host, ".localhost") {
+		return ""
+	}
+	dns, _, err := certificateHosts([]string{host})
+	if err != nil || len(dns) != 1 {
+		return ""
+	}
+	bindHost, port, err := net.SplitHostPort(c.BindAddress)
+	if err != nil || (bindHost != "" && !net.ParseIP(bindHost).IsUnspecified()) {
+		return ""
+	}
+	number, err := strconv.ParseUint(port, 10, 16)
+	if err != nil || number == 0 {
+		return ""
+	}
+	return "https://" + net.JoinHostPort(host, strconv.FormatUint(number, 10))
+}
 
 func validateLANTLS(c ServerConfig) error {
 	if !c.LANTLS.Enabled() {
@@ -47,10 +72,14 @@ func validateLANTLS(c ServerConfig) error {
 			return errors.New("局域网自动识别网卡名称无效")
 		}
 	}
-	if c.LANTLS.AutoDetect && len(c.LANTLS.Hosts) == 0 {
+	if c.LANTLS.WatchHostname != "" && c.StableWatchOrigin() == "" {
+		return errors.New("固定观看主机名须为客户端可解析的完整 DNS 名称，管理服务须使用通配监听地址和固定端口")
+	}
+	hosts := configuredCertificateHosts(c.LANTLS)
+	if c.LANTLS.AutoDetect && len(hosts) == 0 {
 		return nil // loopback identities remain available before DHCP completes
 	}
-	_, _, err := certificateHosts(c.LANTLS.Hosts)
+	_, _, err := certificateHosts(hosts)
 	return err
 }
 

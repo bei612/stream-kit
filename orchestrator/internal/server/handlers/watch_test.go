@@ -15,6 +15,40 @@ type watchLaunchFunc func(string) (string, error)
 
 func (f watchLaunchFunc) LaunchApp(id string) (string, error) { return f(id) }
 
+func TestWatchManagementKeepsExistingCapabilityOnConfiguredOrigin(t *testing.T) {
+	st, err := store.New(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if err := st.CreateApp(&model.App{ID: "app-a", Name: "Example"}); err != nil {
+		t.Fatal(err)
+	}
+	key, err := st.PublishWatchLink("app-a", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const stable = "https://render.local:9000"
+	for _, address := range []string{"https://192.168.3.66:9000", "https://192.168.4.27:9000"} {
+		h := NewWatchHandler(st, nil, nil, stable)
+		router := gin.New()
+		router.GET("/apps/:app_id/watch-link", h.Manage)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, httptest.NewRequest("GET", address+"/apps/app-a/watch-link", nil))
+		var result struct {
+			Data struct {
+				Enabled      bool   `json:"enabled"`
+				Path         string `json:"path"`
+				StableOrigin string `json:"stable_origin"`
+			} `json:"data"`
+		}
+		if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &result) != nil || !result.Data.Enabled ||
+			result.Data.Path != "/watch#key="+key || result.Data.StableOrigin != stable {
+			t.Fatal("the management response did not preserve the configured origin and watch capability")
+		}
+	}
+}
+
 func TestWatchOpenUsesScopedViewerAdmissionAndRevocation(t *testing.T) {
 	st, err := store.New(":memory:")
 	if err != nil {
@@ -41,7 +75,7 @@ func TestWatchOpenUsesScopedViewerAdmissionAndRevocation(t *testing.T) {
 			st.PublishWatchLink(id, true)
 		}
 		return "8080/stream.html?hostId=7&appId=8", nil
-	}), clients)
+	}), clients, "")
 	router := gin.New()
 	router.POST("/open", h.Open)
 	router.POST("/join", clients.Join)

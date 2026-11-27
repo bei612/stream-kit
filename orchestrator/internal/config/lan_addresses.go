@@ -15,8 +15,16 @@ func eligibleLANAddress(flags net.Flags, ip net.IP) bool {
 		ip.IsPrivate() && ip.IsGlobalUnicast()
 }
 
-func managedCertificateHosts(c LANTLSConfig) ([]string, error) {
+func configuredCertificateHosts(c LANTLSConfig) []string {
 	hosts := append([]string(nil), c.Hosts...)
+	if c.WatchHostname != "" {
+		hosts = append(hosts, c.WatchHostname)
+	}
+	return hosts
+}
+
+func managedCertificateHosts(c LANTLSConfig) ([]string, error) {
+	hosts := configuredCertificateHosts(c)
 	if !c.AutoDetect {
 		return hosts, nil
 	}

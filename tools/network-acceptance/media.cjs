@@ -3,7 +3,7 @@
 const path=require('node:path'),assert=require('node:assert/strict');
 const {spawn}=require('node:child_process');
 const readline=require('node:readline');
-module.exports=async function startMedia({config,api,clientPID,network,report,save}){
+module.exports=async function startMedia({config,api,clientPID,network,report,save,stableWatchOrigin}){
   const base='https://127.0.0.1:18080';
   const auth=await fetch(base+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:config.moonlight_web.username,password:config.moonlight_web.password})});
   assert.ok(auth.ok);const cookie=auth.headers.get('set-cookie').split(';')[0];
@@ -21,6 +21,10 @@ module.exports=async function startMedia({config,api,clientPID,network,report,sa
   const app=await api('/apps/local','POST',{name:'Isolated LAN target',exe_path:'/usr/bin/xmessage',args:'-geometry 640x360 Stream-Kit-LAN',capture_mode:'desktop'});
   assert.equal(app.status,'ready');
   const watch=await api(`/apps/${app.id}/watch-link`,'POST');assert.ok(watch.enabled);
+  if(stableWatchOrigin){
+    assert.equal(watch.stable_origin,stableWatchOrigin);
+    report.stable_watch_origin=watch.stable_origin;
+  }
   const child=spawn('sudo',['--preserve-env=HOME,PATH,NODE_EXTRA_CA_CERTS,GITHUB_ACTIONS,RUNNER_ENVIRONMENT','nsenter','-t',clientPID,'-m','-n','--setuid='+process.getuid(),'--setgid='+process.getgid(),'--',process.execPath,path.resolve('tools/network-acceptance/browser.cjs')],{stdio:['pipe','pipe','ignore']});
   const requests=new Map();let sequence=0;
   readline.createInterface({input:child.stdout}).on('line',line=>{
@@ -41,7 +45,7 @@ module.exports=async function startMedia({config,api,clientPID,network,report,sa
     await api(`/apps/${app.id}/stop`,'POST');
   };
   try{
-    report.media_before=await send({action:'start',url:new URL(watch.path,'https://stream-kit-server.local:19000').href,address:network.old_address});
+    report.media_before=await send({action:'start',url:new URL(watch.path,stableWatchOrigin?watch.stable_origin:'https://stream-kit-server.local:19000').href,address:network.old_address});
     const registered=await hosts();assert.equal(registered.length,1);assert.equal(registered[0].paired,'Paired');
     report.renderer_enrollment={automatic:true,host_count:registered.length,host_id:registered[0].host_id,paired:true,fixture_pairing_mutations:0};save();
     return {recover:async()=>{report.media_after=await send({action:'recover',address:network.new_address});report.media_reconnected_without_reload=true;save();},close};
