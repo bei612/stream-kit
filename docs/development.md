@@ -85,6 +85,8 @@ cd third_party/moonlight-android
 
 Android 音频 CI 使用一次性官方模拟器。独立 `testOnly` 工具通过公开 `AudioManager` 和普通权限设置模拟器媒体音量，再用只读接口确认。固定音量或安全策略拒绝会导致失败。模拟器运行独立系统音播放检查，再以前台 `AudioRecord` 验证合成音是否抵达 Android 采集端。录音前关闭模拟器的宿主机真实麦克风输入，输出只包含帧数、路由与频率强度等指标。隔离探针退出后，原样签名 APK 使用同一合成声源验证程序音、录音路由和撤权。任一基准或产品检查失败均保留失败结果。观察工具、音频源及校准代码不进入正式包。接口见 [AudioManager](https://developer.android.com/reference/android/media/AudioManager#setStreamVolume(int,int,int)) 和 [AudioRecord](https://developer.android.com/reference/android/media/AudioRecord)。
 
+音频工作流可通过 `android_microphone_source` 选择模拟器 RPC 或独立 PulseAudio 虚拟监听源。后者只在临时 CI 宿主上运行，并要求专用 Unix 套接字和全虚拟路由。验收同时核对 QEMU 正在读取该监听源及唯一合成写入进程。无物理麦克风输入，也不会改动开发机的音频设备。两种路径使用相同的 PCM、持续输入条件和判定阈值。[PulseAudio 客户端配置](https://wiki.freedesktop.org/Software/PulseAudio/FAQ/)
+
 ## 检查按影响执行
 
 | 变更 | 最小相关检查 |

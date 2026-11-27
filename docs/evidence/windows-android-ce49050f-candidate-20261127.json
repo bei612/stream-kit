@@ -211,6 +211,19 @@
     "permission_ui_result": "system_dialog_unavailable",
     "scope": "The observer did not identify the Android permission dialog; an actual system denial was not measured."
   },
+  "android_microphone_permission_denial": {
+    "acceptance_run_id": 45957769418,
+    "harness_source_commit": "06a50dbc181487ae80250c9798de90c371b16b93",
+    "passed": true,
+    "environment": "Official Android API 36 emulator, verified signed APK and same-source Linux runtime",
+    "system_dialog_denied": true,
+    "permission_before": {"granted": false, "user_set": false},
+    "permission_after": {"granted": false, "user_set": true},
+    "controller_retained": true,
+    "server_microphone_off": true,
+    "subsequent_guest_network_recovery_passed": true,
+    "scope": "Ordinary Android permission dialog and live server authority status. Does not measure accepted microphone waveform."
+  },
   "lan_migration": {
     "acceptance_run_id": 45941800647,
     "passed": true,
@@ -223,6 +236,17 @@
     "installed_source_commit": "53c7385ac58d39408a3aaffef33d6a95ea06a737",
     "latest_runtime_deployed": false,
     "automatic_approval_result": "The elevated Windows maintenance launch was denied by tool policy before execution."
+  },
+  "physical_tablet_connectivity": {
+    "passed": false,
+    "installed_android_version_code": 1000021,
+    "usb_adb_seen": true,
+    "tablet_and_server_on_different_ipv4_subnets": true,
+    "control_tcp_9000": "connection_timeout",
+    "media_signalling_tcp_8080": "connection_timeout",
+    "usb_adb_disconnected_after_probe": true,
+    "candidate_apk_installed": false,
+    "scope": "Read-only transport check. No changes to Wi-Fi, trust, saved links or applications."
   },
   "remaining": [
     "Actual clean Windows 11 x64 install and tested local maintenance rollback.",
