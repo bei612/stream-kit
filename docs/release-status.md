@@ -6,7 +6,7 @@
 
 后续候选 `66a79e5d` 的 Ubuntu 安装器已核对实际包体与嵌入载荷摘要。隔离 Linux 实际换址后，管理端和媒体网关在 2.743 秒内热更新证书，原观看页恢复直连，收到 48 帧视频和 79 个音频包；服务进程及部署 CA、私钥保持。[同源换址验收](evidence/isolated-lan-66a79e5d-20261127.json) · [原始联验](https://github.com/bei612/stream-kit/actions/runs/46016281321)
 
-`66a79e5d` 的 Android APK `1000029` 已在本机核对 v2/v3 发行签名、源码提交和 21 项文件摘要。APK SHA-256 为 `ae45b4ae750fa76b13f6cdcc10fb356461d5ac136f441857e27e3e5bd5a9bb3a`。首轮同源联验完成覆盖升级、书签复用、输入交接与撤权，前台恢复后统计观察器在约 20 秒处超时，该轮未能证明前台音视频恢复。[签名构建](https://github.com/bei612/stream-kit/actions/runs/46013826883) · [首轮联验](https://github.com/bei612/stream-kit/actions/runs/46016295148)
+`66a79e5d` 的 Android APK `1000029` 已在本机核对 v2/v3 发行签名、源码提交和 21 项文件摘要。保留首轮统计观察器超时记录。修正验收工具后，同字节复验通过覆盖升级、原书签复用、输入交接与撤权、麦克风授权拒绝、前后台切换及客户端断网重连。切回前台和重连后的客户端音频包、解码帧均实际增长，控制者仍由服务端分配。[验收记录](evidence/android-input-66a79e5d-20261127.json) · [复验任务](https://github.com/bei612/stream-kit/actions/runs/46018701153)
 
 当前 0.1.1 构建候选冻结于 `d0a5b4c804ce26006a9e6ed277ff0077d92b5b11`。Windows 和 Ubuntu 安装器及 Android `1000027` APK 已同源构建。Windows 安装器为 98,140,982 字节，SHA-256 为 `5bc7beebe193e24d38fe3b73744322c9c83706d118c34fd327675cdaec7f1f23`，其三组件清单与已下载的本机测试载荷相符。APK 为 33,168,191 字节，SHA-256 为 `d9649cd76aa8b548ba5ed594ef9eab7e65324c940170a72c6127957b3b8c435b`，已核对项目 v2/v3 签名、包内源码标识、21 项分发文件及 4 项下载摘要。Ubuntu 安装器原生初始化通过。[Android 候选](https://github.com/bei612/stream-kit/actions/runs/45992345078) · [同源安装器](https://github.com/bei612/stream-kit/actions/runs/45992346158)
 

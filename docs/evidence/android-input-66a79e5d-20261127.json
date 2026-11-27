@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "source_commit": "66a79e5d11e54a7048fccb042cd93327be92df3b",
+  "passed": true,
+  "product_run_id": 46013826861,
+  "android_build_run_id": 46013826883,
+  "linux_installer_sha256": "e32516c13d70cd7122031e007524a173b039909df3c0d06b2192f451c07e3364",
+  "apk_sha256": "ae45b4ae750fa76b13f6cdcc10fb356461d5ac136f441857e27e3e5bd5a9bb3a",
+  "android_version_code": 1000029,
+  "local_artifact_verification": {"checked_entries": 21, "release_signature_v2_and_v3_verified": true},
+  "acceptance_run_id": 46018701153,
+  "acceptance_source_commit": "44f336f20aeb52ed40232add8872a576bd9e1e20",
+  "previous_inconclusive_run_id": 46016295148,
+  "previous_observation_limit": "The initial run verified upgrade, a saved bookmark and cooperative input phases. Foreground re-registration succeeded, but the statistics instrumentation produced no result before its approximately 20-second host command timeout. Native media recovery remained unproven in that run.",
+  "upgrade": {"from_tag": "v0.1.0", "baseline_version_code": 1000015, "installation_identity_preserved": true, "saved_bookmark_reopened": true, "restored_as_viewer_with_microphone_off": true},
+  "target_input": {"single_shared_renderer": true, "subscribers": 2, "completed_phases": ["android_controller", "old_android_denied", "web_controller", "web_revoked", "android_regranted", "android_revoked"]},
+  "foreground_recovery": {"controller_released_in_background": true, "same_native_instance_preserved": true, "fresh_audio_and_video_observed": true, "audio_packets": 301, "decoded_video_frames": 122, "observation_elapsed_ms": 4735, "restored_as_viewer_with_microphone_off": true},
+  "microphone_permission_denied": {"system_prompt_denied": true, "controller_retained": true, "server_microphone_off": true},
+  "client_network_recovery": {"disconnected_until_expiry_ms": 13863, "original_connection_resumed_as_viewer": true, "microphone_disabled": true, "fresh_audio_and_video_observed": true, "audio_packets": 304, "decoded_video_frames": 126, "observation_elapsed_ms": 4126},
+  "cleanup": {"example_stop_acknowledged": true, "renderer_restored_idle": true},
+  "scope": "Exact signed APK and Ubuntu installer in a hosted Android API 36 emulator and separate browser. Observation elapsed includes test instrumentation time. This verifies native receive media, cooperative input, lifecycle and microphone permission denial. It excludes physical-site Windows, physical Android devices and positive microphone return to a Windows recording endpoint."
+}
