@@ -84,6 +84,7 @@ function AppDetailContent({id}: {id: string | undefined}) {
       {loadError && <Alert variant="warning" role="status">{t('appDetail.refreshFailed')}: {loadError}。{t('appDetail.showingLastState')}</Alert>}
 
       {command.error && <Alert variant="error" role="alert">{command.error}</Alert>}
+      {app.status === 'error' && app.error_message && <Alert variant="error" role="alert">{app.error_message}</Alert>}
       <ContentGrid variant="detail">
       <div className="page-stack">
       {/* Stream controls */}

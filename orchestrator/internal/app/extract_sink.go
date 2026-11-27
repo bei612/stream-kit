@@ -39,7 +39,7 @@ func (s *extractSink) directory(name string) error {
 		return nil
 	}
 	if s.count >= s.cfg.MaxFileCount {
-		return errors.New("压缩包条目数量超限")
+		return errArchiveEntryCount
 	}
 	if err := s.root.Mkdir(filepath.FromSlash(name), 0755); err != nil {
 		return err
@@ -56,7 +56,7 @@ func (s *extractSink) entry(raw string, mode os.FileMode, size uint64, open func
 	}
 	// Count decoded entries even when a root or repeated directory creates no inode.
 	if s.entries >= s.cfg.MaxFileCount {
-		return errors.New("压缩包条目数量超限")
+		return errArchiveEntryCount
 	}
 	s.entries++
 	name := strings.TrimSuffix(strings.ReplaceAll(raw, `\`, "/"), "/")
@@ -92,7 +92,7 @@ func (s *extractSink) entry(raw string, mode os.FileMode, size uint64, open func
 		return fmt.Errorf("重复或大小写冲突的条目: %s", name)
 	}
 	if s.count >= s.cfg.MaxFileCount {
-		return errors.New("压缩包条目数量超限")
+		return errArchiveEntryCount
 	}
 	input, err := open()
 	if err != nil {

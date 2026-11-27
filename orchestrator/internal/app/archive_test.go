@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/binary"
+	"errors"
 	"hash/crc32"
 	"io"
 	"os"
@@ -221,6 +222,13 @@ func TestSevenZipPlainAndCompressedHeaders(t *testing.T) {
 			data, err := os.ReadFile(filepath.Join("testdata", fixture))
 			if err != nil {
 				t.Fatal(err)
+			}
+			limited, written, err := extractFixture(t, ".7z", data, ExtractConfig{MaxExtractSize: 1 << 20, MaxFileCount: 1})
+			if !errors.Is(err, errArchiveEntryCount) || written != 0 {
+				t.Fatalf("7z entry limit: wrote %d bytes, error %v", written, err)
+			}
+			if files, err := os.ReadDir(limited); err != nil || len(files) != 0 {
+				t.Fatalf("7z entry limit left files: %v (%v)", files, err)
 			}
 			destination, size, err := extractFixture(t, ".7z", data, ExtractConfig{MaxExtractSize: 1 << 20, MaxFileCount: 100})
 			if err != nil {

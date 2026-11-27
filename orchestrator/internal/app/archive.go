@@ -2,7 +2,6 @@ package app
 
 import (
 	"archive/tar"
-	"archive/zip"
 	"compress/bzip2"
 	"compress/gzip"
 	"context"
@@ -23,6 +22,7 @@ import (
 )
 
 var archiveExtensions = []string{".tar.gz", ".tar.bz2", ".tar.xz", ".tar.zst", ".zip", ".7z", ".rar", ".tar", ".tgz", ".tbz2", ".txz", ".tzst"}
+var errArchiveEntryCount = errors.New("压缩包条目数量超限")
 
 // ArchiveExtension preserves the complete recognized suffix in temporary uploads.
 func ArchiveExtension(name string) string {
@@ -89,7 +89,7 @@ func ExtractContext(ctx context.Context, archivePath, destDir string, cfg Extrac
 	source := &contextArchiveSource{ctx: ctx, file: file}
 	switch ext {
 	case ".zip":
-		reader, e := zip.NewReader(source, stat.Size())
+		reader, e := openArchiveZIP(source, stat.Size(), cfg.MaxFileCount)
 		if e != nil {
 			return 0, e
 		}
@@ -100,7 +100,10 @@ func ExtractContext(ctx context.Context, archivePath, destDir string, cfg Extrac
 		}
 	case ".7z":
 		// ReaderAt reads only this upload, never adjacent multipart files.
-		reader, e := sevenzip.NewReader(source, stat.Size())
+		reader, e := sevenzip.NewReaderWithFileLimit(source, stat.Size(), uint64(cfg.MaxFileCount))
+		if errors.Is(e, sevenzip.ErrFileLimit) {
+			return 0, errArchiveEntryCount
+		}
 		if e != nil {
 			return 0, e
 		}

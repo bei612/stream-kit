@@ -274,7 +274,7 @@ func OpenReaderWithPassword(name, password string) (*ReadCloser, error) {
 	r := new(ReadCloser)
 	r.p = password
 
-	if err := r.init(reader, size); err != nil {
+	if err := r.init(reader, size, limits.MetadataItems); err != nil {
 		errs := make([]error, 0, len(files)+1)
 		errs = append(errs, err)
 
@@ -301,6 +301,16 @@ func OpenReader(name string) (*ReadCloser, error) {
 // as the basis of the decryption key, which is assumed to have the given size
 // in bytes.
 func NewReaderWithPassword(r io.ReaderAt, size int64, password string) (*Reader, error) {
+	return newReader(r, size, password, limits.MetadataItems)
+}
+
+// NewReaderWithFileLimit applies a caller-provided entry limit to plain and
+// compressed headers before allocating the per-file metadata.
+func NewReaderWithFileLimit(r io.ReaderAt, size int64, maxFiles uint64) (*Reader, error) {
+	return newReader(r, size, "", min(maxFiles, limits.MetadataItems))
+}
+
+func newReader(r io.ReaderAt, size int64, password string, maxFiles uint64) (*Reader, error) {
 	if size < 0 {
 		return nil, errNegativeSize
 	}
@@ -308,7 +318,7 @@ func NewReaderWithPassword(r io.ReaderAt, size int64, password string) (*Reader,
 	zr := new(Reader)
 	zr.p = password
 
-	if err := zr.init(r, size); err != nil {
+	if err := zr.init(r, size, maxFiles); err != nil {
 		return nil, err
 	}
 
@@ -417,7 +427,7 @@ func findSignature(r io.ReaderAt, search []byte) ([]int64, error) {
 }
 
 //nolint:cyclop,funlen,gocognit,gocyclo,maintidx
-func (z *Reader) init(r io.ReaderAt, size int64) (err error) {
+func (z *Reader) init(r io.ReaderAt, size int64, maxFiles uint64) (err error) {
 	h := crc32.NewIEEE()
 	tra := plumbing.TeeReaderAt(r, h)
 
@@ -494,7 +504,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) (err error) {
 	h.Reset()
 
 	// Bound bufio.Reader otherwise it can read trailing garbage which screws up the CRC check
-	budget := &metadataBudget{remaining: limits.MetadataBytes}
+	budget := &metadataBudget{remaining: limits.MetadataBytes, fileLimit: maxFiles}
 	br := withMetadataBudget(bufio.NewReader(io.NewSectionReader(tra, z.end, int64(start.Size))), budget) //nolint:gosec
 
 	var (

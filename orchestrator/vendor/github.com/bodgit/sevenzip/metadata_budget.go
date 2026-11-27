@@ -1,6 +1,7 @@
 package sevenzip
 
 import (
+	"errors"
 	"io"
 	"reflect"
 
@@ -11,7 +12,10 @@ import (
 // metadataBudget is shared by the outer header, decoded header and bounded
 // property readers. Reservations are cumulative (including temporary arrays),
 // not refunded when parsing moves on. This is not a process RSS limit.
-type metadataBudget struct{ remaining uint64 }
+type metadataBudget struct{ remaining, fileLimit uint64 }
+
+// ErrFileLimit is returned before allocating an index beyond the caller's limit.
+var ErrFileLimit = errors.New("sevenzip: file count exceeds configured limit")
 
 type metadataReader struct {
 	util.Reader
@@ -27,6 +31,13 @@ func inheritMetadataBudget(r util.Reader, parent util.Reader) util.Reader {
 		return withMetadataBudget(r, source.budget)
 	}
 	return r
+}
+
+func checkFileLimit(r util.Reader, count uint64) error {
+	if source, ok := r.(*metadataReader); ok && count > source.budget.fileLimit {
+		return ErrFileLimit
+	}
+	return nil
 }
 
 func reserveMetadataBytes(r io.ByteReader, count, width uint64) error {
