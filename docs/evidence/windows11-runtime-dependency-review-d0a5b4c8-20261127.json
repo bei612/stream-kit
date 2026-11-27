@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-27",
+  "source_commit": "d0a5b4c804ce26006a9e6ed277ff0077d92b5b11",
+  "passed": true,
+  "scope": "Published advisory review of the exact Windows control binary, locked native gateway dependency graph on Windows and Ubuntu, browser npm runtime locks, and the signed Android APK Maven inventory. Source reachability and platform conditions were reviewed for the reported notices. Native libraries outside these dependency graphs and development dependencies are outside this review.",
+  "windows_control": {
+    "product_build": 45992346158,
+    "binary_sha256": "3cc324af51b184c0c5fb895e7837140eddac3899d9cc5ae4e09575529b3197cf",
+    "matches_verified_installer_payload": true,
+    "compiler": "go1.27.4 windows/amd64",
+    "vcs_modified": false,
+    "quic_go": "0.59.1",
+    "scanner": "govulncheck 1.10.0, binary symbol mode",
+    "database": "https://vuln.go.dev/",
+    "result": "No vulnerabilities found."
+  },
+  "native_gateway": {
+    "targets": ["x86_64-pc-windows-msvc", "x86_64-unknown-linux-gnu"],
+    "locked_normal_package_versions_reviewed": 370,
+    "osv_ecosystem": "crates.io",
+    "http_stack": "actix-http 3.22.1 with the integrated h2 0.4.21 transport",
+    "rustcrypto_rsa": "0.10.0",
+    "crossbeam_epoch": "0.9.21",
+    "previously_reported_ids_absent": ["RUSTSEC-2026-0258", "RUSTSEC-2023-0071", "RUSTSEC-2026-0204"],
+    "matched_notices": [
+      {"id":"RUSTSEC-2026-0190","package":"anyhow 1.0.102","assessment":"The gateway uses the error API without the affected contextual mutable downcast operation. The issue is tracked for the next dependency upgrade."},
+      {"id":"RUSTSEC-2025-0141","package":"bincode 1.3.3","assessment":"Upstream maintenance notice for the tracing dependency path via venator. The advisory identifies no specific vulnerability."},
+      {"id":"RUSTSEC-2026-0594","package":"cookie 0.16.2","assessment":"The Actix build enables cookie formatting and percent encoding. The encrypted PrivateJar capability used by this advisory is disabled."},
+      {"id":"RUSTSEC-2026-0441","package":"pin-utils 0.1.0","assessment":"Upstream maintenance notice for the dependency pulled in by Hyper. The advisory identifies no specific vulnerability."},
+      {"id":"RUSTSEC-2026-0538","package":"quinn-udp 0.6.2","assessment":"The advisory excludes Linux and Windows because they use separate receive implementations. It applies to other OS targets outside the server release."},
+      {"id":"RUSTSEC-2026-0386","package":"tokio 1.53.1","assessment":"The affected constructors are Unix-specific. Review of the vendored native gateway and media code plus 350 selected Linux registry source trees found no call to the four affected AsyncFd constructors."}
+    ]
+  },
+  "web": {
+    "scanner": "npm audit --omit=dev --package-lock-only",
+    "management_packages_reported": 1,
+    "media_web_packages_reported": 0,
+    "management_package": "react-router 7.13.2",
+    "management_notice_count": 10,
+    "previous_notice_review": "docs/evidence/management-dependency-review-20261119.json",
+    "assessment": "The ten IDs match the previous assessment. The management application still uses BrowserRouter and createRoot, with native Go APIs and fixed or app-prefixed React Router destinations. The added permanent-link anchor is a plain HTML anchor with the management API's link and configured origin. Review found no new affected call path. The dependency remains in the reported version range."
+  },
+  "android": {
+    "build_run_id": 45992345078,
+    "version_code": 1000027,
+    "apk_sha256": "d9649cd76aa8b548ba5ed594ef9eab7e65324c940170a72c6127957b3b8c435b",
+    "checked_maven_runtime_coordinates": 15,
+    "osv_matches": 0,
+    "project_signing_verified": true,
+    "scope": "Matches the Maven coordinates recorded in the signed release's provenance. The result does not assess the internals of prebuilt native libraries."
+  },
+  "source_sbom": {
+    "artifact_id": 15193769422,
+    "format": "SPDX-2.3",
+    "packages": 3494,
+    "sha256": "f0ed0fa4a9703053de2bbd5e521e00001ba195615a161df52bf2255c3695cf1b"
+  }
+}

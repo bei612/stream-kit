@@ -2,11 +2,17 @@
 
 核对日期：2026-11-27。本页集中维护可下载版本、本机部署、候选产物和剩余边界。历史证据保留原始来源，不把旧版通过结果当作新产物验收。
 
-当前 0.1.1 构建候选冻结于 `d0a5b4c804ce26006a9e6ed277ff0077d92b5b11`。Android `1000027` 的正式混淆构建及模拟器检查已通过。本机核对了项目 v2/v3 签名、包内源码标识、21 项分发文件摘要及 4 项下载摘要。APK 大小为 33,168,191 字节，SHA-256 为 `d9649cd76aa8b548ba5ed594ef9eab7e65324c940170a72c6127957b3b8c435b`。同源 Ubuntu 安装器的原生初始化已通过，Windows 安装器正在构建。[Android 候选](https://github.com/bei612/stream-kit/actions/runs/45992345078) · [同源安装器](https://github.com/bei612/stream-kit/actions/runs/45992346158)
+当前 0.1.1 构建候选冻结于 `d0a5b4c804ce26006a9e6ed277ff0077d92b5b11`。Windows 和 Ubuntu 安装器及 Android `1000027` APK 已同源构建。Windows 安装器为 98,140,982 字节，SHA-256 为 `5bc7beebe193e24d38fe3b73744322c9c83706d118c34fd327675cdaec7f1f23`，其三组件清单与已下载的本机测试载荷相符。APK 为 33,168,191 字节，SHA-256 为 `d9649cd76aa8b548ba5ed594ef9eab7e65324c940170a72c6127957b3b8c435b`，已核对项目 v2/v3 签名、包内源码标识、21 项分发文件及 4 项下载摘要。Ubuntu 安装器原生初始化通过。[Android 候选](https://github.com/bei612/stream-kit/actions/runs/45992345078) · [同源安装器](https://github.com/bei612/stream-kit/actions/runs/45992346158)
+
+最新 Windows 安装器在 Windows Server 2022 托管环境完成实际静默安装、网关和 SCM 服务重启、原生录音及卸载数据保留。SCM 为 Auto / LocalSystem，安装和卸载退出码均为 0，录音为 144,000 帧，零丢帧和缓冲异常，既有默认音频设备保持。另一独立任务实际触发候选控制端端口占用，启动返回 1。回滚后原三组件、原永久观看链接、配置、CA 与私钥通过核对。[精确安装验收](https://github.com/bei612/stream-kit/actions/runs/45998883578) · [真实回滚验收](https://github.com/bei612/stream-kit/actions/runs/45998956057)
+
+实际 Win11 独立实例使用最新同包三组件和 `1000027` APK。Android 与 Web 共享一条渲染上游。授权时，Windows 目标录音分析了 96,000 帧且零丢帧，Web 中的麦克风测试信号为 −42.95 dB；撤权后该信号降至 −125.68 dB，程序声音保持。Example、模拟器及临时信任已回收。当前现场 SCM 仍运行 `53c7385a`。[最新版 Win11 音频、安装与回滚证据](evidence/windows11-android-packaged-audio-d0a5b4c8-20261127.json)
 
 同源 Ubuntu 安装器的真实网卡换址联验通过。两个 HTTPS 入口在 2.739 秒内加载新证书，原固定观看链接在未重载页面的情况下恢复直连媒体，新连接观测到 49 帧视频和 81 个音频包。运行进程、CA 和私钥保持，Sunshine 完成自动配对。现场 Win11 网络与实体设备另有验收边界。[同源换址联验](https://github.com/bei612/stream-kit/actions/runs/45994240668)
 
 官方 Android 模拟器用同源 Ubuntu 安装器和签名 APK `1000027` 完成覆盖升级。原 `v0.1.0` 书签可直接打开，Android 与 Web 使用同一上游，真实目标输入交接、Android 前后台恢复、麦克风系统授权拒绝和客户端断网重连均通过。[同源 Android 与 Web 联验](https://github.com/bei612/stream-kit/actions/runs/45995324077)
+
+完成同源依赖复核。Windows 安装器中的原生控制服务二进制符号扫描未发现已知漏洞，媒体网页运行依赖和 APK 的 15 个 Maven 坐标无命中。管理页 React Router 的 10 条已知公告逐条复核仍无适用调用路径，其锁定版本仍在公告范围内。Windows 和 Ubuntu 原生网关图中检出的 Rust 公告已按平台、编译功能与入口核对，详细边界及源码 SBOM 校验值见证据。[候选依赖复核](evidence/windows11-runtime-dependency-review-d0a5b4c8-20261127.json)
 
 上一候选 `e253605d02e0fa686faeb76704fd966e8a3179d5` 的精确 Windows 安装器在独立 Windows Server 2022 通过静默安装、原生录音、服务恢复和卸载数据保留。SCM 为 Auto / LocalSystem，采集 144,000 帧，零丢帧和缓冲异常，系统既有默认录放设备保持。安装和卸载退出码均为 0。[原始安装验收](https://github.com/bei612/stream-kit/actions/runs/45993320089)
 
@@ -20,9 +26,9 @@ Windows 安装因本机音频类驱动返回 `3010` 时，当前代码在自动�
 
 Windows 维护工具预检查询正在上传或解压的归档。回滚先核对原运行库存和数据库冷备份，恢复服务后重新核对应用 ID、配置、CA 和私钥。Windows 原生 SQLite 文件测试验证原应用恢复及损坏备份在替换数据库前被拒绝。独立 Windows 安装验收已接入真实端口冲突触发候选服务启动失败的回滚路径，验收使用两个同仓冻结产物。实际 Win11 SCM 维护回滚另行验收。[维护操作说明](../deploy/README.md#更新与卸载)
 
-主线已将原生网关和 Moonlight 绑定的 `crossbeam-epoch` 锁定到 0.9.21，原生和 Web/WASM 的 RSA 配对后端统一锁定到 0.10.0。Windows 原生 Rust 及 Web/WASM 锁定编译检查通过。OpenSSL 生成的既有格式证书和 PKCS#8 私钥可由新后端读取，新生成的证书和配对签名也经 OpenSSL 交叉验证。下一份安装包仍需验证真实 Sunshine 配对。下文 `55d6d5a8` 候选使用更新前的依赖。[Crossbeam 公告](https://rustsec.org/advisories/RUSTSEC-2026-0204.html) · [RSA 公告](https://rustsec.org/advisories/RUSTSEC-2023-0071.html)
+主线已将原生网关和 Moonlight 绑定的 `crossbeam-epoch` 锁定到 0.9.21，原生和 Web/WASM 的 RSA 配对后端统一锁定到 0.10.0。Windows 原生 Rust 及 Web/WASM 锁定编译检查通过。OpenSSL 生成的既有格式证书和 PKCS#8 私钥可由新后端读取，新生成的证书和配对签名也经 OpenSSL 交叉验证。`d0a5b4c8` 的 Ubuntu 安装包在实际换址测试中完成 Sunshine 自动配对。下文 `55d6d5a8` 候选使用更新前的依赖。[Crossbeam 公告](https://rustsec.org/advisories/RUSTSEC-2026-0204.html) · [RSA 公告](https://rustsec.org/advisories/RUSTSEC-2023-0071.html)
 
-主线网关的 Windows 和 Linux 生产依赖都已改用 `h2 0.4.21`。Windows 独立 Actix 服务验证了实际 HTTP/1.1 请求、HTTP/2 并发 HEAD 与 1 MiB POST、authority 和重复响应头。正式网关安装包仍需执行 TLS 及观看链路联验。[依赖来源](../third_party-manifests/actix-http.json) · [RustSec 公告](https://rustsec.org/advisories/RUSTSEC-2026-0258.html)
+主线网关的 Windows 和 Linux 生产依赖都已改用 `h2 0.4.21`。Windows 独立 Actix 服务验证了实际 HTTP/1.1 请求、HTTP/2 并发 HEAD 与 1 MiB POST、authority 和重复响应头。`d0a5b4c8` 的 Ubuntu 安装包通过两种 HTTP 版本和换址后的浏览器串流检查，Win11 同包载荷通过受信 HTTPS 的 Android 和 Web 观看联验。[依赖来源](../third_party-manifests/actix-http.json) · [RustSec 公告](https://rustsec.org/advisories/RUSTSEC-2026-0258.html)
 
 上一候选 `55d6d5a8a85db6b0b9a5cefb4afa042305b8fd49` 修复了管理服务对本机 HTTPS 媒体网关的信任。Win11 已用独立 CA 对照运行两版管理服务。旧版签名设备查询和配置读取均返回 503，修复版均返回 200，组件健康状态进入 `running`。同一 CA 签发的新证书在 3.984 秒内被网关热加载，进程 PID 保持，签名查询继续成功。该复核使用前一候选的同源码网关，Windows 信任库与现有部署保持原状。[Win11 原生复核](evidence/windows11-managed-gateway-ca-55d6d5a8-20261127.json)
 
