@@ -4,6 +4,10 @@
 
 [v0.1.1-rc.1](https://github.com/bei612/stream-kit/releases/tag/v0.1.1-rc.1) 已公开下载。Windows、Ubuntu 和 Android 共用 `d0a5b4c8` 冻结源码，发布复用原构建字节。14 个附件的长度及 SHA-256 已与 GitHub 存储核对，三个安装下载入口均通过匿名读取。正式最新版仍是 `v0.1.0`，现场 Win11 仍需验证首次安装和整机恢复、维护回滚及跨设备换址。[预发布证据](evidence/release-0.1.1-rc.1-20261127.json)
 
+`66a79e5d` 候选包含流式上传、可用磁盘空间提示、磁盘预留和 ZIP、ZIP64、7z 条目限制。单个应用归档和解压总量均默认上限 50 GiB，两项可分别配置。同一卷需要同时容纳暂存归档和解压结果。Win11 上真实 26 GiB TAR 已上传、解压并登记至就绪，程序哈希一致。[上传用法与空间预算](user-guide.md#上传程序包) · [26 GiB 验收](evidence/windows11-archive-space-666a6a01-20261127.json)
+
+同源 Windows 安装器通过托管静默安装、SCM 自动服务恢复、真实端口冲突后的维护回滚和卸载数据保留。Win11 独立运行同包三组件与同源签名 Android APK，Android 与 Web 实际共享一条渲染上游。授权后的 Windows 目标录音分析 96,000 帧，零丢帧，麦克风信号在 Web 上由 −39.50 dB 降至撤权后的 −126.34 dB，程序声继续播放。[Windows 与 Android 联验](evidence/windows11-android-packaged-audio-66a79e5d-20261127.json) · [同源依赖复核](evidence/windows11-runtime-dependency-review-66a79e5d-20261127.json)
+
 后续候选 `66a79e5d` 的 Ubuntu 安装器已核对实际包体与嵌入载荷摘要。隔离 Linux 实际换址后，管理端和媒体网关在 2.743 秒内热更新证书，原观看页恢复直连，收到 48 帧视频和 79 个音频包；服务进程及部署 CA、私钥保持。[同源换址验收](evidence/isolated-lan-66a79e5d-20261127.json) · [原始联验](https://github.com/bei612/stream-kit/actions/runs/46016281321)
 
 `66a79e5d` 的 Android APK `1000029` 已在本机核对 v2/v3 发行签名、源码提交和 21 项文件摘要。保留首轮统计观察器超时记录。修正验收工具后，同字节复验通过覆盖升级、原书签复用、输入交接与撤权、麦克风授权拒绝、前后台切换及客户端断网重连。切回前台和重连后的客户端音频包、解码帧均实际增长，控制者仍由服务端分配。[验收记录](evidence/android-input-66a79e5d-20261127.json) · [复验任务](https://github.com/bei612/stream-kit/actions/runs/46018701153)

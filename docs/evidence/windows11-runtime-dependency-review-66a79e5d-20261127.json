@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-27",
+  "source_commit": "66a79e5d11e54a7048fccb042cd93327be92df3b",
+  "passed": true,
+  "scope": "Fresh symbol-mode advisory scans of the exact Windows and Ubuntu control binaries. For unchanged runtime graphs, this record links the previously reviewed advisories and identifies the matching source or dependency inventories. Native libraries outside those reviewed graphs and development-only packages remain outside this assessment.",
+  "control_scans": {
+    "scanner": "govulncheck 1.10.0, binary symbol mode",
+    "database": "https://vuln.go.dev/",
+    "windows": {
+      "product_run_id": 46013826861,
+      "installer_sha256": "f43120940b173e6f09d503c78203cfe6fb58eadb96c79814145cfa49e09ed104",
+      "binary_sha256": "d17bee27c98ad96dc7cd180e670a4b597ccbadef9ad28eb06882a95cb2972d8e",
+      "matches_verified_installer_payload": true,
+      "vcs_modified": false,
+      "result": "No vulnerabilities found."
+    },
+    "ubuntu": {
+      "product_run_id": 46013826861,
+      "installer_sha256": "e32516c13d70cd7122031e007524a173b039909df3c0d06b2192f451c07e3364",
+      "binary_sha256": "6c90696e16d8c6d119c29e1cbfc289bd09aee8659e44d5c64b17dfa063232b44",
+      "matches_verified_embedded_payload": true,
+      "vcs_modified": false,
+      "result": "No vulnerabilities found."
+    }
+  },
+  "unchanged_dependency_assessment": {
+    "previous_review": "docs/evidence/windows11-runtime-dependency-review-d0a5b4c8-20261127.json",
+    "media_gateway_and_audio_target_source_unchanged": true,
+    "management_dependency_lock_unchanged": true,
+    "management_changes": "Archive storage availability, upload handling, localized labels and the existing application error alert. The management application continues using its existing browser router and route structure.",
+    "android_build_run_id": 46013826883,
+    "android_version_code": 1000029,
+    "apk_sha256": "ae45b4ae750fa76b13f6cdcc10fb356461d5ac136f441857e27e3e5bd5a9bb3a",
+    "android_runtime_inventory_sha256": "22a584a4428aa2ec47ab878e76e9c3c4167d59da03140c78c01bfbee63810533",
+    "android_notices_sha256": "65896f681d26f3927e0a114fba30192e14282e8fc34a2230d6b0e5f06245f755",
+    "android_inventory_and_notices_byte_identical_to_reviewed_rc1": true
+  },
+  "source_sbom": {
+    "artifact_id": 15205940472,
+    "format": "SPDX-2.3",
+    "packages": 3495,
+    "sha256": "83f04b8a502edc20fe18f3dd378d9958aa732ee5bafee10606607088dab3c993"
+  }
+}
