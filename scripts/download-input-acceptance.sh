@@ -27,5 +27,13 @@ else
   gh release download "$ANDROID_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.apk' --pattern provenance.json --pattern sbom.cdx.json --dir artifacts/input-download
 fi
 node scripts/verify-input-acceptance-sources.mjs downloads
+if [[ -n "${ANDROID_BASELINE_TAG:-}" ]]; then
+  [[ "$ANDROID_BASELINE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+  baseline=artifacts/input-android-baseline
+  mkdir -p "$baseline"
+  gh api "repos/$GITHUB_REPOSITORY/releases/tags/$ANDROID_BASELINE_TAG" > "$baseline/release.json"
+  gh api "repos/$GITHUB_REPOSITORY/commits/$ANDROID_BASELINE_TAG" > "$baseline/source.json"
+  gh release download "$ANDROID_BASELINE_TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.apk' --pattern android-provenance.json --dir "$baseline"
+fi
 dpkg-deb -x artifacts/input-download/runtime.deb artifacts/input-runtime
 node -e "const fs=require('fs'),a=require('assert/strict');a.equal(JSON.parse(fs.readFileSync('artifacts/input-runtime/opt/stream-kit/platform-manifest.json')).commit,JSON.parse(fs.readFileSync('artifacts/input-download/installer-manifest.json')).commit)"

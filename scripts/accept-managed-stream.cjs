@@ -46,6 +46,8 @@ const androidAudio = process.argv.includes('--android-audio');
 const androidSerial = process.argv.includes('--android-serial') ? process.argv[process.argv.indexOf('--android-serial')+1] : null;
 const tlsDirectory = process.argv.includes('--tls-dir') ? argument('--tls-dir') : null;
 const androidAdb = process.argv.includes('--android-adb') ? argument('--android-adb') : 'adb';
+const androidUpgradeApk = process.argv.includes('--android-upgrade-apk') ? argument('--android-upgrade-apk') : null;
+assert.ok(!androidUpgradeApk || (verifyInput && androidSerial && process.env.GITHUB_ACTIONS === 'true' && process.env.RUNNER_ENVIRONMENT === 'github-hosted'), 'Android upgrade acceptance is restricted to the hosted input fixture');
 const exampleOutput = process.argv.includes('--example-output') ? process.argv[process.argv.indexOf('--example-output') + 1] : null;
 assert.ok(!applicationExample || verifyInput || verifyNativeExit || managementLiveCLI || exampleOutput, 'Audio application acceptance requires an explicit example output device');
 const numericOption = (name, fallback) => process.argv.includes(name) ? Number(process.argv[process.argv.indexOf(name) + 1]) : fallback;
@@ -468,8 +470,10 @@ async function main() {
   const invite = await api('/stream-invitations', 'POST', { host_id: host.host_id, app_id: desktop.app_id });
   if(androidSerial){
     const watch=await api(`/apps/${ownedApp.id}/watch-link`,'POST');assert.ok(watch.enabled);
-    android=require('./lib/android-input-acceptance.cjs').androidParticipant({adb:androidAdb,serial:androidSerial,report:result,save});
+    const acceptance = require('./lib/android-input-acceptance.cjs');
+    android=acceptance.androidParticipant({adb:androidAdb,serial:androidSerial,report:result,save});
     await android.connect(new URL(watch.path,`https://10.0.2.2:${controlPort}`).href);
+    if (androidUpgradeApk) await acceptance.verifyAndroidUpgrade({android,api,sessionId:invite.session_id,report:result,save,apk:androidUpgradeApk});
   }
   if (targetRecording) {
     audioProbe=startAudioProbe(targetProbe);

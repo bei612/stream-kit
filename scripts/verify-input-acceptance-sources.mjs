@@ -89,10 +89,10 @@ export function releaseIdentity(release, provenance, signing, source, tag) {
   return apk[0]
 }
 
-function verifiedAsset(release, name) {
+function verifiedAsset(release, name, inputDirectory = directory) {
   const found = release.assets.filter(asset => asset.name === name)
   assert.equal(found.length, 1)
-  const asset = found[0], bytes = fs.readFileSync(file(name))
+  const asset = found[0], bytes = fs.readFileSync(path.join(inputDirectory, name))
   assert.equal(asset.state, 'uploaded')
   assert.equal(bytes.length, asset.size)
   assert.equal(asset.digest, 'sha256:' + digest(bytes))
@@ -154,23 +154,46 @@ function verifyDownloads() {
   }, null, 2) + '\n')
 }
 
-function verifyAPK() {
-  const report = read(path.join(evidence, 'provenance.json'))
-  const apk = file(report.apk_file), tools = path.join(process.env.ANDROID_HOME, 'build-tools/36.0.0')
-  assert.equal(digest(fs.readFileSync(apk)), report.apk_sha256)
+function verifyApkBytes(apk, provenance) {
+  const tools = path.join(process.env.ANDROID_HOME, 'build-tools/36.0.0')
+  assert.equal(digest(fs.readFileSync(apk)), provenance.apk_sha256)
   const signature = execFileSync(path.join(tools, 'apksigner'), ['verify', '--verbose', '--print-certs', apk], { encoding: 'utf8' })
   const signers = [...signature.matchAll(/(?:Signer #\d+|V[0-9.]+ Signer):? certificate SHA-256 digest: ([0-9a-f]+)/gi)].map(m => m[1].toLowerCase())
-  assert.deepEqual([...new Set(signers)], [report.apk_signer_sha256])
+  assert.deepEqual([...new Set(signers)], [provenance.signing_certificate_sha256])
   assert.match(signature, /Number of signers: 1/)
   assert.match(signature, /Verified using v2 scheme \(APK Signature Scheme v2\): true/)
-  const provenance = read(file('provenance.json'))
   const badging = execFileSync(path.join(tools, 'aapt2'), ['dump', 'badging', apk], { encoding: 'utf8' })
   assert.ok(badging.includes(`package: name='${provenance.application_id}' versionCode='${provenance.version_code}' versionName='${provenance.version}'`))
   assert.ok(!badging.includes('application-debuggable'))
   const embedded = JSON.parse(execFileSync('python3', ['-c', 'import json,sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); print(z.read("assets/stream-kit-build.json").decode())', apk], { encoding: 'utf8' }))
-  assert.deepEqual(embedded, { version: provenance.version, version_code: provenance.version_code, source_commit: report.apk_source_commit, source_dirty: false })
+  assert.deepEqual(embedded, { version: provenance.version, version_code: provenance.version_code, source_commit: provenance.source_commit, source_dirty: false })
+}
+
+function verifyAPK() {
+  const report = read(path.join(evidence, 'provenance.json'))
+  const provenance = read(file('provenance.json'))
+  assert.equal(provenance.apk_sha256, report.apk_sha256)
+  assert.equal(provenance.source_commit, report.apk_source_commit)
+  assert.equal(provenance.signing_certificate_sha256, report.apk_signer_sha256)
+  verifyApkBytes(file(report.apk_file), provenance)
   report.apk_signature_verified = true
   fs.writeFileSync(path.join(evidence, 'provenance.json'), JSON.stringify(report, null, 2) + '\n')
+}
+
+function verifyUpgradeBaseline() {
+  const baseline = 'artifacts/input-android-baseline'
+  const release = read(path.join(baseline, 'release.json'))
+  const target = read(file('provenance.json'))
+  const provenance = JSON.parse(verifiedAsset(release, 'android-provenance.json', baseline))
+  const tag = process.env.ANDROID_BASELINE_TAG
+  assert.equal(release.prerelease, false)
+  assert.equal(tag, `v${provenance.version}`)
+  assert.ok(Number.isSafeInteger(provenance.version_code) && provenance.version_code < target.version_code)
+  const apkName = releaseIdentity(release, provenance, read('third_party-manifests/android-signing.json'), read(path.join(baseline, 'source.json')), tag).name
+  const apk = path.join(baseline, apkName)
+  verifiedAsset(release, apkName, baseline)
+  verifyApkBytes(apk, provenance)
+  fs.writeFileSync(path.join(evidence, 'upgrade-baseline.json'), JSON.stringify({tag, apk, source_commit:provenance.source_commit, apk_sha256:provenance.apk_sha256, version_code:provenance.version_code}, null, 2) + '\n')
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -179,5 +202,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   else if (mode === 'android-run') console.log(androidCandidateSource(read(file('android-run.json')), process.env.GITHUB_REPOSITORY, process.env.ANDROID_RUN_ID))
   else if (mode === 'downloads') verifyDownloads()
   else if (mode === 'apk') verifyAPK()
-  else throw Error('Expected product-run, downloads or apk')
+  else if (mode === 'baseline') verifyUpgradeBaseline()
+  else throw Error('Expected product-run, downloads, apk or baseline')
 }

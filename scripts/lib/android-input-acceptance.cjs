@@ -2,6 +2,8 @@
 // A separate testOnly UI observer reads roles/bounds through public Android
 // instrumentation APIs. No product hooks, alternate transport or input mocks.
 const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const {createHash}=require('node:crypto');
 const {execFile,execFileSync}=require('node:child_process');
 const {setTimeout:delay}=require('node:timers/promises');
 const {targetInputObserver,untilInput:until}=require('./target-input-observer.cjs');
@@ -109,6 +111,23 @@ function androidParticipant({adb,serial,report,save=()=>{}}) {
       launch('resume_activity','-a','android.intent.action.MAIN');
       await role(false);
     },
+    async reopenBookmark() {
+      launch('open_saved_bookmark','-a','android.intent.action.MAIN');
+      const output = run('shell','am','instrument','-w','-e','action','open-bookmark','io.github.bei612.streamkit.inputobserver/.Observer');
+      assert.match(output.trim(),/^INSTRUMENTATION_RESULT: bookmark_action=true\s*\r?\nINSTRUMENTATION_CODE: -1$/m,'Saved bookmark was not available through the regular UI');
+      await role(false);
+    },
+    installedPackage() {
+      const result=run('shell','dumpsys','package','io.github.bei612.streamkit');
+      const version=Number(result.match(/^\s*versionCode=(\d+)\b/m)?.[1]);
+      const firstInstall=result.match(/^\s*firstInstallTime=([\d: -]+)\s*$/m)?.[1].trim();
+      assert.ok(Number.isSafeInteger(version)&&version>0&&firstInstall,'Unable to verify installed release identity');
+      return {version,firstInstall};
+    },
+    async installUpdate(apk) {
+      const output=await runDiagnostic('install','-r',apk);
+      assert.match(output,/^Success\s*$/m,'Android package replacement did not succeed');
+    },
     role,
     async diagnostics(){
       const result={started_at_ms:Date.now()};
@@ -138,6 +157,37 @@ function androidParticipant({adb,serial,report,save=()=>{}}) {
     },
     close(){run('shell','input','keyevent','KEYCODE_HOME');},
   };
+}
+
+async function verifyAndroidUpgrade({android,api,sessionId,report,save,apk}) {
+  const baseline=JSON.parse(fs.readFileSync('artifacts/android-input-evidence/upgrade-baseline.json','utf8'));
+  const candidate=JSON.parse(fs.readFileSync('artifacts/input-download/provenance.json','utf8'));
+  assert.equal(createHash('sha256').update(fs.readFileSync(apk)).digest('hex'),candidate.apk_sha256);
+  const state=report.android_upgrade={passed:false,baseline_tag:baseline.tag,baseline_version_code:baseline.version_code,candidate_version_code:candidate.version_code};
+  save();
+  const installed=android.installedPackage();
+  assert.equal(installed.version,baseline.version_code);
+  const route='/stream-sessions/'+sessionId;
+  async function participant() {
+    const state=await api(route);
+    return Object.values(state.connections).find(connection=>connection.client_type==='android');
+  }
+  const original=await until(participant,'Android baseline admitted');
+  android.close();
+  await until(async()=>!(await participant()),'Android baseline leaves before replacement',20000);
+  await android.installUpdate(apk);
+  const updated=android.installedPackage();
+  assert.equal(updated.version,candidate.version_code);
+  assert.equal(updated.firstInstall,installed.firstInstall,'Android package replacement reset the installation identity');
+  state.installed_in_place=true;save();
+
+  await android.reopenBookmark();
+  const restored=await until(participant,'Updated Android opens original bookmark',15000);
+  assert.notEqual(restored.connection_id,original.connection_id);
+  assert.equal(restored.role,'viewer');
+  assert.equal(restored.microphone_live,false);
+  Object.assign(state,{passed:true,stored_bookmark_reopened_without_reimport:true,viewer_authority_restored_without_microphone:true});
+  save();
 }
 
 async function verifyAndroidInput({android,page,api,sessionId,app,example,report,save}) {
@@ -216,4 +266,4 @@ async function verifyAndroidInput({android,page,api,sessionId,app,example,report
     state.passed=true;save();
   } finally {await api(route+'/controller','DELETE');}
 }
-module.exports={androidParticipant,verifyAndroidInput};
+module.exports={androidParticipant,verifyAndroidInput,verifyAndroidUpgrade};

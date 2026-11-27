@@ -19,6 +19,10 @@ on:
         description: 'Successful signed APK candidate run; select this OR android_release_tag'
         type: string
         required: false
+      android_baseline_tag:
+        description: 'Optional previous stable Android release to upgrade in place before the acceptance'
+        type: string
+        required: false
 permissions:
   contents: read
   actions: read
@@ -32,6 +36,7 @@ jobs:
       RUNTIME_PRODUCER_PROFILE: ${{ inputs.runtime_producer_profile }}
       ANDROID_RELEASE_TAG: ${{ inputs.android_release_tag }}
       ANDROID_RUN_ID: ${{ inputs.android_run_id }}
+      ANDROID_BASELINE_TAG: ${{ inputs.android_baseline_tag }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -60,6 +65,7 @@ jobs:
           npm ci --prefix third_party/moonlight-web-stream --ignore-scripts --no-audit --no-fund
           android --sdk="$ANDROID_HOME" sdk install 'emulator' 'system-images;android-36;google_apis;x86_64' 'platforms;android-36' 'build-tools;36.0.0'
           node scripts/verify-input-acceptance-sources.mjs apk
+          if [[ -n "$ANDROID_BASELINE_TAG" ]]; then node scripts/verify-input-acceptance-sources.mjs baseline; fi
           mkdir -p artifacts/input-example
           cc -std=c11 -O2 -Wall -Wextra -Werror tools/input-acceptance/x11-observer.c -lX11 -o artifacts/input-example/x11-observer
           bash tools/input-acceptance/android/build.sh

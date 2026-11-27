@@ -92,7 +92,16 @@ adb_identity unroot 2000
 # Bound software rasterization cost independently of the 720p30 stream profile.
 adb -s "$serial" shell wm size 720x1280
 adb -s "$serial" shell wm density 240
-adb -s "$serial" install artifacts/input-download/*.apk
+initial_apks=(artifacts/input-download/*.apk)
+upgrade_args=()
+if [[ -n "${ANDROID_BASELINE_TAG:-}" ]]; then
+  initial_apks=(artifacts/input-android-baseline/*.apk)
+  apk_name=$(jq -er .apk_file "$evidence/provenance.json")
+  [[ "$apk_name" =~ ^stream-kit-[a-zA-Z0-9.-]+\.apk$ ]]
+  upgrade_args=(--android-upgrade-apk "$GITHUB_WORKSPACE/artifacts/input-download/$apk_name")
+fi
+[[ ${#initial_apks[@]} == 1 ]]
+adb -s "$serial" install "${initial_apks[0]}"
 adb -s "$serial" install -t artifacts/input-example/android/observer.apk
 adb -s "$serial" shell input keyevent KEYCODE_WAKEUP
 adb -s "$serial" shell wm dismiss-keyguard
@@ -110,4 +119,4 @@ runtime=artifacts/input-runtime/opt/stream-kit
 node scripts/accept-source-stream.cjs --sunshine "$runtime/sunshine/bin/sunshine" --gateway "$runtime/media-gateway/web-server" \
   --orchestrator "$runtime/orchestrator/orchestrator" --web-assets "$runtime/media-gateway/dist" \
   --example artifacts/input-example/x11-observer --verify-input --clients 2 --hold-seconds 0 \
-  --android-serial "$serial" --android-adb "$ANDROID_HOME/platform-tools/adb" --tls-dir "$tls"
+  --android-serial "$serial" --android-adb "$ANDROID_HOME/platform-tools/adb" --tls-dir "$tls" "${upgrade_args[@]}"

@@ -24,7 +24,7 @@ public final class Observer extends Instrumentation {
     private final Rect window = new Rect();
     private int visited;
     private boolean diagnosticsRequested, playoutControlRequested, volumeCalibrationRequested,
-            microphoneRequested, toolbarVisible, statisticsVisible;
+            microphoneRequested, bookmarkRequested, bookmarkVisible, toolbarVisible, statisticsVisible;
     private String playback = "unknown", sound = "unknown";
     private long audioPackets = -1, videoPackets = -1, videoFrames = -1;
     private String audioCodec;
@@ -37,6 +37,7 @@ public final class Observer extends Instrumentation {
         playoutControlRequested = arguments != null && "playout-control".equals(arguments.getString("action"));
         volumeCalibrationRequested = arguments != null && "calibrate-volume".equals(arguments.getString("action"));
         microphoneRequested = arguments != null && "enable-microphone".equals(arguments.getString("action"));
+        bookmarkRequested = arguments != null && "open-bookmark".equals(arguments.getString("action"));
         start();
     }
 
@@ -62,6 +63,11 @@ public final class Observer extends Instrumentation {
             }
             if (microphoneRequested) {
                 result.putString("microphone_action", enableMicrophone());
+                finish(Activity.RESULT_OK, result);
+                return;
+            }
+            if (bookmarkRequested) {
+                result.putString("bookmark_action", String.valueOf(openBookmark()));
                 finish(Activity.RESULT_OK, result);
                 return;
             }
@@ -181,6 +187,7 @@ public final class Observer extends Instrumentation {
         state = "unknown";
         rootKind = "no_root";
         foreground = "none";
+        bookmarkVisible = false;
         toolbarVisible = false;
         statisticsVisible = false;
         playback = "unknown";
@@ -247,6 +254,8 @@ public final class Observer extends Instrumentation {
         int children = node.getChildCount();
         if (node.isVisibleToUser()) {
             String text = String.valueOf(node.getText());
+            if (android.os.Build.VERSION.SDK_INT >= 26 && node.isEditable()
+                    && String.valueOf(node.getHintText()).startsWith("当前应用 · ")) bookmarkVisible = true;
             if ("收起工具栏".contentEquals(String.valueOf(node.getContentDescription()))) toolbarVisible = true;
             if ("声音已开启".equals(text)) sound = "on";
             if ("声音已关闭".equals(text)) sound = "off";
@@ -328,6 +337,16 @@ public final class Observer extends Instrumentation {
         if (!"client".equals(rootKind)) return "client_root_unavailable";
         if (!toolbarVisible) return "toolbar_unavailable";
         return "controller".equals(role) ? "microphone_button_unavailable" : "controller_role_unavailable";
+    }
+
+    private boolean openBookmark() {
+        long deadline = android.os.SystemClock.elapsedRealtime() + 4000;
+        do {
+            snapshot();
+            if (bookmarkVisible && clickDescription("连接应用")) return true;
+            android.os.SystemClock.sleep(50);
+        } while (android.os.SystemClock.elapsedRealtime() < deadline);
+        return false;
     }
 
     private Bundle statistics() {
