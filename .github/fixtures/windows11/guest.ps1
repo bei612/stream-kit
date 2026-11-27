@@ -33,14 +33,11 @@ function Read-DiagnosticTail([string]$Path, [int]$Lines, [int]$Limit) {
     }
 }
 
-function Read-InstallFailure($Install) {
-    $details = [ordered]@{
-        installer_log = Read-DiagnosticTail (Join-Path $output 'install.log') 100 8500
-        setupapi_delta = Read-DiagnosticTail (Join-Path $output 'setupapi-install-delta.log') 50 5000
-    }
+function Read-NativeInitialization($Identity) {
+    $details = [ordered]@{}
     $diagnosticStarted = Get-Date
     $diagnostic = Join-Path $PSScriptRoot 'diagnostic'
-    if ((Test-Path -LiteralPath $diagnostic -PathType Container) -and $Install.install_exit -ne 0) {
+    if (Test-Path -LiteralPath $diagnostic -PathType Container) {
         try {
             $payload = Join-Path $work 'diagnostic'
             Copy-Item -LiteralPath $diagnostic -Destination $payload -Recurse
@@ -48,9 +45,9 @@ function Read-InstallFailure($Install) {
             $nativeLog = Join-Path $work 'diagnostic-stderr.txt'
             $nativeArguments = @('init-platform','--root',$payload,'--data-dir',(Join-Path $work 'diagnostic-data'),
                 '--control-port','19000','--gateway-port','18080','--renderer-port','48989',
-                '--usb-audio-vendor-id',$Install.identity.vendor_id,'--usb-audio-product-id',$Install.identity.product_id)
-            if ($Install.identity.serial_prefix) {
-                $nativeArguments += @('--usb-audio-serial-prefix',('"' + $Install.identity.serial_prefix + '"'))
+                '--usb-audio-vendor-id',$Identity.vendor_id,'--usb-audio-product-id',$Identity.product_id)
+            if ($Identity.serial_prefix) {
+                $nativeArguments += @('--usb-audio-serial-prefix',('"' + $Identity.serial_prefix + '"'))
             }
             $process = Start-Process -FilePath $runtime -ArgumentList $nativeArguments -PassThru -WindowStyle Hidden `
                 -RedirectStandardOutput (Join-Path $work 'diagnostic-stdout.txt') -RedirectStandardError $nativeLog
@@ -68,6 +65,12 @@ function Read-InstallFailure($Install) {
                 $rendererLog = Join-Path $stages[0].FullName 'sunshine\sunshine.log'
                 $details.renderer_log_present = Test-Path -LiteralPath $rendererLog -PathType Leaf
                 $details.renderer_log = Read-DiagnosticTail $rendererLog 55 6500
+                $config = Join-Path $stages[0].FullName 'sunshine\sunshine.conf'
+                if (Test-Path -LiteralPath $config -PathType Leaf) {
+                    $renderer = Join-Path $payload 'sunshine\sunshine.exe'
+                    $probe = Join-Path $PSScriptRoot 'renderer-probe.cjs'
+                    $details.renderer_probe = & (Join-Path $work 'node.exe') $probe $renderer $config | ConvertFrom-Json
+                }
             }
             $details.renderer_application_events = @(Get-WinEvent -FilterHashtable @{
                 LogName = 'Application'; Id = 1000,1001,1002; StartTime = $diagnosticStarted
@@ -82,6 +85,13 @@ function Read-InstallFailure($Install) {
     return $details
 }
 
+function Read-InstallFailure($Install) {
+    $details = if ($Install.install_exit -ne 0) { Read-NativeInitialization $Install.identity } else { [ordered]@{} }
+    $details.installer_log = Read-DiagnosticTail (Join-Path $output 'install.log') 100 8500
+    $details.setupapi_delta = Read-DiagnosticTail (Join-Path $output 'setupapi-install-delta.log') 50 5000
+    return $details
+}
+
 try {
     if (-not $Resume) {
         if (-not (Confirm-SecureBootUEFI) -or -not (Get-Tpm).TpmPresent) {
@@ -91,6 +101,15 @@ try {
         New-Item -ItemType Directory -Path $work | Out-Null
         foreach ($name in 'node.exe','guest.ps1','scripts','installer') {
             Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $work -Recurse
+        }
+        if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'initialization-only') -PathType Leaf) {
+            $package = Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json
+            Write-GuestEvidence @{
+                phase = 'diagnostic_completed'; passed = $false
+                commit = $package.commit; installer_sha256 = $package.file.sha256
+                diagnostics = Read-NativeInitialization $package.audio_driver.identity
+            }
+            return
         }
         $user = [Security.Principal.WindowsIdentity]::GetCurrent().Name
         $arguments = '-NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File C:\StreamKitAcceptance\guest.ps1 -Resume'

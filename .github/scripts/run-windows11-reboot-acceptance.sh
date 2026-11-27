@@ -70,6 +70,10 @@ installer=$(jq -er --arg commit "$source_commit" '
 installer_hash=$(jq -er '.file.sha256 | select(test("^[a-f0-9]{64}$"))' "$manifest")
 printf '%s  %s\n' "$installer_hash" "$work/input/installer/$installer" | sha256sum --check
 diagnostic_run=${DIAGNOSTIC_PRODUCT_RUN_ID:-${PRODUCT_RUN_ID:-}}
+if [[ ${INITIALIZATION_ONLY:-false} == true && -z $diagnostic_run ]]; then
+  echo 'Initialization diagnostics require the source-matched runtime' >&2
+  exit 1
+fi
 if [[ -n $diagnostic_run ]]; then
   if [[ $diagnostic_run != "${PRODUCT_RUN_ID:-}" ]]; then
     diagnostic_commit=$(windows_build_commit "$diagnostic_run")
@@ -95,6 +99,10 @@ awk '$2 == "win-x64/node.exe" { print $1 "  node.exe" }' "$work/node-sums" > "$w
 rm -- "$work/input/.node-checksum"
 cp scripts/accept-windows-installer.cjs scripts/maintain-windows-runtime.cjs "$work/input/scripts/"
 cp .github/fixtures/windows11/guest.ps1 "$work/input/"
+cp .github/fixtures/windows11/renderer-probe.cjs "$work/input/"
+if [[ ${INITIALIZATION_ONLY:-false} == true ]]; then
+  touch "$work/input/initialization-only"
+fi
 password="Aa0-$(openssl rand -hex 24)!"
 sed "s/__GUEST_PASSWORD__/$password/g" .github/fixtures/windows11/Autounattend.xml > "$work/input/Autounattend.xml"
 unset password
@@ -125,6 +133,14 @@ qemu-system-x86_64 -machine q35,accel=kvm,smm=on -cpu host -smp 2 -m 6144 \
   > "$work/qemu.log" 2>&1 &
 guest_pid=$!
 python3 .github/fixtures/windows11/observe.py "$control/qmp" "$work/serial.log" "$output" "$guest_pid"
+if [[ ${INITIALIZATION_ONLY:-false} == true ]]; then
+  jq -e --arg commit "$source_commit" --arg hash "$installer_hash" '
+    .phase == "diagnostic_completed" and .commit == $commit and .installer_sha256 == $hash and
+    (.diagnostics.native_init_exit | type == "number")
+  ' "$output/result.json" > /dev/null
+  echo 'Native initialization diagnostics collected. Installer and restart acceptance was not executed.'
+  exit 0
+fi
 jq -e --arg commit "$source_commit" --arg hash "$installer_hash" '
   .phase == "completed" and .passed == true and .exit_code == 0 and .commit == $commit and
   .installer_source_commit == $commit and .installer_sha256 == $hash and

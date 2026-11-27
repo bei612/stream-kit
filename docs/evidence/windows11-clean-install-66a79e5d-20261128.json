@@ -40,5 +40,14 @@
     "renderer_sha256": "9e215b9c1a04fac459b4734ad9930facc65fe0c7e537fb85f82528f544d2ea37",
     "scope": "This is a separate error propagation regression. It does not explain the clean guest command that exited 1."
   },
+  "renderer_log_diagnostic": {
+    "run_id": 46036507946,
+    "artifact_id": 15219092818,
+    "artifact_sha256": "047e743be3e8eaa59c031630ddf891cccfce4d40a18fd3d6dcc1854b6ca57d60",
+    "install_exit": 1,
+    "native_init_exit": 1,
+    "renderer_log_present": false,
+    "renderer_application_events": 0
+  },
   "scope": "Newly installed Microsoft evaluation guests with an emulated audio controller. The exact public package failed before the pre-reboot checkpoint. A separate initialization with the verified payload isolated the failing renderer command. The shared Win11 installation and workstation network were not involved."
 }

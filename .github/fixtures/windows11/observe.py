@@ -69,7 +69,7 @@ def main():
                             continue
                         result = json.loads(base64.b64decode(line[len(prefix):].strip(), validate=True))
                         phase = result.get('phase')
-                        if phase not in {'guest_ready', 'awaiting_reboot', 'completed', 'failed', 'fixture_failed'}:
+                        if phase not in {'guest_ready', 'awaiting_reboot', 'completed', 'diagnostic_completed', 'failed', 'fixture_failed'}:
                             raise RuntimeError('Unexpected Win11 acceptance phase')
                         if phase in phases:
                             raise RuntimeError('Duplicate Win11 acceptance phase')
@@ -80,8 +80,10 @@ def main():
                         if phase == 'awaiting_reboot':
                             checkpoint = result
                             (output / 'checkpoint.json').write_text(json.dumps(result, indent=2) + '\n')
-                        if phase in {'completed', 'failed', 'fixture_failed'}:
+                        if phase in {'completed', 'diagnostic_completed', 'failed', 'fixture_failed'}:
                             (output / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
+                            if phase == 'diagnostic_completed':
+                                return
                             if phase != 'completed':
                                 raise RuntimeError('Windows guest reported an acceptance failure')
                             if not checkpoint or checkpoint['pre_reboot'] != result['pre_reboot']:
