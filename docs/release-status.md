@@ -39,7 +39,7 @@ Playwright CLI 驱动 Chrome 打开本机登录页及当前 WLAN 上的管理、
 | 后续冻结版 Android | `8f5a078e` 签名 APK `1000032` 从正式 `v0.1.0` 覆盖升级后直接打开原书签。Android 和 Web 共享一条串流，通过真实目标输入、控制权交接和撤销、录音权限拒绝、前后台切换及断线重连。[Android 联验证据](evidence/android-input-8f5a078e-20261128.json) |
 | 后续冻结版安装包与依赖 | `8f5a078e` Windows 安装包为 45,118,937 字节，3 个组件的 190 个内容文件及 4 个清单已核对。Sunshine 为 72,019,968 字节，PE 无调试节。Windows 与 Ubuntu 控制程序的 Go 符号扫描均未报告已知漏洞，Android APK 签名和源代码 SBOM 已核对。[安装包与依赖证据](evidence/windows11-runtime-dependency-review-8f5a078e-20261128.json) |
 | 后续冻结版托管维护与卸载 | `8f5a078e` 使用原始安装包通过静默首装、原生录音、控制服务与网关重启及卸载数据保留。另一台托管 Windows 从 `439f2a06` 迁移到新版录音策略，实际端口冲突后恢复原音频策略、服务、观看链接、CA 和私钥。[安装与策略回滚证据](evidence/windows11-hosted-uninstall-8f5a078e-20261128.json) |
-| 后续冻结版 Win11 首装与重启 | `439f2a06` 首装返回 `0`，真实整机重启后三组件自动恢复，显式原生录音 143,040 帧无丢帧。安装时，原有普通录音和通信录音默认设备被产品虚拟录音端点替换，卸载后四个角色全部恢复。整体首装验收失败，`439f2a06` 暂缓发布。[首装与端点证据](evidence/windows11-clean-install-439f2a06-20261128.json) |
+| RC3 Win11 首装与重启 | `8f5a078e` 在干净 Win11 首装返回 `0`。整机重启后控制服务、Sunshine 和媒体网关自动恢复，原生录音 144,000 帧无丢帧。已有四个默认音频角色在首装、重启、服务重启和卸载后均保持。卸载移除服务并保留数据。[RC3 首装证据](evidence/windows11-clean-install-8f5a078e-20261128.json) · [前版端点证据](evidence/windows11-clean-install-439f2a06-20261128.json) |
 | Windows 默认音频设备保护 | `8f5a078e` 在独立 Windows 专项中保留四个原有默认音频角色。虚拟音频设备重新接入后身份保持，指定端点仍能录得 144,000 帧 PCM，零丢帧。原始安装器首装、整机重启和已安装旧策略的回滚分别验收。[Windows 端点专项](evidence/windows-endpoint-defaults-8f5a078e-20261128.json) |
 | 后续冻结版 Android 回传 | `8f5a078e` 的 Win11 原始三组件和签名 APK `1000032` 通过完整模拟器联验。Android 和 Web 共用一条上游，均收到 Example 程序声音。授权后的麦克风到达目标录音，分析 96,000 帧且零丢帧，同一信号可在 Web 听到。撤权后 Web 麦克风信号从 −42.57 dB 降到 −127.93 dB，程序声继续播放。独立录音校准与资源释放均通过。[同源音频联验](evidence/windows11-android-packaged-audio-8f5a078e-20261128.json) |
 | RC2 运行依赖 | 用精确 Windows、Ubuntu 控制二进制进行符号扫描。Android 发行签名、运行依赖和许可清单核对通过。继续引用经逐条复核的未变依赖图及源码 SBOM。[依赖审查及范围](evidence/windows11-runtime-dependency-review-66a79e5d-20261127.json) |
@@ -56,7 +56,7 @@ Playwright CLI 驱动 Chrome 打开本机登录页及当前 WLAN 上的管理、
 
 ## 持续边界
 
-- 正式 0.1.1 仍需冻结产物对应的 Win11 首装与整机恢复、实际安装上的维护回滚及跨设备现场换址。安装返回 `3010` 时需核对重启后的服务和音频准备。旧版已有一次独立环境返回 3010 的原始记录。[首装验收](../deploy/windows/README.md#首装和整机重启验收) · [旧版 3010 证据](evidence/windows-installer-restart-954a1e6e-20261120.json)
+- 正式 0.1.1 仍需现场安装的维护验证和跨设备换址。冻结产物已通过干净 Win11 首装与整机恢复，本次安装返回 `0`。安装返回 `3010` 时需核对重启后的服务和音频准备。[RC3 首装证据](evidence/windows11-clean-install-8f5a078e-20261128.json) · [旧版 3010 证据](evidence/windows-installer-restart-954a1e6e-20261120.json)
 - Win11 主机换 IP 后，远端还需通过可达的固定主机名或新 IP 访问。固定主机名取决于现场 DNS/mDNS 和实际路由。独立 Linux 与本机 Web 的换址证据分别覆盖上述范围。实体设备跨网络恢复还需现场核对。
 - 用户已接受原版本 20 客户端四小时稳定性与既有真人语音证据。本轮范围为 Win11 和 Android，Android 模拟器联验和实体平板的证据分别归档。[真人语音证据](evidence/human-voice-installed-20261105.json)
 - 7×24 是资源设计目标。当前新版本尚无服务端、Web、Android 的完整 168 小时联合观测。通用 Windows 原位升级、多应用并行隔离及独立安全评估仍在当前已验证交付范围之外。[运行资源与释放](runtime-resources.md)

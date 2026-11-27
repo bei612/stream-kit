@@ -7,6 +7,10 @@
   "apk_sha256": "50fd1100021dd6371418cee8c08a441f22bb839d04cfc4d321cf0ef1f9f7946c",
   "android_version_code": 1000032,
   "checks": {
+    "windows11_install": {
+      "passed": true,
+      "evidence": "docs/evidence/windows11-clean-install-8f5a078e-20261128.json"
+    },
     "hosted_maintenance_rollback": {
       "passed": true,
       "evidence": "docs/evidence/windows11-hosted-uninstall-8f5a078e-20261128.json"
@@ -37,7 +41,6 @@
     }
   },
   "pending_stable_acceptance": [
-    "Win11 clean install and full reboot recovery",
     "Maintenance on the installed physical Windows 11 deployment",
     "Win11 on-site address change and recovery with a separate client"
   ]
