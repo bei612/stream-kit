@@ -16,7 +16,7 @@ Android 联验和隔离 LAN 换址验收可显式选择 Linux 安装器的构建
 
 候选的隔离 LAN 换址联验通过。两个 HTTPS 入口在 10.25 秒内更换服务证书，保留 CA 和私钥。原浏览器页面自动恢复串流，换址前后只收到当前直连地址的 UDP 主机候选。Android 与 Web 使用同一上游，双方实测轮流向目标交付按键及触摸，交接和撤权后的输入保持被拒绝。Linux 模拟器音频联验的独立系统音基线未通过。修复探针状态读取与 PCM 写入的争用后，已采到 194739 帧且探针丢帧为零，基准音仍近静音，产品音频测试未进入。见[音频探针修复后的联验](https://github.com/bei612/stream-kit/actions/runs/45936840917)。
 
-Win11 独立实例以原生 HTTP 客户端及 Playwright CLI 驱动的 Chrome 分别上传并解压实际 26 GiB TAR。Chrome 上传 27,921,765,888 字节后，应用进入就绪状态，Example 哈希一致，两个测试包及其解压目录均已回收。管理页显示运行中生效的两项限额，桌面和窄屏已验收。此证据对应本地开发构建。正式装机的暂存与应用目录仍应按可用空间部署。[真实大包验收](evidence/windows11-large-archive-20261127.json) · [浏览器应用就绪截图](evidence/windows11-browser-upload-26gib-20261127.png)
+Win11 独立实例以原生 HTTP 客户端及 Playwright CLI 驱动的 Chrome 分别上传并解压实际 26 GiB TAR，本地开发构建的页面操作和落盘已验收。随后以候选安装包原生管理服务再次接收 27,921,765,888 字节，实际解压 27,921,762,816 字节，应用进入就绪状态、Example 哈希一致、暂存及应用测试目录均已回收。候选包管理页已通过桌面和窄屏限额显示验收。正式装机的暂存与应用目录应按两项存储需求部署。[候选包大文件验收](evidence/windows-android-ce49050f-candidate-20261127.json) · [浏览器应用就绪截图](evidence/windows11-browser-upload-26gib-20261127.png)
 
 本机旧部署的固定主机名 `volcengine.local` 已用同机 Playwright CLI 验证原 CA 下的管理入口、网关和 Example 永久链接，共解码 37 帧，随后正常停止 Example。记录只覆盖本机固定主机名入口。实体 Android 对该名字和换址后串流的现场确认另行记录。
 

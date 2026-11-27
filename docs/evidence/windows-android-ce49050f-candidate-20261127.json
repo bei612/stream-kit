@@ -53,6 +53,22 @@
     "screenshot_sha256": "12b5ac2f67f46b5ceb10a941359d4965775b0dd3e1bec98fb03877359ca27036",
     "reporting_note": "The UI steps completed and generated all screenshots. HTTP audit logs and the persisted disabled state confirmed the result after a console output parser rejected its formatting."
   },
+  "windows11_packaged_large_archive": {
+    "passed": true,
+    "transport": "Native HTTP/1.1 multipart with chunked transfer encoding over loopback",
+    "active_upload_limit_bytes": 53687091200,
+    "active_extract_limit_bytes": 53687091200,
+    "archive_bytes": 27921765888,
+    "extracted_bytes": 27921762816,
+    "upload_elapsed_ms": 208028,
+    "http_status": 200,
+    "final_application_status": "ready",
+    "example_sha256_matches": true,
+    "temporary_archive_removed": true,
+    "isolated_uploaded_application_removed": true,
+    "finished_at": "2026-11-27T05:43:52.392Z",
+    "scope": "Exact packaged control executable, isolated Windows 11 instance on D:. Browser end-to-end upload at the same size separately observed on the local development build."
+  },
   "android_input_acceptance": {
     "apk_build_run_id": 45939467986,
     "apk_version_code": 1000024,
@@ -64,6 +80,16 @@
     "android_and_web_keys_and_clicks_delivered": true,
     "transferred_and_revoked_input_ignored": true,
     "native_instance_scoped_stop": true
+  },
+  "android_audio_attempt": {
+    "acceptance_run_id": 45946215689,
+    "passed": false,
+    "system_playout_failure_class": "CONTROL_SYSTEM_PLAYOUT_MISSING",
+    "browser_program_997_db": -29.258872985839844,
+    "android_received_audio_packets_in_final_sample": 2445,
+    "android_program_997_median_amplitude": 1.2565059219914467e-7,
+    "android_microphone_route_reached": false,
+    "microphone_failure_stage": "The Android role was observed as controller, but a subsequent accessibility click returned false before microphone injection began."
   },
   "lan_migration": {
     "acceptance_run_id": 45941800647,
