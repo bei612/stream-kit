@@ -20,6 +20,8 @@ Win11 独立实例以原生 HTTP 客户端及 Playwright CLI 驱动的 Chrome �
 
 同源签名 APK 的前后台恢复已在官方 Android 36 模拟器通过。Android 持有控制权时退出到桌面，服务释放该连接及控制权；回前台以全新观看连接恢复原串流，麦克风保持关闭。客户端恢复后观察到 300 个音频包和 115 帧解码画面，Web 继续共享同一渲染实例。[实际前后台联验](https://github.com/bei612/stream-kit/actions/runs/45948972310)
 
+正式 Android `v0.1.0`（1000015）覆盖升级至当前签名候选（1000024）通过。升级后首次安装身份保留，从普通入口使用原书签即可入场，无需再次导入。客户端以观看者入场且麦克风保持关闭，随后通过实际输入和前后台恢复联验。[升级证据](evidence/android-upgrade-ce49050f-20261127.json) · [实际升级联验](https://github.com/bei612/stream-kit/actions/runs/45950069635)
+
 本机旧部署的固定主机名 `volcengine.local` 已用同机 Playwright CLI 验证原 CA 下的管理入口、网关和 Example 永久链接，共解码 37 帧，随后正常停止 Example。记录只覆盖本机固定主机名入口。实体 Android 对该名字和换址后串流的现场确认另行记录。
 
 本机 Windows 三个运行组件及实体平板已更新至候选 `53c7385a`，保持原应用、CA、配置与平板书签。单安装器、静默安装、服务自动恢复和卸载已经在 Windows Server 2022 CI 通过。实装 Win11 与平板、Web 的共享画面、程序音、控制权交接及平板麦克风至目标录音端点和 Web 观众均已验证。当前仍需独立 Win11 首装与实际回退、现场 LAN 换址、完整输入撤权验收和依赖剩余项处理。见[同源实装与联验](evidence/windows11-android-joint-53c7385a.json)、[安装器验收](https://github.com/bei612/stream-kit/actions/runs/45806470686)。
