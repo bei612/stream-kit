@@ -28,7 +28,7 @@ Android 联验和隔离 LAN 换址验收可显式选择 Linux 安装器的构建
 
 同源 Ubuntu 24.04 amd64 正式候选安装器已构建并通过原生初始化。已下载并核验 Windows 与 Ubuntu 安装器的源码、渠道、版本及二进制摘要。Ubuntu 安装包为 62,815,341 字节，SHA-256 为 `3de5c78de83177d6768932cc779bb3f6b0e2ceec2138903955287682483a781d`，可与 Windows 和 Android 同批发布。[Ubuntu 0.1.1 构建及初始化](https://github.com/bei612/stream-kit/actions/runs/45970565029)
 
-Win11 独立实例以原生 HTTP 客户端及 Playwright CLI 驱动的 Chrome 分别上传并解压实际 26 GiB TAR，本地开发构建的页面操作和落盘已验收。随后以候选安装包原生管理服务再次接收 27,921,765,888 字节，实际解压 27,921,762,816 字节，应用进入就绪状态、Example 哈希一致、暂存及应用测试目录均已回收。候选包管理页已通过桌面和窄屏限额显示验收。正式装机的暂存与应用目录应按两项存储需求部署。[候选包大文件验收](evidence/windows-android-ce49050f-candidate-20261127.json) · [浏览器应用就绪截图](evidence/windows11-browser-upload-26gib-20261127.png)
+Win11 独立实例以原生 HTTP 客户端及 Playwright CLI 驱动的 Chrome 分别上传并解压实际 26 GiB TAR，本地开发构建的页面操作和落盘已验收。随后以 `ce49050f` 候选安装包的原生管理服务再次接收 27,921,765,888 字节，实际解压 27,921,762,816 字节，应用进入就绪状态、Example 哈希一致、暂存及应用测试目录均已回收。候选包管理页已通过桌面和窄屏限额显示验收。当前 `55d6d5a8` 沿用已验收的上传接收、归档处理和管理页实现。正式装机的暂存与应用目录应按[两项存储需求](../deploy/windows/README.md#静默与向导)部署。[候选包大文件验收](evidence/windows-android-ce49050f-candidate-20261127.json) · [浏览器应用就绪截图](evidence/windows11-browser-upload-26gib-20261127.png)
 
 同源签名 APK 的前后台恢复已在官方 Android 36 模拟器通过。Android 持有控制权时退出到桌面，服务释放该连接及控制权；回前台以全新观看连接恢复原串流，麦克风保持关闭。客户端恢复后观察到 300 个音频包和 115 帧解码画面，Web 继续共享同一渲染实例。[实际前后台联验](https://github.com/bei612/stream-kit/actions/runs/45948972310)
 
