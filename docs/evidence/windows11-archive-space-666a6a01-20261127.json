@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "passed": true,
+  "source_commit": "666a6a01a1c43f0b4540b9bb7588c72cd0cb8d74",
+  "scope": "Native Win11 x64 isolated control-plane instances on D:, using loopback HTTP and the actual management build. Covers archive storage admission, extraction, and cleanup. Excludes SCM installation, renderer capture, and external network transfer.",
+  "large_import": {
+    "transport": "HTTP/1.1 multipart with chunked transfer encoding",
+    "archive_bytes": 27921765888,
+    "extracted_bytes": 27921762816,
+    "large_resource_bytes": 27917287424,
+    "configured_free_space_reserve_bytes": 1073741824,
+    "staging_available_bytes_before_upload": 90659110912,
+    "upload_elapsed_ms": 224392,
+    "http_status": 200,
+    "final_application_status": "ready",
+    "example_executable_sha256_matches": true,
+    "staged_archive_removed": true,
+    "isolated_application_removed": true,
+    "finished_at_utc": "2026-11-27T13:39:43.216Z"
+  },
+  "management_browser": {
+    "tool": "Playwright CLI and Chrome",
+    "desktop": {
+      "locale": "zh-CN",
+      "native_example_zip_upload_http_status": 200,
+      "ready_application_removed": true,
+      "screenshot": "windows11-archive-space-desktop-666a6a01.png",
+      "screenshot_sha256": "0bd3dc4e9e687cef2640e757f95f9bfc8c18d8d7e3e6fb2768255a26abd8ee71"
+    },
+    "mobile": {
+      "locale": "en",
+      "viewport": "390x844",
+      "reserve_configured_to_exceed_available_space": true,
+      "upload_form_blocked": true,
+      "direct_request_http_status": 507,
+      "direct_request_error": "UPLOAD_STORAGE_INSUFFICIENT",
+      "application_not_created": true,
+      "upload_lock_released": true,
+      "horizontal_overflow": false,
+      "screenshot": "windows11-archive-space-mobile-666a6a01.png",
+      "screenshot_sha256": "1f6042aef51ff12984046437e29245c2641e59ef77e294084f1d42adef7720e2"
+    }
+  }
+}

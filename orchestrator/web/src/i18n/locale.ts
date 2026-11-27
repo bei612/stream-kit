@@ -77,7 +77,7 @@ export const messages = {
     'upload.storageReserve': 'Free space to retain',
     'upload.stagingTooSmall': 'The staging directory is short of space. Free up disk space on the server or select a staging directory on a larger volume.',
     'configuration.archiveFreeSpace': 'Free space to retain during upload and extraction (bytes)',
-    'docs.uploadStorage': 'Add application shows the server’s active upload and extraction limits. Before sending a large archive, allow disk space for both the archive and the extracted files.',
+    'docs.uploadStorage': 'Add application shows the upload and extraction limits and the free space at both locations. If staging and applications are on the same volume, allow enough space for the archive and the extracted files together.',
     'watchLink.loopback': 'This console uses a local address. Open it using the server’s LAN address before copying a link for another device.',
     'watchLink.reload': 'Reload link status',
     'watchLink.enable': 'Enable permanent link',
