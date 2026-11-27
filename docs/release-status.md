@@ -25,7 +25,7 @@
 
 11 月 27 日，`53c7385a` 实际整机重启后控制服务在 14.42 秒启动，Sunshine 与媒体网关在桌面会话中约 31 秒启动。WLAN 从 `192.168.0.119` 迁移到 `192.168.2.131`，管理、媒体 HTTPS 在原 CA 下恢复。同机 Web 验证 Example 实际解码和两位控制者的交接、撤权。平板在新 WLAN 的邻居解析失败，跨设备媒体恢复仍待验收。[整机与换址证据](evidence/windows11-reboot-and-lan-53c7385a-20261127.json)
 
-同日核对管理 9000 和媒体 8080 的通配监听。Playwright CLI 驱动 Chrome 打开本机与当前 WLAN 的登录页，均为可信安全上下文，登录表单正常显示。当前 WLAN 上的媒体网关入口也通过浏览器 TLS 校验。局域网 IP 是现场观察值，访问地址及固定主机名按[配网说明](lan-address-configuration.md)维护。
+Playwright CLI 驱动 Chrome 打开本机登录页及当前 WLAN 上的管理、媒体入口。11 月 28 日的直连检查确认两端口均通过当前 WLAN 地址建立 TLS 1.3。用固定主机名访问时，同机浏览器实际选中了虚拟网卡，因此跨设备的名称解析与媒体路径仍需现场验证。[WLAN 直连与固定主机名证据](evidence/windows11-direct-https-origins-53c7385a-20261128.json) · [地址与证书](lan-address-configuration.md)
 
 ## 修复与验收
 

@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "source_commit": "53c7385ac58d39408a3aaffef33d6a95ea06a737",
+  "observed_at_utc": "2026-11-27T16:28:34Z",
+  "passed": true,
+  "scope": "Trusted management login and media gateway page transport on the Windows 11 host itself. This checks HTTPS endpoint reachability and hostname selection on the server. It does not cover a separate client, live WebRTC, or a new network transition.",
+  "browser": {
+    "tool": "Playwright CLI",
+    "engine": "Chrome",
+    "system_proxy_used": false,
+    "ignore_https_errors": false,
+    "gateway_unauthenticated_api_status": 401
+  },
+  "listeners": [
+    {"port": 9000, "path": "/login", "address": "192.168.2.131", "peer": "192.168.2.131", "peer_interface": "WLAN", "status": 200, "protocol": "TLS 1.3", "secure_context": true},
+    {"port": 8080, "path": "/index.html", "address": "192.168.2.131", "peer": "192.168.2.131", "peer_interface": "WLAN", "status": 200, "protocol": "TLS 1.3", "secure_context": true},
+    {"port": 9000, "path": "/login", "address": "volcengine.local", "peer": "172.18.0.1", "peer_interface": "singbox_tun", "status": 200, "protocol": "TLS 1.3", "secure_context": true},
+    {"port": 8080, "path": "/index.html", "address": "volcengine.local", "peer": "172.18.0.1", "peer_interface": "singbox_tun", "status": 200, "protocol": "TLS 1.3", "secure_context": true}
+  ],
+  "fixed_hostname_wlan_route_proven": false,
+  "independent_client_recovery_proven": false,
+  "shared_host_network_changed": false
+}
