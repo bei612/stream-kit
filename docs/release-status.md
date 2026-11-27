@@ -2,7 +2,9 @@
 
 核对日期：2026-11-27。本页集中维护可下载版本、本机部署、候选产物和剩余边界。历史证据保留原始来源，不把旧版通过结果当作新产物验收。
 
-新发布候选冻结于 `55d6d5a8a85db6b0b9a5cefb4afa042305b8fd49`，修复管理服务对本机 HTTPS 媒体网关的信任。Win11 已用独立 CA 对照运行两版管理服务。旧版签名设备查询和配置读取均返回 503，修复版均返回 200，组件健康状态进入 `running`。同一 CA 签发的新证书在 3.984 秒内被网关热加载，进程 PID 保持，签名查询继续成功。该复核使用前一候选的同源码网关，Windows 信任库与现有部署保持原状。正式候选 Windows、Ubuntu 与原生 Android 签名包仍需使用下列同源构建完成出包验收。[Win11 原生复核](evidence/windows11-managed-gateway-ca-55d6d5a8-20261127.json) · [服务端构建](https://github.com/bei612/stream-kit/actions/runs/45975421507) · [Android 构建](https://github.com/bei612/stream-kit/actions/runs/45975421542)
+新发布候选冻结于 `55d6d5a8a85db6b0b9a5cefb4afa042305b8fd49`，修复管理服务对本机 HTTPS 媒体网关的信任。Win11 已用独立 CA 对照运行两版管理服务。旧版签名设备查询和配置读取均返回 503，修复版均返回 200，组件健康状态进入 `running`。同一 CA 签发的新证书在 3.984 秒内被网关热加载，进程 PID 保持，签名查询继续成功。该复核使用前一候选的同源码网关，Windows 信任库与现有部署保持原状。[Win11 原生复核](evidence/windows11-managed-gateway-ca-55d6d5a8-20261127.json)
+
+签名 Android APK（`1000025`）已下载并核对 21 项文件、发行签名 v2/v3 和包内源码标记，SHA-256 为 `42f5ec53825742e9e3cc36cb071351debc671b1eb6d618a2a5b4f76ce923a717`。Windows 和 Ubuntu 同源安装包构建进行中，完整音频联验等候候选安装包。[Android 签名构建](https://github.com/bei612/stream-kit/actions/runs/45975421542) · [服务端构建](https://github.com/bei612/stream-kit/actions/runs/45975421507)
 
 上一发布候选冻结于 `ce49050f4dfcbd1e22d9d4f22093f6b965e6aac8`，含固定观看主机名与大型归档限额界面。[Windows 统一安装器](https://github.com/bei612/stream-kit/actions/runs/45939440963)已构建，大小 98,055,882 字节，SHA-256 为 `9ab0b300106e748fd21b62e5521c8dfe2c280cd252eed80d117844bc4f07fd8f`，原包与三组件清单均已核验。[Android 原生 APK](https://github.com/bei612/stream-kit/actions/runs/45939467986)的 versionCode 为 `1000024`，本地验证了 21 项文件和 v2/v3 发行签名，APK SHA-256 为 `f65455f6d07c7b66d14d86f51ed076cfea5e75a34c6693ede87697d996d6a0b7`。
 

@@ -30,6 +30,18 @@
     "subsequent_signed_audio_inventory_http_status": 200,
     "finished_at_utc": "2026-11-27T09:46:06.068Z"
   },
+  "android_build_artifact": {
+    "build_run_id": 45975421542,
+    "version": "0.1.1",
+    "version_code": 1000025,
+    "apk_bytes": 33168182,
+    "apk_sha256": "42f5ec53825742e9e3cc36cb071351debc671b1eb6d618a2a5b4f76ce923a717",
+    "complete_inventory_verified": 21,
+    "download_inventory_verified": 4,
+    "embedded_source_stamp_verified": true,
+    "persistent_project_signer_v2_v3_verified": true,
+    "scope": "Actual downloaded signed build bytes and inventory. Updated APK media acceptance remains separate."
+  },
   "isolation": {
     "loopback_only": true,
     "existing_windows_service_untouched": true,
