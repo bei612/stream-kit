@@ -64,6 +64,12 @@ func TestPreparationConnectsNativeComponentsWithoutExposingSecretsInArguments(t 
 			}
 			credentials = next
 		}
+		if operation == "--creds-stdin" {
+			destination := filepath.Join(stage, "sunshine", "credentials.json")
+			if err := os.WriteFile(destination, []byte(`{"username":"stream-kit","salt":"fixture","password":"fixture-hash"}`), 0600); err != nil {
+				t.Fatal(err)
+			}
+		}
 		return nil, nil
 	}
 	if err := prepareFiles(context.Background(), opts, root, data, stage, run); err != nil {
@@ -155,6 +161,32 @@ func TestPreparationStopsAtNativeFailure(t *testing.T) {
 		func(context.Context, string, string, []string, []byte) ([]byte, error) { calls++; return nil, want })
 	if !errors.Is(err, want) || calls != 1 {
 		t.Fatalf("continued after failed native operation: %v, calls %d", err, calls)
+	}
+}
+
+func TestPreparationRejectsMissingRendererCredentials(t *testing.T) {
+	previous := config.BaseDir
+	t.Cleanup(func() { config.BaseDir = previous })
+	base := t.TempDir()
+	stage := filepath.Join(base, "staging")
+	for _, name := range []string{"gateway", "sunshine"} {
+		if err := os.MkdirAll(filepath.Join(stage, name), 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	opts := Options{}
+	if runtime.GOOS == "windows" {
+		opts.SessionID, opts.UserSID = 1, "S-1-5-21-123-456-789-1001"
+	}
+	run := func(_ context.Context, _, _ string, args []string, _ []byte) ([]byte, error) {
+		if args[len(args)-1] == "print" {
+			return []byte(`{"web_server":{},"data_storage":{"type":"json"}}`), nil
+		}
+		return nil, nil
+	}
+	err := prepareFiles(context.Background(), opts, filepath.Join(base, "program"), filepath.Join(base, "data"), stage, run)
+	if !errors.Is(err, os.ErrNotExist) || !strings.Contains(err.Error(), "renderer did not write staged credentials") {
+		t.Fatalf("credential command exited successfully without producing credentials: %v", err)
 	}
 }
 

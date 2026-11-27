@@ -6,6 +6,7 @@
 #include <cerrno>
 #include <codecvt>
 #include <csignal>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -258,8 +259,9 @@ int main(int argc, char *argv[]) {
   mail::man = std::make_shared<safe::mail_raw_t>();
 
   // parse config file
-  if (config::parse(argc, argv)) {
-    return 0;
+  const auto config_result = config::parse(argc, argv);
+  if (config_result != 0) {
+    return config_result < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
   }
 
   auto log_deinit_guard = logging::init(config::sunshine.min_log_level, config::sunshine.log_file);

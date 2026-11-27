@@ -245,15 +245,25 @@ func prepareFiles(ctx context.Context, options Options, root, data, stage string
 	if _, err := run(ctx, gateway, stage, []string{"--config-path", gatewayFile, "config", "check"}, nil); err != nil {
 		return err
 	}
-	if err := writeJSON(filepath.Join(stage, "sunshine", "apps.json"), map[string]any{"env": map[string]string{}, "apps": []any{}}); err != nil {
+	rendererStage := filepath.Join(stage, "sunshine")
+	if err := writeJSON(filepath.Join(rendererStage, "apps.json"), map[string]any{"env": map[string]string{}, "apps": []any{}}); err != nil {
 		return err
 	}
-	sunshineFile := filepath.Join(stage, "sunshine", "sunshine.conf")
-	if err := os.WriteFile(sunshineFile, []byte(rendererConfig(filepath.Join(stage, "sunshine"), options.RendererPort)), 0600); err != nil {
+	sunshineFile := filepath.Join(rendererStage, "sunshine.conf")
+	if err := os.WriteFile(sunshineFile, []byte(rendererConfig(rendererStage, options.RendererPort)), 0600); err != nil {
 		return err
 	}
 	if _, err := run(ctx, control.Components["sunshine"].ExePath, stage, []string{sunshineFile, "--creds-stdin"}, credentials); err != nil {
 		return err
+	}
+	// The credential command must leave its output in the protected staging
+	// directory before the complete deployment is published.
+	credentialFile, err := os.Lstat(filepath.Join(rendererStage, "credentials.json"))
+	if err != nil {
+		return fmt.Errorf("renderer did not write staged credentials: %w", err)
+	}
+	if !credentialFile.Mode().IsRegular() || credentialFile.Size() == 0 {
+		return fmt.Errorf("renderer credential output must be a nonempty regular file")
 	}
 	if err := os.WriteFile(sunshineFile, []byte(rendererConfig(filepath.Join(data, "sunshine"), options.RendererPort)), 0600); err != nil {
 		return err

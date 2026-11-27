@@ -31,5 +31,14 @@
     "renderer_operation": "--creds-stdin",
     "renderer_failure_detail_captured": false
   },
+  "separate_failure_propagation_regression": {
+    "environment": "Local Windows 11, isolated native process with Sunshine from the verified RC2 payload",
+    "operation": "--creds-stdin with a directory supplied as its configuration file",
+    "exit_code": 0,
+    "configuration_error_reported": true,
+    "credential_file_written": false,
+    "renderer_sha256": "9e215b9c1a04fac459b4734ad9930facc65fe0c7e537fb85f82528f544d2ea37",
+    "scope": "This is a separate error propagation regression. It does not explain the clean guest command that exited 1."
+  },
   "scope": "Newly installed Microsoft evaluation guests with an emulated audio controller. The exact public package failed before the pre-reboot checkpoint. A separate initialization with the verified payload isolated the failing renderer command. The shared Win11 installation and workstation network were not involved."
 }
