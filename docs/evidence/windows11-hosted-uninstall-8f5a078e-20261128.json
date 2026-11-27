@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "source_commit": "8f5a078e39c070c8b358b456df7fee3c2e437203",
+  "passed": true,
+  "installer_sha256": "ce529659c297f1cdb2cf2d66f45a296eacdb28e787ab4404aaebdb2c24c30dfc",
+  "normal_hosted_install": {
+    "run_id": 46067517275,
+    "artifact_id": 15231322396,
+    "result_json_sha256": "f6178d15ebaaea26ea1d345e9442bb30c7b8374fc8ad7bc4fd9525ebd79a7265",
+    "install_exit": 0,
+    "native_capture_frames": 144000,
+    "gateway_restarted": true,
+    "scm_restarted": true,
+    "original_audio_defaults_preserved": true,
+    "uninstall_exit": 0,
+    "service_removed": true,
+    "data_preserved": true
+  },
+  "hosted_upgrade_and_rollback": {
+    "run_id": 46067587107,
+    "artifact_id": 15231771118,
+    "result_json_sha256": "540972077b2cbd47530b4d1ebbc56e67c9435340b5b1dd8cebfa2bd8e29520e3",
+    "maintenance_result_sha256": "6da4502eee91175f6dcd426e17dbab8dd810b065309ae5efcc684dadd59105f5",
+    "baseline_commit": "439f2a06376ba8363c1318c0d6e3d72b3ef45729",
+    "baseline_installer_sha256": "4e541336d8ec87c6792901b4988f4c8b5d293ae46f1930021da5c9e10a1eaa08",
+    "candidate_applied": "8f5a078e39c070c8b358b456df7fee3c2e437203",
+    "new_policy_applied_before_start": true,
+    "real_listener_conflict": true,
+    "original_audio_policy_restored": true,
+    "original_runtime_ready": true,
+    "original_watch_link_preserved": true,
+    "ca_and_private_keys_preserved": true,
+    "machine_trust_changed": false,
+    "baseline_uninstall_exit": 0,
+    "all_four_audio_default_roles_restored_after_uninstall": true,
+    "service_removed": true,
+    "data_preserved": true
+  },
+  "scope": "Windows Server hosted acceptance. The normal run uses the exact corrected installer; the rollback case starts from the original previous installer, applies the corrected payload and policy, then restores the installed version after a real port conflict. Clean Windows 11 startup and the physical deployment are separate checks."
+}
