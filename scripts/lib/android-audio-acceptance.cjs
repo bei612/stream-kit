@@ -2,11 +2,11 @@
 // native target recording, with a real Web observer. No product API is replaced.
 const fs = require('node:fs'), path = require('node:path'), cp = require('node:child_process');
 const assert = require('node:assert/strict');
-const { once } = require('node:events');
 const { setTimeout: delay } = require('node:timers/promises');
 const grpc = require('../android/emulator-audio/node_modules/@grpc/grpc-js');
 const loader = require('../android/emulator-audio/node_modules/@grpc/proto-loader');
 const { assertContinuousInjection } = require('./emulator-audio-evidence.cjs');
+const { startToneInjection } = require('./emulator-audio-injection.cjs');
 
 async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, app, example, audioProbe, captureDevice, grpcConfig, sdk, report, save }) {
   assert.equal(process.platform, 'linux'); assert.equal(process.env.GITHUB_ACTIONS, 'true');
@@ -188,9 +188,8 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     state[phase] = { started_at_ms:started, stopped_at_ms:stopped, injection_packets_at_start:packetsAtStart, injection_packets_at_stop:packetsAtStop, signal, program_997: foreign, envelope, status }; save();
     if(measurementError)throw measurementError;return signal;
   };
-  let injection, sending = false, sender, injectionDone, injectionError, native;
+  let injection, native;
   const source = { packets: 0, senderEnded: false, rpcEnded: false, error: undefined };
-  const stopWrites = new AbortController();
   try {
     await unary('setMicrophoneState', { realAudioEnabled: false });
     assert.equal((await unary('getMicrophoneState', {})).realAudioEnabled, false); state.host_microphone_enabled = false;
@@ -318,15 +317,8 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     save();
     assert.equal(state.microphone_action,'clicked','Android microphone UI action');
     await until(current,s=>s.connections[native]?.microphone_live===true,'Android microphone capture');
-    source.started_at_ms=Date.now();state.injection_started_at_ms=source.started_at_ms;save();
-    injectionDone = new Promise(resolve => { injection=client.injectAudio(metadata,{deadline:Date.now()+35000},error=>{injectionError=error?.code;source.error=injectionError;source.rpcEnded=true;stopWrites.abort();resolve();}); injection.on('error',()=>{}); });
-    sending=true; sender=(async()=>{let n=0;const started=source.started_at_ms;while(sending&&n<1500){if(source.rpcEnded)throw Error('Official microphone injection ended while sending');const data=Buffer.alloc(1920);for(let i=0;i<960;i++)data.writeInt16LE(Math.round(32767*Math.pow(10,-18/20)*Math.sin(2*Math.PI*1499*(n*960+i)/48000)),i*2);
-      if(!injection.write({format:{samplingRate:'48000',channels:0,format:1,mode:1},timestamp:String(Date.now()*1000),audio:data})) {
-        try { await once(injection,'drain',{signal:stopWrites.signal}); }
-        catch(error) { if(!sending&&error.name==='AbortError')break;throw error; }
-      }
-      n++;source.packets=n;source.last_packet_at_ms=Date.now();await delay(Math.max(0,started+n*20-Date.now()));}source.senderEnded=true;if(!source.rpcEnded)injection.end();})();
-    void sender.catch(()=>{}); // The measurement branch awaits and reports its actual failure below.
+    injection=startToneInjection(client,metadata,source);
+    state.injection_started_at_ms=source.started_at_ms;save();
     await capture('startup',1499,waitForActualMicrophone);
     const [authorized, audible] = await Promise.all([capture('authorized'),audience('authorized')]); state.authorized_web_1499_db=audible;
     assert.ok(authorized.mean_amplitude>0.01,'Authorized Android microphone absent at native target'); assert.ok(audible>-60,'Authorized Android microphone absent at Web observer'); save();
@@ -341,7 +333,7 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     assert.ok(state.revoked.injection_packets_at_stop>state.revoked.injection_packets_at_start,'Synthetic microphone must advance during the actual revoked recording window');
     assert.ok(silent.peak_amplitude<0.001,'Revoked microphone reached native target'); assert.ok(inaudible<-65,'Revoked microphone reached Web observer');
     state.web_program_after_revocation_997_db=await audience('program_after_revocation',997); assert.ok(state.web_program_after_revocation_997_db>-65,'Revocation interrupted program audio');
-    sending=false; await sender; await injectionDone; assert.equal(injectionError,undefined,'Official emulator injection failed'); state.injection_completed=true;
+    await injection.finish();state.injection_completed=true;
     assert.equal(run(['shell','getprop','sys.boot_completed']).trim(),'1');
     state.microphone_route_observed=true;save();
     assert.ok(state.android_program_signal_observed,'Android playout missing sustained 997Hz program');
@@ -349,10 +341,7 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
   } catch(error) {
     await playbackMetadata('failure');throw error;
   } finally {
-    sending=false;
-    stopWrites.abort();
-    if(injection)injection.cancel();
-    if (sender) await sender.catch(()=>{});
+    if (injection) await injection.cancel();
     client.close();
     try { await page.evaluate(async()=>{if(window.__androidAudioObserver)await window.__androidAudioObserver.context.close();}); }
     catch { state.observer_cleanup_failed=true;state.passed=false;save(); }

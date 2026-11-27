@@ -440,6 +440,15 @@ if (evidence.failure_class !== 'CONTROL_SYSTEM_PLAYOUT_MISSING' || !evidence.fix
 console.log('Android system playout control failed. Collecting product measurements with the failed control retained.');
 NODE
 fi
+microphone_control_status=0
+node scripts/android/emulator-microphone-control.cjs --serial "$serial" \
+  --adb "$ANDROID_HOME/platform-tools/adb" --output "$evidence/system-microphone-control.json" \
+  --grpc-config "$scratch/grpc.json" || microphone_control_status=$?
+if (( microphone_control_status != 0 )); then
+  jq -e '.failure_class == "CONTROL_GUEST_MICROPHONE_SIGNAL_MISSING" and .capture_released and .rpc_completed' \
+    "$evidence/system-microphone-control.json" >/dev/null
+  echo 'Android guest microphone control missed the tone. Collecting product measurements with the failed control retained.'
+fi
 runtime=artifacts/input-runtime/opt/stream-kit
 product_status=0
 node scripts/accept-source-stream.cjs --sunshine "$runtime/sunshine/bin/sunshine" --gateway "$runtime/media-gateway/web-server" \
@@ -448,4 +457,4 @@ node scripts/accept-source-stream.cjs --sunshine "$runtime/sunshine/bin/sunshine
   --android-serial "$serial" --android-adb "$ANDROID_HOME/platform-tools/adb" --tls-dir "$tls" \
   --android-grpc-config "$scratch/grpc.json" --audio-probe artifacts/input-example/audio-probe \
   --target-render-device pulseaudio:streamkit_microphone --target-capture-device pulseaudio:streamkit_microphone_capture || product_status=$?
-(( control_status == 0 && product_status == 0 ))
+(( control_status == 0 && microphone_control_status == 0 && product_status == 0 ))

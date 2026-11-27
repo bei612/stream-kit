@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="io.github.bei612.streamkit.inputobserver">
     <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="36" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-    <application android:label="Stream Kit CI observer" android:testOnly="true" android:allowBackup="false" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <application android:label="Stream Kit CI observer" android:testOnly="true" android:allowBackup="false">
+        <activity android:name=".MicrophoneCaptureActivity" android:exported="false" />
+    </application>
     <instrumentation android:name=".Observer" android:targetPackage="io.github.bei612.streamkit.inputobserver" />
 </manifest>

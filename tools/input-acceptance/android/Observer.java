@@ -24,7 +24,7 @@ public final class Observer extends Instrumentation {
     private final Rect window = new Rect();
     private int visited;
     private boolean diagnosticsRequested, playoutControlRequested, volumeCalibrationRequested,
-            microphoneRequested, bookmarkRequested, bookmarkVisible, toolbarVisible, statisticsVisible;
+            microphoneRequested, microphoneControlRequested, bookmarkRequested, bookmarkVisible, toolbarVisible, statisticsVisible;
     private String playback = "unknown", sound = "unknown";
     private long audioPackets = -1, videoPackets = -1, videoFrames = -1;
     private String audioCodec;
@@ -37,6 +37,7 @@ public final class Observer extends Instrumentation {
         playoutControlRequested = arguments != null && "playout-control".equals(arguments.getString("action"));
         volumeCalibrationRequested = arguments != null && "calibrate-volume".equals(arguments.getString("action"));
         microphoneRequested = arguments != null && "enable-microphone".equals(arguments.getString("action"));
+        microphoneControlRequested = arguments != null && "microphone-control".equals(arguments.getString("action"));
         bookmarkRequested = arguments != null && "open-bookmark".equals(arguments.getString("action"));
         start();
     }
@@ -53,6 +54,11 @@ public final class Observer extends Instrumentation {
                 result = playoutControl();
                 finish("complete".equals(result.getString("tone_result"))
                         ? Activity.RESULT_OK : Activity.RESULT_CANCELED, result);
+                return;
+            }
+            if (microphoneControlRequested) {
+                result = MicrophoneCaptureActivity.measure(this);
+                finish(Activity.RESULT_OK, result);
                 return;
             }
             if (diagnosticsRequested) {
