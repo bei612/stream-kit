@@ -27,19 +27,32 @@ func resolveWorkerSession(preferred uint32, sid string) (uint32, error) {
 		return 0, errWorkerUser
 	}
 	var owned []uint32
+	unresolved := false
 	for _, entry := range unsafe.Slice(entries, count) {
 		if entry.SessionID == 0 || entry.State != windows.WTSActive {
 			continue
 		}
-		var token windows.Token
-		if err := windows.WTSQueryUserToken(entry.SessionID, &token); err != nil {
+		token, err := queryWorkerToken(entry.SessionID, windows.WTSQueryUserToken)
+		if errors.Is(err, errSessionUnavailable) {
+			unresolved = true
+			continue
+		}
+		if err != nil {
 			return 0, fmt.Errorf("query active render session: %w", err)
 		}
 		valid := validateWorkerUser(token, entry.SessionID, sid) == nil
 		token.Close()
 		if valid {
+			if entry.SessionID == preferred {
+				return preferred, nil
+			}
 			owned = append(owned, entry.SessionID)
 		}
+	}
+	// An active session can lose its token between enumeration and lookup.
+	// Retry before choosing an alternate session whose uniqueness is uncertain.
+	if unresolved {
+		return 0, errSessionUnavailable
 	}
 	return chooseWorkerSession(preferred, owned)
 }
@@ -59,11 +72,8 @@ func acquireWorkerUser(session uint32, sid string, active func(uint32) error, qu
 	if err = active(session); err != nil {
 		return 0, err
 	}
-	var token windows.Token
-	if err = query(session, &token); err != nil {
-		if token != 0 {
-			_ = token.Close()
-		}
+	token, err := queryWorkerToken(session, query)
+	if err != nil {
 		return 0, fmt.Errorf("query render user token: %w", err)
 	}
 	if err = validateWorkerUser(token, session, sid); err == nil {
@@ -74,6 +84,26 @@ func acquireWorkerUser(session uint32, sid string, active func(uint32) error, qu
 		return 0, err
 	}
 	return token, nil
+}
+
+func queryWorkerToken(session uint32, query func(uint32, *windows.Token) error) (windows.Token, error) {
+	var token windows.Token
+	err := query(session, &token)
+	if err == nil {
+		return token, nil
+	}
+	if token != 0 {
+		_ = token.Close()
+	}
+	// These results describe a disappearing or not-yet-logged-on session.
+	// Retain permission errors and other failures as terminal diagnostics.
+	switch {
+	case errors.Is(err, windows.ERROR_NO_TOKEN), errors.Is(err, windows.ERROR_NO_SUCH_LOGON_SESSION),
+		errors.Is(err, windows.ERROR_CTX_CLOSE_PENDING), errors.Is(err, windows.ERROR_CTX_WINSTATION_NOT_FOUND):
+		return 0, fmt.Errorf("%w: %w", errSessionUnavailable, err)
+	default:
+		return 0, err
+	}
 }
 
 func activeWorkerSession(session uint32) error {

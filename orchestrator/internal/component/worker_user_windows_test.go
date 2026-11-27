@@ -101,3 +101,33 @@ func TestWorkerUserRejectsBeforeTokenQuery(t *testing.T) {
 		t.Fatal("inactive session queried")
 	}
 }
+
+func TestWorkerUserRetriesTransientTokenLoss(t *testing.T) {
+	for _, tc := range []struct {
+		source    error
+		retryable bool
+	}{
+		{windows.ERROR_NO_TOKEN, true},
+		{windows.ERROR_NO_SUCH_LOGON_SESSION, true},
+		{windows.ERROR_CTX_CLOSE_PENDING, true},
+		{windows.ERROR_CTX_WINSTATION_NOT_FOUND, true},
+		{windows.ERROR_ACCESS_DENIED, false},
+		{windows.ERROR_PRIVILEGE_NOT_HELD, false},
+	} {
+		var process windows.Token
+		if err := windows.OpenProcessToken(windows.CurrentProcess(), windows.TOKEN_QUERY, &process); err != nil {
+			t.Fatal(err)
+		}
+		acquired, err := acquireWorkerUser(1, "S-1-5-21-1-2-3-1001", func(uint32) error { return nil }, func(_ uint32, out *windows.Token) error {
+			*out = process
+			return tc.source
+		})
+		if acquired != 0 || !errors.Is(err, tc.source) || errors.Is(err, errSessionUnavailable) != tc.retryable {
+			t.Fatalf("source %v: got token %v, error %v", tc.source, acquired, err)
+		}
+		if _, err := process.GetTokenUser(); err == nil {
+			_ = process.Close()
+			t.Fatal("failed lookup leaked an issued token handle")
+		}
+	}
+}
