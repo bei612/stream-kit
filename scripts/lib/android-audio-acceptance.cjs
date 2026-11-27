@@ -6,7 +6,7 @@ const { setTimeout: delay } = require('node:timers/promises');
 const grpc = require('../android/emulator-audio/node_modules/@grpc/grpc-js');
 const loader = require('../android/emulator-audio/node_modules/@grpc/proto-loader');
 const { assertContinuousInjection } = require('./emulator-audio-evidence.cjs');
-const { startToneInjection } = require('./emulator-audio-injection.cjs');
+const { configureMicrophoneSource } = require('./emulator-microphone-source.cjs');
 
 async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, app, example, audioProbe, captureDevice, grpcConfig, report, save }) {
   assert.equal(process.platform, 'linux'); assert.equal(process.env.GITHUB_ACTIONS, 'true');
@@ -189,11 +189,11 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     state[phase] = { started_at_ms:started, stopped_at_ms:stopped, injection_packets_at_start:packetsAtStart, injection_packets_at_stop:packetsAtStop, signal, program_997: foreign, envelope, status }; save();
     if(measurementError)throw measurementError;return signal;
   };
-  let injection, native;
-  const source = { packets: 0, senderEnded: false, rpcEnded: false, error: undefined };
+  let injection, native, input;
+  const source = { packets: 0, senderEnded: false, transportEnded: false, error: undefined };
   try {
     await unary('setMicrophoneState', { realAudioEnabled: false });
-    assert.equal((await unary('getMicrophoneState', {})).realAudioEnabled, false); state.host_microphone_enabled = false;
+    assert.equal((await unary('getMicrophoneState', {})).realAudioEnabled, false); state.host_microphone_forwarding = false;
     // A fresh disposable AVD has no viewer preference override. Grant only the
     // ordinary OS permission; the actual UI still initiates microphone capture.
     run(['shell','pm','grant','io.github.bei612.streamkit','android.permission.RECORD_AUDIO']);
@@ -313,12 +313,14 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     assert.equal(beforeInjection.audio.microphone_enabled,true);
     assert.equal(beforeInjection.audio.broadcast_controller_microphone,true);
     assert.equal(beforeInjection.connections[web]?.role,'viewer');
+    input=await configureMicrophoneSource(unary,state);
     const microphoneAction = run(['shell','am','instrument','-w','-e','action','enable-microphone','io.github.bei612.streamkit.inputobserver/.Observer']);
     state.microphone_action = microphoneAction.match(/^INSTRUMENTATION_RESULT: microphone_action=(clicked|toolbar_unavailable|client_root_unavailable|microphone_button_unavailable|controller_role_unavailable)\s*$/m)?.[1] || 'observer_failed';
     save();
     assert.equal(state.microphone_action,'clicked','Android microphone UI action');
     await until(current,s=>s.connections[native]?.microphone_live===true,'Android microphone capture');
-    injection=startToneInjection(client,metadata,source);
+    injection=input.start(client,metadata,source);
+    await injection.verifyRoute?.();
     state.injection_started_at_ms=source.started_at_ms;save();
     await capture('startup',1499,waitForActualMicrophone);
     const [authorized, audible] = await Promise.all([capture('authorized'),audience('authorized')]); state.authorized_web_1499_db=audible;
@@ -343,6 +345,8 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     await playbackMetadata('failure');throw error;
   } finally {
     if (injection) await injection.cancel();
+    try { await input?.close(); }
+    catch { state.microphone_input_restored=false;state.passed=false;save(); }
     client.close();
     try { await page.evaluate(async()=>{if(window.__androidAudioObserver)await window.__androidAudioObserver.context.close();}); }
     catch { state.observer_cleanup_failed=true;state.passed=false;save(); }

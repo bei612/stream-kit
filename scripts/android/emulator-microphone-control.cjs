@@ -8,7 +8,8 @@ const {createInterface} = require('node:readline');
 const {promisify, parseArgs} = require('node:util');
 const grpc = require('./emulator-audio/node_modules/@grpc/grpc-js');
 const loader = require('./emulator-audio/node_modules/@grpc/proto-loader');
-const {startToneInjection, RATE, FREQUENCY} = require('../lib/emulator-audio-injection.cjs');
+const {RATE, FREQUENCY} = require('../lib/emulator-audio-injection.cjs');
+const {configureMicrophoneSource} = require('../lib/emulator-microphone-source.cjs');
 
 const observer = 'io.github.bei612.streamkit.inputobserver';
 const run = promisify(execFile);
@@ -21,8 +22,8 @@ assert.ok(args.adb && args.output && args['grpc-config']);
 
 const evidence = {schema_version: 1, fixture_only: true, passed: false,
   pcm_saved: false, sample_rate: RATE, frequency_hz: FREQUENCY, expected_frames: 240000,
-  host_microphone_enabled: null, capture_released: false, started_at_ms: Date.now()};
-const source = {packets: 0, senderEnded: false, rpcEnded: false};
+  capture_released: false, started_at_ms: Date.now()};
+const source = {packets: 0, senderEnded: false, transportEnded: false};
 const adb = (...command) => run(args.adb, ['-s', args.serial, ...command], {encoding: 'utf8', timeout: 7000});
 
 function instrumentation() {
@@ -63,7 +64,7 @@ async function fixtureInactive(packageName) {
 }
 
 async function main() {
-  let client, probe, injection;
+  let client, probe, injection, input;
   try {
     evidence.phase = 'check_owned_emulator';
     assert.ok(await fixtureInactive('io.github.bei612.streamkit'), 'Product already running');
@@ -77,16 +78,15 @@ async function main() {
     metadata.add('authorization', 'Bearer ' + configuration.token);
     const unary = (method, request) => new Promise((resolve, reject) => client[method](request, metadata,
       {deadline: Date.now() + 5000}, (error, response) => error ? reject(error) : resolve(response)));
-    await unary('setMicrophoneState', {realAudioEnabled: false});
-    assert.equal((await unary('getMicrophoneState', {})).realAudioEnabled, false);
-    evidence.host_microphone_enabled = false;
+    input = await configureMicrophoneSource(unary, evidence);
 
     evidence.phase = 'guest_recording';
     await adb('shell', 'pm', 'grant', observer, 'android.permission.RECORD_AUDIO');
     probe = instrumentation();
     assert.equal(await probe.started, true, 'Foreground Android capture was not ready');
     evidence.capture_started = true;
-    injection = startToneInjection(client, metadata, source);
+    injection = input.start(client, metadata, source);
+    await injection.verifyRoute?.();
     // End input when AudioRecord finishes acquiring frames. Otherwise the host
     // can wait for guest release while still feeding the emulator microphone.
     let deadline;
@@ -95,7 +95,7 @@ async function main() {
     clearTimeout(deadline);
     assert.equal(evidence.capture_measured, true, 'Android capture did not complete its measurement');
     await injection.finish();
-    evidence.rpc_completed = true;
+    evidence.source_completed = true;
     const observation = await probe.closed;
     assert.equal(observation.exit, 0);
     assert.equal(observation.code, -1);
@@ -118,6 +118,8 @@ async function main() {
     evidence.failure_class = 'CONTROL_GUEST_MICROPHONE_MEASUREMENT_FAILED';
   } finally {
     if (injection) await injection.cancel();
+    try { await input?.close(); }
+    catch { evidence.passed = false; evidence.failure_class = 'CONTROL_MICROPHONE_INPUT_CLEANUP_FAILED'; }
     if (probe) {
       if (!evidence.capture_released) probe.stop();
       const {exit, code, values, stages} = await probe.closed;

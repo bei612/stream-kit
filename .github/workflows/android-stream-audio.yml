@@ -30,6 +30,11 @@ on:
         type: choice
         default: '37.3.10'
         options: ['37.3.10', '37.2.13']
+      android_microphone_source:
+        description: 'Synthetic audio transport inside the isolated runner'
+        type: choice
+        default: emulator-rpc
+        options: [emulator-rpc, pulse-monitor]
 permissions:
   contents: read
   actions: read
@@ -45,6 +50,7 @@ jobs:
       ANDROID_RUN_ID: ${{ inputs.android_run_id }}
       ANDROID_TEST_API: ${{ inputs.android_api_level }}
       ANDROID_AUDIO_EMULATOR_VERSION: ${{ inputs.android_emulator_version }}
+      STREAM_KIT_AUDIO_MICROPHONE_SOURCE: ${{ inputs.android_microphone_source }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

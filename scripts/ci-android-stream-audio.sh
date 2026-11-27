@@ -55,6 +55,7 @@ export NODE_EXTRA_CA_CERTS="$tls/ca.crt"
 mkdir -p "$scratch/pulse-runtime" "$scratch/pulse-state"
 export PULSE_RUNTIME_PATH="$scratch/pulse-runtime" PULSE_STATE_PATH="$scratch/pulse-state"
 export PULSE_SERVER="unix:$scratch/pulse.sock"
+export STREAM_KIT_AUDIO_PULSE_SOCKET="$scratch/pulse.sock"
 cat > "$scratch/pulse.pa" <<EOF
 load-module module-null-sink sink_name=streamkit_host rate=48000 channels=2
 load-module module-null-sink sink_name=streamkit_android rate=48000 channels=2
@@ -62,8 +63,10 @@ load-module module-remap-source master=streamkit_android.monitor source_name=str
 load-module module-null-sink sink_name=streamkit_program rate=48000 channels=2
 load-module module-null-sink sink_name=streamkit_microphone rate=48000 channels=2
 load-module module-remap-source master=streamkit_microphone.monitor source_name=streamkit_microphone_capture
+load-module module-null-sink sink_name=streamkit_guest_input rate=48000 channels=1
 load-module module-native-protocol-unix socket=$scratch/pulse.sock auth-anonymous=1
 set-default-sink streamkit_host
+set-default-source streamkit_guest_input.monitor
 EOF
 pulseaudio -n --daemonize=no --use-pid-file=no --exit-idle-time=-1 --file="$scratch/pulse.pa" --log-target="file:$evidence/pulse.log" &
 pulse_pid=$!
@@ -83,7 +86,7 @@ wm_pid=$!
 
 sudo chmod a+rw /dev/kvm
 avdmanager create avd --name StreamKit_Audio_CI --package "system-images;android-${ANDROID_TEST_API:-36};google_apis;x86_64" --device pixel_6 <<< no
-PULSE_SINK=streamkit_android "$STREAM_KIT_AUDIO_EMULATOR_DIR/emulator" -avd StreamKit_Audio_CI -port 5580 -memory 4096 -no-snapshot -no-boot-anim -gpu swiftshader -grpc 8554 -grpc-use-token \
+PULSE_SINK=streamkit_android PULSE_SOURCE=streamkit_guest_input.monitor "$STREAM_KIT_AUDIO_EMULATOR_DIR/emulator" -avd StreamKit_Audio_CI -port 5580 -memory 4096 -no-snapshot -no-boot-anim -gpu swiftshader -grpc 8554 -grpc-use-token \
   > "$evidence/emulator.log" 2>&1 &
 emulator_pid=$!
 export STREAM_KIT_AUDIO_EMULATOR_ROOT_PID="$emulator_pid"
@@ -446,7 +449,7 @@ node scripts/android/emulator-microphone-control.cjs --serial "$serial" \
   --adb "$ANDROID_HOME/platform-tools/adb" --output "$evidence/system-microphone-control.json" \
   --grpc-config "$scratch/grpc.json" || microphone_control_status=$?
 if (( microphone_control_status != 0 )); then
-  jq -e '.failure_class == "CONTROL_GUEST_MICROPHONE_SIGNAL_MISSING" and .capture_released and .rpc_completed' \
+  jq -e '.failure_class == "CONTROL_GUEST_MICROPHONE_SIGNAL_MISSING" and .capture_released and .source_completed and .microphone_input_restored' \
     "$evidence/system-microphone-control.json" >/dev/null
   echo 'Android guest microphone control missed the tone. Collecting product measurements with the failed control retained.'
 fi
