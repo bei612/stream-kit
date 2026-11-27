@@ -3,6 +3,7 @@ package io.github.bei612.streamkit.inputobserver;
 import android.app.Activity;
 import android.app.Instrumentation;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.media.AudioDeviceInfo;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
@@ -53,10 +54,9 @@ public final class MicrophoneCaptureActivity extends Activity {
         try {
             if (!activity.foreground.await(3, TimeUnit.SECONDS))
                 throw new IllegalStateException("Capture Activity did not reach the foreground");
-            Bundle measurement = capture(observer);
-            Bundle released = new Bundle();
-            released.putString("mic_control_stage", "audio_record_released");
-            observer.sendStatus(2, released);
+            stage(observer, "activity_focused");
+            Bundle measurement = capture(activity, observer);
+            stage(observer, "audio_record_released");
             close(observer, activity);
             measurement.putString("mic_control_released", "true");
             return measurement;
@@ -80,17 +80,30 @@ public final class MicrophoneCaptureActivity extends Activity {
         });
     }
 
-    private static Bundle capture(Instrumentation observer) {
+    private static void stage(Instrumentation observer, String name) {
+        Bundle status = new Bundle();
+        status.putString("mic_control_stage", name);
+        observer.sendStatus(2, status);
+    }
+
+    private static Bundle capture(MicrophoneCaptureActivity activity, Instrumentation observer) {
+        if (activity.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED)
+            throw new SecurityException("Foreground recorder permission was not granted");
+        stage(observer, "checking_input_format");
         int minimumBytes = AudioRecord.getMinBufferSize(RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
         if (minimumBytes <= 0) throw new IllegalStateException("Capture format unavailable");
-        AudioRecord recorder = new AudioRecord.Builder()
+        stage(observer, "opening_audio_record");
+        AudioRecord.Builder builder = new AudioRecord.Builder()
                 .setAudioSource(MediaRecorder.AudioSource.MIC)
                 .setAudioFormat(new AudioFormat.Builder().setSampleRate(RATE)
                         .setChannelMask(AudioFormat.CHANNEL_IN_MONO)
                         .setEncoding(AudioFormat.ENCODING_PCM_16BIT).build())
-                .setBufferSizeInBytes(Math.max(minimumBytes, WINDOW * Short.BYTES)).build();
+                .setBufferSizeInBytes(Math.max(minimumBytes, WINDOW * Short.BYTES));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) builder.setContext(activity);
+        AudioRecord recorder = builder.build();
         try {
             if (recorder.getSampleRate() != RATE) throw new IllegalStateException("Unexpected capture sample rate");
+            stage(observer, "starting_audio_record");
             recorder.startRecording();
             if (recorder.getRecordingState() != AudioRecord.RECORDSTATE_RECORDING)
                 throw new IllegalStateException("Capture did not start");
@@ -142,11 +155,7 @@ public final class MicrophoneCaptureActivity extends Activity {
                     amplitudes[count++] = amplitude;
                     real = imaginary = 0;
                     index = 0;
-                    if (count == WINDOWS / 2) {
-                        Bundle progress = new Bundle();
-                        progress.putString("mic_control_stage", "half_frames_read");
-                        observer.sendStatus(2, progress);
-                    }
+                    if (count == WINDOWS / 2) stage(observer, "half_frames_read");
                 }
             }
         }

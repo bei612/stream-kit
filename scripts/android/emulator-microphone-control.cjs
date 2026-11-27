@@ -49,7 +49,7 @@ function instrumentation() {
   const lines = createInterface({input: child.stdout});
   lines.on('line', line => {
     if (line === 'INSTRUMENTATION_STATUS: mic_control_started=recording') ready(true);
-    const stage = line.match(/^INSTRUMENTATION_STATUS: mic_control_stage=(half_frames_read|analysis_complete|audio_record_released)$/);
+    const stage = line.match(/^INSTRUMENTATION_STATUS: mic_control_stage=(activity_focused|checking_input_format|opening_audio_record|starting_audio_record|half_frames_read|analysis_complete|audio_record_released)$/);
     if (stage) {
       stages.push({at_ms: Date.now(), stage: stage[1]});
       if (stage[1] === 'analysis_complete') measurement(true);

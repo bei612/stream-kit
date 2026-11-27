@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "source_commit": "439f2a06376ba8363c1318c0d6e3d72b3ef45729",
+  "passed": true,
+  "product_run_id": 46053699658,
+  "android_build_run_id": 46053699766,
+  "acceptance_run_id": 46055204729,
+  "acceptance_source_commit": "cd8c1660dee55d30d0f6673df3ad234f45b220d9",
+  "artifact_id": 15226387473,
+  "artifact_sha256": "f7aec8ab9a10106c92403949c983cd18dd54ab9e48e4e257a4b97fa8f6259524",
+  "browser_result_sha256": "bce3c23463eace9b4bdb1aad134c4551422587aad0b88312165acdfe4e0a483f",
+  "linux_installer_sha256": "eadfe10e38b44404b7aced14a6824af06fa011554c71593b4c2e6a8857c7bb35",
+  "apk_sha256": "1a34402234b466421e7e432bb0d8911257ca69c71a5f6ad3486eea3c1982ea1b",
+  "android_version_code": 1000031,
+  "apk_signature_verified": true,
+  "upgrade": {
+    "from_tag": "v0.1.0",
+    "baseline_version_code": 1000015,
+    "installation_identity_preserved": true,
+    "saved_bookmark_reopened": true,
+    "restored_as_viewer_with_microphone_off": true
+  },
+  "target_input": {
+    "single_shared_renderer": true,
+    "subscribers": 2,
+    "completed_phases": ["android_controller", "old_android_denied", "web_controller", "web_revoked", "android_regranted", "android_revoked"]
+  },
+  "foreground_recovery": {
+    "controller_released_in_background": true,
+    "same_native_instance_preserved": true,
+    "audio_packets": 277,
+    "decoded_video_frames": 113,
+    "observation_elapsed_ms": 3926,
+    "restored_as_viewer_with_microphone_off": true
+  },
+  "microphone_permission_denied": {
+    "system_prompt_denied": true,
+    "controller_retained": true,
+    "server_microphone_off": true
+  },
+  "client_network_recovery": {
+    "disconnected_until_expiry_ms": 13468,
+    "original_connection_resumed_as_viewer": true,
+    "microphone_disabled": true,
+    "audio_packets": 234,
+    "decoded_video_frames": 81,
+    "observation_elapsed_ms": 3687
+  },
+  "cleanup": {"example_stop_acknowledged": true, "renderer_restored_idle": true},
+  "independent_windows_emulator_calibration": {
+    "passed": true,
+    "android_api": 36,
+    "emulator_version": "37.3.10.0",
+    "observer_apk_sha256": "168d24d3c74f97a66eb416ce7da066a80dc8025cad1a41d1a895f1a2b3ee8e26",
+    "result_json_sha256": "a062ab241c8da454423258b2504a7fbdd1e47418a5bd874473337d9fdcd3267f",
+    "synthetic_input_hz": 1499,
+    "audio_record_frames": 240000,
+    "windows_above_threshold": 45,
+    "recording_released": true,
+    "emulator_stopped": true,
+    "candidate_apk_install_verified": true
+  },
+  "scope": "The hosted check verifies the exact signed APK and Ubuntu installer for in-place upgrade, shared media, target input, permission denial and client recovery. The separate Windows calibration verifies foreground AudioRecord with synthetic emulator input and installs the same APK. Positive return audio through the corrected Windows package and physical site networking are separate checks."
+}
