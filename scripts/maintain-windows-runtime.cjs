@@ -11,10 +11,13 @@ const assert = require('node:assert/strict');
 const {setTimeout: delay} = require('node:timers/promises');
 
 const components = ['orchestrator', 'media-gateway', 'sunshine'];
+const runtimeEntries = [...components, 'platform-manifest.json', 'README.md'];
+const runtimeBudget = 2 * 1024 ** 3;
+const databaseSuffixes = ['', '-wal', '-shm'];
 const read = file => JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
 function hash(file) {
   const digest=crypto.createHash('sha256'),buffer=Buffer.alloc(65536),fd=fs.openSync(file,'r');
-  try{let count;while((count=fs.readSync(fd,buffer,0,buffer.length,null))>0)digest.update(buffer.subarray(0,count));}
+  try{assert.ok(fs.fstatSync(fd).isFile(),'Expected a regular maintenance file');let count;while((count=fs.readSync(fd,buffer,0,buffer.length,null))>0)digest.update(buffer.subarray(0,count));}
   finally{fs.closeSync(fd);}
   return digest.digest('hex');
 }
@@ -73,6 +76,44 @@ function copyTree(source, target, limit) {
   assert.ok(!fs.existsSync(target),'Backup/staging destination already exists');
   fs.cpSync(source,target,{recursive:true,force:false,errorOnExist:true});
   assert.deepEqual(inventory(target,limit),original,'Copied files differ');
+}
+
+function runtimeInventory(root) {
+  const result = new Map();
+  for (const entry of runtimeEntries) {
+    const target = ordinary(inside(root, path.join(root, entry)));
+    result.set(entry, components.includes(entry) ? inventory(target, runtimeBudget) : hash(target));
+  }
+  return result;
+}
+
+function snapshotDatabase(database, directory) {
+  const snapshot = new Map();
+  for (const suffix of databaseSuffixes) {
+    const source = database + suffix;
+    if (suffix && !fs.existsSync(source)) continue;
+    const saved = path.join(directory, 'database' + suffix);
+    const digest = hash(ordinary(source));
+    fs.copyFileSync(source, saved, fs.constants.COPYFILE_EXCL);
+    assert.equal(hash(saved), digest, 'Cold database snapshot does not match the original');
+    snapshot.set(suffix, digest);
+  }
+  return snapshot;
+}
+
+function restoreDatabase(database, directory, snapshot, move) {
+  assert.ok(snapshot.has(''), 'Cold database snapshot is missing the primary database');
+  for (const [suffix, digest] of snapshot) {
+    assert.equal(hash(ordinary(path.join(directory, 'database' + suffix))), digest, 'Cold database snapshot changed during maintenance');
+  }
+  for (const suffix of databaseSuffixes) {
+    const current = database + suffix;
+    if (fs.existsSync(current)) move(current, path.join(directory, 'failed-database' + suffix));
+    if (snapshot.has(suffix)) {
+      fs.copyFileSync(path.join(directory, 'database' + suffix), current, fs.constants.COPYFILE_EXCL);
+      assert.equal(hash(current), snapshot.get(suffix), 'Restored database file does not match the cold snapshot');
+    }
+  }
 }
 
 // Sunshine's Windows appdata() always resolves to <executable>/config, even
@@ -147,13 +188,14 @@ class RuntimeMaintenance {
     });
   }
   async requireIdle() {
-    const [apps,media]=await Promise.all([this.api('/apps'),this.api('/media-control')]);
+    const [apps,media,archives]=await Promise.all([this.api('/apps'),this.api('/media-control'),this.api('/apps/upload-status')]);
     assert.ok(apps.every(app=>!['running','starting','stopping'].includes(app.status)),'Stop active applications before maintenance');
     assert.ok(media.reachable && media.observations_valid && !Object.values(media.observations||{}).some(value=>value.upstream_active),'Media is active or unavailable');
+    assert.equal(archives.uploading,false,'Wait for the active application archive to finish uploading and extracting');
     return apps.map(app=>app.id).sort();
   }
   verifyCandidate(directory) {
-    inventory(directory,2*1024**3);
+    inventory(directory,runtimeBudget);
     assert.deepEqual(fs.readdirSync(directory).sort(),[...components,'README.md','platform-manifest.json'].sort(),'Candidate must contain only the runtime payload');
     const manifest=read(path.join(directory,'platform-manifest.json'));
     assert.equal(manifest.schema_version,1);
@@ -199,6 +241,25 @@ class RuntimeMaintenance {
     }
     throw Error('Control, desktop worker and native components did not recover');
   }
+  async verifyDeploymentState() {
+    const apps = await this.api('/apps');
+    assert.deepEqual(apps.map(app => app.id).sort(), this.apps, 'Application identities changed');
+    assert.ok(fs.readFileSync(this.configFile).equals(this.configBytes), 'Maintenance must preserve configuration');
+    // Managed leaves can renew during startup. The deployment CA and all private
+    // keys must match, and the current leaf must still verify under that CA.
+    for (const [file, digest] of this.trust) {
+      if (file === this.config.server.tls_cert && this.config.server.lan_tls?.ca_cert) continue;
+      assert.equal(hash(file), digest, 'Deployment trust or private key changed');
+    }
+    if (this.config.server.lan_tls?.ca_cert) {
+      const leaf = new crypto.X509Certificate(fs.readFileSync(this.config.server.tls_cert));
+      const ca = new crypto.X509Certificate(fs.readFileSync(this.config.server.lan_tls.ca_cert));
+      const key = crypto.createPrivateKey(fs.readFileSync(this.config.server.tls_key));
+      assert.ok(!leaf.ca && leaf.checkIssued(ca) && leaf.verify(ca.publicKey) && leaf.checkPrivateKey(key), 'Renewed leaf changed issuer or key');
+      assert.ok(Date.parse(leaf.validFrom) <= Date.now() && Date.parse(leaf.validTo) > Date.now(), 'Renewed leaf validity is invalid');
+      this.report.leaf_renewed = hash(this.config.server.tls_cert) !== this.trust.get(this.config.server.tls_cert);
+    }
+  }
   stop() {
     // SCM owns process teardown. Never terminate other sessions by process name.
     this.service();
@@ -215,7 +276,7 @@ class RuntimeMaintenance {
     this.stage=inside(this.root,path.join(this.root,'.maintenance-incoming-'+stamp));
     this.backup=inside(this.root,path.join(this.root,'.maintenance-previous-'+stamp));
     this.state=inside(this.data,path.join(this.data,'runtime-maintenance-'+stamp));
-    copyTree(this.source,this.stage,2*1024**3);
+    copyTree(this.source,this.stage,runtimeBudget);
     rendererBootstrap(this.stage,true);
     this.verifyCandidate(this.stage);
     // Verify that native preflight released its files before stopping the
@@ -227,19 +288,20 @@ class RuntimeMaintenance {
     this.report.runtime_backup=this.backup;this.report.state_backup=this.state;
     assert.deepEqual(await this.requireIdle(),this.apps);
     assert.ok(fs.readFileSync(this.configFile).equals(this.configBytes),'Configuration changed during preflight');
+    this.previousRuntime = runtimeInventory(this.root);
     this.save('stopping_service');this.stopped=true;this.stop();
     // Cold state snapshot after all owners exited. Keep app archives/external
     // application directories in place; no unbounded deployment-wide copy.
     fs.copyFileSync(this.configFile,path.join(this.state,'orchestrator.json'));
     let trustIndex=0;
     for(const file of this.trust.keys())fs.copyFileSync(file,path.join(this.state,'trust-'+trustIndex++));
-    for(const suffix of ['', '-wal','-shm'])if(fs.existsSync(this.db+suffix))fs.copyFileSync(this.db+suffix,path.join(this.state,'database'+suffix));
+    this.databaseSnapshot = snapshotDatabase(this.db, this.state);
     for(const folder of ['gateway','sunshine']){
       execute('icacls.exe',[folder,'/save',path.join(this.state,folder+'-acl.txt'),'/t','/q'],this.data);
       copyTree(path.join(this.data,folder),path.join(this.state,folder),512<<20);
     }
     this.save('replacing_runtime');
-    for(const name of [...components,'platform-manifest.json','README.md']){
+    for(const name of runtimeEntries){
       const current=path.join(this.root,name);
       this.move(current,path.join(this.backup,name),this.root);this.moved.push(name);
       this.move(path.join(this.stage,name),current,this.root);
@@ -248,22 +310,7 @@ class RuntimeMaintenance {
     this.save('starting_service');this.started=true;
     execute(this.binary,['service','start','--config',this.configFile],undefined,serviceStartTimeout);
     await this.waitReady(this.report.source);
-    assert.deepEqual((await this.api('/apps')).map(app=>app.id).sort(),this.apps,'Application identities changed');
-    assert.ok(fs.readFileSync(this.configFile).equals(this.configBytes),'Maintenance must preserve configuration');
-    // Managed leaf identities may legitimately renew during startup (DHCP or
-    // expiry). Root trust and every private key must remain byte-identical.
-    for(const [file,digest]of this.trust){
-      if(file===this.config.server.tls_cert&&this.config.server.lan_tls?.ca_cert)continue;
-      assert.equal(hash(file),digest,'Deployment trust or private key changed');
-    }
-    if(this.config.server.lan_tls?.ca_cert){
-      const leaf=new crypto.X509Certificate(fs.readFileSync(this.config.server.tls_cert));
-      const ca=new crypto.X509Certificate(fs.readFileSync(this.config.server.lan_tls.ca_cert));
-      const key=crypto.createPrivateKey(fs.readFileSync(this.config.server.tls_key));
-      assert.ok(!leaf.ca&&leaf.checkIssued(ca)&&leaf.verify(ca.publicKey)&&leaf.checkPrivateKey(key),'Renewed leaf changed issuer or key');
-      assert.ok(Date.parse(leaf.validFrom)<=Date.now()&&Date.parse(leaf.validTo)>Date.now(),'Renewed leaf validity is invalid');
-      this.report.leaf_renewed=hash(this.config.server.tls_cert)!==this.trust.get(this.config.server.tls_cert);
-    }
+    await this.verifyDeploymentState();
     this.report.scope='Complete runtime maintenance; original installer/uninstaller and signed drivers retained. Not a fresh installer acceptance.';
     const oldRecord=path.join(this.root,'control-maintenance.json');
     if(fs.existsSync(oldRecord))this.move(oldRecord,path.join(this.backup,'control-maintenance.json'),this.root);
@@ -279,15 +326,12 @@ class RuntimeMaintenance {
       if(fs.existsSync(current))this.move(current,path.join(this.backup,'failed-'+name),this.root);
       this.move(path.join(this.backup,name),current,this.root);
     }
+    assert.deepEqual(runtimeInventory(this.root), this.previousRuntime, 'Restored runtime differs from its pre-maintenance inventory');
     if(this.started){
       fs.copyFileSync(path.join(this.state,'orchestrator.json'),this.configFile);
       let trustIndex=0;
       for(const file of this.trust.keys())fs.copyFileSync(path.join(this.state,'trust-'+trustIndex++),file);
-      for(const suffix of ['', '-wal','-shm']){
-        const current=this.db+suffix,saved=path.join(this.state,'database'+suffix);
-        if(fs.existsSync(current))this.move(current,path.join(this.state,'failed-database'+suffix),this.data);
-        if(fs.existsSync(saved))fs.copyFileSync(saved,current);
-      }
+      restoreDatabase(this.db, this.state, this.databaseSnapshot, (source, target) => this.move(source, target, this.data));
       for(const folder of ['gateway','sunshine']){
         this.move(path.join(this.data,folder),path.join(this.state,'failed-'+folder),this.data);
         copyTree(path.join(this.state,folder),path.join(this.data,folder),512<<20);
@@ -297,7 +341,9 @@ class RuntimeMaintenance {
     const oldRecord=path.join(this.backup,'control-maintenance.json');
     if(fs.existsSync(oldRecord))this.move(oldRecord,path.join(this.root,'control-maintenance.json'),this.root);
     execute(this.binary,['service','start','--config',this.configFile],undefined,serviceStartTimeout);
-    await this.waitReady(this.report.previous_source);this.report.rollback=true;
+    await this.waitReady(this.report.previous_source);
+    await this.verifyDeploymentState();
+    this.report.rollback=true;
   }
   async run() {
     try{
@@ -334,4 +380,4 @@ async function main() {
   await new RuntimeMaintenance(options).run();
 }
 if(require.main===module)main().catch(error=>{console.error(error.message);process.exitCode=1;});
-module.exports={inside,ordinary,inventory,copyTree,commandPath,execute,serviceStartTimeout,rendererBootstrap};
+module.exports={inside,ordinary,inventory,copyTree,commandPath,execute,serviceStartTimeout,rendererBootstrap,snapshotDatabase,restoreDatabase};

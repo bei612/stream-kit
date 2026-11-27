@@ -1,7 +1,8 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os');
-const {inside,ordinary,inventory,copyTree,commandPath,execute,serviceStartTimeout,rendererBootstrap}=require('./maintain-windows-runtime.cjs');
+const {DatabaseSync}=require('node:sqlite');
+const {inside,ordinary,inventory,copyTree,commandPath,execute,serviceStartTimeout,rendererBootstrap,snapshotDatabase,restoreDatabase}=require('./maintain-windows-runtime.cjs');
 
 test('maintenance watchdog preserves native startup deadlines and bounded failure metadata',()=>{
   assert.ok(serviceStartTimeout>60000+90000);
@@ -53,4 +54,42 @@ test('maintenance confines paths and verifies real copied bytes without followin
   fs.symlinkSync(outside,path.join(source,'linked'),process.platform==='win32'?'junction':'dir');
   assert.throws(()=>ordinary(path.join(source,'linked')));
   assert.throws(()=>inventory(source,100000));
+});
+
+test('rollback restores the cold SQLite database and rejects a changed snapshot before moving data',t=>{
+  const temp=fs.realpathSync(os.tmpdir());
+  const root=fs.mkdtempSync(path.join(temp,'stream-kit-rollback-'));
+  t.after(()=>{inside(temp,ordinary(root));fs.rmSync(root,{recursive:true});});
+  const database=path.join(root,'state.db');
+  const saved=path.join(root,'saved');
+  fs.mkdirSync(saved);
+  const changed=path.join(root,'changed');
+  fs.mkdirSync(changed);
+  const configure=(file,id)=>{
+    const db=new DatabaseSync(file);
+    try {
+      db.exec('PRAGMA journal_mode=WAL; CREATE TABLE apps (id TEXT PRIMARY KEY)');
+      db.prepare('INSERT INTO apps VALUES (?)').run(id);
+    } finally { db.close(); }
+  };
+  const readID=file=>{
+    const db=new DatabaseSync(file,{readOnly:true});
+    try { return db.prepare('SELECT id FROM apps').get().id; }
+    finally { db.close(); }
+  };
+  configure(database,'existing-app');
+  const original=snapshotDatabase(database,saved);
+  const damaged=snapshotDatabase(database,changed);
+  fs.appendFileSync(path.join(changed,'database'),'altered');
+
+  fs.unlinkSync(database);
+  configure(database,'candidate-app');
+  const move=(source,target)=>fs.renameSync(inside(root,source),inside(root,target));
+  assert.throws(()=>restoreDatabase(database,changed,damaged,move),/snapshot changed/);
+  assert.equal(readID(database),'candidate-app');
+  assert.ok(!fs.existsSync(path.join(changed,'failed-database')));
+
+  restoreDatabase(database,saved,original,move);
+  assert.equal(readID(database),'existing-app');
+  assert.equal(readID(path.join(saved,'failed-database')),'candidate-app');
 });
