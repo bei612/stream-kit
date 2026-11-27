@@ -2,6 +2,7 @@ package io.github.bei612.streamkit.inputobserver;
 
 import android.app.Activity;
 import android.app.Instrumentation;
+import android.app.KeyguardManager;
 import android.graphics.Rect;
 import android.media.AudioManager;
 import android.media.ToneGenerator;
@@ -19,6 +20,7 @@ public final class Observer extends Instrumentation {
     private String role = "other";
     private String state = "unknown";
     private String rootKind = "no_root";
+    private String foreground = "none";
     private final Rect window = new Rect();
     private int visited;
     private boolean diagnosticsRequested, playoutControlRequested, volumeCalibrationRequested,
@@ -84,6 +86,7 @@ public final class Observer extends Instrumentation {
             result.putString("role", role);
             result.putString("state", state);
             result.putString("root", rootKind);
+            result.putString("foreground", foreground);
             result.putString("toolbar_opened", String.valueOf(opened));
             result.putString("toolbar_closed", String.valueOf(toolbarClosed));
             result.putString("window", window.left + "," + window.top + "," + window.right + "," + window.bottom);
@@ -177,6 +180,7 @@ public final class Observer extends Instrumentation {
         role = "other";
         state = "unknown";
         rootKind = "no_root";
+        foreground = "none";
         toolbarVisible = false;
         statisticsVisible = false;
         playback = "unknown";
@@ -189,13 +193,29 @@ public final class Observer extends Instrumentation {
         AccessibilityNodeInfo root = getUiAutomation().getRootInActiveWindow();
         if (root == null) return;
         try {
+            String packageName = String.valueOf(root.getPackageName());
+            foreground = classifyForeground(packageName);
             rootKind = "other_app";
-            if (!CLIENT.contentEquals(String.valueOf(root.getPackageName()))) return;
+            if (!CLIENT.equals(packageName)) return;
             rootKind = "client";
             visited = 0;
             root.getBoundsInScreen(window);
             inspect(root, 0);
         } finally { root.recycle(); }
+    }
+
+    private String classifyForeground(String packageName) {
+        if (CLIENT.equals(packageName)) return "client";
+        KeyguardManager keyguard = getTargetContext().getSystemService(KeyguardManager.class);
+        if (keyguard != null && keyguard.isKeyguardLocked()) return "keyguard";
+        switch (packageName) {
+            case "com.android.systemui": return "system_ui";
+            case "com.google.android.permissioncontroller":
+            case "com.android.permissioncontroller": return "permission_controller";
+            case "com.google.android.apps.nexuslauncher":
+            case "com.android.launcher3": return "launcher";
+            default: return "other";
+        }
     }
 
     private boolean clickDescription(String description) {

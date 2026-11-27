@@ -8,7 +8,8 @@ const {targetInputObserver,untilInput:until}=require('./target-input-observer.cj
 
 function androidParticipant({adb,serial,report,save=()=>{}}) {
   assert.match(serial,/^emulator-[0-9]+$/);
-  const state=report?(report.android_participant={role_waits:[],scope:'Test-only accessibility root and exact fixed-state classifications; no UI content, links or permission bypass'}):null;
+  const activity='io.github.bei612.streamkit/com.limelight.streamkit.ManagedActivity';
+  const state=report?(report.android_participant={role_waits:[],launches:[],scope:'Test-only accessibility root and exact fixed-state classifications; no UI content, links or permission bypass'}):null;
   const allowedStates=new Set(['unknown','entry_ready','waiting','starting','connecting','reconnecting','ready','audio_output_failed','initialize_failed','admission_failed','authority_failed','link_expired','disconnected','link_invalid','bookmark_unreadable']);
   const terminalStates=new Set(['audio_output_failed','initialize_failed','admission_failed','authority_failed','link_expired','link_invalid']);
   const run=(...args)=>{
@@ -33,8 +34,19 @@ function androidParticipant({adb,serial,report,save=()=>{}}) {
     const bounds=output.match(/INSTRUMENTATION_RESULT: window=(\d+),(\d+),(\d+),(\d+)/);
     const status=output.match(/INSTRUMENTATION_RESULT: state=([a-z_]+)\b/),root=output.match(/INSTRUMENTATION_RESULT: root=(client|no_root|other_app)\b/),opened=output.match(/INSTRUMENTATION_RESULT: toolbar_opened=(true|false)\b/);
     const closed=output.match(/INSTRUMENTATION_RESULT: toolbar_closed=(true|false)\b/);
-    assert.ok(role&&bounds&&status&&root&&opened&&closed&&allowedStates.has(status[1]),'Incomplete Android UI snapshot');
-    return {role:role[1],bounds:bounds.slice(1).map(Number),state:status[1],root:root[1],toolbar_opened:opened[1]==='true',toolbar_closed:closed[1]==='true'};
+    const foreground=output.match(/INSTRUMENTATION_RESULT: foreground=(client|keyguard|system_ui|permission_controller|launcher|other|none)\b/);
+    assert.ok(role&&bounds&&status&&root&&opened&&closed&&foreground&&allowedStates.has(status[1]),'Incomplete Android UI snapshot');
+    return {role:role[1],bounds:bounds.slice(1).map(Number),state:status[1],root:root[1],foreground:foreground[1],toolbar_opened:opened[1]==='true',toolbar_closed:closed[1]==='true'};
+  };
+  const launch=(mode,...args)=>{
+    const record={mode,started_at_ms:Date.now(),acknowledged:false};
+    if(state){state.launches.push(record);save();}
+    const output=run('shell','am','start','-W','-n',activity,...args);
+    record.finished_at_ms=Date.now();
+    record.acknowledged=/^Status: ok\s*$/m.test(output);
+    record.launch_state=output.match(/^LaunchState: (COLD|WARM|HOT|UNKNOWN)\s*$/m)?.[1] || 'unclassified';
+    if(state)save();
+    assert.ok(record.acknowledged,'Android did not acknowledge Activity start');
   };
   const playoutErrors=async()=>{
     // These message prefixes and start-error enums are from the actual pinned
@@ -90,7 +102,11 @@ function androidParticipant({adb,serial,report,save=()=>{}}) {
   return {
     async connect(link){
       const parsed=new URL(link);assert.equal(parsed.protocol,'https:');assert.equal(parsed.hostname,'10.0.2.2');
-      run('shell','am','start','-n','io.github.bei612.streamkit/com.limelight.streamkit.ManagedActivity','-a','android.intent.action.VIEW','-d',link);
+      launch('view_link','-a','android.intent.action.VIEW','-d',link);
+      await role(false);
+    },
+    async reopen() {
+      launch('resume_activity','-a','android.intent.action.MAIN');
       await role(false);
     },
     role,
@@ -161,6 +177,42 @@ async function verifyAndroidInput({android,page,api,sessionId,app,example,report
     state.phases.push({label:'web_revoked',before:revoked,after:snapshot()});save();
     await api(route+'/controller/'+native,'POST');await nativeInput('android_regranted',true);
     await api(route+'/controller','DELETE');await nativeInput('android_revoked',false);
+
+    const lifecycle=report.android_lifecycle={passed:false};
+    const held=await api(route+'/controller/'+native,'POST');
+    await android.role(true);
+    assert.ok(held.native_instance_id,'Expected a registered native renderer instance');
+    lifecycle.controller_before_background=true;save();
+    android.close();
+    const background=await until(async()=>{
+      const session=await api(route);
+      return !session.connections[native]&&!session.controller_connection_id?session:false;
+    },'Android background releases connection and controller',30000);
+    assert.ok(background.control_epoch>held.control_epoch);
+    assert.equal(background.native_instance_id,held.native_instance_id);
+    assert.equal(background.connections[web]?.role,'viewer');
+    lifecycle.background_released_connection=true;save();
+
+    await android.reopen();
+    const foreground=await until(async()=>{
+      const session=await api(route);
+      const participant=Object.values(session.connections).find(connection=>connection.client_type==='android');
+      return participant ? {session,participant} : false;
+    },'Android foreground registers viewer',15000);
+    assert.notEqual(foreground.participant.connection_id,native);
+    assert.equal(foreground.participant.role,'viewer');
+    assert.equal(foreground.participant.microphone_live,false);
+    assert.equal(foreground.session.native_instance_id,held.native_instance_id);
+    assert.equal(foreground.session.connections[web]?.role,'viewer');
+    assert.ok(!foreground.session.controller_connection_id);
+    const diagnostics=await android.diagnostics();
+    assert.ok(diagnostics.ui.available&&diagnostics.ui.fresh&&diagnostics.ui.video_frames>0&&diagnostics.ui.audio_packets>0,'Android did not recover native media after foreground');
+    await until(async()=>{
+      const status=await api('/media-control');
+      const media=status.observations?.[sessionId];
+      return status.observations_valid&&media?.subscribers===2&&media.upstream_active;
+    },'Android foreground shares existing upstream',10000);
+    Object.assign(lifecycle,{passed:true,new_viewer_without_control_or_microphone:true,existing_upstream_preserved:true,native_audio_packets:diagnostics.ui.audio_packets,native_video_frames:diagnostics.ui.video_frames});
     state.passed=true;save();
   } finally {await api(route+'/controller','DELETE');}
 }
