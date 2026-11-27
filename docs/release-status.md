@@ -8,6 +8,8 @@
 
 最新 Windows 安装器在 Windows Server 2022 托管环境完成实际静默安装、网关和 SCM 服务重启、原生录音及卸载数据保留。SCM 为 Auto / LocalSystem，安装和卸载退出码均为 0，录音为 144,000 帧，零丢帧和缓冲异常，既有默认音频设备保持。另一独立任务实际触发候选控制端端口占用，启动返回 1。回滚后原三组件、原永久观看链接、配置、CA 与私钥通过核对。[精确安装验收](https://github.com/bei612/stream-kit/actions/runs/45998883578) · [真实回滚验收](https://github.com/bei612/stream-kit/actions/runs/45998956057)
 
+Win11 首装验收脚本可在安装返回 `0` 或 `3010` 时保存检查点，并在整机重启后先记录系统启动时间、三个进程的可执行文件归属和会话，再检查音频及服务恢复。现有托管场景已用公开 RC1 原包回归通过。专用 Win11 上的整机续验仍待执行。[Win11 首装验收说明](../deploy/windows/README.md#首装和整机重启验收) · [公开 RC1 安装回归](https://github.com/bei612/stream-kit/actions/runs/46005289301)
+
 实际 Win11 独立实例使用最新同包三组件和 `1000027` APK。Android 与 Web 共享一条渲染上游。授权时，Windows 目标录音分析了 96,000 帧且零丢帧，Web 中的麦克风测试信号为 −42.95 dB；撤权后该信号降至 −125.68 dB，程序声音保持。Example、模拟器及临时信任已回收。当前现场 SCM 仍运行 `53c7385a`。[最新版 Win11 音频、安装与回滚证据](evidence/windows11-android-packaged-audio-d0a5b4c8-20261127.json)
 
 同源 Ubuntu 安装器的真实网卡换址联验通过。两个 HTTPS 入口在 2.739 秒内加载新证书，原固定观看链接在未重载页面的情况下恢复直连媒体，新连接观测到 49 帧视频和 81 个音频包。运行进程、CA 和私钥保持，Sunshine 完成自动配对。现场 Win11 网络与实体设备另有验收边界。[同源换址联验](https://github.com/bei612/stream-kit/actions/runs/45994240668)
