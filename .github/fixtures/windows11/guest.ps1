@@ -1,0 +1,69 @@
+param([switch]$Resume)
+$ErrorActionPreference = 'Stop'
+$computer = Get-CimInstance Win32_ComputerSystem
+if ($computer.Manufacturer -ne 'QEMU' -or $computer.Model -ne 'StreamKit-Win11-Acceptance') {
+    throw 'This fixture is limited to the isolated acceptance guest'
+}
+if ((Get-Process -Id $PID).SessionId -eq 0) { throw 'Expected the guest console session' }
+$windows = Get-CimInstance Win32_OperatingSystem
+if ($windows.ProductType -ne 1 -or [int]$windows.BuildNumber -lt 22000) {
+    throw 'Expected a Windows 11 client kernel'
+}
+$work = 'C:\StreamKitAcceptance'
+$output = Join-Path $work 'result'
+$manifest = Join-Path $work 'installer\installer-manifest.json'
+$task = 'StreamKitRebootAcceptance'
+
+function Write-GuestEvidence($Value) {
+    $utf8 = [Text.Encoding]::UTF8.GetBytes(($Value | ConvertTo-Json -Depth 12 -Compress))
+    $port = [System.IO.Ports.SerialPort]::new('COM1', 115200)
+    try {
+        $port.WriteTimeout = 8000
+        $port.Open()
+        $port.WriteLine('STREAMKIT_EVIDENCE ' + [Convert]::ToBase64String($utf8))
+    } finally {
+        $port.Dispose()
+    }
+}
+
+try {
+    if (-not $Resume) {
+        if (-not (Confirm-SecureBootUEFI) -or -not (Get-Tpm).TpmPresent) {
+            throw 'Windows did not report UEFI Secure Boot and a TPM'
+        }
+        Write-GuestEvidence @{ phase = 'guest_ready'; build = [int]$windows.BuildNumber; secure_boot = $true; tpm_present = $true }
+        New-Item -ItemType Directory -Path $work | Out-Null
+        foreach ($name in 'node.exe','guest.ps1','scripts','installer') {
+            Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $work -Recurse
+        }
+        $user = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+        $arguments = '-NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File C:\StreamKitAcceptance\guest.ps1 -Resume'
+        $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $arguments
+        $trigger = New-ScheduledTaskTrigger -AtLogOn -User $user
+        $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Highest
+        Register-ScheduledTask -TaskName $task -Action $action -Trigger $trigger -Principal $principal | Out-Null
+    }
+    Set-Location -LiteralPath $work
+    $mode = if ($Resume) { '--win11-resume' } else { '--win11-stage' }
+    & (Join-Path $work 'node.exe') (Join-Path $work 'scripts\accept-windows-installer.cjs') $manifest $output $mode
+    $testExit = $LASTEXITCODE
+    $result = Get-Content -LiteralPath (Join-Path $output 'result.json') -Raw | ConvertFrom-Json
+    Write-GuestEvidence @{
+        phase = $result.phase; passed = $result.passed; error = $result.error
+        exit_code = $testExit; commit = $result.commit; installer_source_commit = $result.installer_source_commit
+        installer_sha256 = $result.installer_sha256; install_exit = $result.install_exit
+        pre_reboot = $result.pre_reboot; post_reboot = $result.post_reboot
+        admin_login = $result.admin_login; defaults_preserved = $result.defaults_preserved
+        pcm_frames = $result.pair.captured_frames; pcm_dropped = $result.pair.target.dropped_frames
+        scm_restarted = $result.scm_restarted; gateway_restarted = $result.gateway_restarted
+        uninstall_exit = $result.uninstall_exit; service_removed = $result.service_removed; data_preserved = $result.data_preserved
+    }
+    if (-not $Resume -and $testExit -eq 0 -and $result.phase -eq 'awaiting_reboot') {
+        Restart-Computer -Force
+    }
+} catch {
+    Write-GuestEvidence @{phase = 'fixture_failed'; passed = $false; error = $_.Exception.Message}
+    exit 1
+} finally {
+    if ($Resume) { Unregister-ScheduledTask -TaskName $task -Confirm:$false -ErrorAction SilentlyContinue }
+}

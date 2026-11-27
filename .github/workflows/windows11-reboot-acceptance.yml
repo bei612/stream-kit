@@ -1,0 +1,37 @@
+name: windows11-reboot-acceptance
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Published Windows installer to test in a clean Windows 11 x64 guest
+        type: string
+        required: true
+permissions:
+  contents: read
+jobs:
+  reboot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install isolated guest tools
+        run: |
+          test -c /dev/kvm
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends acl qemu-system-x86 qemu-utils ovmf swtpm genisoimage
+          sudo setfacl -m "u:$(id -un):rw" /dev/kvm
+      - name: Verify Windows install and system reboot
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/run-windows11-reboot-acceptance.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows11-reboot-evidence
+          path: artifacts/windows11-reboot
+          retention-days: 10
+          if-no-files-found: ignore
