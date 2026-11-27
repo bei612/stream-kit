@@ -110,6 +110,16 @@
       "system_playout_failure_class": "CONTROL_SYSTEM_PLAYOUT_MISSING",
       "microphone_route_reached": false,
       "failure_stage": "Native client process was alive. All five accessibility samples reported a different foreground package before viewer admission could be observed. Microphone UI and injection were not exercised."
+    },
+    "acknowledged_activity_launch": {
+      "acceptance_run_id": 45949550560,
+      "passed": false,
+      "system_playout_failure_class": "CONTROL_SYSTEM_PLAYOUT_MISSING",
+      "viewer_and_controller_roles_observed": true,
+      "native_audio_packets_in_last_diagnostics": 2648,
+      "native_video_frames_in_last_diagnostics": 530,
+      "microphone_route_reached": false,
+      "failure_stage": "Opening Android streaming toolbar immediately after controller grant did not complete; microphone action returned toolbar_unavailable."
     }
   },
   "lan_migration": {

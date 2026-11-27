@@ -298,14 +298,14 @@ public final class Observer extends Instrumentation {
     }
 
     private boolean openToolbar() {
-        snapshot();
-        if (!"client".equals(rootKind)) return false;
-        if (toolbarVisible) return true;
-        if (!clickDescription("打开串流工具栏")) return false;
         long deadline = android.os.SystemClock.elapsedRealtime() + 2000;
+        boolean requested = false;
         do {
             snapshot();
-            if (toolbarVisible) return true;
+            if ("client".equals(rootKind)) {
+                if (toolbarVisible) return true;
+                if (!requested) requested = clickDescription("打开串流工具栏");
+            }
             android.os.SystemClock.sleep(50);
         } while (android.os.SystemClock.elapsedRealtime() < deadline);
         return false;
@@ -326,7 +326,7 @@ public final class Observer extends Instrumentation {
     }
 
     private String enableMicrophone() {
-        if (!openToolbar()) return "toolbar_unavailable";
+        if (!openToolbar()) return "client".equals(rootKind) ? "toolbar_unavailable" : "client_root_unavailable";
         long deadline = android.os.SystemClock.elapsedRealtime() + 3000;
         do {
             snapshot();
