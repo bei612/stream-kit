@@ -25,7 +25,7 @@ public final class MicrophoneCaptureActivity extends Activity {
     private static final int WINDOWS = 50;
 
     private final CountDownLatch foreground = new CountDownLatch(1);
-    private final CountDownLatch destroyed = new CountDownLatch(1);
+    private final CountDownLatch stopped = new CountDownLatch(1);
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -39,9 +39,9 @@ public final class MicrophoneCaptureActivity extends Activity {
         if (focused) foreground.countDown();
     }
 
-    @Override protected void onDestroy() {
-        super.onDestroy();
-        destroyed.countDown();
+    @Override protected void onStop() {
+        super.onStop();
+        stopped.countDown();
     }
 
     static Bundle measure(Instrumentation observer) {
@@ -54,6 +54,9 @@ public final class MicrophoneCaptureActivity extends Activity {
             if (!activity.foreground.await(3, TimeUnit.SECONDS))
                 throw new IllegalStateException("Capture Activity did not reach the foreground");
             Bundle measurement = capture(observer);
+            Bundle released = new Bundle();
+            released.putString("mic_control_stage", "audio_record_released");
+            observer.sendStatus(2, released);
             close(observer, activity);
             measurement.putString("mic_control_released", "true");
             return measurement;
@@ -61,14 +64,14 @@ public final class MicrophoneCaptureActivity extends Activity {
             Thread.currentThread().interrupt();
             throw new IllegalStateException(interrupted);
         } finally {
-            if (activity.destroyed.getCount() != 0) finish(observer, activity);
+            if (activity.stopped.getCount() != 0) finish(observer, activity);
         }
     }
 
     private static void close(Instrumentation observer, MicrophoneCaptureActivity activity) throws InterruptedException {
         finish(observer, activity);
-        if (!activity.destroyed.await(3, TimeUnit.SECONDS))
-            throw new IllegalStateException("Capture Activity did not finish");
+        if (!activity.stopped.await(3, TimeUnit.SECONDS))
+            throw new IllegalStateException("Capture Activity remained in the foreground");
     }
 
     private static void finish(Instrumentation observer, final MicrophoneCaptureActivity activity) {

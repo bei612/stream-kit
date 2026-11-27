@@ -34,6 +34,8 @@ Linux 官方 Android Emulator `37.3.10` 的独立前台 AudioRecord 复核确认
 
 以独立 PulseAudio 虚拟监听源供音，已经核对模拟器实际读取、独立探针退出和路由恢复。前台录音 240,000 帧中有 5/50 个窗口检出足够强的测试音，中位值为零。该次独立系统播放通过，但签名候选产品的 Android 播放以及目标录音和 Web 回传仍未通过。[独立虚拟音源联验](https://github.com/bei612/stream-kit/actions/runs/45960235877)
 
+追加宿主监听已证实同一个虚拟源的输入连续存在，宿主端 30/30 个窗口达标，中位振幅 0.126。Android 36 前台独立录音同步采到 240,000 帧，但只有 7/50 个窗口达标。观测到的持续性丢失位于宿主 PulseAudio 源和 Android 本地采集之间，尚未形成该环境的产品回传通过证据。[宿主和 Android 同步测量](https://github.com/bei612/stream-kit/actions/runs/45961647160)
+
 本机旧部署的固定主机名 `volcengine.local` 已用同机 Playwright CLI 验证原 CA 下的管理入口、网关和 Example 永久链接，共解码 37 帧，随后正常停止 Example。记录只覆盖本机固定主机名入口。实体 Android 对该名字和换址后串流的现场确认另行记录。
 
 本机 Windows 三个运行组件及实体平板已更新至候选 `53c7385a`，保持原应用、CA、配置与平板书签。单安装器、静默安装、服务自动恢复和卸载已经在 Windows Server 2022 CI 通过。实装 Win11 与平板、Web 的共享画面、程序音、控制权交接及平板麦克风至目标录音端点和 Web 观众均已验证。当前仍需独立 Win11 首装与实际回退、现场 LAN 换址、完整输入撤权验收和依赖剩余项处理。见[同源实装与联验](evidence/windows11-android-joint-53c7385a.json)、[安装器验收](https://github.com/bei612/stream-kit/actions/runs/45806470686)。
