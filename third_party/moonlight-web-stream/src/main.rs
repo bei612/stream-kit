@@ -46,6 +46,7 @@ mod configuration;
 mod human_json;
 mod node_identity;
 mod shutdown;
+mod signaling;
 mod tls;
 mod virtual_audio;
 
@@ -402,6 +403,7 @@ async fn serve(
                 )
         }
     })
+    .on_connect(signaling::record_local_address)
     .shutdown_signal(shutdown)
     // Persistent media sockets must not consume the worker's entire stop
     // budget. Reserve time for native audio detach after HTTP workers drain.

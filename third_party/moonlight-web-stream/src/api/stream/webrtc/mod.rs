@@ -36,7 +36,6 @@ use rtc::rtp_transceiver::rtp_sender::{
     RTCPFeedback, RTCRtpCodec, RTCRtpCodecParameters, RTCRtpHeaderExtensionCapability, RtpCodecKind,
 };
 use std::collections::HashMap;
-use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::{
     Arc, Mutex,
     atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -268,7 +267,7 @@ impl PeerConnectionEventHandler for WebRtcHandler {
 pub async fn webrtc_post(
     app: Data<App>,
     mut access: StreamAccess,
-    _req: HttpRequest,
+    request: HttpRequest,
     session_description: String,
 ) -> Result<HttpResponse, AppError> {
     debug!("received webrtc offer");
@@ -366,7 +365,15 @@ pub async fn webrtc_post(
     )
     .expect("register default interceptors");
 
-    let local_addrs = vec![SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 0)];
+    // For direct managed connections the TCP socket identifies the interface
+    // the viewer was able to reach. Explicit NAT mappings own their bind policy.
+    let ingress =
+        if matches!(&access, StreamAccess::Managed(_)) && app.config().webrtc.nat_1to1.is_none() {
+            request.conn_data()
+        } else {
+            None
+        };
+    let udp_address = crate::signaling::LocalAddress::media_bind_address(ingress);
 
     // Initialize senders and receivers for events
     let (on_data_channel_sender, on_data_channel) =
@@ -393,7 +400,7 @@ pub async fn webrtc_post(
         .with_media_engine(media_engine)
         .with_interceptor_registry(interceptor_registry)
         .with_setting_engine(setting_engine.build())
-        .with_udp_addrs(local_addrs)
+        .with_udp_addrs(vec![udp_address])
         .with_handler(handler.clone())
         .with_configuration(
             RTCConfigurationBuilder::default()

@@ -26,6 +26,7 @@ async-trait = "0.1.92"
 
 # Http Server
 actix-web = { version = "4.20.0", features = ["rustls-0_23"] }
+actix-tls = { version = "3.5.0", default-features = false, features = ["accept", "rustls-0_23"] }
 rustls = { version = "0.23.46", default-features = false, features = [
     "std",
     "ring",
