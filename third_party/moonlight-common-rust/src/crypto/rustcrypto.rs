@@ -12,26 +12,24 @@ use aes::{
         generic_array::GenericArray, inout::PadError,
     },
 };
-use der::Decode;
 use pem::Pem;
-use pkcs8::{DecodePrivateKey, EncodePrivateKey, SubjectPublicKeyInfo, der::Encode};
-use rand_v8::RngCore;
 use rsa::{
-    RsaPrivateKey, RsaPublicKey,
+    PrivateKey, PublicKey,
     pkcs1v15::{Signature, SigningKey, VerifyingKey},
-    rand_core::OsRng,
+    pkcs8::{self, DecodePrivateKey, EncodePrivateKey},
+    sha2::Sha256,
+    signature::{self, SignatureEncoding, Signer, Verifier},
 };
 use sha1::{Digest, Sha1};
-use sha2::Sha256;
-use signature::{SignatureEncoding, Signer, Verifier};
-use spki::DecodePublicKey;
 use thiserror::Error;
 use tracing::{Level, instrument, trace};
 use x509_cert::{
-    Certificate,
-    builder::{Builder, CertificateBuilder, Profile},
+    Certificate, SubjectPublicKeyInfo,
+    builder::{Builder, CertificateBuilder, profile::cabf::Root},
+    der::{self, Decode, Encode},
     name::Name,
     serial_number::SerialNumber,
+    spki::{self, DecodePublicKey},
     time::Validity,
 };
 
@@ -46,7 +44,7 @@ use crate::{
 #[derive(Debug, Error)]
 pub enum RustCryptoError {
     #[error("rand: {0}")]
-    Rand(#[from] rand_v8::Error),
+    Rand(#[from] getrandom::Error),
     #[error("certificate builder: {0}")]
     CertificateBuilder(#[from] x509_cert::builder::Error),
     #[error("rsa: {0}")]
@@ -84,10 +82,6 @@ impl From<RustCryptoError> for Error {
 #[derive(Debug, Clone)]
 pub struct RustCryptoBackend;
 
-fn secure_rng() -> Result<OsRng, RustCryptoError> {
-    Ok(OsRng)
-}
-
 impl PairingCryptoBackend for RustCryptoBackend {
     #[cfg_attr(not(feature = "__tracing_sensitive"), instrument(level = Level::TRACE, skip_all, err))]
     #[cfg_attr(feature = "__tracing_sensitive", instrument(level = Level::TRACE, skip(self, output), ret, err))]
@@ -111,7 +105,7 @@ impl PairingCryptoBackend for RustCryptoBackend {
     #[cfg_attr(not(feature = "__tracing_sensitive"), instrument(level = Level::TRACE, skip_all, err))]
     #[cfg_attr(feature = "__tracing_sensitive", instrument(level = Level::TRACE, skip(self, data), ret, err))]
     fn random_bytes(&self, data: &mut [u8]) -> Result<(), Error> {
-        secure_rng()?.try_fill_bytes(data).map_err(err)?;
+        getrandom::fill(data).map_err(err)?;
 
         trace!(data = ?data);
 
@@ -122,7 +116,7 @@ impl PairingCryptoBackend for RustCryptoBackend {
     #[cfg_attr(feature = "__tracing_sensitive", instrument(level = Level::TRACE, skip(self), ret, err))]
     fn generate_client_identity(&self) -> Result<(ClientIdentifier, ClientSecret), Error> {
         // Generate Private Key
-        let private_key = RsaPrivateKey::new(&mut secure_rng()?, 2048).map_err(err)?;
+        let private_key = PrivateKey::new(&mut getrandom::SysRng, 2048).map_err(err)?;
         let private_key_der = private_key.to_pkcs8_der().map_err(err)?;
         let private_key_pem = Pem::new("PRIVATE KEY", private_key_der.as_bytes());
 
@@ -131,24 +125,20 @@ impl PairingCryptoBackend for RustCryptoBackend {
 
         let serial_number = SerialNumber::from(1u32);
         let validity = Validity::from_now(Duration::from_secs(60 * 60 * 24 * 365)).map_err(err)?;
-        // This is a valid subject
-        #[allow(clippy::unwrap_used)]
-        let subject =
-            Name::from_str("C=US,ST=CA,L=San Francisco,O=Example Corp,CN=example.com").unwrap();
-        let subject_public_key_info = SubjectPublicKeyInfo::from_key(public_key).map_err(err)?;
+        let subject = Name::from_str("CN=example.com,O=Example Corp,L=San Francisco,ST=CA,C=US")
+            .map_err(err)?;
+        let subject_public_key_info = SubjectPublicKeyInfo::from_key(&public_key).map_err(err)?;
 
         let cert_signer = SigningKey::<Sha256>::new(private_key);
 
         let certificate = CertificateBuilder::new(
-            Profile::Root,
+            Root::new(false, subject).map_err(err)?,
             serial_number,
             validity,
-            subject,
             subject_public_key_info,
-            &cert_signer,
         )
         .map_err(err)?
-        .build()
+        .build(&cert_signer)
         .map_err(err)?;
 
         let certificate_der = certificate.to_der().map_err(err)?;
@@ -207,7 +197,7 @@ impl PairingCryptoBackend for RustCryptoBackend {
             Certificate::from_der(client_certificate.to_pem().contents()).map_err(err)?;
 
         Ok(client_certificate
-            .signature
+            .signature()
             .as_bytes()
             .ok_or(RustCryptoError::InvalidBitStringSignature)?
             .to_vec())
@@ -220,7 +210,7 @@ impl PairingCryptoBackend for RustCryptoBackend {
             Certificate::from_der(server_certificate.to_pem().contents()).map_err(err)?;
 
         Ok(server_certificate
-            .signature
+            .signature()
             .as_bytes()
             .ok_or(RustCryptoError::InvalidBitStringSignature)?
             .to_vec())
@@ -237,10 +227,10 @@ impl PairingCryptoBackend for RustCryptoBackend {
         let certificate =
             Certificate::from_der(server_identifier.to_pem().contents()).map_err(err)?;
 
-        let spki = certificate.tbs_certificate.subject_public_key_info;
+        let spki = certificate.tbs_certificate().subject_public_key_info();
 
         let public_key =
-            RsaPublicKey::from_public_key_der(&spki.to_der().map_err(err)?).map_err(err)?;
+            PublicKey::from_public_key_der(&spki.to_der().map_err(err)?).map_err(err)?;
 
         let verifying_key = VerifyingKey::<Sha256>::new(public_key);
 
@@ -256,11 +246,11 @@ impl PairingCryptoBackend for RustCryptoBackend {
     #[cfg_attr(feature = "__tracing_sensitive", instrument(level = Level::TRACE, skip(self), ret, err))]
     fn sign_data(&self, private_key: &ClientSecret, data: &[u8]) -> Result<Vec<u8>, Error> {
         let private_key =
-            RsaPrivateKey::from_pkcs8_der(private_key.to_pem().contents()).map_err(err)?;
+            PrivateKey::from_pkcs8_der(private_key.to_pem().contents()).map_err(err)?;
 
         let signing_key = SigningKey::<Sha256>::new(private_key);
 
-        let signature = signing_key.sign(data);
+        let signature = signing_key.try_sign(data).map_err(err)?;
 
         Ok(signature.to_vec())
     }
