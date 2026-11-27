@@ -407,6 +407,21 @@
       "emulator_stopped": true,
       "private_avd_removed": true,
       "scope": "Signed APK installation and base.apk verification after independent AudioRecord qualification, without opening a watch link or connecting to the installed Windows service."
+    },
+    "isolated_candidate_stream_attempt": {
+      "passed": false,
+      "android_api_level": 36,
+      "guest_windows_above_threshold": 49,
+      "guest_windows_total": 50,
+      "release_apk_installed_and_verified": true,
+      "disposable_guest_ca_verified": true,
+      "windows_runtime_source": "ce49050f4dfcbd1e22d9d4f22093f6b965e6aac8",
+      "failure_stage": "POST /api/v1/stream-invitations returned 500 before client admission",
+      "underlying_error": "The Windows orchestrator rejected the independently generated local gateway CA as an unknown authority. No Windows trust store was changed.",
+      "product_stream_media_entered": false,
+      "owned_emulator_stopped": true,
+      "private_avd_removed": true,
+      "finished_at_utc": "2026-11-27T09:27:12.110Z"
     }
   },
   "lan_migration": {

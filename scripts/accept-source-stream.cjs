@@ -31,8 +31,9 @@ assert.ok(!managedEncoder||serviceControl||process.argv.includes('--edit-encoder
 const scratchParent = path.join(root, '.local');
 fs.mkdirSync(scratchParent, {recursive:true});
 const scratch = fs.mkdtempSync(path.join(scratchParent, 'source-stream-'));
-const output = path.join(root, 'artifacts/source-stream', new Date().toISOString().replace(/[:.]/g, '-'));
-fs.mkdirSync(output, { recursive:true });
+const output = process.argv.includes('--report-dir') ? path.resolve(option('--report-dir'))
+  : path.join(root, 'artifacts/source-stream', new Date().toISOString().replace(/[:.]/g, '-'));
+fs.mkdirSync(output, {recursive: !process.argv.includes('--report-dir')});
 const sha = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 const result = { passed:false, scope:'Source-built Sunshine program capture, shared native gateway and browser acceptance',
   encoder_sha256:sha(encoder), gateway_sha256:sha(gateway), control_sha256:sha(control), example_sha256:sha(example), scratch };

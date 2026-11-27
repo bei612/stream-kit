@@ -7,13 +7,22 @@ const grpc = require('../android/emulator-audio/node_modules/@grpc/grpc-js');
 const loader = require('../android/emulator-audio/node_modules/@grpc/proto-loader');
 const { assertContinuousInjection } = require('./emulator-audio-evidence.cjs');
 const { configureMicrophoneSource } = require('./emulator-microphone-source.cjs');
+const { observeEmulatorPlayout } = require('../android/emulator-playout-observation.cjs');
 
 async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, app, example, audioProbe, captureDevice, grpcConfig, report, save }) {
-  assert.equal(process.platform, 'linux'); assert.equal(process.env.GITHUB_ACTIONS, 'true');
+  const windows = process.platform === 'win32';
+  if (windows) {
+    assert.equal(serial, 'emulator-5582');
+    assert.equal(process.env.STREAM_KIT_AUDIO_MICROPHONE_SOURCE, 'emulator-rpc');
+  } else {
+    assert.equal(process.platform, 'linux');
+    assert.equal(process.env.GITHUB_ACTIONS, 'true');
+  }
   const state = report.android_audio = { passed: false, synthetic_source: true, physical_speech: false,
     scope: 'Published default-settings APK: actual application 997Hz to Android/Web, Android 1499Hz to native recorder/Web, continuous injection across revocation; no speech quality or physical device claim' }; save();
   const config = JSON.parse(fs.readFileSync(grpcConfig, 'utf8'));
   assert.match(config.address, /^127\.0\.0\.1:[0-9]+$/); assert.ok(config.token?.length > 16);
+  if (windows) assert.equal(config.address, '127.0.0.1:8556');
   const emulatorDir = process.env.STREAM_KIT_AUDIO_EMULATOR_DIR;
   const proto = grpc.loadPackageDefinition(loader.loadSync(path.join(emulatorDir, 'lib/emulator_controller.proto'), { longs: String, defaults: true }));
   const client = new proto.android.emulation.control.EmulatorController(config.address, grpc.credentials.createInsecure());
@@ -23,6 +32,7 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
   const until = async (read, check, label, timeout = 20000) => { const end = Date.now()+timeout; while (Date.now()<end) { const value = await read(); if (check(value)) return value; await delay(100); } throw Error('Android audio timeout: ' + label); };
   const current = () => api('/stream-sessions/' + sessionId);
   const run = args => { try { return cp.execFileSync(adb, ['-s', serial, ...args], { encoding: 'utf8', timeout: 15000, stdio: ['ignore','pipe','pipe'] }); } catch { throw Error('Official AVD UI command failed'); } };
+  if (windows) assert.equal(run(['emu','avd','name']).split(/\r?\n/)[0].trim(), 'StreamKit_AudioFixture');
   const metadataCommand=(executable,args)=>new Promise(resolve=>{
     const started=Date.now();cp.execFile(executable,args,{encoding:'utf8',timeout:5000,maxBuffer:512*1024},(error,output)=>resolve({started_at_ms:started,finished_at_ms:Date.now(),...(error?{error_code:error.code||'command_failed'}:{output})}));
   });
@@ -189,17 +199,8 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     state[phase] = { started_at_ms:started, stopped_at_ms:stopped, injection_packets_at_start:packetsAtStart, injection_packets_at_stop:packetsAtStop, signal, program_997: foreign, envelope, status }; save();
     if(measurementError)throw measurementError;return signal;
   };
-  let injection, native, input, monitor;
   const source = { packets: 0, senderEnded: false, transportEnded: false, error: undefined };
-  try {
-    await unary('setMicrophoneState', { realAudioEnabled: false });
-    assert.equal((await unary('getMicrophoneState', {})).realAudioEnabled, false); state.host_microphone_forwarding = false;
-    // A fresh disposable AVD has no viewer preference override. Grant only the
-    // ordinary OS permission; the actual UI still initiates microphone capture.
-    run(['shell','pm','grant','io.github.bei612.streamkit','android.permission.RECORD_AUDIO']);
-    const session = await current(), web = await page.evaluate(() => window.app.getStream().mediaAccess.connectionId);
-    const ids = Object.keys(session.connections); assert.equal(ids.length, 2); native = ids.find(id => id !== web); assert.ok(native); assert.ok(!session.controller_connection_id);
-    state.default_processing = { device_id: '', echoCancellation: true, noiseSuppression: true, autoGainControl: true, source: 'Fresh AVD; no preference writes or processing overrides' };
+  const linuxPlayout = async () => {
     const log = path.join(app.app_dir, 'output.log');
     const ownership = await until(() => fs.existsSync(log) ? fs.readFileSync(log,'utf8').split(/\r?\n/).flatMap(line => { try { const entry=JSON.parse(line); return entry.type==='stream-kit-audio-program'?[entry]:[]; } catch { return []; } }) : [], value => value.length===1, 'audio program ownership');
     const owned = ownership[0]; assert.equal(fs.realpathSync('/proc/'+owned.process_id+'/exe'), fs.realpathSync(example));
@@ -247,8 +248,7 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     catch(error){state.emulator_audio_backend.status='failed';state.emulator_audio_backend.error=error.message;state.emulator_audio_backend.failed_at_ms=Date.now();save();throw error;}
     state.emulator_audio_backend.status='verified_real_pulse_output';state.emulator_audio_backend.verified_at_ms=Date.now();save();
     await playbackMetadata('before_recording');
-    state.observer = await prepareObserver(); save();
-    const captureAndroidPlayout=async()=>{
+    return async () => {
       const androidCaptureDevice='pulseaudio:streamkit_android_capture';
       const devices=await command('devices');
       assert.ok(devices.devices.some(device=>device.id===androidCaptureDevice&&device.input),'Dedicated Android playout capture endpoint is unavailable');
@@ -295,6 +295,35 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
       state.android_program_997_median=playout.signal.median_amplitude;save();
       return state.android_program_997_median>0.01;
     };
+  };
+  async function windowsPlayout() {
+    const stop = observeEmulatorPlayout(client, metadata);
+    let measurement;
+    try { await delay(5000); }
+    finally { measurement = await stop(); }
+    state.android_playout = {
+      source: measurement.source,
+      frames: measurement.frames,
+      median_program_amplitude: measurement.median_amplitude,
+      rpc_error_code: measurement.rpc_error_code,
+      failure: measurement.failure,
+      pcm_saved: measurement.pcm_saved,
+    };
+    save();
+    return !measurement.failure && measurement.rpc_error_code === null
+      && measurement.frames >= 192000 && measurement.median_amplitude > 0.01;
+  }
+  let injection, native, input, monitor;
+  try {
+    await unary('setMicrophoneState', { realAudioEnabled: false });
+    assert.equal((await unary('getMicrophoneState', {})).realAudioEnabled, false); state.host_microphone_forwarding = false;
+    // The product uses the normal permission and toolbar in the fresh guest.
+    run(['shell','pm','grant','io.github.bei612.streamkit','android.permission.RECORD_AUDIO']);
+    const session = await current(), web = await page.evaluate(() => window.app.getStream().mediaAccess.connectionId);
+    const ids = Object.keys(session.connections); assert.equal(ids.length, 2); native = ids.find(id => id !== web); assert.ok(native); assert.ok(!session.controller_connection_id);
+    state.default_processing = { device_id: '', echoCancellation: true, noiseSuppression: true, autoGainControl: true, source: 'Fresh AVD; no preference writes or processing overrides' };
+    const captureAndroidPlayout = windows ? windowsPlayout : await linuxPlayout();
+    state.observer = await prepareObserver(); save();
     // Join both real observers even if one fails, so capture cleanup and all
     // failure evidence finish before the graph or probe can be closed.
     const programResults=await Promise.allSettled([captureAndroidPlayout(),measureWebProgram()]);
@@ -347,7 +376,8 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     assert.ok(state.android_program_signal_observed,'Android playout missing sustained 997Hz program');
     state.passed=true;save();
   } catch(error) {
-    await playbackMetadata('failure');throw error;
+    if (!windows) await playbackMetadata('failure');
+    throw error;
   } finally {
     if (injection) await injection.cancel();
     if (monitor && !state.host_monitor) { state.host_monitor=await monitor;save(); }

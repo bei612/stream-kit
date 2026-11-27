@@ -11,11 +11,13 @@ const os = require('node:os');
 const path = require('node:path');
 const {promisify, parseArgs} = require('node:util');
 const {setTimeout: delay} = require('node:timers/promises');
+const {startAudioProbe} = require('../lib/audio-probe.cjs');
 
 const exec = promisify(execFile);
 const {values: args} = parseArgs({options: {
   observer: {type: 'string'}, output: {type: 'string'}, 'emulator-dir': {type: 'string'},
   'candidate-directory': {type: 'string'}, 'source-commit': {type: 'string'},
+  'stream-config': {type: 'string'},
 }});
 assert.equal(process.platform, 'win32');
 assert.ok(args.observer && args.output);
@@ -25,6 +27,7 @@ const emulator = path.join(emulatorDir, 'emulator.exe');
 const adb = path.join(sdk, 'platform-tools/adb.exe');
 const candidateRoot = args['candidate-directory'] && path.resolve(args['candidate-directory']);
 assert.equal(Boolean(candidateRoot), Boolean(args['source-commit']));
+assert.ok(!args['stream-config'] || candidateRoot);
 const avd = candidateRoot ? 'StreamKit_AudioFixture' : 'StreamKit_API_36';
 const serial = 'emulator-5582', controlPort = 8556;
 const observer = 'io.github.bei612.streamkit.inputobserver';
@@ -139,10 +142,121 @@ async function installSignedCandidate(environment) {
     source_commit: provenance.source_commit, apk_sha256: digest, release_signer_verified: true, watch_link_opened: false};
 }
 
+async function awaitGuestUser(uid, command) {
+  await guest(command).catch(() => '');
+  const end = Date.now() + 40000;
+  do {
+    const response = await guest('shell','id','-u').catch(() => '');
+    if (response.trim() === uid) return;
+    await delay(200);
+  } while (Date.now() < end);
+  throw Error('Isolated Android guest did not acquire the requested adb identity');
+}
+
+async function prepareStreamTrust(tlsDirectory, openssl) {
+  const file = name => path.join(tlsDirectory,name);
+  const opensslRun = (...parameters) => run(openssl, parameters, 20000);
+  await opensslRun('req','-x509','-newkey','rsa:2048','-nodes','-sha256','-days','35',
+    '-subj','/CN=Stream Kit Windows acceptance CA','-addext','basicConstraints=critical,CA:TRUE',
+    '-addext','keyUsage=critical,keyCertSign,cRLSign','-keyout',file('ca.key'),'-out',file('ca.crt'));
+  await opensslRun('req','-new','-newkey','rsa:2048','-nodes','-subj','/CN=Stream Kit Windows acceptance',
+    '-keyout',file('server.key'),'-out',file('server.csr'));
+  fs.writeFileSync(file('leaf.ext'), [
+    'basicConstraints=critical,CA:FALSE','keyUsage=critical,digitalSignature,keyEncipherment',
+    'extendedKeyUsage=serverAuth','subjectAltName=IP:127.0.0.1,IP:10.0.2.2,DNS:localhost',
+  ].join('\n')+'\n');
+  await opensslRun('x509','-req','-in',file('server.csr'),'-CA',file('ca.crt'),'-CAkey',file('ca.key'),
+    '-CAcreateserial','-days','1','-sha256','-extfile',file('leaf.ext'),'-out',file('server.crt'));
+  await opensslRun('verify','-CAfile',file('ca.crt'),file('server.crt'));
+  const hash = (await opensslRun('x509','-in',file('ca.crt'),'-subject_hash_old','-noout')).trim();
+  assert.match(hash,/^[a-f0-9]{8}$/);
+  await awaitGuestUser('0','root');
+  try {
+    assert.equal((await guest('shell','am','get-current-user')).trim(),'0');
+    const store = '/data/misc/user/0/cacerts-added';
+    await guest('shell','mkdir','-p',store);
+    await guest('shell','chown','system:system',store);
+    await guest('shell','chmod','755',store);
+    const entry = `${store}/${hash}.0`;
+    await guest('push',file('ca.crt'),entry);
+    await guest('shell','chown','system:system',entry);
+    await guest('shell','chmod','644',entry);
+    await guest('shell','restorecon','-R',store);
+    const digest = createHash('sha256').update(fs.readFileSync(file('ca.crt'))).digest('hex');
+    assert.equal((await guest('shell','sha256sum',entry)).split(/\s/)[0],digest);
+    summary.private_guest_ca_verified = true;
+  } finally { await awaitGuestUser('2000','unroot'); }
+}
+
+async function qualifyStream(configFile, tlsDirectory) {
+  const config = JSON.parse(fs.readFileSync(args['stream-config'],'utf8'));
+  const platform = fs.realpathSync(config.platform_directory);
+  const manifest = JSON.parse(fs.readFileSync(path.join(platform,'platform-manifest.json'),'utf8'));
+  assert.equal(manifest.platform,'windows');
+  assert.equal(manifest.commit,summary.candidate.source_commit);
+  assert.equal(manifest.release_version,summary.candidate.version);
+  const component = relative => {
+    const file = path.join(platform,relative);
+    const entry = manifest.files.find(item=>item.path===relative);
+    assert.ok(entry);
+    assert.equal(createHash('sha256').update(fs.readFileSync(file)).digest('hex'),entry.sha256);
+    return file;
+  };
+  for (const entry of manifest.files.filter(item=>item.path.startsWith('media-gateway/dist/'))) {
+    component(entry.path);
+  }
+  const endpoints = startAudioProbe(path.resolve(config.audio_probe));
+  let route;
+  try {
+    const reply = await endpoints.command('devices');
+    assert.ok(reply.data?.devices);
+    const virtual = reply.data.devices.filter(device=>device.name.includes('Stream Kit Virtual Audio'));
+    const capture = virtual.filter(device=>device.input);
+    const render = virtual.filter(device=>device.output);
+    const program = reply.data.devices.filter(device=>device.output && device.name === config.program_output);
+    assert.equal(capture.length,1);
+    assert.equal(render.length,1);
+    assert.equal(program.length,1);
+    assert.notEqual(program[0].id,render[0].id);
+    route = {capture:capture[0].id,render:render[0].id,program:program[0].id};
+  } finally { await endpoints.close(); }
+  await prepareStreamTrust(tlsDirectory,path.resolve(config.openssl));
+  await guest('shell','input','keyevent','KEYCODE_WAKEUP');
+  await guest('shell','wm','dismiss-keyguard');
+  const reportDirectory = path.join(output,'stream');
+  const argv = [path.resolve(__dirname,'../accept-source-stream.cjs'),
+    '--sunshine',component('sunshine/sunshine.exe'), '--orchestrator',component('orchestrator/orchestrator.exe'),
+    '--gateway',component('media-gateway/web-server.exe'), '--web-assets',path.join(platform,'media-gateway/dist'),
+    '--example',path.resolve(config.example), '--example-output',route.program,
+    '--audio-probe',path.resolve(config.audio_probe), '--target-render-device',route.render, '--target-capture-device',route.capture,
+    '--android-audio','--android-serial',serial,'--android-adb',adb,'--android-grpc-config',configFile,
+    '--tls-dir',tlsDirectory,'--hold-seconds','0','--clients','2','--report-dir',reportDirectory];
+  const environment = {...process.env, NODE_EXTRA_CA_CERTS:path.join(tlsDirectory,'ca.crt'),
+    STREAM_KIT_AUDIO_EMULATOR_DIR:emulatorDir, STREAM_KIT_AUDIO_MICROPHONE_SOURCE:'emulator-rpc'};
+  const log = fs.openSync(path.join(output,'stream-runner.log'),'wx');
+  let child;
+  try { child = spawn(process.execPath,argv,{stdio:['ignore',log,log],windowsHide:true,env:environment}); }
+  finally { fs.closeSync(log); }
+  const stopped = new Promise(resolve=>{
+    child.once('error',()=>resolve(null));
+    child.once('close',resolve);
+  });
+  const expired = Symbol('timeout');
+  const exit = await Promise.race([stopped,delay(240000,expired,{ref:false})]);
+  if (exit === expired && child.exitCode === null) {
+    await run(path.join(process.env.SystemRoot,'System32/taskkill.exe'),['/PID',String(child.pid),'/T','/F']);
+    await stopped;
+  }
+  const report = path.join(reportDirectory,'browser/result.json');
+  summary.product_stream = {passed:exit===0 && fs.existsSync(report) && JSON.parse(fs.readFileSync(report,'utf8')).passed===true,
+    report:fs.existsSync(report) ? 'stream/browser/result.json' : null};
+  return summary.product_stream.passed;
+}
+
 async function main() {
   fs.mkdirSync(output);
   const configFile = path.join(output, 'emulator-control.private.json');
-  let child, closed, ownedGuest = false, privateAvd;
+  let child, closed, ownedGuest = false, privateAvd, tlsDirectory;
   try {
     const environment = {...process.env, ANDROID_HOME: sdk, ANDROID_SDK_ROOT: sdk};
     if (candidateRoot) {
@@ -217,6 +331,12 @@ async function main() {
       await installSignedCandidate(environment);
     }
     summary.passed = summary.microphone.passed;
+    if (summary.passed && args['stream-config']) {
+      summary.phase = 'product_stream';
+      summary.passed = false;
+      tlsDirectory = fs.mkdtempSync(path.join(output,'tls-'));
+      summary.passed = await qualifyStream(configFile,tlsDirectory);
+    }
   } catch (error) {
     summary.failure = 'WINDOWS_FIXTURE_DID_NOT_COMPLETE';
     if (/^(?:[A-Z_0-9-]+)$/.test(String(error.code || ''))) summary.error_code = error.code;
@@ -239,15 +359,17 @@ async function main() {
     summary.emulator_stopped = (!child || child.exitCode !== null || child.signalCode !== null)
       && remainingGuest.split(/\r?\n/)[0].trim() !== avd;
     if (!summary.emulator_stopped) summary.passed = false;
-    if (candidateRoot && privateAvd && summary.emulator_stopped) {
+    for (const [folder,prefix,result] of [[tlsDirectory,'tls','private_tls_removed'],
+      [summary.emulator_stopped && privateAvd,'avd','private_avd_removed']]) {
+      if (!folder) continue;
       try {
-        const resolved = fs.realpathSync(privateAvd);
+        const resolved = fs.realpathSync(folder);
         assert.equal(path.dirname(resolved), fs.realpathSync(output));
-        assert.match(path.basename(resolved), /^avd-[A-Za-z0-9]+$/);
+        assert.match(path.basename(resolved), new RegExp(`^${prefix}-[A-Za-z0-9]+$`));
         fs.rmSync(resolved, {recursive: true, maxRetries: 3});
-        summary.private_avd_removed = true;
+        summary[result] = true;
       } catch {
-        summary.private_avd_removed = false;
+        summary[result] = false;
         summary.passed = false;
       }
     }

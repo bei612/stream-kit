@@ -43,6 +43,7 @@ const applicationExample = process.argv.includes('--example') ? argument('--exam
 const verifyInput = process.argv.includes('--verify-input');
 const verifyNativeExit = process.argv.includes('--verify-native-exit');
 const androidAudio = process.argv.includes('--android-audio');
+const windowsAndroidAudio = androidAudio && process.platform === 'win32';
 const androidSerial = process.argv.includes('--android-serial') ? process.argv[process.argv.indexOf('--android-serial')+1] : null;
 const tlsDirectory = process.argv.includes('--tls-dir') ? argument('--tls-dir') : null;
 const androidAdb = process.argv.includes('--android-adb') ? argument('--android-adb') : 'adb';
@@ -112,7 +113,14 @@ assert.ok(Number.isInteger(clientCount) && clientCount >= 2 && clientCount <= 20
 assert.ok(Number.isInteger(holdSeconds) && holdSeconds >= 0 && holdSeconds <= 86400);
 assert.ok(!verifyInput || (['win32','linux'].includes(process.platform) && applicationExample && clientCount===2 && holdSeconds===0 && !microphoneTest && !restartServices && !applyManagedEncoder && !applyManagedGateway && !serviceControl), 'Input acceptance requires an isolated two-viewer native application case without other acceptance modes');
 assert.ok(!androidSerial || ((verifyInput || androidAudio) && tlsDirectory), 'Android acceptance requires trusted native HTTPS and an explicit mode');
-assert.ok(!androidAudio || (androidSerial && !verifyInput && !microphoneTest && targetRecording && applicationExample && holdSeconds === 0 && clientCount === 2 && process.platform === 'linux' && !restartServices && !serviceControl && !targetSwitch && !remoteTarget && !stopActive && !applyManagedEncoder && !applyManagedGateway && !expireClientLease && !ue5Build && !process.argv.includes('--edit-gateway-configuration') && !process.argv.includes('--edit-encoder-configuration')), 'Android audio requires an isolated Linux target/recorder, two clients, and no other input, microphone, configuration or recovery case');
+assert.ok(!androidAudio || (androidSerial && !verifyInput && !microphoneTest && targetRecording && applicationExample && holdSeconds === 0 && clientCount === 2 && ['linux','win32'].includes(process.platform) && !restartServices && !serviceControl && !targetSwitch && !remoteTarget && !stopActive && !applyManagedEncoder && !applyManagedGateway && !expireClientLease && !ue5Build && !process.argv.includes('--edit-gateway-configuration') && !process.argv.includes('--edit-encoder-configuration')), 'Android audio requires an isolated native target/recorder, two clients, and no other input, microphone, configuration or recovery case');
+if (windowsAndroidAudio) {
+  assert.equal(androidSerial, 'emulator-5582');
+  assert.equal(engine, 'chromium');
+  assert.equal(execFileSync(androidAdb, ['-s',androidSerial,'emu','avd','name'], {
+    encoding:'utf8', timeout:3000, windowsHide:true,
+  }).split(/\r?\n/)[0].trim(), 'StreamKit_AudioFixture');
+}
 assert.ok(!verifyNativeExit || (process.platform === 'linux' && applicationExample && !verifyInput && !androidSerial && !microphoneTest && !targetRecording && !restartServices && !serviceControl && !targetSwitch && !remoteTarget && !stopActive && !applyManagedEncoder && !applyManagedGateway && !expireClientLease && !ue5Build && clientCount === 2 && holdSeconds === 0 && !process.argv.includes('--edit-gateway-configuration') && !process.argv.includes('--edit-encoder-configuration')), 'Native exit requires an isolated Linux X11 target, two real Web viewers, and no other acceptance modes');
 assert.ok(!managementLiveCLI || (applicationExample && tlsDirectory && clientCount===2 && holdSeconds===0), 'Management CLI mode requires its owned X11 application, trusted TLS, two viewers and no hold test');
 assert.ok(programToneCount<=30000,'Example tone budget must cover startup and the full hold interval');
@@ -272,7 +280,17 @@ async function main() {
       max_extract_size_bytes: 10485760, max_file_count: 1000 },
     process: { monitor_interval_seconds: 2, graceful_shutdown_timeout_seconds: 5 },
     log: { level: 'info', file: { enabled: false }, access_log: { enabled: false } } };
-  if(tlsDirectory){controlConfig.server.tls_cert=path.join(tlsDirectory,'server.crt');controlConfig.server.tls_key=path.join(tlsDirectory,'server.key');}
+  if (tlsDirectory) {
+    controlConfig.server.tls_cert = path.join(tlsDirectory,'server.crt');
+    controlConfig.server.tls_key = path.join(tlsDirectory,'server.key');
+    if (windowsAndroidAudio) {
+      controlConfig.server.lan_tls = {
+        ca_cert: path.join(tlsDirectory,'ca.crt'),
+        ca_key: path.join(tlsDirectory,'ca.key'),
+        hosts: ['127.0.0.1','10.0.2.2','localhost'], auto_detect: false,
+      };
+    }
+  }
   if(androidSerial)controlConfig.moonlight_web.public_url=`https://10.0.2.2:${gatewayPort}`;
   const controlConfigFile = path.join(scratch, 'control', 'config.json');
   if (remoteTarget) {
@@ -508,6 +526,17 @@ async function main() {
     broadcast_controller_microphone: true, controller_monitor: false,
   });
   const browserArgs = ['--autoplay-policy=no-user-gesture-required'];
+  if (windowsAndroidAudio) {
+    // Chromium is an isolated observer. Pin only this run's new loopback
+    // certificate without changing Windows trust. Android verifies its CA.
+    const leaf = new crypto.X509Certificate(fs.readFileSync(path.join(tlsDirectory,'server.crt')));
+    const ca = new crypto.X509Certificate(fs.readFileSync(path.join(tlsDirectory,'ca.crt')));
+    assert.ok(leaf.checkIssued(ca) && leaf.verify(ca.publicKey));
+    assert.ok(leaf.checkIP('127.0.0.1') && leaf.checkIP('10.0.2.2'));
+    const spki = leaf.publicKey.export({format:'der',type:'spki'});
+    browserArgs.push('--ignore-certificate-errors-spki-list=' + crypto.createHash('sha256').update(spki).digest('base64'));
+    result.web_tls = 'Scoped per-run loopback leaf pin; host and product certificate policies unchanged';
+  }
   if (microphoneTest && microphoneSource === 'file') {
     const rate = 48000, samples = rate * 10;
     const wav = Buffer.alloc(44 + samples * 2);
