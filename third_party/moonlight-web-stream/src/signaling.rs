@@ -50,10 +50,12 @@ mod tests {
             ("192.168.0.119:8080", "192.168.0.119:0"),
             ("[::ffff:192.168.2.131]:8080", "192.168.2.131:0"),
         ] {
-            let incoming = LocalAddress(incoming.parse().unwrap());
+            let incoming = LocalAddress(incoming.parse().expect("test signaling socket"));
             assert_eq!(
                 LocalAddress::media_bind_address(Some(&incoming)),
-                expected.parse::<SocketAddr>().unwrap(),
+                expected
+                    .parse::<SocketAddr>()
+                    .expect("test media bind socket"),
             );
         }
     }
@@ -63,7 +65,7 @@ mod tests {
         let wildcard = SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0));
         assert_eq!(LocalAddress::media_bind_address(None), wildcard);
         for incoming in ["127.0.0.1:8080", "[::1]:8080", "169.254.1.1:8080"] {
-            let incoming = LocalAddress(incoming.parse().unwrap());
+            let incoming = LocalAddress(incoming.parse().expect("test fallback socket"));
             assert_eq!(LocalAddress::media_bind_address(Some(&incoming)), wildcard);
         }
     }

@@ -46,6 +46,19 @@
     "saved_viewing_link_changed":false,
     "post_change_media_verified":false
   },
+  "ordinary_browser_input_after_reboot": {
+    "session":"f909866b-a567-4ba2-8799-78f188e699d8",
+    "tool":"playwright-cli",
+    "shared_upstreams":1,
+    "target_process_log_verified":true,
+    "phases":[
+      {"client":1,"role":"controller","target_keys_before":0,"target_keys_after":1},
+      {"client":1,"role":"viewer_after_transfer","target_keys_before":1,"target_keys_after":1},
+      {"client":2,"role":"controller","target_keys_before":1,"target_keys_after":2},
+      {"client":2,"role":"viewer_after_release","target_keys_before":2,"target_keys_after":2}
+    ],
+    "limits":"Ordinary browser keyboard events only. A separate earlier mouse attempt lost Windows Example foreground and is inconclusive. This does not replace an independent server-side transport acceptance result."
+  },
   "cleanup":{"example_stopped":true,"active_sessions":0,"active_media":0,"temporary_browser_closed":true},
   "limits":"The Win11 restart and automatic services passed. The current host selected a tunnel candidate rather than exercising a physical WLAN media path. Physical Android could not reach the host at link layer on the new WLAN, so full LAN migration acceptance is still open."
 }
