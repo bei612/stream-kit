@@ -55,6 +55,22 @@ Windows UAC 仍适用；静默模式不会绕过系统提权，也不会自动�
 
 服务重启检查与整机重启验收不同；自动配置也不保证未登录桌面时有图像采集。
 
+### 首装和整机重启验收
+
+仅在专用、尚未安装 Stream Kit 的 Windows 11 x64 验收机执行。将安装包和同批发布的 `installer-manifest.json` 放在同一目录，用管理员 PowerShell 在源码目录运行以下命令。脚本校验安装包哈希并使用独立的目录和端口。Node.js 仅供验收脚本使用。
+
+```powershell
+node scripts/accept-windows-installer.cjs C:\Acceptance\installer-manifest.json C:\Acceptance\result --win11-stage
+```
+
+`result.json` 中的 `awaiting_reboot` 表示已记录安装返回值（`0` 或 `3010`）、安装身份和本次 Windows 启动时间。用 Windows 的“重启”重启验收机，登录原安装会话对应的渲染用户，再运行：
+
+```powershell
+node scripts/accept-windows-installer.cjs C:\Acceptance\installer-manifest.json C:\Acceptance\result --win11-resume
+```
+
+续验会在干预服务前核对新的系统启动时间、正在运行的服务与两项组件的 PID、可执行文件归属及会话。随后检验原生 PCM、故障恢复和卸载。查看 `result.json` 的 `phase`、`passed` 和 `post_reboot`。此流程不覆盖局域网换址或跨端串流验收。[Windows 系统启动时间字段](https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-operatingsystem) · [Windows 进程信息字段](https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-process)
+
 ## 开源虚拟音频
 
 产品不下载、不分发、不安装 VB-CABLE，也不要求其商业授权。已有兼容端点仍可通过统一路由选择。
