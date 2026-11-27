@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "passed": true,
+  "source_commit": "38552c094bc502dd4963f218daf0f3adae4b4231",
+  "scope": "Win11 native local build and isolated management service, with no SCM installation or renderer. ZIP64 large-offset coverage uses a logically padded source. The separate 26 GiB disk transfer evidence remains in windows11-archive-space-666a6a01-20261127.json.",
+  "control_sha256": "14bb66895d9e5e7ac94f0305efa7c6467b96b501f6e4f006a632040ffd116a81",
+  "regressions": {
+    "zip_preserves_valid_unambiguous_prepended_bytes": true,
+    "zip64_accepts_65536_entries_at_limit": true,
+    "zip64_rejects_65536_entries_when_limit_is_65535": true,
+    "zip64_payload_read_at_26_gib_offset": true,
+    "sevenzip_plain_and_compressed_headers_reject_above_limit": true,
+    "sevenzip_plain_and_compressed_headers_still_extract_when_allowed": true,
+    "linux_amd64_cross_build": true
+  },
+  "management_browser": {
+    "tool": "Playwright CLI and Chrome",
+    "example_zip": {"upload_http": 200, "final_status": "ready", "application_removed": true},
+    "example_7z": {"upload_http": 200, "final_status": "ready", "application_removed": true},
+    "entry_limit_exceeded": {
+      "configured_limit": 1,
+      "archive_entries": 2,
+      "final_status": "error",
+      "extracted_size_bytes": 0,
+      "reason_visible_on_application_detail": true,
+      "application_removed": true,
+      "temporary_archive_files_after_cleanup": 0,
+      "screenshot": "windows11-archive-index-error-38552c09.png",
+      "screenshot_sha256": "f993cddf195e597d6796b2282cd80c99aafb976228ea6477c6f760769f61db08"
+    }
+  }
+}
