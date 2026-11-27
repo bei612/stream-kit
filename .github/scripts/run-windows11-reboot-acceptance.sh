@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-[[ ${RELEASE_TAG:-} =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[1-9][0-9]*)?$ ]]
+if [[ -n ${RELEASE_TAG:-} && -n ${PRODUCT_RUN_ID:-} ]] ||
+   [[ -z ${RELEASE_TAG:-} && -z ${PRODUCT_RUN_ID:-} ]]; then
+  echo 'Select one published release tag or one product build run' >&2
+  exit 1
+fi
+if [[ -n ${RELEASE_TAG:-} ]]; then
+  [[ $RELEASE_TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[1-9][0-9]*)?$ ]] || { echo 'Invalid release tag' >&2; exit 1; }
+fi
 [[ ${GITHUB_ACTIONS:-} == true && ${RUNNER_ENVIRONMENT:-} == github-hosted && -r /dev/kvm && -w /dev/kvm ]]
 
 output="$PWD/artifacts/windows11-reboot"
@@ -33,9 +40,27 @@ cleanup() {
 trap cleanup EXIT
 mkdir -p "$work/input/installer" "$work/input/scripts" "$work/tpm"
 
-tag_object=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG")
-source_commit=$(jq -er '.object | select(.type == "commit") | .sha | select(test("^[a-f0-9]{40}$"))' <<< "$tag_object")
-gh release download "$RELEASE_TAG" --pattern '*windows-amd64-setup.exe' --pattern installer-manifest.json --dir "$work/input/installer"
+windows_build_commit() {
+  local run_id=$1 commit
+  [[ $run_id =~ ^[1-9][0-9]*$ ]] || { echo 'Invalid product build run ID' >&2; return 1; }
+  commit=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" | jq -er --arg repo "$GITHUB_REPOSITORY" '
+    select(.head_repository.full_name == $repo and .head_branch == "main" and
+      .path == ".github/workflows/windows-product-release.yml" and .event == "workflow_dispatch")
+    | .head_sha | select(test("^[a-f0-9]{40}$"))') || return
+  gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?filter=latest&per_page=100" | jq -e '
+    [.jobs[] | select(.name == "Source-built Windows unified installer" and .status == "completed" and .conclusion == "success")]
+    | length == 1' > /dev/null || return
+  printf '%s\n' "$commit"
+}
+
+if [[ -n ${PRODUCT_RUN_ID:-} ]]; then
+  source_commit=$(windows_build_commit "$PRODUCT_RUN_ID")
+  gh run download "$PRODUCT_RUN_ID" --name "windows-product-installer-$source_commit" --dir "$work/input/installer"
+else
+  tag_object=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG")
+  source_commit=$(jq -er '.object | select(.type == "commit") | .sha | select(test("^[a-f0-9]{40}$"))' <<< "$tag_object")
+  gh release download "$RELEASE_TAG" --pattern '*windows-amd64-setup.exe' --pattern installer-manifest.json --dir "$work/input/installer"
+fi
 manifest="$work/input/installer/installer-manifest.json"
 installer=$(jq -er --arg commit "$source_commit" '
   select(.commit == $commit and .installer_source_commit == $commit and
@@ -44,17 +69,21 @@ installer=$(jq -er --arg commit "$source_commit" '
   | .file.name | select(test("^[A-Za-z0-9.-]+-windows-amd64-setup\\.exe$"))' "$manifest")
 installer_hash=$(jq -er '.file.sha256 | select(test("^[a-f0-9]{64}$"))' "$manifest")
 printf '%s  %s\n' "$installer_hash" "$work/input/installer/$installer" | sha256sum --check
-if [[ -n ${DIAGNOSTIC_PRODUCT_RUN_ID:-} ]]; then
-  [[ $DIAGNOSTIC_PRODUCT_RUN_ID =~ ^[1-9][0-9]*$ ]]
-  gh api "repos/$GITHUB_REPOSITORY/actions/runs/$DIAGNOSTIC_PRODUCT_RUN_ID" | jq -e \
-    --arg repo "$GITHUB_REPOSITORY" --arg commit "$source_commit" '
-      .head_repository.full_name == $repo and .head_branch == "main" and .head_sha == $commit and
-      .path == ".github/workflows/windows-product-release.yml" and .conclusion == "success"
-    ' > /dev/null
-  gh run download "$DIAGNOSTIC_PRODUCT_RUN_ID" --name "windows-product-payload-$source_commit" --dir "$work/input/diagnostic"
+diagnostic_run=${DIAGNOSTIC_PRODUCT_RUN_ID:-${PRODUCT_RUN_ID:-}}
+if [[ -n $diagnostic_run ]]; then
+  if [[ $diagnostic_run != "${PRODUCT_RUN_ID:-}" ]]; then
+    diagnostic_commit=$(windows_build_commit "$diagnostic_run")
+    [[ $diagnostic_commit == "$source_commit" ]] || { echo 'Diagnostic payload does not match the installer source' >&2; exit 1; }
+  fi
+  gh run download "$diagnostic_run" --name "windows-product-payload-$source_commit" --dir "$work/input/diagnostic"
   payload_hash=$(jq -er '.payload_manifest_sha256 | select(test("^[a-f0-9]{64}$"))' "$manifest")
   printf '%s  %s\n' "$payload_hash" "$work/input/diagnostic/platform-manifest.json" | sha256sum --check
 fi
+jq -n --arg source "$source_commit" --arg acceptance "$GITHUB_SHA" --arg installer "$installer" --arg sha256 "$installer_hash" \
+  --arg tag "${RELEASE_TAG:-}" --arg run "${PRODUCT_RUN_ID:-}" --arg diagnostic "$diagnostic_run" \
+  '{source_commit:$source, acceptance_commit:$acceptance, installer_file:$installer, installer_sha256:$sha256,
+    release_tag:($tag | select(length>0) // null), product_run_id:($run | tonumber? // null),
+    diagnostic_product_run_id:($diagnostic | tonumber? // null)}' > "$output/provenance.json"
 unset GH_TOKEN
 
 fetch=(curl --fail --show-error --silent --location --proto '=https' --proto-redir '=https' --retry 2)

@@ -71,7 +71,7 @@ node scripts/accept-windows-installer.cjs C:\Acceptance\installer-manifest.json 
 
 续验会在干预服务前核对新的系统启动时间、正在运行的服务与两项组件的 PID、可执行文件归属及会话。随后检验原生 PCM、故障恢复和卸载。查看 `result.json` 的 `phase`、`passed` 和 `post_reboot`。此流程不覆盖局域网换址或跨端串流验收。[Windows 系统启动时间字段](https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-operatingsystem) · [Windows 进程信息字段](https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-process)
 
-仓库的 [Windows 11 重启验收工作流](../../.github/workflows/windows11-reboot-acceptance.yml)接受已公开的 tag。工作流校验微软评估镜像与公开安装器的 SHA-256，在断网的 x64 虚拟机中用 UEFI 安全启动和 TPM 完成首次安装。首次登录与重启后登录分别执行同一验收脚本的两个阶段。虚拟机使用一次性账户，发布安装器不启用 Windows 自动登录。验收附件包含启动条件、安装检查点及最终结果，待实测结果见[发布基线](../../docs/release-status.md#持续边界)。
+仓库的 [Windows 11 重启验收工作流](../../.github/workflows/windows11-reboot-acceptance.yml)接受已公开的 tag 或已成功产出 Windows 安装器的构建任务号，二者选一。工作流校验微软评估镜像与原始安装器的 SHA-256，在断网的 x64 虚拟机中用 UEFI 安全启动和 TPM 完成首次安装。首次登录与重启后登录分别执行同一验收脚本的两个阶段。虚拟机使用一次性账户，发布安装器不启用 Windows 自动登录。验收附件包含安装器来源、启动条件、安装检查点及最终结果，待实测结果见[发布基线](../../docs/release-status.md#持续边界)。
 
 ## 开源虚拟音频
 

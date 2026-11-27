@@ -5,7 +5,11 @@ on:
       release_tag:
         description: Published Windows installer to test in a clean Windows 11 x64 guest
         type: string
-        required: true
+        required: false
+      product_run_id:
+        description: Unpublished Windows installer build to test instead of a release tag
+        type: string
+        required: false
       diagnostic_product_run_id:
         description: Optional same-source Windows build providing a diagnostic runtime for failed initialization
         type: string
@@ -19,6 +23,7 @@ jobs:
     timeout-minutes: 55
     env:
       RELEASE_TAG: ${{ inputs.release_tag }}
+      PRODUCT_RUN_ID: ${{ inputs.product_run_id }}
       DIAGNOSTIC_PRODUCT_RUN_ID: ${{ inputs.diagnostic_product_run_id }}
     steps:
       - uses: actions/checkout@v4

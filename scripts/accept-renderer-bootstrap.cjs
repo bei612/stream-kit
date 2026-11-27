@@ -23,8 +23,8 @@ fs.writeFileSync(config, [
 ].join('\n'));
 fs.writeFileSync(path.join(scratch, 'apps.json'), '{"env":{},"apps":[]}');
 const password = crypto.randomBytes(32).toString('base64url');
-function run(args, input = '') {
-  const result = spawnSync(binary, [config, ...args], {cwd:scratch, input, encoding:'utf8', timeout:30000, windowsHide:true});
+function run(args, input = '', configFile = config) {
+  const result = spawnSync(binary, [configFile, ...args], {cwd:scratch, input, encoding:'utf8', timeout:30000, windowsHide:true});
   if (result.error) throw result.error;
   assert.equal(result.signal, null, 'Renderer command timed out or was signalled');
   assert.ok(!(result.stdout + result.stderr).includes(password), 'Credential leaked to process output');
@@ -41,6 +41,11 @@ assert.deepEqual(fs.readFileSync(credentials), before);
 assert.notEqual(run(['--creds-stdin'], 'x'.repeat(16385)), 0);
 assert.deepEqual(fs.readFileSync(credentials), before);
 assert.notEqual(run(['--creds']), 0, 'Missing credential arguments must fail without indexing argv');
+assert.deepEqual(fs.readFileSync(credentials), before);
+const unreadableConfig = path.join(scratch, 'config-directory');
+fs.mkdirSync(unreadableConfig);
+assert.notEqual(run(['--creds-stdin'], JSON.stringify({name:'installation-test', password}), unreadableConfig), 0,
+  'Credential mode must report a configuration read failure');
 assert.deepEqual(fs.readFileSync(credentials), before);
 fs.chmodSync(credentials, 0o444);
 try {
