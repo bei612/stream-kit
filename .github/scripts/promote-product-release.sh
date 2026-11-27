@@ -17,7 +17,13 @@ jq -e --arg repo "$GITHUB_REPOSITORY" '
   .event == "workflow_dispatch" and (.head_sha | test("^[a-f0-9]{40}$"))
 ' artifacts/promotion/source-run.json > /dev/null
 source_commit=$(jq -r .head_sha artifacts/promotion/source-run.json)
+reviewed_notes="deploy/releases/${RELEASE_TAG#v}.md"
 if [[ -n ${ANDROID_RUN_ID:-} ]]; then
+  [[ -f $reviewed_notes ]] || { echo "Missing reviewed release notes: $reviewed_notes" >&2; exit 1; }
+  git fetch --no-tags origin "refs/tags/$RELEASE_TAG" ||
+    { echo 'Push the release tag at the verified source revision before promotion' >&2; exit 1; }
+  [[ $(git rev-parse 'FETCH_HEAD^{commit}') == "$source_commit" ]] ||
+    { echo 'Release tag points to another revision' >&2; exit 1; }
   gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/jobs?filter=latest&per_page=100" > artifacts/promotion/source-jobs.json
   jq -e '
     def passed($name): [.jobs[] | select(.name == $name and .status == "completed" and .conclusion == "success")] | length == 1;
@@ -46,7 +52,6 @@ jq -e --arg commit "$source_commit" '
 ' "$windows/installer-manifest.json" > /dev/null
 jq -e '.spdxVersion | startswith("SPDX-")' "$sbom" > /dev/null
 acceptance=artifacts/promotion/acceptance/installer-acceptance/result.json
-reviewed_notes="deploy/releases/${RELEASE_TAG#v}.md"
 
 if [[ -n ${ANDROID_RUN_ID:-} ]]; then
   [[ $ANDROID_RUN_ID =~ ^[0-9]+$ ]] || { echo 'Expected a signed Android run ID' >&2; exit 1; }
@@ -76,9 +81,6 @@ if [[ -n ${ANDROID_RUN_ID:-} ]]; then
     draft_args=(--prerelease)
     final_args=(--prerelease --latest=false)
   fi
-  test -f "$reviewed_notes"
-  git fetch --no-tags origin "refs/tags/$RELEASE_TAG"
-  [[ $(git rev-parse 'FETCH_HEAD^{commit}') == "$source_commit" ]] || { echo 'Release tag points to another revision' >&2; exit 1; }
   assets=("$release_assets"/*)
   if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft > artifacts/promotion/draft.json 2>/dev/null; then
     jq -e '.isDraft == true' artifacts/promotion/draft.json > /dev/null
