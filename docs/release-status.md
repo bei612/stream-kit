@@ -6,7 +6,11 @@
 
 同源 Ubuntu 安装器的真实网卡换址联验通过。两个 HTTPS 入口在 2.739 秒内加载新证书，原固定观看链接在未重载页面的情况下恢复直连媒体，新连接观测到 49 帧视频和 81 个音频包。运行进程、CA 和私钥保持，Sunshine 完成自动配对。现场 Win11 网络与实体设备另有验收边界。[同源换址联验](https://github.com/bei612/stream-kit/actions/runs/45994240668)
 
+官方 Android 模拟器用同源 Ubuntu 安装器和签名 APK `1000027` 完成覆盖升级。原 `v0.1.0` 书签可直接打开，Android 与 Web 使用同一上游，真实目标输入交接、Android 前后台恢复、麦克风系统授权拒绝和客户端断网重连均通过。[同源 Android 与 Web 联验](https://github.com/bei612/stream-kit/actions/runs/45995324077)
+
 上一候选 `e253605d02e0fa686faeb76704fd966e8a3179d5` 的精确 Windows 安装器在独立 Windows Server 2022 通过静默安装、原生录音、服务恢复和卸载数据保留。SCM 为 Auto / LocalSystem，采集 144,000 帧，零丢帧和缓冲异常，系统既有默认录放设备保持。安装和卸载退出码均为 0。[原始安装验收](https://github.com/bei612/stream-kit/actions/runs/45993320089)
+
+Win11 独立实例以同包三组件、签名 APK `1000026` 和 Example 通过实际媒体联验。Android 和 Web 共享一个上游、均收到程序声音；Android 的授权麦克风送达 Windows 目标录音与 Web 观众，目标录音零丢帧。持续向模拟器注入测试音时撤权，Web 的麦克风信号由 −39.67 dB 降至 −126.07 dB，程序声音保持，Example、模拟器及临时信任已清理。[Win11 同包音频证据](evidence/windows11-android-packaged-audio-e253605d-20261127.json)
 
 该候选的 Linux 隔离联验使用实际网卡换址并自动配对 Sunshine。两个 HTTPS 入口在 10.625 秒内更换证书，HTTP/1.1 和 HTTP/2 均验证通过，浏览器在原页面恢复到新直连地址。CA、私钥、运行配置和三个进程保持。Android `v0.1.0` 覆盖升级至同源 `1000026` 后保留书签，Android 和 Web 共享一个上游，输入交接及撤权、前后台恢复、Android 麦克风权限拒绝和客户端断网重连均通过。该联验范围是隔离 Linux 和官方 Android 模拟器。[LAN 联验](https://github.com/bei612/stream-kit/actions/runs/45990406636) · [Android 联验](https://github.com/bei612/stream-kit/actions/runs/45990418488)
 
@@ -14,7 +18,7 @@
 
 Windows 安装因本机音频类驱动返回 `3010` 时，当前代码在自动启动阶段辨别指定 USB 音频设备的准备状态。源接口策略已写入时，通过 Core Audio 读取同一 PnP 容器的一对活动录放端点，确认防止抢占默认音频设备的策略已生效后完成准备；策略尚未生效时仍由系统执行原有的设备刷新流程。Windows 明确报告设备待重启时保留 `3010`。当前 Win11 对已安装设备的只读检查确认两个端点均为有效策略 `0x107`，无关容器不能通过。安装返回 `3010` 后整机重启的闭环仍待验收。[Windows 端点策略](https://learn.microsoft.com/en-us/windows-hardware/drivers/audio/pkey-audiodevice-neversetasdefaultendpoint)
 
-Windows 维护工具预检查询正在上传或解压的归档。回滚先核对原运行库存和数据库冷备份，恢复服务后重新核对应用 ID、配置、CA 和私钥。Windows 原生 SQLite 文件测试验证原应用恢复及损坏备份在替换数据库前被拒绝。最新候选在实际 Win11 SCM 下的整次维护回滚仍需验收。[维护操作说明](../deploy/README.md#更新与卸载)
+Windows 维护工具预检查询正在上传或解压的归档。回滚先核对原运行库存和数据库冷备份，恢复服务后重新核对应用 ID、配置、CA 和私钥。Windows 原生 SQLite 文件测试验证原应用恢复及损坏备份在替换数据库前被拒绝。独立 Windows 安装验收已接入真实端口冲突触发候选服务启动失败的回滚路径，验收使用两个同仓冻结产物。实际 Win11 SCM 维护回滚另行验收。[维护操作说明](../deploy/README.md#更新与卸载)
 
 主线已将原生网关和 Moonlight 绑定的 `crossbeam-epoch` 锁定到 0.9.21，原生和 Web/WASM 的 RSA 配对后端统一锁定到 0.10.0。Windows 原生 Rust 及 Web/WASM 锁定编译检查通过。OpenSSL 生成的既有格式证书和 PKCS#8 私钥可由新后端读取，新生成的证书和配对签名也经 OpenSSL 交叉验证。下一份安装包仍需验证真实 Sunshine 配对。下文 `55d6d5a8` 候选使用更新前的依赖。[Crossbeam 公告](https://rustsec.org/advisories/RUSTSEC-2026-0204.html) · [RSA 公告](https://rustsec.org/advisories/RUSTSEC-2023-0071.html)
 

@@ -14,6 +14,10 @@ on:
         description: 'Product run with a successful Windows installer build job; exclusive with release_tag'
         type: string
         required: false
+      maintenance_candidate_run_id:
+        description: 'Optional second product run whose runtime is used to verify rollback from a failed service start'
+        type: string
+        required: false
 permissions:
   contents: read
   actions: read
@@ -59,6 +63,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       RELEASE_TAG: ${{ inputs.release_tag }}
       PRODUCT_RUN_ID: ${{ github.event.workflow_run.id || inputs.product_run_id }}
+      MAINTENANCE_CANDIDATE_RUN_ID: ${{ inputs.maintenance_candidate_run_id }}
     defaults:
       run:
         shell: pwsh
@@ -105,6 +110,34 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node -e "const fs=require('fs'),a=require('assert/strict'),m=JSON.parse(fs.readFileSync('artifacts/installer-download/installer-manifest.json'));a.equal(m.commit,process.env.EXPECTED_INSTALLER_COMMIT);a.equal(m.installer_source_commit,m.commit);a.equal(m.payload_profile,'runtime');a.equal(m.reused_payload,false)"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/setup-go@v5
+        if: env.MAINTENANCE_CANDIDATE_RUN_ID != ''
+        with:
+          go-version-file: .go-version
+      - name: Stage separately built runtime and native Example for rollback acceptance
+        if: env.MAINTENANCE_CANDIDATE_RUN_ID != ''
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:MAINTENANCE_CANDIDATE_RUN_ID -notmatch '^[1-9][0-9]*$') { throw 'Invalid maintenance candidate run ID' }
+          $run = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:MAINTENANCE_CANDIDATE_RUN_ID" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot read the maintenance candidate run' }
+          if ($run.path -ne '.github/workflows/windows-product-release.yml' -or $run.head_repository.full_name -ne $env:GITHUB_REPOSITORY -or $run.head_branch -ne 'main' -or $run.event -ne 'workflow_dispatch' -or $run.head_sha -notmatch '^[a-f0-9]{40}$') { throw 'Expected an owned maintenance candidate build' }
+          $jobs = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:MAINTENANCE_CANDIDATE_RUN_ID/jobs?filter=latest&per_page=100" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot read candidate jobs' }
+          $built = @($jobs.jobs | Where-Object { $_.name -eq 'Source-built Windows unified installer' -and $_.status -eq 'completed' -and $_.conclusion -eq 'success' })
+          if ($built.Count -ne 1) { throw 'Expected a successful Windows candidate job' }
+          $baseline = Get-Content -Raw -LiteralPath 'artifacts/installer-download/installer-manifest.json' | ConvertFrom-Json
+          if ($baseline.commit -eq $run.head_sha) { throw 'Rollback acceptance requires two distinct sources' }
+          gh run download $env:MAINTENANCE_CANDIDATE_RUN_ID --name "windows-product-payload-$($run.head_sha)" --dir artifacts/maintenance-platform
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Path 'artifacts/maintenance-example' | Out-Null
+          go -C example build -trimpath -ldflags '-H=windowsgui' -o ../artifacts/maintenance-example/checkerboard.exe .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $gitRoot = Split-Path (Split-Path (Get-Command git.exe).Source -Parent) -Parent
+          $openssl = Join-Path $gitRoot 'usr/bin/openssl.exe'
+          if (-not (Test-Path -LiteralPath $openssl -PathType Leaf)) { throw 'Expected Git for Windows OpenSSL' }
+          "STREAM_KIT_ROLLBACK_OPENSSL=$openssl" >> $env:GITHUB_ENV
+          "STREAM_KIT_ROLLBACK_CANDIDATE=$($run.head_sha)" >> $env:GITHUB_ENV
       - name: Install, verify native PCM and service lifecycle, then uninstall
         run: node scripts/accept-windows-installer.cjs artifacts/installer-download/installer-manifest.json artifacts/installer-acceptance
       - uses: actions/upload-artifact@v4

@@ -184,6 +184,12 @@ async function endpoints(){
   result.defaults_after_service_restart=defaults();
   assert.ok(defaultsPreserved(result.defaults_before,result.defaults_after_service_restart),'SCM restart changed existing audio defaults');
   result.scm_restarted=true;
+  if(process.env.STREAM_KIT_ROLLBACK_CANDIDATE){
+   const {verifyWindowsMaintenance}=require('./lib/windows-maintenance-acceptance.cjs');
+   result.maintenance_rollback=await verifyWindowsMaintenance({program,data,output,control,request,baselineCommit:manifest.commit,
+    candidate:path.resolve('artifacts/maintenance-platform'),candidateCommit:process.env.STREAM_KIT_ROLLBACK_CANDIDATE,
+    openssl:process.env.STREAM_KIT_ROLLBACK_OPENSSL,example:path.resolve('artifacts/maintenance-example/checkerboard.exe')});
+  }
   result.passed=true;
  }catch(error){result.error=error.message}
  finally{

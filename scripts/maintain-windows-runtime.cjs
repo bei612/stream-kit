@@ -271,6 +271,9 @@ class RuntimeMaintenance {
       "if((Get-Service StreamKitOrchestrator).Status -ne 'Stopped'){Stop-Service StreamKitOrchestrator};"+
       "(Get-Service StreamKitOrchestrator).WaitForStatus('Stopped',[TimeSpan]::FromSeconds(45));if($owned.Count){$owned|Wait-Process -Timeout 45}");
   }
+  async startService() {
+    execute(this.binary,['service','start','--config',this.configFile],undefined,serviceStartTimeout);
+  }
   async apply() {
     const stamp=Date.now()+'-'+crypto.randomBytes(3).toString('hex');
     this.stage=inside(this.root,path.join(this.root,'.maintenance-incoming-'+stamp));
@@ -308,7 +311,7 @@ class RuntimeMaintenance {
     }
     execute(this.binary,['verify-platform',this.root]);
     this.save('starting_service');this.started=true;
-    execute(this.binary,['service','start','--config',this.configFile],undefined,serviceStartTimeout);
+    await this.startService();
     await this.waitReady(this.report.source);
     await this.verifyDeploymentState();
     this.report.scope='Complete runtime maintenance; original installer/uninstaller and signed drivers retained. Not a fresh installer acceptance.';
@@ -340,7 +343,7 @@ class RuntimeMaintenance {
     }
     const oldRecord=path.join(this.backup,'control-maintenance.json');
     if(fs.existsSync(oldRecord))this.move(oldRecord,path.join(this.root,'control-maintenance.json'),this.root);
-    execute(this.binary,['service','start','--config',this.configFile],undefined,serviceStartTimeout);
+    await this.startService();
     await this.waitReady(this.report.previous_source);
     await this.verifyDeploymentState();
     this.report.rollback=true;
@@ -380,4 +383,4 @@ async function main() {
   await new RuntimeMaintenance(options).run();
 }
 if(require.main===module)main().catch(error=>{console.error(error.message);process.exitCode=1;});
-module.exports={inside,ordinary,inventory,copyTree,commandPath,execute,serviceStartTimeout,rendererBootstrap,snapshotDatabase,restoreDatabase};
+module.exports={RuntimeMaintenance,inside,ordinary,inventory,copyTree,commandPath,execute,serviceStartTimeout,rendererBootstrap,snapshotDatabase,restoreDatabase};
