@@ -19,6 +19,10 @@ export function promotionProfile(windows,linux,tag){
   const release=manifestRelease(windows),other=manifestRelease(linux)
   if(windows.commit!==linux.commit||release.version!==other.version||release.channel!==other.channel)throw Error('Both installers must have the same source, version and channel')
   if(windows.file?.name!==`${release.prefix}-windows-amd64-setup.exe`||linux.installer?.file!==`${release.prefix}-ubuntu24.04-amd64-setup.run`)throw Error('Installer name does not match its verified product identity')
+  return publicationProfile(release,tag)
+}
+
+export function publicationProfile(release,tag){
   const candidate=typeof tag==='string'&&release.channel==='stable'&&tag.startsWith(`v${release.version}-rc.`)&&/^[1-9][0-9]*$/.test(tag.slice(`v${release.version}-rc.`.length))
   const validTag=typeof tag==='string'&&tag===tag.trim()&&(release.channel==='stable'
     ?tag===`v${release.version}`||candidate

@@ -69,7 +69,13 @@ if [[ -n ${ANDROID_RUN_ID:-} ]]; then
     gh run download "$LINUX_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "linux-product-installer-$source_commit" --dir "$linux_artifact"
     linux_args=("$linux_artifact/installer")
   fi
-  node scripts/verify-windows-android-promotion.mjs "$windows" "$android" "$sbom" "$acceptance" "$RELEASE_TAG" "$release_assets" "${linux_args[@]}"
+  publication=$(node scripts/verify-windows-android-promotion.mjs "$windows" "$android" "$sbom" "$acceptance" "$RELEASE_TAG" "$release_assets" "${linux_args[@]}")
+  draft_args=()
+  final_args=(--latest)
+  if jq -e '.prerelease == true' <<< "$publication" > /dev/null; then
+    draft_args=(--prerelease)
+    final_args=(--prerelease --latest=false)
+  fi
   test -f "$reviewed_notes"
   git fetch --no-tags origin "refs/tags/$RELEASE_TAG"
   [[ $(git rev-parse 'FETCH_HEAD^{commit}') == "$source_commit" ]] || { echo 'Release tag points to another revision' >&2; exit 1; }
@@ -78,12 +84,12 @@ if [[ -n ${ANDROID_RUN_ID:-} ]]; then
     jq -e '.isDraft == true' artifacts/promotion/draft.json > /dev/null
     gh release upload "$RELEASE_TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
   else
-    gh release create "$RELEASE_TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --verify-tag --draft --title "$RELEASE_TAG" --notes-file "$reviewed_notes"
+    gh release create "$RELEASE_TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --verify-tag --draft "${draft_args[@]}" --title "$RELEASE_TAG" --notes-file "$reviewed_notes"
   fi
   release_id=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json databaseId --jq .databaseId)
   gh api "repos/$GITHUB_REPOSITORY/releases/$release_id/assets" > artifacts/promotion/draft-assets.json
   node scripts/verify-windows-android-promotion.mjs --uploaded artifacts/promotion/draft-assets.json "${assets[@]}"
-  gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest --notes-file "$reviewed_notes"
+  gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false "${final_args[@]}" --notes-file "$reviewed_notes"
   exit 0
 fi
 

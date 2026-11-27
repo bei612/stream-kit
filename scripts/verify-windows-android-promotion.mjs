@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { manifestRelease, promotionProfile, verifyInstallerAcceptance } from './lib/product-release.mjs'
+import { manifestRelease, promotionProfile, publicationProfile, verifyInstallerAcceptance } from './lib/product-release.mjs'
 import { linuxRuntimeSource } from './verify-input-acceptance-sources.mjs'
 
 const read = file => JSON.parse(fs.readFileSync(file, 'utf8'))
@@ -24,9 +24,10 @@ function verifyUploaded(metadata, files) {
 }
 
 export function verifyLinuxRun(run, jobs, repository, runID, commit, tag) {
-  assert.match(tag, /^v[0-9]+\.[0-9]+\.[0-9]+$/)
+  const version = /^v([0-9]+\.[0-9]+\.[0-9]+)(?:-rc\.[1-9][0-9]*)?$/.exec(tag)?.[1]
+  assert.ok(version, 'Expected an exact stable or release candidate tag')
   const profile = run.path === '.github/workflows/linux-sunshine-build.yml' ? 'standalone-linux' : 'unified'
-  const headBranch = run.head_branch === 'main' ? 'main' : `release/${tag.slice(1)}`
+  const headBranch = run.head_branch === 'main' ? 'main' : `release/${version}`
   if (headBranch !== 'main') {
     assert.equal(profile, 'standalone-linux')
     assert.equal(run.event, 'workflow_dispatch')
@@ -46,11 +47,40 @@ export function verifyLinuxInstaller(windows, linux, tag, digestFile) {
   }
 }
 
+export function verifyCombinedEvidence(win, android, tag, linux, load = read) {
+  const release = publicationProfile(manifestRelease(win), tag)
+  assert.equal(release.channel, 'stable', 'Windows + Android needs release-built artifacts')
+  const gatePath = release.prerelease
+    ? `docs/evidence/windows11-android-candidate-${tag.slice(1)}.json`
+    : `docs/evidence/windows11-android-release-${release.version}.json`
+  const gate = load(gatePath)
+  if (release.prerelease) {
+    assert.equal(gate.tag, tag, 'Candidate evidence must match the publication tag')
+    assert.ok(linux, 'Unified release candidate requires the Ubuntu installer')
+    assert.equal(gate.linux_installer_sha256, linux.installer.sha256, 'Ubuntu candidate evidence does not match the installer')
+  }
+  assert.equal(gate.source_commit, win.commit)
+  assert.equal(gate.installer_sha256, win.file.sha256)
+  assert.equal(gate.apk_sha256, android.apk_sha256)
+  assert.equal(gate.android_version_code, android.version_code)
+  const checks = release.prerelease
+    ? ['hosted_maintenance_rollback', 'isolated_lan_migration', 'android_upgrade', 'android_input_lifecycle', 'android_media_input_audio', 'dependency_review', 'cleanup_verified']
+    : ['windows11_install', 'service_recovery', 'maintenance_rollback', 'lan_migration', 'android_upgrade', 'android_media_input_audio', 'dependency_review', 'cleanup_verified']
+  for (const name of checks) {
+    assert.equal(gate.checks?.[name]?.passed, true, `Release evidence missing: ${name}`)
+    const evidence = gate.checks[name].evidence
+    assert.match(evidence, /^docs\/evidence\/[A-Za-z0-9._-]+\.json$/)
+    const detail = load(evidence)
+    assert.equal(detail.source_commit, win.commit, `Evidence source mismatch: ${name}`)
+    assert.equal(detail.passed, true, `Evidence did not pass: ${name}`)
+  }
+  return release
+}
+
 function prepareAssets(windowsDirectory, androidDirectory, sourceSbom, acceptance, tag, output, linuxDirectory) {
   const win = read(path.join(windowsDirectory, 'installer-manifest.json'))
   const version = manifestRelease(win)
   assert.equal(version.channel, 'stable', 'Windows + Android promotion requires a stable build')
-  assert.equal(tag, `v${version.version}`)
   assert.equal(win.file.name, `${version.prefix}-windows-amd64-setup.exe`)
   verifyInstallerAcceptance(win, read(acceptance))
   assert.equal(sha256(path.join(windowsDirectory, win.file.name)), win.file.sha256)
@@ -66,21 +96,6 @@ function prepareAssets(windowsDirectory, androidDirectory, sourceSbom, acceptanc
   assert.ok(Number.isSafeInteger(android.version_code) && android.version_code > 0)
   const apkName = `stream-kit-android-${android.version}.apk`
   assert.equal(sha256(path.join(androidDirectory, apkName)), android.apk_sha256)
-
-  const gate = read(`docs/evidence/windows11-android-release-${version.version}.json`)
-  assert.equal(gate.source_commit, win.commit)
-  assert.equal(gate.installer_sha256, win.file.sha256)
-  assert.equal(gate.apk_sha256, android.apk_sha256)
-  assert.equal(gate.android_version_code, android.version_code)
-  for (const name of ['windows11_install', 'service_recovery', 'maintenance_rollback', 'lan_migration',
-    'android_upgrade', 'android_media_input_audio', 'dependency_review', 'cleanup_verified']) {
-    assert.equal(gate.checks?.[name]?.passed, true, `Release evidence missing: ${name}`)
-    const evidence = gate.checks[name].evidence
-    assert.match(evidence, /^docs\/evidence\/[A-Za-z0-9._-]+\.json$/)
-    const detail = read(evidence)
-    assert.equal(detail.source_commit, win.commit, `Evidence source mismatch: ${name}`)
-    assert.equal(detail.passed, true, `Evidence did not pass: ${name}`)
-  }
 
   const downloads = new Map()
   for (const line of fs.readFileSync(path.join(androidDirectory, 'DOWNLOAD-SHA256SUMS.txt'), 'utf8').trimEnd().split(/\r?\n/)) {
@@ -108,6 +123,7 @@ function prepareAssets(windowsDirectory, androidDirectory, sourceSbom, acceptanc
     linux = read(path.join(linuxDirectory, 'installer-manifest.json'))
     verifyLinuxInstaller(win, linux, tag, file => sha256(path.join(linuxDirectory, file)))
   }
+  const release = verifyCombinedEvidence(win, android, tag, linux)
 
   fs.mkdirSync(output, {recursive:true})
   assert.equal(fs.readdirSync(output).length, 0, 'Publication directory must be empty')
@@ -128,6 +144,7 @@ function prepareAssets(windowsDirectory, androidDirectory, sourceSbom, acceptanc
       + copy(linuxDirectory, 'installer-manifest.json', 'linux-installer-manifest.json')
     fs.writeFileSync(path.join(output, 'Linux-SHA256SUMS.txt'), linuxChecksums)
   }
+  console.log(JSON.stringify(release))
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "source_commit": "d0a5b4c804ce26006a9e6ed277ff0077d92b5b11",
+  "passed": true,
+  "product_run_id": 45992346158,
+  "linux_installer_sha256": "f7283bf258afe4c9f6b25f8d24b74726f0092484eb9f6047d12003cd9b425439",
+  "lan": {
+    "run_id": 45994240668,
+    "actual_interface_address_changed": true,
+    "both_https_listeners_refreshed_in_ms": 2739,
+    "old_address_unreachable_and_removed_from_certificate": true,
+    "existing_page_recovered_without_reload": true,
+    "deployment_ca_and_keys_preserved": true,
+    "component_processes_unchanged": true,
+    "received_video_frames_after_change": 49,
+    "received_audio_packets_after_change": 81
+  },
+  "android": {
+    "run_id": 45995324077,
+    "build_run_id": 45992345078,
+    "version_code": 1000027,
+    "apk_sha256": "d9649cd76aa8b548ba5ed594ef9eab7e65324c940170a72c6127957b3b8c435b",
+    "upgraded_in_place_from": "v0.1.0",
+    "old_bookmark_opened_without_reimport": true,
+    "android_and_web_shared_upstream": true,
+    "target_input_with_control_transfer": true,
+    "foreground_and_background_recovery": true,
+    "microphone_permission_denial": true,
+    "reconnect_after_client_network_outage": true
+  },
+  "scope": "Exact Ubuntu installer in isolated hosted Linux networking and the Android official emulator. The Windows site and a physical Android device were outside these runs."
+}

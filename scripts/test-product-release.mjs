@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {productRelease,manifestRelease,promotionProfile,verifyInstallerAcceptance} from './lib/product-release.mjs'
-import {verifyLinuxInstaller,verifyLinuxRun} from './verify-windows-android-promotion.mjs'
+import {verifyCombinedEvidence,verifyLinuxInstaller,verifyLinuxRun} from './verify-windows-android-promotion.mjs'
 const commit='a'.repeat(40)
 
 test('publication requires successful installation of the exact source and bytes with automatic services',()=>{
@@ -68,6 +68,32 @@ test('a release candidate and final release use the same immutable product versi
   assert.throws(()=>promotionProfile(windows,{...linux,commit:'b'.repeat(40)},'v1.2.3-rc.1'))
 })
 
+test('unified candidate evidence is bound to three packages and cannot satisfy the stable gate',()=>{
+  const [windows,linux]=manifests('1.2.3')
+  windows.file.sha256='b'.repeat(64)
+  linux.installer.sha256='c'.repeat(64)
+  const android={apk_sha256:'d'.repeat(64),version_code:7}
+  const tag='v1.2.3-rc.1'
+  const evidence='docs/evidence/candidate-observations.json'
+  const checks=Object.fromEntries(['hosted_maintenance_rollback','isolated_lan_migration','android_upgrade',
+    'android_input_lifecycle','android_media_input_audio','dependency_review','cleanup_verified']
+    .map(key=>[key,{passed:true,evidence}]))
+  const gate={tag,source_commit:commit,installer_sha256:windows.file.sha256,
+    linux_installer_sha256:linux.installer.sha256,apk_sha256:android.apk_sha256,android_version_code:7,checks}
+  const load=file=>{
+    if(file===`docs/evidence/windows11-android-candidate-${tag.slice(1)}.json`)return gate
+    if(file===evidence)return {source_commit:commit,passed:true}
+    throw Error('Missing stable acceptance')
+  }
+  assert.equal(verifyCombinedEvidence(windows,android,tag,linux,load).prerelease,true)
+  assert.throws(()=>verifyCombinedEvidence(windows,android,'v1.2.3',linux,load),/Missing stable acceptance/)
+  assert.throws(()=>verifyCombinedEvidence(windows,android,tag,undefined,load),/requires the Ubuntu installer/)
+  assert.throws(()=>verifyCombinedEvidence(windows,android,tag,{installer:{sha256:'e'.repeat(64)}},load),/Ubuntu candidate evidence/)
+  assert.throws(()=>verifyCombinedEvidence(windows,{...android,version_code:8},tag,linux,load))
+  delete checks.android_input_lifecycle
+  assert.throws(()=>verifyCombinedEvidence(windows,android,tag,linux,load),/android_input_lifecycle/)
+})
+
 test('optional Ubuntu payload must match the Windows source, platform and actual bytes',()=>{
   const [windows,other]=manifests('1.2.3')
   const digest='c'.repeat(64)
@@ -94,6 +120,7 @@ test('a frozen Ubuntu build must use the matching version branch and original so
   const jobs={jobs:[{name:'Source-built Linux unified installer',status:'completed',conclusion:'success',
     head_sha:commit,run_id:123}]}
   verifyLinuxRun(run,jobs,repository,'123',commit,'v1.2.3')
+  verifyLinuxRun(run,jobs,repository,'123',commit,'v1.2.3-rc.1')
   assert.throws(()=>verifyLinuxRun(run,jobs,repository,'123',commit,'v1.2.4'))
   assert.throws(()=>verifyLinuxRun(run,jobs,repository,'123','b'.repeat(40),'v1.2.3'),/release source/)
   assert.throws(()=>verifyLinuxRun({...run,event:'push'},jobs,repository,'123',commit,'v1.2.3'))
