@@ -330,6 +330,26 @@
         "observer_installed": false,
         "owned_processes_cleaned_up": true
       }
+    },
+    "emulator_37_3_10": {
+      "build_id": 16970787,
+      "sdk_archive_sha256": "d069eab462ea1da4a18e21b0887c4f95ea240ffba26a1760db056a6f1b0c0338",
+      "sdk_archive_verified_against_google_repository": true,
+      "emulator_authenticode_signer": "Google LLC",
+      "passed": true,
+      "sample_rate_hz": 48000,
+      "frequency_hz": 1499,
+      "synthetic_packets_submitted": 250,
+      "guest_frames_analyzed": 240000,
+      "guest_windows_above_threshold": 50,
+      "guest_windows_total": 50,
+      "guest_median_amplitude_ppm": 251630,
+      "guest_capture_released": true,
+      "guest_observer_retired": true,
+      "host_microphone_forwarding": false,
+      "emulator_stopped": true,
+      "product_audio_entered": false,
+      "finished_at_utc": "2026-11-27T08:48:35.341Z"
     }
   },
   "lan_migration": {
