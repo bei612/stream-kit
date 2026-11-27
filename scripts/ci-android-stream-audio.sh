@@ -421,15 +421,31 @@ for(const root of [os.tmpdir(),'/run/user/'+process.getuid(),path.join(os.homedi
 assert.equal(matches.size,1,'Expected one authenticated official emulator discovery entry');
 fs.writeFileSync(process.argv[2],JSON.stringify({address:'127.0.0.1:8554',token:[...matches.values()][0]}),{mode:0o600});
 NODE
-# A separate testOnly system tone must establish the common emulator output
-# before the production APK enters. Its PCM/results never enter product metrics.
+# The separate system tone is a required playout control. A completed control
+# with clean ownership/cleanup can still collect independent microphone evidence
+# when only its acoustic signal is missing. It cannot turn the final verdict green.
+control_status=0
 node scripts/android/emulator-playout-control.cjs --serial "$serial" \
   --adb "$ANDROID_HOME/platform-tools/adb" --probe artifacts/input-example/audio-probe \
-  --output "$evidence/system-playout-control.json" --volume-evidence "$evidence/media-volume.json" --grpc-config "$scratch/grpc.json"
+  --output "$evidence/system-playout-control.json" --volume-evidence "$evidence/media-volume.json" --grpc-config "$scratch/grpc.json" || control_status=$?
+if (( control_status != 0 )); then
+  node - "$evidence/system-playout-control.json" <<'NODE'
+const fs = require('node:fs');
+const evidence = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const tone = evidence.tone_completion;
+if (evidence.failure_class !== 'CONTROL_SYSTEM_PLAYOUT_MISSING' || !evidence.fixture_only ||
+    evidence.product_app_entered !== false || !evidence.probe_closed ||
+    evidence.native_audio_logs?.cleanup_errors !== 0 || tone?.code !== 0 ||
+    tone.timed_out || !tone.tone_stopped || !tone.tone_released) process.exit(1);
+console.log('Android system playout control failed. Collecting product measurements with the failed control retained.');
+NODE
+fi
 runtime=artifacts/input-runtime/opt/stream-kit
+product_status=0
 node scripts/accept-source-stream.cjs --sunshine "$runtime/sunshine/bin/sunshine" --gateway "$runtime/media-gateway/web-server" \
   --orchestrator "$runtime/orchestrator/orchestrator" --web-assets "$runtime/media-gateway/dist" \
   --example artifacts/input-example/x11-audio-program --example-output streamkit_program --android-audio --clients 2 --hold-seconds 0 \
   --android-serial "$serial" --android-adb "$ANDROID_HOME/platform-tools/adb" --tls-dir "$tls" \
   --android-grpc-config "$scratch/grpc.json" --audio-probe artifacts/input-example/audio-probe \
-  --target-render-device pulseaudio:streamkit_microphone --target-capture-device pulseaudio:streamkit_microphone_capture
+  --target-render-device pulseaudio:streamkit_microphone --target-capture-device pulseaudio:streamkit_microphone_capture || product_status=$?
+(( control_status == 0 && product_status == 0 ))

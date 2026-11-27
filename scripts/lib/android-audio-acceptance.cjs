@@ -294,12 +294,15 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
       assert.ok(recorder.recorder_owner_verified&&recorder.pulse_source_outputs.length>0,'Owned native recorder stream must be observed on the Android capture source');
       assert.ok(recorder.pulse_source_outputs_observation.started_at_ms>=playout.started_at_ms&&recorder.pulse_source_outputs_observation.finished_at_ms<=playout.collection_finished_at_ms,'Recorder route observation must fall inside the actual recording window');
       state.android_program_997_median=playout.signal.median_amplitude;save();
-      assert.ok(state.android_program_997_median>0.01,'Android playout missing sustained 997Hz program');
+      return state.android_program_997_median>0.01;
     };
     // Join both real observers even if one fails, so capture cleanup and all
     // failure evidence finish before the graph or probe can be closed.
     const programResults=await Promise.allSettled([captureAndroidPlayout(),measureWebProgram()]);
     for(const result of programResults)if(result.status==='rejected')throw result.reason;
+    // Missing Android playout amplitude does not prevent measuring the separate
+    // microphone input path once the capture ownership and Web program checks pass.
+    state.android_program_signal_observed=programResults[0].value;save();
     const baseline = await capture('baseline'); assert.ok(baseline.peak_amplitude<0.001); assert.ok(state.baseline.program_997.peak_amplitude<0.005, 'Program audio leaked into microphone target');
     state.observer_before_injection = await webSample();
     assert.ok(state.observer_before_injection.program_997_db>-65,'Persistent Web observer must hear the real program before injection'); save();
@@ -334,7 +337,10 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     assert.ok(silent.peak_amplitude<0.001,'Revoked microphone reached native target'); assert.ok(inaudible<-65,'Revoked microphone reached Web observer');
     state.web_program_after_revocation_997_db=await audience('program_after_revocation',997); assert.ok(state.web_program_after_revocation_997_db>-65,'Revocation interrupted program audio');
     sending=false; await sender; await injectionDone; assert.equal(injectionError,undefined,'Official emulator injection failed'); state.injection_completed=true;
-    assert.equal(run(['shell','getprop','sys.boot_completed']).trim(),'1'); state.passed=true; save();
+    assert.equal(run(['shell','getprop','sys.boot_completed']).trim(),'1');
+    state.microphone_route_observed=true;save();
+    assert.ok(state.android_program_signal_observed,'Android playout missing sustained 997Hz program');
+    state.passed=true;save();
   } catch(error) {
     await playbackMetadata('failure');throw error;
   } finally {
