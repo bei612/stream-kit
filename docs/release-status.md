@@ -18,6 +18,8 @@ Android 联验和隔离 LAN 换址验收可显式选择 Linux 安装器的构建
 
 Win11 独立实例以原生 HTTP 客户端及 Playwright CLI 驱动的 Chrome 分别上传并解压实际 26 GiB TAR，本地开发构建的页面操作和落盘已验收。随后以候选安装包原生管理服务再次接收 27,921,765,888 字节，实际解压 27,921,762,816 字节，应用进入就绪状态、Example 哈希一致、暂存及应用测试目录均已回收。候选包管理页已通过桌面和窄屏限额显示验收。正式装机的暂存与应用目录应按两项存储需求部署。[候选包大文件验收](evidence/windows-android-ce49050f-candidate-20261127.json) · [浏览器应用就绪截图](evidence/windows11-browser-upload-26gib-20261127.png)
 
+同源签名 APK 的前后台恢复已在官方 Android 36 模拟器通过。Android 持有控制权时退出到桌面，服务释放该连接及控制权；回前台以全新观看连接恢复原串流，麦克风保持关闭。客户端恢复后观察到 300 个音频包和 115 帧解码画面，Web 继续共享同一渲染实例。[实际前后台联验](https://github.com/bei612/stream-kit/actions/runs/45948972310)
+
 本机旧部署的固定主机名 `volcengine.local` 已用同机 Playwright CLI 验证原 CA 下的管理入口、网关和 Example 永久链接，共解码 37 帧，随后正常停止 Example。记录只覆盖本机固定主机名入口。实体 Android 对该名字和换址后串流的现场确认另行记录。
 
 本机 Windows 三个运行组件及实体平板已更新至候选 `53c7385a`，保持原应用、CA、配置与平板书签。单安装器、静默安装、服务自动恢复和卸载已经在 Windows Server 2022 CI 通过。实装 Win11 与平板、Web 的共享画面、程序音、控制权交接及平板麦克风至目标录音端点和 Web 观众均已验证。当前仍需独立 Win11 首装与实际回退、现场 LAN 换址、完整输入撤权验收和依赖剩余项处理。见[同源实装与联验](evidence/windows11-android-joint-53c7385a.json)、[安装器验收](https://github.com/bei612/stream-kit/actions/runs/45806470686)。

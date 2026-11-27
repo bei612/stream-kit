@@ -81,6 +81,20 @@
     "transferred_and_revoked_input_ignored": true,
     "native_instance_scoped_stop": true
   },
+  "android_foreground_lifecycle": {
+    "acceptance_run_id": 45948972310,
+    "harness_source_commit": "f6ae510f",
+    "passed": true,
+    "environment": "Official Android API 36 emulator with the same signed APK and same-source isolated Linux runtime",
+    "controller_before_background": true,
+    "background_released_connection_and_controller": true,
+    "foreground_retained_native_upstream": true,
+    "foreground_new_viewer_without_control_or_microphone": true,
+    "native_audio_packets_after_foreground": 300,
+    "native_video_frames_after_foreground": 115,
+    "renderer_restored_idle": true,
+    "scope": "Ordinary Home and Activity foreground transitions. Audio packets establish transport recovery. Acoustic output, microphone injection, network cutoff and APK replacement have separate evidence requirements."
+  },
   "android_audio_attempt": {
     "acceptance_run_id": 45946215689,
     "passed": false,
