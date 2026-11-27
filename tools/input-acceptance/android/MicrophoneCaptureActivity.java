@@ -75,7 +75,11 @@ public final class MicrophoneCaptureActivity extends Activity {
             Bundle started = new Bundle();
             started.putString("mic_control_started", "recording");
             observer.sendStatus(1, started);
-            return analyze(recorder);
+            Bundle measurement = analyze(recorder, observer);
+            Bundle measured = new Bundle();
+            measured.putString("mic_control_stage", "analysis_complete");
+            observer.sendStatus(2, measured);
+            return measurement;
         } finally {
             try {
                 if (recorder.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) recorder.stop();
@@ -83,7 +87,7 @@ public final class MicrophoneCaptureActivity extends Activity {
         }
     }
 
-    private static Bundle analyze(AudioRecord recorder) {
+    private static Bundle analyze(AudioRecord recorder, Instrumentation observer) {
         double[] sine = new double[WINDOW], cosine = new double[WINDOW], amplitudes = new double[WINDOWS];
         for (int i = 0; i < WINDOW; i++) {
             double phase = 2.0 * Math.PI * TARGET_HZ * i / RATE;
@@ -109,6 +113,11 @@ public final class MicrophoneCaptureActivity extends Activity {
                     amplitudes[count++] = amplitude;
                     real = imaginary = 0;
                     index = 0;
+                    if (count == WINDOWS / 2) {
+                        Bundle progress = new Bundle();
+                        progress.putString("mic_control_stage", "half_frames_read");
+                        observer.sendStatus(2, progress);
+                    }
                 }
             }
         }

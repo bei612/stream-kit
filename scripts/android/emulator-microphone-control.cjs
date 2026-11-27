@@ -29,12 +29,19 @@ function instrumentation() {
   const child = spawn(args.adb, ['-s', args.serial, 'shell', 'am', 'instrument', '-w', '-r',
     '-e', 'action', 'microphone-control', `${observer}/.Observer`], {stdio: ['ignore', 'pipe', 'ignore']});
   const values = new Map();
-  let ready, code;
+  let ready, measurement, code;
   const started = new Promise(resolve => { ready = resolve; });
+  const measured = new Promise(resolve => { measurement = resolve; });
+  const stages = [];
   const limit = setTimeout(() => child.kill(), 18000);
   const lines = createInterface({input: child.stdout});
   lines.on('line', line => {
     if (line === 'INSTRUMENTATION_STATUS: mic_control_started=recording') ready(true);
+    const stage = line.match(/^INSTRUMENTATION_STATUS: mic_control_stage=(half_frames_read|analysis_complete)$/);
+    if (stage) {
+      stages.push({at_ms: Date.now(), stage: stage[1]});
+      if (stage[1] === 'analysis_complete') measurement(true);
+    }
     const result = line.match(/^INSTRUMENTATION_RESULT: (mic_control_[a-z_]+|error_type)=([A-Za-z0-9]+)$/);
     if (result) values.set(result[1], result[2]);
     const status = line.match(/^INSTRUMENTATION_CODE: (-?\d+)$/);
@@ -44,9 +51,10 @@ function instrumentation() {
   const closed = new Promise(resolve => child.once('close', exit => {
     clearTimeout(limit);
     ready(false);
-    resolve({exit, code, values});
+    measurement(false);
+    resolve({exit, code, values, stages});
   }));
-  return {started, closed, stop: () => child.kill()};
+  return {started, measured, closed, stop: () => child.kill()};
 }
 
 async function fixtureInactive(packageName) {
@@ -79,9 +87,16 @@ async function main() {
     assert.equal(await probe.started, true, 'Foreground Android capture was not ready');
     evidence.capture_started = true;
     injection = startToneInjection(client, metadata, source);
-    const observation = await probe.closed;
+    // End input when AudioRecord finishes acquiring frames. Otherwise the host
+    // can wait for guest release while still feeding the emulator microphone.
+    let deadline;
+    const missedWindow = new Promise(resolve => { deadline = setTimeout(() => resolve(false), 8200); });
+    evidence.capture_measured = await Promise.race([probe.measured, missedWindow]);
+    clearTimeout(deadline);
+    assert.equal(evidence.capture_measured, true, 'Android capture did not complete its measurement');
     await injection.finish();
     evidence.rpc_completed = true;
+    const observation = await probe.closed;
     assert.equal(observation.exit, 0);
     assert.equal(observation.code, -1);
     evidence.capture_released = await fixtureInactive(observer);
@@ -102,12 +117,13 @@ async function main() {
   } catch {
     evidence.failure_class = 'CONTROL_GUEST_MICROPHONE_MEASUREMENT_FAILED';
   } finally {
+    if (injection) await injection.cancel();
     if (probe) {
       if (!evidence.capture_released) probe.stop();
-      const {exit, code, values} = await probe.closed;
+      const {exit, code, values, stages} = await probe.closed;
       evidence.instrumentation = {exit, code, error_type: values.get('error_type')};
+      evidence.capture_stages = stages;
     }
-    if (injection) await injection.cancel();
     client?.close();
     evidence.synthetic_packets_submitted = source.packets;
     evidence.finished_at_ms = Date.now();

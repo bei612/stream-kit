@@ -171,6 +171,22 @@
       "pcm_saved": false,
       "system_playout_control_passed": false,
       "product_audio_passed": false
+    },
+    "official_emulator_comparison": {
+      "acceptance_run_id": 45954552924,
+      "harness_source_commit": "386f4332",
+      "passed": false,
+      "official_linux_emulator_version": "37.2.13.0",
+      "official_linux_emulator_build_id": 16740729,
+      "android_api_level": 36,
+      "system_playout_control_passed": true,
+      "system_playout_signal_697_median": 0.020212577438759864,
+      "system_playout_signal_1209_median": 0.03531361081071457,
+      "system_playout_analyzed_frames": 192000,
+      "guest_recording_started": true,
+      "guest_recording_final_status_received": false,
+      "synthetic_packets_submitted_before_termination": 654,
+      "product_audio_entered": false
     }
   },
   "lan_migration": {
