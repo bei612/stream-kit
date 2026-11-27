@@ -2,15 +2,19 @@
 
 核对日期：2026-11-27。本页集中维护可下载版本、本机部署、候选产物和剩余边界。历史证据保留原始来源，不把旧版通过结果当作新产物验收。
 
+当前发布候选冻结于 `ce49050f4dfcbd1e22d9d4f22093f6b965e6aac8`，含固定观看主机名与大型归档限额界面。[Windows 统一安装器](https://github.com/bei612/stream-kit/actions/runs/45939440963)和 [Android 原生 APK](https://github.com/bei612/stream-kit/actions/runs/45939467986)已进入同源构建，Android versionCode 为 `1000024`。与它同源的[隔离 Linux 产物](https://github.com/bei612/stream-kit/actions/runs/45939312965)用于固定主机名实测。
+
 本机已安装并验收的 `0.1.1` 候选源码为 `53c7385ac58d39408a3aaffef33d6a95ea06a737`。该源码包含归档上传空闲超时、直接落盘、媒体网关和解压依赖更新，以及 Go 1.27.4 工具链与 quic-go 补丁。Windows 11 原生 Go 定向测试通过，管理服务符号级扫描未发现已知漏洞。候选产物来自 [Windows 单安装器构建](https://github.com/bei612/stream-kit/actions/runs/45798220979)及 [Android 签名构建](https://github.com/bei612/stream-kit/actions/runs/45798220812)，Android versionCode 为 1000021。详见[工具链与依赖复核](evidence/windows11-runtime-dependency-review-53c7385a.json)。
 
-下一同源候选冻结于 `324106b01312c722db82d922953d7588b0581a76`。受管 WebRTC 会话通过信令连接的实际 IPv4 地址绑定媒体 UDP，并包含应用详情语言修复。[Android APK](https://github.com/bei612/stream-kit/actions/runs/45933665875) 已构建，versionCode 为 `1000023`，本地核对了 21 项产物清单、APK 签名 v2/v3 和应用 ID，APK SHA-256 为 `fbc907d3ad317b7472b129a196e485348b5222a30b4f0fae8de2f8de0dc9dc8e`。[同源 Linux 安装器](https://github.com/bei612/stream-kit/actions/runs/45933396003)已构建并通过原生安装检查。[跨平台构建的 Windows 网关](https://github.com/bei612/stream-kit/actions/runs/45933396105/artifacts/15170067547)在本机通过 35 项文件核验及 30 项原生配置检查。[Windows 单安装器](https://github.com/bei612/stream-kit/actions/runs/45933668313)仍在构建，本机部署仍运行 `53c7385a`。
+上一候选 `324106b01312c722db82d922953d7588b0581a76` 首次将受管 WebRTC 会话的媒体 UDP 绑定到信令连接的实际 IPv4 地址，并包含应用详情语言修复。[Android APK](https://github.com/bei612/stream-kit/actions/runs/45933665875) 的 versionCode 为 `1000023`，本地核对了 21 项产物清单、APK 签名 v2/v3 和应用 ID，APK SHA-256 为 `fbc907d3ad317b7472b129a196e485348b5222a30b4f0fae8de2f8de0dc9dc8e`。[同源 Linux 安装器](https://github.com/bei612/stream-kit/actions/runs/45933396003)通过原生安装检查。[跨平台构建的 Windows 网关](https://github.com/bei612/stream-kit/actions/runs/45933396105/artifacts/15170067547)在本机通过 35 项文件核验及 30 项原生配置检查。[旧候选 Windows 安装器](https://github.com/bei612/stream-kit/actions/runs/45933668313)作为旧候选构建证据，本机部署仍运行 `53c7385a`。
 
 Android 联验和隔离 LAN 换址验收可显式选择 Linux 安装器的构建工作流。两类验收直接消费固定构建的安装器并记录来源，Android 候选联验还会要求 APK 与安装器的源码提交完全相同。本候选已进入 [LAN 换址与媒体候选](https://github.com/bei612/stream-kit/actions/runs/45935146775)、[Android 与 Web 输入](https://github.com/bei612/stream-kit/actions/runs/45935149788)和 [Android 与 Web 音频](https://github.com/bei612/stream-kit/actions/runs/45935153698)实际联验。
 
 候选的隔离 LAN 换址联验通过。两个 HTTPS 入口在 10.25 秒内更换服务证书，保留 CA 和私钥。原浏览器页面自动恢复串流，换址前后只收到当前直连地址的 UDP 主机候选。Android 与 Web 使用同一上游，双方实测轮流向目标交付按键及触摸，交接和撤权后的输入保持被拒绝。Linux 模拟器音频联验的独立系统音基线未通过。修复探针状态读取与 PCM 写入的争用后，已采到 194739 帧且探针丢帧为零，基准音仍近静音，产品音频测试未进入。见[音频探针修复后的联验](https://github.com/bei612/stream-kit/actions/runs/45936840917)。
 
 Win11 独立实例已接收并解压实际 26 GiB TAR，解出的 Example 哈希一致。管理页的上传与解压限额来自运行配置，Playwright CLI 复核了桌面和窄屏以及实际 ZIP 上传。此证据对应本地开发构建。正式装机的暂存与应用目录仍应按可用空间部署。[真实大包验收](evidence/windows11-large-archive-20261127.json)
+
+本机旧部署的固定主机名 `volcengine.local` 已用同机 Playwright CLI 验证原 CA 下的管理入口、网关和 Example 永久链接，共解码 37 帧，随后正常停止 Example。记录只覆盖本机固定主机名入口。实体 Android 对该名字和换址后串流的现场确认另行记录。
 
 本机 Windows 三个运行组件及实体平板已更新至候选 `53c7385a`，保持原应用、CA、配置与平板书签。单安装器、静默安装、服务自动恢复和卸载已经在 Windows Server 2022 CI 通过。实装 Win11 与平板、Web 的共享画面、程序音、控制权交接及平板麦克风至目标录音端点和 Web 观众均已验证。当前仍需独立 Win11 首装与实际回退、现场 LAN 换址、完整输入撤权验收和依赖剩余项处理。见[同源实装与联验](evidence/windows11-android-joint-53c7385a.json)、[安装器验收](https://github.com/bei612/stream-kit/actions/runs/45806470686)。
 
