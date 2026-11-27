@@ -12,8 +12,8 @@ use serde_json::{Value, json};
 use std::{
     io::{self, BufRead, Read, Write},
     sync::{
-        Arc, Mutex,
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        Arc,
+        atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering},
         mpsc,
     },
     time::Duration,
@@ -34,28 +34,29 @@ struct Command {
     frequency_hz: Option<f64>,
 }
 
-#[derive(Default)]
 struct Recording {
-    samples: Vec<f32>,
-    peak: f32,
-    square_sum: f64,
-    window_frames: u64,
+    samples: Box<[AtomicU32]>,
+    written: AtomicUsize,
 }
 impl Recording {
     fn new() -> Self {
         Self {
-            samples: Vec::with_capacity(MAX_FRAMES),
-            ..Self::default()
+            samples: (0..MAX_FRAMES).map(|_| AtomicU32::new(0)).collect(),
+            written: AtomicUsize::new(0),
         }
     }
-    fn consume<T: cpal::SizedSample>(&mut self, samples: &[T], channels: usize)
+    // Only the capture callback writes. Once published, a sample is immutable
+    // for the rest of this recording and readers can never stall the callback.
+    fn consume<T: cpal::SizedSample>(&self, samples: &[T], channels: usize) -> usize
     where
         f32: cpal::FromSample<T>,
     {
-        for frame in samples.chunks_exact(channels) {
-            if self.samples.len() == MAX_FRAMES {
-                break;
-            }
+        let start = self.written.load(Ordering::Relaxed);
+        let end = start + (samples.len() / channels).min(MAX_FRAMES - start);
+        for (slot, frame) in self.samples[start..end]
+            .iter()
+            .zip(samples.chunks_exact(channels))
+        {
             let mono = frame
                 .iter()
                 .map(|s| <f32 as cpal::FromSample<T>>::from_sample_(*s))
@@ -66,12 +67,36 @@ impl Recording {
             } else {
                 0.0
             };
-            self.samples.push(mono);
-            self.peak = self.peak.max(mono.abs());
-            self.square_sum += f64::from(mono) * f64::from(mono);
-            self.window_frames += 1;
+            slot.store(mono.to_bits(), Ordering::Relaxed);
         }
+        self.written.store(end, Ordering::Release);
+        end
     }
+
+    fn published(&self) -> &[AtomicU32] {
+        &self.samples[..self.written.load(Ordering::Acquire)]
+    }
+
+    fn samples(&self) -> Vec<f32> {
+        self.published().iter().map(read_sample).collect()
+    }
+
+    fn levels_since(&self, previous: usize) -> (usize, f32, f64) {
+        let samples = self.published();
+        let mut peak = 0.0_f32;
+        let mut square_sum = 0.0;
+        let window = &samples[previous..];
+        for sample in window.iter().map(read_sample) {
+            peak = peak.max(sample.abs());
+            square_sum += f64::from(sample).powi(2);
+        }
+        let rms = (square_sum / window.len().max(1) as f64).sqrt();
+        (samples.len(), peak, rms)
+    }
+}
+
+fn read_sample(slot: &AtomicU32) -> f32 {
+    f32::from_bits(slot.load(Ordering::Relaxed))
 }
 
 struct Active<S = cpal::Stream> {
@@ -116,8 +141,8 @@ fn validate_start(op: &str, input_active: bool, output_active: bool) -> Result<(
 struct Probe {
     input: Option<Active>,
     output: Option<Active>,
-    recording: Arc<Mutex<Recording>>,
-    dropped: Arc<AtomicU64>,
+    recording: Arc<Recording>,
+    reported_capture_frames: usize,
     last_error: Option<String>,
 }
 impl Default for Probe {
@@ -125,8 +150,8 @@ impl Default for Probe {
         Self {
             input: None,
             output: None,
-            recording: Arc::new(Mutex::new(Recording::new())),
-            dropped: Arc::new(AtomicU64::new(0)),
+            recording: Arc::new(Recording::new()),
+            reported_capture_frames: 0,
             last_error: None,
         }
     }
@@ -174,8 +199,7 @@ fn device_config(
 fn capture<T: cpal::SizedSample>(
     device: &cpal::Device,
     config: cpal::StreamConfig,
-    recording: Arc<Mutex<Recording>>,
-    dropped: Arc<AtomicU64>,
+    recording: Arc<Recording>,
     failed: Arc<AtomicBool>,
     complete: Arc<AtomicBool>,
 ) -> Result<cpal::Stream, cpal::Error>
@@ -186,13 +210,8 @@ where
     device.build_input_stream(
         config,
         move |samples: &[T], _| {
-            if let Ok(mut recording) = recording.try_lock() {
-                recording.consume(samples, channels);
-                if recording.samples.len() == MAX_FRAMES {
-                    complete.store(true, Ordering::Release);
-                }
-            } else {
-                dropped.fetch_add((samples.len() / channels) as u64, Ordering::Relaxed);
+            if recording.consume(samples, channels) == MAX_FRAMES {
+                complete.store(true, Ordering::Release);
             }
         },
         move |_| {
@@ -305,8 +324,7 @@ impl Probe {
                 if self.input.is_some() {
                     return Err("Stop recording before analyzing recorded audio".into());
                 }
-                let recording = self.recording.lock().map_err(|_| "Recording unavailable")?;
-                return analysis::analyze_envelope(&recording.samples)
+                return analysis::analyze_envelope(&self.recording.samples())
                     .map(|analysis| json!(analysis))
                     .map_err(str::to_owned);
             }
@@ -317,9 +335,8 @@ impl Probe {
                 let frequency = command
                     .frequency_hz
                     .ok_or("Specify an analysis frequency")?;
-                let recording = self.recording.lock().map_err(|_| "Recording unavailable")?;
-                let analysis =
-                    analysis::analyze_tone(&recording.samples, frequency).map_err(str::to_owned)?;
+                let analysis = analysis::analyze_tone(&self.recording.samples(), frequency)
+                    .map_err(str::to_owned)?;
                 return Ok(json!(analysis));
             }
             "stop" => {
@@ -345,15 +362,14 @@ impl Probe {
         let frames = Arc::new(AtomicU64::new(0));
         let complete = Arc::new(AtomicBool::new(false));
         let stream = if input {
-            self.recording = Arc::new(Mutex::new(Recording::new()));
-            self.dropped.store(0, Ordering::Relaxed);
+            self.recording = Arc::new(Recording::new());
+            self.reported_capture_frames = 0;
             macro_rules! open {
                 ($t:ty) => {
                     capture::<$t>(
                         &device,
                         config.into(),
                         self.recording.clone(),
-                        self.dropped.clone(),
                         failed.clone(),
                         complete.clone(),
                     )
@@ -369,11 +385,11 @@ impl Probe {
             let source = if command.op == "tone" {
                 Playback::Tone
             } else {
-                let data = self.recording.lock().map_err(|_| "Recording unavailable")?;
-                if data.samples.is_empty() {
+                let samples = self.recording.samples();
+                if samples.is_empty() {
                     return Err("Record microphone input before playback".into());
                 }
-                Playback::Recorded(data.samples.clone())
+                Playback::Recorded(samples)
             };
             macro_rules! open {
                 ($t:ty) => {
@@ -436,13 +452,12 @@ impl Probe {
         } else {
             "idle"
         };
-        let mut data = self.recording.lock().expect("recording lock");
-        let rms = (data.square_sum / data.window_frames.max(1) as f64).sqrt();
-        let result = json!({"state":state,"input_state":input_state,"output_state":output_state,"captured_frames":data.samples.len(),"played_frames":played,"sample_rate":RATE,"peak":data.peak,"rms":rms,"dropped_frames":self.dropped.load(Ordering::Relaxed),"error":self.last_error});
-        data.peak = 0.0;
-        data.square_sum = 0.0;
-        data.window_frames = 0;
-        result
+        let (captured, peak, rms) = self.recording.levels_since(self.reported_capture_frames);
+        self.reported_capture_frames = captured;
+        // This legacy counter measures frames lost inside the probe. All
+        // complete callback frames fit until the capture limit. Backend errors
+        // are still reported through input_state/error.
+        json!({"state":state,"input_state":input_state,"output_state":output_state,"captured_frames":captured,"played_frames":played,"sample_rate":RATE,"peak":peak,"rms":rms,"dropped_frames":0,"error":self.last_error})
     }
 }
 
@@ -610,13 +625,26 @@ mod tests {
 
     #[test]
     fn recording_is_bounded_and_measures_actual_pcm() {
-        let mut r = Recording::new();
-        r.consume(&[0.5_f32, 0.25, -0.5, -0.25], 2);
-        assert_eq!(r.samples, vec![0.375, -0.375]);
-        assert_eq!(r.peak, 0.375);
-        r.consume(&vec![0.1_f32; MAX_FRAMES * 2], 1);
-        assert_eq!(r.samples.len(), MAX_FRAMES);
-        assert_eq!(r.samples.capacity(), MAX_FRAMES);
+        let recording = Recording::new();
+        recording.consume(&[0.5_f32, 0.25, -0.5, -0.25], 2);
+        assert_eq!(recording.samples(), vec![0.375, -0.375]);
+        assert_eq!(recording.levels_since(0), (2, 0.375, 0.375));
+        assert_eq!(recording.levels_since(2), (2, 0.0, 0.0));
+        recording.consume(&vec![0.1_f32; MAX_FRAMES * 2], 1);
+        assert_eq!(recording.published().len(), MAX_FRAMES);
+        assert_eq!(recording.samples.len(), MAX_FRAMES);
+    }
+
+    #[test]
+    fn capture_continues_while_status_reads_the_published_window() {
+        let recording = Recording::new();
+        recording.consume(&[0.25_f32; 960], 1);
+        let window = recording.published();
+        std::thread::scope(|scope| {
+            scope.spawn(|| assert_eq!(recording.consume(&[-0.5_f32; 960], 1), 1920));
+            assert!(window.iter().all(|slot| read_sample(slot) == 0.25));
+        });
+        assert_eq!(recording.levels_since(960), (1920, 0.5, 0.5));
     }
     #[test]
     fn explicit_device_and_protocol_required_without_opening_defaults() {
@@ -653,12 +681,12 @@ mod tests {
         };
         assert!(probe.execute(&command).is_err());
         let samples: Vec<f32> = (0..RATE).map(|i| Playback::Tone.sample(i)).collect();
-        probe.recording.lock().unwrap().consume(&samples, 1);
+        probe.recording.consume(&samples, 1);
         let result = probe.execute(&command).unwrap();
         assert_eq!(result["analyzed_frames"], RATE);
         assert!(result["peak_amplitude"].as_f64().unwrap() > 0.079);
         assert!(probe.input.is_none() && probe.output.is_none());
-        assert_eq!(probe.recording.lock().unwrap().samples.len(), RATE);
+        assert_eq!(probe.recording.published().len(), RATE);
     }
     #[test]
     fn output_has_fixed_duration_bounded_level_and_silent_tail() {
