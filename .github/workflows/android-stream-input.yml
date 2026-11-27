@@ -6,6 +6,11 @@ on:
         description: 'Owned product run with a completed successful Linux installer job'
         type: string
         required: true
+      runtime_producer_profile:
+        description: 'Workflow that produced the selected Linux installer'
+        type: choice
+        default: unified
+        options: [unified, standalone-linux]
       android_release_tag:
         description: 'Published signed Android release tag to test without rebuilding'
         type: string
@@ -24,6 +29,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       PRODUCT_RUN_ID: ${{ inputs.product_run_id }}
+      RUNTIME_PRODUCER_PROFILE: ${{ inputs.runtime_producer_profile }}
       ANDROID_RELEASE_TAG: ${{ inputs.android_release_tag }}
       ANDROID_RUN_ID: ${{ inputs.android_run_id }}
     steps:

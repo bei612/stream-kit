@@ -6,6 +6,11 @@ on:
         description: 'Explicit owned product run with successful Linux job'
         type: string
         required: true
+      runtime_producer_profile:
+        description: 'Workflow that produced the selected Linux installer'
+        type: choice
+        default: unified
+        options: [unified, standalone-linux]
 permissions:
   contents: read
   actions: read
@@ -16,6 +21,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       PRODUCT_RUN_ID: ${{ inputs.product_run_id }}
+      RUNTIME_PRODUCER_PROFILE: ${{ inputs.runtime_producer_profile }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -28,13 +34,7 @@ jobs:
           mkdir -p artifacts/network-download
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PRODUCT_RUN_ID" > artifacts/network-download/product-run.json
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PRODUCT_RUN_ID/jobs?filter=latest&per_page=100" > artifacts/network-download/product-jobs.json
-          commit=$(node --input-type=module <<'JS'
-          import fs from 'node:fs';
-          import {productSource} from './scripts/verify-input-acceptance-sources.mjs';
-          const read=name=>JSON.parse(fs.readFileSync('artifacts/network-download/'+name+'.json'));
-          console.log(productSource(read('product-run'),read('product-jobs'),process.env.GITHUB_REPOSITORY,process.env.PRODUCT_RUN_ID));
-          JS
-          )
+          commit=$(node scripts/verify-input-acceptance-sources.mjs product-run artifacts/network-download)
           gh run download "$PRODUCT_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "linux-product-installer-$commit" --dir artifacts/network-product
           cp artifacts/network-product/installer/installer-manifest.json artifacts/network-download/
           cp artifacts/network-product/installer/*-setup.run artifacts/network-download/
@@ -51,7 +51,7 @@ jobs:
           const bytes=fs.readFileSync(dir+m.installer.file);assert.equal(bytes.length,m.installer.bytes);
           assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),m.installer.sha256);
           fs.mkdirSync('artifacts/network-address-evidence',{recursive:true});
-          fs.writeFileSync('artifacts/network-address-evidence/provenance.json',JSON.stringify({runtime_commit:m.commit,installer_sha256:m.installer.sha256,product_run_id:process.env.PRODUCT_RUN_ID||null,acceptance_commit:process.env.GITHUB_SHA,runtime_rebuilt:false},null,2));
+          fs.writeFileSync('artifacts/network-address-evidence/provenance.json',JSON.stringify({runtime_commit:m.commit,installer_sha256:m.installer.sha256,product_run_id:process.env.PRODUCT_RUN_ID,runtime_producer_profile:process.env.RUNTIME_PRODUCER_PROFILE,acceptance_commit:process.env.GITHUB_SHA,runtime_rebuilt:false},null,2));
           JS
           installer=artifacts/network-download/*-setup.run
           line=$(awk '/^__STREAM_KIT_PAYLOAD__$/ {print NR+1;exit}' $installer)

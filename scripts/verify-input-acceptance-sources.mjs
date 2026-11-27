@@ -47,6 +47,13 @@ export function linuxRuntimeSource(run, jobs, repository, runID, producerProfile
   return { commit: run.head_sha, producerProfile, linuxJob: linux[0] }
 }
 
+function selectedProductSource(inputDirectory = directory) {
+  const run = read(path.join(inputDirectory, 'product-run.json'))
+  const jobs = read(path.join(inputDirectory, 'product-jobs.json'))
+  return linuxRuntimeSource(run, jobs, process.env.GITHUB_REPOSITORY, process.env.PRODUCT_RUN_ID,
+    process.env.RUNTIME_PRODUCER_PROFILE ?? 'unified')
+}
+
 function apkIdentity(provenance, signing, source) {
   assert.equal(provenance.schema_version, 1)
   assert.equal(provenance.application_id, 'io.github.bei612.streamkit')
@@ -93,8 +100,7 @@ function verifiedAsset(release, name) {
 }
 
 function verifyDownloads() {
-  const run = read(file('product-run.json'))
-  const commit = productSource(run, read(file('product-jobs.json')), process.env.GITHUB_REPOSITORY, process.env.PRODUCT_RUN_ID)
+  const { commit, producerProfile, linuxJob } = selectedProductSource()
   const manifest = read(file('installer-manifest.json'))
   assert.equal(manifest.commit, commit)
   assert.equal(manifest.platform, 'linux')
@@ -139,7 +145,7 @@ function verifyDownloads() {
   fs.mkdirSync(evidence, { recursive: true })
   fs.writeFileSync(path.join(evidence, 'provenance.json'), JSON.stringify({
     runtime_commit: commit, installer_sha256: manifest.installer.sha256, payload_sha256: manifest.payload.sha256,
-    product_run_id: run.id, product_linux_job_id: read(file('product-jobs.json')).jobs.find(j => j.name === 'Linux product / Source-built Linux unified installer').id,
+    product_run_id: linuxJob.run_id, product_linux_job_id: linuxJob.id, runtime_producer_profile: producerProfile,
     android_release_tag: release?.tag_name ?? null, android_release_id: release?.id ?? null,
     android_run_id: androidRun?.id ?? null, apk_file: apkFile,
     apk_source_commit: provenance.source_commit, apk_sha256: provenance.apk_sha256,
@@ -169,7 +175,7 @@ function verifyAPK() {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const mode = process.argv[2]
-  if (mode === 'product-run') console.log(productSource(read(file('product-run.json')), read(file('product-jobs.json')), process.env.GITHUB_REPOSITORY, process.env.PRODUCT_RUN_ID))
+  if (mode === 'product-run') console.log(selectedProductSource(process.argv[3]).commit)
   else if (mode === 'android-run') console.log(androidCandidateSource(read(file('android-run.json')), process.env.GITHUB_REPOSITORY, process.env.ANDROID_RUN_ID))
   else if (mode === 'downloads') verifyDownloads()
   else if (mode === 'apk') verifyAPK()

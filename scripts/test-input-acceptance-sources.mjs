@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { productSource, releaseIdentity, androidCandidateSource } from './verify-input-acceptance-sources.mjs'
+import { productSource, linuxRuntimeSource, releaseIdentity, androidCandidateSource } from './verify-input-acceptance-sources.mjs'
 
 const sha = 'a'.repeat(40)
 const run = () => ({ id: 123, status: 'in_progress', path: '.github/workflows/windows-product-release.yml', head_repository: { full_name: 'bei612/stream-kit' }, head_branch: 'main', event: 'workflow_dispatch', head_sha: sha })
@@ -16,6 +16,19 @@ test('runtime source requires the exact owned main product run and successful Li
     assert.throws(() => productSource(run(), candidate, 'bei612/stream-kit', '123'))
   }
   assert.throws(() => productSource(run(), jobs(), 'bei612/stream-kit', ''))
+})
+
+test('a standalone installer must be explicitly selected and come from a completed Linux run', () => {
+  const standalone = { ...run(), status: 'completed', conclusion: 'success', event: 'push', path: '.github/workflows/linux-sunshine-build.yml' }
+  const standaloneJobs = jobs()
+  standaloneJobs.jobs[0].name = 'Source-built Linux unified installer'
+  const verify = (selectedRun, selectedJobs = standaloneJobs) =>
+    linuxRuntimeSource(selectedRun, selectedJobs, 'bei612/stream-kit', '123', 'standalone-linux')
+  assert.deepEqual(verify(standalone), { commit: sha, producerProfile: 'standalone-linux', linuxJob: standaloneJobs.jobs[0] })
+  assert.throws(() => productSource(standalone, standaloneJobs, 'bei612/stream-kit', '123'))
+  assert.throws(() => verify({ ...standalone, status: 'in_progress' }))
+  assert.throws(() => verify({ ...standalone, conclusion: 'failure' }))
+  assert.throws(() => verify(standalone, jobs()))
 })
 
 test('APK metadata binds a published tag, source commit and persistent signing identity', () => {
