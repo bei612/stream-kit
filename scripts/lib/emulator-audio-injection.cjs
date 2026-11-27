@@ -55,7 +55,9 @@ function startToneInjection(client, metadata, source, {pulseSink} = {}) {
         source.packets++;
         source.last_packet_at_ms = Date.now();
         if (!writable) await once(stream, 'drain', {signal: writes.signal});
-        await delay(Math.max(0, source.started_at_ms + source.packets * PACKET_MS - Date.now()));
+        // PulseAudio's writable buffer provides the playback clock. The RPC
+        // real-time mode instead needs client pacing to avoid overwrites.
+        if (!pulseSink) await delay(Math.max(0, source.started_at_ms + source.packets * PACKET_MS - Date.now()));
       }
     } catch (error) {
       if (sending || error.name !== 'AbortError') throw error;

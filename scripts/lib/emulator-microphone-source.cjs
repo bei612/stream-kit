@@ -1,16 +1,42 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const {execFile} = require('node:child_process');
+const {execFile, spawn} = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const {promisify} = require('node:util');
 const {setTimeout: delay} = require('node:timers/promises');
-const {startToneInjection} = require('./emulator-audio-injection.cjs');
+const {startToneInjection, RATE, FREQUENCY} = require('./emulator-audio-injection.cjs');
+const {createToneMetrics} = require('../android/emulator-playout-observation.cjs');
 
 const sinkName = 'streamkit_guest_input';
 const sourceName = `${sinkName}.monitor`;
 const exec = promisify(execFile);
+
+// The host-side measurement isolates whether PACAT produces the tone that
+// QEMU reads. No recording is retained or substituted for guest AudioRecord.
+function observePulseSource() {
+  const metrics = createToneMetrics(FREQUENCY);
+  let bytesRemaining = RATE * 3 * 2;
+  const child = spawn('parec', ['--raw', `--device=${sourceName}`, `--rate=${RATE}`,
+    '--channels=1', '--format=s16le', '--latency-msec=40'], {stdio: ['ignore', 'pipe', 'ignore'], timeout: 5500});
+  return new Promise(resolve => {
+    child.on('error', () => {});
+    child.stdout.on('data', chunk => {
+      const bytes = chunk.subarray(0, bytesRemaining);
+      if (!bytes.length) return;
+      metrics.consume(bytes);
+      bytesRemaining -= bytes.length;
+      if (bytesRemaining === 0) child.kill();
+    });
+    child.once('close', () => {
+      const {frames, frequency_hz, median_amplitude, windows} = metrics.result();
+      const windows_above_threshold = windows.filter(window => window.amplitude > 0.01).length;
+      resolve({passed: frames === RATE * 3 && windows_above_threshold >= 27,
+        frames, frequency_hz, median_amplitude, windows_above_threshold, pcm_saved: false});
+    });
+  });
+}
 
 // Host-input forwarding is permitted only on a disposable runner whose private
 // server has no hardware sources. Both guest capture and product tests use it.
@@ -61,7 +87,7 @@ async function configureMicrophoneSource(unary, evidence) {
     close,
     start(client, metadata, progress) {
       const tone = startToneInjection(client, metadata, progress, {pulseSink: sinkName});
-      return {...tone, async verifyRoute() {
+      return {...tone, observeMonitor: observePulseSource, async verifyRoute() {
         const deadline = Date.now() + 3500;
         do {
           const [reads, writes] = await Promise.all([pulse('list', 'source-outputs'), pulse('list', 'sink-inputs')]);

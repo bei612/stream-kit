@@ -65,7 +65,7 @@ async function fixtureInactive(packageName) {
 }
 
 async function main() {
-  let client, probe, injection, input;
+  let client, probe, injection, input, monitor;
   try {
     evidence.phase = 'check_owned_emulator';
     assert.ok(await fixtureInactive('io.github.bei612.streamkit'), 'Product already running');
@@ -88,6 +88,7 @@ async function main() {
     evidence.capture_started = true;
     injection = input.start(client, metadata, source);
     await injection.verifyRoute?.();
+    monitor = injection.observeMonitor?.();
     // End input when AudioRecord finishes acquiring frames. Otherwise the host
     // can wait for guest release while still feeding the emulator microphone.
     let deadline;
@@ -121,12 +122,17 @@ async function main() {
     assert.ok(['true', 'false', 'unknown'].includes(evidence.client_silenced));
     assert.ok(source.packets >= 200, 'Synthetic source did not cover the capture window');
     evidence.phase = 'signal';
+    if (monitor) {
+      evidence.host_monitor = await monitor;
+      assert.equal(evidence.host_monitor.passed, true, 'Host synthetic PulseAudio tone was not sustained');
+    }
     evidence.passed = evidence.windows_above_threshold >= 30 && evidence.median_amplitude_ppm > 10000;
     if (!evidence.passed) evidence.failure_class = 'CONTROL_GUEST_MICROPHONE_SIGNAL_MISSING';
   } catch {
     evidence.failure_class = 'CONTROL_GUEST_MICROPHONE_MEASUREMENT_FAILED';
   } finally {
     if (injection) await injection.cancel();
+    if (monitor && !evidence.host_monitor) evidence.host_monitor = await monitor;
     try { if (!evidence.microphone_input_restored) await input?.close(); }
     catch { evidence.passed = false; evidence.failure_class = 'CONTROL_MICROPHONE_INPUT_CLEANUP_FAILED'; }
     if (probe) {

@@ -218,6 +218,26 @@
       "measured_amplitude_retained": false,
       "system_playout_control_passed": false,
       "product_audio_entered": false
+    },
+    "verified_pulse_monitor_guest_measurement": {
+      "acceptance_run_id": 45960235877,
+      "harness_source_commit": "3ba0db7d",
+      "passed": false,
+      "private_pulse_monitor_verified": true,
+      "owned_emulator_reader_and_tone_writer_observed": true,
+      "physical_microphone_used": false,
+      "guest_frames_analyzed": 240000,
+      "guest_windows_above_threshold": 5,
+      "guest_windows_total": 50,
+      "guest_median_amplitude_ppm": 0,
+      "guest_capture_released": true,
+      "system_playout_control_passed": true,
+      "product_audio_entered": true,
+      "product_audio_passed": false,
+      "product_native_capture_mean_amplitude": 0.000002584596088978746,
+      "product_native_capture_analyzed_frames": 240000,
+      "product_native_capture_dropped_frames": 0,
+      "product_web_microphone_startup_passed": false
     }
   },
   "android_microphone_permission_attempt": {

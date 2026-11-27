@@ -189,7 +189,7 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     state[phase] = { started_at_ms:started, stopped_at_ms:stopped, injection_packets_at_start:packetsAtStart, injection_packets_at_stop:packetsAtStop, signal, program_997: foreign, envelope, status }; save();
     if(measurementError)throw measurementError;return signal;
   };
-  let injection, native, input;
+  let injection, native, input, monitor;
   const source = { packets: 0, senderEnded: false, transportEnded: false, error: undefined };
   try {
     await unary('setMicrophoneState', { realAudioEnabled: false });
@@ -321,6 +321,7 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     await until(current,s=>s.connections[native]?.microphone_live===true,'Android microphone capture');
     injection=input.start(client,metadata,source);
     await injection.verifyRoute?.();
+    monitor=injection.observeMonitor?.();
     state.injection_started_at_ms=source.started_at_ms;save();
     await capture('startup',1499,waitForActualMicrophone);
     const [authorized, audible] = await Promise.all([capture('authorized'),audience('authorized')]); state.authorized_web_1499_db=audible;
@@ -337,6 +338,10 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     assert.ok(silent.peak_amplitude<0.001,'Revoked microphone reached native target'); assert.ok(inaudible<-65,'Revoked microphone reached Web observer');
     state.web_program_after_revocation_997_db=await audience('program_after_revocation',997); assert.ok(state.web_program_after_revocation_997_db>-65,'Revocation interrupted program audio');
     await injection.finish();state.injection_completed=true;
+    if (monitor) {
+      state.host_monitor=await monitor;
+      assert.equal(state.host_monitor.passed,true,'Host synthetic microphone monitor lost the test signal');
+    }
     assert.equal(run(['shell','getprop','sys.boot_completed']).trim(),'1');
     state.microphone_route_observed=true;save();
     assert.ok(state.android_program_signal_observed,'Android playout missing sustained 997Hz program');
@@ -345,6 +350,7 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     await playbackMetadata('failure');throw error;
   } finally {
     if (injection) await injection.cancel();
+    if (monitor && !state.host_monitor) { state.host_monitor=await monitor;save(); }
     try { await input?.close(); }
     catch { state.microphone_input_restored=false;state.passed=false;save(); }
     client.close();
