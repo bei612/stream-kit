@@ -32,5 +32,18 @@
     "actual_example_zip_post_status": 200,
     "application_detail_opened": true
   },
-  "scope": "Separate local instance on the project D: volume. The 26 GiB archive traversed the native HTTP service and extraction pipeline. The browser used the separately measured Example ZIP. No production installer, configured C: data locations, proxy upload path or release bytes were tested."
+  "browser_large_upload": {
+    "tool": "Playwright CLI with Chrome on Windows 11",
+    "archive_bytes": 27921765888,
+    "extracted_bytes": 27921762816,
+    "selected_at_utc": "2026-11-27T04:51:36Z",
+    "server_received_at_utc": "2026-11-27T04:53:53.928Z",
+    "ready_page_captured_at_utc": "2026-11-27T04:55:17Z",
+    "ready_page": "docs/evidence/windows11-browser-upload-26gib-20261127.png",
+    "ready_page_sha256": "43323dc5364e73eaf7a3fe5c3fc44c6fcf5eb2b67eedf0461b4b4b2b2bb7faaa",
+    "example_sha256_matches": true,
+    "removed_test_application_and_archive": true,
+    "reporting_note": "The PowerShell summary writer failed after passing all upload, ready-page and cleanup checks. Times and successful product state were recovered from the native service log and the two Playwright screenshots."
+  },
+  "scope": "Separate local instance on the project D: volume. Native HTTP and Chrome separately uploaded a real 26 GiB TAR through the application extraction pipeline. Additional responsive checks used an Example ZIP. No production installer, configured C: data locations, proxy upload path or release bytes were tested."
 }

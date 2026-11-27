@@ -2,7 +2,9 @@
 
 核对日期：2026-11-27。本页集中维护可下载版本、本机部署、候选产物和剩余边界。历史证据保留原始来源，不把旧版通过结果当作新产物验收。
 
-当前发布候选冻结于 `ce49050f4dfcbd1e22d9d4f22093f6b965e6aac8`，含固定观看主机名与大型归档限额界面。[Windows 统一安装器](https://github.com/bei612/stream-kit/actions/runs/45939440963)和 [Android 原生 APK](https://github.com/bei612/stream-kit/actions/runs/45939467986)已进入同源构建，Android versionCode 为 `1000024`。与它同源的[隔离 Linux 产物](https://github.com/bei612/stream-kit/actions/runs/45939312965)用于固定主机名实测。
+当前发布候选冻结于 `ce49050f4dfcbd1e22d9d4f22093f6b965e6aac8`，含固定观看主机名与大型归档限额界面。[Windows 统一安装器](https://github.com/bei612/stream-kit/actions/runs/45939440963)正在构建。[Android 原生 APK](https://github.com/bei612/stream-kit/actions/runs/45939467986)已构建，versionCode `1000024`，本地验证了 21 项文件和 v2/v3 发行签名，APK SHA-256 为 `f65455f6d07c7b66d14d86f51ed076cfea5e75a34c6693ede87697d996d6a0b7`。
+
+使用该源码的[隔离 Linux 安装器](https://github.com/bei612/stream-kit/actions/runs/45939312965)实际运行并通过[固定观看主机名换址验收](https://github.com/bei612/stream-kit/actions/runs/45941800647)。同一个浏览器页面和书签在换址后自动恢复画面与音频数据包，HTTPS 身份约 13.54 秒内更新，配置、CA 和私钥保持。换址前后各只有当时唯一的新旧 LAN 地址作为 UDP 主机候选。本机 Windows 和实体 Android 的联合现场换址继续使用独立证据。
 
 本机已安装并验收的 `0.1.1` 候选源码为 `53c7385ac58d39408a3aaffef33d6a95ea06a737`。该源码包含归档上传空闲超时、直接落盘、媒体网关和解压依赖更新，以及 Go 1.27.4 工具链与 quic-go 补丁。Windows 11 原生 Go 定向测试通过，管理服务符号级扫描未发现已知漏洞。候选产物来自 [Windows 单安装器构建](https://github.com/bei612/stream-kit/actions/runs/45798220979)及 [Android 签名构建](https://github.com/bei612/stream-kit/actions/runs/45798220812)，Android versionCode 为 1000021。详见[工具链与依赖复核](evidence/windows11-runtime-dependency-review-53c7385a.json)。
 
@@ -12,7 +14,7 @@ Android 联验和隔离 LAN 换址验收可显式选择 Linux 安装器的构建
 
 候选的隔离 LAN 换址联验通过。两个 HTTPS 入口在 10.25 秒内更换服务证书，保留 CA 和私钥。原浏览器页面自动恢复串流，换址前后只收到当前直连地址的 UDP 主机候选。Android 与 Web 使用同一上游，双方实测轮流向目标交付按键及触摸，交接和撤权后的输入保持被拒绝。Linux 模拟器音频联验的独立系统音基线未通过。修复探针状态读取与 PCM 写入的争用后，已采到 194739 帧且探针丢帧为零，基准音仍近静音，产品音频测试未进入。见[音频探针修复后的联验](https://github.com/bei612/stream-kit/actions/runs/45936840917)。
 
-Win11 独立实例已接收并解压实际 26 GiB TAR，解出的 Example 哈希一致。管理页的上传与解压限额来自运行配置，Playwright CLI 复核了桌面和窄屏以及实际 ZIP 上传。此证据对应本地开发构建。正式装机的暂存与应用目录仍应按可用空间部署。[真实大包验收](evidence/windows11-large-archive-20261127.json)
+Win11 独立实例以原生 HTTP 客户端及 Playwright CLI 驱动的 Chrome 分别上传并解压实际 26 GiB TAR。Chrome 上传 27,921,765,888 字节后，应用进入就绪状态，Example 哈希一致，两个测试包及其解压目录均已回收。管理页显示运行中生效的两项限额，桌面和窄屏已验收。此证据对应本地开发构建。正式装机的暂存与应用目录仍应按可用空间部署。[真实大包验收](evidence/windows11-large-archive-20261127.json) · [浏览器应用就绪截图](evidence/windows11-browser-upload-26gib-20261127.png)
 
 本机旧部署的固定主机名 `volcengine.local` 已用同机 Playwright CLI 验证原 CA 下的管理入口、网关和 Example 永久链接，共解码 37 帧，随后正常停止 Example。记录只覆盖本机固定主机名入口。实体 Android 对该名字和换址后串流的现场确认另行记录。
 
