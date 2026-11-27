@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "source_commit": "428f803669070ddcc56afcfcb32952ac57136420",
+  "passed": false,
+  "installer_sha256": "20e99276e261aa895428080d87947944888dffe35e65cd2ecd721aceb6b616a0",
+  "normal_hosted_install": {
+    "run_id": 46052063703,
+    "passed": true,
+    "result_json_sha256": "704d548ae03866ded7a667c0d7524ebe25c8c4b52e002901093c1477934df512",
+    "same_setup_sha256": true
+  },
+  "hosted_install_with_rollback": {
+    "run_id": 46052103330,
+    "artifact_id": 15224768105,
+    "result_json_sha256": "2d77668f0ffcda9c3899cb6efb84edb3b0654dd776e28ae833d72cdd5da0ebb7",
+    "install_exit": 0,
+    "native_capture_frames": 144000,
+    "native_dropped_frames": 0,
+    "native_xruns": 0,
+    "real_listener_conflict": true,
+    "rollback_runtime_restored": true,
+    "rollback_watch_link_and_identity_preserved": true,
+    "uninstall_exit": 0,
+    "service_removed": true,
+    "data_preserved": true,
+    "baseline_default_capture_available": false,
+    "default_capture_after_uninstall_still_matches_product_endpoint": true,
+    "gateway_exit_during_service_shutdown": -1
+  },
+  "controller_shutdown_path": "Manager.Shutdown cancels in-flight startup work before sending component stop. In the tested source, the attached worker also closed its live pipe on that cancellation. The worker supervisor invalidated the gateway before it could report a graceful exit and complete the device lifecycle.",
+  "scope": "The two hosted runs exercised the exact installer on separate Windows Server 2022 instances. The reported failure is the immediate post-uninstall audio default after the successful rollback scenario. Clean Windows 11 boot, on-site maintenance and replay with the lifecycle correction are separate checks."
+}

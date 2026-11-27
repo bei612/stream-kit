@@ -66,11 +66,12 @@ func TestNativeWorkerAuthenticatedLifecycle(t *testing.T) {
 			if strings.HasPrefix(mode, "managed-") && mode != "managed-exit" {
 				childMode = "hold"
 			}
-			if mode == "managed-graceful" {
+			graceful := mode == "managed-graceful" || mode == "managed-cancel"
+			if graceful {
 				childMode = "graceful"
 			}
 			childConfig := config.ComponentConfig{ExePath: os.Args[0], Args: "-test.run=^TestWorkerChild$", WorkingDir: filepath.Dir(os.Args[0]), Env: map[string]string{"STREAM_KIT_WORKER_TEST": childMode}}
-			if binary := os.Getenv("STREAM_KIT_TEST_GRACEFUL_CHILD"); mode == "managed-graceful" && binary != "" {
+			if binary := os.Getenv("STREAM_KIT_TEST_GRACEFUL_CHILD"); graceful && binary != "" {
 				childConfig.ExePath, childConfig.Args = binary, ""
 				childConfig.WorkingDir = filepath.Dir(binary)
 			}
@@ -148,7 +149,7 @@ func TestNativeWorkerAuthenticatedLifecycle(t *testing.T) {
 					child = retainNativeProcess(t, uint32(process.PID))
 				}
 				go process.RunWait()
-				if mode == "managed-graceful" {
+				if graceful {
 					deadline := time.Now().Add(5 * time.Second)
 					for !strings.Contains(strings.Join(logs.GetLast(2000), "\n"), "worker-ready") && time.Now().Before(deadline) {
 						time.Sleep(20 * time.Millisecond)
@@ -180,7 +181,12 @@ func TestNativeWorkerAuthenticatedLifecycle(t *testing.T) {
 				case "managed-disconnect":
 					_ = connection.Close()
 				case "managed-cancel":
+					// The manager cancels pending starts before stopping owned
+					// processes. The connected worker must still accept stop.
 					cancel()
+					if err := stopProcess(process, 3); err != nil {
+						t.Fatal(err)
+					}
 				}
 				select {
 				case <-process.Done:
@@ -191,7 +197,7 @@ func TestNativeWorkerAuthenticatedLifecycle(t *testing.T) {
 				if child != 0 {
 					assertNativeExited(t, child)
 				}
-				if mode == "managed-graceful" && (process.ExitCode != 0 || !strings.Contains(strings.Join(logs.GetLast(2000), "\n"), "graceful-stop")) {
+				if graceful && (process.ExitCode != 0 || !strings.Contains(strings.Join(logs.GetLast(2000), "\n"), "graceful-stop")) {
 					t.Fatalf("child did not receive scoped console stop: exit=%d logs=%v", process.ExitCode, logs.GetLast(2000))
 				}
 				if mode == "managed-exit" {

@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "source_commit": "428f803669070ddcc56afcfcb32952ac57136420",
+  "passed": true,
+  "product_run_id": 46046815848,
+  "windows_package": {
+    "job_id": 140668015644,
+    "installer_artifact_id": 15223619543,
+    "payload_artifact_id": 15225132154,
+    "installer_sha256": "20e99276e261aa895428080d87947944888dffe35e65cd2ecd721aceb6b616a0",
+    "installer_bytes": 45105928,
+    "payload_manifest_sha256": "2120a9243fc1d37a447fb10bd2fd2717268dccb779a819bb67b63fa37d690522",
+    "verified_components": 3,
+    "verified_payload_files": 194,
+    "renderer_sha256": "f068b59bbfb9bf2f1eaaa9ace9be7b08acd301eb7a91d73855e64f63bc591bcc",
+    "renderer_bytes": 72019968,
+    "renderer_debug_sections": 0,
+    "kernel_driver_signature_verified_by_producer": true
+  },
+  "control_scans": {
+    "scanner": "govulncheck 1.10.0, binary symbol mode",
+    "database": "https://vuln.go.dev/",
+    "windows": {
+      "binary_sha256": "bf5e80b66852f6fe6f903243f89b8bd2b735a36ca0cf049125324e83993388c2",
+      "matches_verified_installer_payload": true,
+      "vcs_modified": false,
+      "result": "No vulnerabilities found."
+    },
+    "ubuntu": {
+      "installer_artifact_id": 15222199755,
+      "installer_sha256": "ac0ae132429c13f60e3d719213104caa9f36a294030436939eafc2ada68ce4fa",
+      "binary_sha256": "1971805cc0709e1fe5967d050744d11fd3e7a2a561b852151bd556a18277db0a",
+      "matches_verified_embedded_payload": true,
+      "vcs_modified": false,
+      "result": "No vulnerabilities found."
+    }
+  },
+  "unchanged_dependency_assessment": {
+    "previous_review": "docs/evidence/windows11-runtime-dependency-review-66a79e5d-20261127.json",
+    "runtime_dependency_lock_changes_since_rc2": false,
+    "android_build_run_id": 46046816979,
+    "android_artifact_id": 15223081909,
+    "android_version_code": 1000030,
+    "android_apk_sha256": "d0b5baa129ab515657d18d33ef197ae5b6bdd5ab7c1c68c8fd4c45914842cbb3",
+    "android_signature_verified": true,
+    "android_runtime_inventory_sha256": "22a584a4428aa2ec47ab878e76e9c3c4167d59da03140c78c01bfbee63810533",
+    "android_notices_sha256": "65896f681d26f3927e0a114fba30192e14282e8fc34a2230d6b0e5f06245f755",
+    "android_inventory_and_notices_byte_identical_to_reviewed_rc2": true
+  },
+  "source_sbom": {
+    "artifact_id": 15222692230,
+    "format": "SPDX-2.3",
+    "package_entries": 3497,
+    "sha256": "b46f1d1672e91fa26971404a06a0cf6168eadaa7f91c67f91c9eca0aebf6af12"
+  },
+  "scope": "Exact Windows production package and Ubuntu embedded control binary, a locally verified Android release signature, and the source SBOM. The advisory scans cover the Go control binaries. The previous review remains the reference for the unchanged third-party runtime graphs. Native installation, reboot, physical networking and a complete security assessment have their own acceptance scope."
+}

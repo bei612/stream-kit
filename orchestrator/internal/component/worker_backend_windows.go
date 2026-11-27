@@ -14,7 +14,6 @@ import (
 )
 
 type workerProcess struct {
-	ctx          context.Context
 	connection   *workeripc.Conn
 	commands     *workeripc.Stream
 	events       *workeripc.Stream
@@ -39,7 +38,7 @@ func attachWorkerProcess(ctx context.Context, connection *workeripc.Conn, instan
 	if err != nil {
 		return nil, err
 	}
-	process := &workerProcess{ctx: ctx, connection: connection, commands: commands, events: events, worker: worker, snapshot: snapshot, logs: logs, sessionGuard: sessionGuard}
+	process := &workerProcess{connection: connection, commands: commands, events: events, worker: worker, snapshot: snapshot, logs: logs, sessionGuard: sessionGuard}
 	stop := context.AfterFunc(ctx, func() { _ = connection.Close() })
 	defer stop()
 	if err = ctx.Err(); err != nil {
@@ -57,6 +56,11 @@ func attachWorkerProcess(ctx context.Context, connection *workeripc.Conn, instan
 	}
 	if started.Kind != "started" || started.PID == int(worker.pid) {
 		return nil, workeripc.ErrProtocol
+	}
+	// Startup cancellation ends at ownership transfer. An attached worker must
+	// keep the pipe open for the manager's graceful stop even during shutdown.
+	if !stop() {
+		return nil, ctx.Err()
 	}
 	return &ManagedProcess{backend: process, PID: started.PID, InstanceID: started.ProcessInstance, LogBuf: logs, Done: make(chan struct{})}, nil
 }
@@ -83,8 +87,7 @@ func (p *workerProcess) kill() error {
 
 func (p *workerProcess) wait() (code int, result error) {
 	code = -1
-	ctx, cancel := context.WithCancel(p.ctx)
-	stop := context.AfterFunc(ctx, func() { _ = p.connection.Close() })
+	ctx, cancel := context.WithCancel(context.Background())
 	heartbeatDone := make(chan struct{})
 	go func() {
 		defer close(heartbeatDone)
@@ -145,7 +148,6 @@ func (p *workerProcess) wait() (code int, result error) {
 	}
 	cancel()
 	_ = p.connection.Close()
-	stop()
 	<-heartbeatDone
 	if result == nil {
 		// Allow the worker to return after publishing the child's exit event.
