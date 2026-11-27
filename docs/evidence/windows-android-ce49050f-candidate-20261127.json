@@ -307,6 +307,31 @@
     "subsequent_guest_network_recovery_passed": true,
     "scope": "Ordinary Android permission dialog and live server authority status. Does not measure accepted microphone waveform."
   },
+  "windows_independent_android_microphone": {
+    "platform": "Windows 11 x64 with WHPX",
+    "android_api_level": 36,
+    "scope": "Independent AudioRecord control before any product audio test. Reuses the development AVD in read-only mode. Only the testOnly observer receives microphone permission. No release APK, existing Stream Kit service, saved watch link, physical microphone or recorded PCM was used.",
+    "emulator_37_2_13": {
+      "build_id": 16740729,
+      "headless_audio": {
+        "passed": false,
+        "test_observer_installed": true,
+        "android_capture_started": true,
+        "host_microphone_forwarding": false,
+        "synthetic_packets_submitted": 17,
+        "capture_completed": false,
+        "crash_exception": "0xc0000005",
+        "crash_module": "qemu-system-x86_64-headless.exe",
+        "emulator_stopped": true
+      },
+      "hidden_qt_startup": {
+        "passed": false,
+        "boot_completed": false,
+        "observer_installed": false,
+        "owned_processes_cleaned_up": true
+      }
+    }
+  },
   "lan_migration": {
     "acceptance_run_id": 45941800647,
     "passed": true,

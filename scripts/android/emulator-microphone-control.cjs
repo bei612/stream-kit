@@ -15,13 +15,21 @@ const {configureMicrophoneSource} = require('../lib/emulator-microphone-source.c
 const observer = 'io.github.bei612.streamkit.inputobserver';
 const run = promisify(execFile);
 const {values: args} = parseArgs({options: {serial: {type: 'string'}, adb: {type: 'string'},
-  output: {type: 'string'}, 'grpc-config': {type: 'string'}}});
-assert.equal(process.env.GITHUB_ACTIONS, 'true');
-assert.equal(process.env.RUNNER_ENVIRONMENT, 'github-hosted');
+  output: {type: 'string'}, 'grpc-config': {type: 'string'}, 'windows-read-only': {type: 'boolean'}}});
+const windows = args['windows-read-only'] === true;
+if (windows) {
+  assert.equal(process.platform, 'win32');
+  assert.equal(args.serial, 'emulator-5582');
+  assert.equal(process.env.STREAM_KIT_AUDIO_MICROPHONE_SOURCE, 'emulator-rpc');
+} else {
+  assert.equal(process.env.GITHUB_ACTIONS, 'true');
+  assert.equal(process.env.RUNNER_ENVIRONMENT, 'github-hosted');
+}
 assert.match(args.serial, /^emulator-[0-9]+$/);
 assert.ok(args.adb && args.output && args['grpc-config']);
 
 const evidence = {schema_version: 1, fixture_only: true, passed: false,
+  platform: process.platform,
   pcm_saved: false, sample_rate: RATE, frequency_hz: FREQUENCY, expected_frames: 240000,
   capture_released: false, started_at_ms: Date.now()};
 const source = {packets: 0, senderEnded: false, transportEnded: false};
@@ -68,9 +76,11 @@ async function main() {
   let client, probe, injection, input, monitor;
   try {
     evidence.phase = 'check_owned_emulator';
+    if (windows) assert.equal((await adb('emu', 'avd', 'name')).stdout.split(/\r?\n/)[0].trim(), 'StreamKit_API_36');
     assert.ok(await fixtureInactive('io.github.bei612.streamkit'), 'Product already running');
     const configuration = JSON.parse(fs.readFileSync(args['grpc-config'], 'utf8'));
     assert.match(configuration.address, /^127\.0\.0\.1:[0-9]+$/);
+    if (windows) assert.equal(configuration.address, '127.0.0.1:8556');
     assert.ok(configuration.token?.length > 16);
     const proto = grpc.loadPackageDefinition(loader.loadSync(path.join(process.env.STREAM_KIT_AUDIO_EMULATOR_DIR, 'lib/emulator_controller.proto'),
       {longs: String, defaults: true}));
@@ -134,7 +144,11 @@ async function main() {
     if (injection) await injection.cancel();
     if (monitor && !evidence.host_monitor) evidence.host_monitor = await monitor;
     try { if (!evidence.microphone_input_restored) await input?.close(); }
-    catch { evidence.passed = false; evidence.failure_class = 'CONTROL_MICROPHONE_INPUT_CLEANUP_FAILED'; }
+    catch {
+      evidence.passed = false;
+      evidence.input_cleanup_failure = 'CONTROL_MICROPHONE_INPUT_CLEANUP_FAILED';
+      evidence.failure_class ??= evidence.input_cleanup_failure;
+    }
     if (probe) {
       if (!evidence.capture_released) probe.stop();
       const {exit, code, values, stages} = await probe.closed;

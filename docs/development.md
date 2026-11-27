@@ -87,6 +87,8 @@ Android 音频 CI 使用一次性官方模拟器。独立 `testOnly` 工具通�
 
 音频工作流可通过 `android_microphone_source` 选择模拟器 RPC 或独立 PulseAudio 虚拟监听源。后者只在临时 CI 宿主上运行，并要求专用 Unix 套接字和全虚拟路由。验收同时核对 QEMU 正在读取该监听源及唯一合成写入进程。无物理麦克风输入，也不会改动开发机的音频设备。两种路径使用相同的 PCM、持续输入条件和判定阈值。[PulseAudio 客户端配置](https://wiki.freedesktop.org/Software/PulseAudio/FAQ/)
 
+Windows 上若需区分模拟器输入与产品回传，可先运行独立采集探针。用 `tools/input-acceptance/android-build.ps1 -Profile observer -OutputDirectory <新目录>` 构建探针，按锁文件安装 `scripts/android/emulator-audio` 依赖，再运行 `node scripts/android/accept-windows-emulator-microphone.cjs --observer <observer.apk> --output <新目录>`。它复用本机 API 36 AVD 的只读实例，通过本机回环 RPC 注入合成音，可通过 `--emulator-dir` 指向另存的官方模拟器目录。结果包含 Android 采集和释放指标。此检查的通过结果仅证明该模拟器能采到合成音，正式 APK 到目标录音设备与观众的回传需另测。
+
 ## 检查按影响执行
 
 | 变更 | 最小相关检查 |
