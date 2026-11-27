@@ -38,7 +38,7 @@ Linux 官方 Android Emulator `37.3.10` 的独立前台 AudioRecord 复核确认
 
 Android 35 同配置复核同样得到宿主监听 30/30 达标，但 Android 本地录音为 0/50。独立录音释放、进程退出和路由恢复已确认。候选 APK 随后完成麦克风开启，独立宿主监听仍为 30/30，Web 回传门槛未通过。两种系统镜像均无法用该 Linux 模拟器环境证明持续麦克风输入。[Android 35 对照记录](https://github.com/bei612/stream-kit/actions/runs/45962603010)
 
-Windows 11 上，官方模拟器 37.2.13 在注入合成音时发生 QEMU 访问冲突。独立验证改用 Google 签名的 37.3.10 稳定版后，Android 36 录满 240,000 帧，50/50 个窗口达标，录音和探针正常释放。该结果验证了本机模拟器的输入源，候选 APK 到服务端录音端点和 Web 观众的回传仍需同源测试。[Windows 模拟器采集记录](evidence/windows-android-ce49050f-candidate-20261127.json) · [Android 模拟器版本说明](https://developer.android.com/studio/releases/emulator)
+Windows 11 上，官方模拟器 37.2.13 在注入合成音时发生 QEMU 访问冲突。独立验证改用 Google 签名的 37.3.10 稳定版后，Android 36 录满 240,000 帧，50/50 个窗口达标，录音和探针正常释放。同版本 Linux CI 的虚拟监听仍有 30/30 个输入窗口达标，Android 独立采集仅 3/50，候选 APK 的 Web 回传未通过。Windows 上校准通过的声源仍需与候选 APK、目标录音端点和 Web 观众联验。[Windows 模拟器采集记录](evidence/windows-android-ce49050f-candidate-20261127.json) · [Linux 同版对照](https://github.com/bei612/stream-kit/actions/runs/45969071362)
 
 本机旧部署的固定主机名 `volcengine.local` 已用同机 Playwright CLI 验证原 CA 下的管理入口、网关和 Example 永久链接，共解码 37 帧，随后正常停止 Example。记录只覆盖本机固定主机名入口。实体 Android 对该名字和换址后串流的现场确认另行记录。
 

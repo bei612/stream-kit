@@ -282,6 +282,27 @@
       "product_host_monitor_passed": true,
       "product_web_microphone_startup_passed": false,
       "product_audio_passed": false
+    },
+    "current_linux_emulator_pulse_monitor_comparison": {
+      "acceptance_run_id": 45969071362,
+      "harness_source_commit": "745dfd430544786fe66b3300858383d06735837c",
+      "passed": false,
+      "android_api_level": 36,
+      "official_linux_emulator_version": "37.3.10.0",
+      "host_monitor_passed": true,
+      "host_monitor_frames": 144000,
+      "host_monitor_windows_above_threshold": 30,
+      "guest_frames_analyzed": 240000,
+      "guest_windows_above_threshold": 3,
+      "guest_windows_total": 50,
+      "guest_median_amplitude_ppm": 0,
+      "guest_capture_released": true,
+      "system_playout_control_passed": false,
+      "product_audio_entered": true,
+      "product_microphone_ui_opened": true,
+      "product_host_monitor_passed": true,
+      "product_web_microphone_startup_passed": false,
+      "product_audio_passed": false
     }
   },
   "android_microphone_permission_attempt": {
