@@ -448,6 +448,8 @@ public final class Observer extends Instrumentation {
             long deadline = android.os.SystemClock.elapsedRealtime() + 2000;
             long initialAudio = -1, initialVideo = -1, initialFrames = -1, initialSamples = -1;
             boolean fresh = false;
+            boolean audioFresh = false;
+            boolean videoFresh = false;
             do {
                 snapshot();
                 if (android.os.SystemClock.elapsedRealtime() > deadline) break;
@@ -457,11 +459,12 @@ public final class Observer extends Instrumentation {
                         initialVideo = videoPackets;
                         initialFrames = videoFrames;
                         initialSamples = receivedSamples;
-                    } else if (audioPackets > initialAudio || videoPackets > initialVideo
-                            || (initialFrames >= 0 && videoFrames > initialFrames)
-                            || (initialSamples >= 0 && receivedSamples > initialSamples)) {
-                        fresh = true;
-                        break;
+                    } else {
+                        audioFresh |= audioPackets > initialAudio;
+                        videoFresh |= initialFrames >= 0 && videoFrames > initialFrames;
+                        fresh |= audioFresh || videoFresh || videoPackets > initialVideo
+                                || (initialSamples >= 0 && receivedSamples > initialSamples);
+                        if (audioFresh && videoFresh) break;
                     }
                 }
                 android.os.SystemClock.sleep(50);
@@ -469,6 +472,8 @@ public final class Observer extends Instrumentation {
             boolean available = !"unknown".equals(playback) && audioPackets >= 0 && videoPackets >= 0;
             result.putString("statistics_available", String.valueOf(available));
             result.putString("statistics_fresh", String.valueOf(fresh));
+            result.putString("audio_fresh", String.valueOf(audioFresh));
+            result.putString("video_fresh", String.valueOf(videoFresh));
             result.putString("reason", !available ? "statistics_not_ready" : fresh ? "complete" : "statistics_stale");
             result.putString("playback", playback);
             if (audioPackets >= 0) result.putLong("audio_packets", audioPackets);

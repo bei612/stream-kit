@@ -27,7 +27,11 @@ function androidParticipant({adb,serial,report,save=()=>{}}) {
       throw Error(`Android acceptance command failed: ${args.slice(0,2).join(' ')}; reason=${reason}; code=${error.code||'none'}; exit=${error.status}; signal=${error.signal||'none'}`);
     }
   };
-  const runDiagnostic=(...args)=>new Promise((resolve,reject)=>execFile(adb,['-s',serial,...args],{encoding:'utf8',windowsHide:true,timeout:20000},(error,output)=>error?reject(Error('Android diagnostic command failed')):resolve(output)));
+  const runDiagnosticWithin=(timeout,...args)=>new Promise((resolve,reject)=>execFile(adb,['-s',serial,...args],{encoding:'utf8',windowsHide:true,timeout},(error,output)=>{
+    if(error)reject(Object.assign(Error('Android diagnostic command failed'),{timedOut:error.killed===true}));
+    else resolve(output);
+  }));
+  const runDiagnostic=(...args)=>runDiagnosticWithin(20000,...args);
   const snapshot=()=>{
     const output=run('shell','am','instrument','-w','io.github.bei612.streamkit.inputobserver/.Observer');
     assert.ok(/INSTRUMENTATION_CODE: -1/.test(output),'Android UI observer failed');
@@ -101,6 +105,24 @@ function androidParticipant({adb,serial,report,save=()=>{}}) {
       wait.playout_errors=await playoutErrors();if(state)save();throw error;
     }
   };
+  async function statistics(timeoutMs) {
+    const result={started_at_ms:Date.now()};
+    try {
+      const output=await runDiagnosticWithin(timeoutMs,'shell','am','instrument','-w','-e','action','diagnostics','io.github.bei612.streamkit.inputobserver/.Observer');
+      assert.ok(/INSTRUMENTATION_CODE: -1/.test(output)&&/INSTRUMENTATION_RESULT: snapshot=complete/.test(output),'Statistics observer failed');
+      const field=(key,pattern)=>output.match(new RegExp('^INSTRUMENTATION_RESULT: '+key+'=('+pattern+')\\s*$','m'))?.[1];
+      const available=field('statistics_available','true|false'),fresh=field('statistics_fresh','true|false'),reason=field('reason','complete|root_unavailable|toolbar_unavailable|statistics_button_unavailable|statistics_not_ready|statistics_stale');
+      assert.ok(available&&fresh&&reason,'Missing statistics classification');
+      result.ui={available:available==='true',fresh:fresh==='true',reason,root:field('root','client|no_root|other_app'),playback:field('playback','playing|paused|waiting|failed|unknown'),sound:field('sound','on|off|unknown'),statistics_closed:field('statistics_closed','true|false')==='true',toolbar_closed:field('toolbar_closed','true|false')==='true'};
+      result.ui.audio_fresh=field('audio_fresh','true|false')==='true';
+      result.ui.video_fresh=field('video_fresh','true|false')==='true';
+      const codec=field('codec_name','[A-Za-z][A-Za-z0-9_-]{0,31}');if(codec!==undefined)result.ui.codec_name=codec;
+      for(const key of ['audio_packets','video_packets','video_frames','clock_rate','audio_channels','total_samples_received','concealed_samples']){const value=field(key,'[0-9]+');if(value!==undefined){const count=Number(value);assert.ok(Number.isSafeInteger(count),'Invalid statistics count');result.ui[key]=count;}}
+      for(const key of ['total_samples_duration','total_audio_energy']){const value=field(key,'[0-9]+(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?');if(value!==undefined){const number=Number(value);assert.ok(Number.isFinite(number)&&number>=0&&number<=1e12,'Invalid statistics value');result.ui[key]=number;}}
+    }catch(error){result.ui={available:false,fresh:false,reason:error.timedOut?'statistics_observer_timeout':'statistics_observer_unavailable'};}
+    result.finished_at_ms=Date.now();
+    return result;
+  }
   return {
     async connect(link){
       const parsed=new URL(link);assert.equal(parsed.protocol,'https:');assert.equal(parsed.hostname,'10.0.2.2');
@@ -161,19 +183,13 @@ function androidParticipant({adb,serial,report,save=()=>{}}) {
       }
     },
     role,
+    async mediaStatistics(timeoutMs){
+      const result=await statistics(timeoutMs);
+      if(state){(state.media_statistics||=[]).push(result);save();}
+      return result.ui;
+    },
     async diagnostics(){
-      const result={started_at_ms:Date.now()};
-      try {
-        const output=await runDiagnostic('shell','am','instrument','-w','-e','action','diagnostics','io.github.bei612.streamkit.inputobserver/.Observer');
-        assert.ok(/INSTRUMENTATION_CODE: -1/.test(output)&&/INSTRUMENTATION_RESULT: snapshot=complete/.test(output),'Statistics observer failed');
-        const field=(key,pattern)=>output.match(new RegExp('^INSTRUMENTATION_RESULT: '+key+'=('+pattern+')\\s*$','m'))?.[1];
-        const available=field('statistics_available','true|false'),fresh=field('statistics_fresh','true|false'),reason=field('reason','complete|root_unavailable|toolbar_unavailable|statistics_button_unavailable|statistics_not_ready|statistics_stale');
-        assert.ok(available&&fresh&&reason,'Missing statistics classification');
-        result.ui={available:available==='true',fresh:fresh==='true',reason,root:field('root','client|no_root|other_app'),playback:field('playback','playing|paused|waiting|failed|unknown'),sound:field('sound','on|off|unknown'),statistics_closed:field('statistics_closed','true|false')==='true',toolbar_closed:field('toolbar_closed','true|false')==='true'};
-        const codec=field('codec_name','[A-Za-z][A-Za-z0-9_-]{0,31}');if(codec!==undefined)result.ui.codec_name=codec;
-        for(const key of ['audio_packets','video_packets','video_frames','clock_rate','audio_channels','total_samples_received','concealed_samples']){const value=field(key,'[0-9]+');if(value!==undefined){const count=Number(value);assert.ok(Number.isSafeInteger(count),'Invalid statistics count');result.ui[key]=count;}}
-        for(const key of ['total_samples_duration','total_audio_energy']){const value=field(key,'[0-9]+(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?');if(value!==undefined){const number=Number(value);assert.ok(Number.isFinite(number)&&number>=0&&number<=1e12,'Invalid statistics value');result.ui[key]=number;}}
-      }catch{result.ui={available:false,fresh:false,reason:'statistics_observer_unavailable'};}
+      const result=await statistics(35000);
       result.sdk=await playoutErrors();result.finished_at_ms=Date.now();
       if(state){(state.diagnostics||=[]).push(result);save();}return result;
     },
@@ -237,11 +253,15 @@ async function verifyAndroidInput({android,page,api,sessionId,app,example,report
       const media=status.observations?.[sessionId];
       return status.observations_valid&&media?.subscribers===2&&media.upstream_active;
     },`Android shares existing upstream after ${label}`,10000);
+    const started=Date.now();
+    const deadline=started+65000;
     const ui=await until(async()=>{
-      const {ui}=await android.diagnostics();
-      return ui.available&&ui.fresh&&ui.video_frames>0&&ui.audio_packets>0?ui:false;
-    },`Android resumes fresh native media after ${label}`,18000);
-    return {native_audio_packets:ui.audio_packets,native_video_frames:ui.video_frames};
+      const remaining=deadline-Date.now();
+      if(remaining<=0)return false;
+      const ui=await android.mediaStatistics(Math.min(35000,remaining));
+      return ui.available&&ui.audio_fresh&&ui.video_fresh&&ui.video_frames>0&&ui.audio_packets>0&&ui.toolbar_closed&&ui.statistics_closed?ui:false;
+    },`Android resumes fresh native media after ${label}`,65000);
+    return {native_audio_packets:ui.audio_packets,native_video_frames:ui.video_frames,media_observation_elapsed_ms:Date.now()-started};
   }
   async function nativeInput(label,allowed) {
     await android.role(allowed);focus();const before=snapshot();
