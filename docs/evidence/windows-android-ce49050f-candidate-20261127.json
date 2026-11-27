@@ -257,6 +257,31 @@
       "guest_cleanup_acknowledged": false,
       "system_playout_control_passed": false,
       "product_audio_entered": false
+    },
+    "android_api35_pulse_monitor_comparison": {
+      "acceptance_run_id": 45962603010,
+      "harness_source_commit": "c9d96e65",
+      "passed": false,
+      "android_api_level": 35,
+      "official_linux_emulator_version": "37.2.13.0",
+      "host_monitor_passed": true,
+      "host_monitor_frames": 144000,
+      "host_monitor_windows_above_threshold": 30,
+      "host_monitor_median_amplitude": 0.12590800288777737,
+      "guest_frames_analyzed": 240000,
+      "guest_windows_above_threshold": 0,
+      "guest_windows_total": 50,
+      "guest_median_amplitude_ppm": 0,
+      "guest_reported_silenced": false,
+      "guest_capture_released": true,
+      "guest_observer_retired": true,
+      "synthetic_route_restored": true,
+      "system_playout_control_passed": false,
+      "product_audio_entered": true,
+      "product_microphone_opened": true,
+      "product_host_monitor_passed": true,
+      "product_web_microphone_startup_passed": false,
+      "product_audio_passed": false
     }
   },
   "android_microphone_permission_attempt": {
