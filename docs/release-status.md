@@ -4,6 +4,8 @@
 
 主线已将原生网关和 Moonlight 绑定的 `crossbeam-epoch` 锁定到 0.9.21，原生和 Web/WASM 的 RSA 配对后端统一锁定到 0.10.0。Windows 原生 Rust 及 Web/WASM 锁定编译检查通过。OpenSSL 生成的既有格式证书和 PKCS#8 私钥可由新后端读取，新生成的证书和配对签名也经 OpenSSL 交叉验证。下一份安装包仍需验证真实 Sunshine 配对。下文 `55d6d5a8` 候选使用更新前的依赖。[Crossbeam 公告](https://rustsec.org/advisories/RUSTSEC-2026-0204.html) · [RSA 公告](https://rustsec.org/advisories/RUSTSEC-2023-0071.html)
 
+主线网关的 Windows 和 Linux 生产依赖都已改用 `h2 0.4.21`。Windows 独立 Actix 服务验证了实际 HTTP/1.1 请求、HTTP/2 并发 HEAD 与 1 MiB POST、authority 和重复响应头。正式网关安装包仍需执行 TLS 及观看链路联验。[依赖来源](../third_party-manifests/actix-http.json) · [RustSec 公告](https://rustsec.org/advisories/RUSTSEC-2026-0258.html)
+
 新发布候选冻结于 `55d6d5a8a85db6b0b9a5cefb4afa042305b8fd49`，修复管理服务对本机 HTTPS 媒体网关的信任。Win11 已用独立 CA 对照运行两版管理服务。旧版签名设备查询和配置读取均返回 503，修复版均返回 200，组件健康状态进入 `running`。同一 CA 签发的新证书在 3.984 秒内被网关热加载，进程 PID 保持，签名查询继续成功。该复核使用前一候选的同源码网关，Windows 信任库与现有部署保持原状。[Win11 原生复核](evidence/windows11-managed-gateway-ca-55d6d5a8-20261127.json)
 
 签名 Android APK（`1000025`）已下载并核对 21 项文件、发行签名 v2/v3 和包内源码标记，SHA-256 为 `42f5ec53825742e9e3cc36cb071351debc671b1eb6d618a2a5b4f76ce923a717`。同源 Ubuntu 安装包已通过原生初始化并下载校验，大小 62,809,265 字节，SHA-256 为 `baf0013d65e8c7ab5a1bae564165e7ea61093405bc4af784397c354753f1e415`。同源 Windows EXE 已下载，大小 98,063,895 字节，SHA-256 为 `39d7f383794ad51cd359925b22340c466f88e34b382b998d0c84922a8f9b9116`，安装器清单与原生三组件载荷清单一致。[Android 签名构建](https://github.com/bei612/stream-kit/actions/runs/45975421542) · [服务端构建](https://github.com/bei612/stream-kit/actions/runs/45975421507)

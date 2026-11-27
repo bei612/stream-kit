@@ -46,8 +46,6 @@ dependencies = [
 [[package]]
 name = "actix-http"
 version = "3.22.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef789744a2e6e678dd2dee90b2aecc084022709378f28d9d0eee6d7d299e36b8"
 dependencies = [
  "actix-codec",
  "actix-service",
@@ -66,6 +64,7 @@ dependencies = [
  "futures-core",
  "h2",
  "http 0.2.12",
+ "http 1.4.0",
  "httparse",
  "httpdate",
  "itoa",
@@ -1517,16 +1516,16 @@ dependencies = [
 
 [[package]]
 name = "h2"
-version = "0.3.27"
+version = "0.4.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0beca50380b1fc32983fc1cb4587bfa4bb9e78fc259aad4a0032d2080309222d"
+checksum = "b634322c4924093fe6a6e05ecbe5717cd3c6014934455f4ae8e5cf14ba3264a8"
 dependencies = [
+ "atomic-waker",
  "bytes",
  "fnv",
  "futures-core",
  "futures-sink",
- "futures-util",
- "http 0.2.12",
+ "http 1.4.0",
  "indexmap",
  "slab",
  "tokio",

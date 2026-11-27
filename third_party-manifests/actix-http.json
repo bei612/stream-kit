@@ -1,0 +1,18 @@
+{
+  "name": "actix-http",
+  "version": "3.22.1",
+  "repository": "https://github.com/actix/actix-web",
+  "upstream_commit": "57ab3123324a43d6543b6900b539eafd77b78ac4",
+  "upstream_path": "actix-http",
+  "source": "https://crates.io/api/v1/crates/actix-http/3.22.1/download",
+  "archive_sha256": "ef789744a2e6e678dd2dee90b2aecc084022709378f28d9d0eee6d7d299e36b8",
+  "path": "third_party/actix-http",
+  "license": "MIT OR Apache-2.0",
+  "integration": "Gateway-local Cargo patch of the released crate. The HTTP/2 transport uses h2 0.4.21 via the gateway lock.",
+  "adapter_source": "https://github.com/actix/actix-web/pull/4321/commits/4537c9f5b407c6f7c0e8037b87b8bebbf6388d80",
+  "advisory": "https://rustsec.org/advisories/RUSTSEC-2026-0258.html",
+  "changes": [
+    "Keep the 3.22.1 dispatch, timeout and shutdown behavior. Adapt requests and responses between Actix HTTP types and the maintained h2 transport with a private conversion of message heads.",
+    "Keep the original upstream license texts and retain the production gateway graph separately from standalone crate development tests."
+  ]
+}
