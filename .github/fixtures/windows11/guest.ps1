@@ -64,7 +64,8 @@ function Read-NativeInitialization($Identity) {
             $initializerProcess = $process.Id
             try {
                 $null = $process.Handle
-                if (-not $process.WaitForExit(75000)) { $process.Kill(); throw 'Native diagnostic exceeded its time limit' }
+                # The initializer runs three gateway operations (30 s each) and one renderer operation (60 s).
+                if (-not $process.WaitForExit(165000)) { $process.Kill(); throw 'Native diagnostic exceeded its time limit' }
                 $details.native_elapsed_ms = $timer.ElapsedMilliseconds
                 $details.native_init_exit = $process.ExitCode
                 $details.native_init_error = Read-DiagnosticTail $nativeLog 12 3000

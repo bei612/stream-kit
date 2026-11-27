@@ -32,7 +32,7 @@ Playwright CLI 驱动 Chrome 打开本机登录页及当前 WLAN 上的管理、
 | 核验项 | 已取得的证据 |
 | --- | --- |
 | RC2 Windows 安装和维护 | 使用公开包对应的原始字节。Windows Server 2022 托管静默安装、SCM/网关恢复、原生录音、卸载保留数据均通过。真实监听端口冲突后，回滚恢复原服务、永久链接、CA 和私钥。[安装与回滚证据](evidence/windows11-android-packaged-audio-66a79e5d-20261127.json) |
-| RC2 全新 Win11 | 独立 Win11 26H2 x64 已启动，UEFI 安全启动与 TPM 通过。公开安装器在原生初始化阶段返回 `1`。原载荷复现定位到 Sunshine 的首次凭据初始化。同一虚拟机直接执行该命令能够写入凭据，仍需确认原生初始化器启动组件失败的原因。安装检查点和整机重启均未进入。[首装失败与定位](evidence/windows11-clean-install-66a79e5d-20261128.json) |
+| RC2 全新 Win11 | 独立 Win11 26H2 x64 已启动，UEFI 安全启动与 TPM 通过。公开安装器在 Sunshine 首次凭据初始化时返回 `1`。原载荷另一次冷启动的原生初始化返回 `0`，总计 25.685 秒。追踪只记录到渲染进程开始，先前失败的确切退出原因仍待验证。后续源码将渲染初始化限时设为 60 秒并精简 Windows 渲染程序。新包仍需通过首装与重启验收。[首装失败与定位](evidence/windows11-clean-install-66a79e5d-20261128.json) |
 | RC2 Android 与 Web | Win11 独立运行同包三组件及签名 APK，共用一条上游。授权后目标录音分析 96,000 帧且零丢帧，Web 麦克风信号从 −39.50 dB 降到撤权后的 −126.34 dB，程序声音保持。Android 覆盖升级、原书签复用、输入交接、权限拒绝、前后台及断网重连通过。[Win11 音频](evidence/windows11-android-packaged-audio-66a79e5d-20261127.json) · [Android 生命周期](evidence/android-input-66a79e5d-20261127.json) |
 | RC2 换址 | 同源 Ubuntu 安装包在隔离网络实际换址。两个 HTTPS 端点在 2.743 秒内更新证书，原观看页恢复直接收发媒体，收到 48 帧视频和 79 个音频包。原 CA、私钥和组件进程保持。[换址证据](evidence/isolated-lan-66a79e5d-20261127.json) |
 | RC2 运行依赖 | 用精确 Windows、Ubuntu 控制二进制进行符号扫描。Android 发行签名、运行依赖和许可清单核对通过。继续引用经逐条复核的未变依赖图及源码 SBOM。[依赖审查及范围](evidence/windows11-runtime-dependency-review-66a79e5d-20261127.json) |

@@ -35,12 +35,19 @@ func TestPreparationConnectsNativeComponentsWithoutExposingSecretsInArguments(t 
 	var operations []string
 	var credentials map[string]string
 	var initialGatewayAudio any
-	run := func(_ context.Context, binary, directory string, args []string, input []byte) ([]byte, error) {
+	run := func(_ context.Context, timeout time.Duration, binary, directory string, args []string, input []byte) ([]byte, error) {
 		if directory != stage {
 			t.Fatal("bootstrap wrote into the immutable program directory")
 		}
 		operation := args[len(args)-1]
 		operations = append(operations, operation)
+		wantTimeout := gatewayBootstrapTimeout
+		if operation == "--creds-stdin" {
+			wantTimeout = rendererBootstrapTimeout
+		}
+		if timeout != wantTimeout {
+			t.Fatalf("unexpected deadline for %s: %s", operation, timeout)
+		}
 		if operation == "print" {
 			return []byte(`{"web_server":{},"data_storage":{"type":"json"},"virtual_audio":null}`), nil
 		}
@@ -159,7 +166,10 @@ func TestPreparationStopsAtNativeFailure(t *testing.T) {
 	want := errors.New("native bootstrap refused")
 	calls := 0
 	err := prepareFiles(context.Background(), Options{SessionID: 1, UserSID: "S-1-5-21-1-2-3-1001"}, filepath.Join(stage, "program"), filepath.Join(stage, "external"), stage,
-		func(context.Context, string, string, []string, []byte) ([]byte, error) { calls++; return nil, want })
+		func(context.Context, time.Duration, string, string, []string, []byte) ([]byte, error) {
+			calls++
+			return nil, want
+		})
 	if !errors.Is(err, want) || calls != 1 {
 		t.Fatalf("continued after failed native operation: %v, calls %d", err, calls)
 	}
@@ -179,7 +189,7 @@ func TestPreparationRejectsMissingRendererCredentials(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		opts.SessionID, opts.UserSID = 1, "S-1-5-21-123-456-789-1001"
 	}
-	run := func(_ context.Context, _, _ string, args []string, _ []byte) ([]byte, error) {
+	run := func(_ context.Context, _ time.Duration, _, _ string, args []string, _ []byte) ([]byte, error) {
 		if args[len(args)-1] == "print" {
 			return []byte(`{"web_server":{},"data_storage":{"type":"json"}}`), nil
 		}
@@ -198,9 +208,7 @@ func TestNativeRunnerReportsDeadline(t *testing.T) {
 		return
 	}
 	t.Setenv(child, "1")
-	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
-	defer cancel()
-	_, err := runNative(ctx, os.Args[0], t.TempDir(), []string{"-test.run=^TestNativeRunnerReportsDeadline$"}, nil)
+	_, err := runNative(context.Background(), 250*time.Millisecond, os.Args[0], t.TempDir(), []string{"-test.run=^TestNativeRunnerReportsDeadline$"}, nil)
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("native runner discarded its context deadline: %v", err)
 	}

@@ -133,7 +133,13 @@ func validateLocation(root, data string) error {
 	return nil
 }
 
-type nativeRunner func(context.Context, string, string, []string, []byte) ([]byte, error)
+const (
+	gatewayBootstrapTimeout = 30 * time.Second
+	// Leave headroom for the first renderer launch during a cold installation.
+	rendererBootstrapTimeout = 60 * time.Second
+)
+
+type nativeRunner func(context.Context, time.Duration, string, string, []string, []byte) ([]byte, error)
 
 func prepare(ctx context.Context, options Options, root, data, stage string) error {
 	for _, name := range []string{"gateway", "sunshine", "apps", "temp"} {
@@ -209,7 +215,7 @@ func prepareFiles(ctx context.Context, options Options, root, data, stage string
 	credentials, _ := json.Marshal(map[string]string{"name": "stream-kit", "password": internalPassword})
 	gateway := control.Components["web_server"].ExePath
 	gatewayFile := filepath.Join(stage, "gateway", "config.json")
-	defaults, err := run(ctx, gateway, stage, []string{"--config-path", gatewayFile, "config", "print"}, nil)
+	defaults, err := run(ctx, gatewayBootstrapTimeout, gateway, stage, []string{"--config-path", gatewayFile, "config", "print"}, nil)
 	if err != nil {
 		return err
 	}
@@ -235,14 +241,14 @@ func prepareFiles(ctx context.Context, options Options, root, data, stage string
 	if err := writeJSON(gatewayFile, gatewayConfig); err != nil {
 		return err
 	}
-	if _, err := run(ctx, gateway, stage, []string{"--config-path", gatewayFile, "initialize-admin"}, credentials); err != nil {
+	if _, err := run(ctx, gatewayBootstrapTimeout, gateway, stage, []string{"--config-path", gatewayFile, "initialize-admin"}, credentials); err != nil {
 		return err
 	}
 	storage["path"] = filepath.Join(data, "gateway", "data.json")
 	if err := writeJSON(gatewayFile, gatewayConfig); err != nil {
 		return err
 	}
-	if _, err := run(ctx, gateway, stage, []string{"--config-path", gatewayFile, "config", "check"}, nil); err != nil {
+	if _, err := run(ctx, gatewayBootstrapTimeout, gateway, stage, []string{"--config-path", gatewayFile, "config", "check"}, nil); err != nil {
 		return err
 	}
 	rendererStage := filepath.Join(stage, "sunshine")
@@ -253,7 +259,7 @@ func prepareFiles(ctx context.Context, options Options, root, data, stage string
 	if err := os.WriteFile(sunshineFile, []byte(rendererConfig(rendererStage, options.RendererPort)), 0600); err != nil {
 		return err
 	}
-	if _, err := run(ctx, control.Components["sunshine"].ExePath, stage, []string{sunshineFile, "--creds-stdin"}, credentials); err != nil {
+	if _, err := run(ctx, rendererBootstrapTimeout, control.Components["sunshine"].ExePath, stage, []string{sunshineFile, "--creds-stdin"}, credentials); err != nil {
 		return err
 	}
 	// The credential command must leave its output in the protected staging
@@ -316,8 +322,8 @@ func rendererConfig(directory string, port int) string {
 		"\npkey = " + native("key.pem") + "\ncert = " + native("cert.pem") + "\nlog_path = " + native("sunshine.log") + "\nsunshine_name = Stream-Kit\n"
 }
 
-func runNative(ctx context.Context, binary, directory string, args []string, input []byte) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+func runNative(ctx context.Context, timeout time.Duration, binary, directory string, args []string, input []byte) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, binary, args...)
 	cmd.Dir = directory

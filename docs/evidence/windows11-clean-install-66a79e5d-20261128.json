@@ -61,6 +61,17 @@
     "same_prepared_configuration": true,
     "scope": "Native initialization reproduced with the original payload. The renderer then ran successfully with the staged configuration in the same guest. The direct launch is not a clean installer or reboot acceptance."
   },
+  "cold_initialization_trace": {
+    "run_id": 46043603559,
+    "artifact_id": 15222531870,
+    "artifact_sha256": "ecb422fb6c78c531e141a3c0b43a63cd77f5b3c0cecc8c8061d3fa4e5c1551b2",
+    "native_init_exit": 0,
+    "native_elapsed_ms": 25685,
+    "gateway_child_elapsed_ms": [1004.7, 15.8, 11.3],
+    "renderer_start_observed": true,
+    "renderer_stop_observed": false,
+    "scope": "Initialization-only cold run using the original package payload before stripping. The renderer stop event was not captured. The total duration shows the small margin against the original 30-second timeout but does not establish that a deadline caused the prior failures."
+  },
   "local_renderer_size_probe": {
     "original_renderer_sha256": "9e215b9c1a04fac459b4734ad9930facc65fe0c7e537fb85f82528f544d2ea37",
     "original_size_bytes": 359060729,
