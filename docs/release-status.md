@@ -2,7 +2,9 @@
 
 核对日期：2026-11-27。本页集中维护可下载版本、本机部署、候选产物和剩余边界。历史证据保留原始来源，不把旧版通过结果当作新产物验收。
 
-当前发布候选冻结于 `ce49050f4dfcbd1e22d9d4f22093f6b965e6aac8`，含固定观看主机名与大型归档限额界面。[Windows 统一安装器](https://github.com/bei612/stream-kit/actions/runs/45939440963)已构建，大小 98,055,882 字节，SHA-256 为 `9ab0b300106e748fd21b62e5521c8dfe2c280cd252eed80d117844bc4f07fd8f`，原包与三组件清单均已核验。[Android 原生 APK](https://github.com/bei612/stream-kit/actions/runs/45939467986)的 versionCode 为 `1000024`，本地验证了 21 项文件和 v2/v3 发行签名，APK SHA-256 为 `f65455f6d07c7b66d14d86f51ed076cfea5e75a34c6693ede87697d996d6a0b7`。
+新发布候选冻结于 `55d6d5a8a85db6b0b9a5cefb4afa042305b8fd49`，修复管理服务对本机 HTTPS 媒体网关的信任。Win11 已用独立 CA 对照运行两版管理服务。旧版签名设备查询和配置读取均返回 503，修复版均返回 200，组件健康状态进入 `running`。同一 CA 签发的新证书在 3.984 秒内被网关热加载，进程 PID 保持，签名查询继续成功。该复核使用前一候选的同源码网关，Windows 信任库与现有部署保持原状。正式候选 Windows、Ubuntu 与原生 Android 签名包仍需使用下列同源构建完成出包验收。[Win11 原生复核](evidence/windows11-managed-gateway-ca-55d6d5a8-20261127.json) · [服务端构建](https://github.com/bei612/stream-kit/actions/runs/45975421507) · [Android 构建](https://github.com/bei612/stream-kit/actions/runs/45975421542)
+
+上一发布候选冻结于 `ce49050f4dfcbd1e22d9d4f22093f6b965e6aac8`，含固定观看主机名与大型归档限额界面。[Windows 统一安装器](https://github.com/bei612/stream-kit/actions/runs/45939440963)已构建，大小 98,055,882 字节，SHA-256 为 `9ab0b300106e748fd21b62e5521c8dfe2c280cd252eed80d117844bc4f07fd8f`，原包与三组件清单均已核验。[Android 原生 APK](https://github.com/bei612/stream-kit/actions/runs/45939467986)的 versionCode 为 `1000024`，本地验证了 21 项文件和 v2/v3 发行签名，APK SHA-256 为 `f65455f6d07c7b66d14d86f51ed076cfea5e75a34c6693ede87697d996d6a0b7`。
 
 同一 Windows 安装器在 [Windows Server 2022 CI](https://github.com/bei612/stream-kit/actions/runs/45943221270)通过静默安装、自启动配置、144,000 帧原生音频、网关和 SCM 服务恢复、卸载及数据保留。Win11 独立实例使用同包原生三组件验证了两个 Web 观众的应用画面和程序音，Example 正常停止。Playwright CLI 通过了同包管理页桌面和手机布局、上传限额、永久链接启用、轮换和关闭。[Android 与 Web 输入联验](https://github.com/bei612/stream-kit/actions/runs/45943466475)通过同源共享上游、触摸及按键交接、两类旧控制者撤权。证据和适用环境见[候选产物验收](evidence/windows-android-ce49050f-candidate-20261127.json)。本机更新的管理员启动命令被工具自动审批拒绝，现有 Windows 服务仍运行 `53c7385a`。
 

@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-27",
+  "platform": "Windows 11 x64",
+  "source_commit": "55d6d5a8a85db6b0b9a5cefb4afa042305b8fd49",
+  "passed": true,
+  "local_control_binary_sha256": "a715a6a3901f4ae357de1a2a0952a9eac82b0547501627943af8651fc5e4b6e4",
+  "gateway": {
+    "artifact_source_commit": "ce49050f4dfcbd1e22d9d4f22093f6b965e6aac8",
+    "sha256": "8dcb98f6574711166e718f8e6e361924f01ee4b819f7f6becfdc6cec610f9c91",
+    "source_tree_unchanged_between_commits": true
+  },
+  "native_comparison": {
+    "previous_control_source_commit": "ce49050f4dfcbd1e22d9d4f22093f6b965e6aac8",
+    "prior_signed_audio_inventory_http_status": 503,
+    "prior_signed_gateway_configuration_http_status": 503,
+    "prior_unknown_authority_reproduced": true,
+    "fixed_signed_audio_inventory_http_status": 200,
+    "fixed_signed_gateway_configuration_http_status": 200,
+    "fixed_gateway_health": "running",
+    "default_https_client_rejected_test_leaf": true,
+    "finished_at_utc": "2026-11-27T09:44:09.286Z"
+  },
+  "live_gateway_leaf_rotation": {
+    "passed": true,
+    "new_leaf_accepted_in_ms": 3984,
+    "new_ip_san_observed_on_gateway_wire": true,
+    "unchanged_ca": true,
+    "same_gateway_pid": true,
+    "subsequent_signed_audio_inventory_http_status": 200,
+    "finished_at_utc": "2026-11-27T09:46:06.068Z"
+  },
+  "isolation": {
+    "loopback_only": true,
+    "existing_windows_service_untouched": true,
+    "windows_trust_store_unchanged": true,
+    "isolated_processes_stopped": true,
+    "isolated_ca_and_leaf_keys_removed": true
+  },
+  "scope": "Actual native control and media gateway processes with an independently generated CA. Verifies the signed management requests, component health and gateway certificate hot loading. The gateway binary came from an earlier artifact with identical gateway sources. No physical IP change, system installer or Android audio measurement is claimed."
+}
