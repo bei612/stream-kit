@@ -38,7 +38,7 @@ func TestFilePropertyInheritsMetadataBudget(t *testing.T) {
 	// File headers fit, but the nested empty-stream bitmap does not. A new
 	// property buffer must not discard the parent's reservation state.
 	remaining := 2*uint64(reflect.TypeFor[FileHeader]().Size())*8 + 15
-	r := withMetadataBudget(bytes.NewReader([]byte{8, idEmptyStream, 1, 0xff, idEnd}), &metadataBudget{remaining: remaining})
+	r := withMetadataBudget(bytes.NewReader([]byte{8, idEmptyStream, 1, 0xff, idEnd}), &metadataBudget{remaining: remaining, fileLimit: 8})
 	if _, err := readFilesInfo(r); !errors.Is(err, limits.ErrMetadataBudget) {
 		t.Fatalf("got %v", err)
 	}

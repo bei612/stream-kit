@@ -910,6 +910,9 @@ func readFilesInfo(r util.Reader) (*filesInfo, error) {
 		return nil, err
 	}
 
+	if err := checkFileLimit(r, files); err != nil {
+		return nil, err
+	}
 	if err := reserveMetadata[FileHeader](r, files); err != nil {
 		return nil, err
 	}
