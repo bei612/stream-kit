@@ -140,6 +140,8 @@ Windows Sunshine 的原生启动仍要求可执行文件旁存在空 `config` �
 
 从同一提交生成 Windows 安装器、Ubuntu 安装器和签名 Android APK。用独立安装验收任务检查原始 Windows EXE，并核对 Windows 11 安装及恢复、局域网换址和 Android 官方模拟器的实际媒体、权限、音频和覆盖升级证据。晋升时提供 `promote_run_id`、`installer_acceptance_run_id`、`android_run_id`、同源的 `linux_run_id` 和同版本的 `release_tag`。任务从已有产物生成 Release 草稿，在 GitHub 校验各附件的尺寸与 SHA-256 后公开。
 
+统一预发布使用 `vX.Y.Z-rc.N` 标签，并提交匹配该标签的 `deploy/releases/X.Y.Z-rc.N.md` 和 `docs/evidence/windows11-android-candidate-X.Y.Z-rc.N.json`。候选绑定三平台产物，公开时标记为预发布。正式标签 `vX.Y.Z` 使用独立的现场 Win11 发布证据。
+
 `windows-installer-acceptance` 可用 `maintenance_candidate_run_id` 追加独立回滚验收。先用 `product_run_id` 安装原版本，再读取另一构建的完整运行载荷。测试通过独立本机端口占用使真实候选服务启动失败，然后检查 SCM、原组件、Example 应用的永久观看链接和部署密钥恢复。该任务运行于 GitHub 托管 Windows，现场 Win11 的开机和维护仍单独核对。
 
 ## 故障排查

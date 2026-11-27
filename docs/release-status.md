@@ -2,6 +2,8 @@
 
 核对日期：2026-11-27。本页集中维护可下载版本、本机部署、候选产物和剩余边界。历史证据保留原始来源，不把旧版通过结果当作新产物验收。
 
+[v0.1.1-rc.1](https://github.com/bei612/stream-kit/releases/tag/v0.1.1-rc.1) 已公开下载。Windows、Ubuntu 和 Android 共用 `d0a5b4c8` 冻结源码，发布复用原构建字节。14 个附件的长度及 SHA-256 已与 GitHub 存储核对，三个安装下载入口均通过匿名读取。正式最新版仍是 `v0.1.0`，现场 Win11 仍需验证首次安装和整机恢复、维护回滚及跨设备换址。[预发布证据](evidence/release-0.1.1-rc.1-20261127.json)
+
 当前 0.1.1 构建候选冻结于 `d0a5b4c804ce26006a9e6ed277ff0077d92b5b11`。Windows 和 Ubuntu 安装器及 Android `1000027` APK 已同源构建。Windows 安装器为 98,140,982 字节，SHA-256 为 `5bc7beebe193e24d38fe3b73744322c9c83706d118c34fd327675cdaec7f1f23`，其三组件清单与已下载的本机测试载荷相符。APK 为 33,168,191 字节，SHA-256 为 `d9649cd76aa8b548ba5ed594ef9eab7e65324c940170a72c6127957b3b8c435b`，已核对项目 v2/v3 签名、包内源码标识、21 项分发文件及 4 项下载摘要。Ubuntu 安装器原生初始化通过。[Android 候选](https://github.com/bei612/stream-kit/actions/runs/45992345078) · [同源安装器](https://github.com/bei612/stream-kit/actions/runs/45992346158)
 
 最新 Windows 安装器在 Windows Server 2022 托管环境完成实际静默安装、网关和 SCM 服务重启、原生录音及卸载数据保留。SCM 为 Auto / LocalSystem，安装和卸载退出码均为 0，录音为 144,000 帧，零丢帧和缓冲异常，既有默认音频设备保持。另一独立任务实际触发候选控制端端口占用，启动返回 1。回滚后原三组件、原永久观看链接、配置、CA 与私钥通过核对。[精确安装验收](https://github.com/bei612/stream-kit/actions/runs/45998883578) · [真实回滚验收](https://github.com/bei612/stream-kit/actions/runs/45998956057)
@@ -102,7 +104,7 @@ Windows 11 全新临时 Android 36 AVD 以首批 PCM 为就绪点启动输入后
 
 历史 Win11 维护 `954a1e6e73ef95231e78c9d77d77d932749aa043` 保留本轮回退副本，三组件库存已验证。该版本的管理端资源为 `index-DkDzwuSd.js` / `index-BQYlHHxO.css`。当时服务为 Auto / LocalSystem / Running，两个子组件均 running、崩溃计数 0，原配置、信任和应用身份保留。见[954a1e6e 安装与页面验收](evidence/runtime-installed-954a1e6e-20261120.json)。
 
-已公开的最新预发布运行源码冻结为 `954a1e6e73ef95231e78c9d77d77d932749aa043`，沿用局域网地址自动识别、双入口证书热更新及 OpenSSL 4.1 兼容，并修复概念气泡布局。[v0.1.0-preview.20261119.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.3) 已公开 Windows/Linux 安装器、Android APK 及配套材料。首次部署该预发布时，本机三组件与平板同源。14 个附件的字节数和 GitHub 存储摘要已与已验证产物核对，其中 Windows 安装器及六份材料完成匿名全量下载。其余大文件复用先前构建附件校验。详见[发布证据](evidence/release-preview-20261119.3.json)。历史维护失败、回滚和重启要求分别保留原始记录。
+此前预发布运行源码冻结为 `954a1e6e73ef95231e78c9d77d77d932749aa043`，沿用局域网地址自动识别、双入口证书热更新及 OpenSSL 4.1 兼容，并修复概念气泡布局。[v0.1.0-preview.20261119.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.3) 已公开 Windows/Linux 安装器、Android APK 及配套材料。首次部署该预发布时，本机三组件与平板同源。14 个附件的字节数和 GitHub 存储摘要已与已验证产物核对，其中 Windows 安装器及六份材料完成匿名全量下载。其余大文件复用先前构建附件校验。详见[发布证据](evidence/release-preview-20261119.3.json)。历史维护失败、回滚和重启要求分别保留原始记录。
 
 自动换址已通过[真实隔离网络验证](evidence/lan-autodiscovery-515b9918-20261119.json)：移除旧 IP 并新增 IP 后，6.93 秒内两个 HTTPS 入口更新身份，CA、私钥、配置与进程保持，WebRTC 自动恢复到新媒体地址。该实验实际运行 `515b9918`；其管理端和网关源码与 `1d81a373` 完全一致，记录仍保留原始运行身份。本页下方手动地址恢复记录证明的是更新前的本机状态。
 
@@ -113,7 +115,7 @@ Windows 11 全新临时 Android 36 AVD 以首批 PCM 为就绪点启动输入后
 | 公开 Windows / Ubuntu 24.04 amd64 服务端 | [v0.1.0](https://github.com/bei612/stream-kit/releases/tag/v0.1.0)，`f8ede8b2e933fb597e97dec999cceae9a3e614e1` | 11 月 15 日正式版，每平台一个安装器；不含本次自动换址功能 |
 | 公开签名 Android | [v0.1.0 同一 Release](https://github.com/bei612/stream-kit/releases/tag/v0.1.0)，同源 `f8ede8b2`，versionCode 1000015 | 已公开 APK、来源、校验和、依赖许可证和 SBOM，沿用持久发行签名 |
 | 本机运行组件及前端 | `53c7385ac58d39408a3aaffef33d6a95ea06a737` | 三组件及管理前端完整维护，保留原安装器、卸载器和签名驱动。库存、共享流、程序音及平板麦克风通过 [现场验收](evidence/windows11-android-joint-53c7385a.json) |
-| 最新公开预发布服务端 / Android | [v0.1.0-preview.20261119.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.3)，`954a1e6e` | Windows / Ubuntu 24.04 amd64 单文件安装器及持久签名 APK 已发布，14 个附件校验通过；尚未替代正式 0.1.0 |
+| 最新公开预发布服务端 / Android | [v0.1.1-rc.1](https://github.com/bei612/stream-kit/releases/tag/v0.1.1-rc.1)，`d0a5b4c8` | Windows 和 Ubuntu 24.04 amd64 单文件安装器、持久签名 APK `1000027`，14 个附件校验通过 |
 | 本机平板 Android | 0.1.1 候选 / versionCode 1000021，`53c7385a` | [签名与覆盖安装](evidence/windows11-android-tablet-upgrade-53c7385a.json)及[同源视频、程序音、按键和麦克风联验](evidence/windows11-android-joint-53c7385a.json)通过。上一版完整输入证据见[954a1e6e 原始实测](evidence/android-input-tablet-954a1e6e-20261126.json) |
 | 上一版实体平板媒体验收 | 0.1.0-preview.20261119.2 / versionCode 1000017，`1d81a373` | [真机会话验收](evidence/android-tablet-1d81a373-20261119.json)及[真机音频补验](evidence/android-tablet-audio-1d81a373-20261119.json)：实际视频、共享会话/控制、录音生命周期、程序音接收、物理麦克风至服务器端点和 Web 观众及撤权静音通过；目标键鼠输入仍未通过，不称真机全部通过；未重复未受影响的媒体验收 |
 | 历史同源 Android 联合实测 | 0.1.0 / versionCode 1000015，`f8ede8b2` | [构建来源](https://github.com/bei612/stream-kit/actions/runs/43609422069)，专用模拟器实际图像、程序音、麦克风及撤权通过；不冒称新 APK 的媒体复验 |
@@ -164,7 +166,7 @@ LAN IP 是现场值，不是内置地址。本机新版已在已有 CA、通配�
 
 ## 交付结果
 
-最新预发布 [v0.1.0-preview.20261119.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.3) 通过[原产物发布任务](https://github.com/bei612/stream-kit/actions/runs/44569208733)公开，未重新编译。Windows 安装器为 `stream-kit-preview-954a1e6e73ef-windows-amd64-setup.exe`，98,019,654 字节，SHA-256 `5b5bf5a5f8795fa5b524aefaf773cf395faff61128fbe58cfd8e8e8486e80e01`；已完成公开匿名下载并与[实际安装验收](evidence/windows-installer-954a1e6e-20261120.json)逐字节身份核对。该独立环境中原生录音捕获 144,000 帧，零丢帧/缓冲异常、网关及自动服务恢复、卸载及数据保留通过。此前环境返回 `3010` 的结果仍保留，不代表该环境已完成重启后验收。Android 为持久签名 versionCode 1000018；Linux 安装器来源及初始化边界见[Linux 产物证据](evidence/linux-installer-954a1e6e-20261120.json)。完整附件及下载核对范围见[发布证据](evidence/release-preview-20261119.3.json)。
+历史预发布 [v0.1.0-preview.20261119.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.3) 通过[原产物发布任务](https://github.com/bei612/stream-kit/actions/runs/44569208733)公开，未重新编译。Windows 安装器为 `stream-kit-preview-954a1e6e73ef-windows-amd64-setup.exe`，98,019,654 字节，SHA-256 `5b5bf5a5f8795fa5b524aefaf773cf395faff61128fbe58cfd8e8e8486e80e01`；已完成公开匿名下载并与[实际安装验收](evidence/windows-installer-954a1e6e-20261120.json)逐字节身份核对。该独立环境中原生录音捕获 144,000 帧，零丢帧/缓冲异常、网关及自动服务恢复、卸载及数据保留通过。此前环境返回 `3010` 的结果仍保留，不代表该环境已完成重启后验收。Android 为持久签名 versionCode 1000018；Linux 安装器来源及初始化边界见[Linux 产物证据](evidence/linux-installer-954a1e6e-20261120.json)。完整附件及下载核对范围见[发布证据](evidence/release-preview-20261119.3.json)。
 
 上一预发布 [v0.1.0-preview.20261119.2](https://github.com/bei612/stream-kit/releases/tag/v0.1.0-preview.20261119.2) 的 14 个附件全量下载、旧本机同源维护及其网络失败记录保留在[历史发布证据](evidence/release-preview-20261119.2.json)及上方原始验收中，不作为最新安装状态。
 

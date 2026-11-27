@@ -1,0 +1,125 @@
+{
+    "schema_version":  1,
+    "passed":  true,
+    "tag":  "v0.1.1-rc.1",
+    "source_commit":  "d0a5b4c804ce26006a9e6ed277ff0077d92b5b11",
+    "promotion_workflow_commit":  "58f964f69ea1f5204c4cbde8a18752bf27c11526",
+    "release_id":  460601796,
+    "url":  "https://github.com/bei612/stream-kit/releases/tag/v0.1.1-rc.1",
+    "prerelease":  true,
+    "draft":  false,
+    "published_at":  "2026-11-27T12:55:48Z",
+    "current_stable_tag":  "v0.1.0",
+    "product_run":  45992346158,
+    "android_run":  45992345078,
+    "windows_hosted_installer_run":  45998883578,
+    "promotion_run":  46002666102,
+    "all_remote_asset_sizes_and_sha256_verified":  true,
+    "public_downloads":  [
+                             {
+                                 "file":  "stream-kit-0.1.1-d0a5b4c804ce-windows-amd64-setup.exe",
+                                 "http_status":  206,
+                                 "bytes_received":  1,
+                                 "authenticated":  false
+                             },
+                             {
+                                 "file":  "stream-kit-0.1.1-d0a5b4c804ce-ubuntu24.04-amd64-setup.run",
+                                 "http_status":  206,
+                                 "bytes_received":  1,
+                                 "authenticated":  false
+                             },
+                             {
+                                 "file":  "stream-kit-android-0.1.1.apk",
+                                 "http_status":  206,
+                                 "bytes_received":  1,
+                                 "authenticated":  false
+                             }
+                         ],
+    "assets":  [
+                   {
+                       "id":  800496198,
+                       "name":  "android-dependency-notices.json",
+                       "size":  11433,
+                       "sha256":  "65896f681d26f3927e0a114fba30192e14282e8fc34a2230d6b0e5f06245f755"
+                   },
+                   {
+                       "id":  800496200,
+                       "name":  "android-provenance.json",
+                       "size":  4817,
+                       "sha256":  "d5f6124959074bb9f76bfb1e5d4d447fd10c8bc3cac65d1a20941230697adad3"
+                   },
+                   {
+                       "id":  800496215,
+                       "name":  "android-runtime-dependencies.json",
+                       "size":  3415,
+                       "sha256":  "22a584a4428aa2ec47ab878e76e9c3c4167d59da03140c78c01bfbee63810533"
+                   },
+                   {
+                       "id":  800496216,
+                       "name":  "android-sbom.cdx.json",
+                       "size":  20027,
+                       "sha256":  "9e2ea3961f3236530810c2b9f438b3680d3920e981f65ba5a4b5d0f44f07505d"
+                   },
+                   {
+                       "id":  800496202,
+                       "name":  "Android-SHA256SUMS.txt",
+                       "size":  579,
+                       "sha256":  "d442002876e40a8f624fc5afebaf98913f3b18395327e6e62941e81ed47626bf"
+                   },
+                   {
+                       "id":  800496219,
+                       "name":  "installer-manifest.json",
+                       "size":  2288,
+                       "sha256":  "07e33cb83a15e266a30337572e3077423960aea640ddb033652b6637653b93eb"
+                   },
+                   {
+                       "id":  800496231,
+                       "name":  "linux-installer-manifest.json",
+                       "size":  1352,
+                       "sha256":  "4c99e1d68ab94bf08f65ce45a4f51d92bcff88ad2ffdc4addcc410b045d668ed"
+                   },
+                   {
+                       "id":  800496199,
+                       "name":  "Linux-SHA256SUMS.txt",
+                       "size":  220,
+                       "sha256":  "56f1eddacda2f4b818d31da395592b527cd0e460ab151130b05a3ffb3bd12f65"
+                   },
+                   {
+                       "id":  800496197,
+                       "name":  "SHA256SUMS.txt",
+                       "size":  302,
+                       "sha256":  "8d04ee8761902d2c9ffe790782a1fd05099eacc50001f3bbb79bbcf43bf9c057"
+                   },
+                   {
+                       "id":  800496252,
+                       "name":  "stream-kit-0.1.1-d0a5b4c804ce-ubuntu24.04-amd64-setup.run",
+                       "size":  62929653,
+                       "sha256":  "f7283bf258afe4c9f6b25f8d24b74726f0092484eb9f6047d12003cd9b425439"
+                   },
+                   {
+                       "id":  800496259,
+                       "name":  "stream-kit-0.1.1-d0a5b4c804ce-windows-amd64-setup.exe",
+                       "size":  98140982,
+                       "sha256":  "5bc7beebe193e24d38fe3b73744322c9c83706d118c34fd327675cdaec7f1f23"
+                   },
+                   {
+                       "id":  800496265,
+                       "name":  "stream-kit-android-0.1.1.apk",
+                       "size":  33168191,
+                       "sha256":  "d9649cd76aa8b548ba5ed594ef9eab7e65324c940170a72c6127957b3b8c435b"
+                   },
+                   {
+                       "id":  800496257,
+                       "name":  "stream-kit-android-0.1.1-distribution.zip",
+                       "size":  33167991,
+                       "sha256":  "12a0d90fcad0b9f99122630be5297c6028a050a516e49d86d0c089076f50ed00"
+                   },
+                   {
+                       "id":  800496272,
+                       "name":  "stream-kit-sbom.spdx.json",
+                       "size":  8204096,
+                       "sha256":  "f0ed0fa4a9703053de2bbd5e521e00001ba195615a161df52bf2255c3695cf1b"
+                   }
+               ],
+    "scope":  "Prerelease with three verified runtime distributions. All GitHub asset byte lengths and SHA-256 values were matched to the complete locally verified release inputs. Anonymous range GET was checked on the primary Windows, Ubuntu and Android downloads. This record is separate from on-site Windows 11 acceptance and stable release approval."
+}
