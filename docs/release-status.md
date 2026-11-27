@@ -28,7 +28,7 @@ Win11 独立实例以原生 HTTP 客户端及 Playwright CLI 驱动的 Chrome �
 
 Linux 官方 Android Emulator `37.3.10` 的独立前台 AudioRecord 复核确认，合成注入 RPC 成功结束，探针录得完整 240,000 帧，系统未标记客户端静音，但 1499 Hz 在所有窗口中均未达到阈值，中位强度为 0。该轮同源产品音频判定保持失败，已经定位到模拟器本地声源验证失败，产品的麦克风回传仍需在可验证的输入环境补验。[独立采集基线](https://github.com/bei612/stream-kit/actions/runs/45952589388)
 
-官方 Linux 模拟器 `37.2.13` 使用相同 Android 36 镜像和验收阈值，通过独立系统播放基准，分析 192,000 帧并检出两组基准频率。独立录音确认开始，但观测期限内未返回最终状态，因此本次未进入产品音频阶段。[模拟器版本对照](https://github.com/bei612/stream-kit/actions/runs/45954552924)
+官方 Linux 模拟器 `37.2.13` 使用相同 Android 36 镜像和验收阈值，有一次通过独立系统播放基准，分析 192,000 帧并检出两组基准频率。加采录音进度后再次执行，系统播放未通过，录音在半程采样前停住。两次均未进入产品音频阶段，目前无法把差异归因于模拟器版本。[首次版本对照](https://github.com/bei612/stream-kit/actions/runs/45954552924) · [采集进度对照](https://github.com/bei612/stream-kit/actions/runs/45956151212)
 
 本机旧部署的固定主机名 `volcengine.local` 已用同机 Playwright CLI 验证原 CA 下的管理入口、网关和 Example 永久链接，共解码 37 帧，随后正常停止 Example。记录只覆盖本机固定主机名入口。实体 Android 对该名字和换址后串流的现场确认另行记录。
 

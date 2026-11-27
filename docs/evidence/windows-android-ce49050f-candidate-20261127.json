@@ -187,7 +187,29 @@
       "guest_recording_final_status_received": false,
       "synthetic_packets_submitted_before_termination": 654,
       "product_audio_entered": false
+    },
+    "emulator_capture_checkpoint_comparison": {
+      "acceptance_run_id": 45956151212,
+      "harness_source_commit": "8d84174c",
+      "passed": false,
+      "official_linux_emulator_version": "37.2.13.0",
+      "system_playout_control_passed": false,
+      "guest_recording_started": true,
+      "guest_half_capture_checkpoint_reached": false,
+      "guest_final_measurement_reached": false,
+      "synthetic_packets_submitted_before_termination": 411,
+      "product_audio_entered": false
     }
+  },
+  "android_microphone_permission_attempt": {
+    "acceptance_run_id": 45956538876,
+    "harness_source_commit": "7977e6ea",
+    "passed": false,
+    "controller_observed": true,
+    "microphone_permission_granted_before_action": false,
+    "microphone_permission_user_set_before_action": false,
+    "permission_ui_result": "system_dialog_unavailable",
+    "scope": "The observer did not identify the Android permission dialog; an actual system denial was not measured."
   },
   "lan_migration": {
     "acceptance_run_id": 45941800647,

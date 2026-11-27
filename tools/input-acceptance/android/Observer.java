@@ -9,6 +9,7 @@ import android.media.AudioManager;
 import android.media.ToneGenerator;
 import android.os.Bundle;
 import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.accessibility.AccessibilityWindowInfo;
 
 /** External testOnly observer/control. No product instrumentation or network access. */
 public final class Observer extends Instrumentation {
@@ -366,12 +367,13 @@ public final class Observer extends Instrumentation {
     }
 
     private String denyMicrophone() {
+        AccessibilityServiceInfo info = getUiAutomation().getServiceInfo();
+        info.flags |= AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS | AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS;
+        getUiAutomation().setServiceInfo(info);
         String open = enableMicrophone();
         if (!"clicked".equals(open)) return open;
-        AccessibilityServiceInfo info = getUiAutomation().getServiceInfo();
-        info.flags |= AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS;
-        getUiAutomation().setServiceInfo(info);
-        if (!useDenyButton()) return "system_dialog_unavailable";
+        String decision = useDenyButton();
+        if (!"clicked".equals(decision)) return decision;
         try {
             if (!openToolbar()) return "client_return_unavailable";
             long deadline = android.os.SystemClock.elapsedRealtime() + 2000;
@@ -384,29 +386,42 @@ public final class Observer extends Instrumentation {
         } finally { closeToolbar(); }
     }
 
-    private boolean useDenyButton() {
+    private String useDenyButton() {
+        String[] packages = {"com.android.permissioncontroller", "com.google.android.permissioncontroller"};
         long deadline = android.os.SystemClock.elapsedRealtime() + 5000;
+        boolean dialogSeen = false;
         do {
-            AccessibilityNodeInfo root = getUiAutomation().getRootInActiveWindow();
-            if (root != null) {
-                try {
-                    String pkg = String.valueOf(root.getPackageName());
-                    if ("com.google.android.permissioncontroller".equals(pkg)
-                            || "com.android.permissioncontroller".equals(pkg)) {
-                        java.util.List<AccessibilityNodeInfo> buttons = root.findAccessibilityNodeInfosByViewId(
-                                pkg + ":id/permission_deny_button");
-                        try {
-                            for (AccessibilityNodeInfo button : buttons) {
-                                if (button.isVisibleToUser() && button.isEnabled()
-                                        && button.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true;
-                            }
-                        } finally { for (AccessibilityNodeInfo button : buttons) button.recycle(); }
-                    }
-                } finally { root.recycle(); }
-            }
+            java.util.List<AccessibilityWindowInfo> windows = getUiAutomation().getWindows();
+            try {
+                for (AccessibilityWindowInfo window : windows) {
+                    AccessibilityNodeInfo root = window.getRoot();
+                    if (root == null) continue;
+                    try {
+                        String owner = String.valueOf(root.getPackageName());
+                        if (!owner.equals(packages[0]) && !owner.equals(packages[1])) continue;
+                        dialogSeen = true;
+                        for (String namespace : packages) {
+                            // The package owning a GMS window and the compiled AOSP
+                            // resource namespace can differ. Accept both official IDs.
+                            if (clickResource(root, namespace + ":id/permission_deny_button")) return "clicked";
+                        }
+                    } finally { root.recycle(); }
+                }
+            } finally { for (AccessibilityWindowInfo window : windows) window.recycle(); }
             android.os.SystemClock.sleep(50);
         } while (android.os.SystemClock.elapsedRealtime() < deadline);
-        return false;
+        return dialogSeen ? "system_denial_button_unavailable" : "system_dialog_unavailable";
+    }
+
+    private boolean clickResource(AccessibilityNodeInfo root, String resourceId) {
+        java.util.List<AccessibilityNodeInfo> buttons = root.findAccessibilityNodeInfosByViewId(resourceId);
+        try {
+            for (AccessibilityNodeInfo button : buttons) {
+                if (button.isVisibleToUser() && button.isEnabled()
+                        && button.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true;
+            }
+            return false;
+        } finally { for (AccessibilityNodeInfo button : buttons) button.recycle(); }
     }
 
     private Bundle statistics() {
