@@ -4,6 +4,10 @@
 
 [v0.1.1-rc.1](https://github.com/bei612/stream-kit/releases/tag/v0.1.1-rc.1) 已公开下载。Windows、Ubuntu 和 Android 共用 `d0a5b4c8` 冻结源码，发布复用原构建字节。14 个附件的长度及 SHA-256 已与 GitHub 存储核对，三个安装下载入口均通过匿名读取。正式最新版仍是 `v0.1.0`，现场 Win11 仍需验证首次安装和整机恢复、维护回滚及跨设备换址。[预发布证据](evidence/release-0.1.1-rc.1-20261127.json)
 
+后续候选 `66a79e5d` 的 Ubuntu 安装器已核对实际包体与嵌入载荷摘要。隔离 Linux 实际换址后，管理端和媒体网关在 2.743 秒内热更新证书，原观看页恢复直连，收到 48 帧视频和 79 个音频包；服务进程及部署 CA、私钥保持。[同源换址验收](evidence/isolated-lan-66a79e5d-20261127.json) · [原始联验](https://github.com/bei612/stream-kit/actions/runs/46016281321)
+
+`66a79e5d` 的 Android APK `1000029` 已在本机核对 v2/v3 发行签名、源码提交和 21 项文件摘要。APK SHA-256 为 `ae45b4ae750fa76b13f6cdcc10fb356461d5ac136f441857e27e3e5bd5a9bb3a`。首轮同源联验完成覆盖升级、书签复用、输入交接与撤权，前台恢复后统计观察器在约 20 秒处超时，该轮未能证明前台音视频恢复。[签名构建](https://github.com/bei612/stream-kit/actions/runs/46013826883) · [首轮联验](https://github.com/bei612/stream-kit/actions/runs/46016295148)
+
 当前 0.1.1 构建候选冻结于 `d0a5b4c804ce26006a9e6ed277ff0077d92b5b11`。Windows 和 Ubuntu 安装器及 Android `1000027` APK 已同源构建。Windows 安装器为 98,140,982 字节，SHA-256 为 `5bc7beebe193e24d38fe3b73744322c9c83706d118c34fd327675cdaec7f1f23`，其三组件清单与已下载的本机测试载荷相符。APK 为 33,168,191 字节，SHA-256 为 `d9649cd76aa8b548ba5ed594ef9eab7e65324c940170a72c6127957b3b8c435b`，已核对项目 v2/v3 签名、包内源码标识、21 项分发文件及 4 项下载摘要。Ubuntu 安装器原生初始化通过。[Android 候选](https://github.com/bei612/stream-kit/actions/runs/45992345078) · [同源安装器](https://github.com/bei612/stream-kit/actions/runs/45992346158)
 
 最新 Windows 安装器在 Windows Server 2022 托管环境完成实际静默安装、网关和 SCM 服务重启、原生录音及卸载数据保留。SCM 为 Auto / LocalSystem，安装和卸载退出码均为 0，录音为 144,000 帧，零丢帧和缓冲异常，既有默认音频设备保持。另一独立任务实际触发候选控制端端口占用，启动返回 1。回滚后原三组件、原永久观看链接、配置、CA 与私钥通过核对。[精确安装验收](https://github.com/bei612/stream-kit/actions/runs/45998883578) · [真实回滚验收](https://github.com/bei612/stream-kit/actions/runs/45998956057)

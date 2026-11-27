@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "source_commit": "66a79e5d11e54a7048fccb042cd93327be92df3b",
+  "passed": true,
+  "product_run_id": 46013826861,
+  "lan_run_id": 46016281321,
+  "linux_installer_file": "stream-kit-0.1.1-66a79e5d11e5-ubuntu24.04-amd64-setup.run",
+  "linux_installer_bytes": 62935651,
+  "linux_installer_sha256": "e32516c13d70cd7122031e007524a173b039909df3c0d06b2192f451c07e3364",
+  "actual_interface_address_changed": true,
+  "both_https_listeners_refreshed_in_ms": 2743,
+  "old_address_unreachable": true,
+  "old_address_removed_from_leaf_certificate": true,
+  "deployment_ca_and_private_keys_preserved": true,
+  "configuration_unchanged": true,
+  "component_processes_unchanged": true,
+  "existing_page_recovered_without_reload": true,
+  "direct_ipv4_media_recovered": true,
+  "decoded_video_frames_after_change": 48,
+  "received_audio_packets_after_change": 79,
+  "owned_example_stopped": true,
+  "scope": "Same-source Ubuntu installer, hosted Linux network namespaces, and an independent browser peer. This records the exact package bytes and actual fixture address change. It excludes the shared Windows deployment, its physical LAN and Android device testing."
+}
