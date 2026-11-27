@@ -2,6 +2,8 @@
 
 核对日期：2026-11-27。本页集中维护可下载版本、本机部署、候选产物和剩余边界。历史证据保留原始来源，不把旧版通过结果当作新产物验收。
 
+主线已将原生网关和 Moonlight 绑定的 `crossbeam-epoch` 锁定到 0.9.21，与现有 Web/WASM 锁一致，覆盖 [RUSTSEC-2026-0204](https://rustsec.org/advisories/RUSTSEC-2026-0204.html)。Windows 已核对两条原生依赖链，Moonlight 丢包重建相关代码的锁定编译检查通过。已冻结的 `55d6d5a8` 候选仍使用 0.9.18，旧包的依赖复核结论保持原样。
+
 新发布候选冻结于 `55d6d5a8a85db6b0b9a5cefb4afa042305b8fd49`，修复管理服务对本机 HTTPS 媒体网关的信任。Win11 已用独立 CA 对照运行两版管理服务。旧版签名设备查询和配置读取均返回 503，修复版均返回 200，组件健康状态进入 `running`。同一 CA 签发的新证书在 3.984 秒内被网关热加载，进程 PID 保持，签名查询继续成功。该复核使用前一候选的同源码网关，Windows 信任库与现有部署保持原状。[Win11 原生复核](evidence/windows11-managed-gateway-ca-55d6d5a8-20261127.json)
 
 签名 Android APK（`1000025`）已下载并核对 21 项文件、发行签名 v2/v3 和包内源码标记，SHA-256 为 `42f5ec53825742e9e3cc36cb071351debc671b1eb6d618a2a5b4f76ce923a717`。同源 Ubuntu 安装包已通过原生初始化并下载校验，大小 62,809,265 字节，SHA-256 为 `baf0013d65e8c7ab5a1bae564165e7ea61093405bc4af784397c354753f1e415`。Windows 同源安装包仍在构建，完整音频联验等候 Windows 候选组件。[Android 签名构建](https://github.com/bei612/stream-kit/actions/runs/45975421542) · [服务端构建](https://github.com/bei612/stream-kit/actions/runs/45975421507)
