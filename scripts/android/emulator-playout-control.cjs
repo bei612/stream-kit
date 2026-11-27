@@ -320,7 +320,7 @@ async function main() {
   check((await android(['shell', 'id', '-u'])).trim() === '2000', 'CONTROL_AVD_NOT_UNROOTED');
   const emulators = (await run(adb, ['devices'])).split('\n').filter(line => /^emulator-[0-9]+\s/.test(line));
   check(emulators.length === 1 && emulators[0].startsWith(serial + '\tdevice'), 'CONTROL_OTHER_AVD_PRESENT');
-  const expected = fs.realpathSync(path.join(process.env.ANDROID_HOME, 'emulator/qemu/linux-x86_64/qemu-system-x86_64'));
+  const expected = fs.realpathSync(path.join(process.env.STREAM_KIT_AUDIO_EMULATOR_DIR, 'qemu/linux-x86_64/qemu-system-x86_64'));
   result.emulator_pid = Number(process.env.STREAM_KIT_AUDIO_EMULATOR_ROOT_PID);
   check(Number.isSafeInteger(result.emulator_pid) && result.emulator_pid > 0
     && fs.realpathSync('/proc/' + result.emulator_pid + '/exe') === expected, 'CONTROL_EMULATOR_BINARY_INVALID');
@@ -348,7 +348,7 @@ async function main() {
     const config=JSON.parse(fs.readFileSync(configFile,'utf8'));
     check(config.address==='127.0.0.1:8554'&&typeof config.token==='string'&&config.token.length>16,'CONTROL_RPC_IDENTITY_INVALID');
     const grpc=require('./emulator-audio/node_modules/@grpc/grpc-js'),loader=require('./emulator-audio/node_modules/@grpc/proto-loader');
-    const proto=grpc.loadPackageDefinition(loader.loadSync(path.join(process.env.ANDROID_HOME,'emulator/lib/emulator_controller.proto'),{longs:String,defaults:true}));
+    const proto=grpc.loadPackageDefinition(loader.loadSync(path.join(process.env.STREAM_KIT_AUDIO_EMULATOR_DIR,'lib/emulator_controller.proto'),{longs:String,defaults:true}));
     rpcClient=new proto.android.emulation.control.EmulatorController(config.address,grpc.credentials.createInsecure());
     const metadata=new grpc.Metadata();metadata.add('authorization','Bearer '+config.token);
     // Independent QEMU tap: diagnostics only. Native PA tone amplitudes below

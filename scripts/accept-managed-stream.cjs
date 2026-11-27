@@ -684,7 +684,7 @@ async function main() {
   }
   if(androidSerial){
     if(androidAudio) {
-      await require('./lib/android-audio-acceptance.cjs').verifyAndroidAudio({android,adb:androidAdb,serial:androidSerial,page:pages[0],api,sessionId:invite.session_id,app:ownedApp,example:applicationExample,audioProbe,captureDevice:targetCapture,grpcConfig:argument('--android-grpc-config'),sdk:process.env.ANDROID_HOME,report:result,save});
+      await require('./lib/android-audio-acceptance.cjs').verifyAndroidAudio({android,adb:androidAdb,serial:androidSerial,page:pages[0],api,sessionId:invite.session_id,app:ownedApp,example:applicationExample,audioProbe,captureDevice:targetCapture,grpcConfig:argument('--android-grpc-config'),report:result,save});
       assert.equal(result.android_audio.passed,true);
       result.target_recording.measurements={baseline:result.android_audio.baseline,android_controller:result.android_audio.authorized,android_revoked:result.android_audio.revoked};
       result.target_recording.passed=true;

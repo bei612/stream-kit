@@ -83,7 +83,7 @@ cd third_party/moonlight-android
 
 书签保护工具组件为 `io.github.bei612.streamkit.bookmarkguard/.BookmarkGuard`。先用 `am instrument -w -e action backup -e version <实际 versionCode>` 执行备份，成功后才导入 Example；结束后以相同参数和 `action restore` 恢复，必须比较前后 `ciphertext_sha256`。Android 在每次调用前重启目标进程，工具不创建 Activity，避免与书签异步写入竞争。备份只留在目标应用私有目录；已有备份拒绝覆盖，恢复失败保留恢复副本。中断后先恢复，不能再次备份覆盖。确认恢复、无活动测试会话及无录音后卸载辅助 APK；不卸载正式客户端、不清空其数据，也不修改证书、默认音频或原始入口。
 
-Android 音频 CI 的环境准备和产品判定分开：独立 `testOnly` 观察工具仅在一次性官方模拟器中用公开 `AudioManager` 与普通 `MODIFY_AUDIO_SETTINGS` 权限设置媒体音量，随后用只读接口独立确认；固定音量或安全策略拒绝仍导致失败，不修改 AppOps，也不改宿主机音频设备。先验证独立系统音的真实输出，再验证未修改的签名产品 APK 的程序音、麦克风和撤权。观察工具、音频源及校准代码均不进入正式包；环境校准通过不等于产品音频通过。接口依据见 [AudioManager](https://developer.android.com/reference/android/media/AudioManager#setStreamVolume(int,int,int))；旧 [VolumeCtrl](https://android.googlesource.com/platform/frameworks/base/+/refs/heads/android15-release/services/core/java/com/android/server/media/VolumeCtrl.java) 的输出不能单独作为设置成功证据。
+Android 音频 CI 使用一次性官方模拟器。独立 `testOnly` 工具通过公开 `AudioManager` 和普通权限设置模拟器媒体音量，再用只读接口确认。固定音量或安全策略拒绝会导致失败。模拟器运行独立系统音播放检查，再以前台 `AudioRecord` 验证合成音是否抵达 Android 采集端。录音前关闭模拟器的宿主机真实麦克风输入，输出只包含帧数、路由与频率强度等指标。隔离探针退出后，原样签名 APK 使用同一合成声源验证程序音、录音路由和撤权。任一基准或产品检查失败均保留失败结果。观察工具、音频源及校准代码不进入正式包。接口见 [AudioManager](https://developer.android.com/reference/android/media/AudioManager#setStreamVolume(int,int,int)) 和 [AudioRecord](https://developer.android.com/reference/android/media/AudioRecord)。
 
 ## 检查按影响执行
 

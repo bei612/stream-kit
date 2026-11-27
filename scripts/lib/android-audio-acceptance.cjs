@@ -8,13 +8,14 @@ const loader = require('../android/emulator-audio/node_modules/@grpc/proto-loade
 const { assertContinuousInjection } = require('./emulator-audio-evidence.cjs');
 const { startToneInjection } = require('./emulator-audio-injection.cjs');
 
-async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, app, example, audioProbe, captureDevice, grpcConfig, sdk, report, save }) {
+async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, app, example, audioProbe, captureDevice, grpcConfig, report, save }) {
   assert.equal(process.platform, 'linux'); assert.equal(process.env.GITHUB_ACTIONS, 'true');
   const state = report.android_audio = { passed: false, synthetic_source: true, physical_speech: false,
     scope: 'Published default-settings APK: actual application 997Hz to Android/Web, Android 1499Hz to native recorder/Web, continuous injection across revocation; no speech quality or physical device claim' }; save();
   const config = JSON.parse(fs.readFileSync(grpcConfig, 'utf8'));
   assert.match(config.address, /^127\.0\.0\.1:[0-9]+$/); assert.ok(config.token?.length > 16);
-  const proto = grpc.loadPackageDefinition(loader.loadSync(path.join(sdk, 'emulator/lib/emulator_controller.proto'), { longs: String, defaults: true }));
+  const emulatorDir = process.env.STREAM_KIT_AUDIO_EMULATOR_DIR;
+  const proto = grpc.loadPackageDefinition(loader.loadSync(path.join(emulatorDir, 'lib/emulator_controller.proto'), { longs: String, defaults: true }));
   const client = new proto.android.emulation.control.EmulatorController(config.address, grpc.credentials.createInsecure());
   const metadata = new grpc.Metadata(); metadata.add('authorization', 'Bearer ' + config.token);
   const unary = (method, request) => new Promise((resolve, reject) => client[method](request, metadata, { deadline: Date.now()+5000 }, (error, result) => error ? reject(Error('Official emulator RPC failed: ' + method + '/' + error.code)) : resolve(result)));
@@ -213,7 +214,7 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     assert.equal(stream[0].sink,programSink,'Actual program child must render only to the program sink');
     const rootPid=process.env.STREAM_KIT_AUDIO_EMULATOR_ROOT_PID;
     assert.match(rootPid||'',/^[1-9][0-9]*$/,'Owned emulator launcher PID is required');
-    const expectedEmulator=fs.realpathSync(path.join(sdk,'emulator/qemu/linux-x86_64/qemu-system-x86_64'));
+    const expectedEmulator=fs.realpathSync(path.join(emulatorDir,'qemu/linux-x86_64/qemu-system-x86_64'));
     state.emulator_audio_backend={required_binary:expectedEmulator,launcher_pid:Number(rootPid),required_sink:'streamkit_android',status:'waiting_for_real_pulse_output',started_at_ms:Date.now()};save();
     const observeBackend=()=>{
       const processes=[];

@@ -25,6 +25,11 @@ on:
         required: true
         default: '36'
         options: ['36', '35']
+      android_emulator_version:
+        description: 'Pinned official Linux emulator for audio acceptance and release-to-release comparison'
+        type: choice
+        default: '37.3.10'
+        options: ['37.3.10', '37.2.13']
 permissions:
   contents: read
   actions: read
@@ -39,6 +44,7 @@ jobs:
       ANDROID_RELEASE_TAG: ${{ inputs.android_release_tag }}
       ANDROID_RUN_ID: ${{ inputs.android_run_id }}
       ANDROID_TEST_API: ${{ inputs.android_api_level }}
+      ANDROID_AUDIO_EMULATOR_VERSION: ${{ inputs.android_emulator_version }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -69,7 +75,8 @@ jobs:
           npm ci --prefix third_party/moonlight-web-stream --ignore-scripts --no-audit --no-fund
           npm ci --prefix scripts/android/emulator-audio --ignore-scripts --no-audit --no-fund
           [[ "$ANDROID_TEST_API" == 35 || "$ANDROID_TEST_API" == 36 ]]
-          android --sdk="$ANDROID_HOME" sdk install 'emulator' "system-images;android-$ANDROID_TEST_API;google_apis;x86_64" 'platforms;android-36' 'build-tools;36.0.0'
+          android --sdk="$ANDROID_HOME" sdk install "system-images;android-$ANDROID_TEST_API;google_apis;x86_64" 'platforms;android-36' 'build-tools;36.0.0'
+          bash scripts/android/install-audio-ci-emulator.sh
           node scripts/verify-input-acceptance-sources.mjs apk
           mkdir -p artifacts/input-example
           cc -std=c11 -O2 -Wall -Wextra -Werror tools/audio-acceptance/x11-program.c -lX11 -lm -o artifacts/input-example/x11-audio-program

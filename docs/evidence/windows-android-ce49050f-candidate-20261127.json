@@ -151,6 +151,26 @@
       "web_audience_minimum_pass_db": -60,
       "guest_capture_source_independently_verified": false,
       "revocation_audio_phase_reached": false
+    },
+    "independent_guest_microphone_control": {
+      "acceptance_run_id": 45952589388,
+      "harness_source_commit": "ed761070",
+      "passed": false,
+      "official_linux_emulator_version": "37.3.10.0",
+      "official_linux_emulator_build_id": 16970787,
+      "android_api_level": 36,
+      "host_microphone_enabled": false,
+      "synthetic_packets_submitted": 264,
+      "synthetic_injection_rpc_completed": true,
+      "foreground_audio_record_frames": 240000,
+      "guest_route_type": 15,
+      "guest_recording_reported_silenced": false,
+      "guest_1499_hz_median_amplitude_ppm": 0,
+      "guest_1499_hz_windows_above_threshold": 0,
+      "standalone_probe_released": true,
+      "pcm_saved": false,
+      "system_playout_control_passed": false,
+      "product_audio_passed": false
     }
   },
   "lan_migration": {

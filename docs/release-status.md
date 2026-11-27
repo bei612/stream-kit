@@ -26,6 +26,8 @@ Win11 独立实例以原生 HTTP 客户端及 Playwright CLI 驱动的 Chrome �
 
 同源 Android 音频已走到实际采集测量。原生页面开启麦克风，服务确认采集状态，工具向官方 AVD 接口提交了 253 个合成音包，同时观察 Web 与目标录音。目标分析 240,000 帧且零探针丢帧，但 1499 Hz 幅度未达标，Web 同期也低于门槛。独立系统播放基线同样未通过，尚需确认合成声源是否真正到达 Android 本地采集，以及发布候选的完整音频链路。此轮未执行到音频撤权测量。[同源音频原始结果](https://github.com/bei612/stream-kit/actions/runs/45950448625)
 
+Linux 官方 Android Emulator `37.3.10` 的独立前台 AudioRecord 复核确认，合成注入 RPC 成功结束，探针录得完整 240,000 帧，系统未标记客户端静音，但 1499 Hz 在所有窗口中均未达到阈值，中位强度为 0。该轮同源产品音频判定保持失败，已经定位到模拟器本地声源验证失败，产品的麦克风回传仍需在可验证的输入环境补验。[独立采集基线](https://github.com/bei612/stream-kit/actions/runs/45952589388)
+
 本机旧部署的固定主机名 `volcengine.local` 已用同机 Playwright CLI 验证原 CA 下的管理入口、网关和 Example 永久链接，共解码 37 帧，随后正常停止 Example。记录只覆盖本机固定主机名入口。实体 Android 对该名字和换址后串流的现场确认另行记录。
 
 本机 Windows 三个运行组件及实体平板已更新至候选 `53c7385a`，保持原应用、CA、配置与平板书签。单安装器、静默安装、服务自动恢复和卸载已经在 Windows Server 2022 CI 通过。实装 Win11 与平板、Web 的共享画面、程序音、控制权交接及平板麦克风至目标录音端点和 Web 观众均已验证。当前仍需独立 Win11 首装与实际回退、现场 LAN 换址、完整输入撤权验收和依赖剩余项处理。见[同源实装与联验](evidence/windows11-android-joint-53c7385a.json)、[安装器验收](https://github.com/bei612/stream-kit/actions/runs/45806470686)。

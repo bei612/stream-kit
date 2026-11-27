@@ -62,7 +62,7 @@ async function main() {
     const configuration = JSON.parse(fs.readFileSync(args['grpc-config'], 'utf8'));
     assert.match(configuration.address, /^127\.0\.0\.1:[0-9]+$/);
     assert.ok(configuration.token?.length > 16);
-    const proto = grpc.loadPackageDefinition(loader.loadSync(path.join(process.env.ANDROID_HOME, 'emulator/lib/emulator_controller.proto'),
+    const proto = grpc.loadPackageDefinition(loader.loadSync(path.join(process.env.STREAM_KIT_AUDIO_EMULATOR_DIR, 'lib/emulator_controller.proto'),
       {longs: String, defaults: true}));
     client = new proto.android.emulation.control.EmulatorController(configuration.address, grpc.credentials.createInsecure());
     const metadata = new grpc.Metadata();
