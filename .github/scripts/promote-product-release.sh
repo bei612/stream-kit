@@ -53,11 +53,11 @@ if [[ -n ${ANDROID_RUN_ID:-} ]]; then
   android=artifacts/promotion/android-candidate
   gh run download "$ANDROID_RUN_ID" --repo "$GITHUB_REPOSITORY" --name stream-kit-android-release-candidate --dir "$android"
   release_assets=artifacts/promotion/windows-android-assets
-  node scripts/verify-windows-android-promotion.mjs "$windows" "$android" "$acceptance" "$RELEASE_TAG" "$release_assets"
+  node scripts/verify-windows-android-promotion.mjs "$windows" "$android" "$sbom" "$acceptance" "$RELEASE_TAG" "$release_assets"
   test -f "$reviewed_notes"
   git fetch --no-tags origin "refs/tags/$RELEASE_TAG"
   [[ $(git rev-parse 'FETCH_HEAD^{commit}') == "$source_commit" ]] || { echo 'Release tag points to another revision' >&2; exit 1; }
-  assets=("$release_assets"/* "$sbom")
+  assets=("$release_assets"/*)
   if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft > artifacts/promotion/draft.json 2>/dev/null; then
     jq -e '.isDraft == true' artifacts/promotion/draft.json > /dev/null
     gh release upload "$RELEASE_TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber

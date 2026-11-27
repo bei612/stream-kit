@@ -21,7 +21,7 @@ function verifyUploaded(metadata, files) {
   assert.equal(expected.size, 0, 'Release draft is missing an asset')
 }
 
-function prepareAssets(windowsDirectory, androidDirectory, acceptance, tag, output) {
+function prepareAssets(windowsDirectory, androidDirectory, sourceSbom, acceptance, tag, output) {
   const win = read(path.join(windowsDirectory, 'installer-manifest.json'))
   const version = manifestRelease(win)
   assert.equal(version.channel, 'stable', 'Windows + Android promotion requires a stable build')
@@ -29,6 +29,7 @@ function prepareAssets(windowsDirectory, androidDirectory, acceptance, tag, outp
   assert.equal(win.file.name, `${version.prefix}-windows-amd64-setup.exe`)
   verifyInstallerAcceptance(win, read(acceptance))
   assert.equal(sha256(path.join(windowsDirectory, win.file.name)), win.file.sha256)
+  assert.match(read(sourceSbom).spdxVersion, /^SPDX-[0-9]+\.[0-9]+$/, 'Invalid source SBOM')
 
   const android = read(path.join(androidDirectory, 'provenance.json'))
   const signing = read('third_party-manifests/android-signing.json')
@@ -85,7 +86,9 @@ function prepareAssets(windowsDirectory, androidDirectory, acceptance, tag, outp
     fs.copyFileSync(source, target, fs.constants.COPYFILE_EXCL)
     return `${sha256(target)}  ${to}\n`
   }
-  const windowsChecksums = copy(windowsDirectory, win.file.name) + copy(windowsDirectory, 'installer-manifest.json')
+  const windowsChecksums = copy(windowsDirectory, win.file.name)
+    + copy(windowsDirectory, 'installer-manifest.json')
+    + copy(path.dirname(sourceSbom), path.basename(sourceSbom), 'stream-kit-sbom.spdx.json')
   fs.writeFileSync(path.join(output, 'SHA256SUMS.txt'), windowsChecksums)
   const androidChecksums = [...androidFiles].map(([from, to]) => copy(androidDirectory, from, to)).join('')
   fs.writeFileSync(path.join(output, 'Android-SHA256SUMS.txt'), androidChecksums)
@@ -96,6 +99,6 @@ if (args[0] === '--uploaded') {
   assert.ok(args.length >= 3)
   verifyUploaded(args[1], args.slice(2))
 } else {
-  assert.equal(args.length, 5, 'Expected WINDOWS_DIR ANDROID_DIR INSTALLER_ACCEPTANCE TAG OUTPUT_DIR')
+  assert.equal(args.length, 6, 'Expected WINDOWS_DIR ANDROID_DIR SOURCE_SBOM INSTALLER_ACCEPTANCE TAG OUTPUT_DIR')
   prepareAssets(...args)
 }
