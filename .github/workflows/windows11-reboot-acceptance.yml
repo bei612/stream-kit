@@ -6,14 +6,20 @@ on:
         description: Published Windows installer to test in a clean Windows 11 x64 guest
         type: string
         required: true
+      diagnostic_product_run_id:
+        description: Optional same-source Windows build providing a diagnostic runtime for failed initialization
+        type: string
+        required: false
 permissions:
   contents: read
+  actions: read
 jobs:
   reboot:
     runs-on: ubuntu-24.04
     timeout-minutes: 55
     env:
       RELEASE_TAG: ${{ inputs.release_tag }}
+      DIAGNOSTIC_PRODUCT_RUN_ID: ${{ inputs.diagnostic_product_run_id }}
     steps:
       - uses: actions/checkout@v4
         with:

@@ -32,6 +32,7 @@
 | 核验项 | 已取得的证据 |
 | --- | --- |
 | RC2 Windows 安装和维护 | 使用公开包对应的原始字节。Windows Server 2022 托管静默安装、SCM/网关恢复、原生录音、卸载保留数据均通过。真实监听端口冲突后，回滚恢复原服务、永久链接、CA 和私钥。[安装与回滚证据](evidence/windows11-android-packaged-audio-66a79e5d-20261127.json) |
+| RC2 全新 Win11 | 独立 Win11 26H2 x64 已启动，UEFI 安全启动与 TPM 通过。公开安装器返回退出码 `1`，安装检查点和整机重启验收均未进入。[首装失败记录](evidence/windows11-clean-install-66a79e5d-20261128.json) |
 | RC2 Android 与 Web | Win11 独立运行同包三组件及签名 APK，共用一条上游。授权后目标录音分析 96,000 帧且零丢帧，Web 麦克风信号从 −39.50 dB 降到撤权后的 −126.34 dB，程序声音保持。Android 覆盖升级、原书签复用、输入交接、权限拒绝、前后台及断网重连通过。[Win11 音频](evidence/windows11-android-packaged-audio-66a79e5d-20261127.json) · [Android 生命周期](evidence/android-input-66a79e5d-20261127.json) |
 | RC2 换址 | 同源 Ubuntu 安装包在隔离网络实际换址。两个 HTTPS 端点在 2.743 秒内更新证书，原观看页恢复直接收发媒体，收到 48 帧视频和 79 个音频包。原 CA、私钥和组件进程保持。[换址证据](evidence/isolated-lan-66a79e5d-20261127.json) |
 | RC2 运行依赖 | 用精确 Windows、Ubuntu 控制二进制进行符号扫描。Android 发行签名、运行依赖和许可清单核对通过。继续引用经逐条复核的未变依赖图及源码 SBOM。[依赖审查及范围](evidence/windows11-runtime-dependency-review-66a79e5d-20261127.json) |

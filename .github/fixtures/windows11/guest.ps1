@@ -26,6 +26,45 @@ function Write-GuestEvidence($Value) {
     }
 }
 
+function Read-DiagnosticTail([string]$Path, [int]$Lines, [int]$Limit) {
+    if (Test-Path -LiteralPath $Path -PathType Leaf) {
+        $text = (Get-Content -LiteralPath $Path -Encoding UTF8 -Tail $Lines) -join [Environment]::NewLine
+        $text.Substring([Math]::Max(0, $text.Length - $Limit))
+    }
+}
+
+function Read-InstallFailure($Install) {
+    $details = [ordered]@{
+        installer_log = Read-DiagnosticTail (Join-Path $output 'install.log') 100 8500
+        setupapi_delta = Read-DiagnosticTail (Join-Path $output 'setupapi-install-delta.log') 50 5000
+    }
+    $diagnostic = Join-Path $PSScriptRoot 'diagnostic'
+    if ((Test-Path -LiteralPath $diagnostic -PathType Container) -and $Install.install_exit -ne 0) {
+        try {
+            $payload = Join-Path $work 'diagnostic'
+            Copy-Item -LiteralPath $diagnostic -Destination $payload -Recurse
+            $runtime = Join-Path $payload 'orchestrator\orchestrator.exe'
+            $nativeLog = Join-Path $work 'diagnostic-stderr.txt'
+            $nativeArguments = @('init-platform','--root',$payload,'--data-dir',(Join-Path $work 'diagnostic-data'),
+                '--control-port','19000','--gateway-port','18080','--renderer-port','48989',
+                '--usb-audio-vendor-id',$Install.identity.vendor_id,'--usb-audio-product-id',$Install.identity.product_id)
+            if ($Install.identity.serial_prefix) {
+                $nativeArguments += @('--usb-audio-serial-prefix',('"' + $Install.identity.serial_prefix + '"'))
+            }
+            $process = Start-Process -FilePath $runtime -ArgumentList $nativeArguments -PassThru -WindowStyle Hidden `
+                -RedirectStandardOutput (Join-Path $work 'diagnostic-stdout.txt') -RedirectStandardError $nativeLog
+            try {
+                if (-not $process.WaitForExit(75000)) { $process.Kill(); throw 'Native diagnostic exceeded its time limit' }
+                $details.native_init_exit = $process.ExitCode
+                $details.native_init_error = Read-DiagnosticTail $nativeLog 12 3000
+            } finally { $process.Dispose() }
+        } catch {
+            $details.native_diagnostic_error = $_.Exception.Message
+        }
+    }
+    return $details
+}
+
 try {
     if (-not $Resume) {
         if (-not (Confirm-SecureBootUEFI) -or -not (Get-Tpm).TpmPresent) {
@@ -48,6 +87,7 @@ try {
     & (Join-Path $work 'node.exe') (Join-Path $work 'scripts\accept-windows-installer.cjs') $manifest $output $mode
     $testExit = $LASTEXITCODE
     $result = Get-Content -LiteralPath (Join-Path $output 'result.json') -Raw | ConvertFrom-Json
+    $diagnostics = if ($result.phase -eq 'failed') { Read-InstallFailure $result }
     Write-GuestEvidence @{
         phase = $result.phase; passed = $result.passed; error = $result.error
         exit_code = $testExit; commit = $result.commit; installer_source_commit = $result.installer_source_commit
@@ -57,6 +97,7 @@ try {
         pcm_frames = $result.pair.captured_frames; pcm_dropped = $result.pair.target.dropped_frames
         scm_restarted = $result.scm_restarted; gateway_restarted = $result.gateway_restarted
         uninstall_exit = $result.uninstall_exit; service_removed = $result.service_removed; data_preserved = $result.data_preserved
+        diagnostics = $diagnostics
     }
     if (-not $Resume -and $testExit -eq 0 -and $result.phase -eq 'awaiting_reboot') {
         Restart-Computer -Force

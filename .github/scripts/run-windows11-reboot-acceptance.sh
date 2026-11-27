@@ -36,7 +36,6 @@ mkdir -p "$work/input/installer" "$work/input/scripts" "$work/tpm"
 tag_object=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG")
 source_commit=$(jq -er '.object | select(.type == "commit") | .sha | select(test("^[a-f0-9]{40}$"))' <<< "$tag_object")
 gh release download "$RELEASE_TAG" --pattern '*windows-amd64-setup.exe' --pattern installer-manifest.json --dir "$work/input/installer"
-unset GH_TOKEN
 manifest="$work/input/installer/installer-manifest.json"
 installer=$(jq -er --arg commit "$source_commit" '
   select(.commit == $commit and .installer_source_commit == $commit and
@@ -45,6 +44,18 @@ installer=$(jq -er --arg commit "$source_commit" '
   | .file.name | select(test("^[A-Za-z0-9.-]+-windows-amd64-setup\\.exe$"))' "$manifest")
 installer_hash=$(jq -er '.file.sha256 | select(test("^[a-f0-9]{64}$"))' "$manifest")
 printf '%s  %s\n' "$installer_hash" "$work/input/installer/$installer" | sha256sum --check
+if [[ -n ${DIAGNOSTIC_PRODUCT_RUN_ID:-} ]]; then
+  [[ $DIAGNOSTIC_PRODUCT_RUN_ID =~ ^[1-9][0-9]*$ ]]
+  gh api "repos/$GITHUB_REPOSITORY/actions/runs/$DIAGNOSTIC_PRODUCT_RUN_ID" | jq -e \
+    --arg repo "$GITHUB_REPOSITORY" --arg commit "$source_commit" '
+      .head_repository.full_name == $repo and .head_branch == "main" and .head_sha == $commit and
+      .path == ".github/workflows/windows-product-release.yml" and .conclusion == "success"
+    ' > /dev/null
+  gh run download "$DIAGNOSTIC_PRODUCT_RUN_ID" --name "windows-product-payload-$source_commit" --dir "$work/input/diagnostic"
+  payload_hash=$(jq -er '.payload_manifest_sha256 | select(test("^[a-f0-9]{64}$"))' "$manifest")
+  printf '%s  %s\n' "$payload_hash" "$work/input/diagnostic/platform-manifest.json" | sha256sum --check
+fi
+unset GH_TOKEN
 
 fetch=(curl --fail --show-error --silent --location --proto '=https' --proto-redir '=https' --retry 2)
 node_base=https://nodejs.org/dist/v26.4.0
