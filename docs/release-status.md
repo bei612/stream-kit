@@ -16,6 +16,8 @@ Android 联验和隔离 LAN 换址验收可显式选择 Linux 安装器的构建
 
 候选的隔离 LAN 换址联验通过。两个 HTTPS 入口在 10.25 秒内更换服务证书，保留 CA 和私钥。原浏览器页面自动恢复串流，换址前后只收到当前直连地址的 UDP 主机候选。Android 与 Web 使用同一上游，双方实测轮流向目标交付按键及触摸，交接和撤权后的输入保持被拒绝。Linux 模拟器音频联验的独立系统音基线未通过。修复探针状态读取与 PCM 写入的争用后，已采到 194739 帧且探针丢帧为零，基准音仍近静音，产品音频测试未进入。见[音频探针修复后的联验](https://github.com/bei612/stream-kit/actions/runs/45936840917)。
 
+同源 Ubuntu 24.04 amd64 正式候选安装器已构建并通过原生初始化。已下载并核验 Windows 与 Ubuntu 安装器的源码、渠道、版本及二进制摘要。Ubuntu 安装包为 62,815,341 字节，SHA-256 为 `3de5c78de83177d6768932cc779bb3f6b0e2ceec2138903955287682483a781d`，可与 Windows 和 Android 同批发布。[Ubuntu 0.1.1 构建及初始化](https://github.com/bei612/stream-kit/actions/runs/45970565029)
+
 Win11 独立实例以原生 HTTP 客户端及 Playwright CLI 驱动的 Chrome 分别上传并解压实际 26 GiB TAR，本地开发构建的页面操作和落盘已验收。随后以候选安装包原生管理服务再次接收 27,921,765,888 字节，实际解压 27,921,762,816 字节，应用进入就绪状态、Example 哈希一致、暂存及应用测试目录均已回收。候选包管理页已通过桌面和窄屏限额显示验收。正式装机的暂存与应用目录应按两项存储需求部署。[候选包大文件验收](evidence/windows-android-ce49050f-candidate-20261127.json) · [浏览器应用就绪截图](evidence/windows11-browser-upload-26gib-20261127.png)
 
 同源签名 APK 的前后台恢复已在官方 Android 36 模拟器通过。Android 持有控制权时退出到桌面，服务释放该连接及控制权；回前台以全新观看连接恢复原串流，麦克风保持关闭。客户端恢复后观察到 300 个音频包和 115 帧解码画面，Web 继续共享同一渲染实例。[实际前后台联验](https://github.com/bei612/stream-kit/actions/runs/45948972310)
@@ -39,6 +41,8 @@ Linux 官方 Android Emulator `37.3.10` 的独立前台 AudioRecord 复核确认
 Android 35 同配置复核同样得到宿主监听 30/30 达标，但 Android 本地录音为 0/50。独立录音释放、进程退出和路由恢复已确认。候选 APK 随后完成麦克风开启，独立宿主监听仍为 30/30，Web 回传门槛未通过。两种系统镜像均无法用该 Linux 模拟器环境证明持续麦克风输入。[Android 35 对照记录](https://github.com/bei612/stream-kit/actions/runs/45962603010)
 
 Windows 11 上，官方模拟器 37.2.13 在注入合成音时发生 QEMU 访问冲突。独立验证改用 Google 签名的 37.3.10 稳定版后，Android 36 录满 240,000 帧，50/50 个窗口达标，录音和探针正常释放。同版本 Linux CI 的虚拟监听仍有 30/30 个输入窗口达标，Android 独立采集仅 3/50，候选 APK 的 Web 回传未通过。Windows 上校准通过的声源仍需与候选 APK、目标录音端点和 Web 观众联验。[Windows 模拟器采集记录](evidence/windows-android-ce49050f-candidate-20261127.json) · [Linux 同版对照](https://github.com/bei612/stream-kit/actions/runs/45969071362)
+
+Windows 11 全新临时 Android 36 AVD 以首批 PCM 为就绪点启动输入后，独立采集的 50 个窗口全部达标。已在同一实例安装原样签名的 `0.1.1`（`1000024`），核对安装后 APK 摘要并清理临时 AVD。该次操作没有打开观看链接，音频回传仍需单独联验。[签名安装证据](evidence/windows-android-ce49050f-candidate-20261127.json)
 
 本机旧部署的固定主机名 `volcengine.local` 已用同机 Playwright CLI 验证原 CA 下的管理入口、网关和 Example 永久链接，共解码 37 帧，随后正常停止 Example。记录只覆盖本机固定主机名入口。实体 Android 对该名字和换址后串流的现场确认另行记录。
 

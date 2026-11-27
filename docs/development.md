@@ -89,6 +89,8 @@ Android 音频 CI 使用一次性官方模拟器。独立 `testOnly` 工具通�
 
 Windows 上若需区分模拟器输入与产品回传，可先运行独立采集探针。用 `tools/input-acceptance/android-build.ps1 -Profile observer -OutputDirectory <新目录>` 构建探针，按锁文件安装 `scripts/android/emulator-audio` 依赖，再运行 `node scripts/android/accept-windows-emulator-microphone.cjs --observer <observer.apk> --output <新目录>`。它复用本机 API 36 AVD 的只读实例，通过本机回环 RPC 注入合成音，可通过 `--emulator-dir` 指向另存的官方模拟器目录。结果包含 Android 采集和释放指标。此检查的通过结果仅证明该模拟器能采到合成音，正式 APK 到目标录音设备与观众的回传需另测。
 
+如需核对同一环境可安装正式签名产物，同时传入 `--candidate-directory <候选产物目录>` 和 `--source-commit <冻结提交>`。工具使用现有 Android SDK 创建全新临时 AVD，在独立采集后验证发行签名、安装版本和来宾 `base.apk` 摘要。采集探针读到首批 PCM 后才启动注入，避免录音线程尚未开始读数据时误判输入缺失。临时 AVD 停止后自动清理。
+
 ## 检查按影响执行
 
 | 变更 | 最小相关检查 |

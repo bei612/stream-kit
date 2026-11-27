@@ -94,9 +94,6 @@ public final class MicrophoneCaptureActivity extends Activity {
             recorder.startRecording();
             if (recorder.getRecordingState() != AudioRecord.RECORDSTATE_RECORDING)
                 throw new IllegalStateException("Capture did not start");
-            Bundle started = new Bundle();
-            started.putString("mic_control_started", "recording");
-            observer.sendStatus(1, started);
             Bundle measurement = analyze(recorder, observer);
             Bundle measured = new Bundle(measurement);
             measured.putString("mic_control_stage", "analysis_complete");
@@ -119,11 +116,21 @@ public final class MicrophoneCaptureActivity extends Activity {
         short[] buffer = new short[WINDOW / 5];
         int count = 0, index = 0, above = 0;
         double real = 0, imaginary = 0;
+        boolean inputReady = false;
         long deadline = SystemClock.elapsedRealtime() + 6800;
         while (count < WINDOWS && SystemClock.elapsedRealtime() < deadline) {
             int read = recorder.read(buffer, 0, buffer.length, AudioRecord.READ_NON_BLOCKING);
             if (read < 0) throw new IllegalStateException("AudioRecord read failed");
-            if (read == 0) SystemClock.sleep(5);
+            if (read == 0) {
+                SystemClock.sleep(5);
+                continue;
+            }
+            if (!inputReady) {
+                Bundle started = new Bundle();
+                started.putString("mic_control_started", "recording");
+                observer.sendStatus(1, started);
+                inputReady = true;
+            }
             for (int i = 0; i < read && count < WINDOWS; i++) {
                 double sample = buffer[i] / 32768.0;
                 real += sample * cosine[index];

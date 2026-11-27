@@ -29,6 +29,20 @@
     "service_removed": true,
     "application_data_preserved": true
   },
+  "linux_stable_installer": {
+    "build_run_id": 45970565029,
+    "source_branch": "release/0.1.1",
+    "source_commit": "ce49050f4dfcbd1e22d9d4f22093f6b965e6aac8",
+    "release_version": "0.1.1",
+    "release_channel": "stable",
+    "file": "stream-kit-0.1.1-ce49050f4dfc-ubuntu24.04-amd64-setup.run",
+    "bytes": 62815341,
+    "sha256": "3de5c78de83177d6768932cc779bb3f6b0e2ceec2138903955287682483a781d",
+    "downloaded_manifest_and_checksum_verified": true,
+    "matches_windows_release_source_and_version": true,
+    "native_package_initialization_passed": true,
+    "scope": "Actual Ubuntu 24.04 amd64 release installer bytes and native package initialization run. No physical Linux host media acceptance is claimed."
+  },
   "windows11_isolated_native_playback": {
     "passed": true,
     "control_sha256": "da86a2dc3ad659fc932eb46b3c42d540c261ddcfb683e5cf61aeb2a86008bcf3",
@@ -371,6 +385,28 @@
       "emulator_stopped": true,
       "product_audio_entered": false,
       "finished_at_utc": "2026-11-27T08:48:35.341Z"
+    },
+    "fresh_guest_installation": {
+      "emulator_version": "37.3.10.0",
+      "android_api_level": 36,
+      "fresh_read_only_avd": true,
+      "reused_installed_google_system_image": true,
+      "guest_receipt_triggered_by_first_pcm_read": true,
+      "guest_frames_analyzed": 240000,
+      "guest_windows_above_threshold": 50,
+      "guest_windows_total": 50,
+      "guest_median_amplitude_ppm": 251625,
+      "guest_capture_released": true,
+      "apk_installed": true,
+      "installed_version": "0.1.1",
+      "installed_version_code": 1000024,
+      "installed_base_apk_sha256": "f65455f6d07c7b66d14d86f51ed076cfea5e75a34c6693ede87697d996d6a0b7",
+      "project_release_signer_verified": true,
+      "watch_link_opened": false,
+      "finished_at_utc": "2026-11-27T09:17:35.580Z",
+      "emulator_stopped": true,
+      "private_avd_removed": true,
+      "scope": "Signed APK installation and base.apk verification after independent AudioRecord qualification, without opening a watch link or connecting to the installed Windows service."
     }
   },
   "lan_migration": {

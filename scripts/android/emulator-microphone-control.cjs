@@ -15,11 +15,13 @@ const {configureMicrophoneSource} = require('../lib/emulator-microphone-source.c
 const observer = 'io.github.bei612.streamkit.inputobserver';
 const run = promisify(execFile);
 const {values: args} = parseArgs({options: {serial: {type: 'string'}, adb: {type: 'string'},
-  output: {type: 'string'}, 'grpc-config': {type: 'string'}, 'windows-read-only': {type: 'boolean'}}});
+  output: {type: 'string'}, 'grpc-config': {type: 'string'}, 'windows-read-only': {type: 'boolean'}, avd: {type: 'string'}}});
 const windows = args['windows-read-only'] === true;
+const avd = args.avd || 'StreamKit_API_36';
 if (windows) {
   assert.equal(process.platform, 'win32');
   assert.equal(args.serial, 'emulator-5582');
+  assert.ok(['StreamKit_API_36', 'StreamKit_AudioFixture'].includes(avd));
   assert.equal(process.env.STREAM_KIT_AUDIO_MICROPHONE_SOURCE, 'emulator-rpc');
 } else {
   assert.equal(process.env.GITHUB_ACTIONS, 'true');
@@ -76,7 +78,7 @@ async function main() {
   let client, probe, injection, input, monitor;
   try {
     evidence.phase = 'check_owned_emulator';
-    if (windows) assert.equal((await adb('emu', 'avd', 'name')).stdout.split(/\r?\n/)[0].trim(), 'StreamKit_API_36');
+    if (windows) assert.equal((await adb('emu', 'avd', 'name')).stdout.split(/\r?\n/)[0].trim(), avd);
     assert.ok(await fixtureInactive('io.github.bei612.streamkit'), 'Product already running');
     const configuration = JSON.parse(fs.readFileSync(args['grpc-config'], 'utf8'));
     assert.match(configuration.address, /^127\.0\.0\.1:[0-9]+$/);

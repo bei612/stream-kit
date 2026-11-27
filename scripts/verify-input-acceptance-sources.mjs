@@ -154,14 +154,18 @@ function verifyDownloads() {
   }, null, 2) + '\n')
 }
 
+export function verifyApkSigner(signature, expected) {
+  const signers = [...signature.matchAll(/(?:Signer #\d+|V[0-9.]+ Signer):? certificate SHA-256 digest: ([0-9a-f]+)/gi)].map(m => m[1].toLowerCase())
+  assert.deepEqual([...new Set(signers)], [expected])
+  assert.match(signature, /Number of signers: 1/)
+  assert.match(signature, /Verified using v2 scheme \(APK Signature Scheme v2\): true/)
+}
+
 function verifyApkBytes(apk, provenance) {
   const tools = path.join(process.env.ANDROID_HOME, 'build-tools/36.0.0')
   assert.equal(digest(fs.readFileSync(apk)), provenance.apk_sha256)
   const signature = execFileSync(path.join(tools, 'apksigner'), ['verify', '--verbose', '--print-certs', apk], { encoding: 'utf8' })
-  const signers = [...signature.matchAll(/(?:Signer #\d+|V[0-9.]+ Signer):? certificate SHA-256 digest: ([0-9a-f]+)/gi)].map(m => m[1].toLowerCase())
-  assert.deepEqual([...new Set(signers)], [provenance.signing_certificate_sha256])
-  assert.match(signature, /Number of signers: 1/)
-  assert.match(signature, /Verified using v2 scheme \(APK Signature Scheme v2\): true/)
+  verifyApkSigner(signature, provenance.signing_certificate_sha256)
   const badging = execFileSync(path.join(tools, 'aapt2'), ['dump', 'badging', apk], { encoding: 'utf8' })
   assert.ok(badging.includes(`package: name='${provenance.application_id}' versionCode='${provenance.version_code}' versionName='${provenance.version}'`))
   assert.ok(!badging.includes('application-debuggable'))
