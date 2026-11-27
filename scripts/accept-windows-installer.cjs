@@ -159,7 +159,42 @@ function capturePostInstallDiagnostics(){
 }
 // Installing the first input can supply a previously absent recording default.
 // Preserve every pre-existing input default and both output roles.
-const defaultsPreserved=(before,after)=>['render','communication_render','capture','communication_capture'].every(key=>((key==='capture'||key==='communication_capture')&&!before[key])||before[key]===after[key]);
+const audioRoles = ['render', 'communication_render', 'capture', 'communication_capture'];
+const defaultsPreserved=(before,after)=>audioRoles.every(key=>((key==='capture'||key==='communication_capture')&&!before[key])||before[key]===after[key]);
+
+function observeAudioDefaults(property) {
+ try { result[property] = defaults(); }
+ catch (error) { diagnosticFailure(property, error); }
+}
+
+function endpointIdentity(value) {
+ // WinRT wraps the Core Audio endpoint ID in a device interface path.
+ return value?.match(/\{0\.0\.[01]\.00000000\}\.\{[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\}/i)?.[0].toLowerCase();
+}
+
+function audioDefaultObservations() {
+ const observations = {};
+ for (const [label, devices] of Object.entries({
+  before_install: result.defaults_before, after_install: result.defaults_after_install,
+  at_resume: result.defaults_at_resume, during: result.defaults_during,
+  after_gateway_restart: result.defaults_after_restart, after_service_restart: result.defaults_after_service_restart,
+  after_uninstall: result.defaults_after,
+ })) {
+  if (!devices) continue;
+  observations[label] = {};
+  for (const role of audioRoles) {
+   const direction = role.endsWith('capture') ? 'capture' : 'render';
+   const actual = endpointIdentity(devices[role]);
+   const owned = endpointIdentity(result.endpoints?.[`${direction}_device_id`]);
+   observations[label][role] = {
+    present: Boolean(devices[role]),
+    same_as_before_install: devices[role] === result.defaults_before?.[role],
+    matches_product_endpoint: actual && owned ? actual === owned : null,
+   };
+  }
+ }
+ return observations;
+}
 let installed=resume,keepForBoot=false,token;
 const control='http://127.0.0.1:19000';
 async function request(route,method='GET',body){
@@ -225,6 +260,7 @@ async function endpoints(){
    const installation=execute(installer,['/VERYSILENT','/SUPPRESSMSGBOXES','/SP-','/NORESTART','/DIR='+program,'/DATADIR='+data,'/CONTROLPORT=19000','/GATEWAYPORT=18080','/RENDERERPORT=48989','/LOG='+path.join(output,'install.log')]);
    result.install_exit=installation.status;
    installed=fs.existsSync(path.join(program,'unins000.exe'));
+   if (installed) observeAudioDefaults('defaults_after_install');
    capturePostInstallDiagnostics();
    if(stage){
     assert.ok([0,3010].includes(installation.status),'Installer did not return success or a reboot requirement');
@@ -249,6 +285,7 @@ async function endpoints(){
   assert.ok(gateway.virtual_audio.serial.startsWith(prefix));
   assert.match(gateway.virtual_audio.serial.slice(prefix.length),/^[A-Za-z0-9]{15}$/);
   result.virtual_audio_serial=gateway.virtual_audio.serial;
+  if (resume) observeAudioDefaults('defaults_at_resume');
   const health=resume?await waitForInstalledHealth():await request('/health');assert.equal(health.commit,manifest.commit);
   for(const key of componentKeys)assert.equal(health.components[key].status,'running');
   if(resume){
@@ -314,6 +351,7 @@ async function endpoints(){
     if(removal.status!==0||!result.service_removed||!result.data_preserved||!isDeepStrictEqual(result.defaults_after,result.defaults_before))result.passed=false;
    }
    collectRuntimeLogs();
+   result.audio_default_observations = audioDefaultObservations();
    if(stage||resume)result.phase=result.passed?'completed':'failed';
    result.finished_at=new Date().toISOString();save();
   }

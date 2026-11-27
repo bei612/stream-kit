@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "source_commit": "428f803669070ddcc56afcfcb32952ac57136420",
+  "passed": false,
+  "run_id": 46052098134,
+  "installer_product_run_id": 46046815848,
+  "acceptance_source_commit": "2f578eaddc85fb80d3d53dcf08ae63d5db5e329f",
+  "artifact_id": 15226837708,
+  "artifact_sha256": "8fe6377edfacc927ea1ee51973501b094227082e870b5bc53b0e8b9cf77caaf4",
+  "checkpoint_json_sha256": "f18980da7c512b2146d7628c5346d11d9e66489c9170baaa8f9999c8be518bec",
+  "result_json_sha256": "f5b283770b82be5cad947cc3f1f7b749d1d1ccda42870506bca3509e800d249a",
+  "installer_sha256": "20e99276e261aa895428080d87947944888dffe35e65cd2ecd721aceb6b616a0",
+  "guest": {
+    "edition": "Windows 11 Enterprise Evaluation 26H2 x64",
+    "build": 26300,
+    "secure_boot": true,
+    "tpm_present": true
+  },
+  "install_exit": 0,
+  "pre_reboot_boot_utc": "2026-11-28T03:06:36.5000000Z",
+  "post_reboot_boot_utc": "2026-11-28T03:20:30.5000000Z",
+  "auto_local_system_service_running_after_reboot": true,
+  "original_owned_processes_after_reboot": [
+    {"role": "orchestrator", "session": 0, "seconds_after_boot": 16.771},
+    {"role": "sunshine", "session": 1, "seconds_after_boot": 34.128},
+    {"role": "web_server", "session": 1, "seconds_after_boot": 84.283}
+  ],
+  "admin_login": true,
+  "pcm_frames": 144000,
+  "pcm_dropped": 0,
+  "gateway_restarted": true,
+  "scm_restart_check_reached": false,
+  "uninstall_exit": 0,
+  "service_removed": true,
+  "data_preserved": true,
+  "defaults_preserved": false,
+  "failure": "Installation or gateway restart changed Windows default audio endpoints",
+  "scope": "The exact late candidate passed first installation and automatic native startup after a real reboot of an isolated Windows 11 guest. The acceptance failed at audio-default preservation and had no per-role observations in the serialized report. The reason for the default change and the newer worker-lifecycle candidate remain separate verification."
+}

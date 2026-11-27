@@ -163,6 +163,7 @@ try {
         installer_sha256 = $result.installer_sha256; install_exit = $result.install_exit
         pre_reboot = $result.pre_reboot; post_reboot = $result.post_reboot
         admin_login = $result.admin_login; defaults_preserved = $result.defaults_preserved
+        audio_default_observations = $result.audio_default_observations
         pcm_frames = $result.pair.captured_frames; pcm_dropped = $result.pair.target.dropped_frames
         scm_restarted = $result.scm_restarted; gateway_restarted = $result.gateway_restarted
         uninstall_exit = $result.uninstall_exit; service_removed = $result.service_removed; data_preserved = $result.data_preserved
