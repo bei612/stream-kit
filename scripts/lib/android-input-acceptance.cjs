@@ -128,6 +128,21 @@ function androidParticipant({adb,serial,report,save=()=>{}}) {
       const output=await runDiagnostic('install','-r',apk);
       assert.match(output,/^Success\s*$/m,'Android package replacement did not succeed');
     },
+    async denyMicrophonePermission(report, save) {
+      const readPermission=()=>{
+        const output=run('shell','dumpsys','package','io.github.bei612.streamkit');
+        const permission=output.match(/^\s*android\.permission\.RECORD_AUDIO: granted=(true|false), flags=\[([^\]\r\n]*)\]/m);
+        assert.ok(permission,'Unable to observe Android microphone permission');
+        return {granted:permission[1]==='true', user_set:/\bUSER_SET\b/.test(permission[2])};
+      };
+      report.os_before=readPermission();save();
+      assert.deepEqual(report.os_before,{granted:false,user_set:false});
+      const output=await runDiagnostic('shell','am','instrument','-w','-e','action','deny-microphone','io.github.bei612.streamkit.inputobserver/.Observer');
+      report.ui=output.match(/^INSTRUMENTATION_RESULT: mic_denial=([a-z_]+)\s*$/m)?.[1] || 'observer_failed';save();
+      assert.equal(report.ui,'denied','Android system microphone prompt did not complete with denial');
+      report.os_after=readPermission();save();
+      assert.deepEqual(report.os_after,{granted:false,user_set:true});
+    },
     async withoutGuestNetwork(action) {
       assert.equal(process.env.RUNNER_ENVIRONMENT,'github-hosted');
       assert.equal(process.env.GITHUB_ACTIONS,'true');
@@ -312,6 +327,18 @@ async function verifyAndroidInput({android,page,api,sessionId,app,example,report
       assert.equal(resumed.connections[restoredId].microphone_live,false);
       assert.ok(!resumed.controller_connection_id);
       Object.assign(reconnect,await recoveredNativeMedia('guest network recovery'),{passed:true,original_connection_resumed_as_viewer:true,microphone_disabled:true});
+      save();
+
+      const permission=report.android_microphone_permission={passed:false};
+      const granting=await api(route+'/controller/'+restoredId,'POST');
+      assert.equal(granting.audio.microphone_enabled,true);
+      assert.equal(granting.controller_connection_id,restoredId);
+      await android.role(true);
+      await android.denyMicrophonePermission(permission,save);
+      const afterDenial=await api(route);
+      assert.equal(afterDenial.controller_connection_id,restoredId);
+      assert.equal(afterDenial.connections[restoredId].microphone_live,false);
+      Object.assign(permission,{passed:true,controller_retained:true,server_microphone_off:true});
       save();
     }
     state.passed=true;save();

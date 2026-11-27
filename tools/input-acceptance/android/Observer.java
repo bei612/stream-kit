@@ -3,6 +3,7 @@ package io.github.bei612.streamkit.inputobserver;
 import android.app.Activity;
 import android.app.Instrumentation;
 import android.app.KeyguardManager;
+import android.accessibilityservice.AccessibilityServiceInfo;
 import android.graphics.Rect;
 import android.media.AudioManager;
 import android.media.ToneGenerator;
@@ -24,7 +25,8 @@ public final class Observer extends Instrumentation {
     private final Rect window = new Rect();
     private int visited;
     private boolean diagnosticsRequested, playoutControlRequested, volumeCalibrationRequested,
-            microphoneRequested, microphoneControlRequested, bookmarkRequested, bookmarkVisible, toolbarVisible, statisticsVisible;
+            microphoneRequested, microphoneControlRequested, denyRequested, microphoneOff,
+            bookmarkRequested, bookmarkVisible, toolbarVisible, statisticsVisible;
     private String playback = "unknown", sound = "unknown";
     private long audioPackets = -1, videoPackets = -1, videoFrames = -1;
     private String audioCodec;
@@ -38,6 +40,7 @@ public final class Observer extends Instrumentation {
         volumeCalibrationRequested = arguments != null && "calibrate-volume".equals(arguments.getString("action"));
         microphoneRequested = arguments != null && "enable-microphone".equals(arguments.getString("action"));
         microphoneControlRequested = arguments != null && "microphone-control".equals(arguments.getString("action"));
+        denyRequested = arguments != null && "deny-microphone".equals(arguments.getString("action"));
         bookmarkRequested = arguments != null && "open-bookmark".equals(arguments.getString("action"));
         start();
     }
@@ -69,6 +72,11 @@ public final class Observer extends Instrumentation {
             }
             if (microphoneRequested) {
                 result.putString("microphone_action", enableMicrophone());
+                finish(Activity.RESULT_OK, result);
+                return;
+            }
+            if (denyRequested) {
+                result.putString("mic_denial", denyMicrophone());
                 finish(Activity.RESULT_OK, result);
                 return;
             }
@@ -194,6 +202,7 @@ public final class Observer extends Instrumentation {
         rootKind = "no_root";
         foreground = "none";
         bookmarkVisible = false;
+        microphoneOff = false;
         toolbarVisible = false;
         statisticsVisible = false;
         playback = "unknown";
@@ -260,6 +269,7 @@ public final class Observer extends Instrumentation {
         int children = node.getChildCount();
         if (node.isVisibleToUser()) {
             String text = String.valueOf(node.getText());
+            if (node.isEnabled() && "麦克风已关闭".equals(text)) microphoneOff = true;
             if (android.os.Build.VERSION.SDK_INT >= 26 && node.isEditable()
                     && String.valueOf(node.getHintText()).startsWith("当前应用 · ")) bookmarkVisible = true;
             if ("收起工具栏".contentEquals(String.valueOf(node.getContentDescription()))) toolbarVisible = true;
@@ -350,6 +360,50 @@ public final class Observer extends Instrumentation {
         do {
             snapshot();
             if (bookmarkVisible && clickDescription("连接应用")) return true;
+            android.os.SystemClock.sleep(50);
+        } while (android.os.SystemClock.elapsedRealtime() < deadline);
+        return false;
+    }
+
+    private String denyMicrophone() {
+        String open = enableMicrophone();
+        if (!"clicked".equals(open)) return open;
+        AccessibilityServiceInfo info = getUiAutomation().getServiceInfo();
+        info.flags |= AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS;
+        getUiAutomation().setServiceInfo(info);
+        if (!useDenyButton()) return "system_dialog_unavailable";
+        try {
+            if (!openToolbar()) return "client_return_unavailable";
+            long deadline = android.os.SystemClock.elapsedRealtime() + 2000;
+            do {
+                snapshot();
+                if ("client".equals(rootKind) && microphoneOff) return "denied";
+                android.os.SystemClock.sleep(50);
+            } while (android.os.SystemClock.elapsedRealtime() < deadline);
+            return "microphone_not_off";
+        } finally { closeToolbar(); }
+    }
+
+    private boolean useDenyButton() {
+        long deadline = android.os.SystemClock.elapsedRealtime() + 5000;
+        do {
+            AccessibilityNodeInfo root = getUiAutomation().getRootInActiveWindow();
+            if (root != null) {
+                try {
+                    String pkg = String.valueOf(root.getPackageName());
+                    if ("com.google.android.permissioncontroller".equals(pkg)
+                            || "com.android.permissioncontroller".equals(pkg)) {
+                        java.util.List<AccessibilityNodeInfo> buttons = root.findAccessibilityNodeInfosByViewId(
+                                pkg + ":id/permission_deny_button");
+                        try {
+                            for (AccessibilityNodeInfo button : buttons) {
+                                if (button.isVisibleToUser() && button.isEnabled()
+                                        && button.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true;
+                            }
+                        } finally { for (AccessibilityNodeInfo button : buttons) button.recycle(); }
+                    }
+                } finally { root.recycle(); }
+            }
             android.os.SystemClock.sleep(50);
         } while (android.os.SystemClock.elapsedRealtime() < deadline);
         return false;
