@@ -38,6 +38,7 @@ function Read-InstallFailure($Install) {
         installer_log = Read-DiagnosticTail (Join-Path $output 'install.log') 100 8500
         setupapi_delta = Read-DiagnosticTail (Join-Path $output 'setupapi-install-delta.log') 50 5000
     }
+    $diagnosticStarted = Get-Date
     $diagnostic = Join-Path $PSScriptRoot 'diagnostic'
     if ((Test-Path -LiteralPath $diagnostic -PathType Container) -and $Install.install_exit -ne 0) {
         try {
@@ -54,10 +55,26 @@ function Read-InstallFailure($Install) {
             $process = Start-Process -FilePath $runtime -ArgumentList $nativeArguments -PassThru -WindowStyle Hidden `
                 -RedirectStandardOutput (Join-Path $work 'diagnostic-stdout.txt') -RedirectStandardError $nativeLog
             try {
+                $null = $process.Handle
                 if (-not $process.WaitForExit(75000)) { $process.Kill(); throw 'Native diagnostic exceeded its time limit' }
                 $details.native_init_exit = $process.ExitCode
                 $details.native_init_error = Read-DiagnosticTail $nativeLog 12 3000
             } finally { $process.Dispose() }
+
+            # This directory exists only if the verified diagnostic runtime reached its preparer.
+            # Preserve the component log, never the staged configuration or credential files.
+            $stages = @(Get-ChildItem -LiteralPath $work -Directory -Filter '.stream-kit-setup-*' -Force)
+            if ($stages.Count -eq 1) {
+                $rendererLog = Join-Path $stages[0].FullName 'sunshine\sunshine.log'
+                $details.renderer_log_present = Test-Path -LiteralPath $rendererLog -PathType Leaf
+                $details.renderer_log = Read-DiagnosticTail $rendererLog 55 6500
+            }
+            $details.renderer_application_events = @(Get-WinEvent -FilterHashtable @{
+                LogName = 'Application'; Id = 1000,1001,1002; StartTime = $diagnosticStarted
+            } -MaxEvents 15 -ErrorAction SilentlyContinue | Where-Object Message -like '*sunshine.exe*' |
+                Select-Object -First 3 | ForEach-Object {
+                    @{id = $_.Id; provider = $_.ProviderName; message = $_.Message.Substring(0,[Math]::Min(800,$_.Message.Length))}
+                })
         } catch {
             $details.native_diagnostic_error = $_.Exception.Message
         }

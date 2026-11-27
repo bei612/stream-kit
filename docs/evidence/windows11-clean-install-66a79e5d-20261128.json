@@ -21,5 +21,15 @@
   "checkpoint_created": false,
   "post_reboot_verified": false,
   "observed_failure": "Installer did not return success or a reboot requirement",
-  "scope": "A newly installed Microsoft evaluation guest with an emulated audio controller. The exact public package failed before the pre-reboot checkpoint. This run did not capture sufficient native installation logs to identify the failing installer step. The shared Win11 installation and workstation network were not involved."
+  "diagnostic_repeat": {
+    "run_id": 46032458505,
+    "artifact_id": 15215918038,
+    "artifact_sha256": "141492befb67085a07962870ebe6daf1ad55bdfc00ceb7d1081d1dbeeca8e9ca",
+    "install_exit": 1,
+    "installer_step": "CurStepChanged: native platform initialization",
+    "same_payload_native_error": "setup incomplete: sunshine.exe configuration operation failed: exit status 1",
+    "renderer_operation": "--creds-stdin",
+    "renderer_failure_detail_captured": false
+  },
+  "scope": "Newly installed Microsoft evaluation guests with an emulated audio controller. The exact public package failed before the pre-reboot checkpoint. A separate initialization with the verified payload isolated the failing renderer command. The shared Win11 installation and workstation network were not involved."
 }
