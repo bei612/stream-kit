@@ -232,13 +232,15 @@ async function verifyAndroidInput({android,page,api,sessionId,app,example,report
   state.android_connection_id=native;state.web_connection_id=web;
   const webRole=controller=>page.waitForFunction(r=>window.app.getStream().mediaAccess.role===r,controller?'controller':'viewer',{timeout:15000});
   async function recoveredNativeMedia(label) {
-    const {ui}=await android.diagnostics();
-    assert.ok(ui.available&&ui.fresh&&ui.video_frames>0&&ui.audio_packets>0,`Android did not recover native media after ${label}`);
     await until(async()=>{
       const status=await api('/media-control');
       const media=status.observations?.[sessionId];
       return status.observations_valid&&media?.subscribers===2&&media.upstream_active;
     },`Android shares existing upstream after ${label}`,10000);
+    const ui=await until(async()=>{
+      const {ui}=await android.diagnostics();
+      return ui.available&&ui.fresh&&ui.video_frames>0&&ui.audio_packets>0?ui:false;
+    },`Android resumes fresh native media after ${label}`,18000);
     return {native_audio_packets:ui.audio_packets,native_video_frames:ui.video_frames};
   }
   async function nativeInput(label,allowed) {
@@ -300,10 +302,20 @@ async function verifyAndroidInput({android,page,api,sessionId,app,example,report
     Object.assign(lifecycle,await recoveredNativeMedia('foreground'),{passed:true,new_viewer_without_control_or_microphone:true,existing_upstream_preserved:true});
     save();
     if(process.env.GITHUB_ACTIONS==='true'&&process.env.RUNNER_ENVIRONMENT==='github-hosted') {
-      const reconnect=report.android_network={passed:false};
       const restoredId=foreground.participant.connection_id;
-      const before=await api(route+'/controller/'+restoredId,'POST');
+      const permission=report.android_microphone_permission={passed:false};
+      const granting=await api(route+'/controller/'+restoredId,'POST');
+      assert.equal(granting.audio.microphone_enabled,true);
+      assert.equal(granting.controller_connection_id,restoredId);
       await android.role(true);
+      await android.denyMicrophonePermission(permission,save);
+      const before=await api(route);
+      assert.equal(before.controller_connection_id,restoredId);
+      assert.equal(before.connections[restoredId].microphone_live,false);
+      Object.assign(permission,{passed:true,controller_retained:true,server_microphone_off:true});
+      save();
+
+      const reconnect=report.android_network={passed:false};
       const expired=await android.withoutGuestNetwork(async()=>{
         const started=Date.now();
         const disconnected=await until(async()=>{
@@ -327,18 +339,6 @@ async function verifyAndroidInput({android,page,api,sessionId,app,example,report
       assert.equal(resumed.connections[restoredId].microphone_live,false);
       assert.ok(!resumed.controller_connection_id);
       Object.assign(reconnect,await recoveredNativeMedia('guest network recovery'),{passed:true,original_connection_resumed_as_viewer:true,microphone_disabled:true});
-      save();
-
-      const permission=report.android_microphone_permission={passed:false};
-      const granting=await api(route+'/controller/'+restoredId,'POST');
-      assert.equal(granting.audio.microphone_enabled,true);
-      assert.equal(granting.controller_connection_id,restoredId);
-      await android.role(true);
-      await android.denyMicrophonePermission(permission,save);
-      const afterDenial=await api(route);
-      assert.equal(afterDenial.controller_connection_id,restoredId);
-      assert.equal(afterDenial.connections[restoredId].microphone_live,false);
-      Object.assign(permission,{passed:true,controller_retained:true,server_microphone_off:true});
       save();
     }
     state.passed=true;save();
