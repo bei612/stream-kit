@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "source_commit": "428f803669070ddcc56afcfcb32952ac57136420",
+  "passed": true,
+  "product_run_id": 46046815848,
+  "android_build_run_id": 46046816979,
+  "acceptance_run_id": 46049221267,
+  "acceptance_source_commit": "2f578eaddc85fb80d3d53dcf08ae63d5db5e329f",
+  "artifact_id": 15224745067,
+  "artifact_sha256": "143eb9a4b1026b217098c11e21536d6f670938189321101e8318226e3bed859f",
+  "browser_result_sha256": "ed9cd0a2caf58a08ac1404a99937951438b084a051b290e6bbcfa7a7334c5ea0",
+  "linux_installer_sha256": "ac0ae132429c13f60e3d719213104caa9f36a294030436939eafc2ada68ce4fa",
+  "apk_sha256": "d0b5baa129ab515657d18d33ef197ae5b6bdd5ab7c1c68c8fd4c45914842cbb3",
+  "android_version_code": 1000030,
+  "apk_signature_verified": true,
+  "upgrade": {
+    "from_tag": "v0.1.0",
+    "baseline_version_code": 1000015,
+    "installation_identity_preserved": true,
+    "saved_bookmark_reopened": true,
+    "restored_as_viewer_with_microphone_off": true
+  },
+  "target_input": {
+    "single_shared_renderer": true,
+    "subscribers": 2,
+    "completed_phases": ["android_controller", "old_android_denied", "web_controller", "web_revoked", "android_regranted", "android_revoked"]
+  },
+  "foreground_recovery": {
+    "controller_released_in_background": true,
+    "same_native_instance_preserved": true,
+    "fresh_audio_and_video_observed": true,
+    "audio_packets": 339,
+    "decoded_video_frames": 124,
+    "observation_elapsed_ms": 5447,
+    "restored_as_viewer_with_microphone_off": true
+  },
+  "microphone_permission_denied": {
+    "system_prompt_denied": true,
+    "controller_retained": true,
+    "server_microphone_off": true
+  },
+  "client_network_recovery": {
+    "disconnected_until_expiry_ms": 15775,
+    "original_connection_resumed_as_viewer": true,
+    "microphone_disabled": true,
+    "fresh_audio_and_video_observed": true,
+    "audio_packets": 472,
+    "decoded_video_frames": 176,
+    "observation_elapsed_ms": 8955
+  },
+  "cleanup": {"example_stop_acknowledged": true, "renderer_restored_idle": true},
+  "scope": "Exact signed APK and Ubuntu installer in an official hosted Android API 36 emulator and an independent Web viewer. The test covers upgrade, playback, cooperative input, permission denial, foreground and client network recovery. Observation elapsed includes instrumentation time. Positive microphone delivery to Windows and physical site networking have separate acceptance."
+}
