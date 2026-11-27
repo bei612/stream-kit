@@ -2,7 +2,9 @@
 
 核对日期：2026-11-27。本页集中维护可下载版本、本机部署、候选产物和剩余边界。历史证据保留原始来源，不把旧版通过结果当作新产物验收。
 
-当前发布候选冻结于 `ce49050f4dfcbd1e22d9d4f22093f6b965e6aac8`，含固定观看主机名与大型归档限额界面。[Windows 统一安装器](https://github.com/bei612/stream-kit/actions/runs/45939440963)正在构建。[Android 原生 APK](https://github.com/bei612/stream-kit/actions/runs/45939467986)已构建，versionCode `1000024`，本地验证了 21 项文件和 v2/v3 发行签名，APK SHA-256 为 `f65455f6d07c7b66d14d86f51ed076cfea5e75a34c6693ede87697d996d6a0b7`。
+当前发布候选冻结于 `ce49050f4dfcbd1e22d9d4f22093f6b965e6aac8`，含固定观看主机名与大型归档限额界面。[Windows 统一安装器](https://github.com/bei612/stream-kit/actions/runs/45939440963)已构建，大小 98,055,882 字节，SHA-256 为 `9ab0b300106e748fd21b62e5521c8dfe2c280cd252eed80d117844bc4f07fd8f`，原包与三组件清单均已核验。[Android 原生 APK](https://github.com/bei612/stream-kit/actions/runs/45939467986)的 versionCode 为 `1000024`，本地验证了 21 项文件和 v2/v3 发行签名，APK SHA-256 为 `f65455f6d07c7b66d14d86f51ed076cfea5e75a34c6693ede87697d996d6a0b7`。
+
+同一 Windows 安装器在 [Windows Server 2022 CI](https://github.com/bei612/stream-kit/actions/runs/45943221270)通过静默安装、自启动配置、144,000 帧原生音频、网关和 SCM 服务恢复、卸载及数据保留。Win11 独立实例使用同包原生三组件验证了两个 Web 观众的应用画面和程序音，Example 正常停止。Playwright CLI 通过了同包管理页桌面和手机布局、上传限额、永久链接启用、轮换和关闭。[Android 与 Web 输入联验](https://github.com/bei612/stream-kit/actions/runs/45943466475)通过同源共享上游、触摸及按键交接、两类旧控制者撤权。证据和适用环境见[候选产物验收](evidence/windows-android-ce49050f-candidate-20261127.json)。本机更新的管理员启动命令被工具自动审批拒绝，现有 Windows 服务仍运行 `53c7385a`。
 
 使用该源码的[隔离 Linux 安装器](https://github.com/bei612/stream-kit/actions/runs/45939312965)实际运行并通过[固定观看主机名换址验收](https://github.com/bei612/stream-kit/actions/runs/45941800647)。同一个浏览器页面和书签在换址后自动恢复画面与音频数据包，HTTPS 身份约 13.54 秒内更新，配置、CA 和私钥保持。换址前后各只有当时唯一的新旧 LAN 地址作为 UDP 主机候选。本机 Windows 和实体 Android 的联合现场换址继续使用独立证据。
 

@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "source_commit": "ce49050f4dfcbd1e22d9d4f22093f6b965e6aac8",
+  "release_version": "0.1.1",
+  "windows_artifact": {
+    "build_run_id": 45939440963,
+    "file": "stream-kit-0.1.1-ce49050f4dfc-windows-amd64-setup.exe",
+    "bytes": 98055882,
+    "sha256": "9ab0b300106e748fd21b62e5521c8dfe2c280cd252eed80d117844bc4f07fd8f",
+    "platform_manifest_sha256": "9ea6729f7c99e3fdc856bda0dc53c7ff7466780eaa5c4c74268c6696c347c3aa",
+    "three_native_components_verified": true,
+    "kernel_driver_signature_verified_during_build": true
+  },
+  "windows_installer_acceptance": {
+    "environment": "GitHub Actions hosted Windows Server 2022 x64",
+    "run_id": 45943221270,
+    "passed": true,
+    "exact_installer_bytes": true,
+    "install_exit": 0,
+    "service_start_mode": "Auto",
+    "service_identity": "LocalSystem",
+    "native_pcm_frames": 144000,
+    "native_pcm_dropped_frames": 0,
+    "native_pcm_xruns": 0,
+    "default_audio_devices_preserved": true,
+    "gateway_recovered": true,
+    "scm_service_recovered": true,
+    "uninstall_exit": 0,
+    "service_removed": true,
+    "application_data_preserved": true
+  },
+  "windows11_isolated_native_playback": {
+    "passed": true,
+    "control_sha256": "da86a2dc3ad659fc932eb46b3c42d540c261ddcfb683e5cf61aeb2a86008bcf3",
+    "encoder_sha256": "49a32b4fbc6c09eba9e6904f0e5ab49a82d19b10ec6c2c01f7d71c8eb945b2c1",
+    "media_gateway_sha256": "8dcb98f6574711166e718f8e6e361924f01ee4b819f7f6becfdc6cec610f9c91",
+    "viewers": 2,
+    "shared_upstream": true,
+    "frames_at_observation": [68, 33],
+    "program_audio_db": [-35.505375, -46.346096],
+    "native_instance_scoped_stop": true,
+    "renderer_restored_idle": true,
+    "raw_result": "artifacts/source-stream/2026-11-27T05-09-17-704Z/browser/result.json",
+    "scope": "Separate loopback runtime from the verified package payload. The Windows service and the installed runtime were not changed."
+  },
+  "windows11_isolated_management": {
+    "passed": true,
+    "tool": "Playwright CLI with Chrome against the exact package's native server and SPA",
+    "desktop_and_mobile_upload_limits": true,
+    "watch_link_enabled_rotated_and_disabled": true,
+    "external_example_binary_preserved": true,
+    "screenshot": "docs/evidence/windows-ce49050f-native-ui-20261127.png",
+    "screenshot_sha256": "12b5ac2f67f46b5ceb10a941359d4965775b0dd3e1bec98fb03877359ca27036",
+    "reporting_note": "The UI steps completed and generated all screenshots. HTTP audit logs and the persisted disabled state confirmed the result after a console output parser rejected its formatting."
+  },
+  "android_input_acceptance": {
+    "apk_build_run_id": 45939467986,
+    "apk_version_code": 1000024,
+    "apk_sha256": "f65455f6d07c7b66d14d86f51ed076cfea5e75a34c6693ede87697d996d6a0b7",
+    "acceptance_run_id": 45943466475,
+    "environment": "Official Android API 36 emulator with real Web viewer and same-source isolated Linux native installer",
+    "passed": true,
+    "shared_upstream": true,
+    "android_and_web_keys_and_clicks_delivered": true,
+    "transferred_and_revoked_input_ignored": true,
+    "native_instance_scoped_stop": true
+  },
+  "lan_migration": {
+    "acceptance_run_id": 45941800647,
+    "passed": true,
+    "environment": "Disposable Linux LAN with independent client namespace, existing deployment CA and a fixed-name bookmark",
+    "trusted_entry_recovered_ms": 13538,
+    "browser_media_recovered_without_reload": true,
+    "current_lan_ice_only": true
+  },
+  "shared_windows11_deployment": {
+    "installed_source_commit": "53c7385ac58d39408a3aaffef33d6a95ea06a737",
+    "latest_runtime_deployed": false,
+    "automatic_approval_result": "The elevated Windows maintenance launch was denied by tool policy before execution."
+  },
+  "remaining": [
+    "Actual clean Windows 11 x64 install and tested local maintenance rollback.",
+    "Win11 deployment of the new runtime and its applicable on-site Android audio and LAN migration verification.",
+    "The same-source candidate audio bridge verdict and final upstream HTTP/2 dependency disposition.",
+    "Windows and Android release promotion under the existing publication gates."
+  ]
+}
