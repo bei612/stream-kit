@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {createInterface} = require('node:readline');
 const {promisify, parseArgs} = require('node:util');
+const {setTimeout: delay} = require('node:timers/promises');
 const grpc = require('./emulator-audio/node_modules/@grpc/grpc-js');
 const loader = require('./emulator-audio/node_modules/@grpc/proto-loader');
 const {RATE, FREQUENCY} = require('../lib/emulator-audio-injection.cjs');
@@ -43,7 +44,7 @@ function instrumentation() {
       stages.push({at_ms: Date.now(), stage: stage[1]});
       if (stage[1] === 'analysis_complete') measurement(true);
     }
-    const result = line.match(/^INSTRUMENTATION_RESULT: (mic_control_[a-z_]+|error_type)=([A-Za-z0-9]+)$/);
+    const result = line.match(/^INSTRUMENTATION_(?:STATUS|RESULT): (mic_control_[a-z_]+|error_type)=([A-Za-z0-9]+)$/);
     if (result) values.set(result[1], result[2]);
     const status = line.match(/^INSTRUMENTATION_CODE: (-?\d+)$/);
     if (status) code = Number(status[1]);
@@ -99,13 +100,21 @@ async function main() {
     const observation = await probe.closed;
     assert.equal(observation.exit, 0);
     assert.equal(observation.code, -1);
-    evidence.capture_released = await fixtureInactive(observer);
-    assert.equal(evidence.capture_released, true);
     evidence.frames = Number(observation.values.get('mic_control_frames'));
     evidence.windows_above_threshold = Number(observation.values.get('mic_control_windows_above'));
     evidence.median_amplitude_ppm = Number(observation.values.get('mic_control_amplitude_ppm'));
     evidence.route_type = Number(observation.values.get('mic_control_route_type'));
     evidence.client_silenced = observation.values.get('mic_control_silenced');
+    evidence.capture_released = observation.values.get('mic_control_released') === 'true';
+    assert.equal(evidence.capture_released, true, 'AudioRecord and its foreground Activity must release');
+    await input.close();
+    const releaseDeadline = Date.now() + 2500;
+    do {
+      evidence.observer_process_retired = await fixtureInactive(observer);
+      if (evidence.observer_process_retired) break;
+      await delay(100);
+    } while (Date.now() < releaseDeadline);
+    assert.equal(evidence.observer_process_retired, true, 'Android instrumentation did not retire');
     assert.equal(evidence.frames, evidence.expected_frames);
     assert.ok(Number.isInteger(evidence.windows_above_threshold) && Number.isInteger(evidence.median_amplitude_ppm));
     assert.ok(Number.isInteger(evidence.route_type));
@@ -118,13 +127,18 @@ async function main() {
     evidence.failure_class = 'CONTROL_GUEST_MICROPHONE_MEASUREMENT_FAILED';
   } finally {
     if (injection) await injection.cancel();
-    try { await input?.close(); }
+    try { if (!evidence.microphone_input_restored) await input?.close(); }
     catch { evidence.passed = false; evidence.failure_class = 'CONTROL_MICROPHONE_INPUT_CLEANUP_FAILED'; }
     if (probe) {
       if (!evidence.capture_released) probe.stop();
       const {exit, code, values, stages} = await probe.closed;
       evidence.instrumentation = {exit, code, error_type: values.get('error_type')};
       evidence.capture_stages = stages;
+      if (values.has('mic_control_frames')) {
+        evidence.frames = Number(values.get('mic_control_frames'));
+        evidence.windows_above_threshold = Number(values.get('mic_control_windows_above'));
+        evidence.median_amplitude_ppm = Number(values.get('mic_control_amplitude_ppm'));
+      }
     }
     client?.close();
     evidence.synthetic_packets_submitted = source.packets;

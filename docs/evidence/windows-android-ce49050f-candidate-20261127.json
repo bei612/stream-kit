@@ -199,6 +199,25 @@
       "guest_final_measurement_reached": false,
       "synthetic_packets_submitted_before_termination": 411,
       "product_audio_entered": false
+    },
+    "isolated_pulse_monitor_first_measurement": {
+      "acceptance_run_id": 45959069525,
+      "harness_source_commit": "8bbfbb51",
+      "passed": false,
+      "official_linux_emulator_version": "37.2.13.0",
+      "android_api_level": 36,
+      "private_pulse_monitor_verified": true,
+      "owned_emulator_reader_and_tone_writer_observed": true,
+      "physical_microphone_used": false,
+      "synthetic_packets_submitted": 266,
+      "guest_capture_analysis_complete": true,
+      "synthetic_source_completed": true,
+      "instrumentation_exit": 0,
+      "instrumentation_result_code": -1,
+      "immediate_process_retirement_check_passed": false,
+      "measured_amplitude_retained": false,
+      "system_playout_control_passed": false,
+      "product_audio_entered": false
     }
   },
   "android_microphone_permission_attempt": {

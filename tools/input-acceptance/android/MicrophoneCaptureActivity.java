@@ -25,6 +25,7 @@ public final class MicrophoneCaptureActivity extends Activity {
     private static final int WINDOWS = 50;
 
     private final CountDownLatch foreground = new CountDownLatch(1);
+    private final CountDownLatch destroyed = new CountDownLatch(1);
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -38,6 +39,11 @@ public final class MicrophoneCaptureActivity extends Activity {
         if (focused) foreground.countDown();
     }
 
+    @Override protected void onDestroy() {
+        super.onDestroy();
+        destroyed.countDown();
+    }
+
     static Bundle measure(Instrumentation observer) {
         if (!"ranchu".equals(Build.HARDWARE) && !"goldfish".equals(Build.HARDWARE))
             throw new IllegalStateException("Emulator fixture required");
@@ -47,15 +53,28 @@ public final class MicrophoneCaptureActivity extends Activity {
         try {
             if (!activity.foreground.await(3, TimeUnit.SECONDS))
                 throw new IllegalStateException("Capture Activity did not reach the foreground");
-            return capture(observer);
+            Bundle measurement = capture(observer);
+            close(observer, activity);
+            measurement.putString("mic_control_released", "true");
+            return measurement;
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException(interrupted);
         } finally {
-            observer.runOnMainSync(new Runnable() {
-                @Override public void run() { activity.finish(); }
-            });
+            if (activity.destroyed.getCount() != 0) finish(observer, activity);
         }
+    }
+
+    private static void close(Instrumentation observer, MicrophoneCaptureActivity activity) throws InterruptedException {
+        finish(observer, activity);
+        if (!activity.destroyed.await(3, TimeUnit.SECONDS))
+            throw new IllegalStateException("Capture Activity did not finish");
+    }
+
+    private static void finish(Instrumentation observer, final MicrophoneCaptureActivity activity) {
+        observer.runOnMainSync(new Runnable() {
+            @Override public void run() { activity.finish(); }
+        });
     }
 
     private static Bundle capture(Instrumentation observer) {
@@ -76,7 +95,7 @@ public final class MicrophoneCaptureActivity extends Activity {
             started.putString("mic_control_started", "recording");
             observer.sendStatus(1, started);
             Bundle measurement = analyze(recorder, observer);
-            Bundle measured = new Bundle();
+            Bundle measured = new Bundle(measurement);
             measured.putString("mic_control_stage", "analysis_complete");
             observer.sendStatus(2, measured);
             return measurement;
