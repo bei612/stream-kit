@@ -2,7 +2,9 @@
 
 核对日期：2026-11-27。本页集中维护可下载版本、本机部署、候选产物和剩余边界。历史证据保留原始来源，不把旧版通过结果当作新产物验收。
 
-本期 `0.1.1` 候选冻结源码为 `53c7385ac58d39408a3aaffef33d6a95ea06a737`。该源码包含归档上传空闲超时、直接落盘、媒体网关和解压依赖更新，以及 Go 1.27.4 工具链与 quic-go 补丁。Windows 11 原生 Go 定向测试通过，管理服务符号级扫描未发现已知漏洞。候选产物来自 [Windows 单安装器构建](https://github.com/bei612/stream-kit/actions/runs/45798220979)及 [Android 签名构建](https://github.com/bei612/stream-kit/actions/runs/45798220812)，Android versionCode 为 1000021。详见[工具链与依赖复核](evidence/windows11-runtime-dependency-review-53c7385a.json)。
+本机已安装并验收的 `0.1.1` 候选源码为 `53c7385ac58d39408a3aaffef33d6a95ea06a737`。该源码包含归档上传空闲超时、直接落盘、媒体网关和解压依赖更新，以及 Go 1.27.4 工具链与 quic-go 补丁。Windows 11 原生 Go 定向测试通过，管理服务符号级扫描未发现已知漏洞。候选产物来自 [Windows 单安装器构建](https://github.com/bei612/stream-kit/actions/runs/45798220979)及 [Android 签名构建](https://github.com/bei612/stream-kit/actions/runs/45798220812)，Android versionCode 为 1000021。详见[工具链与依赖复核](evidence/windows11-runtime-dependency-review-53c7385a.json)。
+
+下一同源候选冻结于 `324106b01312c722db82d922953d7588b0581a76`。新增受管 WebRTC 会话通过信令连接的实际 IPv4 地址绑定媒体 UDP，包含应用详情语言修复。已发起 [Windows 单安装器](https://github.com/bei612/stream-kit/actions/runs/45933668313)和 [Android 签名版 APK](https://github.com/bei612/stream-kit/actions/runs/45933665875)构建，Android versionCode 为 1000023。新源码的[跨平台检查](https://github.com/bei612/stream-kit/actions/runs/45933396105)与实装验收另行记录，当前本机仍运行 `53c7385a`。
 
 本机 Windows 三个运行组件及实体平板已更新至候选 `53c7385a`，保持原应用、CA、配置与平板书签。单安装器、静默安装、服务自动恢复和卸载已经在 Windows Server 2022 CI 通过。实装 Win11 与平板、Web 的共享画面、程序音、控制权交接及平板麦克风至目标录音端点和 Web 观众均已验证。当前仍需独立 Win11 首装与实际回退、现场 LAN 换址、完整输入撤权验收和依赖剩余项处理。见[同源实装与联验](evidence/windows11-android-joint-53c7385a.json)、[安装器验收](https://github.com/bei612/stream-kit/actions/runs/45806470686)。
 

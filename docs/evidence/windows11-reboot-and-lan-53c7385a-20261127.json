@@ -46,6 +46,15 @@
     "saved_viewing_link_changed":false,
     "post_change_media_verified":false
   },
+  "local_emulator": {
+    "avd":"StreamKit_API_36",
+    "acceleration":"WHPX",
+    "read_only":true,
+    "management_tcp_to_new_ip":true,
+    "candidate_media_verified":false,
+    "combined_apk_install_and_viewing_link_launch_automatic_review":"blocked by policy",
+    "emulator_stopped":true
+  },
   "ordinary_browser_input_after_reboot": {
     "session":"f909866b-a567-4ba2-8799-78f188e699d8",
     "tool":"playwright-cli",
