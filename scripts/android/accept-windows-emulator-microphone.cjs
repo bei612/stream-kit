@@ -75,6 +75,22 @@ async function requireFreePort(port) {
   });
 }
 
+async function verifyLoopbackRpc(ownerPid) {
+  const powershell = path.join(process.env.SystemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe');
+  const command = `
+    $ErrorActionPreference='Stop'
+    $listeners = @(Get-NetTCPConnection -State Listen -LocalPort ${controlPort} | ForEach-Object {
+      $process = Get-CimInstance Win32_Process -Filter ('ProcessId='+$_.OwningProcess)
+      @{address=$_.LocalAddress; pid=$_.OwningProcess; parent=$process.ParentProcessId}
+    })
+    ConvertTo-Json -InputObject $listeners -Compress
+  `;
+  const listeners = JSON.parse(await run(powershell, ['-NoProfile', '-NonInteractive', '-Command', command]));
+  assert.ok(Array.isArray(listeners) && listeners.some(item => item.address === '127.0.0.1') &&
+    listeners.every(item => ['127.0.0.1', '::1'].includes(item.address) &&
+      (item.pid === ownerPid || item.parent === ownerPid)), 'Emulator RPC listener was not owned and limited to loopback');
+}
+
 function discoveryToken(started) {
   const names = [...new Set([path.join(os.tmpdir(), 'avd/running'),
     path.join(process.env.LOCALAPPDATA, 'Temp/avd/running')])];
@@ -144,13 +160,27 @@ async function installSignedCandidate(environment) {
 }
 
 async function awaitGuestUser(uid, command) {
-  await guest(command).catch(() => '');
+  let observedUid = null, commandError = null, probeError = null;
+  const readUid = async () => {
+    try {
+      const result = (await guest('shell', 'id', '-u')).trim();
+      observedUid = /^\d{1,6}$/.test(result) ? result : null;
+      probeError = null;
+      return observedUid;
+    } catch (error) {
+      probeError = error.code || 'UNKNOWN';
+      return null;
+    }
+  };
+  if (await readUid() === uid) return;
+  try { await guest(command); }
+  catch (error) { commandError = error.code || 'UNKNOWN'; }
   const end = Date.now() + 40000;
   do {
-    const response = await guest('shell','id','-u').catch(() => '');
-    if (response.trim() === uid) return;
+    if (await readUid() === uid) return;
     await delay(200);
   } while (Date.now() < end);
+  summary.adb_identity_failure = {operation: command, expected_uid: uid, last_observed_uid: observedUid, request_error: commandError, probe_error: probeError};
   throw Error('Isolated Android guest did not acquire the requested adb identity');
 }
 
@@ -216,8 +246,8 @@ async function calibrateGuestPlayout() {
   throw Error('Android media volume did not reach the calibrated level');
 }
 
-async function qualifyStream(configFile, tlsDirectory) {
-  const config = JSON.parse(fs.readFileSync(args['stream-config'],'utf8').replace(/^\uFEFF/,''));
+async function qualifyStream(configFile, tlsDirectory, config) {
+  assert.equal(summary.private_guest_ca_verified, true);
   const platform = fs.realpathSync(config.platform_directory);
   const manifest = JSON.parse(fs.readFileSync(path.join(platform,'platform-manifest.json'),'utf8'));
   assert.equal(manifest.platform,'windows');
@@ -264,7 +294,6 @@ async function qualifyStream(configFile, tlsDirectory) {
     assert.notEqual(program[0].id,render[0].id);
     route = {capture:capture[0].id,render:render[0].id,program:program[0].id};
   } finally { await endpoints.close(); }
-  await prepareStreamTrust(tlsDirectory,path.resolve(config.openssl));
   await guest('shell','input','keyevent','KEYCODE_WAKEUP');
   await guest('shell','wm','dismiss-keyguard');
   await calibrateGuestPlayout();
@@ -361,11 +390,22 @@ async function main() {
     } while (Date.now() < bootDeadline);
     assert.ok(ownedGuest && token, 'Owned read-only Android guest did not finish booting');
     summary.phase = 'verify_emulator_rpc';
-    assert.match(fs.readFileSync(path.join(output, 'emulator.log'), 'utf8'),
-      /Started GRPC server at 127\.0\.0\.1:8556, security: Local, auth: \+token/);
+    // Logs redirected to a file can remain buffered while the guest is ready.
+    // Inspect the live listener before handing its token to the audio probe.
+    await verifyLoopbackRpc(child.pid);
     summary.phase = 'verify_android_api';
     summary.android_api_level = Number((await guest('shell', 'getprop', 'ro.build.version.sdk')).trim());
     assert.equal(summary.android_api_level, 36);
+
+    let streamConfig;
+    if (args['stream-config']) {
+      // Finish guest trust provisioning and return to the ordinary shell
+      // before installing the observer or starting the stream client.
+      summary.phase = 'provision_guest_trust';
+      streamConfig = JSON.parse(fs.readFileSync(args['stream-config'],'utf8').replace(/^\uFEFF/,''));
+      tlsDirectory = fs.mkdtempSync(path.join(output,'tls-'));
+      await prepareStreamTrust(tlsDirectory,path.resolve(streamConfig.openssl));
+    }
 
     summary.phase = 'install_test_observer';
     await installObserver();
@@ -386,11 +426,10 @@ async function main() {
       await installSignedCandidate(environment);
     }
     summary.passed = summary.microphone.passed;
-    if (summary.candidate && args['stream-config']) {
+    if (summary.candidate && streamConfig) {
       summary.phase = 'product_stream';
       summary.passed = false;
-      tlsDirectory = fs.mkdtempSync(path.join(output,'tls-'));
-      const productPassed = await qualifyStream(configFile,tlsDirectory);
+      const productPassed = await qualifyStream(configFile,tlsDirectory,streamConfig);
       summary.passed = summary.microphone.passed && productPassed;
     }
   } catch (error) {

@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "source_commit": "428f803669070ddcc56afcfcb32952ac57136420",
+  "passed": false,
+  "product_stream_passed": true,
+  "windows_product_run_id": 46046815848,
+  "windows_installer_sha256": "20e99276e261aa895428080d87947944888dffe35e65cd2ecd721aceb6b616a0",
+  "windows_payload_manifest_sha256": "2120a9243fc1d37a447fb10bd2fd2717268dccb779a819bb67b63fa37d690522",
+  "android_build_run_id": 46046816979,
+  "apk_sha256": "d0b5baa129ab515657d18d33ef197ae5b6bdd5ab7c1c68c8fd4c45914842cbb3",
+  "android_version_code": 1000030,
+  "local_result_json_sha256": "0750e40962cddb3bc0f6fee0b33c7e70047090259f0702a1c7e94c382aec20f3",
+  "browser_result_sha256": "560d80f52a629657b655f98aed02d939570f36569146d19e53a2078be709d732",
+  "product_stream": {
+    "signed_apk_opened_native_watch_link": true,
+    "subscribers": 2,
+    "one_shared_upstream": true,
+    "android_playout_frames": 239519,
+    "authorized_target_analyzed_frames": 96000,
+    "authorized_target_dropped_frames": 0,
+    "authorized_target_mean_amplitude": 0.13056541710199404,
+    "revoked_target_mean_amplitude": 0.000000988042844745124,
+    "authorized_web_microphone_db": -51.59783172607422,
+    "revoked_web_microphone_db": -128.04043579101562,
+    "web_program_audio_after_revocation_db": -36.2086181640625,
+    "emulator_microphone_input_restored": true,
+    "example_stop_acknowledged": true,
+    "renderer_restored_idle": true,
+    "owned_emulator_and_private_tls_removed": true
+  },
+  "independent_fixture": {
+    "same_run_android_audiorecord_passed": false,
+    "same_run_instrumentation_error": "UnsupportedOperationException",
+    "earlier_run_android_audiorecord_passed": true,
+    "earlier_run_analyzed_frames": 240000,
+    "earlier_run_windows_above_threshold": 49,
+    "earlier_run_product_phase_stopped_before_launch": true,
+    "earlier_run_result_json_sha256": "9f6d3a0b7ee038e8ec2697751dc586f2cd3e77c09093217c2ac790a7485b9886"
+  },
+  "scope": "Independent Windows 11 test processes, the official Android API 36 emulator and the exact signed APK. The product subtest measured synthetic audio through the real application path. Its independent recorder calibration failed in the same run, so the enclosing acceptance remains unsuccessful. This does not establish the newer package, a physical microphone or the local production installation."
+}
