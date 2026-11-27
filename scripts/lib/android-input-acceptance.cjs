@@ -128,6 +128,23 @@ function androidParticipant({adb,serial,report,save=()=>{}}) {
       const output=await runDiagnostic('install','-r',apk);
       assert.match(output,/^Success\s*$/m,'Android package replacement did not succeed');
     },
+    async withoutGuestNetwork(action) {
+      assert.equal(process.env.RUNNER_ENVIRONMENT,'github-hosted');
+      assert.equal(process.env.GITHUB_ACTIONS,'true');
+      const radios=[['wifi','wifi_on'],['data','mobile_data']];
+      const read=async setting=>(await runDiagnostic('shell','settings','get','global',setting)).trim();
+      const prior=await Promise.all(radios.map(([,setting])=>read(setting)));
+      assert.ok(prior.every(value=>value==='0'||value==='1')&&prior.includes('1'),'Unexpected guest radio configuration');
+      try {
+        for (const [radio] of radios) await runDiagnostic('shell','svc',radio,'disable');
+        await until(async()=> (await Promise.all(radios.map(([,setting])=>read(setting)))).every(value=>value==='0'),'Owned emulator radios disabled',10000);
+        return await action();
+      } finally {
+        const restored=await Promise.allSettled(radios.map(([radio],index)=>runDiagnostic('shell','svc',radio,prior[index]==='1'?'enable':'disable')));
+        assert.ok(restored.every(result=>result.status==='fulfilled'),'Unable to restore both guest radios');
+        await until(async()=> (await Promise.all(radios.map(([,setting])=>read(setting)))).every((value,index)=>value===prior[index]),'Owned emulator radios restored',10000);
+      }
+    },
     role,
     async diagnostics(){
       const result={started_at_ms:Date.now()};
@@ -199,6 +216,16 @@ async function verifyAndroidInput({android,page,api,sessionId,app,example,report
   assert.equal(ids.length,2);assert.ok(ids.includes(web));const native=ids.find(id=>id!==web);
   state.android_connection_id=native;state.web_connection_id=web;
   const webRole=controller=>page.waitForFunction(r=>window.app.getStream().mediaAccess.role===r,controller?'controller':'viewer',{timeout:15000});
+  async function recoveredNativeMedia(label) {
+    const {ui}=await android.diagnostics();
+    assert.ok(ui.available&&ui.fresh&&ui.video_frames>0&&ui.audio_packets>0,`Android did not recover native media after ${label}`);
+    await until(async()=>{
+      const status=await api('/media-control');
+      const media=status.observations?.[sessionId];
+      return status.observations_valid&&media?.subscribers===2&&media.upstream_active;
+    },`Android shares existing upstream after ${label}`,10000);
+    return {native_audio_packets:ui.audio_packets,native_video_frames:ui.video_frames};
+  }
   async function nativeInput(label,allowed) {
     await android.role(allowed);focus();const before=snapshot();
     state.pending_phase={label,allowed,before,started_at_ms:Date.now()};save();
@@ -255,14 +282,38 @@ async function verifyAndroidInput({android,page,api,sessionId,app,example,report
     assert.equal(foreground.session.native_instance_id,held.native_instance_id);
     assert.equal(foreground.session.connections[web]?.role,'viewer');
     assert.ok(!foreground.session.controller_connection_id);
-    const diagnostics=await android.diagnostics();
-    assert.ok(diagnostics.ui.available&&diagnostics.ui.fresh&&diagnostics.ui.video_frames>0&&diagnostics.ui.audio_packets>0,'Android did not recover native media after foreground');
-    await until(async()=>{
-      const status=await api('/media-control');
-      const media=status.observations?.[sessionId];
-      return status.observations_valid&&media?.subscribers===2&&media.upstream_active;
-    },'Android foreground shares existing upstream',10000);
-    Object.assign(lifecycle,{passed:true,new_viewer_without_control_or_microphone:true,existing_upstream_preserved:true,native_audio_packets:diagnostics.ui.audio_packets,native_video_frames:diagnostics.ui.video_frames});
+    Object.assign(lifecycle,await recoveredNativeMedia('foreground'),{passed:true,new_viewer_without_control_or_microphone:true,existing_upstream_preserved:true});
+    save();
+    if(process.env.GITHUB_ACTIONS==='true'&&process.env.RUNNER_ENVIRONMENT==='github-hosted') {
+      const reconnect=report.android_network={passed:false};
+      const restoredId=foreground.participant.connection_id;
+      const before=await api(route+'/controller/'+restoredId,'POST');
+      await android.role(true);
+      const expired=await android.withoutGuestNetwork(async()=>{
+        const started=Date.now();
+        const disconnected=await until(async()=>{
+          const session=await api(route);
+          return session.connections[restoredId]?.state!=='connected'&&!session.controller_connection_id?session:false;
+        },'Android lease expires while guest is offline',45000);
+        assert.ok(disconnected.control_epoch>before.control_epoch);
+        assert.equal(disconnected.connections[web]?.state,'connected');
+        assert.equal(disconnected.native_instance_id,before.native_instance_id);
+        reconnect.disconnected_until_expiry_ms=Date.now()-started;save();
+        return disconnected;
+      });
+      reconnect.guest_radios_restored=true;save();
+      await android.role(false);
+      const resumed=await until(async()=>{
+        const session=await api(route);
+        return session.connections[restoredId]?.state==='connected'?session:false;
+      },'Original Android connection resumes after guest network recovery',30000);
+      assert.equal(resumed.native_instance_id,expired.native_instance_id);
+      assert.equal(resumed.connections[restoredId].role,'viewer');
+      assert.equal(resumed.connections[restoredId].microphone_live,false);
+      assert.ok(!resumed.controller_connection_id);
+      Object.assign(reconnect,await recoveredNativeMedia('guest network recovery'),{passed:true,original_connection_resumed_as_viewer:true,microphone_disabled:true});
+      save();
+    }
     state.passed=true;save();
   } finally {await api(route+'/controller','DELETE');}
 }
