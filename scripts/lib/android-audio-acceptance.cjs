@@ -22,7 +22,6 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
   const until = async (read, check, label, timeout = 20000) => { const end = Date.now()+timeout; while (Date.now()<end) { const value = await read(); if (check(value)) return value; await delay(100); } throw Error('Android audio timeout: ' + label); };
   const current = () => api('/stream-sessions/' + sessionId);
   const run = args => { try { return cp.execFileSync(adb, ['-s', serial, ...args], { encoding: 'utf8', timeout: 15000, stdio: ['ignore','pipe','pipe'] }); } catch { throw Error('Official AVD UI command failed'); } };
-  const click = target => { const output = run(['shell','am','instrument','-w','-e','action','click','-e','target',target,'io.github.bei612.streamkit.inputobserver/.Observer']); assert.match(output, /INSTRUMENTATION_RESULT: clicked=true/); };
   const metadataCommand=(executable,args)=>new Promise(resolve=>{
     const started=Date.now();cp.execFile(executable,args,{encoding:'utf8',timeout:5000,maxBuffer:512*1024},(error,output)=>resolve({started_at_ms:started,finished_at_ms:Date.now(),...(error?{error_code:error.code||'command_failed'}:{output})}));
   });
@@ -307,12 +306,18 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
     state.observer_before_injection = await webSample();
     assert.ok(state.observer_before_injection.program_997_db>-65,'Persistent Web observer must hear the real program before injection'); save();
     await api('/stream-sessions/'+sessionId+'/controller/'+native,'POST'); await android.role(true);
-    click('打开串流工具栏'); click('麦克风已关闭');
-    await until(current,s=>s.connections[native]?.microphone_live===true,'Android microphone capture');
     const beforeInjection=await current();
     state.authority_before_injection={revision:beforeInjection.revision,control_epoch:beforeInjection.control_epoch,controller_connection_id:beforeInjection.controller_connection_id,web_connection_id:web,web_role:beforeInjection.connections[web]?.role,audio:beforeInjection.audio};
-    assert.equal(beforeInjection.controller_connection_id,native);assert.equal(beforeInjection.audio.broadcast_controller_microphone,true);
+    save();
+    assert.equal(beforeInjection.controller_connection_id,native);
+    assert.equal(beforeInjection.audio.microphone_enabled,true);
+    assert.equal(beforeInjection.audio.broadcast_controller_microphone,true);
     assert.equal(beforeInjection.connections[web]?.role,'viewer');
+    const microphoneAction = run(['shell','am','instrument','-w','-e','action','enable-microphone','io.github.bei612.streamkit.inputobserver/.Observer']);
+    state.microphone_action = microphoneAction.match(/^INSTRUMENTATION_RESULT: microphone_action=(clicked|toolbar_unavailable|client_root_unavailable|microphone_button_unavailable|controller_role_unavailable)\s*$/m)?.[1] || 'observer_failed';
+    save();
+    assert.equal(state.microphone_action,'clicked','Android microphone UI action');
+    await until(current,s=>s.connections[native]?.microphone_live===true,'Android microphone capture');
     source.started_at_ms=Date.now();state.injection_started_at_ms=source.started_at_ms;save();
     injectionDone = new Promise(resolve => { injection=client.injectAudio(metadata,{deadline:Date.now()+35000},error=>{injectionError=error?.code;source.error=injectionError;source.rpcEnded=true;stopWrites.abort();resolve();}); injection.on('error',()=>{}); });
     sending=true; sender=(async()=>{let n=0;const started=source.started_at_ms;while(sending&&n<1500){if(source.rpcEnded)throw Error('Official microphone injection ended while sending');const data=Buffer.alloc(1920);for(let i=0;i<960;i++)data.writeInt16LE(Math.round(32767*Math.pow(10,-18/20)*Math.sin(2*Math.PI*1499*(n*960+i)/48000)),i*2);

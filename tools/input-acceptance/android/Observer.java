@@ -21,8 +21,8 @@ public final class Observer extends Instrumentation {
     private String rootKind = "no_root";
     private final Rect window = new Rect();
     private int visited;
-    private String requestedClick;
-    private boolean diagnosticsRequested, playoutControlRequested, volumeCalibrationRequested, toolbarVisible, statisticsVisible;
+    private boolean diagnosticsRequested, playoutControlRequested, volumeCalibrationRequested,
+            microphoneRequested, toolbarVisible, statisticsVisible;
     private String playback = "unknown", sound = "unknown";
     private long audioPackets = -1, videoPackets = -1, videoFrames = -1;
     private String audioCodec;
@@ -34,11 +34,7 @@ public final class Observer extends Instrumentation {
         diagnosticsRequested = arguments != null && "diagnostics".equals(arguments.getString("action"));
         playoutControlRequested = arguments != null && "playout-control".equals(arguments.getString("action"));
         volumeCalibrationRequested = arguments != null && "calibrate-volume".equals(arguments.getString("action"));
-        if (arguments != null && "click".equals(arguments.getString("action"))) {
-            requestedClick = arguments.getString("target");
-            if (!"打开串流工具栏".equals(requestedClick) && !"麦克风已关闭".equals(requestedClick))
-                throw new IllegalArgumentException();
-        }
+        microphoneRequested = arguments != null && "enable-microphone".equals(arguments.getString("action"));
         start();
     }
 
@@ -62,8 +58,8 @@ public final class Observer extends Instrumentation {
                 finish(Activity.RESULT_OK, result);
                 return;
             }
-            if (requestedClick != null) {
-                result.putString("clicked", String.valueOf(clickDescription(requestedClick)));
+            if (microphoneRequested) {
+                result.putString("microphone_action", enableMicrophone());
                 finish(Activity.RESULT_OK, result);
                 return;
             }
@@ -298,6 +294,20 @@ public final class Observer extends Instrumentation {
             android.os.SystemClock.sleep(50);
         } while (android.os.SystemClock.elapsedRealtime() < deadline);
         return false;
+    }
+
+    private String enableMicrophone() {
+        if (!openToolbar()) return "toolbar_unavailable";
+        long deadline = android.os.SystemClock.elapsedRealtime() + 3000;
+        do {
+            snapshot();
+            if (toolbarVisible && "controller".equals(role) && clickDescription("麦克风已关闭"))
+                return "clicked";
+            android.os.SystemClock.sleep(50);
+        } while (android.os.SystemClock.elapsedRealtime() < deadline);
+        if (!"client".equals(rootKind)) return "client_root_unavailable";
+        if (!toolbarVisible) return "toolbar_unavailable";
+        return "controller".equals(role) ? "microphone_button_unavailable" : "controller_role_unavailable";
     }
 
     private Bundle statistics() {
