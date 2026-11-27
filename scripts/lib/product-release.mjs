@@ -1,3 +1,5 @@
+import assert from 'node:assert/strict'
+
 // One product identity across the platform manifest, both native installers and
 // release promotion. Version selection never implies functional acceptance.
 export function productRelease(commit,version=''){
@@ -47,5 +49,48 @@ export function verifyInstallerAcceptance(manifest,result){
     if(result[key]?.StartMode!=='Auto' || result[key]?.StartName!=='LocalSystem' || result[key]?.State!=='Running'){
       throw Error(`Installed automatic service is not verified: ${key}`)
     }
+  }
+}
+
+export function verifyWindows11RebootAcceptance(manifest, guest, result) {
+  assert.ok(guest?.phase === 'guest_ready' && guest.secure_boot === true && guest.tpm_present === true,
+    'Clean Windows 11 guest did not verify Secure Boot and TPM')
+  assert.ok(result?.phase === 'completed' && result.passed === true && result.exit_code === 0 && !result.error,
+    'Clean Windows 11 install and reboot acceptance did not pass')
+  assert.ok(/^[a-f0-9]{64}$/.test(manifest.file?.sha256) && result.commit === manifest.commit &&
+    result.installer_source_commit === manifest.commit && result.installer_sha256 === manifest.file.sha256,
+    'Windows 11 reboot evidence does not match the installer source and bytes')
+  assert.ok([0, 3010].includes(result.install_exit) && result.uninstall_exit === 0,
+    'Windows 11 installer lifecycle did not finish successfully')
+
+  const before = result.pre_reboot
+  const after = result.post_reboot
+  for (const boot of [before, after]) {
+    assert.ok(boot?.product_type === 1 && boot.architecture === 'X64' &&
+      Number.isSafeInteger(boot.build) && boot.build >= 22000 && Number.isFinite(Date.parse(boot.boot_utc)),
+      'Missing Windows 11 x64 boot observation')
+    assert.ok(boot.service?.StartMode === 'Auto' && boot.service.StartName === 'LocalSystem',
+      'Windows 11 automatic service registration was not verified')
+  }
+  assert.equal(guest.build, before.build, 'The install evidence does not match the observed Windows 11 guest')
+  assert.ok(Date.parse(after.boot_utc) > Date.parse(before.boot_utc), 'Windows 11 did not reboot after installation')
+
+  const processes = after.processes
+  assert.ok(Array.isArray(processes) && processes.length === 3 &&
+    processes.every(process => Number.isSafeInteger(process?.pid) && process.pid > 0 &&
+      Number.isSafeInteger(process.session) && Date.parse(process.created_utc) >= Date.parse(after.boot_utc)) &&
+    new Set(processes.map(process => process.pid)).size === processes.length,
+    'Missing distinct native processes from the new Windows boot')
+  const [controller, renderer, gateway] = processes
+  assert.ok(controller.role === 'orchestrator' && controller.session === 0 &&
+    controller.pid === after.service.ProcessId && after.service.State === 'Running' &&
+    renderer.role === 'sunshine' && renderer.session > 0 &&
+    gateway.role === 'web_server' && gateway.session === renderer.session,
+    'Windows 11 components did not start in the expected service and desktop sessions')
+
+  assert.ok(Number.isSafeInteger(result.pcm_frames) && result.pcm_frames > 0 && result.pcm_dropped === 0,
+    'Windows 11 native recording verification did not pass')
+  for (const key of ['admin_login', 'gateway_restarted', 'scm_restarted', 'defaults_preserved', 'service_removed', 'data_preserved']) {
+    assert.equal(result[key], true, `Missing Windows 11 reboot acceptance: ${key}`)
   }
 }

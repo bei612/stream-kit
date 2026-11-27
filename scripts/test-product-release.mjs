@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {productRelease,manifestRelease,promotionProfile,verifyInstallerAcceptance} from './lib/product-release.mjs'
+import {productRelease,manifestRelease,promotionProfile,verifyInstallerAcceptance,verifyWindows11RebootAcceptance} from './lib/product-release.mjs'
 import {verifyCombinedEvidence,verifyLinuxInstaller,verifyLinuxRun} from './verify-windows-android-promotion.mjs'
 const commit='a'.repeat(40)
 
@@ -23,6 +23,40 @@ test('publication requires successful installation of the exact source and bytes
     assert.throws(()=>verifyInstallerAcceptance(manifest,{...result,...patch}))
   }
   assert.throws(()=>verifyInstallerAcceptance(manifest,null))
+})
+
+test('stable Windows evidence requires a full clean reboot of the exact installer', () => {
+  const manifest = {commit, file: {sha256: 'b'.repeat(64)}}
+  const guest = {phase: 'guest_ready', build: 26300, secure_boot: true, tpm_present: true}
+  const service = {StartMode: 'Auto', StartName: 'LocalSystem', State: 'Running', ProcessId: 41}
+  const windows = {build: guest.build, architecture: 'X64', product_type: 1, service}
+  const before = { ...windows, boot_utc: '2026-11-27T17:00:00.1234567Z' }
+  const after = {
+    ...windows, boot_utc: '2026-11-27T17:10:00.1234567Z',
+    processes: ['orchestrator', 'sunshine', 'web_server'].map((role, index) => ({
+      role, pid: 41 + index, session: index === 0 ? 0 : 1, created_utc: '2026-11-27T17:10:04.7654321Z',
+    })),
+  }
+  const result = {
+    phase: 'completed', passed: true, exit_code: 0, commit, installer_source_commit: commit,
+    installer_sha256: manifest.file.sha256, install_exit: 3010, uninstall_exit: 0,
+    pre_reboot: before, post_reboot: after, pcm_frames: 96000, pcm_dropped: 0, admin_login: true,
+    gateway_restarted: true, scm_restarted: true, defaults_preserved: true, service_removed: true, data_preserved: true,
+  }
+  verifyWindows11RebootAcceptance(manifest, guest, result)
+  verifyWindows11RebootAcceptance(manifest, guest, { ...result, install_exit: 0 })
+  for (const patch of [
+    {phase: 'diagnostic_completed'}, {phase: 'awaiting_reboot'}, { installer_sha256: 'c'.repeat(64) },
+    { installer_source_commit: 'c'.repeat(40) }, { post_reboot: undefined },
+    { post_reboot: { ...after, boot_utc: before.boot_utc } }, { post_reboot: { ...after, product_type: 3 } },
+    { post_reboot: { ...after, processes: after.processes.slice(1) } },
+    { post_reboot: { ...after, processes: [...after.processes.slice(0, 2), { ...after.processes[2], session: 2 }] } },
+    { post_reboot: { ...after, service: { ...service, State: 'Stopped' } } },
+    { pcm_dropped: 1 }, { data_preserved: false },
+  ]) {
+    assert.throws(() => verifyWindows11RebootAcceptance(manifest, guest, { ...result, ...patch }))
+  }
+  assert.throws(() => verifyWindows11RebootAcceptance(manifest, { ...guest, secure_boot: false }, result))
 })
 
 function manifests(version=''){

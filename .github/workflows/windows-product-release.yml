@@ -23,6 +23,10 @@ on:
         description: 'Successful windows-installer-acceptance run for the exact installer; required for promotion'
         type: string
         required: false
+      windows11_reboot_run_id:
+        description: 'Successful full Windows 11 clean install and reboot run for stable Windows + Android promotion'
+        type: string
+        required: false
       android_run_id:
         description: 'Successful signed Android run for Windows 11 + Android promotion; blank keeps the Windows + Linux profile'
         type: string
@@ -276,6 +280,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SOURCE_RUN_ID: ${{ inputs.promote_run_id }}
           INSTALLER_ACCEPTANCE_RUN_ID: ${{ inputs.installer_acceptance_run_id }}
+          WINDOWS11_REBOOT_RUN_ID: ${{ inputs.windows11_reboot_run_id }}
           ANDROID_RUN_ID: ${{ inputs.android_run_id }}
           LINUX_RUN_ID: ${{ inputs.linux_run_id }}
           RELEASE_TAG: ${{ inputs.release_tag }}

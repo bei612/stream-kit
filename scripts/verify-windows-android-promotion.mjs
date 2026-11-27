@@ -3,7 +3,9 @@ import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { manifestRelease, promotionProfile, publicationProfile, verifyInstallerAcceptance } from './lib/product-release.mjs'
+import {
+  manifestRelease, promotionProfile, publicationProfile, verifyInstallerAcceptance, verifyWindows11RebootAcceptance,
+} from './lib/product-release.mjs'
 import { linuxRuntimeSource } from './verify-input-acceptance-sources.mjs'
 
 const read = file => JSON.parse(fs.readFileSync(file, 'utf8'))
@@ -155,6 +157,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   } else if (args[0] === '--linux-run') {
     assert.equal(args.length, 7, 'Expected --linux-run RUN_JSON JOBS_JSON REPOSITORY RUN_ID SOURCE_COMMIT RELEASE_TAG')
     verifyLinuxRun(read(args[1]), read(args[2]), ...args.slice(3))
+  } else if (args[0] === '--windows11-reboot') {
+    assert.equal(args.length, 4, 'Expected --windows11-reboot INSTALLER_MANIFEST GUEST_JSON RESULT_JSON')
+    verifyWindows11RebootAcceptance(read(args[1]), read(args[2]), read(args[3]))
   } else {
     assert.ok(args.length === 6 || args.length === 7, 'Expected WINDOWS_DIR ANDROID_DIR SOURCE_SBOM INSTALLER_ACCEPTANCE TAG OUTPUT_DIR [LINUX_DIR]')
     prepareAssets(...args)

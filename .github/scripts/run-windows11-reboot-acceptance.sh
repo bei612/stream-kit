@@ -141,12 +141,5 @@ if [[ ${INITIALIZATION_ONLY:-false} == true ]]; then
   echo 'Native initialization diagnostics collected. Installer and restart acceptance was not executed.'
   exit 0
 fi
-jq -e --arg commit "$source_commit" --arg hash "$installer_hash" '
-  .phase == "completed" and .passed == true and .exit_code == 0 and .commit == $commit and
-  .installer_source_commit == $commit and .installer_sha256 == $hash and
-  (.install_exit == 0 or .install_exit == 3010) and .pre_reboot.boot_utc != .post_reboot.boot_utc and
-  (.post_reboot.processes | length == 3) and .admin_login == true and .defaults_preserved == true and
-  .pcm_frames > 0 and .pcm_dropped == 0 and .gateway_restarted == true and .scm_restarted == true and
-  .uninstall_exit == 0 and .service_removed == true and .data_preserved == true
-' "$output/result.json" > /dev/null
+node scripts/verify-windows-android-promotion.mjs --windows11-reboot "$manifest" "$output/guest.json" "$output/result.json"
 echo 'Clean Win11 install, full VM reboot, original process ownership, PCM and uninstall passed.'
