@@ -95,6 +95,21 @@
     "renderer_restored_idle": true,
     "scope": "Ordinary Home and Activity foreground transitions. Audio packets establish transport recovery. Acoustic output, microphone injection, network cutoff and APK replacement have separate evidence requirements."
   },
+  "android_guest_network_recovery": {
+    "acceptance_run_id": 45950890473,
+    "harness_source_commit": "49cc842a9061b5aeb2a8e8fbcac3bc1e2edd458c",
+    "passed": true,
+    "environment": "Official Android API 36 emulator with verified same-source Linux runtime and signed APK",
+    "disconnected_until_controller_lease_expired_ms": 15092,
+    "guest_radios_restored": true,
+    "original_connection_resumed_as_viewer": true,
+    "recovered_microphone_disabled": true,
+    "existing_native_instance_and_web_connection_preserved": true,
+    "native_audio_packets_after_reconnect": 305,
+    "native_video_frames_after_reconnect": 108,
+    "renderer_restored_idle": true,
+    "scope": "Guest connectivity was disabled and restored. Server-side host addressing, site Wi-Fi and host network settings were not changed."
+  },
   "android_audio_attempt": {
     "acceptance_run_id": 45946215689,
     "passed": false,
