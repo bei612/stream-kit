@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "source_commit": "439f2a06376ba8363c1318c0d6e3d72b3ef45729",
+  "passed": true,
+  "product_run_id": 46053699658,
+  "windows_package": {
+    "job_id": 140690978221,
+    "installer_artifact_id": 15226853548,
+    "payload_artifact_id": 15227476801,
+    "installer_sha256": "4e541336d8ec87c6792901b4988f4c8b5d293ae46f1930021da5c9e10a1eaa08",
+    "installer_bytes": 45113296,
+    "payload_manifest_sha256": "d47f15b11115c61b436973d3f30f7ab82cff3a4f64dfb68934ff9a5c24fc60cc",
+    "verified_components": 3,
+    "verified_payload_files": 194,
+    "gateway_sha256": "4ac22a0e768f87ffb7f78788249b805dc8a12f0602b126696c885d367e27fa22",
+    "renderer_sha256": "c95e1ebbe9c120d2fe695a80425d3a72e6bac76bf1dc1e015c2866aec0982a4a",
+    "renderer_bytes": 72019968,
+    "renderer_debug_sections": 0,
+    "kernel_driver_signature_verified_by_producer": true
+  },
+  "control_scans": {
+    "scanner": "govulncheck 1.10.0, binary symbol mode",
+    "database": "https://vuln.go.dev/",
+    "windows": {
+      "binary_sha256": "3601b9b3e1619980292a225ba2d49f90fa283a8e11808bd315c8f4e8e8d69950",
+      "matches_verified_installer_payload": true,
+      "vcs_modified": false,
+      "result": "No vulnerabilities found."
+    },
+    "ubuntu": {
+      "installer_artifact_id": 15226636338,
+      "installer_sha256": "eadfe10e38b44404b7aced14a6824af06fa011554c71593b4c2e6a8857c7bb35",
+      "embedded_deb_sha256": "40ba2402fadbba6585235aed32a5d4b53e57a8b49dc94a4e7840f75c8952cb8c",
+      "binary_sha256": "210343974871dba684520507b722cb76b42b7fb43cca1581a3676a0bf73bf8bd",
+      "matches_verified_embedded_payload": true,
+      "vcs_modified": false,
+      "result": "No vulnerabilities found."
+    }
+  },
+  "unchanged_dependency_assessment": {
+    "previous_review": "docs/evidence/windows11-runtime-dependency-review-66a79e5d-20261127.json",
+    "runtime_dependency_lock_changes_since_rc2": false,
+    "android_build_run_id": 46053699766,
+    "android_artifact_id": 15226365391,
+    "android_version_code": 1000031,
+    "android_apk_sha256": "1a34402234b466421e7e432bb0d8911257ca69c71a5f6ad3486eea3c1982ea1b",
+    "android_signature_verified": true,
+    "android_signer_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f",
+    "android_runtime_inventory_sha256": "22a584a4428aa2ec47ab878e76e9c3c4167d59da03140c78c01bfbee63810533",
+    "android_notices_sha256": "65896f681d26f3927e0a114fba30192e14282e8fc34a2230d6b0e5f06245f755",
+    "android_inventory_and_notices_byte_identical_to_reviewed_rc2": true
+  },
+  "source_sbom": {
+    "artifact_id": 15224994468,
+    "format": "SPDX-2.3",
+    "package_entries": 3497,
+    "sha256": "4286b82a0193ab5e60726d135bc9a863c83d31b0ae29bf945c88a16fa7d36ad3"
+  },
+  "scope": "SHA-256 and inventory checks of the original packages, Go advisory scans of the exact control binaries, verification of the Android signature, and the source SBOM. Third-party dependencies retain the scope of the prior review."
+}

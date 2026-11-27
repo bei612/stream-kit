@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	endpointMask    = 0x107 // Render and capture for all roles.
+	endpointMask    = 0x107 // Render default selection guard for all roles.
 	variantUInt32   = 19
 	variantCLSID    = 72
 	endpointActive  = 1

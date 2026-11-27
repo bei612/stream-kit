@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "source_commit": "439f2a06376ba8363c1318c0d6e3d72b3ef45729",
+  "passed": true,
+  "installer_sha256": "4e541336d8ec87c6792901b4988f4c8b5d293ae46f1930021da5c9e10a1eaa08",
+  "hosted_install_with_rollback": {
+    "run_id": 46057619546,
+    "artifact_id": 15227082943,
+    "result_json_sha256": "a7ee474843c49f066345f1c8a3a1e8543effe90a2fd1162bcb844f976671cd80",
+    "install_exit": 0,
+    "native_capture_frames": 144000,
+    "gateway_restarted": true,
+    "scm_restarted": true,
+    "real_listener_conflict": true,
+    "failed_maintenance_source_commit": "66a79e5d11e54a7048fccb042cd93327be92df3b",
+    "rollback_runtime_restored": true,
+    "rollback_watch_link_and_identity_preserved": true,
+    "machine_trust_changed": false,
+    "uninstall_exit": 0,
+    "service_removed": true,
+    "data_preserved": true
+  },
+  "audio_defaults": {
+    "default_roles_present_before_install": [],
+    "product_default_roles_during_run": ["capture", "communication_capture"],
+    "product_default_roles_after_uninstall": [],
+    "all_four_observed_roles_restored_after_uninstall": true
+  },
+  "scope": "Original installer tested on hosted Windows Server 2022. The two capture defaults on this host were initially absent and used the product endpoint during the run. Both were absent again after uninstall, as were the two render defaults. Existing Windows 11 desktop audio roles and a clean OS reboot have distinct acceptance."
+}
