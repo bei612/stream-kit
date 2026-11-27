@@ -1,0 +1,125 @@
+{
+    "schema_version":  1,
+    "passed":  true,
+    "tag":  "v0.1.1-rc.2",
+    "source_commit":  "66a79e5d11e54a7048fccb042cd93327be92df3b",
+    "promotion_workflow_commit":  "f5140bc4ab1dece1cbf526d1c1f292c4317a6736",
+    "release_id":  460788775,
+    "url":  "https://github.com/bei612/stream-kit/releases/tag/v0.1.1-rc.2",
+    "prerelease":  true,
+    "draft":  false,
+    "published_at":  "2026-11-27T15:40:18Z",
+    "current_stable_tag":  "v0.1.0",
+    "product_run":  46013826861,
+    "android_run":  46013826883,
+    "windows_hosted_installer_run":  46022136794,
+    "windows_hosted_rollback_run":  46022585187,
+    "promotion_run":  46026872544,
+    "all_remote_asset_sizes_and_sha256_verified":  true,
+    "public_downloads":  [
+                             {
+                                 "file":  "stream-kit-0.1.1-66a79e5d11e5-ubuntu24.04-amd64-setup.run",
+                                 "http_status":  206,
+                                 "bytes_received":  1,
+                                 "authenticated":  false
+                             },
+                             {
+                                 "file":  "stream-kit-0.1.1-66a79e5d11e5-windows-amd64-setup.exe",
+                                 "http_status":  206,
+                                 "bytes_received":  1,
+                                 "authenticated":  false
+                             },
+                             {
+                                 "file":  "stream-kit-android-0.1.1.apk",
+                                 "http_status":  206,
+                                 "bytes_received":  1,
+                                 "authenticated":  false
+                             }
+                         ],
+    "assets":  [
+                   {
+                       "id":  801046352,
+                       "name":  "android-dependency-notices.json",
+                       "size":  11433,
+                       "sha256":  "65896f681d26f3927e0a114fba30192e14282e8fc34a2230d6b0e5f06245f755"
+                   },
+                   {
+                       "id":  801046338,
+                       "name":  "android-provenance.json",
+                       "size":  4817,
+                       "sha256":  "c0fef5331d6469553257fe51fb2282e52b79606cb2edb82bff46fd147d753a37"
+                   },
+                   {
+                       "id":  801046369,
+                       "name":  "android-runtime-dependencies.json",
+                       "size":  3415,
+                       "sha256":  "22a584a4428aa2ec47ab878e76e9c3c4167d59da03140c78c01bfbee63810533"
+                   },
+                   {
+                       "id":  801046368,
+                       "name":  "android-sbom.cdx.json",
+                       "size":  20027,
+                       "sha256":  "3b1dd08eee7f21271cb6691df2eb6a55e4467c38888630ebec63e2719b90bf9e"
+                   },
+                   {
+                       "id":  801046346,
+                       "name":  "Android-SHA256SUMS.txt",
+                       "size":  579,
+                       "sha256":  "a05213070e35b0fc2018e4c10b54bf431bd9a524faf81f916ece9cc3eb1b1138"
+                   },
+                   {
+                       "id":  801046374,
+                       "name":  "installer-manifest.json",
+                       "size":  2288,
+                       "sha256":  "4cca8d92827601e64f6060b4702a54b3afe7e5af42d56c92941e6fc2547d4f65"
+                   },
+                   {
+                       "id":  801046372,
+                       "name":  "linux-installer-manifest.json",
+                       "size":  1352,
+                       "sha256":  "fab8de73f61e694188ab5ed350c34a1c50a2e391987393c56fa4792067915b03"
+                   },
+                   {
+                       "id":  801046353,
+                       "name":  "Linux-SHA256SUMS.txt",
+                       "size":  220,
+                       "sha256":  "6f275f3b6f62c36c719a9e23f69eca8496d28eec784a36be916f7e39bb08f537"
+                   },
+                   {
+                       "id":  801046348,
+                       "name":  "SHA256SUMS.txt",
+                       "size":  302,
+                       "sha256":  "2a73740e942c1e327124ca833050cdbafd6cb9136e3baeab72fe695b7944e7f2"
+                   },
+                   {
+                       "id":  801046373,
+                       "name":  "stream-kit-0.1.1-66a79e5d11e5-ubuntu24.04-amd64-setup.run",
+                       "size":  62935651,
+                       "sha256":  "e32516c13d70cd7122031e007524a173b039909df3c0d06b2192f451c07e3364"
+                   },
+                   {
+                       "id":  801046390,
+                       "name":  "stream-kit-0.1.1-66a79e5d11e5-windows-amd64-setup.exe",
+                       "size":  98129963,
+                       "sha256":  "f43120940b173e6f09d503c78203cfe6fb58eadb96c79814145cfa49e09ed104"
+                   },
+                   {
+                       "id":  801046401,
+                       "name":  "stream-kit-android-0.1.1.apk",
+                       "size":  33168188,
+                       "sha256":  "ae45b4ae750fa76b13f6cdcc10fb356461d5ac136f441857e27e3e5bd5a9bb3a"
+                   },
+                   {
+                       "id":  801046403,
+                       "name":  "stream-kit-android-0.1.1-distribution.zip",
+                       "size":  33167991,
+                       "sha256":  "efe53c0748a403469f1c0121b9c176476529cec9e9b948e82330dbf19df520d2"
+                   },
+                   {
+                       "id":  801046402,
+                       "name":  "stream-kit-sbom.spdx.json",
+                       "size":  8206052,
+                       "sha256":  "83f04b8a502edc20fe18f3dd378d9958aa732ee5bafee10606607088dab3c993"
+                   }
+               ]
+}
