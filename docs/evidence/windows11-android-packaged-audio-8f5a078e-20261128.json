@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "source_commit": "8f5a078e39c070c8b358b456df7fee3c2e437203",
+  "passed": true,
+  "started_at": "2026-11-27T21:01:41.052Z",
+  "finished_at": "2026-11-27T21:03:56.777Z",
+  "product_run_id": 46061950270,
+  "windows_payload_artifact_id": 15231342415,
+  "android_build_run_id": 46061950017,
+  "android_artifact_id": 15228553784,
+  "android_apk_sha256": "50fd1100021dd6371418cee8c08a441f22bb839d04cfc4d321cf0ef1f9f7946c",
+  "android_version_code": 1000032,
+  "android_api_level": 36,
+  "release_signature_verified": true,
+  "report_sha256": "14e665b72bd3361191be421dae38894e9688c32a94045524c210322ca007052d",
+  "browser_report_sha256": "4d751cd6c340d6ad1394306f813a793623841329ad7410c2eba3a6688eff88f9",
+  "independent_recording_calibration": {
+    "passed": true,
+    "source": "emulator-rpc",
+    "sample_rate": 48000,
+    "captured_frames": 240000,
+    "windows_above_threshold": 48,
+    "capture_released": true,
+    "pcm_saved": false
+  },
+  "joint_product_stream": {
+    "passed": true,
+    "same_source_payload_verified": true,
+    "native_watch_link_opened": true,
+    "gateway_sha256": "332a0a55c98caba6ed8b746eacafc7e4bd0181fff95c9e3ed94fcd701d46fbcc",
+    "control_sha256": "ad670377e87d46758eeb3addbc3a2680baf02e8b67b36ae1f98e47a76ab0cbf5",
+    "subscribers": 2,
+    "upstream_connections": 1,
+    "example_audio_in_android_and_web": true,
+    "android_microphone_hz": 1499,
+    "target_recording_analyzed_frames": 96000,
+    "target_recording_dropped_frames": 0,
+    "target_recording_authorized_amplitude": 0.14493171967217977,
+    "target_recording_revoked_amplitude": 3.703156504294233e-7,
+    "web_authorized_db": -42.57281494140625,
+    "web_revoked_db": -127.93366241455078,
+    "web_program_after_revocation_db": -36.194549560546875,
+    "sunshine_restored_idle": true
+  },
+  "cleanup": {
+    "emulator_stopped": true,
+    "private_tls_removed": true,
+    "private_avd_removed": true,
+    "product_app_modified": false
+  },
+  "scope": "Exact Windows package components and signed Android APK on a disposable emulator. Synthetic input entered the production APK through Android AudioRecord. Target recording and real browser playout were measured. Physical tablet speech and site migration have separate evidence."
+}

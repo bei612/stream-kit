@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "source_commit": "8f5a078e39c070c8b358b456df7fee3c2e437203",
+  "passed": true,
+  "product_run_id": 46061950270,
+  "windows_package": {
+    "job_id": 140718072920,
+    "installer_artifact_id": 15231740962,
+    "payload_artifact_id": 15231342415,
+    "installer_sha256": "ce529659c297f1cdb2cf2d66f45a296eacdb28e787ab4404aaebdb2c24c30dfc",
+    "installer_bytes": 45118937,
+    "payload_manifest_sha256": "f58da0e0702095275c136d906dc305c8fda15d4968cdf374cf3c3e26e603e97b",
+    "verified_components": 3,
+    "content_files_with_verified_hashes": 190,
+    "verified_manifest_files": 4,
+    "disk_inventory_files": 195,
+    "windows_endpoint_policy_version": 2,
+    "gateway_sha256": "332a0a55c98caba6ed8b746eacafc7e4bd0181fff95c9e3ed94fcd701d46fbcc",
+    "renderer_sha256": "6a1f3d744c70ac72730449c06d0d9a5b65fd155db991946f99b1adebca11ec28",
+    "renderer_bytes": 72019968,
+    "renderer_debug_sections": 0,
+    "kernel_driver_signature_verified_by_producer": true,
+    "runtime_node_and_test_binaries_absent": true
+  },
+  "control_scans": {
+    "scanner": "govulncheck 1.10.0, binary symbol mode",
+    "database": "https://vuln.go.dev/",
+    "windows": {
+      "binary_sha256": "ad670377e87d46758eeb3addbc3a2680baf02e8b67b36ae1f98e47a76ab0cbf5",
+      "matches_verified_installer_payload": true,
+      "vcs_modified": false,
+      "result": "No vulnerabilities found."
+    },
+    "ubuntu": {
+      "installer_artifact_id": 15230170942,
+      "installer_sha256": "d059594ab06d32eecadcc2839b3af923646c51e2579b25a79c501f6eb6f89ed2",
+      "embedded_deb_sha256": "e2804f16106cb409b06c29fad53581a4420536970f55b4737a33f5cd9cf67e4e",
+      "binary_sha256": "3eea4f25f28e591439a493ae6fb78ac8d63e9ea7aead01e13fdb3c6b34ee44a3",
+      "matches_verified_embedded_payload": true,
+      "vcs_modified": false,
+      "result": "No vulnerabilities found."
+    }
+  },
+  "same_dependency_graph": {
+    "previous_review": "docs/evidence/windows11-runtime-dependency-review-439f2a06-20261128.json",
+    "runtime_dependency_lock_changes": false,
+    "android_build_run_id": 46061950017,
+    "android_artifact_id": 15228553784,
+    "android_version_code": 1000032,
+    "android_apk_sha256": "50fd1100021dd6371418cee8c08a441f22bb839d04cfc4d321cf0ef1f9f7946c",
+    "android_signature_verified": true,
+    "android_signer_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f",
+    "android_runtime_inventory_sha256": "22a584a4428aa2ec47ab878e76e9c3c4167d59da03140c78c01bfbee63810533",
+    "android_notices_sha256": "65896f681d26f3927e0a114fba30192e14282e8fc34a2230d6b0e5f06245f755"
+  },
+  "source_sbom": {
+    "artifact_id": 15228737918,
+    "format": "SPDX-2.3",
+    "package_entries": 3497,
+    "package_versions_licenses_and_references_match_previous_source_sbom": true,
+    "sha256": "6c6c3c38276c22c5fc57268efae369d45ad24e578febb24d4674a59551340c05"
+  },
+  "scope": "Original installer hashes, Windows native payload inventory and metadata, Ubuntu embedded controller provenance, exact Go binary advisory scans, local verification of the Android signing identity, and the exact source SBOM. Windows first install, reboot and runtime maintenance have separate acceptance."
+}
