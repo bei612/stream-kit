@@ -263,7 +263,7 @@ impl PeerConnectionEventHandler for WebRtcHandler {
 }
 
 #[post("")]
-#[instrument(skip(app, access, _req, session_description))]
+#[instrument(skip(app, access, request, session_description))]
 pub async fn webrtc_post(
     app: Data<App>,
     mut access: StreamAccess,

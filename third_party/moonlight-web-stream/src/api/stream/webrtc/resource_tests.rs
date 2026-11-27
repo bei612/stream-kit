@@ -1,4 +1,5 @@
 use super::*;
+use std::net::SocketAddr;
 
 #[tokio::test]
 async fn native_channels_cannot_expand_the_remote_handoff_queue() {

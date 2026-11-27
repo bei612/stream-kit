@@ -53,7 +53,7 @@ mod tests {
             let incoming = LocalAddress(incoming.parse().unwrap());
             assert_eq!(
                 LocalAddress::media_bind_address(Some(&incoming)),
-                expected.parse().unwrap(),
+                expected.parse::<SocketAddr>().unwrap(),
             );
         }
     }
