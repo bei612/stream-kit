@@ -38,9 +38,13 @@ type Client struct {
 }
 
 func NewClient(cfg config.MoonlightWebConfig, logger *zap.Logger) *Client {
+	return NewClientWithTransport(cfg, logger, nil)
+}
+
+func NewClientWithTransport(cfg config.MoonlightWebConfig, logger *zap.Logger, transport http.RoundTripper) *Client {
 	return &Client{
 		cfg:        cfg,
-		client:     &http.Client{Timeout: 10 * time.Second},
+		client:     &http.Client{Timeout: 10 * time.Second, Transport: transport},
 		logger:     logger,
 		enrollment: make(chan struct{}, 1),
 	}

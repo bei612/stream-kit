@@ -137,10 +137,14 @@ func (p *Publisher) statusLocked(now int64, sessions []*session.RenderSession) S
 }
 
 func New(manager *session.Manager, baseURL, secret string) *Publisher {
+	return NewWithTransport(manager, baseURL, secret, nil)
+}
+
+func NewWithTransport(manager *session.Manager, baseURL, secret string, transport http.RoundTripper) *Publisher {
 	if manager == nil || baseURL == "" || secret == "" {
 		return nil
 	}
-	return &Publisher{manager: manager, NodeClient: NewNodeClient(baseURL, secret)}
+	return &Publisher{manager: manager, NodeClient: newNodeClient(baseURL, secret, transport)}
 }
 func (p *Publisher) Sync(ctx context.Context) (err error) {
 	p.mu.Lock()

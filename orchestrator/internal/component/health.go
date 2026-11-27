@@ -24,14 +24,21 @@ type HealthChecker struct {
 }
 
 func NewHealthChecker(name string, cfg config.HealthCheckConfig, logger *zap.Logger) *HealthChecker {
+	return newHealthChecker(name, cfg, logger, nil)
+}
+
+func newHealthChecker(name string, cfg config.HealthCheckConfig, logger *zap.Logger, transport http.RoundTripper) *HealthChecker {
 	ctx, cancel := context.WithCancel(context.Background())
 	timeout := time.Duration(cfg.TimeoutSeconds) * time.Second
 	if timeout <= 0 {
 		timeout = 5 * time.Second
 	}
-	transport := &http.Transport{}
-	if cfg.VerifySSL != nil && !*cfg.VerifySSL {
-		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	if transport == nil {
+		native := &http.Transport{}
+		if cfg.VerifySSL != nil && !*cfg.VerifySSL {
+			native.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		}
+		transport = native
 	}
 	return &HealthChecker{
 		ctx:    ctx,

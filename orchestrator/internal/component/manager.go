@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
@@ -52,19 +53,32 @@ func WithPreparation(prepare Preparation) Option {
 	return func(m *Manager) { m.prepare = prepare }
 }
 
+func WithGatewayTransport(transport http.RoundTripper) Option {
+	return func(m *Manager) { m.gatewayTransport = transport }
+}
+
 type Manager struct {
-	components      map[string]*ComponentState
-	configs         map[string]config.ComponentConfig
-	shutdownTimeout int
-	logger          *zap.Logger
-	dataDir         string
-	onEvent         EventCallback
-	startStopMu     sync.Mutex // prevents concurrent StartAll/StopAll
-	pidMu           sync.Mutex // serializes snapshots and writes across components
-	closing         atomic.Bool
-	ctx             context.Context
-	cancel          context.CancelFunc
-	prepare         Preparation
+	components       map[string]*ComponentState
+	configs          map[string]config.ComponentConfig
+	shutdownTimeout  int
+	logger           *zap.Logger
+	dataDir          string
+	onEvent          EventCallback
+	startStopMu      sync.Mutex // prevents concurrent StartAll/StopAll
+	pidMu            sync.Mutex // serializes snapshots and writes across components
+	closing          atomic.Bool
+	ctx              context.Context
+	cancel           context.CancelFunc
+	prepare          Preparation
+	gatewayTransport http.RoundTripper
+}
+
+func (m *Manager) healthChecker(name string, cfg config.HealthCheckConfig) *HealthChecker {
+	var transport http.RoundTripper
+	if name == "web_server" {
+		transport = m.gatewayTransport
+	}
+	return newHealthChecker(name, cfg, m.logger, transport)
 }
 
 func NewManager(
@@ -207,7 +221,7 @@ func (m *Manager) start(name string, cs *ComponentState, retry bool) error {
 	// Monitor-only: exe_path 为空表示组件由外部管理
 	if cfg.ExePath == "" {
 		cs.mu.Lock()
-		cs.healthChecker = NewHealthChecker(name, cfg.HealthCheck, m.logger)
+		cs.healthChecker = m.healthChecker(name, cfg.HealthCheck)
 		hc := cs.healthChecker
 		cs.mu.Unlock()
 		m.logger.Info("组件监控模式（外部管理）", zap.String("component", name))
@@ -228,7 +242,7 @@ func (m *Manager) start(name string, cs *ComponentState, retry bool) error {
 	cs.process = proc
 	cs.PID = proc.PID
 	cs.StartedAt = time.Now()
-	cs.healthChecker = NewHealthChecker(name, cfg.HealthCheck, m.logger)
+	cs.healthChecker = m.healthChecker(name, cfg.HealthCheck)
 	hc := cs.healthChecker
 	cs.mu.Unlock()
 

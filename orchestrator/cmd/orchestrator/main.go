@@ -175,6 +175,15 @@ func run(ctx context.Context, ready func()) error {
 	if err != nil {
 		return err
 	}
+	var gatewayTransport http.RoundTripper
+	managedGateway, err := cfg.ManagedGatewayTransport()
+	if err != nil {
+		return err
+	}
+	if managedGateway != nil {
+		gatewayTransport = managedGateway
+		defer managedGateway.CloseIdleConnections()
+	}
 
 	logger := setupLogger(cfg)
 	defer logger.Sync()
@@ -241,6 +250,7 @@ func run(ctx context.Context, ready func()) error {
 		},
 		logger,
 		component.WithPreparation(prepareComponentAudio),
+		component.WithGatewayTransport(gatewayTransport),
 	)
 	var autoStartDone <-chan struct{}
 	defer func() {
@@ -261,7 +271,7 @@ func run(ctx context.Context, ready func()) error {
 	}
 	var moonClient *moonlight.Client
 	if cfg.MoonlightWeb.BaseURL != "" {
-		moonClient = moonlight.NewClient(cfg.MoonlightWeb, logger)
+		moonClient = moonlight.NewClientWithTransport(cfg.MoonlightWeb, logger, gatewayTransport)
 	}
 
 	// App Manager — with event callback wired to WebSocket
@@ -288,7 +298,7 @@ func run(ctx context.Context, ready func()) error {
 	}
 
 	// HTTP server
-	srv := server.New(cfg, st, compMgr, appMgr, wsHub, sessionMgr, logger)
+	srv := server.NewWithGatewayTransport(cfg, st, compMgr, appMgr, wsHub, sessionMgr, logger, gatewayTransport)
 
 	httpServer := &http.Server{
 		Addr:              cfg.Server.BindAddress,

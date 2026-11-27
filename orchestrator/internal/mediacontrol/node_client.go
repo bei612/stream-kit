@@ -18,13 +18,17 @@ type NodeClient struct {
 }
 
 func NewNodeClient(baseURL, secret string) *NodeClient {
+	return newNodeClient(baseURL, secret, nil)
+}
+
+func newNodeClient(baseURL, secret string, transport http.RoundTripper) *NodeClient {
 	if baseURL == "" || secret == "" {
 		return nil
 	}
 	return &NodeClient{
 		baseURL: strings.TrimRight(baseURL, "/"),
 		secret:  []byte(secret),
-		client: &http.Client{Timeout: 2 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error {
+		client: &http.Client{Timeout: 2 * time.Second, Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error {
 			return http.ErrUseLastResponse
 		}},
 	}

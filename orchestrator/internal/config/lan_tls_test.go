@@ -69,6 +69,51 @@ func leafCertificate(t *testing.T, cfg ServerConfig) *x509.Certificate {
 	return leaf
 }
 
+func TestManagedGatewayTransportTrustIsOriginScoped(t *testing.T) {
+	cfg, _ := lanFixture(t)
+	if err := PrepareManagedTLS(cfg); err != nil {
+		t.Fatal(err)
+	}
+	pair, err := tls.LoadX509KeyPair(cfg.TLSCert, cfg.TLSKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := func() *httptest.Server {
+		t.Helper()
+		server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		}))
+		server.TLS = &tls.Config{Certificates: []tls.Certificate{pair}}
+		server.StartTLS()
+		t.Cleanup(server.Close)
+		return server
+	}
+	gateway, other := start(), start()
+	input := Config{Server: cfg, MoonlightWeb: MoonlightWebConfig{BaseURL: gateway.URL}}
+	transport, err := input.ManagedGatewayTransport()
+	if err != nil || transport == nil {
+		t.Fatalf("expected a scoped gateway transport: %v", err)
+	}
+	t.Cleanup(transport.CloseIdleConnections)
+	client := &http.Client{Transport: transport}
+	res, err := client.Get(gateway.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if res.StatusCode != http.StatusNoContent {
+		t.Fatalf("unexpected response: %s", res.Status)
+	}
+	if res, err := client.Get(other.URL); err == nil {
+		res.Body.Close()
+		t.Fatal("deployment CA trusted another port on loopback")
+	}
+	input.MoonlightWeb.BaseURL = "https://unrelated.example:8080"
+	if transport, err := input.ManagedGatewayTransport(); transport != nil || err != nil {
+		t.Fatalf("external gateway should continue to use system trust: %v", err)
+	}
+}
+
 func TestStableWatchHostnameUsesSameCAAndDoesNotFollowNumericAddress(t *testing.T) {
 	cfg, roots := lanFixture(t)
 	cfg.BindAddress = "0.0.0.0:9000"

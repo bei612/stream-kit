@@ -35,12 +35,16 @@ type Server struct {
 }
 
 func New(cfg *config.Config, st *store.Store, compMgr *component.Manager, appMgr *app.Manager, wsHub *ws.Hub, sessionMgr *session.Manager, logger *zap.Logger) *Server {
+	return NewWithGatewayTransport(cfg, st, compMgr, appMgr, wsHub, sessionMgr, logger, nil)
+}
+
+func NewWithGatewayTransport(cfg *config.Config, st *store.Store, compMgr *component.Manager, appMgr *app.Manager, wsHub *ws.Hub, sessionMgr *session.Manager, logger *zap.Logger, transport http.RoundTripper) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
 	engine.Use(gin.Recovery())
 
 	s := &Server{
-		MediaControl: mediacontrol.New(sessionMgr, cfg.MoonlightWeb.BaseURL, cfg.Server.MediaTicketSecret),
+		MediaControl: mediacontrol.NewWithTransport(sessionMgr, cfg.MoonlightWeb.BaseURL, cfg.Server.MediaTicketSecret, transport),
 		Engine:       engine,
 		Config:       cfg,
 		Store:        st,
