@@ -11,6 +11,10 @@ on:
         type: choice
         default: unified
         options: [unified, standalone-linux]
+      require_direct_ipv4_media:
+        description: 'Require the gateway to offer only the accepted signaling IPv4 as a host media candidate'
+        type: boolean
+        default: false
 permissions:
   contents: read
   actions: read
@@ -22,6 +26,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       PRODUCT_RUN_ID: ${{ inputs.product_run_id }}
       RUNTIME_PRODUCER_PROFILE: ${{ inputs.runtime_producer_profile }}
+      REQUIRE_DIRECT_IPV4_MEDIA: ${{ inputs.require_direct_ipv4_media }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -14,6 +14,8 @@ assert.equal(network.prefix,24);
 for(const address of [network.old_address,network.new_address,network.client_address])assert.match(address,/^(10\.253\.|172\.29\.|192\.168\.)\d+\.\d+$/);
 const clientPID=fs.readFileSync(path.join(scratch,'client.pid'),'utf8').trim();assert.match(clientPID,/^[1-9][0-9]*$/);
 const report={schema_version:2,passed:false,scope:'Separate client network and Avahi/DBus namespaces; managed LAN identity discovery and live leaf reload on both native HTTPS listeners, renderer discovery and browser WebRTC recovery across an actual private test-NIC IP change without configuration edits or process restarts. No local Windows deployment, physical LAN, Android migration or new audio-quality acceptance.',acceptance_commit:process.env.GITHUB_SHA,network,observations:[]};
+const requireDirectIPv4Media=process.env.REQUIRE_DIRECT_IPV4_MEDIA==='true';
+report.require_direct_ipv4_media=requireDirectIPv4Media;
 const save=()=>fs.writeFileSync('artifacts/network-address-evidence/result.json',JSON.stringify(report,null,2));
 function run(file,args){return execFileSync(file,args,{encoding:'utf8',timeout:15000,stdio:['ignore','pipe','pipe']}).trim();}
 const client=(...args)=>run('sudo',['nsenter','-t',clientPID,'-m','-n','--',...args]);
@@ -97,6 +99,7 @@ async function main(){
   await observe(network.old_address);
   report.stage='start_remote_media';save();
   media=await require('./media.cjs')({config:c,api,clientPID,network,report,save});
+  if(requireDirectIPv4Media)assert.deepEqual(report.media_before.remote_host_addresses,[network.old_address]);
   report.stage='change_owned_nic';save();
   const addresses=JSON.parse(run('ip',['-j','address','show','dev','sknet-server']))[0].addr_info.filter(x=>x.family==='inet');
   assert.deepEqual(addresses.map(x=>[x.local,x.prefixlen]),[[network.old_address,network.prefix]]);
@@ -110,6 +113,7 @@ async function main(){
   await observe(network.new_address);
   report.stage='recover_remote_media';save();
   await media.recover();
+  if(requireDirectIPv4Media)assert.deepEqual(report.media_after.remote_host_addresses,[network.new_address]);
   let oldReachable=true;
   try{client('curl','--noproxy','*','--fail','--silent','--max-time','3','--cacert',path.join(tls,'ca.crt'),'--resolve',`${host}:19000:${network.old_address}`,`https://${host}:19000/api/v1/health`);}catch{oldReachable=false;}
   assert.equal(oldReachable,false,'Old numeric address still reachable');

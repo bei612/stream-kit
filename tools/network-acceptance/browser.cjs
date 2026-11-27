@@ -23,11 +23,17 @@ async function snapshot(){
     const transport=items.find(s=>s.type==='transport'&&s.selectedCandidatePairId);
     const pair=transport?stats.get(transport.selectedCandidatePairId):items.find(s=>s.type==='candidate-pair'&&s.nominated&&s.state==='succeeded');
     const remote=pair?stats.get(pair.remoteCandidateId):null;
+    const hostAddresses=new Set();
+    for(const line of (peer.remoteDescription?.sdp||'').split(/\r?\n/)){
+      if(!line.startsWith('a=candidate:'))continue;
+      const [, , protocol, , address, , attribute, candidateType]=line.split(/\s+/);
+      if(protocol?.toLowerCase()==='udp'&&attribute==='typ'&&candidateType==='host')hostAddresses.add(address);
+    }
     return {peer_count:peers.length,state:peer.connectionState,
       frames:items.find(s=>s.type==='inbound-rtp'&&s.kind==='video')?.framesDecoded||0,
       audio_packets:items.find(s=>s.type==='inbound-rtp'&&s.kind==='audio')?.packetsReceived||0,
       presented_frames:window.__networkFrames||0,
-      width:video?.videoWidth||0,remote_address:remote?.address,remote_port:remote?.port};
+      width:video?.videoWidth||0,remote_address:remote?.address,remote_port:remote?.port,remote_host_addresses:[...hostAddresses].sort()};
   });
 }
 async function waitMedia(address,minPeers){
