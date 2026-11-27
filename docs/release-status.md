@@ -14,7 +14,7 @@
 
 Win11 使用同源三组件载荷和签名 APK 完成了 Android、目标录音和 Web 音频联验。Android 与 Web 共享一条渲染上游，程序声持续播放。撤权后，持续注入的麦克风测试信号在 Web 端从 −22.11 dB 降至 −127.28 dB，目标录音峰值低于 0.000001，录音无丢帧。独立模拟器和临时信任已回收。[Win11 同源音频证据](evidence/windows11-android-packaged-audio-55d6d5a8-20261127.json)
 
-同一 EXE 在 Windows Server 2022 托管安装验收中返回 `3010`。SetupAPI 记录了本次虚拟 USB 音频接口刷新时有设备句柄未释放，Windows 要求重启，服务启动及 PCM 环节未执行。卸载成功并保留了应用数据。主线已改为验证端点策略后释放临时设备，再由网关挂载并触发 Windows 正常枚举。新候选仍需通过 Windows 原生端点及完整安装、自启动验收。[托管安装验收](https://github.com/bei612/stream-kit/actions/runs/45984473224)
+同一 EXE 在 Windows Server 2022 托管安装验收中返回 `3010`。SetupAPI 记录了应用虚拟 USB 音频的端点策略时，设备句柄阻止了类驱动刷新。Windows 因此要求重启，服务启动和 PCM 环节未执行。卸载成功并保留了应用数据。随后验证了只重新挂载设备的方案。原生录音收到 144,000 帧且零丢帧，但虚拟设备抢占了系统默认输出，主线已撤回该方案。完整安装和重启后的自启动仍需验证。[托管安装验收](https://github.com/bei612/stream-kit/actions/runs/45984473224) · [独立端点复核](https://github.com/bei612/stream-kit/actions/runs/45985744990)
 
 上一发布候选冻结于 `ce49050f4dfcbd1e22d9d4f22093f6b965e6aac8`，含固定观看主机名与大型归档限额界面。[Windows 统一安装器](https://github.com/bei612/stream-kit/actions/runs/45939440963)已构建，大小 98,055,882 字节，SHA-256 为 `9ab0b300106e748fd21b62e5521c8dfe2c280cd252eed80d117844bc4f07fd8f`，原包与三组件清单均已核验。[Android 原生 APK](https://github.com/bei612/stream-kit/actions/runs/45939467986)的 versionCode 为 `1000024`，本地验证了 21 项文件和 v2/v3 发行签名，APK SHA-256 为 `f65455f6d07c7b66d14d86f51ed076cfea5e75a34c6693ede87697d996d6a0b7`。
 
