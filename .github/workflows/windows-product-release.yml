@@ -192,7 +192,15 @@ jobs:
           cmake --version > artifacts/windows-product/logs/cmake-version.txt
           # Product packaging does not execute the Windows GTest binary. Build
           # only the production target; native checks have their own CI/fixtures.
-          bash scripts/build-sunshine.sh -DBUILD_DOCS=OFF -DBUILD_TESTS=OFF -DSUNSHINE_USE_STATIC_QT=ON 2>&1 | tee artifacts/windows-product/logs/sunshine-build.log
+          # Keep the optimized build profile and omit embedded debug symbols
+          # from the executable installed on customer hosts.
+          bash scripts/build-sunshine.sh -DBUILD_DOCS=OFF -DBUILD_TESTS=OFF -DSUNSHINE_USE_STATIC_QT=ON \
+            -DCMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO=-Wl,--strip-all 2>&1 | tee artifacts/windows-product/logs/sunshine-build.log
+          renderer_sections=$(objdump -h .local/cmake-build-sunshine/sunshine.exe)
+          if grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+\.debug' <<< "$renderer_sections"; then
+            echo 'Windows release renderer contains embedded debug sections' >&2
+            exit 1
+          fi
           node scripts/accept-renderer-bootstrap.cjs "$(cygpath -m "$PWD/.local/cmake-build-sunshine/sunshine.exe")"
           node scripts/verify-sunshine-release.mjs "$(cygpath -m "$PWD/.local/cmake-build-sunshine")" "$GITHUB_SHA" --output "$(cygpath -m "$PWD/artifacts/windows-product/renderer")"
       - uses: actions/cache/save@v4

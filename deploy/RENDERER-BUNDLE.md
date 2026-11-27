@@ -34,7 +34,9 @@ node scripts/verify-sunshine-release.mjs BUILD_DIRECTORY FULL_COMMIT --output NE
 ```
 
 The build must report the same commit. Windows uses the relative `assets`
-directory. For a Linux unified platform bundle, build using
+directory. The Windows product workflow links Sunshine without embedded debug
+symbols and checks its credential bootstrap before staging and hashing the
+executable. For a Linux unified platform bundle, build using
 `SUNSHINE_PACKAGE_LAYOUT=platform SUNSHINE_REQUIRE_CLEAN=1` with
 `scripts/build-sunshine.sh`. The shared layout catalog supplies its native
 `bin/sunshine` and `share/sunshine` resource paths. The Linux stager uses CMake's

@@ -61,5 +61,16 @@
     "same_prepared_configuration": true,
     "scope": "Native initialization reproduced with the original payload. The renderer then ran successfully with the staged configuration in the same guest. The direct launch is not a clean installer or reboot acceptance."
   },
+  "local_renderer_size_probe": {
+    "original_renderer_sha256": "9e215b9c1a04fac459b4734ad9930facc65fe0c7e537fb85f82528f544d2ea37",
+    "original_size_bytes": 359060729,
+    "stripped_size_bytes": 72019988,
+    "symbol_entries_removed": 684608,
+    "identical_runtime_sections": [".text", ".idata", ".edata", ".data", ".rdata", ".tls", ".pdata", ".xdata"],
+    "resource_virtual_contents_identical": true,
+    "version_exit": 0,
+    "credential_bootstrap_exit": 0,
+    "scope": "Local copy of the RC2 renderer stripped with GNU objcopy. This checks the size and basic behavior of the stripped binary. Clean installation and the link-time product configuration have separate acceptance."
+  },
   "scope": "Newly installed Microsoft evaluation guests with an emulated audio controller. The exact public package failed before the pre-reboot checkpoint. A separate initialization with the verified payload isolated the failing renderer command. The shared Win11 installation and workstation network were not involved."
 }
