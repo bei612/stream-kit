@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router'
-import { api, UploadTimeoutError } from '@/api/client'
+import { api, UploadStorageError, UploadTimeoutError } from '@/api/client'
 import { argsToLines, formatBytes, linesToArgs } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
 import { ContentGrid, Page } from '@/components/layout/Page'
@@ -32,7 +32,12 @@ export default function UploadPage() {
   const blocked = archiveStatus?.uploading ?? false
   const maxUpload = archiveStatus?.max_upload_size_bytes ?? 0
   const maxExtract = archiveStatus?.max_extract_size_bytes ?? 0
+  const stagingAvailable = archiveStatus?.storage?.staging_available_bytes
+  const applicationsAvailable = archiveStatus?.storage?.applications_available_bytes
+  const storageReserve = archiveStatus?.storage?.reserve_bytes ?? 0
   const archiveTooLarge = !!file && maxUpload > 0 && file.size > maxUpload
+  const stagingTooSmall = !uploading && !!file && stagingAvailable != null && file.size > Math.max(0, stagingAvailable - storageReserve)
+  const canUploadArchive = !!file && !blocked && !archiveTooLarge && !stagingTooSmall
 
   useEffect(() => () => abortRef.current?.(), [])
 
@@ -58,7 +63,7 @@ export default function UploadPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name || uploading || (source==='archive' ? !file || archiveTooLarge || blocked : !exePath)) return
+    if (!name || uploading || (source==='archive' ? !canUploadArchive : !exePath)) return
 
     setUploading(true)
     setError('')
@@ -94,7 +99,9 @@ export default function UploadPage() {
       setUploading(false)
       navigate(`/apps/${res.data.app_id}`)
     } catch (err: unknown) {
-      setError(err instanceof UploadTimeoutError ? t('upload.idleTimeout') : err instanceof Error ? err.message : t('upload.uploadFailed'))
+      setError(err instanceof UploadTimeoutError ? t('upload.idleTimeout') :
+        err instanceof UploadStorageError ? t('upload.stagingTooSmall') :
+        err instanceof Error ? err.message : t('upload.uploadFailed'))
       setUploading(false)
     } finally {
       abortRef.current = null
@@ -163,7 +170,13 @@ export default function UploadPage() {
           {maxUpload > 0 && maxExtract > 0 && <p className="mt-2 text-xs text-muted-foreground">
             {t('upload.archiveLimit')} {formatBytes(maxUpload, true)} · {t('upload.extractLimit')} {formatBytes(maxExtract, true)}
           </p>}
+          {(stagingAvailable != null || applicationsAvailable != null) && <div className="mt-1 flex flex-wrap justify-center gap-x-3 text-xs text-muted-foreground">
+            {stagingAvailable != null && <span>{t('upload.stagingAvailable')} {formatBytes(stagingAvailable, true)}</span>}
+            {applicationsAvailable != null && <span>{t('upload.applicationsAvailable')} {formatBytes(applicationsAvailable, true)}</span>}
+            {storageReserve > 0 && <span>{t('upload.storageReserve')} {formatBytes(storageReserve, true)}</span>}
+          </div>}
           {archiveTooLarge && <p role="alert" className="mt-2 text-sm text-destructive">{t('upload.archiveTooLarge')}</p>}
+          {stagingTooSmall && error !== t('upload.stagingTooSmall') && <p role="alert" className="mt-2 text-sm text-destructive">{t('upload.stagingTooSmall')}</p>}
         </Card> : <Card className="p-5 space-y-4">
           <p className="text-sm text-muted-foreground">{t('upload.localDescription')}</p>
           <div><Label htmlFor="local-executable">{t('upload.executablePath')}</Label><Input id="local-executable" value={exePath} onChange={e=>setExePath(e.target.value)} placeholder={t('upload.executablePlaceholder')} required autoComplete="off" /></div>
@@ -251,7 +264,7 @@ export default function UploadPage() {
 
         <Button
           type="submit"
-          disabled={!name || uploading || (source==='archive'? !file || blocked || archiveTooLarge : !exePath)}
+          disabled={!name || uploading || (source==='archive'? !canUploadArchive : !exePath)}
           className="w-full"
         >
           {uploading ? (source==='archive'?t('upload.uploading'):t('upload.registering')) : (source==='archive'?t('upload.startUpload'):t('upload.registerLocal'))}

@@ -69,6 +69,7 @@
     "db_path": "./data/orchestrator.db",
     "max_upload_size_bytes": 53687091200,
     "max_extract_size_bytes": 53687091200,
+    "min_free_space_bytes": 1073741824,
     "max_file_count": 100000
   },
   "process": {

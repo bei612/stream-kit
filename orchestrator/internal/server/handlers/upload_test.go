@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"math"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -23,6 +24,55 @@ import (
 	"github.com/stream-kit/orchestrator/internal/store"
 	"go.uber.org/zap"
 )
+
+func TestUploadRejectsMissingStagingCapacityAndClearsOwnership(t *testing.T) {
+	base := t.TempDir()
+	st, err := store.New(filepath.Join(base, "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	cfg := &config.Config{Storage: config.StorageConfig{
+		AppsDir: filepath.Join(base, "apps"), TempDir: filepath.Join(base, "temp"),
+		MaxUploadSize: 1 << 20, MaxExtractSize: 1 << 20, MaxFileCount: 10, MinFreeSpace: math.MaxInt64,
+	}}
+	manager := app.NewManager(st, cfg, nil, nil, nil, zap.NewNop())
+	handler := NewUploadHandler(manager, cfg, zap.NewNop())
+	router := gin.New()
+	router.POST("/upload", handler.Upload)
+	server := httptest.NewServer(router)
+	defer server.Close()
+	var body bytes.Buffer
+	form := multipart.NewWriter(&body)
+	if err := form.WriteField("name", "capacity-check"); err != nil {
+		t.Fatal(err)
+	}
+	part, err := form.CreateFormFile("file", "example.zip")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.WriteString(part, "archive data"); err != nil {
+		t.Fatal(err)
+	}
+	if err := form.Close(); err != nil {
+		t.Fatal(err)
+	}
+	response, err := server.Client().Post(server.URL+"/upload", form.FormDataContentType(), &body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	result, err := io.ReadAll(response.Body)
+	if err != nil || response.StatusCode != http.StatusInsufficientStorage || !bytes.Contains(result, []byte("UPLOAD_STORAGE_INSUFFICIENT")) {
+		t.Fatalf("unexpected response: %d %s (%v)", response.StatusCode, result, err)
+	}
+	files, readErr := os.ReadDir(cfg.Storage.TempDir)
+	archives, archiveErr := st.ListUploadArchives()
+	record, recordErr := st.GetAppByName("capacity-check")
+	if readErr != nil || archiveErr != nil || recordErr != nil || len(files) != 0 || len(archives) != 0 || record != nil || manager.IsUploading() {
+		t.Fatal("storage rejection retained upload ownership or created an application")
+	}
+}
 
 func TestUploadPreservesCompoundArchiveAndCleansTemporaryFiles(t *testing.T) {
 	base := t.TempDir()

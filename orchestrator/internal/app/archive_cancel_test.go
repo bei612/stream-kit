@@ -64,7 +64,11 @@ func TestExtractContextRemovesCanceledPartialEntry(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer root.Close()
-	sink := &extractSink{root: root, destination: dir, ctx: ctx, cfg: ExtractConfig{MaxExtractSize: 100, MaxFileCount: 10}, names: map[string]string{}}
+	available, err := archiveFSAvailable(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sink := &extractSink{root: root, destination: dir, ctx: ctx, cfg: ExtractConfig{MaxExtractSize: 100, MaxFileCount: 10}, available: available, names: map[string]string{}}
 	input := &cancelEntryReader{cancel: cancel}
 	err = sink.entry("partial.bin", 0644, 8, func() (io.ReadCloser, error) { return input, nil })
 	if !errors.Is(err, context.Canceled) || !input.closed || input.reads != 1 {

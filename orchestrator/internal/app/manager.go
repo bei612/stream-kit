@@ -232,6 +232,7 @@ func (m *Manager) runPipeline(appID, archivePath string, unlockUpload func()) {
 	extractCfg := ExtractConfig{
 		MaxExtractSize: m.config.Storage.MaxExtractSize,
 		MaxFileCount:   m.config.Storage.MaxFileCount,
+		minFreeSpace:   m.config.Storage.MinFreeSpace,
 	}
 
 	totalBytes, err := ExtractContext(m.workCtx, archivePath, app.AppDir, extractCfg)

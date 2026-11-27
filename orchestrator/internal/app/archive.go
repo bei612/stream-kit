@@ -72,7 +72,11 @@ func ExtractContext(ctx context.Context, archivePath, destDir string, cfg Extrac
 	if err != io.EOF {
 		return 0, errors.New("解压目标必须为空目录")
 	}
-	sink := &extractSink{root: root, destination: destDir, cfg: cfg, names: make(map[string]string), ctx: ctx}
+	available, err := archiveWriteBudget(destDir, cfg.minFreeSpace)
+	if err != nil {
+		return 0, fmt.Errorf("无法读取应用目录的可用空间: %w", err)
+	}
+	sink := &extractSink{root: root, destination: destDir, cfg: cfg, available: available, names: make(map[string]string), ctx: ctx}
 	file, err := os.Open(archivePath)
 	if err != nil {
 		return 0, err

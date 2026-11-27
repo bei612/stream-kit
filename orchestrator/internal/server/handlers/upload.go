@@ -34,6 +34,7 @@ func (h *UploadHandler) UploadStatus(c *gin.Context) {
 		"uploading":              h.Manager.IsUploading(),
 		"max_upload_size_bytes":  h.Config.Storage.MaxUploadSize,
 		"max_extract_size_bytes": h.Config.Storage.MaxExtractSize,
+		"storage":                h.Manager.ArchiveStorage(),
 	})
 }
 
@@ -253,12 +254,15 @@ func (h *UploadHandler) receiveArchive(filename string, part io.Reader, maxSize 
 		return &uploadFailure{http.StatusInternalServerError, "INTERNAL_ERROR", "创建临时文件失败"}
 	}
 	upload.archive = archive
-	// Read one byte past the file budget for exact-limit detection.
-	written, copyErr := io.Copy(archive.File, io.LimitReader(part, maxSize+1))
-	closeErr := archive.File.Close()
-	if written > maxSize {
-		return &uploadFailure{http.StatusRequestEntityTooLarge, "UPLOAD_TOO_LARGE", "上传文件超限"}
+	available, err := archive.WriteBudget()
+	if err != nil {
+		h.Logger.Warn("读取上传暂存空间失败", zap.Error(errors.Join(err, archive.File.Close())))
+		return &uploadFailure{http.StatusInternalServerError, "INTERNAL_ERROR", "无法读取上传暂存目录的可用空间"}
 	}
+	// Probe EOF at the smaller limit without writing a byte beyond either budget.
+	budget := &io.LimitedReader{R: part, N: min(maxSize, available)}
+	written, copyErr := io.Copy(archive.File, budget)
+	closeErr := archive.File.Close()
 	var storageError *os.PathError
 	if closeErr != nil || errors.As(copyErr, &storageError) {
 		h.Logger.Warn("写入上传归档失败", zap.Error(errors.Join(copyErr, closeErr)))
@@ -266,6 +270,17 @@ func (h *UploadHandler) receiveArchive(filename string, part io.Reader, maxSize 
 	}
 	if copyErr != nil {
 		return uploadReadFailure(copyErr)
+	}
+	if budget.N == 0 {
+		var extra [1]byte
+		if _, err := io.ReadFull(part, extra[:]); err == nil {
+			if available < maxSize {
+				return &uploadFailure{http.StatusInsufficientStorage, "UPLOAD_STORAGE_INSUFFICIENT", "上传暂存目录空间不足，请释放空间或更改目录"}
+			}
+			return &uploadFailure{http.StatusRequestEntityTooLarge, "UPLOAD_TOO_LARGE", "上传文件超限"}
+		} else if err != io.EOF {
+			return uploadReadFailure(err)
+		}
 	}
 	upload.size = written
 	return nil

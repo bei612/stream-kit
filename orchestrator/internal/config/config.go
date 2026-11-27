@@ -99,8 +99,11 @@ type StorageConfig struct {
 	DBPath         string `json:"db_path" mapstructure:"db_path"`
 	MaxUploadSize  int64  `json:"max_upload_size_bytes" mapstructure:"max_upload_size_bytes"`
 	MaxExtractSize int64  `json:"max_extract_size_bytes" mapstructure:"max_extract_size_bytes"`
+	MinFreeSpace   int64  `json:"min_free_space_bytes" mapstructure:"min_free_space_bytes"`
 	MaxFileCount   int    `json:"max_file_count" mapstructure:"max_file_count"`
 }
+
+const defaultArchiveFreeSpace int64 = 1 << 30
 
 type ProcessConfig struct {
 	MonitorInterval         int `json:"monitor_interval_seconds" mapstructure:"monitor_interval_seconds"`
@@ -248,6 +251,7 @@ func validate(cfg *Config) []string {
 	check(cfg.Storage.DBPath == "", "storage.db_path 不能为空")
 	check(cfg.Storage.MaxUploadSize <= 0, "storage.max_upload_size_bytes 必须 > 0")
 	check(cfg.Storage.MaxExtractSize <= 0, "storage.max_extract_size_bytes 必须 > 0")
+	check(cfg.Storage.MinFreeSpace < 0, "storage.min_free_space_bytes 不能为负数")
 	check(cfg.Storage.MaxFileCount <= 0, "storage.max_file_count 必须 > 0")
 	check(cfg.Process.MonitorInterval <= 0, "process.monitor_interval_seconds 必须 > 0")
 	check(cfg.Process.GracefulShutdownTimeout < 0, "process.graceful_shutdown_timeout_seconds 不能为负数")
@@ -312,7 +316,7 @@ func generateDefaultConfig(path string) error {
 		cfg := Config{
 			Server:     ServerConfig{BindAddress: "127.0.0.1:9000", Username: "admin", Password: rand.Text(), JWTSecret: rand.Text() + rand.Text(), LANTLS: LANTLSConfig{AutoDetect: true}},
 			Components: initialComponents(),
-			Storage:    StorageConfig{AppsDir: "./apps", TempDir: "./temp", DBPath: "./data/orchestrator.db", MaxUploadSize: 50 << 30, MaxExtractSize: 50 << 30, MaxFileCount: 100000},
+			Storage:    StorageConfig{AppsDir: "./apps", TempDir: "./temp", DBPath: "./data/orchestrator.db", MaxUploadSize: 50 << 30, MaxExtractSize: 50 << 30, MinFreeSpace: defaultArchiveFreeSpace, MaxFileCount: 100000},
 			Process:    ProcessConfig{MonitorInterval: 5, GracefulShutdownTimeout: 5},
 			Log:        LogConfig{Level: "info", File: LogFileConfig{Enabled: true, Path: "./logs/orchestrator.log", MaxSizeMB: 100, MaxBackups: 5, MaxAgeDays: 30, Compress: true}, OperationLog: OpLogConfig{MaxAgeDays: 30, MaxCount: 100000}},
 			Templates:  map[string]string{"fullscreen_1080p": "-game -fullscreen -ResX=1920 -ResY=1080 -ForceRes"},

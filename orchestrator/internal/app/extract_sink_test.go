@@ -21,9 +21,13 @@ func TestExtractionStopsOverproducingEntryBeforeArchiveQuota(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer root.Close()
+	available, err := archiveFSAvailable(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, size := range []uint64{0, 1, 65536} {
 		input := &oversizedEntry{}
-		sink := &extractSink{root: root, destination: dir, cfg: ExtractConfig{MaxExtractSize: 1 << 30, MaxFileCount: 10}, names: map[string]string{}}
+		sink := &extractSink{root: root, destination: dir, cfg: ExtractConfig{MaxExtractSize: 1 << 30, MaxFileCount: 10}, available: available, names: map[string]string{}}
 		err := sink.entry("malformed.bin", 0644, size, func() (io.ReadCloser, error) { return input, nil })
 		if err == nil || !input.closed {
 			t.Fatalf("decoder accepted or leaked: %v", err)

@@ -19,6 +19,7 @@ type extractSink struct {
 	names        map[string]string
 	count, files int
 	bytes        int64
+	available    int64
 	entries      int
 	ctx          context.Context
 }
@@ -79,6 +80,9 @@ func (s *extractSink) entry(raw string, mode os.FileMode, size uint64, open func
 	}
 	if size > uint64(s.cfg.MaxExtractSize-s.bytes) {
 		return errors.New("解压后总大小超限")
+	}
+	if size > uint64(s.available-s.bytes) {
+		return fmt.Errorf("应用目录剩余空间无法容纳 %s: %w", name, ErrArchiveSpace)
 	}
 	if err := s.directory(path.Dir(name)); err != nil {
 		return err

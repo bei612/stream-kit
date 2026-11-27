@@ -8,10 +8,34 @@ import (
 	"errors"
 	"io"
 	"math"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
 )
+
+func TestArchiveExtractionRejectsEntryBeforeWritingWhenStorageIsReserved(t *testing.T) {
+	var raw bytes.Buffer
+	w := tar.NewWriter(&raw)
+	if err := w.WriteHeader(&tar.Header{Name: "payload.bin", Mode: 0644, Size: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Write([]byte{1}); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	destination, written, err := extractFixture(t, ".tar", raw.Bytes(), ExtractConfig{
+		MaxExtractSize: 1024, MaxFileCount: 10, minFreeSpace: math.MaxInt64,
+	})
+	if !errors.Is(err, ErrArchiveSpace) || written != 0 {
+		t.Fatalf("expected archive space rejection before writing, got %d bytes and %v", written, err)
+	}
+	if files, err := os.ReadDir(destination); err != nil || len(files) != 0 {
+		t.Fatalf("extraction left files in the destination: %v (%v)", files, err)
+	}
+}
 
 func TestArchiveCountsRepeatedDirectoryEntries(t *testing.T) {
 	for _, name := range []string{"./", "folder/"} {

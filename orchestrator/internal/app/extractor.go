@@ -24,6 +24,7 @@ type ExtractProgress struct {
 }
 
 type ExtractConfig struct {
+	minFreeSpace   int64
 	MaxExtractSize int64
 	MaxFileCount   int
 	ProgressFn     func(ExtractProgress)

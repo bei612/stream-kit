@@ -6,6 +6,7 @@ import type { ApplicationRecord, ApplicationView, ApplicationUpdate, ExecutableC
 import { decodeApiResponse, type ApiResponse } from './response'
 
 export class UploadTimeoutError extends Error {}
+export class UploadStorageError extends Error {}
 
 function expiredLoginError(): Error {
   clearToken()
@@ -169,7 +170,12 @@ export const api = {
   selectExe: (id: string, exePath: string) =>
     request<ApplicationRecord>(`/apps/${id}/exe`, { method: 'PUT', body: JSON.stringify({ exe_path: exePath }) }),
   retryRegister: (id: string) => request<{ message: string }>(`/apps/${id}/register`, { method: 'POST' }),
-  uploadStatus: () => request<{ uploading: boolean; max_upload_size_bytes?: number; max_extract_size_bytes?: number }>('/apps/upload-status'),
+  uploadStatus: () => request<{
+    uploading: boolean
+    max_upload_size_bytes?: number
+    max_extract_size_bytes?: number
+    storage?: { staging_available_bytes?: number; applications_available_bytes?: number; reserve_bytes: number }
+  }>('/apps/upload-status'),
   launchApp: (id: string) => request<{ stream_url: string }>(`/apps/${id}/launch`, { method: 'POST' }, 60000),
   stopApp: (id: string) => request<ApplicationRecord>(`/apps/${id}/stop`, { method: 'POST' }),
   getAppStatus: (id: string) => request<Pick<ApplicationRecord, 'status'>>(`/apps/${id}/status`),
@@ -212,7 +218,7 @@ export const api = {
         try {
           const json = decodeApiResponse<ArchiveUpload>(JSON.parse(xhr.responseText))
           if (xhr.status < 200 || xhr.status >= 300 || json.status === 'error') {
-            reject(new Error(json.message || '上传失败'))
+            reject(json.code === 'UPLOAD_STORAGE_INSUFFICIENT' ? new UploadStorageError() : new Error(json.message || '上传失败'))
           } else {
             resolve(json)
           }

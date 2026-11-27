@@ -101,7 +101,8 @@ export function ConfigurationEditor() {
     const hidden=view?.redacted_paths.includes(path), id='setting'+path
     const sensitive=hidden||['password','jwt_secret','media_ticket_secret','control_secret','webhook_url','args','preflight_args'].includes(key)||path.includes('/env/')||path.startsWith('/templates/')
     const text=drafts[path]??(hidden?'':Array.isArray(value)?value.join('\n'):value===null?'':String(value))
-    const title=key==='watch_hostname'?t('configuration.watchHostname'):labels[key]||key
+    const title=key==='watch_hostname'?t('configuration.watchHostname'):
+      path==='/storage/min_free_space_bytes'?t('configuration.archiveFreeSpace'):labels[key]||key
     return <div key={path} className={Array.isArray(value)?'field-span min-w-0 space-y-1':'min-w-0 space-y-1'}>
       <Label htmlFor={id}>{title}</Label>
       {path==='/server/lan_tls/watch_hostname'&&<p className="text-xs text-muted-foreground">{t('configuration.watchHostnameHelp')}</p>}

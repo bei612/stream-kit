@@ -65,6 +65,10 @@ func (a *UploadArchive) Cleanup() error {
 	return a.manager.removeUploadArchive(a.record)
 }
 
+func (a *UploadArchive) WriteBudget() (int64, error) {
+	return archiveWriteBudget(a.record.Directory, a.manager.config.Storage.MinFreeSpace)
+}
+
 func (m *Manager) removeUploadArchive(record model.UploadArchive) error {
 	id, err := uuid.Parse(record.ID)
 	if err != nil || id.String() != record.ID || ArchiveExtension("archive"+record.Extension) != record.Extension || record.Extension == "" {
