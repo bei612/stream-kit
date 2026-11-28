@@ -6,10 +6,13 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const http = require('node:http');
 const https = require('node:https');
+const {isIPv4} = require('node:net');
 const path = require('node:path');
-const {execFileSync, spawn} = require('node:child_process');
+const {execFile, spawn} = require('node:child_process');
 const {createInterface} = require('node:readline');
 const {setTimeout: delay} = require('node:timers/promises');
+const {promisify} = require('node:util');
+const run = promisify(execFile);
 
 assert.equal(process.env.GITHUB_ACTIONS, 'true');
 assert.equal(process.env.RUNNER_ENVIRONMENT, 'github-hosted');
@@ -65,25 +68,38 @@ async function ask(message) {
 }
 
 let hostname, state = 'before';
+async function resolveMdns() {
+  const {stdout} = await run('avahi-resolve-host-name', ['-4',hostname], {encoding:'utf8',timeout:4000,maxBuffer:4096});
+  const fields = stdout.trim().split('\t');
+  assert.equal(fields.length, 2, 'Unexpected mDNS response format');
+  const [name, address] = fields;
+  // DNS names are case-insensitive. Avahi prints the name from the responder.
+  assert.match(name, /^[a-z0-9.-]+$/i, 'Invalid name in mDNS response');
+  assert.ok(isIPv4(address), 'mDNS response did not contain an IPv4 address');
+  return {name, address};
+}
+
 async function observe(address, obsolete) {
-  let lastFailure = 'no probe response';
   const start = Date.now();
   while (Date.now()-start < 80000) {
-    try {
-      const resolved = execFileSync('avahi-resolve-host-name', ['-4',hostname], {encoding:'utf8',timeout:4000,stdio:['ignore','pipe','pipe']}).trim();
-      assert.equal(resolved, hostname+'\t'+address, 'mDNS did not return the current guest address');
-      const listeners = await Promise.all([
-        tls(address, 19000, '/api/v1/health', obsolete),
-        tls(address, 18080, '/config.js', obsolete),
-      ]);
-      assert.equal(listeners[0].leaf_fingerprint, listeners[1].leaf_fingerprint);
-      return {resolved, listeners, observed_after_ms:Date.now()-start};
-    } catch (error) {
-      lastFailure = error.message.split('\n', 1)[0];
-      await delay(400);
+    const [dns, ...httpsChecks] = await Promise.allSettled([
+      resolveMdns(),
+      tls(address, 19000, '/api/v1/health', obsolete),
+      tls(address, 18080, '/config.js', obsolete),
+    ]);
+    const mdns = dns.status === 'fulfilled' ? dns.value : null;
+    const listeners = httpsChecks.map(result => result.status === 'fulfilled' ? result.value : null);
+    const addressMatches = mdns !== null && mdns.name.replace(/\.$/, '').toLowerCase() === hostname && mdns.address === address;
+    const sharedLeaf = listeners[0] !== null && listeners[1] !== null && listeners[0].leaf_fingerprint === listeners[1].leaf_fingerprint;
+    report.last_readiness_observation = {expected_hostname:hostname, expected_address:address, mdns, listeners,
+      errors:[dns,...httpsChecks].map(result => result.status === 'rejected' ? result.reason.message.split('\n',1)[0] : null),
+      address_matches:addressMatches, shared_leaf:sharedLeaf};
+    if (addressMatches && sharedLeaf) {
+      return {resolved:mdns.name+'\t'+mdns.address, listeners, observed_after_ms:Date.now()-start};
     }
+    await delay(400);
   }
-  throw Error('Guest mDNS or HTTPS not ready: '+lastFailure);
+  throw Error('Independent client readiness did not verify both the expected mDNS address and shared HTTPS identity');
 }
 function verifyMedia(media, ipv4) {
   assert.equal(media.remote_address, ipv4);
