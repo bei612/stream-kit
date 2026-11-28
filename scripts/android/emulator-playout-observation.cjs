@@ -41,8 +41,8 @@ function createToneMetrics(frequency = 997) {
   };
 }
 
-function observeEmulatorPlayout(client, metadata) {
-  const metrics = createToneMetrics();
+function observeEmulatorPlayout(client, metadata, frequency = 997) {
+  const metrics = createToneMetrics(frequency);
   const started = Date.now();
   let ended = false, canceled = false, rpcError = null, failure = null, resolveEnded;
   const finished = new Promise(resolve => { resolveEnded = resolve; });
@@ -68,7 +68,7 @@ function observeEmulatorPlayout(client, metadata) {
     return { diagnostic_only: true, source: 'Official emulator streamAudio; not application pre-write PCM',
       started_at_ms: started, stopped_at_ms: stopped, sample_rate: RATE, channels: 1, format: 'S16LE',
       rpc_error_code: rpcError, failure, stream_ended: ended, pcm_saved: false, ...result,
-      program_997_median: result.median_amplitude };
+      ...(frequency === 997 ? { program_997_median: result.median_amplitude } : {}) };
   };
 }
 

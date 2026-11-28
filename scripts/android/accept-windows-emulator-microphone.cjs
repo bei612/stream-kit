@@ -12,6 +12,7 @@ const path = require('node:path');
 const {promisify, parseArgs} = require('node:util');
 const {setTimeout: delay} = require('node:timers/promises');
 const {startAudioProbe} = require('../lib/audio-probe.cjs');
+const {observeEmulatorPlayout} = require('./emulator-playout-observation.cjs');
 
 const exec = promisify(execFile);
 const {values: args} = parseArgs({options: {
@@ -246,6 +247,32 @@ async function calibrateGuestPlayout() {
   throw Error('Android media volume did not reach the calibrated level');
 }
 
+async function observeIndependentGuestPlayout(configFile) {
+  const grpc = require('./emulator-audio/node_modules/@grpc/grpc-js');
+  const loader = require('./emulator-audio/node_modules/@grpc/proto-loader');
+  const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+  assert.equal(config.address, '127.0.0.1:8556');
+  const api = grpc.loadPackageDefinition(loader.loadSync(path.join(emulatorDir, 'lib/emulator_controller.proto'), {longs:String, defaults:true}));
+  const client = new api.android.emulation.control.EmulatorController(config.address, grpc.credentials.createInsecure());
+  const metadata = new grpc.Metadata();
+  metadata.add('authorization', 'Bearer ' + config.token);
+  const result = summary.independent_playout = {diagnostic_only:true, source:'Android ToneGenerator system media', passed:false};
+  try {
+    const stop = observeEmulatorPlayout(client, metadata, 697);
+    const [control, observation] = await Promise.allSettled([
+      run(adb, ['-s', serial, 'shell', 'am', 'instrument', '-w', '-r', '-e', 'action', 'playout-control', `${observer}/.Observer`], 15000),
+      delay(5500).then(stop),
+    ]);
+    result.tone_released = control.status === 'fulfilled' && ['tone_result=complete','tone_released=true','tone_stopped=true']
+      .every(field => control.value.split(/\r?\n/).some(line=>line === 'INSTRUMENTATION_RESULT: '+field));
+    if (observation.status === 'fulfilled') {
+      const {frames, median_amplitude, rpc_error_code, failure} = observation.value;
+      Object.assign(result,{frames, median_amplitude, rpc_error_code, failure});
+      result.passed = result.tone_released && !failure && rpc_error_code === null && frames >= 192000 && median_amplitude > 0.01;
+    }
+  } finally { client.close(); }
+}
+
 async function qualifyStream(configFile, tlsDirectory, config) {
   assert.equal(summary.private_guest_ca_verified, true);
   const platform = fs.realpathSync(config.platform_directory);
@@ -297,6 +324,7 @@ async function qualifyStream(configFile, tlsDirectory, config) {
   await guest('shell','input','keyevent','KEYCODE_WAKEUP');
   await guest('shell','wm','dismiss-keyguard');
   await calibrateGuestPlayout();
+  await observeIndependentGuestPlayout(configFile);
   const reportDirectory = path.join(output,'stream');
   const control = diagnostic || component('orchestrator/orchestrator.exe');
   const argv = [path.resolve(__dirname,'../accept-source-stream.cjs'),

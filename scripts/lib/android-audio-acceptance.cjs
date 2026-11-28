@@ -309,9 +309,11 @@ async function verifyAndroidAudio({ android, adb, serial, page, api, sessionId, 
       failure: measurement.failure,
       pcm_saved: measurement.pcm_saved,
     };
-    save();
-    return !measurement.failure && measurement.rpc_error_code === null
+    const passed = !measurement.failure && measurement.rpc_error_code === null
       && measurement.frames >= 192000 && measurement.median_amplitude > 0.01;
+    if (!passed) state.android_playout.native_client = await android.diagnostics();
+    save();
+    return passed;
   }
   let injection, native, input, monitor;
   try {
