@@ -15,9 +15,13 @@ on:
         type: string
         required: false
       maintenance_candidate_run_id:
-        description: 'Optional second product run whose runtime is used to verify rollback from a failed service start'
+        description: 'Optional second product run providing the candidate for Windows runtime maintenance'
         type: string
         required: false
+      verify_maintenance_apply:
+        description: 'After rollback, verify the same candidate installs successfully with the conflict removed'
+        type: boolean
+        default: false
 permissions:
   contents: read
   actions: read
@@ -33,6 +37,8 @@ jobs:
       RELEASE_TAG: ${{ inputs.release_tag }}
       PRODUCT_RUN_ID: ${{ github.event.workflow_run.id || inputs.product_run_id }}
       PRODUCT_COMMIT: ${{ github.event.workflow_run.head_sha }}
+      VERIFY_MAINTENANCE_APPLY: ${{ inputs.verify_maintenance_apply }}
+      MAINTENANCE_CANDIDATE_RUN_ID: ${{ inputs.maintenance_candidate_run_id }}
     steps:
       - name: Select an installer build, excluding publication-only runs
         id: select
@@ -44,6 +50,9 @@ jobs:
           fi
           if [[ -n "$PRODUCT_RUN_ID" && ! "$PRODUCT_RUN_ID" =~ ^[1-9][0-9]*$ ]]; then
             echo 'Invalid product run ID' >&2; exit 1
+          fi
+          if [[ "$VERIFY_MAINTENANCE_APPLY" == true && -z "$MAINTENANCE_CANDIDATE_RUN_ID" ]]; then
+            echo 'A successful maintenance check requires a distinct candidate run' >&2; exit 1
           fi
           if [[ "$GITHUB_EVENT_NAME" == workflow_run ]]; then
             gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/actions/runs/$PRODUCT_RUN_ID/artifacts" > source-artifacts.json
@@ -64,6 +73,7 @@ jobs:
       RELEASE_TAG: ${{ inputs.release_tag }}
       PRODUCT_RUN_ID: ${{ github.event.workflow_run.id || inputs.product_run_id }}
       MAINTENANCE_CANDIDATE_RUN_ID: ${{ inputs.maintenance_candidate_run_id }}
+      VERIFY_MAINTENANCE_APPLY: ${{ inputs.verify_maintenance_apply }}
     defaults:
       run:
         shell: pwsh

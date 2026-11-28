@@ -340,7 +340,8 @@ async function endpoints(){
    const {verifyWindowsMaintenance}=require('./lib/windows-maintenance-acceptance.cjs');
    result.maintenance_rollback=await verifyWindowsMaintenance({program,data,output,control,request,baselineCommit:manifest.commit,
     candidate:path.resolve('artifacts/maintenance-platform'),candidateCommit:process.env.STREAM_KIT_ROLLBACK_CANDIDATE,
-    openssl:process.env.STREAM_KIT_ROLLBACK_OPENSSL,example:path.resolve('artifacts/maintenance-example/checkerboard.exe')});
+    openssl:process.env.STREAM_KIT_ROLLBACK_OPENSSL,example:path.resolve('artifacts/maintenance-example/checkerboard.exe'),
+    verifyApply:process.env.VERIFY_MAINTENANCE_APPLY==='true'});
   }
   if(resume&&fs.existsSync(path.resolve('lan-fixture/network.json'))){
    const {verifyWindowsLAN}=require('./lan-guest.cjs');

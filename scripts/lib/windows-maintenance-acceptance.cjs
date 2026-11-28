@@ -61,7 +61,7 @@ class PortConflictMaintenance extends RuntimeMaintenance {
   }
 }
 
-async function verifyWindowsMaintenance({program, data, output, candidate, candidateCommit, openssl, example, control, request, baselineCommit}) {
+async function verifyWindowsMaintenance({program, data, output, candidate, candidateCommit, openssl, example, control, request, baselineCommit, verifyApply}) {
   assert.equal(process.platform, 'win32');
   assert.equal(process.env.GITHUB_ACTIONS, 'true');
   assert.equal(process.env.RUNNER_ENVIRONMENT, 'github-hosted');
@@ -83,10 +83,11 @@ async function verifyWindowsMaintenance({program, data, output, candidate, candi
   const digest = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
   const trustBefore = trustFiles.map(digest);
   const result = path.join(output, 'maintenance-result.json');
-  const maintenance = new PortConflictMaintenance({
+  const options = {
     '--platform': candidate, '--program-dir': program, '--data-dir': data, '--origin': origin.href,
     '--expected-commit': candidateCommit, '--result': result, '--apply': true,
-  });
+  };
+  const maintenance = new PortConflictMaintenance(options);
   await assert.rejects(maintenance.run(), /Runtime maintenance failed/);
   const record = read(result);
   assert.equal(maintenance.portReserved, true, 'Candidate control socket was not reserved by the fixture');
@@ -109,10 +110,39 @@ async function verifyWindowsMaintenance({program, data, output, candidate, candi
   const after = await maintenance.api(watchPath);
   assert.ok(after.enabled && after.path === before.path, 'The original viewing link did not survive rollback');
   assert.deepEqual(trustFiles.map(digest), trustBefore, 'Deployment trust changed during rollback');
-  return {passed: true, baseline_commit: baselineCommit, candidate_commit: candidateCommit,
+  const evidence = {passed: true, baseline_commit: baselineCommit, candidate_commit: candidateCommit,
     real_listener_conflict: true, original_runtime_ready: true, original_watch_link_preserved: true,
     ca_and_private_keys_preserved: true, machine_trust_changed: false,
     endpoint_policy_migrated_and_restored: endpointPolicyChanged};
+  if (verifyApply) {
+    const protectedFiles = [...trustFiles, path.join(data, 'orchestrator.json'), path.join(program, 'unins000.exe')];
+    const previous = protectedFiles.map(digest);
+    const applyResult = path.join(output, 'maintenance-apply-result.json');
+    const upgrade = new RuntimeMaintenance({...options, '--result': applyResult});
+    await upgrade.run();
+    const applied = read(applyResult);
+    assert.equal(applied.success, true);
+    assert.equal(applied.step, 'complete');
+    assert.equal(applied.previous_source, baselineCommit);
+    assert.equal(applied.source, candidateCommit);
+    const nextHealth = await upgrade.api('/health');
+    assert.equal(nextHealth.commit, candidateCommit);
+    assert.ok(['sunshine', 'web_server'].every(name => nextHealth.components[name]?.status === 'running'));
+    assert.equal(read(path.join(program, 'platform-manifest.json')).commit, candidateCommit);
+    const nextWatch = await upgrade.api(watchPath);
+    assert.ok(nextWatch.enabled && nextWatch.path === before.path, 'Original viewing link changed during successful maintenance');
+    assert.deepEqual(protectedFiles.map(digest), previous, 'Successful maintenance changed the deployment state or installed uninstaller');
+    assert.equal(endpointPolicyVersion(program), endpointPolicyVersion(candidate));
+    evidence.successful_apply = {
+      passed: true,
+      source_commit: candidateCommit,
+      original_watch_link_preserved: true,
+      original_config_and_trust_preserved: true,
+      original_uninstaller_preserved: true,
+      audio_endpoint_policy_verified: true,
+    };
+  }
+  return evidence;
 }
 
 module.exports = {verifyWindowsMaintenance};
