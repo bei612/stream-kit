@@ -17,5 +17,17 @@
   "resume_result_bytes": 2978,
   "original_resume_failure_available": false,
   "independent_lan_result_available": false,
+  "follow_up": {
+    "run_id": 46152433138,
+    "acceptance_commit": "4a6ef678565cfb6fa5e2db1511ccb9f421cc76d5",
+    "artifact_id": 15267525622,
+    "artifact_sha256": "43a87d7f8baa8b270acbd80cd2cafafa11614dcfd4f8e7cdf208cac68f39fc6f",
+    "first_install_exit": 0,
+    "guest_screen_shows_resume_failed_parsing_checkpoint": true,
+    "resumed_checkpoint_bytes": 2978,
+    "resumed_checkpoint_sha256": "6ed76f2d62b15b082b07899ea027f6815b02ef86051e3c24efea3e96fc513892",
+    "sha256_matches_zero_filled_file_of_same_length": true,
+    "change": "Flush the checkpoint content before publishing its name and verify the exact checkpoint bytes used after reboot."
+  },
   "scope": "The clean guest installed the exact RC5 package and reached its reboot checkpoint. The resumed acceptance process returned a failure and the PowerShell reporter could not read the result. The terminal reboot, LAN and uninstall conditions were not established by this run."
 }

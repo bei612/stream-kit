@@ -2,6 +2,7 @@
 import base64
 import json
 import os
+import re
 import socket
 import sys
 import time
@@ -94,6 +95,8 @@ def main():
                             waiting_for = 'product installation'
                             deadline = time.monotonic() + 12 * 60
                         if phase == 'awaiting_reboot':
+                            if not re.fullmatch(r'[0-9a-f]{64}', result.get('reboot_checkpoint_sha256', '')):
+                                raise RuntimeError('Missing digest for the Windows reboot checkpoint')
                             checkpoint = result
                             (output / 'checkpoint.json').write_text(json.dumps(result, indent=2) + '\n')
                             waiting_for = 'reboot and product readiness'
@@ -114,6 +117,8 @@ def main():
                                 raise RuntimeError('Windows guest reported an acceptance failure')
                             if not checkpoint or checkpoint['pre_reboot'] != result['pre_reboot']:
                                 raise RuntimeError('The resumed result does not match the observed pre-reboot checkpoint')
+                            if result.get('reboot_checkpoint_sha256') != checkpoint['reboot_checkpoint_sha256']:
+                                raise RuntimeError('Windows resumed from different checkpoint bytes')
                             return
                 time.sleep(1)
             raise TimeoutError(f'Windows guest timed out during {waiting_for}')

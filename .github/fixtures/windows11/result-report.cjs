@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const { createHash } = require('node:crypto');
 const fs = require('node:fs');
 
 const [manifestFile, resultFile, rawExit, mode] = process.argv.slice(2);
@@ -6,7 +7,8 @@ assert.ok(manifestFile && resultFile && /^\d+$/.test(rawExit) &&
   ['stage', 'resume', 'diagnostics'].includes(mode), 'Invalid guest report arguments');
 const read = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 const manifest = read(manifestFile);
-const result = read(resultFile);
+const resultBytes = fs.readFileSync(resultFile);
+const result = JSON.parse(resultBytes.toString('utf8'));
 const exitCode = Number(rawExit);
 assert.equal(result.commit, manifest.commit, 'Guest result source mismatch');
 assert.equal(result.installer_sha256, manifest.file.sha256, 'Guest result installer mismatch');
@@ -37,6 +39,9 @@ const report = {
   uninstall_exit: result.uninstall_exit,
   service_removed: result.service_removed,
   data_preserved: result.data_preserved,
+  reboot_checkpoint_sha256: result.phase === 'awaiting_reboot'
+    ? createHash('sha256').update(resultBytes).digest('hex')
+    : result.checkpoint_sha256,
   cleanup_stage: result.cleanup_stage,
   cleanup_error: result.cleanup_error,
   lan_address_change: result.lan_address_change,

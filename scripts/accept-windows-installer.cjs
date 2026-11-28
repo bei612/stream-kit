@@ -49,7 +49,8 @@ const defaults=()=>JSON.parse(ps(`$ErrorActionPreference='Stop';$m=[Windows.Medi
 // Keep the array through -InputObject on Windows PowerShell 5.1.
 const controllerInventory=()=>JSON.parse(ps(String.raw`ConvertTo-Json -InputObject @(Get-CimInstance Win32_PnPEntity | Where-Object {$_.HardwareID -contains 'ROOT\USBIP_WIN2\UDE'} | Select-Object PNPDeviceID,ConfigManagerErrorCode) -Compress`));
 const resultFile=path.join(output,'result.json');
-const checkpoint=resume?JSON.parse(fs.readFileSync(ordinary(resultFile),'utf8')):null;
+const checkpointBytes=resume?fs.readFileSync(ordinary(resultFile)):null;
+const checkpoint=checkpointBytes?JSON.parse(checkpointBytes.toString('utf8')):null;
 const prefix='StreamKit-Audio-Acceptance-'+manifest.commit.slice(0,8)+'-';
 const name=resume?path.basename(checkpoint.program):prefix+crypto.randomBytes(3).toString('hex');
 const program=path.join(process.env.ProgramFiles,name),data=path.join(process.env.ProgramData,name);
@@ -115,9 +116,12 @@ if(resume){
  fs.mkdirSync(output,{recursive:true});
 }
 const result=checkpoint||{passed:false,scope:'One private unified installer with its configured virtual audio device; native PCM, service lifecycle and reuse checks. No browser, human speech or public release claim.',commit:manifest.commit,installer_source_commit:manifest.installer_source_commit,installer_sha256:manifest.file.sha256,identity:manifest.audio_driver.identity,program,data,started_at:new Date().toISOString()};
+if(checkpointBytes)result.checkpoint_sha256=crypto.createHash('sha256').update(checkpointBytes).digest('hex');
 function save(){
  const next=resultFile+'.next';
- fs.writeFileSync(next,JSON.stringify(result,null,2)+'\n');
+ // The guest can reboot as soon as staging is reported. Persist the bytes
+ // before publishing the checkpoint name to the next acceptance process.
+ fs.writeFileSync(next,JSON.stringify(result,null,2)+'\n',{flush:true});
  fs.renameSync(next,resultFile);
 }
 const execute=(file,args)=>cp.spawnSync(file,args,{windowsHide:true,encoding:'utf8',timeout:240000});
