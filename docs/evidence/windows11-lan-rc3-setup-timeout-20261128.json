@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source_commit": "8f5a078e39c070c8b358b456df7fee3c2e437203",
+  "acceptance_commit": "ee54f1b8ee9309ed444a4d4ee79e8ff6a63aeeba",
+  "run_id": 46130473761,
+  "artifact_id": 15258024045,
+  "artifact_sha256": "3c4fe4968544d9130ceb3005789054bb44ff8bf4e31ee372c33803e8a43214c1",
+  "passed": false,
+  "timeout_minutes": 38,
+  "last_visible_stage": "Installing Windows 11",
+  "visible_setup_progress_percent": 77,
+  "guest_ready_reported": false,
+  "product_installation_reached": false,
+  "lan_phase_reached": false,
+  "guest_screen_ppm_sha256": "28965a844ea21f19f564d098b70fb7df775b7ba01a570f754a57c092fa1082c5",
+  "scope": "The isolated guest timed out during operating system setup, before the original product installer was executed. No Windows product reboot or LAN migration result was obtained."
+}

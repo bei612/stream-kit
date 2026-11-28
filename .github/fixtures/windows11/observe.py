@@ -14,7 +14,8 @@ def main():
         raise ValueError('Expected at most one owned LAN adapter MAC address')
     serial = Path(serial_path)
     output = Path(output_path)
-    deadline = time.monotonic() + (38 if lan else 32) * 60
+    waiting_for = 'initial Windows setup'
+    deadline = time.monotonic() + 60 * 60
     control = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     control.settimeout(5)
     for attempt in range(40):
@@ -79,14 +80,20 @@ def main():
                         print(f'Windows guest phase: {phase}', flush=True)
                         if phase == 'guest_ready':
                             (output / 'guest.json').write_text(json.dumps(result, indent=2) + '\n')
+                            waiting_for = 'product installation'
+                            deadline = time.monotonic() + 12 * 60
                         if phase == 'awaiting_reboot':
                             checkpoint = result
                             (output / 'checkpoint.json').write_text(json.dumps(result, indent=2) + '\n')
+                            waiting_for = 'reboot and product readiness'
+                            deadline = time.monotonic() + 12 * 60
                         if phase == 'lan_ready':
                             if not lan or not checkpoint:
                                 raise RuntimeError('Guest requested a NIC outside the post-reboot LAN stage')
                             command('device_add', {'driver': 'e1000e', 'id': 'streamkitlan',
                                                    'bus': 'sklanport', 'netdev': 'fixture', 'mac': lan[0]})
+                            waiting_for = 'independent LAN acceptance'
+                            deadline = time.monotonic() + 10 * 60
                         if phase in {'completed', 'diagnostic_completed', 'failed', 'fixture_failed'}:
                             (output / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
                             if phase == 'diagnostic_completed':
@@ -97,7 +104,7 @@ def main():
                                 raise RuntimeError('The resumed result does not match the observed pre-reboot checkpoint')
                             return
                 time.sleep(1)
-            raise TimeoutError('Windows guest did not report a final acceptance result')
+            raise TimeoutError(f'Windows guest timed out during {waiting_for}')
         except Exception:
             try:
                 command('screendump', {'filename': str(output / 'guest-screen.ppm')})

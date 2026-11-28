@@ -28,7 +28,7 @@ permissions:
 jobs:
   reboot:
     runs-on: ubuntu-24.04
-    timeout-minutes: 55
+    timeout-minutes: 115
     env:
       RELEASE_TAG: ${{ inputs.release_tag }}
       PRODUCT_RUN_ID: ${{ inputs.product_run_id }}
