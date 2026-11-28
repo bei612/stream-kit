@@ -12,6 +12,13 @@
     "android_frequency_mhz": 5805,
     "windows_unspecified_source_route_to_tablet_used_tun": true,
     "windows_route_bound_to_wlan_source_used_wlan": true,
+    "windows_native_dns_sd_probe": {
+      "all_interfaces_registration_status": 0,
+      "physical_wlan_registration_status": 0,
+      "tablet_received_all_interfaces_probe_response": false,
+      "tablet_received_physical_wlan_probe_response": false,
+      "diagnostic_names_and_executables_removed": true
+    },
     "cause_of_missing_mdns_response_isolated": false
   },
   "field_ready": false,
