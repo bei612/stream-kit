@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {productRelease,manifestRelease,promotionProfile,verifyInstallerAcceptance,verifyWindows11RebootAcceptance,verifyWindows11LanAcceptance} from './lib/product-release.mjs'
+import {productRelease,manifestRelease,promotionProfile,verifyInstallerAcceptance,verifyWindows11RebootAcceptance,verifyWindows11LanAcceptance,verifyWindows11LanForPublication} from './lib/product-release.mjs'
 import {verifyCombinedEvidence,verifyLinuxInstaller,verifyLinuxRun} from './verify-windows-android-promotion.mjs'
 const commit='a'.repeat(40)
 
@@ -73,6 +73,23 @@ test('stable Windows LAN evidence requires two trusted listeners and live media 
   const client = {passed: true, same_page_recovered: true, network,
     before: phase(oldAddress, 'AA'), after: phase(newAddress, 'BB')}
   verifyWindows11LanAcceptance({commit, lan_address_change: guest}, client)
+  const manifest = {commit, file: {sha256: 'b'.repeat(64)}}
+  const cleanupError = 'spawnSync powershell.exe ETIMEDOUT'
+  const independent = {
+    phase: 'failed', passed: false, exit_code: 1, error: cleanupError,
+    cleanup_stage: 'verify_uninstaller_ownership', cleanup_error: cleanupError,
+    commit, installer_source_commit: commit, installer_sha256: manifest.file.sha256, lan_address_change: guest,
+  }
+  verifyWindows11LanForPublication(manifest, independent, client)
+  verifyWindows11LanForPublication(manifest, {...independent, phase: 'completed', passed: true, exit_code: 0, error: null}, client)
+  for (const patch of [
+    {installer_sha256: 'c'.repeat(64)}, {installer_source_commit: 'c'.repeat(40)},
+    {uninstall_exit: 1}, {cleanup_stage: 'run_uninstaller'}, {cleanup_error: 'wrong service ownership'},
+    {error: 'target failed to start'}, {lan_address_change: {...guest, target_stopped: false}},
+  ]) {
+    assert.throws(() => verifyWindows11LanForPublication(manifest, {...independent, ...patch}, client))
+  }
+  assert.throws(() => verifyWindows11RebootAcceptance(manifest, {phase: 'guest_ready', secure_boot: true, tpm_present: true}, independent))
   assert.throws(() => verifyWindows11LanAcceptance({commit}, client), /viewing link/)
   for (const patch of [{runtime_commit: 'c'.repeat(40)}, {addresses_after: [oldAddress]},
     {component_pids_after: {...pids, gateway: 104}}, {config_trust_and_watch_preserved: false}]) {

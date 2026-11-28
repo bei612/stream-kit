@@ -37,7 +37,7 @@ RC3 签名 APK 在实体平板使用当前 IPv4 观看链接启动 Example，实
 
 现场平板已更新至 RC5。与现场 Windows 连接同一 Wi-Fi，经原 CA 验证后可用当前数字 IP 启动 Example，实际解码 211 帧并收到 328 个音频包。固定主机名当前仍无法进入应用，平板没有收到 Windows 的 mDNS 回应。Sunshine 在空闲时重启并重新登记 mDNS 后，现象不变。已恢复平板原固定主机名书签，Example 停止。现场换址自动恢复待验收。[现场实测](evidence/windows11-tablet-field-lan-8bb57538-20261128.json) · [平板直连画面](evidence/windows11-tablet-field-direct-8bb57538-20261128.png)
 
-独立 Win11 后续复验已确认报告故障的根因。安装完成后要求重启，重启进程读到的 2,978 字节检查点与全零文件的 SHA-256 完全一致，因而无法进入后续验收。验收工具现在先将检查点刷入磁盘再原子发布，跨重启核对原始字节哈希。该改动只涉及验收工具，继续复验同一 RC5 原始安装包。[故障与证据](evidence/windows11-rc5-reporter-20261128.json)
+最新独立 Win11 已跨重启读取同一检查点，整机重启、三组件自动启动和原生录音均达到验收条件。实际换 IPv4 后，原观看页恢复直连并解码 48 帧、接收 97 个音频包，双端 HTTPS 在 12.591 秒内更新。Example 已停止。卸载前的 PowerShell 所有权查询超时，该次卸载未执行。独立首装、重启及卸载验收专门核对剩余生命周期，换址沿用本次完整证据。[Windows 换址验收](evidence/windows11-lan-scope-8bb57538-20261128.json) · [检查点故障及修复](evidence/windows11-rc5-reporter-20261128.json)
 
 RC3 和 RC4 的历史结果分别保留首装与重启、结果采集、测试时钟和评估镜像下载的边界。[RC3 重启](evidence/windows11-lan-rc3-first-run-20261128.json) · [RC3 镜像安装](evidence/windows11-lan-rc3-setup-timeout-20261128.json) · [RC4 重启](evidence/windows11-lan-rc4-first-run-20261128.json) · [结果采集](evidence/windows11-lan-rc4-reporter-failure-20261128.json) · [虚拟机时钟](evidence/windows11-lan-rc4-clock-skew-20261128.json) · [镜像续传](evidence/windows11-lan-rc4-iso-interrupted-20261128.json)
 

@@ -24,7 +24,11 @@ on:
         type: string
         required: false
       windows11_reboot_run_id:
-        description: 'Successful Windows 11 clean install, reboot and independent LAN migration run for stable Windows + Android promotion'
+        description: 'Successful Windows 11 clean install, reboot and uninstall run for stable Windows + Android promotion'
+        type: string
+        required: false
+      windows11_lan_run_id:
+        description: 'Exact-installer Windows 11 LAN run, if performed independently of the clean install lifecycle'
         type: string
         required: false
       android_run_id:
@@ -281,6 +285,7 @@ jobs:
           SOURCE_RUN_ID: ${{ inputs.promote_run_id }}
           INSTALLER_ACCEPTANCE_RUN_ID: ${{ inputs.installer_acceptance_run_id }}
           WINDOWS11_REBOOT_RUN_ID: ${{ inputs.windows11_reboot_run_id }}
+          WINDOWS11_LAN_RUN_ID: ${{ inputs.windows11_lan_run_id }}
           ANDROID_RUN_ID: ${{ inputs.android_run_id }}
           LINUX_RUN_ID: ${{ inputs.linux_run_id }}
           RELEASE_TAG: ${{ inputs.release_tag }}

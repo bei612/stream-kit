@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-28",
+  "passed": true,
+  "scope": "Independent on-link Windows 11 LAN migration with the exact RC5 installer. This result is scoped to LAN, HTTPS and media; the aggregate GitHub run failed later, before the uninstaller could execute.",
+  "source_commit": "8bb57538c064bdf763bb153439b2c973e69afd3b",
+  "acceptance_commit": "63aca5d9f67ce273ae44a3d78cfa40879c6bdc50",
+  "installer_sha256": "5bdba8eca1bd792a4f2ffc0d18f20076c464ca2626d0d8019da7d3b8287dffd8",
+  "run_id": 46155281215,
+  "run_conclusion": "failure",
+  "artifact_id": 15268212270,
+  "artifact_sha256": "a9fb56f6fc2a6a86bb93d9ae84a01d818fb45e617846ba90fd018b4703f6accf",
+  "guest_result_sha256": "72f9bdc9ba01fa4e31ef3fc740d7a0b40712d470d9322448f92a85b2b95488db",
+  "lan_client_result_sha256": "412ef7d2b0ef890baf889490a38a6588dc26f5146495055274d3a9da7063a354",
+  "verified_reboot_checkpoint_sha256": "03339bdd280a48529c773d9ebac452b3f844de63cdf3793093a7b42c9561c926",
+  "windows": {
+    "build": 26300,
+    "install_exit": 0,
+    "new_boot_utc": "2026-11-28T14:59:08.5000000Z",
+    "automatic_components_observed": 3,
+    "native_recording_frames": 144000,
+    "target_dropped_frames": 0
+  },
+  "independent_lan": {
+    "old_server_ipv4": "10.253.241.10",
+    "new_server_ipv4": "10.253.241.20",
+    "browser_ipv4": "10.253.241.100",
+    "both_https_listeners_updated_after_ms": 12591,
+    "same_page_and_original_watch_recovered": true,
+    "direct_media_ipv4_recovered": true,
+    "decoded_video_frames_after_change": 48,
+    "audio_packets_after_change": 97,
+    "ca_and_private_keys_preserved": true,
+    "configuration_and_component_pids_preserved": true,
+    "owned_example_stopped": true
+  },
+  "cleanup": {
+    "uninstaller_executed": false,
+    "failure_stage": "verify_uninstaller_ownership",
+    "observer_error": "spawnSync powershell.exe ETIMEDOUT"
+  }
+}

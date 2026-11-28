@@ -57,21 +57,37 @@ jq -e --arg commit "$source_commit" '
 jq -e '.spdxVersion | startswith("SPDX-")' "$sbom" > /dev/null
 acceptance=artifacts/promotion/acceptance/installer-acceptance/result.json
 
+download_windows11_evidence() {
+  local run="$1" output="$2" allow_cleanup_observer_failure="$3" acceptance_commit
+  acceptance_commit=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" |
+    jq -er --arg repo "$GITHUB_REPOSITORY" --argjson allow_failure "$allow_cleanup_observer_failure" '
+      select(.status == "completed" and (.conclusion == "success" or ($allow_failure and .conclusion == "failure")) and
+        .path == ".github/workflows/windows11-reboot-acceptance.yml" and
+        .head_repository.full_name == $repo and .head_branch == "main" and .event == "workflow_dispatch")
+      | .head_sha | select(test("^[a-f0-9]{40}$"))')
+  gh run download "$run" --repo "$GITHUB_REPOSITORY" --name windows11-reboot-evidence --dir "$output"
+  jq -e --arg commit "$acceptance_commit" --arg source "$source_commit" '
+    .acceptance_commit == $commit and .source_commit == $source' "$output/provenance.json" > /dev/null
+}
+
 if [[ -n ${ANDROID_RUN_ID:-} ]]; then
   [[ $ANDROID_RUN_ID =~ ^[0-9]+$ ]] || { echo 'Expected a signed Android run ID' >&2; exit 1; }
   if [[ $RELEASE_TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     [[ ${WINDOWS11_REBOOT_RUN_ID:-} =~ ^[1-9][0-9]*$ ]] ||
-      { echo 'Stable Windows + Android promotion requires a full Windows 11 reboot and LAN migration acceptance run ID' >&2; exit 1; }
+      { echo 'Stable Windows + Android promotion requires a complete Windows 11 installer lifecycle run ID' >&2; exit 1; }
     reboot=artifacts/promotion/windows11-reboot
-    reboot_commit=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$WINDOWS11_REBOOT_RUN_ID" | jq -er --arg repo "$GITHUB_REPOSITORY" '
-      select(.status == "completed" and .conclusion == "success" and
-        .path == ".github/workflows/windows11-reboot-acceptance.yml" and
-        .head_repository.full_name == $repo and .head_branch == "main" and .event == "workflow_dispatch")
-      | .head_sha | select(test("^[a-f0-9]{40}$"))')
-    gh run download "$WINDOWS11_REBOOT_RUN_ID" --repo "$GITHUB_REPOSITORY" --name windows11-reboot-evidence --dir "$reboot"
-    jq -e --arg commit "$reboot_commit" '.acceptance_commit == $commit' "$reboot/provenance.json" > /dev/null
+    download_windows11_evidence "$WINDOWS11_REBOOT_RUN_ID" "$reboot" false
     node scripts/verify-windows-android-promotion.mjs --windows11-reboot \
-      "$windows/installer-manifest.json" "$reboot/guest.json" "$reboot/result.json" "$reboot/windows-lan-client.json"
+      "$windows/installer-manifest.json" "$reboot/guest.json" "$reboot/result.json"
+    lan_run=${WINDOWS11_LAN_RUN_ID:-$WINDOWS11_REBOOT_RUN_ID}
+    [[ $lan_run =~ ^[1-9][0-9]*$ ]] || { echo 'Expected the exact-installer Windows 11 LAN run ID' >&2; exit 1; }
+    lan="$reboot"
+    if [[ $lan_run != "$WINDOWS11_REBOOT_RUN_ID" ]]; then
+      lan=artifacts/promotion/windows11-lan
+      download_windows11_evidence "$lan_run" "$lan" true
+    fi
+    node scripts/verify-windows-android-promotion.mjs --windows11-lan \
+      "$windows/installer-manifest.json" "$lan/result.json" "$lan/windows-lan-client.json"
   fi
   gh api "repos/$GITHUB_REPOSITORY/actions/runs/$ANDROID_RUN_ID" > artifacts/promotion/android-run.json
   jq -e --arg repo "$GITHUB_REPOSITORY" --arg commit "$source_commit" '

@@ -5,6 +5,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   manifestRelease, promotionProfile, publicationProfile, verifyInstallerAcceptance, verifyWindows11RebootAcceptance, verifyWindows11LanAcceptance,
+  verifyWindows11LanForPublication,
 } from './lib/product-release.mjs'
 import { linuxRuntimeSource } from './verify-input-acceptance-sources.mjs'
 
@@ -155,6 +156,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const result = read(args[3])
     verifyWindows11RebootAcceptance(read(args[1]), read(args[2]), result)
     if (args[4]) verifyWindows11LanAcceptance(result, read(args[4]))
+  } else if (args[0] === '--windows11-lan') {
+    assert.equal(args.length, 4, 'Expected --windows11-lan INSTALLER_MANIFEST RESULT_JSON LAN_CLIENT_JSON')
+    verifyWindows11LanForPublication(read(args[1]), read(args[2]), read(args[3]))
   } else {
     assert.equal(args.length, 7, 'Expected WINDOWS_DIR ANDROID_DIR SOURCE_SBOM INSTALLER_ACCEPTANCE TAG OUTPUT_DIR LINUX_DIR')
     prepareAssets(...args)

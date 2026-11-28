@@ -53,14 +53,18 @@ export function verifyInstallerAcceptance(manifest,result){
   }
 }
 
+function verifyWindows11InstallerIdentity(manifest, result) {
+  assert.ok(/^[a-f0-9]{64}$/.test(manifest.file?.sha256) && result?.commit === manifest.commit &&
+    result.installer_source_commit === manifest.commit && result.installer_sha256 === manifest.file.sha256,
+  'Windows 11 evidence does not match the installer source and bytes')
+}
+
 export function verifyWindows11RebootAcceptance(manifest, guest, result) {
   assert.ok(guest?.phase === 'guest_ready' && guest.secure_boot === true && guest.tpm_present === true,
     'Clean Windows 11 guest did not verify Secure Boot and TPM')
   assert.ok(result?.phase === 'completed' && result.passed === true && result.exit_code === 0 && !result.error,
     'Clean Windows 11 install and reboot acceptance did not pass')
-  assert.ok(/^[a-f0-9]{64}$/.test(manifest.file?.sha256) && result.commit === manifest.commit &&
-    result.installer_source_commit === manifest.commit && result.installer_sha256 === manifest.file.sha256,
-    'Windows 11 reboot evidence does not match the installer source and bytes')
+  verifyWindows11InstallerIdentity(manifest, result)
   assert.ok([0, 3010].includes(result.install_exit) && result.uninstall_exit === 0,
     'Windows 11 installer lifecycle did not finish successfully')
 
@@ -131,4 +135,14 @@ export function verifyWindows11LanAcceptance(result, client) {
     assert.deepEqual(phase.media.remote_host_addresses, [address], 'Media candidates do not match the current address')
   }
   assert.notEqual(leafFingerprints[0], leafFingerprints[1], 'The Windows LAN certificate did not rotate after changing addresses')
+}
+
+export function verifyWindows11LanForPublication(manifest, result, client) {
+  verifyWindows11InstallerIdentity(manifest, result)
+  const completed = result.phase === 'completed' && result.passed === true && result.exit_code === 0 && !result.error
+  const observerFailedBeforeUninstall = result.phase === 'failed' && result.passed === false && result.exit_code === 1 &&
+    result.cleanup_stage === 'verify_uninstaller_ownership' && result.uninstall_exit == null &&
+    result.cleanup_error === 'spawnSync powershell.exe ETIMEDOUT' && result.error === result.cleanup_error
+  assert.ok(completed || observerFailedBeforeUninstall, 'Windows 11 LAN run has an unrelated or unclassified failure')
+  verifyWindows11LanAcceptance(result, client)
 }
