@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-28",
+  "source_commit": "8bb57538c064bdf763bb153439b2c973e69afd3b",
+  "windows_source_commit": "53c7385ac58d39408a3aaffef33d6a95ea06a737",
+  "android_version_code": 1000034,
+  "device": "ERAZER M10 4G",
+  "same_wlan_ssid": true,
+  "field_ready": false,
+  "windows": {
+    "ipv4": "192.168.2.131",
+    "scm_status": "Running",
+    "scm_start_mode": "Auto",
+    "management_listener": "[::]:9000",
+    "media_listener": "0.0.0.0:8080",
+    "renderer_restarted_when_idle": true,
+    "renderer_reported_mdns_registered_after_restart": true,
+    "gateway_remained_running_with_same_pid": true
+  },
+  "fixed_host": {
+    "name": "volcengine.local",
+    "system_resolves_on_android": false,
+    "app_entered_session": false,
+    "mdns_a_response_from_host": false,
+    "mdns_service_ptr_response_from_host": false,
+    "mdns_response_observed_after_renderer_restarted": false,
+    "bookmark_restored_after_direct_playback": true
+  },
+  "direct_ipv4": {
+    "passed": true,
+    "tablet_ipv4": "192.168.2.28",
+    "management_http_status": 200,
+    "gateway_http_status": 200,
+    "tls_version": "1.3",
+    "existing_deployment_ca_verified": true,
+    "observed_at": "2026-11-28T14:04:20.285Z",
+    "decoded_video_frames": 211,
+    "audio_packets_received": 328,
+    "active_upstreams": 1,
+    "viewer_only": true,
+    "microphone_live": false,
+    "example_stopped_after_check": true
+  },
+  "screenshot": {
+    "file": "windows11-tablet-field-direct-8bb57538-20261128.png",
+    "sha256": "d24eef497f342cb5fa24208bc0950d3f0d4a587326a92468824c32f21ecad546"
+  },
+  "scope": "Physical tablet received the installed Example stream through the current Windows IPv4 address. The app reused the original watch key through its address editor. Program audio energy, live microphone input, fixed-name recovery and a host address transition were not established by this check. The Windows binaries, network profile, deployment CA and watch keys were retained."
+}
