@@ -145,7 +145,10 @@ try {
         if (-not (Confirm-SecureBootUEFI) -or -not (Get-Tpm).TpmPresent) {
             throw 'Windows did not report UEFI Secure Boot and a TPM'
         }
-        Write-GuestEvidence @{ phase = 'guest_ready'; build = [int]$windows.BuildNumber; secure_boot = $true; tpm_present = $true }
+        Write-GuestEvidence @{
+            phase = 'guest_ready'; build = [int]$windows.BuildNumber; secure_boot = $true; tpm_present = $true
+            guest_utc = [DateTime]::UtcNow.ToString('o'); guest_time_zone = (Get-TimeZone).Id
+        }
         New-Item -ItemType Directory -Path $work | Out-Null
         foreach ($name in 'node.exe','guest.ps1','scripts','installer') {
             Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $work -Recurse

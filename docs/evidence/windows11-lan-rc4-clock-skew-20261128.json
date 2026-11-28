@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-28",
+  "source_commit": "bb3c8d24a7a0a33c090ef9e60e555a7b081058b9",
+  "acceptance_commit": "02045fbdad9078a9a030896f2b91834e717ad676",
+  "run_id": 46138450945,
+  "artifact_id": 15260769621,
+  "artifact_sha256": "8fd4b25440f6eb56387b22f822f5e5a721ca5589117ab51489cf2a6d9f8f8df0",
+  "installer_sha256": "60a32e5043dd43d59a9b3248e21ebcc1ffe70628d02bb5a648100220931dfbea",
+  "result_sha256": "34d68fa5af7409f8181be48f65c7c8ab593f4f8a3af2dcfd2931d29c3cd6b4bd",
+  "lan_client_result_sha256": "342f468941ae90497db3c5646140e38935b0e91895e779fcf2b8d533c2884d11",
+  "passed": false,
+  "win11": {"build": 26300, "install_exit": 0, "components_started_after_full_reboot": true, "default_audio_roles_preserved": true},
+  "audio": {"captured_pcm_sample_frames": 144480, "target_dropped_20ms_packets": 2, "met_zero_drop_criterion": false},
+  "clock": {
+    "guest_post_reboot_observed_at": "2026-11-28T19:38:14.451Z",
+    "runner_lan_phase_received_at": "2026-11-28T11:40:09.0722246Z",
+    "guest_clock_ahead_by_approximately_hours": 8,
+    "inference": "The answer file selected en-US and omitted TimeZone. The default Pacific time-zone interpretation of the UTC virtual RTC accounts for the eight-hour lead. Both client TLS handshakes rejected the time-dependent leaf."
+  },
+  "independent_lan": {"stage": "before", "asked_name": "desktop-cp0r5vd.local", "answered_name": "DESKTOP-CP0R5VD.local", "resolved_current_address": "10.253.241.10", "listener_errors": ["certificate is not yet valid", "certificate is not yet valid"], "address_change_executed": false, "example_stopped": true}
+}

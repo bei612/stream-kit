@@ -171,7 +171,9 @@ swtpm socket --tpm2 --tpmstate "dir=$work/tpm" --ctrl "type=unixio,path=$control
 available_cpus=$(nproc)
 guest_cpus=$((available_cpus > 4 ? 4 : available_cpus))
 (( guest_cpus >= 2 )) || { echo 'The guest requires at least two available virtual CPUs' >&2; exit 1; }
-qemu-system-x86_64 -machine q35,accel=kvm,smm=on -cpu host -smp "$guest_cpus" -m 6144 \
+# Windows reads the RTC as local time. Match the unattended fixture's UTC zone.
+TZ=UTC qemu-system-x86_64 -machine q35,accel=kvm,smm=on -cpu host -smp "$guest_cpus" -m 6144 \
+  -rtc base=localtime,clock=host \
   -smbios 'type=1,manufacturer=QEMU,product=StreamKit-Win11-Acceptance' \
   -global driver=cfi.pflash01,property=secure,value=on \
   -drive if=pflash,format=raw,unit=0,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.ms.fd \

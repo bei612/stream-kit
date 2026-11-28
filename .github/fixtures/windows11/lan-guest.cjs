@@ -32,7 +32,8 @@ $port=[IO.Ports.SerialPort]::new('COM1',115200)
 try{
  $port.WriteTimeout=8000
  $port.Open()
- $event=[Text.Encoding]::UTF8.GetBytes('{"phase":"lan_ready"}')
+ $message = @{phase='lan_ready'; guest_utc=[DateTime]::UtcNow.ToString('o'); guest_time_zone=(Get-TimeZone).Id}
+ $event = [Text.Encoding]::UTF8.GetBytes(($message | ConvertTo-Json -Compress))
  $port.WriteLine('STREAMKIT_EVIDENCE '+[Convert]::ToBase64String($event))
 }finally{$port.Dispose()}`);
   const adapter = JSON.parse(ps(String.raw`

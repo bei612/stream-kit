@@ -5,7 +5,18 @@ import os
 import socket
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
+
+
+def verify_guest_clock(result, evidence_file):
+    now = datetime.now(timezone.utc)
+    guest = datetime.fromisoformat(result['guest_utc'].replace('Z', '+00:00'))
+    skew_seconds = (guest - now).total_seconds()
+    result.update(observer_utc=now.isoformat(), clock_skew_seconds=round(skew_seconds, 2))
+    evidence_file.write_text(json.dumps(result, indent=2) + '\n')
+    if result.get('guest_time_zone') != 'UTC' or abs(skew_seconds) > 60:
+        raise RuntimeError(f'Guest clock must match the acceptance host before TLS checks (skew {skew_seconds:+.1f} seconds)')
 
 
 def main():
@@ -79,7 +90,7 @@ def main():
                         phases.add(phase)
                         print(f'Windows guest phase: {phase}', flush=True)
                         if phase == 'guest_ready':
-                            (output / 'guest.json').write_text(json.dumps(result, indent=2) + '\n')
+                            verify_guest_clock(result, output / 'guest.json')
                             waiting_for = 'product installation'
                             deadline = time.monotonic() + 12 * 60
                         if phase == 'awaiting_reboot':
@@ -90,6 +101,7 @@ def main():
                         if phase == 'lan_ready':
                             if not lan or not checkpoint:
                                 raise RuntimeError('Guest requested a NIC outside the post-reboot LAN stage')
+                            verify_guest_clock(result, output / 'guest-lan-clock.json')
                             command('device_add', {'driver': 'e1000e', 'id': 'streamkitlan',
                                                    'bus': 'sklanport', 'netdev': 'fixture', 'mac': lan[0]})
                             waiting_for = 'independent LAN acceptance'
