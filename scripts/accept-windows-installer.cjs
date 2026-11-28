@@ -63,6 +63,28 @@ function installedService(){
  assert.equal(current.StartMode,'Auto');assert.equal(current.StartName,'LocalSystem');
  return current;
 }
+function verifyUninstallerServiceOwnership(){
+ const registration=JSON.parse(ps(String.raw`
+$ErrorActionPreference='Stop'
+$key='HKLM:\SYSTEM\CurrentControlSet\Services\StreamKitOrchestrator'
+if (!(Test-Path -LiteralPath $key)) { 'null'; return }
+Get-ItemProperty -LiteralPath $key | Select-Object ImagePath,Start,ObjectName | ConvertTo-Json -Compress`,undefined,60000));
+ if(!registration)return;
+ assert.equal(registration.ImagePath?.toLowerCase(),expectedServicePath.toLowerCase(),'Uninstaller does not own the registered SCM executable');
+ assert.equal(registration.Start,2,'Expected automatic SCM configuration before uninstall');
+ assert.equal(registration.ObjectName,'LocalSystem','Expected LocalSystem ownership before uninstall');
+}
+function serviceStillExists(){
+ return ps(String.raw`
+try {
+ $service=Get-Service -Name StreamKitOrchestrator -ErrorAction Stop
+ $service.Dispose()
+ 'present'
+} catch {
+ if($_.FullyQualifiedErrorId -notlike 'NoServiceFoundForGivenName,*'){throw}
+ 'absent'
+}`,undefined,60000).trim()!=='absent';
+}
 function verifyInstalledManifest(){
  ordinary(program);ordinary(data);ordinary(orchestrator);ordinary(config);
  const bytes=fs.readFileSync(ordinary(path.join(program,'platform-manifest.json')));
@@ -354,16 +376,27 @@ async function endpoints(){
   if(!keepForBoot){
    if(setupApiBaseline)capturePostInstallDiagnostics();
    if(installed){
-    const uninstaller=path.join(program,'unins000.exe');
-    if(stage||resume){
-     if(service())installedService();
-     ordinary(uninstaller);
+    try {
+     const uninstaller=path.join(program,'unins000.exe');
+     result.cleanup_stage='verify_uninstaller_ownership';
+     if(stage||resume){
+      verifyUninstallerServiceOwnership();
+      ordinary(uninstaller);
+     }
+     result.cleanup_stage='run_uninstaller';
+     const removal=execute(uninstaller,['/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/LOG='+path.join(output,'uninstall.log')]);
+     result.uninstall_exit=removal.status;
+     result.cleanup_stage='verify_uninstall';
+     result.service_removed=!serviceStillExists();
+     result.data_preserved=fs.existsSync(config);
+     result.defaults_after=defaults();
+     if(removal.status!==0||!result.service_removed||!result.data_preserved||!isDeepStrictEqual(result.defaults_after,result.defaults_before))result.passed=false;
+     else result.cleanup_stage='completed';
+    } catch(error) {
+     result.passed=false;
+     result.cleanup_error=error.message;
+     result.error??=error.message;
     }
-    const removal=execute(uninstaller,['/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/LOG='+path.join(output,'uninstall.log')]);
-    result.uninstall_exit=removal.status;result.service_removed=service()===null;
-    result.data_preserved=fs.existsSync(config);
-    result.defaults_after=defaults();
-    if(removal.status!==0||!result.service_removed||!result.data_preserved||!isDeepStrictEqual(result.defaults_after,result.defaults_before))result.passed=false;
    }
    collectRuntimeLogs();
    result.audio_default_observations = audioDefaultObservations();

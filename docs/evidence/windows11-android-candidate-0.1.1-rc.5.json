@@ -15,5 +15,5 @@
     "dependency_review": {"passed":true,"evidence":"docs/evidence/windows11-runtime-dependency-review-8bb57538-20261128.json"},
     "cleanup_verified": {"passed":true,"evidence":"docs/evidence/windows11-hosted-install-8bb57538-20261128.json"}
   },
-  "pending_stable_acceptance": ["Exact Win11 clean reboot and independent LAN migration", "Field Windows maintenance", "Physical tablet playback after the field Windows host changes address"]
+  "pending_stable_acceptance": ["Complete uninstall after the exact Win11 reboot and independent LAN migration", "Field Windows maintenance", "Physical tablet playback after the field Windows host changes address"]
 }

@@ -7,7 +7,7 @@
 | 对象 | 版本 | 对应交付 |
 | --- | --- | --- |
 | 公开正式版 | [v0.1.0](https://github.com/bei612/stream-kit/releases/tag/v0.1.0)，`f8ede8b2` | Windows 和 Ubuntu 24.04 amd64 各一个安装器。Android 签名 APK 的 versionCode 为 `1000015`。[发布证据](evidence/release-0.1.0-20261115.json) |
-| 公开预发布 | [v0.1.1-rc.4](https://github.com/bei612/stream-kit/releases/tag/v0.1.1-rc.4)，`bb3c8d24` | Windows、Ubuntu 和 Android 使用同一源码构建，Android versionCode 为 `1000033`。14 个附件均可匿名下载，文件长度及 SHA-256 已核对。[发布证据](evidence/release-0.1.1-rc.4-20261128.json) |
+| 公开预发布 | [v0.1.1-rc.5](https://github.com/bei612/stream-kit/releases/tag/v0.1.1-rc.5)，`8bb57538` | Windows、Ubuntu 和 Android 使用同一源码构建，Android versionCode 为 `1000034`。14 个附件均已匿名下载并逐个验证长度及 SHA-256。[发布证据](evidence/release-0.1.1-rc.5-20261128.json) |
 | 本机 Windows | `53c7385a` | 已整体维护三组件及管理前端，使用已有安装关系、驱动和运行数据。[现场联验](evidence/windows11-android-joint-53c7385a.json) |
 | 本机 Android 平板 | `8bb57538`，versionCode `1000034` | 已覆盖安装项目签名候选包，原固定主机名书签可读取。当前 Windows 仍为 `53c7385a`。原 RC4 版本的真机串流证据单独保留。[覆盖升级](evidence/windows11-tablet-upgrade-8bb57538-20261128.json) · [RC4 真机串流](evidence/windows11-tablet-mdns-signed-20261128.json) |
 
@@ -33,15 +33,9 @@ RC3 签名 APK 在实体平板使用当前 IPv4 观看链接启动 Example，实
 
 固定主机名排查确认现场双向组播可达，Windows 对标准 mDNS 组播发回响应，平板系统解析仍未返回地址。两个端口的证书均覆盖该主机名，并受原 CA 信任。签名候选 APK `1000033` 从 RC3 覆盖安装后，平板通过「修改服务器地址」保留原应用密钥，改用 `volcengine.local`。重启 App 后用保存的书签启动 Example，实际解码 339 帧并收到 531 个 Opus 包。保留该书签与签名 App，Example 已停止。现场 Windows 在测试期间保持原地址，服务器换址仍需验收。[名称解析证据](evidence/windows11-tablet-mdns-20261128.json) · [签名版现场联验](evidence/windows11-tablet-mdns-signed-20261128.json) · [实体平板画面](evidence/windows11-tablet-mdns-signed-20261128.png)
 
-首次 Win11 独立换址验收中，RC3 安装成功，重启后原生组件未在时限内全部就绪，换址阶段未执行。后续验收在安装与重启检查通过后才接入专用测试网卡，并在启动失败时记录控制端与组件状态。[首次换址验收记录](evidence/windows11-lan-rc3-first-run-20261128.json)
+独立 Win11 使用 RC5 原始安装器完成首装、整机重启和三组件自动恢复，录得 144,000 个采样帧且目标队列零丢块。服务端实际换 IPv4 后，独立浏览器通过原固定主机名恢复同一观看页，直接连接新地址并解码 42 帧、收到 82 个音频包。两路 HTTPS 使用原 CA，在 16.191 秒内更新证书，组件、配置和永久链接保持。测试最后阶段的 Windows 服务查询超时，未取得卸载结果，整条验收仍未通过。[Win11 重启、录音与换址证据](evidence/windows11-lan-8bb57538-20261128.json)
 
-第二次 RC3 独立验收在原时限到期时仍处于 Windows 系统安装的 77%，尚未运行产品安装器。虚拟机操作系统准备、产品安装与重启、联网换址各自计时，产品服务就绪判定保持原标准。[系统准备超时记录](evidence/windows11-lan-rc3-setup-timeout-20261128.json)
-
-RC4 在独立 Win11 使用与公开包 SHA-256 一致的安装器，首装返回 `0`。整机重启后控制服务、Sunshine 和媒体网关自动恢复，四个系统默认音频角色保持。原生录音采集 144,000 个采样帧，目标音频队列报告丢弃 1 个 20 ms 音频块。独立客户端在旧地址的 mDNS 核对未通过，该次未执行换址。后续任务同样通过首装检查点，结果采集脚本返回 JSON 解析错误，未取得重启后和换址的结果。[RC4 独立 Win11 首装及重启证据](evidence/windows11-lan-rc4-first-run-20261128.json) · [结果采集失败记录](evidence/windows11-lan-rc4-reporter-failure-20261128.json)
-
-修正验收工具后，RC4 再次首装并在整机重启后拉起三个组件。独立客户端通过 mDNS 解析到当前地址。两路 HTTPS 均报告证书尚未生效，验收虚拟机时钟领先验收机约八小时，未执行换址。原生录音报告丢弃 2 个 20 ms 音频块，仍未满足正式发布的零丢块条件。验收脚本会在首次启动和换址前校验虚拟机时钟，HTTPS 继续完整校验证书。[主机名、时钟和录音证据](evidence/windows11-lan-rc4-clock-skew-20261128.json)
-
-校准时钟后的首个任务在下载微软 Windows 评估镜像时超时，未启动虚拟机。已确认微软下载端支持分段传输。下载中断后从已接收字节续传，完整镜像仍需匹配固定的 SHA-256。[镜像下载记录](evidence/windows11-lan-rc4-iso-interrupted-20261128.json)
+RC3 和 RC4 的历史结果分别保留首装与重启、结果采集、测试时钟和评估镜像下载的边界。[RC3 重启](evidence/windows11-lan-rc3-first-run-20261128.json) · [RC3 镜像安装](evidence/windows11-lan-rc3-setup-timeout-20261128.json) · [RC4 重启](evidence/windows11-lan-rc4-first-run-20261128.json) · [结果采集](evidence/windows11-lan-rc4-reporter-failure-20261128.json) · [虚拟机时钟](evidence/windows11-lan-rc4-clock-skew-20261128.json) · [镜像续传](evidence/windows11-lan-rc4-iso-interrupted-20261128.json)
 
 ## 修复与验收
 
@@ -50,6 +44,7 @@ RC4 在独立 Win11 使用与公开包 SHA-256 一致的安装器，首装返回
 | `8bb57538` Ubuntu 换址 | 独立客户端经固定主机名观看。服务端网卡改址后，两路 HTTPS 在 3.354 秒内更新证书，原页面无需刷新恢复直连并解码 49 帧、收到 81 个音频包。原部署 CA、应用配置和组件进程保持。[独立换址验收](evidence/isolated-lan-8bb57538-20261128.json) |
 | `8bb57538` Android 与 Web | 签名 APK `1000034` 从正式 `v0.1.0` 覆盖升级后打开原书签，和 Web 受到同一个上游会话管理。真实键鼠、交接和撤销、前后台切换、系统拒绝录音及断网重连均通过。[Android 联验](evidence/android-input-8bb57538-20261128.json) |
 | `8bb57538` Windows 安装和维护 | 托管 Windows 原始安装器通过静默首装、服务恢复与卸载，录音采样 144,000 帧，目标队列零丢块。RC4 经真实端口冲突回滚后成功更新三个组件，保留原观看链接、配置、CA 和卸载器。已核对两平台安装包、控制程序及 APK 签名和依赖清单。[安装](evidence/windows11-hosted-install-8bb57538-20261128.json) · [回滚与维护](evidence/windows11-hosted-maintenance-8bb57538-20261128.json) · [依赖及包核对](evidence/windows11-runtime-dependency-review-8bb57538-20261128.json) |
+| `8bb57538` Windows 与 Android 音频 | Android 收到程序声。授权麦克风抵达原生目标录音和 Web，目标录音分析 96,000 帧且零丢帧。撤权后麦克风静音，程序声继续播放。产品链路及独立诊断的结果均有记录。[媒体联验](evidence/windows11-android-packaged-audio-8bb57538-20261128.json) |
 | RC4 签名客户端 `1000033` | Android 与 Web 共用一条串流。真实目标键鼠、控制权交接与撤权、覆盖升级、前后台切换、设备录音权限拒绝和断网恢复均通过。Ubuntu 原观看页在实际换址后恢复直连，两端 HTTPS 在 9.326 秒内更新。Linux 模拟器独立音频校准失败，未执行产品音频联验。[客户端验收](evidence/android-input-bb3c8d24-20261128.json) · [隔离换址](evidence/isolated-lan-bb3c8d24-20261128.json) · [音频校准记录](evidence/android-linux-audio-fixture-bb3c8d24-20261128.json) |
 | RC4 Windows 安装与回传 | `bb3c8d24` 原始 Windows 安装包已通过静默安装、服务恢复与卸载。托管 Windows 从 RC3 在实际端口冲突后回滚，移除冲突后成功应用 RC4，原观看链接、配置、CA 和卸载器得到保留。独立 Windows Android 模拟器已验证 Android/Web 共用一条串流，麦克风回传到目标录音与 Web，撤权后程序音继续播放。[安装](evidence/windows11-hosted-install-bb3c8d24-20261128.json) · [维护](evidence/windows11-hosted-maintenance-bb3c8d24-20261128.json) · [音频联验](evidence/windows11-android-packaged-audio-bb3c8d24-20261128.json) |
 | RC2 Windows 安装和维护 | 使用公开包对应的原始字节。Windows Server 2022 托管静默安装、SCM/网关恢复、原生录音、卸载保留数据均通过。真实监听端口冲突后，回滚恢复原服务、永久链接、CA 和私钥。[安装与回滚证据](evidence/windows11-android-packaged-audio-66a79e5d-20261127.json) |
@@ -71,13 +66,13 @@ RC4 在独立 Win11 使用与公开包 SHA-256 一致的安装器，首装返回
 
 ## 交付结果
 
-每个服务端平台提供一个安装器，Android 提供原生签名 APK。下载附带源码版本、SHA-256、分发说明、许可证材料和 SBOM。[GitHub Releases](https://github.com/bei612/stream-kit/releases) · [RC4 安装与下载说明](../deploy/releases/0.1.1-rc.4.md)
+每个服务端平台提供一个安装器，Android 提供原生签名 APK。下载附带源码版本、SHA-256、分发说明、许可证材料和 SBOM。[GitHub Releases](https://github.com/bei612/stream-kit/releases) · [RC5 安装与下载说明](../deploy/releases/0.1.1-rc.5.md)
 
-此前版本的发布、失败及回归记录按原运行环境保留。[RC3 发布证据](evidence/release-0.1.1-rc.3-20261128.json) · [RC2 发布证据](evidence/release-0.1.1-rc.2-20261127.json) · [RC1 发布证据](evidence/release-0.1.1-rc.1-20261127.json) · [历史验收索引](https://github.com/bei612/stream-kit/blob/8c4ffb5bdc05fbfda73c305fcc0af9b8fb066af9/docs/release-status.md)
+此前版本的发布、失败及回归记录按原运行环境保留。[RC4 发布证据](evidence/release-0.1.1-rc.4-20261128.json) · [RC3 发布证据](evidence/release-0.1.1-rc.3-20261128.json) · [RC2 发布证据](evidence/release-0.1.1-rc.2-20261127.json) · [RC1 发布证据](evidence/release-0.1.1-rc.1-20261127.json) · [历史验收索引](https://github.com/bei612/stream-kit/blob/8c4ffb5bdc05fbfda73c305fcc0af9b8fb066af9/docs/release-status.md)
 
 ## 持续边界
 
-- 正式 0.1.1 仍需完成当前候选的 Win11 独立换址验收、现场 Windows 原位维护及实体平板在该 Windows 主机换址后的恢复。安装返回 `3010` 时需核对重启后的服务和音频准备。[RC4 独立 Win11 记录](evidence/windows11-lan-rc4-first-run-20261128.json) · [旧版 3010 证据](evidence/windows-installer-restart-954a1e6e-20261120.json)
+- 正式 0.1.1 仍需取得独立 Win11 的完整卸载结果，并完成现场 Windows 原位维护和实体平板在该主机换址后的恢复。安装返回 `3010` 时需核对重启后的服务和音频准备。[RC5 独立 Win11 记录](evidence/windows11-lan-8bb57538-20261128.json) · [旧版 3010 证据](evidence/windows-installer-restart-954a1e6e-20261120.json)
 - Win11 主机换 IP 后，远端还需通过可达的固定主机名或新 IP 访问。固定主机名取决于现场 DNS/mDNS 和实际路由。独立 Linux 与本机 Web 的换址证据分别覆盖上述范围。实体设备跨网络恢复还需现场核对。
 - 用户已接受原版本 20 客户端四小时稳定性与既有真人语音证据。本轮范围为 Win11 和 Android，Android 模拟器联验和实体平板的证据分别归档。[真人语音证据](evidence/human-voice-installed-20261105.json)
 - 7×24 是资源设计目标。当前新版本尚无服务端、Web、Android 的完整 168 小时联合观测。通用 Windows 原位升级、多应用并行隔离及独立安全评估仍在当前已验证交付范围之外。[运行资源与释放](runtime-resources.md)

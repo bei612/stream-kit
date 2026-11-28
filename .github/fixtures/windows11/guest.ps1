@@ -209,6 +209,7 @@ try {
         pcm_frames = $result.pair.captured_frames; pcm_dropped = $result.pair.target.dropped_frames
         scm_restarted = $result.scm_restarted; gateway_restarted = $result.gateway_restarted
         uninstall_exit = $result.uninstall_exit; service_removed = $result.service_removed; data_preserved = $result.data_preserved
+        cleanup_stage = $result.cleanup_stage; cleanup_error = $result.cleanup_error
         lan_address_change = $result.lan_address_change
         diagnostics = $diagnostics
     }
