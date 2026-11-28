@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "source_commit": "bb3c8d24a7a0a33c090ef9e60e555a7b081058b9",
+  "passed": false,
+  "product_run_id": 46129010848,
+  "android_build_run_id": 46128907453,
+  "acceptance_run_id": 46130439813,
+  "artifact_id": 15257610996,
+  "artifact_sha256": "e7c6c36df3a68c95bba7c753ff60880c7f8390e5e0aa6c810bfa5f4fde7a8868",
+  "product_media_test_reached": false,
+  "host_platform": "GitHub-hosted Ubuntu",
+  "android_api_level": 36,
+  "emulator_version": "37.3.10",
+  "input_source": "emulator-rpc",
+  "system_playout": {
+    "passed": false,
+    "phase": "capture",
+    "failure_class": "CONTROL_SYSTEM_PLAYOUT_MISSING",
+    "report_sha256": "f4fd3ac99b9b3bb61f2d25ad229c651dceb44d87644ca954f287d3c95e8c9bbe"
+  },
+  "system_microphone": {
+    "passed": false,
+    "phase": "guest_recording",
+    "failure_class": "CONTROL_GUEST_MICROPHONE_MEASUREMENT_FAILED",
+    "frames": 240000,
+    "windows_above_threshold": 11,
+    "median_amplitude_ppm": 0,
+    "microphone_input_restored": true,
+    "report_sha256": "d22b036a897f1f2fd05d5e41d28f6436ebc29c71bf3ca558b2c23f3330a6a681"
+  },
+  "scope": "Independent Linux-hosted emulator audio controls failed before the product media test ran. This records a fixture failure and gives no result for the signed APK to target microphone path."
+}

@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "source_commit": "bb3c8d24a7a0a33c090ef9e60e555a7b081058b9",
+  "passed": true,
+  "product_run_id": 46129010848,
+  "android_build_run_id": 46128907453,
+  "acceptance_run_id": 46130439407,
+  "acceptance_source_commit": "ee54f1b8ee9309ed444a4d4ee79e8ff6a63aeeba",
+  "artifact_id": 15257358744,
+  "artifact_sha256": "16fb6b2df8a9fbfe85601cad9b151bcd6c586feec67d0cc40dc804af6239fd56",
+  "browser_result_sha256": "4d44e6a450d2a2882cde3ac00e54778df6859a93602eea97e9b943941f7346e9",
+  "linux_installer_sha256": "7317dcb2b09c753570835872d6ee550d53b81249ef1a8f81b72c4f2385102381",
+  "apk_sha256": "a61d654c302e55a0f16393ace9ae2cdd7d3c0424bd68c1866f3e11b966ee6131",
+  "android_version_code": 1000033,
+  "apk_signature_verified": true,
+  "upgrade": {
+    "from_tag": "v0.1.0",
+    "baseline_version_code": 1000015,
+    "installation_identity_preserved": true,
+    "saved_bookmark_reopened": true,
+    "restored_as_viewer_with_microphone_off": true
+  },
+  "target_input": {
+    "single_shared_renderer": true,
+    "subscribers": 2,
+    "completed_phases": ["android_controller", "old_android_denied", "web_controller", "web_revoked", "android_regranted", "android_revoked"]
+  },
+  "foreground_recovery": {
+    "controller_released_in_background": true,
+    "same_native_instance_preserved": true,
+    "audio_packets": 200,
+    "decoded_video_frames": 75,
+    "observation_elapsed_ms": 3661,
+    "restored_as_viewer_with_microphone_off": true
+  },
+  "microphone_permission_denied": {
+    "system_prompt_denied": true,
+    "controller_retained": true,
+    "server_microphone_off": true
+  },
+  "client_network_recovery": {
+    "disconnected_until_expiry_ms": 17261,
+    "original_connection_resumed_as_viewer": true,
+    "microphone_disabled": true,
+    "audio_packets": 221,
+    "decoded_video_frames": 83,
+    "observation_elapsed_ms": 3337
+  },
+  "cleanup": {"example_stop_acknowledged": true, "renderer_restored_idle": true},
+  "scope": "Exact signed APK with the same-source Ubuntu runtime in an official hosted Android emulator and browser. Upgrade, shared media, real target input, permission denial and lifecycle recovery passed. Positive recording and program audio have separate acceptance."
+}
