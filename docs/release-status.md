@@ -37,6 +37,8 @@ RC3 签名 APK 在实体平板使用当前 IPv4 观看链接启动 Example，实
 
 第二次 RC3 独立验收在原时限到期时仍处于 Windows 系统安装的 77%，尚未运行产品安装器。虚拟机操作系统准备、产品安装与重启、联网换址各自计时，产品服务就绪判定保持原标准。[系统准备超时记录](evidence/windows11-lan-rc3-setup-timeout-20261128.json)
 
+RC4 在独立 Win11 使用与公开包 SHA-256 一致的安装器，首装返回 `0`。整机重启后控制服务、Sunshine 和媒体网关自动恢复，四个系统默认音频角色保持。原生录音采集 144,000 帧，报告 1 帧丢失。独立客户端在旧地址的 mDNS 核对未通过，该次未执行换址。[RC4 独立 Win11 首装及重启证据](evidence/windows11-lan-rc4-first-run-20261128.json)
+
 ## 修复与验收
 
 | 核验项 | 已取得的证据 |
@@ -57,7 +59,7 @@ RC3 签名 APK 在实体平板使用当前 IPv4 观看链接启动 Example，实
 | RC2 运行依赖 | 用精确 Windows、Ubuntu 控制二进制进行符号扫描。Android 发行签名、运行依赖和许可清单核对通过。继续引用经逐条复核的未变依赖图及源码 SBOM。[依赖审查及范围](evidence/windows11-runtime-dependency-review-66a79e5d-20261127.json) |
 | 大应用包 | 流式上传和解压上限分别默认 50 GiB。Win11 通过浏览器和原生客户端上传、解压真实 26 GiB，入口哈希一致。核验暂存清理、空间不足反馈和大 ZIP64 / 7z 索引上限。资料分别记录实际源码和测试环境。[浏览器实传与截图](evidence/windows11-large-archive-20261127.json) · [磁盘保护](evidence/windows11-archive-space-666a6a01-20261127.json) · [归档条目限制](evidence/windows11-archive-index-38552c09-20261127.json) |
 | 本机实体 Android | 同源现场 `53c7385a` 已验证共享媒体、真实目标操作及平板麦克风。实体平板输入交接和旧端失权另有 Playwright CLI 管理页实测和截图。[本机同源联验](evidence/windows11-android-joint-53c7385a.json) · [真机输入补验](evidence/android-input-tablet-954a1e6e-20261126.json) |
-| 管理端实际页面 | Playwright CLI 验证 8 个路由在 3 种宽度的布局、配置草稿与语言。部分业务验收来自各版本的已安装页，证据保留实际组件身份。[布局及交互](evidence/management-layout-a616beba.json) · [已安装页验收](evidence/runtime-installed-954a1e6e-20261120.json) |
+| 管理端实际页面 | RC4 原始管理端与网关使用 Playwright CLI 实测。Example 启动前两种语言显示同一固定观看链接，两个 Web 观看端解码真实视频，控制权授予、交接及撤销经服务端验证。应用启动参数保存后复原。另有 8 个路由在 3 种宽度的布局证据。[RC4 操作验收](evidence/management-live-cli-bb3c8d24-20261128.json) · [移动端应用页](evidence/management-live-cli-bb3c8d24-app-mobile.png) · [桌面端控制权](evidence/management-live-cli-bb3c8d24-sessions-desktop.png) · [布局及交互](evidence/management-layout-a616beba.json) |
 | 运行资源 | 已给服务器队列、认证失败连接、缓存、请求和日志设定预算。Web 帧读取器取消及关闭回归覆盖换轨和关闭。各项资源释放及采样覆盖范围见[资源审查](evidence/runtime-resource-review-20261113.json)、[原始资源采样](evidence/runtime-resources-ce52bdac-20261114.json)及[运行资源设计](runtime-resources.md)。 |
 
 ## 交付结果
@@ -68,7 +70,7 @@ RC3 签名 APK 在实体平板使用当前 IPv4 观看链接启动 Example，实
 
 ## 持续边界
 
-- 正式 0.1.1 仍需现场安装的维护验证和跨设备换址。冻结产物已通过干净 Win11 首装与整机恢复，本次安装返回 `0`。安装返回 `3010` 时需核对重启后的服务和音频准备。[RC3 首装证据](evidence/windows11-clean-install-8f5a078e-20261128.json) · [旧版 3010 证据](evidence/windows-installer-restart-954a1e6e-20261120.json)
+- 正式 0.1.1 仍需完成当前候选的 Win11 独立换址验收、现场 Windows 原位维护及实体平板在该 Windows 主机换址后的恢复。安装返回 `3010` 时需核对重启后的服务和音频准备。[RC4 独立 Win11 记录](evidence/windows11-lan-rc4-first-run-20261128.json) · [旧版 3010 证据](evidence/windows-installer-restart-954a1e6e-20261120.json)
 - Win11 主机换 IP 后，远端还需通过可达的固定主机名或新 IP 访问。固定主机名取决于现场 DNS/mDNS 和实际路由。独立 Linux 与本机 Web 的换址证据分别覆盖上述范围。实体设备跨网络恢复还需现场核对。
 - 用户已接受原版本 20 客户端四小时稳定性与既有真人语音证据。本轮范围为 Win11 和 Android，Android 模拟器联验和实体平板的证据分别归档。[真人语音证据](evidence/human-voice-installed-20261105.json)
 - 7×24 是资源设计目标。当前新版本尚无服务端、Web、Android 的完整 168 小时联合观测。通用 Windows 原位升级、多应用并行隔离及独立安全评估仍在当前已验证交付范围之外。[运行资源与释放](runtime-resources.md)

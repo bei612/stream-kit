@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-28",
+  "source_commit": "bb3c8d24a7a0a33c090ef9e60e555a7b081058b9",
+  "acceptance_commit": "dcf28c086557babee73f4495f7164cee582f8331",
+  "run_id": 46132100593,
+  "artifact_id": 15258853427,
+  "artifact_sha256": "aac22221a58290200a3fba3e5fa620b411e4d9b7cb31b347cb687d8bda75508c",
+  "result_sha256": "e702aabafcf272538e4a8849a5dd1fb119e41de0034f68070716c63498625c35",
+  "guest_result_sha256": "288c0b470124fc069618e393d76bd5cf9afe6d4b36993756d2c0571e8a9e39f0",
+  "lan_client_result_sha256": "1acf49d05b8ed0fd00bcb89db7ffbdf13128d1bb7fde90b02bac0cf7e7d78d8",
+  "product_run_id": 46129010848,
+  "installer_sha256": "60a32e5043dd43d59a9b3248e21ebcc1ffe70628d02bb5a648100220931dfbea",
+  "installer_source": "Original build artifact, same SHA-256 as the published RC4 installer",
+  "passed": false,
+  "environment": {"windows_build": 26300, "architecture": "X64", "secure_boot": true, "tpm_present": true},
+  "installation": {"exit_code": 0, "default_audio_roles_preserved": true},
+  "reboot": {
+    "guest_boot_before_utc": "2026-11-28T18:02:25.5000000Z",
+    "guest_boot_after_utc": "2026-11-28T18:15:13.5000000Z",
+    "service": {"name": "StreamKitOrchestrator", "state": "Running", "start_mode": "Auto", "account": "LocalSystem"},
+    "processes": [
+      {"role": "orchestrator", "pid": 3276, "session": 0, "created_utc": "2026-11-28T18:15:30.6423820Z"},
+      {"role": "sunshine", "pid": 5240, "session": 1, "created_utc": "2026-11-28T18:15:51.0396310Z"},
+      {"role": "web_server", "pid": 7840, "session": 1, "created_utc": "2026-11-28T18:16:40.5643090Z"}
+    ]
+  },
+  "post_reboot_audio": {"native_pair_check_passed": true, "captured_pcm_frames": 144000, "target_reported_dropped_frames": 1},
+  "scm_recovered": true,
+  "gateway_recovered": true,
+  "independent_lan": {
+    "stage": "before",
+    "expected_guest_address": "10.253.241.10",
+    "failure": "The raw Avahi output did not exactly match the expected hostname and address string.",
+    "resolved_reply_recorded": false,
+    "tls_verified": false,
+    "guest_address_change_executed": false,
+    "media_after_change_verified": false
+  },
+  "cleanup": {"uninstall_exit": 0, "service_removed": true, "data_preserved": true}
+}

@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-28",
+  "passed": true,
+  "runtime_commit": "bb3c8d24a7a0a33c090ef9e60e555a7b081058b9",
+  "acceptance_commit": "c1a712460fecedf77eb46520e83909ee62fee5fd",
+  "acceptance_run": "https://github.com/bei612/stream-kit/actions/runs/46134958929",
+  "artifact_id": 15259196783,
+  "artifact_sha256": "c875d071717b06455698269571740f8daf54e07501e8f7c48deeb5247b6c401d",
+  "browser_result_sha256": "f8a157899e98d70655effd2739a810d9a7c6a4ab67fd0fbc70feeccd89803969",
+  "management_result_sha256": "7c8a6c8ef92b4c8e8bced6bb74615bd9e40d37d116c5d14abc1e2946e228afaa",
+  "environment": "GitHub-hosted Ubuntu 24.04, trusted temporary HTTPS, native Sunshine and owned Example, Chromium with playwright-cli 0.1.22",
+  "source": {
+    "product_run_id": 46129010848,
+    "product_linux_job_id": 140929863456,
+    "installer_sha256": "7317dcb2b09c753570835872d6ee550d53b81249ef1a8f81b72c4f2385102381",
+    "payload_sha256": "473c99c1ff3100cfe4b313223fe116796c4dab4ba1d02fc36cf3b5634362ee6a",
+    "gateway_sha256": "c9d90985788e23ac88650eabec4eda16f53caa728b58a658403fed4149cfee58",
+    "orchestrator_sha256": "38453f8716db9abc67e210aedfadd9dbc46d635d28756aba3f22094ccb392e37",
+    "runtime_rebuilt": false
+  },
+  "checks": {
+    "same_permanent_link_before_launch": ["en", "zh-CN"],
+    "owned_example_launched": true,
+    "web_clients_with_decoded_webrtc_video": 2,
+    "server_verified_grant_transfer_and_revoke": true,
+    "bilingual_viewer_permissions_and_lifecycle": true,
+    "stale_notifications_after_disconnect": false,
+    "launch_arguments_edited_saved_and_restored": true,
+    "history_read_only": true,
+    "example_restored_to_idle": true
+  },
+  "screenshots": [
+    {"file": "management-live-cli-bb3c8d24-app-mobile.png", "sha256": "ed6b3b609241c8d34c2157d781496abf2f86d907eae3803ff0cbbebba7657e18", "watch_key_and_arguments_masked": true},
+    {"file": "management-live-cli-bb3c8d24-sessions-desktop.png", "sha256": "cfbc68a3a8fe2c4b88a10584df4a72951d250c55478549b1f74d4e73a156600e"}
+  ],
+  "prior_attempt": {"run_id": 46134394510, "failed_check": "The fixture expected a Chinese label before explicitly selecting Chinese.", "product_runtime_changed": false},
+  "scope": "Management and Web viewer UI with real Example video. Windows deployment, Android, native target input, audio, address change and long-duration operation are covered separately."
+}
