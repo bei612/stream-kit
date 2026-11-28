@@ -6,6 +6,14 @@
   "android_version_code": 1000034,
   "device": "ERAZER M10 4G",
   "same_wlan_ssid": true,
+  "wlan_path_observations": {
+    "same_bssid": false,
+    "windows_channel": 36,
+    "android_frequency_mhz": 5805,
+    "windows_unspecified_source_route_to_tablet_used_tun": true,
+    "windows_route_bound_to_wlan_source_used_wlan": true,
+    "cause_of_missing_mdns_response_isolated": false
+  },
   "field_ready": false,
   "windows": {
     "ipv4": "192.168.2.131",
