@@ -22,5 +22,6 @@
   "crash_dump_available_for_analysis": false,
   "faulting_module_identified": false,
   "uninstall_outcome_available": false,
+  "diagnostic_run": "https://github.com/bei612/stream-kit/actions/runs/46163304565",
   "scope": "The guest installed the exact package and emitted its durable reboot checkpoint. Its last screen showed a kernel stop and the run never produced a post-reboot outcome. The artifact does not attribute the kernel stop to Windows, the hypervisor, or a particular driver. This observation independently prevents stable readiness from being claimed."
 }

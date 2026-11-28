@@ -23,6 +23,10 @@
   },
   "field_ready": false,
   "windows": {
+    "os_build": 26200,
+    "last_boot_utc": "2026-11-27T02:50:00.5000120Z",
+    "loaded_usbip_ude_and_filter_match_pinned_kernel_images": true,
+    "kernel_power_event_41_count_since_last_boot": 0,
     "ipv4": "192.168.2.131",
     "scm_status": "Running",
     "scm_start_mode": "Auto",
