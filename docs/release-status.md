@@ -7,7 +7,7 @@
 | 对象 | 版本 | 对应交付 |
 | --- | --- | --- |
 | 公开正式版 | [v0.1.0](https://github.com/bei612/stream-kit/releases/tag/v0.1.0)，`f8ede8b2` | Windows 和 Ubuntu 24.04 amd64 各一个安装器。Android 签名 APK 的 versionCode 为 `1000015`。[发布证据](evidence/release-0.1.0-20261115.json) |
-| 公开预发布 | [v0.1.1-rc.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.1-rc.3)，`8f5a078e` | Windows、Ubuntu 和 Android 使用同一源码构建，Android versionCode 为 `1000032`。14 个附件均可匿名下载，文件长度及 SHA-256 已核对。[发布证据](evidence/release-0.1.1-rc.3-20261128.json) |
+| 公开预发布 | [v0.1.1-rc.4](https://github.com/bei612/stream-kit/releases/tag/v0.1.1-rc.4)，`bb3c8d24` | Windows、Ubuntu 和 Android 使用同一源码构建，Android versionCode 为 `1000033`。14 个附件均可匿名下载，文件长度及 SHA-256 已核对。[发布证据](evidence/release-0.1.1-rc.4-20261128.json) |
 | 本机 Windows | `53c7385a` | 已整体维护三组件及管理前端，使用已有安装关系、驱动和运行数据。[现场联验](evidence/windows11-android-joint-53c7385a.json) |
 | 本机 Android 平板 | `bb3c8d24`，versionCode `1000033` | 现场平板已覆盖安装使用项目密钥签名的候选包，原书签已保留并改用固定主机名。本次 Windows 仍为 `53c7385a`。[现场联验](evidence/windows11-tablet-mdns-signed-20261128.json) |
 
@@ -60,9 +60,9 @@ RC3 签名 APK 在实体平板使用当前 IPv4 观看链接启动 Example，实
 
 ## 交付结果
 
-每个服务端平台提供一个安装器，Android 提供原生签名 APK。下载附带源码版本、SHA-256、分发说明、许可证材料和 SBOM。[GitHub Releases](https://github.com/bei612/stream-kit/releases) · [RC3 安装与下载说明](../deploy/releases/0.1.1-rc.3.md)
+每个服务端平台提供一个安装器，Android 提供原生签名 APK。下载附带源码版本、SHA-256、分发说明、许可证材料和 SBOM。[GitHub Releases](https://github.com/bei612/stream-kit/releases) · [RC4 安装与下载说明](../deploy/releases/0.1.1-rc.4.md)
 
-此前版本的发布、失败及回归记录按原运行环境保留。[RC2 发布证据](evidence/release-0.1.1-rc.2-20261127.json) · [RC1 发布证据](evidence/release-0.1.1-rc.1-20261127.json) · [历史验收索引](https://github.com/bei612/stream-kit/blob/8c4ffb5bdc05fbfda73c305fcc0af9b8fb066af9/docs/release-status.md)
+此前版本的发布、失败及回归记录按原运行环境保留。[RC3 发布证据](evidence/release-0.1.1-rc.3-20261128.json) · [RC2 发布证据](evidence/release-0.1.1-rc.2-20261127.json) · [RC1 发布证据](evidence/release-0.1.1-rc.1-20261127.json) · [历史验收索引](https://github.com/bei612/stream-kit/blob/8c4ffb5bdc05fbfda73c305fcc0af9b8fb066af9/docs/release-status.md)
 
 ## 持续边界
 

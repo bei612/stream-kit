@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "source_commit": "bb3c8d24a7a0a33c090ef9e60e555a7b081058b9",
+  "passed": true,
+  "release_tag": "v0.1.1-rc.4",
+  "release_id": 461457705,
+  "release_url": "https://github.com/bei612/stream-kit/releases/tag/v0.1.1-rc.4",
+  "prerelease": true,
+  "published_at": "2026-11-28T09:56:28Z",
+  "observed_at": "2026-11-28T10:01:40.395Z",
+  "publisher_run_id": 46132754610,
+  "assets": [
+    {
+      "name": "Android-SHA256SUMS.txt",
+      "asset_id": 804073511,
+      "bytes": 579,
+      "sha256": "4612b7d4e7221ba4d5857b2ab014e39da334b6c94ba78e3870cfe13a3b266f66",
+      "anonymous_download_verified": true
+    },
+    {
+      "name": "Linux-SHA256SUMS.txt",
+      "asset_id": 804073510,
+      "bytes": 220,
+      "sha256": "82639b6ceec71c7f7715fd4edc3c2982791d4662c883cfda6960f0550f07da7f",
+      "anonymous_download_verified": true
+    },
+    {
+      "name": "SHA256SUMS.txt",
+      "asset_id": 804073508,
+      "bytes": 302,
+      "sha256": "a147b98e12c23ad793f07d3f5ce125b8ed224b2b07276d4b46a6279f42fbf688",
+      "anonymous_download_verified": true
+    },
+    {
+      "name": "android-dependency-notices.json",
+      "asset_id": 804073509,
+      "bytes": 11433,
+      "sha256": "65896f681d26f3927e0a114fba30192e14282e8fc34a2230d6b0e5f06245f755",
+      "anonymous_download_verified": true
+    },
+    {
+      "name": "android-provenance.json",
+      "asset_id": 804073514,
+      "bytes": 4817,
+      "sha256": "9578767a7a8d4a7495480a4e28f638ae26e7b1ce3235f86b71de1fe0bc71e3a6",
+      "anonymous_download_verified": true
+    },
+    {
+      "name": "android-runtime-dependencies.json",
+      "asset_id": 804073537,
+      "bytes": 3415,
+      "sha256": "22a584a4428aa2ec47ab878e76e9c3c4167d59da03140c78c01bfbee63810533",
+      "anonymous_download_verified": true
+    },
+    {
+      "name": "android-sbom.cdx.json",
+      "asset_id": 804073535,
+      "bytes": 20027,
+      "sha256": "e1660cd3eb20ea4e19a9fee47a640e38065291a03e05da7c87adca3aeb7a8287",
+      "anonymous_download_verified": true
+    },
+    {
+      "name": "installer-manifest.json",
+      "asset_id": 804073539,
+      "bytes": 2288,
+      "sha256": "7604f82bd72b289dd8a72b93521a8abc3dffbe0db01bbb1c5c8eaa5c6b5b3578",
+      "anonymous_download_verified": true
+    },
+    {
+      "name": "linux-installer-manifest.json",
+      "asset_id": 804073542,
+      "bytes": 1352,
+      "sha256": "19837b75aa77127a811a5a866ad67485059f0470987009f36f89965d82a9b2c6",
+      "anonymous_download_verified": true
+    },
+    {
+      "name": "stream-kit-0.1.1-bb3c8d24a7a0-ubuntu24.04-amd64-setup.run",
+      "asset_id": 804073547,
+      "bytes": 62916923,
+      "sha256": "7317dcb2b09c753570835872d6ee550d53b81249ef1a8f81b72c4f2385102381",
+      "anonymous_download_verified": true
+    },
+    {
+      "name": "stream-kit-0.1.1-bb3c8d24a7a0-windows-amd64-setup.exe",
+      "asset_id": 804073556,
+      "bytes": 45063518,
+      "sha256": "60a32e5043dd43d59a9b3248e21ebcc1ffe70628d02bb5a648100220931dfbea",
+      "anonymous_download_verified": true
+    },
+    {
+      "name": "stream-kit-android-0.1.1-distribution.zip",
+      "asset_id": 804073561,
+      "bytes": 33218092,
+      "sha256": "f17a431f19dcf4097169690e7da273d13d1e3cff419bd9aaed53dc821b8d791c",
+      "anonymous_download_verified": true
+    },
+    {
+      "name": "stream-kit-android-0.1.1.apk",
+      "asset_id": 804073554,
+      "bytes": 33219005,
+      "sha256": "a61d654c302e55a0f16393ace9ae2cdd7d3c0424bd68c1866f3e11b966ee6131",
+      "anonymous_download_verified": true
+    },
+    {
+      "name": "stream-kit-sbom.spdx.json",
+      "asset_id": 804073557,
+      "bytes": 8213738,
+      "sha256": "f6913b1d4f82158b454afa37911a4abe47a4c90faed8b7068baa6cef5df39ace",
+      "anonymous_download_verified": true
+    }
+  ]
+}
