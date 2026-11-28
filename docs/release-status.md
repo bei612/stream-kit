@@ -9,7 +9,7 @@
 | 公开正式版 | [v0.1.0](https://github.com/bei612/stream-kit/releases/tag/v0.1.0)，`f8ede8b2` | Windows 和 Ubuntu 24.04 amd64 各一个安装器。Android 签名 APK 的 versionCode 为 `1000015`。[发布证据](evidence/release-0.1.0-20261115.json) |
 | 公开预发布 | [v0.1.1-rc.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.1-rc.3)，`8f5a078e` | Windows、Ubuntu 和 Android 使用同一源码构建，Android versionCode 为 `1000032`。14 个附件均可匿名下载，文件长度及 SHA-256 已核对。[发布证据](evidence/release-0.1.1-rc.3-20261128.json) |
 | 本机 Windows | `53c7385a` | 已整体维护三组件及管理前端，使用已有安装关系、驱动和运行数据。[现场联验](evidence/windows11-android-joint-53c7385a.json) |
-| 本机 Android 平板 | `53c7385a`，versionCode `1000021` | 实体平板覆盖安装、原书签及同源媒体联验。[覆盖安装证据](evidence/windows11-android-tablet-upgrade-53c7385a.json) |
+| 本机 Android 平板 | `8f5a078e`，versionCode `1000032` | 实体平板覆盖安装公开签名 APK，并逐字节核对已安装 APK 的 SHA-256。现场 Windows 当前仍为 `53c7385a`。[现场联验](evidence/windows11-tablet-rc3-onsite-20261128.json) |
 
 冻结 tag 对应运行源码。后续提交可更新安装验收工具或文档，安装包的源码标识和 SHA-256 取自同批发布清单。
 
@@ -27,7 +27,9 @@
 
 Playwright CLI 驱动 Chrome 打开本机登录页及当前 WLAN 上的管理、媒体入口。11 月 28 日的直连检查确认两端口均通过当前 WLAN 地址建立 TLS 1.3。用固定主机名访问时，同机浏览器实际选中了虚拟网卡，因此跨设备的名称解析与媒体路径仍需现场验证。[WLAN 直连与固定主机名证据](evidence/windows11-direct-https-origins-53c7385a-20261128.json) · [地址与证书](lan-address-configuration.md)
 
-实体平板接入 Windows 所在的 WLAN 后，通过当前 IPv4 地址直接访问管理端与媒体网关，两端均以原部署 CA 完成 TLS 1.3 验证并返回 HTTP 200。平板系统仍无法解析 `volcengine.local`；本次证据覆盖独立设备的数字 IP 直连，现场固定名发现和实际媒体恢复仍待验证。[平板直连证据](evidence/windows11-tablet-lan-53c7385a-20261128.json)
+实体平板接入 Windows 所在的 WLAN 后，通过当前 IPv4 地址直接访问管理端与媒体网关，两端均以原部署 CA 完成 TLS 1.3 验证并返回 HTTP 200。平板系统仍无法解析 `volcengine.local`；本次证据覆盖独立设备的数字 IP 直连，固定主机名发现仍待解决。[平板直连证据](evidence/windows11-tablet-lan-53c7385a-20261128.json)
+
+RC3 签名 APK 在实体平板使用当前 IPv4 观看链接启动 Example，实际解码 5,450 帧并收到 8,458 个 Opus 包。断网后 Android 自动选了另一已保存的 WLAN，串流未恢复。通过系统设置切回现场 WLAN 并回到应用后，原会话恢复画面，无需重输链接。现场授权和撤权已生效，Example 按键计数未递增，本次没有确认目标输入或声学表现。测试结束后 Example 已停止。[现场联验](evidence/windows11-tablet-rc3-onsite-20261128.json) · [恢复画面](evidence/windows11-tablet-rc3-onsite-reconnected-20261128.png)
 
 ## 修复与验收
 

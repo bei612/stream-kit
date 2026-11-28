@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-11-28T08:37:41.631Z",
+  "source_commit": "53c7385ac58d39408a3aaffef33d6a95ea06a737",
+  "android_source_commit": "8f5a078e39c070c8b358b456df7fee3c2e437203",
+  "scope": "Physical Android tablet with the published RC3 APK against the existing physical Windows 11 deployment, over trusted local IPv4 TLS. This is mixed-version field evidence.",
+  "windows": {
+    "service": "StreamKitOrchestrator",
+    "status": "Running",
+    "start_type": "Auto",
+    "installed_components_with_source_commit": 3,
+    "rc3_candidate_verified_by_native_platform_verifier": true,
+    "rc3_installed": false,
+    "address_changed_during_test": false
+  },
+  "android": {
+    "model": "ERAZER M10 4G",
+    "version_name": "0.1.1",
+    "version_code": 1000032,
+    "in_place_install_succeeded": true,
+    "installed_base_apk_sha256": "50fd1100021dd6371418cee8c08a441f22bb839d04cfc4d321cf0ef1f9f7946c",
+    "installed_base_apk_matches_published_artifact": true,
+    "usable_saved_link_before_reconfiguration": false,
+    "existing_example_link_entered_in_app": true
+  },
+  "example": {
+    "registered_application_id": "18f482ef-5d7b-4528-a5e7-6fbd8a150980",
+    "start_from_watch_link": true,
+    "upstream_streams": 1,
+    "android_subscribers": 1,
+    "video": {
+      "received_packets": 8822,
+      "decoded_frames": 5450,
+      "frames_per_second": 33
+    },
+    "audio": {
+      "codec": "Opus",
+      "received_packets": 8458,
+      "samples_received": 8141760,
+      "clock_rate_hz": 48000,
+      "channels": 2,
+      "playing": true,
+      "measured_energy": 0,
+      "audible_program_audio_verified": false,
+      "microphone_tested_this_run": false
+    },
+    "control": {
+      "granted_from_management_api": true,
+      "client_displayed_controller_role": true,
+      "released_from_management_api": true,
+      "example_key_count_before": 0,
+      "example_key_count_after": 0,
+      "target_delivery_confirmed": false,
+      "target_foreground_confirmed": false
+    },
+    "recovery": {
+      "wifi_disabled_seconds": 17,
+      "device_automatically_selected_other_wlan": true,
+      "automatically_recovered_on_other_wlan": false,
+      "original_wlan_manually_reselected": true,
+      "stream_app_returned_to_foreground": true,
+      "same_example_session_showed_live_video_after_reselection": true,
+      "watch_link_reentered_during_recovery": false
+    }
+  },
+  "fixed_hostname": {
+    "name": "volcengine.local",
+    "tablet_system_resolution_succeeded": false,
+    "tablet_udp_probe_observed_host_a_or_sunshine_ptr_response": false,
+    "installed_deployment_configured_stable_watch_hostname": false,
+    "root_cause_located": false
+  },
+  "cleanup": {
+    "android_viewer_exited": true,
+    "controller_removed": true,
+    "owned_example_stopped": true,
+    "active_media_observations": 0,
+    "ue_started": false
+  },
+  "screenshots": [
+    {
+      "file": "windows11-tablet-rc3-onsite-reconnected-20261128.png",
+      "sha256": "ed7a1002b73735a6679010379d9d299400a986e440a2f888a40a5a5ac488594d"
+    }
+  ]
+}
