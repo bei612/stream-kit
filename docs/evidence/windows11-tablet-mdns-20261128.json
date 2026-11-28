@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "source_commit": "53c7385ac58d39408a3aaffef33d6a95ea06a737",
+  "scope": "Physical Windows and Android LAN diagnosis and a separate development build verifying the resolver change against the existing Windows deployment.",
+  "android": {
+    "sdk": 33,
+    "default_network_transport": "WIFI",
+    "system_resolves_volcengine_local": false
+  },
+  "windows": {
+    "native_sunshine_reported_mdns_registration": true,
+    "native_sunshine_registration_logged_at": "2026-11-27T10:51:00+08:00"
+  },
+  "lan_peer_ipv4": {"windows": "192.168.2.131", "tablet": "192.168.2.28"},
+  "transport": {
+    "diagnostic_udp_port": 57419,
+    "group": "224.0.0.251",
+    "tablet_to_windows": {"unicast_received": 3, "multicast_received": 3},
+    "windows_to_tablet": {"unicast_received": 3, "multicast_received": 3}
+  },
+  "standard_multicast_dns": [
+    {"query": "volcengine.local", "type": "A", "windows_response_packets": 3, "answers_in_headers": 3},
+    {"query": "_nvstream._tcp.local", "type": "PTR", "windows_response_packets": 3, "answers_in_headers": 3}
+  ],
+  "tls": {
+    "address": "192.168.2.131",
+    "certificate_hostname": "volcengine.local",
+    "trust": "Existing deployment CA",
+    "listeners": [{"port": 9000, "http_status": 200}, {"port": 8080, "http_status": 200}]
+  },
+  "installed_android_resolution_repaired_in_this_check": false,
+  "development_client_stream": {
+    "apk_sha256": "2b701e2fb7abdbb88f6c3b64c3489bba71c33f1dcd824b0df1f4601cbad12f1b",
+    "original_watch_key_reused": true,
+    "hostname_in_viewing_url": "volcengine.local",
+    "manual_address_mapping_or_tls_override": false,
+    "example_started_from_fixed_hostname": true,
+    "active_media_streams": 1,
+    "decoded_video_frames": 341,
+    "video_fps": 32,
+    "audio_codec": "Opus",
+    "audio_packets_received": 528,
+    "audible_program_sound_and_microphone_verified_in_this_test": false,
+    "example_stopped_and_development_apk_removed": true,
+    "screenshot": {
+      "file": "windows11-tablet-mdns-example-20261128.png",
+      "sha256": "17368422d926d27c4c655053bfe4db1a46de25040756c6031a3c4b9264383d0e"
+    }
+  },
+  "production_configuration_changed": false,
+  "diagnostic_executables_removed_from_tablet": true
+}

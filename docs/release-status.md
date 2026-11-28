@@ -31,6 +31,8 @@ Playwright CLI 驱动 Chrome 打开本机登录页及当前 WLAN 上的管理、
 
 RC3 签名 APK 在实体平板使用当前 IPv4 观看链接启动 Example，实际解码 5,450 帧并收到 8,458 个 Opus 包。断网后 Android 自动选了另一已保存的 WLAN，串流未恢复。通过系统设置切回现场 WLAN 并回到应用后，原会话恢复画面，无需重输链接。现场授权和撤权已生效，Example 按键计数未递增，本次没有确认目标输入或声学表现。测试结束后 Example 已停止。[现场联验](evidence/windows11-tablet-rc3-onsite-20261128.json) · [恢复画面](evidence/windows11-tablet-rc3-onsite-reconnected-20261128.png)
 
+固定主机名排查确认现场双向组播可达，Windows 对标准 mDNS 组播发回响应，平板系统解析仍未返回地址。Android 源码加入针对原链接主机名的 DNS‑SD 解析。独立开发版已在实体平板用固定主机名打开原 Example 链接，输出 341 帧和 528 个 Opus 包，沿用原 CA。开发版验收后卸载，现场签名 RC3 APK 尚无此能力。本次未改变 Windows 的网络地址。[现场名称解析证据](evidence/windows11-tablet-mdns-20261128.json) · [实体平板画面](evidence/windows11-tablet-mdns-example-20261128.png)
+
 ## 修复与验收
 
 | 核验项 | 已取得的证据 |

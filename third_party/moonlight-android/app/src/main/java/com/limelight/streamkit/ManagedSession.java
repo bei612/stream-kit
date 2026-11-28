@@ -90,7 +90,7 @@ public final class ManagedSession implements AutoCloseable {
       return;
     stop();
     this.link = link;
-    api = new ManagedApi(link, development);
+    api = new ManagedApi(context, link, development);
     lifetime = new ConnectionLifetime();
     running = true;
     authority.setForeground(true);

@@ -1,5 +1,6 @@
 package com.limelight.streamkit;
 
+import android.content.Context;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -10,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.HttpUrl;
+import okhttp3.Dns;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -65,9 +67,18 @@ public final class ManagedApi {
     }
 
     public ManagedApi(WatchLink link, boolean developmentHttp) {
+        this(link, developmentHttp, Dns.SYSTEM);
+    }
+
+    ManagedApi(Context context, WatchLink link, boolean developmentHttp) {
+        this(link, developmentHttp, new ManagedLanDns(context, HttpUrl.get(link.origin()).host()));
+    }
+
+    ManagedApi(WatchLink link, boolean developmentHttp, Dns dns) {
         this.control = HttpUrl.get(link.origin());
         this.developmentHttp = developmentHttp;
         this.http = new OkHttpClient.Builder()
+                .dns(dns)
                 .connectTimeout(8, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS)
                 .callTimeout(15, TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false)
                 .retryOnConnectionFailure(false).build();
