@@ -333,6 +333,11 @@ async function endpoints(){
     candidate:path.resolve('artifacts/maintenance-platform'),candidateCommit:process.env.STREAM_KIT_ROLLBACK_CANDIDATE,
     openssl:process.env.STREAM_KIT_ROLLBACK_OPENSSL,example:path.resolve('artifacts/maintenance-example/checkerboard.exe')});
   }
+  if(resume&&fs.existsSync(path.resolve('lan-fixture/network.json'))){
+   const {verifyWindowsLAN}=require('./lan-guest.cjs');
+   result.lan_address_change=await verifyWindowsLAN({program,data,output,build:manifest.commit,ps});
+   assert.equal(result.lan_address_change.passed,true);
+  }
   result.passed=true;
  }catch(error){result.error=error.message}
  finally{

@@ -18,6 +18,10 @@ on:
         description: Diagnose the native initializer without repeating an already failed installation
         type: boolean
         default: false
+      lan_address_change:
+        description: Verify stable LAN viewing and live media after a real guest NIC address change
+        type: boolean
+        default: false
 permissions:
   contents: read
   actions: read
@@ -30,16 +34,33 @@ jobs:
       PRODUCT_RUN_ID: ${{ inputs.product_run_id }}
       DIAGNOSTIC_PRODUCT_RUN_ID: ${{ inputs.diagnostic_product_run_id }}
       INITIALIZATION_ONLY: ${{ inputs.initialization_only }}
+      LAN_ADDRESS_CHANGE: ${{ inputs.lan_address_change }}
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - uses: actions/setup-node@v4
+        if: inputs.lan_address_change
+        with:
+          node-version: '26.4.0'
+      - uses: actions/setup-go@v5
+        if: inputs.lan_address_change
+        with:
+          go-version-file: '.go-version'
+          cache: false
       - name: Install isolated guest tools
         run: |
           test -c /dev/kvm
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends acl qemu-system-x86 qemu-utils ovmf swtpm genisoimage
           sudo setfacl -m "u:$(id -un):rw" /dev/kvm
+      - name: Install independent LAN client dependencies
+        if: inputs.lan_address_change
+        run: |
+          sudo apt-get install -y --no-install-recommends avahi-daemon avahi-utils libnss-mdns libnss3-tools
+          sudo systemctl start avahi-daemon
+          npm ci --prefix third_party/moonlight-web-stream --ignore-scripts --no-fund
+          google-chrome --version
       - name: Verify Windows install and system reboot
         env:
           GH_TOKEN: ${{ github.token }}

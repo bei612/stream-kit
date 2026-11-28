@@ -10,6 +10,10 @@ if [[ -n ${RELEASE_TAG:-} ]]; then
   [[ $RELEASE_TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[1-9][0-9]*)?$ ]] || { echo 'Invalid release tag' >&2; exit 1; }
 fi
 [[ ${GITHUB_ACTIONS:-} == true && ${RUNNER_ENVIRONMENT:-} == github-hosted && -r /dev/kvm && -w /dev/kvm ]]
+if [[ ${INITIALIZATION_ONLY:-false} == true && ${LAN_ADDRESS_CHANGE:-false} == true ]]; then
+  echo 'Initialization-only and LAN acceptance are mutually exclusive' >&2
+  exit 1
+fi
 
 output="$PWD/artifacts/windows11-reboot"
 mkdir -p "$output"
@@ -25,6 +29,9 @@ fi
 work=$(mktemp -d "$disk_root/stream-kit-win11.XXXXXXXX")
 control=$(mktemp -d /tmp/stream-kit-qmp.XXXXXXXX)
 guest_pid=
+lan_pid=
+tap_created=false
+tap=sk-win11-lan
 cleanup() {
   if [[ -n "$guest_pid" ]]; then
     kill "$guest_pid" 2>/dev/null || true
@@ -33,6 +40,13 @@ cleanup() {
   # The runner is ephemeral. Only clean up processes and folders created for this guest.
   if [[ -s "$control/tpm.pid" ]]; then
     kill "$(cat "$control/tpm.pid")" 2>/dev/null || true
+  fi
+  if [[ -n "$lan_pid" ]]; then
+    kill "$lan_pid" 2>/dev/null || true
+    wait "$lan_pid" 2>/dev/null || true
+  fi
+  if [[ "$tap_created" == true ]]; then
+    sudo ip link delete "$tap"
   fi
   if [[ -s "$work/qemu.log" ]]; then cp "$work/qemu.log" "$output/qemu.log"; fi
   rm -rf -- "$work" "$control"
@@ -103,6 +117,39 @@ cp .github/fixtures/windows11/renderer-probe.cjs "$work/input/"
 if [[ ${INITIALIZATION_ONLY:-false} == true ]]; then
   touch "$work/input/initialization-only"
 fi
+guest_network=(-nic none)
+if [[ ${LAN_ADDRESS_CHANGE:-false} == true ]]; then
+  fixture="$work/input/lan-fixture"
+  mkdir "$fixture"
+  cp .github/fixtures/windows11/network.json "$fixture/"
+  cp .github/fixtures/windows11/lan-guest.cjs "$work/input/scripts/"
+  client_address=$(jq -er '.client_address' "$fixture/network.json")
+  mac=$(jq -er '.mac | ascii_downcase | gsub("-";":")' "$fixture/network.json")
+  python3 - "$fixture/network.json" <<'PY'
+import ipaddress, json, subprocess, sys
+config = json.load(open(sys.argv[1]))
+subnet = ipaddress.ip_network(config['subnet'])
+routes = json.loads(subprocess.check_output(['ip', '-j', '-4', 'route', 'show', 'table', 'all']))
+assert all(not subnet.overlaps(ipaddress.ip_network(route['dst'], strict=False)) for route in routes
+           if route.get('dst') not in (None, 'default', '0.0.0.0/0')), 'Fixture route overlaps a runner network'
+assert all(ipaddress.ip_address(config[key]) in subnet for key in ('client_address', 'old_address', 'new_address'))
+PY
+  ! ip link show dev "$tap" >/dev/null 2>&1
+  sudo ip tuntap add dev "$tap" mode tap user "$(id -un)"
+  tap_created=true
+  sudo ip address add "$client_address/24" dev "$tap"
+  sudo ip link set "$tap" up
+  guest_network=(-netdev "tap,id=fixture,ifname=$tap,script=no,downscript=no" -device "e1000e,netdev=fixture,mac=$mac")
+  openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 35 -subj '/CN=Stream Kit Windows LAN fixture CA' \
+    -addext 'basicConstraints=critical,CA:TRUE' -addext 'keyUsage=critical,keyCertSign,cRLSign' \
+    -keyout "$fixture/ca.key" -out "$fixture/ca.crt" 2>/dev/null
+  mkdir -p "$HOME/.pki/nssdb"
+  if [[ ! -f "$HOME/.pki/nssdb/cert9.db" ]]; then certutil -N -d "sql:$HOME/.pki/nssdb" --empty-password; fi
+  certutil -A -d "sql:$HOME/.pki/nssdb" -n StreamKitWindowsLAN -t 'C,,' -i "$fixture/ca.crt"
+  GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go -C example build -trimpath -ldflags '-H=windowsgui' -o "$fixture/checkerboard.exe" .
+  node .github/fixtures/windows11/lan-client.cjs "$fixture" "$output" &
+  lan_pid=$!
+fi
 password="Aa0-$(openssl rand -hex 24)!"
 sed "s/__GUEST_PASSWORD__/$password/g" .github/fixtures/windows11/Autounattend.xml > "$work/input/Autounattend.xml"
 unset password
@@ -127,7 +174,7 @@ qemu-system-x86_64 -machine q35,accel=kvm,smm=on -cpu host -smp 2 -m 6144 \
   -drive "if=ide,format=qcow2,discard=unmap,file=$work/guest.qcow2" \
   -drive "if=ide,media=cdrom,readonly=on,format=raw,file=$work/windows.iso" \
   -drive "if=ide,media=cdrom,readonly=on,format=raw,file=$work/inputs.iso" \
-  -boot order=c,once=d -nic none -display none -vga std \
+  -boot order=c,once=d "${guest_network[@]}" -display none -vga std \
   -audiodev driver=none,id=audio0 -device ich9-intel-hda -device hda-duplex,audiodev=audio0 \
   -serial "file:$work/serial.log" -qmp "unix:$control/qmp,server=on,wait=off" \
   > "$work/qemu.log" 2>&1 &
@@ -142,4 +189,10 @@ if [[ ${INITIALIZATION_ONLY:-false} == true ]]; then
   exit 0
 fi
 node scripts/verify-windows-android-promotion.mjs --windows11-reboot "$manifest" "$output/guest.json" "$output/result.json"
+if [[ ${LAN_ADDRESS_CHANGE:-false} == true ]]; then
+  wait "$lan_pid"
+  lan_pid=
+  jq -e '.passed == true and .same_page_recovered == true' "$output/windows-lan-client.json" >/dev/null
+  jq -e '.lan_address_change.passed == true and .lan_address_change.target_stopped == true' "$output/result.json" >/dev/null
+fi
 echo 'Clean Win11 install, full VM reboot, original process ownership, PCM and uninstall passed.'

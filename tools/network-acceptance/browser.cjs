@@ -8,10 +8,10 @@ const {waitForPageCondition}=require('../../scripts/lib/browser-condition.cjs');
 assert.equal(process.env.GITHUB_ACTIONS,'true');
 assert.equal(process.env.RUNNER_ENVIRONMENT,'github-hosted');
 assert.equal(process.platform,'linux');assert.notEqual(process.getuid(),0);
-let browser,page,initialPeerCount;
+let browser,page,initialPeerCount,gatewayOrigin;
 function viewer(){
   return page?.frames().find(frame=>{
-    try{const url=new URL(frame.url());return url.origin==='https://stream-kit-server.local:18080'&&url.pathname==='/stream.html';}catch{return false;}
+    try{const url=new URL(frame.url());return url.origin===gatewayOrigin&&url.pathname==='/stream.html';}catch{return false;}
   });
 }
 async function snapshot(){
@@ -53,7 +53,10 @@ async function waitMedia(address,minPeers){
 async function command(message){
   if(message.action==='start'){
     const url=new URL(message.url);
-    assert.equal(url.origin,'https://stream-kit-server.local:19000');assert.equal(url.pathname,'/watch');
+    const hostname=message.hostname??'stream-kit-server.local';
+    assert.match(hostname,/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.local$/);
+    assert.equal(url.origin,`https://${hostname}:19000`);assert.equal(url.pathname,'/watch');
+    gatewayOrigin=`https://${hostname}:18080`;
     browser=await launchBrowser({args:['--autoplay-policy=no-user-gesture-required']});
     const context=await browser.newContext();
     await context.addInitScript(()=>{

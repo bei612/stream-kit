@@ -135,6 +135,9 @@ try {
         foreach ($name in 'node.exe','guest.ps1','scripts','installer') {
             Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $work -Recurse
         }
+        if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'lan-fixture') -PathType Container) {
+            Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'lan-fixture') -Destination $work -Recurse
+        }
         if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'initialization-only') -PathType Leaf) {
             $package = Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json
             Write-GuestEvidence @{
@@ -167,6 +170,7 @@ try {
         pcm_frames = $result.pair.captured_frames; pcm_dropped = $result.pair.target.dropped_frames
         scm_restarted = $result.scm_restarted; gateway_restarted = $result.gateway_restarted
         uninstall_exit = $result.uninstall_exit; service_removed = $result.service_removed; data_preserved = $result.data_preserved
+        lan_address_change = $result.lan_address_change
         diagnostics = $diagnostics
     }
     if (-not $Resume -and $testExit -eq 0 -and $result.phase -eq 'awaiting_reboot') {
