@@ -56,18 +56,16 @@ export function verifyCombinedEvidence(win, android, tag, linux, load = read) {
     ? `docs/evidence/windows11-android-candidate-${tag.slice(1)}.json`
     : `docs/evidence/windows11-android-release-${release.version}.json`
   const gate = load(gatePath)
-  if (release.prerelease) {
-    assert.equal(gate.tag, tag, 'Candidate evidence must match the publication tag')
-    assert.ok(linux, 'Unified release candidate requires the Ubuntu installer')
-    assert.equal(gate.linux_installer_sha256, linux.installer.sha256, 'Ubuntu candidate evidence does not match the installer')
-  }
+  assert.equal(gate.tag, tag, 'Release evidence must match the publication tag')
+  assert.ok(linux, 'Unified release requires the Ubuntu installer')
+  assert.equal(gate.linux_installer_sha256, linux.installer.sha256, 'Ubuntu release evidence does not match the installer')
   assert.equal(gate.source_commit, win.commit)
   assert.equal(gate.installer_sha256, win.file.sha256)
   assert.equal(gate.apk_sha256, android.apk_sha256)
   assert.equal(gate.android_version_code, android.version_code)
   const checks = release.prerelease
     ? ['hosted_maintenance_rollback', 'isolated_lan_migration', 'android_upgrade', 'android_input_lifecycle', 'android_media_input_audio', 'dependency_review', 'cleanup_verified']
-    : ['windows11_install', 'service_recovery', 'maintenance_rollback', 'lan_migration', 'android_upgrade', 'android_media_input_audio', 'dependency_review', 'cleanup_verified']
+    : ['windows11_install', 'service_recovery', 'maintenance_rollback', 'lan_migration', 'android_upgrade', 'android_input_lifecycle', 'android_media_input_audio', 'dependency_review', 'cleanup_verified']
   for (const name of checks) {
     assert.equal(gate.checks?.[name]?.passed, true, `Release evidence missing: ${name}`)
     const evidence = gate.checks[name].evidence
@@ -120,11 +118,8 @@ function prepareAssets(windowsDirectory, androidDirectory, sourceSbom, acceptanc
     assert.ok(inventory.includes(`${sha256(path.join(androidDirectory, file))}  ${file}`), `Android inventory mismatch: ${file}`)
   }
 
-  let linux
-  if (linuxDirectory) {
-    linux = read(path.join(linuxDirectory, 'installer-manifest.json'))
-    verifyLinuxInstaller(win, linux, tag, file => sha256(path.join(linuxDirectory, file)))
-  }
+  const linux = read(path.join(linuxDirectory, 'installer-manifest.json'))
+  verifyLinuxInstaller(win, linux, tag, file => sha256(path.join(linuxDirectory, file)))
   const release = verifyCombinedEvidence(win, android, tag, linux)
 
   fs.mkdirSync(output, {recursive:true})
@@ -141,11 +136,9 @@ function prepareAssets(windowsDirectory, androidDirectory, sourceSbom, acceptanc
   fs.writeFileSync(path.join(output, 'SHA256SUMS.txt'), windowsChecksums)
   const androidChecksums = [...androidFiles].map(([from, to]) => copy(androidDirectory, from, to)).join('')
   fs.writeFileSync(path.join(output, 'Android-SHA256SUMS.txt'), androidChecksums)
-  if (linux) {
-    const linuxChecksums = copy(linuxDirectory, linux.installer.file)
-      + copy(linuxDirectory, 'installer-manifest.json', 'linux-installer-manifest.json')
-    fs.writeFileSync(path.join(output, 'Linux-SHA256SUMS.txt'), linuxChecksums)
-  }
+  const linuxChecksums = copy(linuxDirectory, linux.installer.file)
+    + copy(linuxDirectory, 'installer-manifest.json', 'linux-installer-manifest.json')
+  fs.writeFileSync(path.join(output, 'Linux-SHA256SUMS.txt'), linuxChecksums)
   console.log(JSON.stringify(release))
 }
 
@@ -163,7 +156,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     verifyWindows11RebootAcceptance(read(args[1]), read(args[2]), result)
     if (args[4]) verifyWindows11LanAcceptance(result, read(args[4]))
   } else {
-    assert.ok(args.length === 6 || args.length === 7, 'Expected WINDOWS_DIR ANDROID_DIR SOURCE_SBOM INSTALLER_ACCEPTANCE TAG OUTPUT_DIR [LINUX_DIR]')
+    assert.equal(args.length, 7, 'Expected WINDOWS_DIR ANDROID_DIR SOURCE_SBOM INSTALLER_ACCEPTANCE TAG OUTPUT_DIR LINUX_DIR')
     prepareAssets(...args)
   }
 }

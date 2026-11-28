@@ -9,6 +9,10 @@ if [[ -n ${LINUX_RUN_ID:-} ]]; then
     exit 1
   }
 fi
+if [[ -n ${ANDROID_RUN_ID:-} && -z ${LINUX_RUN_ID:-} ]]; then
+  echo 'Unified promotion requires the matching Ubuntu installer run ID' >&2
+  exit 1
+fi
 mkdir -p artifacts/promotion
 gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > artifacts/promotion/source-run.json
 jq -e --arg repo "$GITHUB_REPOSITORY" '
@@ -78,17 +82,13 @@ if [[ -n ${ANDROID_RUN_ID:-} ]]; then
   android=artifacts/promotion/android-candidate
   gh run download "$ANDROID_RUN_ID" --repo "$GITHUB_REPOSITORY" --name stream-kit-android-release-candidate --dir "$android"
   release_assets=artifacts/promotion/windows-android-assets
-  linux_args=()
-  if [[ -n ${LINUX_RUN_ID:-} ]]; then
-    linux_artifact=artifacts/promotion/linux-product-installer
-    gh api "repos/$GITHUB_REPOSITORY/actions/runs/$LINUX_RUN_ID" > artifacts/promotion/linux-run.json
-    gh api "repos/$GITHUB_REPOSITORY/actions/runs/$LINUX_RUN_ID/jobs?filter=latest&per_page=100" > artifacts/promotion/linux-jobs.json
-    node scripts/verify-windows-android-promotion.mjs --linux-run artifacts/promotion/linux-run.json \
-      artifacts/promotion/linux-jobs.json "$GITHUB_REPOSITORY" "$LINUX_RUN_ID" "$source_commit" "$RELEASE_TAG"
-    gh run download "$LINUX_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "linux-product-installer-$source_commit" --dir "$linux_artifact"
-    linux_args=("$linux_artifact/installer")
-  fi
-  publication=$(node scripts/verify-windows-android-promotion.mjs "$windows" "$android" "$sbom" "$acceptance" "$RELEASE_TAG" "$release_assets" "${linux_args[@]}")
+  linux_artifact=artifacts/promotion/linux-product-installer
+  gh api "repos/$GITHUB_REPOSITORY/actions/runs/$LINUX_RUN_ID" > artifacts/promotion/linux-run.json
+  gh api "repos/$GITHUB_REPOSITORY/actions/runs/$LINUX_RUN_ID/jobs?filter=latest&per_page=100" > artifacts/promotion/linux-jobs.json
+  node scripts/verify-windows-android-promotion.mjs --linux-run artifacts/promotion/linux-run.json \
+    artifacts/promotion/linux-jobs.json "$GITHUB_REPOSITORY" "$LINUX_RUN_ID" "$source_commit" "$RELEASE_TAG"
+  gh run download "$LINUX_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "linux-product-installer-$source_commit" --dir "$linux_artifact"
+  publication=$(node scripts/verify-windows-android-promotion.mjs "$windows" "$android" "$sbom" "$acceptance" "$RELEASE_TAG" "$release_assets" "$linux_artifact/installer")
   draft_args=()
   final_args=(--latest)
   if jq -e '.prerelease == true' <<< "$publication" > /dev/null; then

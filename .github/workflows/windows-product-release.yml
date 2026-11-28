@@ -32,7 +32,7 @@ on:
         type: string
         required: false
       linux_run_id:
-        description: 'Optional same-source Linux installer run to include with Windows + Android. Use the product run ID if it built Linux.'
+        description: 'Same-source Ubuntu installer run for unified Windows, Ubuntu and Android publication'
         type: string
         required: false
       release_tag:
