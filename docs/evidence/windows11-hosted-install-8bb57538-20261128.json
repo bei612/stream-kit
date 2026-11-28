@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "source_commit": "8bb57538c064bdf763bb153439b2c973e69afd3b",
+  "passed": true,
+  "product_run_id": 46141887890,
+  "acceptance_run_id": 46146194684,
+  "artifact_id": 15264390018,
+  "artifact_sha256": "526a206b12b3943ee237de83df5a5154a560819e30963922f4d60ebeeeb5c7d0",
+  "result_sha256": "9ddb6f82d858d2cd1a53fabee248b55a49cdd3cdecf4c4b639d5f820925aabf9",
+  "installer_sha256": "5bdba8eca1bd792a4f2ffc0d18f20076c464ca2626d0d8019da7d3b8287dffd8",
+  "silent_install_exit": 0,
+  "captured_pcm_frames": 144000,
+  "dropped_target_pcm_packets": 0,
+  "defaults_preserved": true,
+  "automatic_scm_start": true,
+  "scm_restarted": true,
+  "gateway_restarted": true,
+  "uninstall_exit": 0,
+  "service_removed": true,
+  "data_preserved": true,
+  "scope": "Exact Windows installer on a hosted Windows Server 2022. This evidence covers the original native binaries and installer lifecycle. The whole-system Win11 reboot, independent LAN and site installation have separate acceptance."
+}

@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "source_commit": "8bb57538c064bdf763bb153439b2c973e69afd3b",
+  "passed": true,
+  "baseline_tag": "v0.1.1-rc.4",
+  "baseline_commit": "bb3c8d24a7a0a33c090ef9e60e555a7b081058b9",
+  "candidate_payload_artifact_id": 15263463438,
+  "acceptance_run_id": 46146232503,
+  "artifact_id": 15264445031,
+  "artifact_sha256": "10120e253a8595648f16c06a6695bdd1d0d78755b833846534dc419f428bbbfc",
+  "result_sha256": "71107d6d96b23fc2767cb7e26d328115e2a55e409bd06ae1817f6e274ae21266",
+  "rollback_report_sha256": "b1fe2609129319f992d1b311eafd19cc47334ba08fa8a278412693996edf2edf",
+  "apply_report_sha256": "9ab9d02ed64567370978a24f93f1e9a31e6489a388a5cfcde9615f8ffb72de86",
+  "real_port_conflict_triggered_rollback": true,
+  "baseline_recovered": true,
+  "candidate_applied_after_conflict_removed": true,
+  "original_watch_link_preserved": true,
+  "existing_configuration_and_trust_preserved": true,
+  "existing_endpoint_policy_verified": true,
+  "original_uninstaller_preserved": true,
+  "cleanup": {"uninstall_exit": 0, "service_removed": true, "data_preserved": true},
+  "scope": "Hosted Windows Server 2022 used the original RC4 installer and exact candidate runtime. Field Windows 11 maintenance, driver changes and whole-system reboot have separate acceptance."
+}
