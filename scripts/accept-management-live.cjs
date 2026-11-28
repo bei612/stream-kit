@@ -134,7 +134,7 @@ async function main() {
     assert.ok(stopped.args === argumentSnapshot.original, 'Example arguments were not restored');
     assert.equal((await api('/health')).commit, configuration.expected_control_commit, 'Control source changed during acceptance');
     report.passed = true;
-    report.checks = ['trusted HTTPS and exact deployed control commit', 'permanent link visible before launch', 'real Example launch and two decoded WebRTC viewers',
+    report.checks = ['trusted HTTPS and exact deployed control commit', 'same permanent link visible in English and Chinese before launch', 'real Example launch and two decoded WebRTC viewers',
       'UI grant, transfer and revoke with server authority checks', 'canonical en/zh viewer authority, lifecycle-only connection prompts and ready UI pipelines', 'ended viewers have no stale permission notifications', 'Example stop; UI argument edit/save and original argument restoration with actual API agreement; read-only history', 'desktop/mobile screenshots and console errors'];
   } catch (error) { report.error = redact(error.message); }
   finally {
@@ -393,6 +393,13 @@ async function browserAcceptance(page, cfg, classifyQueryCancellations) {
     await page.goto(cfg.base + '/apps');
     await page.locator('a[href="/apps/' + cfg.appId + '"]').first().click();
     await page.getByRole('heading', { name: cfg.name, exact: true }).waitFor();
+    const language = page.getByRole('combobox', { name: /^(Language|语言)$/ });
+    await language.selectOption('en');
+    const englishLink = page.getByRole('textbox', { name: 'Permanent viewing link', exact: true });
+    await englishLink.waitFor();
+    const englishWatch = await englishLink.inputValue();
+    requireTrue(await page.locator('html').getAttribute('lang') === 'en', 'English locale was not applied');
+    await language.selectOption('zh-CN');
     const link = page.getByRole('textbox', { name: '固定观看链接', exact: true });
     const original = await api('/apps/'+cfg.appId);
     const originalHash = await page.evaluate(async value => {
@@ -401,6 +408,8 @@ async function browserAcceptance(page, cfg, classifyQueryCancellations) {
     }, original.args);
     requireTrue(originalHash === cfg.originalArgsSHA256, 'Example arguments changed before acceptance');
     await link.waitFor(); const watch = await link.inputValue();
+    requireTrue(await page.locator('html').getAttribute('lang') === 'zh-CN', 'Chinese locale was not applied');
+    requireTrue(watch === englishWatch, 'Switching the management locale changed the permanent viewing link');
     const url = new URL(watch); requireTrue(url.origin === cfg.base && url.pathname === '/watch' && /^#key=[A-Za-z0-9_-]{43}$/.test(url.hash), 'Invalid permanent link');
     await screenshot(page, 'app-before-launch-desktop', [link]);
     await page.setViewportSize({ width: 390, height: 844 });
