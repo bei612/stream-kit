@@ -39,6 +39,8 @@ RC3 签名 APK 在实体平板使用当前 IPv4 观看链接启动 Example，实
 
 最新独立 Win11 已跨重启读取同一检查点，整机重启、三组件自动启动和原生录音均达到验收条件。实际换 IPv4 后，原观看页恢复直连并解码 48 帧、接收 97 个音频包，双端 HTTPS 在 12.591 秒内更新。Example 已停止。卸载前的 PowerShell 所有权查询超时，该次卸载未执行。独立首装、重启及卸载验收专门核对剩余生命周期，换址沿用本次完整证据。[Windows 换址验收](evidence/windows11-lan-scope-8bb57538-20261128.json) · [检查点故障及修复](evidence/windows11-rc5-reporter-20261128.json)
 
+随后单独执行的清洁 Win11 安装生命周期验收在首装成功并发出重启检查点后未返回结果，虚拟机画面显示系统停机 `SYSTEM_SERVICE_EXCEPTION (0x3B)`。该次未取得卸载结果，故障模块待定位，正式发布暂缓。该结果与已通过的换址范围分别记录。[停机记录](evidence/windows11-rc5-kernel-stop-20261128.json) · [虚拟机停机画面](evidence/windows11-rc5-kernel-stop-20261128.png)
+
 RC3 和 RC4 的历史结果分别保留首装与重启、结果采集、测试时钟和评估镜像下载的边界。[RC3 重启](evidence/windows11-lan-rc3-first-run-20261128.json) · [RC3 镜像安装](evidence/windows11-lan-rc3-setup-timeout-20261128.json) · [RC4 重启](evidence/windows11-lan-rc4-first-run-20261128.json) · [结果采集](evidence/windows11-lan-rc4-reporter-failure-20261128.json) · [虚拟机时钟](evidence/windows11-lan-rc4-clock-skew-20261128.json) · [镜像续传](evidence/windows11-lan-rc4-iso-interrupted-20261128.json)
 
 ## 修复与验收

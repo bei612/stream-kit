@@ -44,6 +44,30 @@ function Read-FixtureJson([string]$Path) {
     ConvertFrom-Json -InputObject $json
 }
 
+function Get-NewGuestBugCheck {
+    $checkpoint = Get-Item -LiteralPath $resultFile -ErrorAction SilentlyContinue
+    if (-not $checkpoint) { return }
+    $events = Get-WinEvent -FilterHashtable @{
+        LogName = 'System'; ProviderName = 'Microsoft-Windows-Kernel-Power'
+        Id = 41; StartTime = $checkpoint.CreationTime.AddMinutes(-1)
+    } -MaxEvents 8 -ErrorAction SilentlyContinue
+    foreach ($event in $events) {
+        [xml]$xml = $event.ToXml()
+        $fields = @{}
+        foreach ($item in $xml.Event.EventData.Data) { $fields[$item.Name] = $item.'#text' }
+        if ($fields.BugcheckCode -notmatch '^[1-9][0-9]{0,9}$') { continue }
+        $parameters = @(1..4 | ForEach-Object {
+            $value = $fields["BugcheckParameter$_"]
+            if ($value -match '^0x[0-9a-fA-F]{1,16}$') { $value }
+        })
+        return @{
+            bugcheck_code = [uint32]$fields.BugcheckCode; bugcheck_parameters = $parameters
+            recorded_utc = $event.TimeCreated.ToUniversalTime().ToString('o')
+            event_record_id = $event.RecordId
+        }
+    }
+}
+
 function Read-NativeInitialization($Identity) {
     $details = [ordered]@{}
     $diagnosticStarted = Get-Date
@@ -152,6 +176,11 @@ try {
             phase = 'guest_ready'; build = [int]$windows.BuildNumber; secure_boot = $true; tpm_present = $true
             guest_utc = [DateTime]::UtcNow.ToString('o'); guest_time_zone = (Get-TimeZone).Id
         }
+        # Keep crash recording inside the verified disposable guest.
+        $crashControl = 'HKLM:\SYSTEM\CurrentControlSet\Control\CrashControl'
+        New-ItemProperty -LiteralPath $crashControl -Name AutoReboot -PropertyType DWord -Value 1 -Force | Out-Null
+        New-ItemProperty -LiteralPath $crashControl -Name LogEvent -PropertyType DWord -Value 1 -Force | Out-Null
+        New-ItemProperty -LiteralPath $crashControl -Name CrashDumpEnabled -PropertyType DWord -Value 3 -Force | Out-Null
         New-Item -ItemType Directory -Path $work | Out-Null
         foreach ($name in 'node.exe','guest.ps1','scripts','installer') {
             Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $work -Recurse
@@ -179,6 +208,22 @@ try {
     $mode = if ($Resume) { '--win11-resume' } else { '--win11-stage' }
     $fixtureStage = 'read_manifest'
     $package = Read-FixtureJson $manifest
+    if ($Resume) {
+        $fixtureStage = 'observe_resume'
+        $bugcheck = Get-NewGuestBugCheck
+        if ($bugcheck) {
+            Write-GuestEvidence @{
+                phase = 'kernel_fault'; passed = $false; bugcheck = $bugcheck
+                commit = $package.commit; installer_sha256 = $package.file.sha256
+            }
+            exit 1
+        }
+        Write-GuestEvidence @{
+            phase = 'resume_started'; boot_utc = $windows.LastBootUpTime.ToUniversalTime().ToString('o')
+            observed_at = [DateTime]::UtcNow.ToString('o')
+            commit = $package.commit; installer_sha256 = $package.file.sha256
+        }
+    }
     $fixtureStage = 'run_acceptance'
     $node = Join-Path $work 'node.exe'
     & $node (Join-Path $work 'scripts\accept-windows-installer.cjs') $manifest $output $mode

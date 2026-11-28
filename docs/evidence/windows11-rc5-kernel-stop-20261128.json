@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-28",
+  "passed": false,
+  "source_commit": "8bb57538c064bdf763bb153439b2c973e69afd3b",
+  "acceptance_commit": "17ee1ddb71343c8251c9e9ce0eede8756059a4a0",
+  "installer_sha256": "5bdba8eca1bd792a4f2ffc0d18f20076c464ca2626d0d8019da7d3b8287dffd8",
+  "run_id": 46158583247,
+  "artifact_id": 15270397012,
+  "artifact_sha256": "42f4e78393f804b84b8424e9adc34ac74e438aa58e751e958aed35387dcee79d",
+  "environment": "Disposable QEMU guest with Windows 11 x64 26H2 build 26300, Secure Boot and TPM",
+  "install_exit": 0,
+  "last_observed_phase": "awaiting_reboot",
+  "observer_deadline": "reboot and product readiness",
+  "screen_observed": {
+    "stop_name": "SYSTEM_SERVICE_EXCEPTION",
+    "stop_code": "0x3B",
+    "dump_progress_percent": 100,
+    "file": "windows11-rc5-kernel-stop-20261128.png",
+    "sha256": "746b5aed553c35b912a6a26a1e386fef7bd4f8f8cea2ff2546ee62e3fdb4f7d8"
+  },
+  "crash_dump_available_for_analysis": false,
+  "faulting_module_identified": false,
+  "uninstall_outcome_available": false,
+  "scope": "The guest installed the exact package and emitted its durable reboot checkpoint. Its last screen showed a kernel stop and the run never produced a post-reboot outcome. The artifact does not attribute the kernel stop to Windows, the hypervisor, or a particular driver. This observation independently prevents stable readiness from being claimed."
+}

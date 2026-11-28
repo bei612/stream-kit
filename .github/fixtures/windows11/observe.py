@@ -66,8 +66,22 @@ def main():
         partial = b''
         phases = set()
         checkpoint = None
+        diagnostic_reset = False
         try:
-            while time.monotonic() < deadline:
+            while True:
+                if time.monotonic() >= deadline:
+                    if 'awaiting_reboot' not in phases or diagnostic_reset:
+                        raise TimeoutError(f'Windows guest timed out during {waiting_for}')
+                    # The existing acceptance already failed at its deadline. Give the
+                    # owned guest one recovery boot to collect a recorded bug check.
+                    command('screendump', {'filename': str(output / 'guest-screen.ppm')})
+                    (output / 'diagnostic-reset.json').write_text(json.dumps({
+                        'timed_out_during': waiting_for, 'last_observed_phases': sorted(phases),
+                    }, indent=2) + '\n')
+                    command('system_reset')
+                    diagnostic_reset = True
+                    waiting_for = 'diagnostic recovery after acceptance timeout'
+                    deadline = time.monotonic() + 5 * 60
                 os.kill(int(pid), 0)
                 if serial.exists():
                     with serial.open('rb') as data:
@@ -84,8 +98,14 @@ def main():
                             continue
                         result = json.loads(base64.b64decode(line[len(prefix):].strip(), validate=True))
                         phase = result.get('phase')
-                        if phase not in {'guest_ready', 'awaiting_reboot', 'lan_ready', 'completed', 'diagnostic_completed', 'failed', 'fixture_failed'}:
+                        if phase not in {'guest_ready', 'awaiting_reboot', 'resume_started', 'lan_ready',
+                                         'completed', 'diagnostic_completed', 'failed', 'fixture_failed', 'kernel_fault'}:
                             raise RuntimeError('Unexpected Win11 acceptance phase')
+                        if diagnostic_reset and phase == 'resume_started':
+                            (output / 'diagnostic-resume.json').write_text(json.dumps(result, indent=2) + '\n')
+                            continue
+                        if diagnostic_reset and phase not in {'completed', 'failed', 'fixture_failed', 'kernel_fault'}:
+                            continue
                         if phase in phases:
                             raise RuntimeError('Duplicate Win11 acceptance phase')
                         phases.add(phase)
@@ -101,6 +121,10 @@ def main():
                             (output / 'checkpoint.json').write_text(json.dumps(result, indent=2) + '\n')
                             waiting_for = 'reboot and product readiness'
                             deadline = time.monotonic() + 12 * 60
+                        if phase == 'resume_started':
+                            if not checkpoint:
+                                raise RuntimeError('Windows resumed without an observed installer checkpoint')
+                            (output / 'resume-started.json').write_text(json.dumps(result, indent=2) + '\n')
                         if phase == 'lan_ready':
                             if not lan or not checkpoint:
                                 raise RuntimeError('Guest requested a NIC outside the post-reboot LAN stage')
@@ -109,8 +133,10 @@ def main():
                                                    'bus': 'sklanport', 'netdev': 'fixture', 'mac': lan[0]})
                             waiting_for = 'independent LAN acceptance'
                             deadline = time.monotonic() + 10 * 60
-                        if phase in {'completed', 'diagnostic_completed', 'failed', 'fixture_failed'}:
+                        if phase in {'completed', 'diagnostic_completed', 'failed', 'fixture_failed', 'kernel_fault'}:
                             (output / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
+                            if diagnostic_reset:
+                                raise RuntimeError('The owned guest required a diagnostic reset after a failed acceptance deadline')
                             if phase == 'diagnostic_completed':
                                 return
                             if phase != 'completed':
@@ -121,10 +147,10 @@ def main():
                                 raise RuntimeError('Windows resumed from different checkpoint bytes')
                             return
                 time.sleep(1)
-            raise TimeoutError(f'Windows guest timed out during {waiting_for}')
         except Exception:
             try:
-                command('screendump', {'filename': str(output / 'guest-screen.ppm')})
+                if not (output / 'guest-screen.ppm').exists():
+                    command('screendump', {'filename': str(output / 'guest-screen.ppm')})
             except (OSError, ValueError, RuntimeError):
                 pass
             raise
