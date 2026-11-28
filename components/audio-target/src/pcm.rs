@@ -62,8 +62,7 @@ impl PcmQueue {
     pub fn stereo(&mut self, now: Instant) -> [f32; 2] {
         while self.len > 0 {
             let frame = &self.frames[self.head];
-            if now.saturating_duration_since(frame.queued) < MAX_AGE && frame.offset < FRAME_SAMPLES
-            {
+            if now.saturating_duration_since(frame.queued) < MAX_AGE {
                 break;
             }
             self.pop();
@@ -77,6 +76,9 @@ impl PcmQueue {
             frame.samples[frame.offset + 1].clamp(-1.0, 1.0),
         ];
         frame.offset += 2;
+        if frame.offset == FRAME_SAMPLES {
+            self.pop();
+        }
         pair
     }
 }
@@ -107,6 +109,20 @@ mod tests {
         assert_eq!(queue.stereo(now), [0.5, 0.5]);
         queue.clear();
         assert_eq!(queue.stereo(now), [0.0, 0.0]);
+    }
+
+    #[test]
+    fn a_completed_packet_releases_capacity_at_the_callback_boundary() {
+        let mut queue = PcmQueue::default();
+        let now = Instant::now();
+        for value in [0.25, 0.5, 0.75] {
+            assert_eq!(queue.push(&[value; FRAME_SAMPLES], now, now), Some(false));
+        }
+        for _ in 0..FRAME_SAMPLES / 2 {
+            assert_eq!(queue.stereo(now), [0.25; 2]);
+        }
+        assert_eq!(queue.push(&[1.0; FRAME_SAMPLES], now, now), Some(false));
+        assert_eq!(queue.stereo(now), [0.5; 2]);
     }
     #[test]
     fn malformed_or_nonfinite_pcm_never_reaches_device() {
