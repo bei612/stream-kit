@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {productRelease,manifestRelease,promotionProfile,verifyInstallerAcceptance,verifyWindows11RebootAcceptance} from './lib/product-release.mjs'
+import {productRelease,manifestRelease,promotionProfile,verifyInstallerAcceptance,verifyWindows11RebootAcceptance,verifyWindows11LanAcceptance} from './lib/product-release.mjs'
 import {verifyCombinedEvidence,verifyLinuxInstaller,verifyLinuxRun} from './verify-windows-android-promotion.mjs'
 const commit='a'.repeat(40)
 
@@ -57,6 +57,32 @@ test('stable Windows evidence requires a full clean reboot of the exact installe
     assert.throws(() => verifyWindows11RebootAcceptance(manifest, guest, { ...result, ...patch }))
   }
   assert.throws(() => verifyWindows11RebootAcceptance(manifest, { ...guest, secure_boot: false }, result))
+})
+
+test('stable Windows LAN evidence requires two trusted listeners and live media on both addresses', () => {
+  const oldAddress = '192.168.100.10', newAddress = '192.168.100.11', clientAddress = '192.168.100.20'
+  const hostname = 'windows-host.local'
+  const network = {old_address: oldAddress, new_address: newAddress, client_address: clientAddress}
+  const pids = {orchestrator: 101, sunshine: 102, gateway: 103}
+  const guest = {passed: true, stage: 'complete', runtime_commit: commit, hostname, network,
+    addresses_after: [newAddress], component_pids_before: pids, component_pids_after: pids,
+    config_trust_and_watch_preserved: true, target_stopped: true}
+  const phase = (address, octet) => ({resolved: `${hostname.toUpperCase()}.\t${address}`,
+    listeners: [19000, 18080].map(port => ({port, address, leaf_fingerprint: Array(32).fill(octet).join(':'), obsolete_ip_absent: true})),
+    media: {remote_address: address, remote_host_addresses: [address], frames: 60, audio_packets: 80}})
+  const client = {passed: true, same_page_recovered: true, network,
+    before: phase(oldAddress, 'AA'), after: phase(newAddress, 'BB')}
+  verifyWindows11LanAcceptance({commit, lan_address_change: guest}, client)
+  assert.throws(() => verifyWindows11LanAcceptance({commit}, client), /viewing link/)
+  for (const patch of [{runtime_commit: 'c'.repeat(40)}, {addresses_after: [oldAddress]},
+    {component_pids_after: {...pids, gateway: 104}}, {config_trust_and_watch_preserved: false}]) {
+    assert.throws(() => verifyWindows11LanAcceptance({commit, lan_address_change: {...guest, ...patch}}, client))
+  }
+  for (const patch of [{same_page_recovered: false}, {after: phase(oldAddress, 'BB')}, {after: phase(newAddress, 'AA')},
+    {after: {...client.after, listeners: client.after.listeners.slice(0, 1)}},
+    {after: {...client.after, media: {...client.after.media, audio_packets: 0}}}]) {
+    assert.throws(() => verifyWindows11LanAcceptance({commit, lan_address_change: guest}, {...client, ...patch}))
+  }
 })
 
 function manifests(version=''){

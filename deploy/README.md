@@ -142,7 +142,7 @@ Windows Sunshine 的原生启动仍要求可执行文件旁存在空 `config` �
 
 统一预发布使用 `vX.Y.Z-rc.N` 标签，并提交匹配该标签的 `deploy/releases/X.Y.Z-rc.N.md` 和 `docs/evidence/windows11-android-candidate-X.Y.Z-rc.N.json`。候选绑定三平台产物，公开时标记为预发布。
 
-正式标签 `vX.Y.Z` 还需提供 `windows11_reboot_run_id`。发布任务读取同仓库的 Windows 11 首装原始结果，校验安装器 SHA-256、整机重启后的进程归属、原生录音与卸载生命周期。使用已有的完整重启验收结果即可晋升。现场换址、维护回退与 Android 联验仍由对应发布证据记录。
+正式标签 `vX.Y.Z` 还需提供启用了 `lan_address_change` 的 `windows11_reboot_run_id`。发布任务读取同仓库的 Windows 11 首装与独立 LAN 客户端原始结果，校验安装器 SHA-256、整机重启后的进程归属、原生录音、卸载，以及实际换址后同一观看页的画面和音频恢复。现场维护与实体平板换址联验另保留实际设备的证据。
 
 `windows-installer-acceptance` 可用 `maintenance_candidate_run_id` 追加独立回滚验收。先用 `product_run_id` 安装原版本，再读取另一构建的完整运行载荷。测试通过独立本机端口占用使真实候选服务启动失败，然后检查 SCM、原组件、Example 应用的永久观看链接和部署密钥恢复。该任务运行于 GitHub 托管 Windows，现场 Win11 的开机和维护仍单独核对。
 

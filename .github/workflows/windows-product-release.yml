@@ -24,7 +24,7 @@ on:
         type: string
         required: false
       windows11_reboot_run_id:
-        description: 'Successful full Windows 11 clean install and reboot run for stable Windows + Android promotion'
+        description: 'Successful Windows 11 clean install, reboot and independent LAN migration run for stable Windows + Android promotion'
         type: string
         required: false
       android_run_id:

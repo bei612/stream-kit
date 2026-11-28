@@ -196,11 +196,11 @@ if [[ ${INITIALIZATION_ONLY:-false} == true ]]; then
   echo 'Native initialization diagnostics collected. Installer and restart acceptance was not executed.'
   exit 0
 fi
-node scripts/verify-windows-android-promotion.mjs --windows11-reboot "$manifest" "$output/guest.json" "$output/result.json"
+lan_evidence=()
 if [[ ${LAN_ADDRESS_CHANGE:-false} == true ]]; then
   wait "$lan_pid"
   lan_pid=
-  jq -e '.passed == true and .same_page_recovered == true' "$output/windows-lan-client.json" >/dev/null
-  jq -e '.lan_address_change.passed == true and .lan_address_change.target_stopped == true' "$output/result.json" >/dev/null
+  lan_evidence=("$output/windows-lan-client.json")
 fi
+node scripts/verify-windows-android-promotion.mjs --windows11-reboot "$manifest" "$output/guest.json" "$output/result.json" "${lan_evidence[@]}"
 echo 'Clean Win11 install, full VM reboot, original process ownership, PCM and uninstall passed.'

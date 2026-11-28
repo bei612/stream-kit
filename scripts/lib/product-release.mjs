@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { isIPv4 } from 'node:net'
 
 // One product identity across the platform manifest, both native installers and
 // release promotion. Version selection never implies functional acceptance.
@@ -93,4 +94,41 @@ export function verifyWindows11RebootAcceptance(manifest, guest, result) {
   for (const key of ['admin_login', 'gateway_restarted', 'scm_restarted', 'defaults_preserved', 'service_removed', 'data_preserved']) {
     assert.equal(result[key], true, `Missing Windows 11 reboot acceptance: ${key}`)
   }
+}
+
+export function verifyWindows11LanAcceptance(result, client) {
+  const guest = result?.lan_address_change
+  assert.ok(guest?.passed === true && guest.stage === 'complete' && guest.runtime_commit === result.commit &&
+    guest.config_trust_and_watch_preserved === true && guest.target_stopped === true,
+  'Windows 11 did not preserve the installed runtime and viewing link across LAN migration')
+  assert.ok(client?.passed === true && client.same_page_recovered === true,
+    'The independent LAN browser did not recover its original viewing page')
+  assert.deepEqual(client.network, guest.network, 'Guest and client LAN evidence must describe the same network')
+  const {old_address: oldAddress, new_address: newAddress, client_address: clientAddress} = guest.network
+  const addresses = [oldAddress, newAddress, clientAddress]
+  assert.ok(addresses.every(isIPv4) && new Set(addresses).size === addresses.length,
+    'LAN migration requires distinct old, new and independent client addresses')
+  assert.deepEqual(guest.addresses_after, [newAddress], 'The Windows guest did not apply the new address')
+  assert.deepEqual(guest.component_pids_after, guest.component_pids_before, 'Windows components restarted during LAN migration')
+  assert.ok(['orchestrator', 'sunshine', 'gateway'].every(role =>
+    Number.isSafeInteger(guest.component_pids_after?.[role]) && guest.component_pids_after[role] > 0),
+  'Windows component identities are missing from LAN migration evidence')
+
+  const leafFingerprints = []
+  for (const [address, phase] of [[oldAddress, client.before], [newAddress, client.after]]) {
+    const [hostname, resolvedAddress] = phase?.resolved?.split('\t') ?? []
+    assert.ok(hostname?.replace(/\.$/, '').toLowerCase() === guest.hostname && resolvedAddress === address,
+      'The independent client resolved a different Windows address')
+    const listeners = phase.listeners
+    assert.deepEqual(listeners?.map(listener => listener?.port), [19000, 18080], 'Both fixture HTTPS listeners are required')
+    const fingerprint = listeners[0].leaf_fingerprint
+    assert.ok(/^(?:[A-F0-9]{2}:){31}[A-F0-9]{2}$/i.test(fingerprint) && listeners.every(listener =>
+      listener.address === address && listener.obsolete_ip_absent === true && listener.leaf_fingerprint === fingerprint),
+    'Management and media must use the same valid certificate for the current address')
+    leafFingerprints.push(fingerprint)
+    assert.ok(phase.media?.remote_address === address && phase.media.frames >= 30 && phase.media.audio_packets > 0,
+      'The independent client did not decode actual media at the current address')
+    assert.deepEqual(phase.media.remote_host_addresses, [address], 'Media candidates do not match the current address')
+  }
+  assert.notEqual(leafFingerprints[0], leafFingerprints[1], 'The Windows LAN certificate did not rotate after changing addresses')
 }
