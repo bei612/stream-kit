@@ -113,6 +113,7 @@ awk '$2 == "win-x64/node.exe" { print $1 "  node.exe" }' "$work/node-sums" > "$w
 rm -- "$work/input/.node-checksum"
 cp scripts/accept-windows-installer.cjs scripts/maintain-windows-runtime.cjs "$work/input/scripts/"
 cp .github/fixtures/windows11/guest.ps1 "$work/input/"
+cp .github/fixtures/windows11/result-report.cjs "$work/input/scripts/"
 cp .github/fixtures/windows11/renderer-probe.cjs "$work/input/"
 if [[ ${INITIALIZATION_ONLY:-false} == true ]]; then
   touch "$work/input/initialization-only"

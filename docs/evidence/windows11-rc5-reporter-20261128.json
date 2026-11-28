@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-28",
+  "passed": false,
+  "source_commit": "8bb57538c064bdf763bb153439b2c973e69afd3b",
+  "acceptance_commit": "91ce728bec4acb75c98d4f31c792150d2c6b07c3",
+  "installer_sha256": "5bdba8eca1bd792a4f2ffc0d18f20076c464ca2626d0d8019da7d3b8287dffd8",
+  "run_id": 46149785724,
+  "artifact_id": 15265238623,
+  "artifact_sha256": "85e90b43854bd21d1eee8b75ebe20fc4ab57b4b649fea369c46ef46ec5e0b8b4",
+  "guest_result_sha256": "8f707a01fd5e84e6b8058207be8002eaff503dd723d31af588d823a81ce2bc37",
+  "first_install_exit": 0,
+  "pre_reboot_checkpoint_observed": true,
+  "resume_runner_exited": 1,
+  "failure_stage": "read_acceptance_result",
+  "reporter_error": "Invalid JSON primitive: .",
+  "resume_result_bytes": 2978,
+  "original_resume_failure_available": false,
+  "independent_lan_result_available": false,
+  "scope": "The clean guest installed the exact RC5 package and reached its reboot checkpoint. The resumed acceptance process returned a failure and the PowerShell reporter could not read the result. The terminal reboot, LAN and uninstall conditions were not established by this run."
+}

@@ -17,11 +17,15 @@ $task = 'StreamKitRebootAcceptance'
 
 function Write-GuestEvidence($Value) {
     $utf8 = [Text.Encoding]::UTF8.GetBytes(($Value | ConvertTo-Json -Depth 12 -Compress))
+    Send-GuestEvidence ([Convert]::ToBase64String($utf8))
+}
+
+function Send-GuestEvidence([string]$Payload) {
     $port = [System.IO.Ports.SerialPort]::new('COM1', 115200)
     try {
         $port.WriteTimeout = 8000
         $port.Open()
-        $port.WriteLine('STREAMKIT_EVIDENCE ' + [Convert]::ToBase64String($utf8))
+        $port.WriteLine('STREAMKIT_EVIDENCE ' + $Payload)
     } finally {
         $port.Dispose()
     }
@@ -125,11 +129,10 @@ function Read-NativeInitialization($Identity) {
     return $details
 }
 
-function Read-InstallFailure($Install) {
-    $details = if ($Install.install_exit -ne 0) { Read-NativeInitialization $Install.identity } else { [ordered]@{} }
+function Read-InstallFailure([bool]$DiagnoseInitializer, $Identity) {
+    $details = if ($DiagnoseInitializer) { Read-NativeInitialization $Identity } else { [ordered]@{} }
     $details.installer_log = Read-DiagnosticTail (Join-Path $output 'install.log') 100 8500
     $details.setupapi_delta = Read-DiagnosticTail (Join-Path $output 'setupapi-install-delta.log') 50 5000
-    $details.runtime_startup = $Install.runtime_startup_failure
     $lanResult = Join-Path $output 'windows-lan-guest.json'
     if (Test-Path -LiteralPath $lanResult -PathType Leaf) {
         $details.lan = Read-FixtureJson $lanResult
@@ -177,43 +180,39 @@ try {
     $fixtureStage = 'read_manifest'
     $package = Read-FixtureJson $manifest
     $fixtureStage = 'run_acceptance'
-    & (Join-Path $work 'node.exe') (Join-Path $work 'scripts\accept-windows-installer.cjs') $manifest $output $mode
+    $node = Join-Path $work 'node.exe'
+    & $node (Join-Path $work 'scripts\accept-windows-installer.cjs') $manifest $output $mode
     $testExit = $LASTEXITCODE
     $fixtureStage = 'read_acceptance_result'
-    $result = Read-FixtureJson $resultFile
-    $fixtureStage = 'verify_acceptance_result'
-    if ($null -eq $result -or $result.commit -ne $package.commit -or $result.installer_sha256 -ne $package.file.sha256) {
-        throw 'Installer evidence does not identify the fixture package'
+    $reporter = Join-Path $work 'scripts\result-report.cjs'
+    $reportMode = if ($Resume) { 'resume' } else { 'stage' }
+    $line = & $node $reporter $manifest $resultFile $testExit $reportMode
+    if ($LASTEXITCODE -ne 0 -or $line -notmatch '^(awaiting_reboot|completed|failed) ([01]) ([A-Za-z0-9+/=]+)$') {
+        throw 'Acceptance result could not be validated'
     }
-    if ($result.phase -eq 'awaiting_reboot') {
-        if ($Resume -or $testExit -ne 0) { throw 'Acceptance exited without replacing the reboot checkpoint' }
-    } elseif ($result.phase -notin 'completed', 'failed' -or ($result.phase -eq 'completed' -and $testExit -ne 0)) {
-        throw 'Acceptance exited without a valid terminal result'
-    }
-    $diagnostics = $null
-    if ($result.phase -eq 'failed') {
-        try { $diagnostics = Read-InstallFailure $result }
+    $phase = $Matches[1]
+    $diagnoseInitializer = $Matches[2] -eq '1'
+    $payload = $Matches[3]
+    if ($phase -eq 'failed') {
+        try { $diagnostics = Read-InstallFailure $diagnoseInitializer $package.audio_driver.identity }
         catch {
-            $diagnostics = @{ diagnostic_error = $_.Exception.Message; line = $_.InvocationInfo.ScriptLineNumber
-                runtime_startup = $result.runtime_startup_failure }
+            $diagnostics = @{ diagnostic_error = $_.Exception.Message; line = $_.InvocationInfo.ScriptLineNumber }
+        }
+        $previousEncoding = $OutputEncoding
+        try {
+            $OutputEncoding = [Text.UTF8Encoding]::new($false)
+            $expanded = $diagnostics | ConvertTo-Json -Depth 12 -Compress |
+                & $node $reporter $manifest $resultFile $testExit diagnostics
+            if ($LASTEXITCODE -eq 0 -and $expanded -match '^failed 0 ([A-Za-z0-9+/=]+)$') {
+                $payload = $Matches[1]
+            }
+        } finally {
+            $OutputEncoding = $previousEncoding
         }
     }
     $fixtureStage = 'emit_acceptance_result'
-    Write-GuestEvidence @{
-        phase = $result.phase; passed = $result.passed; error = $result.error
-        exit_code = $testExit; commit = $result.commit; installer_source_commit = $result.installer_source_commit
-        installer_sha256 = $result.installer_sha256; install_exit = $result.install_exit
-        pre_reboot = $result.pre_reboot; post_reboot = $result.post_reboot
-        admin_login = $result.admin_login; defaults_preserved = $result.defaults_preserved
-        audio_default_observations = $result.audio_default_observations
-        pcm_frames = $result.pair.captured_frames; pcm_dropped = $result.pair.target.dropped_frames
-        scm_restarted = $result.scm_restarted; gateway_restarted = $result.gateway_restarted
-        uninstall_exit = $result.uninstall_exit; service_removed = $result.service_removed; data_preserved = $result.data_preserved
-        cleanup_stage = $result.cleanup_stage; cleanup_error = $result.cleanup_error
-        lan_address_change = $result.lan_address_change
-        diagnostics = $diagnostics
-    }
-    if (-not $Resume -and $testExit -eq 0 -and $result.phase -eq 'awaiting_reboot') {
+    Send-GuestEvidence $payload
+    if ($phase -eq 'awaiting_reboot') {
         $fixtureStage = 'request_reboot'
         Restart-Computer -Force
     }
@@ -225,6 +224,7 @@ try {
         fixture_stage = $fixtureStage; fixture_line = $failure.InvocationInfo.ScriptLineNumber
         acceptance_exit_code = $testExit; resumed = [bool]$Resume; result_bytes = $file.Length
         commit = $package.commit; installer_sha256 = $package.file.sha256
+        result_sha256 = $(if ($file) { (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant() })
     }
     exit 1
 } finally {

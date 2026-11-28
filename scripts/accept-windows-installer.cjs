@@ -115,7 +115,11 @@ if(resume){
  fs.mkdirSync(output,{recursive:true});
 }
 const result=checkpoint||{passed:false,scope:'One private unified installer with its configured virtual audio device; native PCM, service lifecycle and reuse checks. No browser, human speech or public release claim.',commit:manifest.commit,installer_source_commit:manifest.installer_source_commit,installer_sha256:manifest.file.sha256,identity:manifest.audio_driver.identity,program,data,started_at:new Date().toISOString()};
-const save=()=>fs.writeFileSync(resultFile,JSON.stringify(result,null,2)+'\n');
+function save(){
+ const next=resultFile+'.next';
+ fs.writeFileSync(next,JSON.stringify(result,null,2)+'\n');
+ fs.renameSync(next,resultFile);
+}
 const execute=(file,args)=>cp.spawnSync(file,args,{windowsHide:true,encoding:'utf8',timeout:240000});
 // Bounded, read-only evidence for native restart requests. Diagnostic failures
 // never replace the installer result or turn an unexecuted PCM check into a pass.
