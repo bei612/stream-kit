@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-28",
+  "source_commit": "bb3c8d24a7a0a33c090ef9e60e555a7b081058b9",
+  "acceptance_commit": "de933f1c1508769ed86712128979a060eb1bae7c",
+  "run_id": 46135662668,
+  "artifact_id": 15260955048,
+  "artifact_sha256": "640b4ec6ae68e3db77112d8e31e3ea3a6b6dca348f24387131e2b6abbe65aa9e",
+  "released_tag": "v0.1.1-rc.4",
+  "installer_sha256": "60a32e5043dd43d59a9b3248e21ebcc1ffe70628d02bb5a648100220931dfbea",
+  "checkpoint_sha256": "68aa27ea1aeaef70a3b619c6a829e51cefc31b688d9076e189b1a9dbe5771aa6",
+  "result_sha256": "da31597530eb1b614d17237bd55dd6de8bc3239a89dab392e858d20e3090d43f",
+  "passed": false,
+  "guest": {"windows_build": 26300, "architecture": "X64", "secure_boot": true, "tpm_present": true},
+  "before_reboot": {"install_exit": 0, "service": "StreamKitOrchestrator", "state": "Running", "mode": "Auto", "account": "LocalSystem"},
+  "result_reporter": {"phase": "fixture_failed", "resumed_result_available": false, "error": "Invalid JSON primitive: .", "failing_parse_call_identified": false},
+  "independent_lan_phase_reached": false,
+  "scope": "The exact public installer reached the first-install reboot checkpoint. The fixture did not preserve a resumed product result, so this run cannot attest post-reboot readiness or LAN migration."
+}

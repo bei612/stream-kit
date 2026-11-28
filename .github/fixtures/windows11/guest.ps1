@@ -12,6 +12,7 @@ if ($windows.ProductType -ne 1 -or [int]$windows.BuildNumber -lt 22000) {
 $work = 'C:\StreamKitAcceptance'
 $output = Join-Path $work 'result'
 $manifest = Join-Path $work 'installer\installer-manifest.json'
+$resultFile = Join-Path $output 'result.json'
 $task = 'StreamKitRebootAcceptance'
 
 function Write-GuestEvidence($Value) {
@@ -31,6 +32,12 @@ function Read-DiagnosticTail([string]$Path, [int]$Lines, [int]$Limit) {
         $text = (Get-Content -LiteralPath $Path -Encoding UTF8 -Tail $Lines) -join [Environment]::NewLine
         $text.Substring([Math]::Max(0, $text.Length - $Limit))
     }
+}
+
+function Read-FixtureJson([string]$Path) {
+    $json = [IO.File]::ReadAllText($Path, [Text.UTF8Encoding]::new($false, $true))
+    if ([string]::IsNullOrWhiteSpace($json)) { throw 'Fixture JSON document is empty' }
+    ConvertFrom-Json -InputObject $json
 }
 
 function Read-NativeInitialization($Identity) {
@@ -125,11 +132,14 @@ function Read-InstallFailure($Install) {
     $details.runtime_startup = $Install.runtime_startup_failure
     $lanResult = Join-Path $output 'windows-lan-guest.json'
     if (Test-Path -LiteralPath $lanResult -PathType Leaf) {
-        $details.lan = Get-Content -LiteralPath $lanResult -Raw -Encoding UTF8 | ConvertFrom-Json
+        $details.lan = Read-FixtureJson $lanResult
     }
     return $details
 }
 
+$fixtureStage = 'prepare'
+$testExit = $null
+$package = $null
 try {
     if (-not $Resume) {
         if (-not (Confirm-SecureBootUEFI) -or -not (Get-Tpm).TpmPresent) {
@@ -144,7 +154,7 @@ try {
             Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'lan-fixture') -Destination $work -Recurse
         }
         if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'initialization-only') -PathType Leaf) {
-            $package = Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json
+            $package = Read-FixtureJson $manifest
             Write-GuestEvidence @{
                 phase = 'diagnostic_completed'; passed = $false
                 commit = $package.commit; installer_sha256 = $package.file.sha256
@@ -161,10 +171,31 @@ try {
     }
     Set-Location -LiteralPath $work
     $mode = if ($Resume) { '--win11-resume' } else { '--win11-stage' }
+    $fixtureStage = 'read_manifest'
+    $package = Read-FixtureJson $manifest
+    $fixtureStage = 'run_acceptance'
     & (Join-Path $work 'node.exe') (Join-Path $work 'scripts\accept-windows-installer.cjs') $manifest $output $mode
     $testExit = $LASTEXITCODE
-    $result = Get-Content -LiteralPath (Join-Path $output 'result.json') -Raw | ConvertFrom-Json
-    $diagnostics = if ($result.phase -eq 'failed') { Read-InstallFailure $result }
+    $fixtureStage = 'read_acceptance_result'
+    $result = Read-FixtureJson $resultFile
+    $fixtureStage = 'verify_acceptance_result'
+    if ($null -eq $result -or $result.commit -ne $package.commit -or $result.installer_sha256 -ne $package.file.sha256) {
+        throw 'Installer evidence does not identify the fixture package'
+    }
+    if ($result.phase -eq 'awaiting_reboot') {
+        if ($Resume -or $testExit -ne 0) { throw 'Acceptance exited without replacing the reboot checkpoint' }
+    } elseif ($result.phase -notin 'completed', 'failed' -or ($result.phase -eq 'completed' -and $testExit -ne 0)) {
+        throw 'Acceptance exited without a valid terminal result'
+    }
+    $diagnostics = $null
+    if ($result.phase -eq 'failed') {
+        try { $diagnostics = Read-InstallFailure $result }
+        catch {
+            $diagnostics = @{ diagnostic_error = $_.Exception.Message; line = $_.InvocationInfo.ScriptLineNumber
+                runtime_startup = $result.runtime_startup_failure }
+        }
+    }
+    $fixtureStage = 'emit_acceptance_result'
     Write-GuestEvidence @{
         phase = $result.phase; passed = $result.passed; error = $result.error
         exit_code = $testExit; commit = $result.commit; installer_source_commit = $result.installer_source_commit
@@ -179,10 +210,18 @@ try {
         diagnostics = $diagnostics
     }
     if (-not $Resume -and $testExit -eq 0 -and $result.phase -eq 'awaiting_reboot') {
+        $fixtureStage = 'request_reboot'
         Restart-Computer -Force
     }
 } catch {
-    Write-GuestEvidence @{phase = 'fixture_failed'; passed = $false; error = $_.Exception.Message}
+    $failure = $_
+    $file = Get-Item -LiteralPath $resultFile -ErrorAction SilentlyContinue
+    Write-GuestEvidence @{
+        phase = 'fixture_failed'; passed = $false; error = $failure.Exception.Message
+        fixture_stage = $fixtureStage; fixture_line = $failure.InvocationInfo.ScriptLineNumber
+        acceptance_exit_code = $testExit; resumed = [bool]$Resume; result_bytes = $file.Length
+        commit = $package.commit; installer_sha256 = $package.file.sha256
+    }
     exit 1
 } finally {
     if ($Resume) { Unregister-ScheduledTask -TaskName $task -Confirm:$false -ErrorAction SilentlyContinue }
