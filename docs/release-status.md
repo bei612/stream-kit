@@ -9,7 +9,7 @@
 | 公开正式版 | [v0.1.0](https://github.com/bei612/stream-kit/releases/tag/v0.1.0)，`f8ede8b2` | Windows 和 Ubuntu 24.04 amd64 各一个安装器。Android 签名 APK 的 versionCode 为 `1000015`。[发布证据](evidence/release-0.1.0-20261115.json) |
 | 公开预发布 | [v0.1.1-rc.3](https://github.com/bei612/stream-kit/releases/tag/v0.1.1-rc.3)，`8f5a078e` | Windows、Ubuntu 和 Android 使用同一源码构建，Android versionCode 为 `1000032`。14 个附件均可匿名下载，文件长度及 SHA-256 已核对。[发布证据](evidence/release-0.1.1-rc.3-20261128.json) |
 | 本机 Windows | `53c7385a` | 已整体维护三组件及管理前端，使用已有安装关系、驱动和运行数据。[现场联验](evidence/windows11-android-joint-53c7385a.json) |
-| 本机 Android 平板 | `8f5a078e`，versionCode `1000032` | 实体平板覆盖安装公开签名 APK，并逐字节核对已安装 APK 的 SHA-256。现场 Windows 当前仍为 `53c7385a`。[现场联验](evidence/windows11-tablet-rc3-onsite-20261128.json) |
+| 本机 Android 平板 | `bb3c8d24`，versionCode `1000033` | 现场平板已覆盖安装使用项目密钥签名的候选包，原书签已保留并改用固定主机名。本次 Windows 仍为 `53c7385a`。[现场联验](evidence/windows11-tablet-mdns-signed-20261128.json) |
 
 冻结 tag 对应运行源码。后续提交可更新安装验收工具或文档，安装包的源码标识和 SHA-256 取自同批发布清单。
 
@@ -31,7 +31,7 @@ Playwright CLI 驱动 Chrome 打开本机登录页及当前 WLAN 上的管理、
 
 RC3 签名 APK 在实体平板使用当前 IPv4 观看链接启动 Example，实际解码 5,450 帧并收到 8,458 个 Opus 包。断网后 Android 自动选了另一已保存的 WLAN，串流未恢复。通过系统设置切回现场 WLAN 并回到应用后，原会话恢复画面，无需重输链接。现场授权和撤权已生效，Example 按键计数未递增，本次没有确认目标输入或声学表现。测试结束后 Example 已停止。[现场联验](evidence/windows11-tablet-rc3-onsite-20261128.json) · [恢复画面](evidence/windows11-tablet-rc3-onsite-reconnected-20261128.png)
 
-固定主机名排查确认现场双向组播可达，Windows 对标准 mDNS 组播发回响应，平板系统解析仍未返回地址。Android 源码加入针对原链接主机名的 DNS‑SD 解析。独立开发版已在实体平板用固定主机名打开原 Example 链接，输出 341 帧和 528 个 Opus 包，沿用原 CA。开发版验收后卸载，现场签名 RC3 APK 尚无此能力。本次未改变 Windows 的网络地址。[现场名称解析证据](evidence/windows11-tablet-mdns-20261128.json) · [实体平板画面](evidence/windows11-tablet-mdns-example-20261128.png)
+固定主机名排查确认现场双向组播可达，Windows 对标准 mDNS 组播发回响应，平板系统解析仍未返回地址。两个端口的证书均覆盖该主机名，并受原 CA 信任。签名候选 APK `1000033` 从 RC3 覆盖安装后，平板通过「修改服务器地址」保留原应用密钥，改用 `volcengine.local`。重启 App 后用保存的书签启动 Example，实际解码 339 帧并收到 531 个 Opus 包。保留该书签与签名 App，Example 已停止。现场 Windows 在测试期间保持原地址，服务器换址仍需验收。[名称解析证据](evidence/windows11-tablet-mdns-20261128.json) · [签名版现场联验](evidence/windows11-tablet-mdns-signed-20261128.json) · [实体平板画面](evidence/windows11-tablet-mdns-signed-20261128.png)
 
 ## 修复与验收
 

@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "source_commit": "bb3c8d24a7a0a33c090ef9e60e555a7b081058b9",
+  "windows_source_commit": "53c7385ac58d39408a3aaffef33d6a95ea06a737",
+  "passed": true,
+  "scope": "Signed Android client 1000033 on the field tablet, in-place upgrade from the installed signed RC3 APK. The field Windows components and deployment CA retained their installed versions and identity.",
+  "android": {
+    "build_run_id": 46128907453,
+    "device": "ERAZER M10 4G",
+    "previous_version_code": 1000032,
+    "version_code": 1000033,
+    "installed_base_apk_matches_artifact": true,
+    "apk_sha256": "a61d654c302e55a0f16393ace9ae2cdd7d3c0424bd68c1866f3e11b966ee6131",
+    "project_signer_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f",
+    "saved_bookmark_survived_upgrade": true,
+    "original_watch_key_reused_through_address_editor": true,
+    "fixed_hostname_persisted_across_app_restart": true
+  },
+  "example": {
+    "origin": "https://volcengine.local:9000",
+    "windows_wlan_ipv4": "192.168.2.131",
+    "active_media_streams": 1,
+    "decoded_video_frames": 339,
+    "video_fps": 33,
+    "opus_packets_received": 531,
+    "audio_energy": 0,
+    "audible_program_sound_and_microphone_verified_in_this_test": false
+  },
+  "cleanup": {"example_stopped": true, "signed_app_and_fixed_bookmark_retained": true},
+  "site_host_address_changed": false,
+  "site_windows_upgraded": false,
+  "additional_certificate_or_dns_override_installed": false,
+  "screenshots": [{
+    "file": "windows11-tablet-mdns-signed-20261128.png",
+    "sha256": "b8d52a800edf0766ab9c07b91877fa20c85ea255533891383ea629a1ba780937"
+  }]
+}
