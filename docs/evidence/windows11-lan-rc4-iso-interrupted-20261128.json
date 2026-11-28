@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-28",
+  "source_commit": "bb3c8d24a7a0a33c090ef9e60e555a7b081058b9",
+  "acceptance_commit": "7c20256155e76b34b2821ba57b0bc39e547d5bef",
+  "run_id": 46141659352,
+  "artifact_id": 15263267162,
+  "artifact_sha256": "02d4d6d99180931096ed2399a72a02532202d7ec0fa05d1c68e76df627e6c2dd",
+  "installer_sha256": "60a32e5043dd43d59a9b3248e21ebcc1ffe70628d02bb5a648100220931dfbea",
+  "passed": false,
+  "stage": "windows_evaluation_media_download",
+  "installer_digest_verified": true,
+  "windows_iso_expected_bytes": 8225329152,
+  "interrupted_transfer_bytes": [6067060736, 4021357649, 8119970897],
+  "per_transfer_timeout_seconds": 840,
+  "curl_exit": 28,
+  "guest_started": false,
+  "product_executed": false,
+  "vendor_http_byte_range_support_verified": true,
+  "scope": "The runner verified the public installer, then timed out downloading Windows evaluation media before starting QEMU. The guest clock change and the product runtime were not tested in this attempt."
+}

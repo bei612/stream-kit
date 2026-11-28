@@ -161,8 +161,24 @@ genisoimage -quiet -J -r -V STREAMKIT_TEST -o "$work/inputs.iso" "$work/input"
 # Microsoft Evaluation Center, Windows 11 Enterprise 26H2 x64 en-US.
 iso_url=https://software-static.download.prss.microsoft.com/dbazure/26300.9457.260913-1737.26h2_ge_release_svc_refresh_CLIENTENTERPRISEEVAL_OEMRET_x64FRE_en-us.iso
 iso_hash=bc3f24086ebadc94489066b5ad78089e2cf5c3491e90e790bb81a2b199c10e38
-"${fetch[@]}" --max-time 840 "$iso_url" -o "$work/windows.iso"
-printf '%s  %s\n' "$iso_hash" "$work/windows.iso" | sha256sum --check
+iso_file="$work/windows.iso"
+for attempt in 1 2 3; do
+  # Start a fresh curl invocation so it reads the updated local byte offset.
+  if "${fetch[@]}" --retry 0 --connect-timeout 20 --max-time 840 --continue-at - "$iso_url" -o "$iso_file"; then
+    break
+  else
+    transfer_status=$?
+  fi
+  case $transfer_status in
+    7|18|28|56) ;;
+    *) exit "$transfer_status" ;;
+  esac
+  if (( attempt == 3 )); then exit "$transfer_status"; fi
+  if [[ -f "$iso_file" ]]; then
+    echo "Interrupted Windows evaluation ISO transfer; resuming from $(stat -c '%s' "$iso_file") bytes."
+  fi
+done
+printf '%s  %s\n' "$iso_hash" "$iso_file" | sha256sum --check
 echo 'Verified Microsoft evaluation media and the immutable product installer.'
 cp /usr/share/OVMF/OVMF_VARS_4M.ms.fd "$work/uefi-vars.fd"
 qemu-img create -q -f qcow2 "$work/guest.qcow2" 72G
@@ -180,7 +196,7 @@ TZ=UTC qemu-system-x86_64 -machine q35,accel=kvm,smm=on -cpu host -smp "$guest_c
   -drive "if=pflash,format=raw,unit=1,file=$work/uefi-vars.fd" \
   -chardev "socket,id=chrtpm,path=$control/tpm" -tpmdev emulator,id=tpm0,chardev=chrtpm -device tpm-tis,tpmdev=tpm0 \
   -drive "if=ide,format=qcow2,discard=unmap,file=$work/guest.qcow2" \
-  -drive "if=ide,media=cdrom,readonly=on,format=raw,file=$work/windows.iso" \
+  -drive "if=ide,media=cdrom,readonly=on,format=raw,file=$iso_file" \
   -drive "if=ide,media=cdrom,readonly=on,format=raw,file=$work/inputs.iso" \
   -boot order=c,once=d "${guest_network[@]}" -display none -vga std \
   -audiodev driver=none,id=audio0 -device ich9-intel-hda -device hda-duplex,audiodev=audio0 \
