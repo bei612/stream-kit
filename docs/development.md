@@ -21,6 +21,8 @@
 
 版本以源码锁文件和当前 CI 为准，不在本机随意换“兼容版本”。Windows 开发使用原生 Windows，不迁移到 WSL；Linux 构建/运行由独立 Linux 环境和 CI 完成。开发者工具不进入产品安装包。
 
+Android 的 Gradle 插件及对应工具库由 Google Maven 提供。构建脚本按依赖组固定插件来源，通用依赖仍由 Maven Central 解析。
+
 ## 管理端开发
 
 ```sh
