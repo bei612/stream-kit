@@ -61,7 +61,7 @@ RC3 和 RC4 的历史结果分别保留首装与重启、结果采集、测试�
 | RC2 运行依赖 | 用精确 Windows、Ubuntu 控制二进制进行符号扫描。Android 发行签名、运行依赖和许可清单核对通过。继续引用经逐条复核的未变依赖图及源码 SBOM。[依赖审查及范围](evidence/windows11-runtime-dependency-review-66a79e5d-20261127.json) |
 | 大应用包 | 流式上传和解压上限分别默认 50 GiB。Win11 通过浏览器和原生客户端上传、解压真实 26 GiB，入口哈希一致。核验暂存清理、空间不足反馈和大 ZIP64 / 7z 索引上限。资料分别记录实际源码和测试环境。[浏览器实传与截图](evidence/windows11-large-archive-20261127.json) · [磁盘保护](evidence/windows11-archive-space-666a6a01-20261127.json) · [归档条目限制](evidence/windows11-archive-index-38552c09-20261127.json) |
 | 本机实体 Android | 同源现场 `53c7385a` 已验证共享媒体、真实目标操作及平板麦克风。实体平板输入交接和旧端失权另有 Playwright CLI 管理页实测和截图。[本机同源联验](evidence/windows11-android-joint-53c7385a.json) · [真机输入补验](evidence/android-input-tablet-954a1e6e-20261126.json) |
-| 管理端实际页面 | RC4 原始管理端与网关使用 Playwright CLI 实测。Example 启动前两种语言显示同一固定观看链接，两个 Web 观看端解码真实视频，控制权授予、交接及撤销经服务端验证。应用启动参数保存后复原。另有 8 个路由在 3 种宽度的布局证据。[RC4 操作验收](evidence/management-live-cli-bb3c8d24-20261128.json) · [移动端应用页](evidence/management-live-cli-bb3c8d24-app-mobile.png) · [桌面端控制权](evidence/management-live-cli-bb3c8d24-sessions-desktop.png) · [布局及交互](evidence/management-layout-a616beba.json) |
+| 管理端实际页面 | RC5 原始管理端与网关使用 Playwright CLI 实测。Example 启动前两种语言显示同一固定观看链接，两个 Web 观看端解码真实视频，控制权授予、交接及撤销经服务端验证。应用启动参数保存后恢复。另有 8 个路由在 3 种宽度的布局证据。[RC5 操作验收](evidence/management-live-cli-8bb57538-20261128.json) · [移动端应用页](evidence/management-live-cli-8bb57538-app-mobile.png) · [桌面端控制权](evidence/management-live-cli-8bb57538-sessions-desktop.png) · [布局及交互](evidence/management-layout-a616beba.json) |
 | 运行资源 | 已给服务器队列、认证失败连接、缓存、请求和日志设定预算。Web 帧读取器取消及关闭回归覆盖换轨和关闭。各项资源释放及采样覆盖范围见[资源审查](evidence/runtime-resource-review-20261113.json)、[原始资源采样](evidence/runtime-resources-ce52bdac-20261114.json)及[运行资源设计](runtime-resources.md)。 |
 
 ## 交付结果

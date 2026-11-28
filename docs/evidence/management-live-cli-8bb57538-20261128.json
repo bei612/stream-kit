@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-28",
+  "passed": true,
+  "runtime_commit": "8bb57538c064bdf763bb153439b2c973e69afd3b",
+  "acceptance_commit": "91ce728bec4acb75c98d4f31c792150d2c6b07c3",
+  "acceptance_run": "https://github.com/bei612/stream-kit/actions/runs/46150056353",
+  "artifact_id": 15265126824,
+  "artifact_sha256": "6657d2dcad946603d572a26d423d11fe4756cac2c29f1a1155afcd8df45ff80e",
+  "browser_result_sha256": "6893b285e2623e9131686dabf48499c6227e8000cb680435984a5597a2709c39",
+  "management_result_sha256": "e2ecb1a7fcf74d1941b2195d8d0d92d6ab177867a9c1ebaeeaba83ba727915ea",
+  "environment": "GitHub-hosted Ubuntu 24.04, trusted temporary HTTPS, native Sunshine and owned Example, Chromium with playwright-cli 0.1.22",
+  "source": {
+    "product_run_id": 46141887890,
+    "product_linux_job_id": 140969418287,
+    "installer_sha256": "f790789df43d9fa2c1cf6f68de45d81c32c847be7f64218db83b05d6b653eaa6",
+    "payload_sha256": "438f356fb6f66f0cf280cdd1b8d8598d695da8964bc7aa777f5729264d3643b0",
+    "gateway_sha256": "fbdec67ec3679aa317297e89acf4e550c326aaf09a8860f430c11b8a48f1428d",
+    "orchestrator_sha256": "ed2a97938c54e4c0d7407e5ef69fa67fbb22ec2e3e24a2a5fc678d9ee4b5d9d4",
+    "runtime_rebuilt": false
+  },
+  "checks": {
+    "same_permanent_link_before_launch": ["en", "zh-CN"],
+    "owned_example_launched": true,
+    "web_clients_with_decoded_webrtc_video": 2,
+    "server_verified_grant_transfer_and_revoke": true,
+    "bilingual_viewer_permissions_and_lifecycle": true,
+    "stale_notifications_after_disconnect": false,
+    "launch_arguments_edited_saved_and_restored": true,
+    "history_read_only": true,
+    "example_restored_to_idle": true
+  },
+  "screenshots": [
+    {"file": "management-live-cli-8bb57538-app-mobile.png", "sha256": "3e9291619e68cb0d218caa543c506a5433a87a4fe997be70228daca37a03197f", "watch_key_and_arguments_masked": true},
+    {"file": "management-live-cli-8bb57538-sessions-desktop.png", "sha256": "82cb3a90303637560381c5c35a625dd236fd5fddc6968169a6c72c545ec31831"}
+  ],
+  "scope": "Management and Web viewer UI with real Example video in the isolated Linux deployment. Windows deployment, Android, native target input, audio, address change and long-duration operation are covered separately."
+}
