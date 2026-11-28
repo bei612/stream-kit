@@ -14,6 +14,7 @@ $output = Join-Path $work 'result'
 $manifest = Join-Path $work 'installer\installer-manifest.json'
 $resultFile = Join-Path $output 'result.json'
 $task = 'StreamKitRebootAcceptance'
+$osControl = Test-Path -LiteralPath (Join-Path $PSScriptRoot 'os-reboot-control') -PathType Leaf
 
 function Write-GuestEvidence($Value) {
     $utf8 = [Text.Encoding]::UTF8.GetBytes(($Value | ConvertTo-Json -Depth 12 -Compress))
@@ -66,6 +67,38 @@ function Get-NewGuestBugCheck {
             event_record_id = $event.RecordId
         }
     }
+}
+
+function Invoke-OSRebootControl($Package) {
+    $installer = Join-Path (Split-Path $manifest) $Package.file.name
+    $services = @(Get-Service -Name StreamKitOrchestrator -ErrorAction SilentlyContinue)
+    $drivers = @(Get-CimInstance Win32_SystemDriver -Filter "Name='usbip2_ude' OR Name='usbip2_filter'")
+    if ((Test-Path -LiteralPath $installer) -or $services.Count -ne 0 -or $drivers.Count -ne 0) {
+        throw 'The OS reboot control requires a pristine guest without the product installer, services or driver'
+    }
+    $boot = $windows.LastBootUpTime.ToUniversalTime()
+    $identity = @{
+        commit = $Package.commit; installer_sha256 = $Package.file.sha256
+        product_artifacts_absent = $true; product_services_absent = $true
+    }
+    if (-not $Resume) {
+        New-Item -ItemType Directory -Path $output | Out-Null
+        $payload = [Text.Encoding]::UTF8.GetBytes((@{ boot_utc = $boot.ToString('o') } | ConvertTo-Json -Compress))
+        $file = [IO.File]::Open($resultFile, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+        try { $file.Write($payload, 0, $payload.Length); $file.Flush($true) } finally { $file.Dispose() }
+        $identity.phase = 'awaiting_reboot'
+        $identity.mode = 'os-control'
+    } else {
+        $before = Read-FixtureJson $resultFile
+        if ($boot -le [DateTimeOffset]::Parse($before.boot_utc).UtcDateTime) {
+            throw 'Windows did not advance its boot generation during the OS control'
+        }
+        $identity.phase = 'os_control_completed'
+        $identity.boot_utc = $boot.ToString('o')
+    }
+    $identity.reboot_checkpoint_sha256 = (Get-FileHash -LiteralPath $resultFile -Algorithm SHA256).Hash.ToLowerInvariant()
+    Write-GuestEvidence $identity
+    if (-not $Resume) { Restart-Computer -Force }
 }
 
 function Read-NativeInitialization($Identity) {
@@ -185,6 +218,7 @@ try {
         foreach ($name in 'node.exe','guest.ps1','scripts','installer') {
             Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $work -Recurse
         }
+        if ($osControl) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'os-reboot-control') -Destination $work }
         if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'lan-fixture') -PathType Container) {
             Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'lan-fixture') -Destination $work -Recurse
         }
@@ -223,6 +257,11 @@ try {
             observed_at = [DateTime]::UtcNow.ToString('o')
             commit = $package.commit; installer_sha256 = $package.file.sha256
         }
+    }
+    if ($osControl) {
+        $fixtureStage = 'os_reboot_control'
+        Invoke-OSRebootControl $package
+        return
     }
     $fixtureStage = 'run_acceptance'
     $node = Join-Path $work 'node.exe'

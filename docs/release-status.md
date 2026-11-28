@@ -78,7 +78,7 @@ RC3 和 RC4 的历史结果分别保留首装与重启、结果采集、测试�
 
 ## 持续边界
 
-- 正式 0.1.1 仍需取得独立 Win11 的完整卸载结果，并完成现场 Windows 原位维护和实体平板在该主机换址后的恢复。安装返回 `3010` 时需核对重启后的服务和音频准备。[RC5 独立 Win11 记录](evidence/windows11-lan-8bb57538-20261128.json) · [旧版 3010 证据](evidence/windows-installer-restart-954a1e6e-20261120.json)
+- 正式 0.1.1 发布前需定位独立 Win11 的 `0x3B` 内核停机，并取得同一安装包的完整首装、重启和卸载结果。独立 Win11 换址联验已经通过。现场仍需完成 Windows 原位更新和实体平板在该主机换址后的媒体恢复。安装返回 `3010` 时需核对重启后的服务和音频准备。[Win11 停机记录](evidence/windows11-rc5-kernel-stop-20261128.json) · [独立换址结果](evidence/windows11-lan-scope-8bb57538-20261128.json) · [旧版 3010 证据](evidence/windows-installer-restart-954a1e6e-20261120.json)
 - Win11 主机换 IP 后，远端还需通过可达的固定主机名或新 IP 访问。固定主机名取决于现场 DNS/mDNS 和实际路由。独立 Linux 与本机 Web 的换址证据分别覆盖上述范围。实体设备跨网络恢复还需现场核对。
 - 用户已接受原版本 20 客户端四小时稳定性与既有真人语音证据。本轮范围为 Win11 和 Android，Android 模拟器联验和实体平板的证据分别归档。[真人语音证据](evidence/human-voice-installed-20261105.json)
 - 7×24 是资源设计目标。当前新版本尚无服务端、Web、Android 的完整 168 小时联合观测。通用 Windows 原位升级、多应用并行隔离及独立安全评估仍在当前已验证交付范围之外。[运行资源与释放](runtime-resources.md)

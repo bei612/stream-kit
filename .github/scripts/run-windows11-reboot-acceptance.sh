@@ -14,6 +14,11 @@ if [[ ${INITIALIZATION_ONLY:-false} == true && ${LAN_ADDRESS_CHANGE:-false} == t
   echo 'Initialization-only and LAN acceptance are mutually exclusive' >&2
   exit 1
 fi
+if [[ ${OS_REBOOT_CONTROL:-false} == true ]] &&
+   [[ ${INITIALIZATION_ONLY:-false} == true || ${LAN_ADDRESS_CHANGE:-false} == true || -n ${DIAGNOSTIC_PRODUCT_RUN_ID:-} ]]; then
+  echo 'Pristine reboot control cannot initialize a product runtime or run LAN acceptance' >&2
+  exit 1
+fi
 
 output="$PWD/artifacts/windows11-reboot"
 mkdir -p "$output"
@@ -84,6 +89,12 @@ installer=$(jq -er --arg commit "$source_commit" '
 installer_hash=$(jq -er '.file.sha256 | select(test("^[a-f0-9]{64}$"))' "$manifest")
 printf '%s  %s\n' "$installer_hash" "$work/input/installer/$installer" | sha256sum --check
 diagnostic_run=${DIAGNOSTIC_PRODUCT_RUN_ID:-${PRODUCT_RUN_ID:-}}
+if [[ ${OS_REBOOT_CONTROL:-false} == true ]]; then
+  diagnostic_run=
+  # Keep only product identity for comparison. No product executable is mounted in the control guest.
+  rm -- "$work/input/installer/$installer"
+  touch "$work/input/os-reboot-control"
+fi
 if [[ ${INITIALIZATION_ONLY:-false} == true && -z $diagnostic_run ]]; then
   echo 'Initialization diagnostics require the source-matched runtime' >&2
   exit 1
@@ -98,10 +109,11 @@ if [[ -n $diagnostic_run ]]; then
   printf '%s  %s\n' "$payload_hash" "$work/input/diagnostic/platform-manifest.json" | sha256sum --check
 fi
 jq -n --arg source "$source_commit" --arg acceptance "$GITHUB_SHA" --arg installer "$installer" --arg sha256 "$installer_hash" \
+  --argjson os_control "${OS_REBOOT_CONTROL:-false}" \
   --arg tag "${RELEASE_TAG:-}" --arg run "${PRODUCT_RUN_ID:-}" --arg diagnostic "$diagnostic_run" \
   '{source_commit:$source, acceptance_commit:$acceptance, installer_file:$installer, installer_sha256:$sha256,
     release_tag:($tag | select(length>0) // null), product_run_id:($run | tonumber? // null),
-    diagnostic_product_run_id:($diagnostic | tonumber? // null)}' > "$output/provenance.json"
+    diagnostic_product_run_id:($diagnostic | tonumber? // null), os_reboot_control:$os_control}' > "$output/provenance.json"
 unset GH_TOKEN
 
 fetch=(curl --fail --show-error --silent --location --proto '=https' --proto-redir '=https' --retry 2)
@@ -205,6 +217,14 @@ TZ=UTC qemu-system-x86_64 -machine q35,accel=kvm,smm=on -cpu host -smp "$guest_c
   > "$work/qemu.log" 2>&1 &
 guest_pid=$!
 python3 .github/fixtures/windows11/observe.py "$control/qmp" "$work/serial.log" "$output" "$guest_pid" "${lan_observer[@]}"
+if [[ ${OS_REBOOT_CONTROL:-false} == true ]]; then
+  jq -e --arg commit "$source_commit" --arg hash "$installer_hash" '
+    .phase == "os_control_completed" and .commit == $commit and .installer_sha256 == $hash and
+    .product_artifacts_absent == true and .product_services_absent == true
+  ' "$output/result.json" > /dev/null
+  echo 'Pristine Windows reboot control completed. Product installation was not executed.'
+  exit 0
+fi
 if [[ ${INITIALIZATION_ONLY:-false} == true ]]; then
   jq -e --arg commit "$source_commit" --arg hash "$installer_hash" '
     .phase == "diagnostic_completed" and .commit == $commit and .installer_sha256 == $hash and

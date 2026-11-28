@@ -22,6 +22,10 @@ on:
         description: Verify stable LAN viewing and live media after a real guest NIC address change
         type: boolean
         default: false
+      os_reboot_control:
+        description: Reboot a pristine Windows guest for crash attribution, with the candidate installer excluded from the guest
+        type: boolean
+        default: false
 permissions:
   contents: read
   actions: read
@@ -35,6 +39,7 @@ jobs:
       DIAGNOSTIC_PRODUCT_RUN_ID: ${{ inputs.diagnostic_product_run_id }}
       INITIALIZATION_ONLY: ${{ inputs.initialization_only }}
       LAN_ADDRESS_CHANGE: ${{ inputs.lan_address_change }}
+      OS_REBOOT_CONTROL: ${{ inputs.os_reboot_control }}
     steps:
       - uses: actions/checkout@v4
         with:

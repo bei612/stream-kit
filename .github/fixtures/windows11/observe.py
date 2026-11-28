@@ -99,12 +99,14 @@ def main():
                         result = json.loads(base64.b64decode(line[len(prefix):].strip(), validate=True))
                         phase = result.get('phase')
                         if phase not in {'guest_ready', 'awaiting_reboot', 'resume_started', 'lan_ready',
-                                         'completed', 'diagnostic_completed', 'failed', 'fixture_failed', 'kernel_fault'}:
+                                         'completed', 'diagnostic_completed', 'os_control_completed',
+                                         'failed', 'fixture_failed', 'kernel_fault'}:
                             raise RuntimeError('Unexpected Win11 acceptance phase')
                         if diagnostic_reset and phase == 'resume_started':
                             (output / 'diagnostic-resume.json').write_text(json.dumps(result, indent=2) + '\n')
                             continue
-                        if diagnostic_reset and phase not in {'completed', 'failed', 'fixture_failed', 'kernel_fault'}:
+                        if diagnostic_reset and phase not in {'completed', 'os_control_completed',
+                                                              'failed', 'fixture_failed', 'kernel_fault'}:
                             continue
                         if phase in phases:
                             raise RuntimeError('Duplicate Win11 acceptance phase')
@@ -133,11 +135,17 @@ def main():
                                                    'bus': 'sklanport', 'netdev': 'fixture', 'mac': lan[0]})
                             waiting_for = 'independent LAN acceptance'
                             deadline = time.monotonic() + 10 * 60
-                        if phase in {'completed', 'diagnostic_completed', 'failed', 'fixture_failed', 'kernel_fault'}:
+                        if phase in {'completed', 'diagnostic_completed', 'os_control_completed',
+                                     'failed', 'fixture_failed', 'kernel_fault'}:
                             (output / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
                             if diagnostic_reset:
                                 raise RuntimeError('The owned guest required a diagnostic reset after a failed acceptance deadline')
                             if phase == 'diagnostic_completed':
+                                return
+                            if phase == 'os_control_completed':
+                                if not checkpoint or checkpoint.get('mode') != 'os-control' or \
+                                        checkpoint['reboot_checkpoint_sha256'] != result.get('reboot_checkpoint_sha256'):
+                                    raise RuntimeError('The pristine guest reboot did not preserve its own checkpoint')
                                 return
                             if phase != 'completed':
                                 raise RuntimeError('Windows guest reported an acceptance failure')
