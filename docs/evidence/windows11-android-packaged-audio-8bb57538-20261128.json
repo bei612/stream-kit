@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "source_commit": "8bb57538c064bdf763bb153439b2c973e69afd3b",
+  "passed": true,
+  "product_run_id": 46141887890,
+  "windows_payload_artifact_id": 15263463438,
+  "android_build_run_id": 46141887420,
+  "android_artifact_id": 15263020211,
+  "android_apk_sha256": "8efcb69be560c5027637f7cca10946eaa023c937ce294a23c34f33c2481f4f3d",
+  "android_version_code": 1000034,
+  "android_api_level": 36,
+  "release_signature_verified": true,
+  "all_fixture_probes_passed_in_one_run": false,
+  "observations": [
+    {
+      "summary_sha256": "ca88af3dfe7763e1c65bb151cad205383c54a5b2fc45156baa46f085e4a6d5b7",
+      "browser_result_sha256": "79d323c066eb16cf2ece720bc0aa2eef2e17c1072dc2c87adeb12e82766a5b02",
+      "fixture_overall_passed": false,
+      "independent_microphone": {"passed": true, "sample_rate": 48000, "captured_frames": 240000, "windows_above_threshold": 50, "capture_released": true},
+      "product_stream_passed": false,
+      "failure": "The Android emulator output observation delivered only 16,150 samples and did not contain sustained program tone. Target and Web microphone routing and revocation were separately observed."
+    },
+    {
+      "summary_sha256": "a824806ef752718659abeeabfa4d13aff6a773ac14bae90b1143cfe33bf211a0",
+      "browser_result_sha256": "38926748fc1a3aa79307cfd683116ee1e5d100e410839c349b48b8ec224fc188",
+      "fixture_overall_passed": false,
+      "independent_microphone": {"passed": false, "failure_class": "CONTROL_GUEST_MICROPHONE_MEASUREMENT_FAILED", "instrumentation_error": "IllegalStateException", "synthetic_packets_submitted": 0},
+      "independent_system_playout": {"passed": true, "frames": 243839, "median_amplitude": 0.42898683235148233, "tone_released": true},
+      "product_stream_passed": true
+    }
+  ],
+  "joint_product_stream": {
+    "passed": true,
+    "same_source_payload_verified": true,
+    "native_watch_link_opened": true,
+    "gateway_sha256": "bd6180948c5d75949855a6f78cb75b282e5f82d7d48abc571dfbd4fd2d4dd654",
+    "control_sha256": "3500b3586051cb77a645b01261936d179b87842b6e239c53d3d7e6568affab89",
+    "subscribers": 2,
+    "upstream_connections": 1,
+    "android_program_997_frames": 239519,
+    "android_program_997_median_amplitude": 0.1591215775030101,
+    "microphone_hz": 1499,
+    "target_recording_analyzed_frames": 96000,
+    "target_recording_dropped_frames": 0,
+    "target_authorized_median_amplitude": 0.4938954315753322,
+    "target_revoked_median_amplitude": 0.0000011341161785844607,
+    "web_authorized_db": -19.980247497558594,
+    "web_revoked_db": -127.93524932861328,
+    "web_program_after_revocation_db": -36.20563888549805,
+    "sunshine_restored_idle": true
+  },
+  "cleanup": {"emulator_stopped": true, "private_tls_removed": true, "private_avd_removed": true, "product_app_modified": false},
+  "scope": "The complete product audio path passed in one isolated Windows run with the exact Windows payload and signed APK. The independent AudioRecord reference passed in a separate run with the same frozen binaries. Partial and failed fixture results are preserved; neither fixture-level overall flag was true. This is synthetic audio, with no field speech or site migration claim."
+}
