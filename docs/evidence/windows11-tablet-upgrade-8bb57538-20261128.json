@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-28",
+  "passed": true,
+  "source_commit": "8bb57538c064bdf763bb153439b2c973e69afd3b",
+  "windows_source_commit": "53c7385ac58d39408a3aaffef33d6a95ea06a737",
+  "android_build": {
+    "run_id": 46141887420,
+    "attempt": 2,
+    "artifact_id": 15263020211,
+    "artifact_sha256": "d366f74f4717874270a0e388442fd94ed6b081cd268c2105d9e4473a73821d96",
+    "application_id": "io.github.bei612.streamkit",
+    "version_code": 1000034,
+    "apk_bytes": 33219003,
+    "apk_sha256": "8efcb69be560c5027637f7cca10946eaa023c937ce294a23c34f33c2481f4f3d",
+    "project_signer_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f",
+    "signature_schemes_verified": [2, 3],
+    "official_emulator_release_jni_smoke_passed": true
+  },
+  "field_tablet": {
+    "device": "ERAZER M10 4G",
+    "previous_version_code": 1000033,
+    "upgrade_install_succeeded": true,
+    "installed_base_apk_matches_artifact": true,
+    "native_activity_ready": true,
+    "saved_bookmark_readable": true,
+    "fixed_host": "volcengine.local",
+    "address_editor_and_connect_enabled": true,
+    "watch_key_exported": false,
+    "media_started_for_this_check": false
+  },
+  "scope": "Signed APK, official emulator JNI smoke, and on-site in-place Android upgrade with a readable original fixed-host bookmark. The Windows installation did not change. The earlier RC4 field media evidence remains specific to versionCode 1000033. This record does not verify media on 1000034 or a host address transition."
+}
