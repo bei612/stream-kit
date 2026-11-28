@@ -27,6 +27,8 @@
 
 Playwright CLI 驱动 Chrome 打开本机登录页及当前 WLAN 上的管理、媒体入口。11 月 28 日的直连检查确认两端口均通过当前 WLAN 地址建立 TLS 1.3。用固定主机名访问时，同机浏览器实际选中了虚拟网卡，因此跨设备的名称解析与媒体路径仍需现场验证。[WLAN 直连与固定主机名证据](evidence/windows11-direct-https-origins-53c7385a-20261128.json) · [地址与证书](lan-address-configuration.md)
 
+实体平板接入 Windows 所在的 WLAN 后，通过当前 IPv4 地址直接访问管理端与媒体网关，两端均以原部署 CA 完成 TLS 1.3 验证并返回 HTTP 200。平板系统仍无法解析 `volcengine.local`；本次证据覆盖独立设备的数字 IP 直连，现场固定名发现和实际媒体恢复仍待验证。[平板直连证据](evidence/windows11-tablet-lan-53c7385a-20261128.json)
+
 ## 修复与验收
 
 | 核验项 | 已取得的证据 |
