@@ -33,6 +33,8 @@ RC3 签名 APK 在实体平板使用当前 IPv4 观看链接启动 Example，实
 
 固定主机名排查确认现场双向组播可达，Windows 对标准 mDNS 组播发回响应，平板系统解析仍未返回地址。两个端口的证书均覆盖该主机名，并受原 CA 信任。签名候选 APK `1000033` 从 RC3 覆盖安装后，平板通过「修改服务器地址」保留原应用密钥，改用 `volcengine.local`。重启 App 后用保存的书签启动 Example，实际解码 339 帧并收到 531 个 Opus 包。保留该书签与签名 App，Example 已停止。现场 Windows 在测试期间保持原地址，服务器换址仍需验收。[名称解析证据](evidence/windows11-tablet-mdns-20261128.json) · [签名版现场联验](evidence/windows11-tablet-mdns-signed-20261128.json) · [实体平板画面](evidence/windows11-tablet-mdns-signed-20261128.png)
 
+首次 Win11 独立换址验收中，RC3 安装成功，重启后原生组件未在时限内全部就绪，换址阶段未执行。后续验收在安装与重启检查通过后才接入专用测试网卡，并在启动失败时记录控制端与组件状态。[首次换址验收记录](evidence/windows11-lan-rc3-first-run-20261128.json)
+
 ## 修复与验收
 
 | 核验项 | 已取得的证据 |

@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "source_commit": "8f5a078e39c070c8b358b456df7fee3c2e437203",
+  "acceptance_commit": "844753fb91fa47b1d4ef39d8b29b25156f06215c",
+  "run_id": 46127481954,
+  "artifact_id": 15256224502,
+  "result_sha256": "cbe5d4c231bc3044479674741c4e8f2fcf1de8ebc6e1a3c1491a4c1e2bcd2255",
+  "installer_sha256": "ce529659c297f1cdb2cf2d66f45a296eacdb28e787ab4404aaebdb2c24c30dfc",
+  "passed": false,
+  "windows_build": 26300,
+  "installer_exit": 0,
+  "service_running_before_reboot": true,
+  "reboot_checkpoint_recorded": true,
+  "native_readiness_after_reboot": false,
+  "lan_phase_reached": false,
+  "failure": "SCM service did not recover both native components",
+  "cause_established": false,
+  "fixture_virtual_nic_connected_during_first_boot": true,
+  "cleanup": {"uninstall_exit": 0, "data_preserved": true}
+}

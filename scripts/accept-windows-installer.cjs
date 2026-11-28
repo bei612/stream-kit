@@ -33,8 +33,8 @@ function hash(file){
  }finally{fs.closeSync(handle)}
 }
 assert.equal(hash(installer),manifest.file.sha256,'Installer must match its manifest');
-const ps=(script,input)=>cp.execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',script],
-  {input:input===undefined?undefined:JSON.stringify(input),encoding:'utf8',windowsHide:true,timeout:30000});
+const ps=(script,input,timeout=30000)=>cp.execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',script],
+  {input:input===undefined?undefined:JSON.stringify(input),encoding:'utf8',windowsHide:true,timeout});
 assert.equal(ps('[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)').trim(),'True','Run the single installer acceptance helper elevated');
 const service=()=>JSON.parse(ps('$s=Get-CimInstance Win32_Service -Filter "Name=\'StreamKitOrchestrator\'";if($s){$s|Select-Object Name,State,StartMode,StartName,ProcessId,PathName|ConvertTo-Json -Compress}else{"null"}'));
 const windowsBoot=(stage||resume)&&JSON.parse(ps(String.raw`
@@ -205,11 +205,20 @@ async function request(route,method='GET',body){
 const componentKeys=['sunshine','web_server'];
 async function waitForInstalledHealth(){
  const deadline=Date.now()+90000;
+ let lastHealth,lastError;
  while(Date.now()<deadline){
-  const health=await request('/health').catch(()=>null);
+  const health=await request('/health').catch(error=>{lastError=error.status??error.cause?.code??error.name;return null});
+  if(health)lastHealth=health;
   if(health?.commit===manifest.commit&&componentKeys.every(key=>health.components?.[key]?.status==='running'))return health;
   await delay(200);
  }
+ const scm=service();
+ result.runtime_startup_failure={listener_observed:!!lastHealth,last_error:lastError,
+  service:scm&&{state:scm.State,pid:scm.ProcessId},source_commit:lastHealth?.commit,
+  components:Object.fromEntries(componentKeys.map(key=>{
+    const component=lastHealth?.components?.[key];
+    return [key,{type:component?.status,pid:component?.pid}];
+  }))};
  throw Error('SCM service did not recover both native components');
 }
 function bootProcesses(health){

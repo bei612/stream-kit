@@ -122,6 +122,11 @@ function Read-InstallFailure($Install) {
     $details = if ($Install.install_exit -ne 0) { Read-NativeInitialization $Install.identity } else { [ordered]@{} }
     $details.installer_log = Read-DiagnosticTail (Join-Path $output 'install.log') 100 8500
     $details.setupapi_delta = Read-DiagnosticTail (Join-Path $output 'setupapi-install-delta.log') 50 5000
+    $details.runtime_startup = $Install.runtime_startup_failure
+    $lanResult = Join-Path $output 'windows-lan-guest.json'
+    if (Test-Path -LiteralPath $lanResult -PathType Leaf) {
+        $details.lan = Get-Content -LiteralPath $lanResult -Raw -Encoding UTF8 | ConvertFrom-Json
+    }
     return $details
 }
 

@@ -118,6 +118,7 @@ if [[ ${INITIALIZATION_ONLY:-false} == true ]]; then
   touch "$work/input/initialization-only"
 fi
 guest_network=(-nic none)
+lan_observer=()
 if [[ ${LAN_ADDRESS_CHANGE:-false} == true ]]; then
   fixture="$work/input/lan-fixture"
   mkdir "$fixture"
@@ -139,7 +140,9 @@ PY
   tap_created=true
   sudo ip address add "$client_address/24" dev "$tap"
   sudo ip link set "$tap" up
-  guest_network=(-netdev "tap,id=fixture,ifname=$tap,script=no,downscript=no" -device "e1000e,netdev=fixture,mac=$mac")
+  # Attach the NIC via QMP after standalone installation and reboot checks.
+  guest_network=(-netdev "tap,id=fixture,ifname=$tap,script=no,downscript=no" -device "pcie-root-port,id=sklanport")
+  lan_observer=("$mac")
   openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 35 -subj '/CN=Stream Kit Windows LAN fixture CA' \
     -addext 'basicConstraints=critical,CA:TRUE' -addext 'keyUsage=critical,keyCertSign,cRLSign' \
     -keyout "$fixture/ca.key" -out "$fixture/ca.crt" 2>/dev/null
@@ -179,7 +182,7 @@ qemu-system-x86_64 -machine q35,accel=kvm,smm=on -cpu host -smp 2 -m 6144 \
   -serial "file:$work/serial.log" -qmp "unix:$control/qmp,server=on,wait=off" \
   > "$work/qemu.log" 2>&1 &
 guest_pid=$!
-python3 .github/fixtures/windows11/observe.py "$control/qmp" "$work/serial.log" "$output" "$guest_pid"
+python3 .github/fixtures/windows11/observe.py "$control/qmp" "$work/serial.log" "$output" "$guest_pid" "${lan_observer[@]}"
 if [[ ${INITIALIZATION_ONLY:-false} == true ]]; then
   jq -e --arg commit "$source_commit" --arg hash "$installer_hash" '
     .phase == "diagnostic_completed" and .commit == $commit and .installer_sha256 == $hash and

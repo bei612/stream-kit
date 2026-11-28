@@ -9,10 +9,12 @@ from pathlib import Path
 
 
 def main():
-    qmp_path, serial_path, output_path, pid = sys.argv[1:]
+    qmp_path, serial_path, output_path, pid, *lan = sys.argv[1:]
+    if len(lan) > 1:
+        raise ValueError('Expected at most one owned LAN adapter MAC address')
     serial = Path(serial_path)
     output = Path(output_path)
-    deadline = time.monotonic() + 32 * 60
+    deadline = time.monotonic() + (38 if lan else 32) * 60
     control = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     control.settimeout(5)
     for attempt in range(40):
@@ -69,7 +71,7 @@ def main():
                             continue
                         result = json.loads(base64.b64decode(line[len(prefix):].strip(), validate=True))
                         phase = result.get('phase')
-                        if phase not in {'guest_ready', 'awaiting_reboot', 'completed', 'diagnostic_completed', 'failed', 'fixture_failed'}:
+                        if phase not in {'guest_ready', 'awaiting_reboot', 'lan_ready', 'completed', 'diagnostic_completed', 'failed', 'fixture_failed'}:
                             raise RuntimeError('Unexpected Win11 acceptance phase')
                         if phase in phases:
                             raise RuntimeError('Duplicate Win11 acceptance phase')
@@ -80,6 +82,11 @@ def main():
                         if phase == 'awaiting_reboot':
                             checkpoint = result
                             (output / 'checkpoint.json').write_text(json.dumps(result, indent=2) + '\n')
+                        if phase == 'lan_ready':
+                            if not lan or not checkpoint:
+                                raise RuntimeError('Guest requested a NIC outside the post-reboot LAN stage')
+                            command('device_add', {'driver': 'e1000e', 'id': 'streamkitlan',
+                                                   'bus': 'sklanport', 'netdev': 'fixture', 'mac': lan[0]})
                         if phase in {'completed', 'diagnostic_completed', 'failed', 'fixture_failed'}:
                             (output / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
                             if phase == 'diagnostic_completed':

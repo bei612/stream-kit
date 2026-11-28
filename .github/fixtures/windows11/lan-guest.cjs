@@ -26,12 +26,27 @@ async function verifyWindowsLAN({program, data, output, build, ps}) {
   const report = {passed:false, stage:'setup', runtime_commit:build, hostname, network:net};
   const record = () => write(path.join(output, 'windows-lan-guest.json'), report);
   record();
+  ps(String.raw`
+$ErrorActionPreference='Stop'
+$port=[IO.Ports.SerialPort]::new('COM1',115200)
+try{
+ $port.WriteTimeout=8000
+ $port.Open()
+ $event=[Text.Encoding]::UTF8.GetBytes('{"phase":"lan_ready"}')
+ $port.WriteLine('STREAMKIT_EVIDENCE '+[Convert]::ToBase64String($event))
+}finally{$port.Dispose()}`);
   const adapter = JSON.parse(ps(String.raw`
 $ErrorActionPreference='Stop'
 $mac=[Console]::In.ReadToEnd()|ConvertFrom-Json
-$device=@(Get-NetAdapter -Physical | Where-Object MacAddress -eq $mac)
-if($device.Count -ne 1 -or $device[0].Status -ne 'Up'){throw 'Owned VM NIC is unavailable'}
-$device[0] | Select-Object Name,ifIndex | ConvertTo-Json -Compress`, net.mac));
+for($i=0;$i -lt 45;$i++){
+ $device=@(Get-NetAdapter -Physical -ErrorAction SilentlyContinue | Where-Object MacAddress -eq $mac)
+ if($device.Count -eq 1 -and $device[0].Status -eq 'Up'){
+  $device[0] | Select-Object Name,ifIndex | ConvertTo-Json -Compress
+  return
+ }
+ Start-Sleep -Seconds 1
+}
+throw 'Owned VM NIC did not become active'`, net.mac, 65000));
   const addresses = () => JSON.parse(ps(String.raw`
 $ErrorActionPreference='Stop'
 $i=[Console]::In.ReadToEnd()|ConvertFrom-Json
