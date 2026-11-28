@@ -4,8 +4,7 @@ buildscript {
         exclusiveContent {
             forRepository { google() }
             filter {
-                includeGroupAndSubgroups 'com.android.tools'
-                includeGroup 'com.android.databinding'
+                includeGroupAndSubgroups 'com.android'
                 includeGroup 'androidx.databinding'
                 includeGroup 'com.google.testing.platform'
             }
