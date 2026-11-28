@@ -46,6 +46,7 @@ RC4 在独立 Win11 使用与公开包 SHA-256 一致的安装器，首装返回
 | 核验项 | 已取得的证据 |
 | --- | --- |
 | `8bb57538` Ubuntu 换址 | 独立客户端经固定主机名观看。服务端网卡改址后，两路 HTTPS 在 3.354 秒内更新证书，原页面无需刷新恢复直连并解码 49 帧、收到 81 个音频包。原部署 CA、应用配置和组件进程保持。[独立换址验收](evidence/isolated-lan-8bb57538-20261128.json) |
+| `8bb57538` Android 与 Web | 签名 APK `1000034` 从正式 `v0.1.0` 覆盖升级后打开原书签，和 Web 受到同一个上游会话管理。真实键鼠、交接和撤销、前后台切换、系统拒绝录音及断网重连均通过。[Android 联验](evidence/android-input-8bb57538-20261128.json) |
 | RC4 签名客户端 `1000033` | Android 与 Web 共用一条串流。真实目标键鼠、控制权交接与撤权、覆盖升级、前后台切换、设备录音权限拒绝和断网恢复均通过。Ubuntu 原观看页在实际换址后恢复直连，两端 HTTPS 在 9.326 秒内更新。Linux 模拟器独立音频校准失败，未执行产品音频联验。[客户端验收](evidence/android-input-bb3c8d24-20261128.json) · [隔离换址](evidence/isolated-lan-bb3c8d24-20261128.json) · [音频校准记录](evidence/android-linux-audio-fixture-bb3c8d24-20261128.json) |
 | RC4 Windows 安装与回传 | `bb3c8d24` 原始 Windows 安装包已通过静默安装、服务恢复与卸载。托管 Windows 从 RC3 在实际端口冲突后回滚，移除冲突后成功应用 RC4，原观看链接、配置、CA 和卸载器得到保留。独立 Windows Android 模拟器已验证 Android/Web 共用一条串流，麦克风回传到目标录音与 Web，撤权后程序音继续播放。[安装](evidence/windows11-hosted-install-bb3c8d24-20261128.json) · [维护](evidence/windows11-hosted-maintenance-bb3c8d24-20261128.json) · [音频联验](evidence/windows11-android-packaged-audio-bb3c8d24-20261128.json) |
 | RC2 Windows 安装和维护 | 使用公开包对应的原始字节。Windows Server 2022 托管静默安装、SCM/网关恢复、原生录音、卸载保留数据均通过。真实监听端口冲突后，回滚恢复原服务、永久链接、CA 和私钥。[安装与回滚证据](evidence/windows11-android-packaged-audio-66a79e5d-20261127.json) |

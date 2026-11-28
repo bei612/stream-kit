@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "source_commit": "8bb57538c064bdf763bb153439b2c973e69afd3b",
+  "passed": true,
+  "product_run_id": 46141887890,
+  "android_build_run_id": 46141887420,
+  "acceptance_run_id": 46143306007,
+  "acceptance_source_commit": "4789ac8027ced46df07388fdf09cc2f165775fb1",
+  "artifact_id": 15263150604,
+  "artifact_sha256": "ced4abdc61f3720a9e796ba53ad663ac17df3e79403a649f8945a5f7dde4518f",
+  "browser_result_sha256": "f1ea137b3dd4a897e6e18467102fa80bae57f9e5fd42b215048fd339cc2367cf",
+  "linux_installer_sha256": "f790789df43d9fa2c1cf6f68de45d81c32c847be7f64218db83b05d6b653eaa6",
+  "apk_sha256": "8efcb69be560c5027637f7cca10946eaa023c937ce294a23c34f33c2481f4f3d",
+  "android_version_code": 1000034,
+  "apk_signature_verified": true,
+  "upgrade": {"from_tag": "v0.1.0", "baseline_version_code": 1000015, "installed_in_place": true, "saved_bookmark_reopened": true, "restored_as_viewer_with_microphone_off": true},
+  "target_input": {"single_shared_renderer": true, "subscribers": 2, "completed_phases": ["android_controller", "old_android_denied", "web_controller", "web_revoked", "android_regranted", "android_revoked"]},
+  "foreground_recovery": {"controller_released_in_background": true, "existing_upstream_preserved": true, "audio_packets": 445, "decoded_video_frames": 166, "observation_elapsed_ms": 9375, "restored_as_viewer_with_microphone_off": true},
+  "microphone_permission_denied": {"system_prompt_denied": true, "controller_retained": true, "server_microphone_off": true},
+  "client_network_recovery": {"disconnected_until_expiry_ms": 16641, "original_connection_resumed_as_viewer": true, "microphone_disabled": true, "audio_packets": 563, "decoded_video_frames": 200, "observation_elapsed_ms": 9979},
+  "cleanup": {"example_stop_acknowledged": true, "renderer_restored_idle": true},
+  "scope": "Exact signed APK and same-source Ubuntu runtime with an official Android emulator and an independent browser. Positive microphone audio, physical tablet migration and Windows installation have separate acceptance."
+}
