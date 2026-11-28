@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "source_commit": "bb3c8d24a7a0a33c090ef9e60e555a7b081058b9",
+  "passed": true,
+  "product_run_id": 46129010848,
+  "windows_package": {
+    "installer_artifact_id": 15258506317,
+    "payload_artifact_id": 15258341683,
+    "installer_sha256": "60a32e5043dd43d59a9b3248e21ebcc1ffe70628d02bb5a648100220931dfbea",
+    "installer_bytes": 45063518,
+    "payload_manifest_sha256": "3aa6d01cd8d9fa0add29a671abb2cfa0bf429aa73d2c788d1639f9936d1af5f1",
+    "verified_components": 3,
+    "content_files_with_verified_hashes": 191,
+    "verified_manifest_files": 4,
+    "gateway_sha256": "fc46b7650c8dc733f7805b459b906bcfba13c6f735ec5ae3bf5afab18c72dcb5",
+    "renderer_sha256": "a3b2f038bf3fb3d001f342f8b554fa7612dd9271573c98beb7201f090320a807",
+    "renderer_bytes": 71861760,
+    "renderer_debug_sections": 0,
+    "kernel_driver_signature_verified_by_producer": true,
+    "runtime_node_and_test_binaries_absent": true
+  },
+  "control_scans": {
+    "scanner": "govulncheck 1.10.0, binary symbol mode",
+    "database": "https://vuln.go.dev/",
+    "windows": {
+      "binary_sha256": "8c7883782f886ba1b015dce10530948ed9afbac56e58cb881da3f04aa3ea23c8",
+      "matches_verified_installer_payload": true,
+      "result": "No vulnerabilities found."
+    },
+    "ubuntu": {
+      "installer_artifact_id": 15257412052,
+      "installer_sha256": "7317dcb2b09c753570835872d6ee550d53b81249ef1a8f81b72c4f2385102381",
+      "embedded_deb_sha256": "473c99c1ff3100cfe4b313223fe116796c4dab4ba1d02fc36cf3b5634362ee6a",
+      "binary_sha256": "38453f8716db9abc67e210aedfadd9dbc46d635d28756aba3f22094ccb392e37",
+      "matches_verified_embedded_payload": true,
+      "result": "No vulnerabilities found."
+    }
+  },
+  "android": {
+    "build_run_id": 46128907453,
+    "artifact_id": 15257217152,
+    "version_code": 1000033,
+    "apk_sha256": "a61d654c302e55a0f16393ace9ae2cdd7d3c0424bd68c1866f3e11b966ee6131",
+    "release_signer_sha256": "2dcccab9fddfb420a47cb1ef870e8bae96b4a8025a4e42156528cc3e07d28d4f",
+    "runtime_inventory_sha256": "22a584a4428aa2ec47ab878e76e9c3c4167d59da03140c78c01bfbee63810533",
+    "notices_sha256": "65896f681d26f3927e0a114fba30192e14282e8fc34a2230d6b0e5f06245f755",
+    "runtime_dependency_coordinates_unchanged": true
+  },
+  "source_sbom": {
+    "artifact_id": 15257126812,
+    "format": "SPDX-2.3",
+    "package_entries": 3499,
+    "ci_only_package_references_added": [
+      "actions/setup-go@v5",
+      "actions/setup-node@v4"
+    ],
+    "sha256": "f6913b1d4f82158b454afa37911a4abe47a4c90faed8b7068baa6cef5df39ace"
+  },
+  "scope": "Verified original Windows and Ubuntu package bytes, native component inventory, Go binary advisory checks, Android signing and dependency inventory, and exact source SBOM. This does not represent an independent security assessment."
+}

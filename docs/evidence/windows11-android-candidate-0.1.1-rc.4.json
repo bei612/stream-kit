@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "tag": "v0.1.1-rc.4",
+  "source_commit": "bb3c8d24a7a0a33c090ef9e60e555a7b081058b9",
+  "installer_sha256": "60a32e5043dd43d59a9b3248e21ebcc1ffe70628d02bb5a648100220931dfbea",
+  "linux_installer_sha256": "7317dcb2b09c753570835872d6ee550d53b81249ef1a8f81b72c4f2385102381",
+  "apk_sha256": "a61d654c302e55a0f16393ace9ae2cdd7d3c0424bd68c1866f3e11b966ee6131",
+  "android_version_code": 1000033,
+  "checks": {
+    "hosted_maintenance_rollback": {
+      "passed": true,
+      "evidence": "docs/evidence/windows11-hosted-maintenance-bb3c8d24-20261128.json"
+    },
+    "isolated_lan_migration": {
+      "passed": true,
+      "evidence": "docs/evidence/isolated-lan-bb3c8d24-20261128.json"
+    },
+    "android_upgrade": {
+      "passed": true,
+      "evidence": "docs/evidence/android-input-bb3c8d24-20261128.json"
+    },
+    "android_input_lifecycle": {
+      "passed": true,
+      "evidence": "docs/evidence/android-input-bb3c8d24-20261128.json"
+    },
+    "android_media_input_audio": {
+      "passed": true,
+      "evidence": "docs/evidence/windows11-android-packaged-audio-bb3c8d24-20261128.json"
+    },
+    "dependency_review": {
+      "passed": true,
+      "evidence": "docs/evidence/windows11-runtime-dependency-review-bb3c8d24-20261128.json"
+    },
+    "cleanup_verified": {
+      "passed": true,
+      "evidence": "docs/evidence/windows11-hosted-install-bb3c8d24-20261128.json"
+    }
+  },
+  "pending_stable_acceptance": [
+    "Clean Win11 reboot and native startup checks for the exact Windows installer",
+    "Maintenance on the installed physical Windows 11 deployment",
+    "Win11 on-site address change and recovery with a separate client"
+  ]
+}

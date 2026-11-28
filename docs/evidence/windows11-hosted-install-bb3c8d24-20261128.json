@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "source_commit": "bb3c8d24a7a0a33c090ef9e60e555a7b081058b9",
+  "passed": true,
+  "product_run_id": 46129010848,
+  "acceptance_run_id": 46131762858,
+  "artifact_id": 15257742057,
+  "artifact_sha256": "754adb13db7bd172ec96c00d1b2ca2c4768f196b1000418632662a7bbaaa7677",
+  "result_sha256": "ea2060dad3f457567d7db2420b7422f751df969596599d7ae47b38d1e6484e48",
+  "installer_sha256": "60a32e5043dd43d59a9b3248e21ebcc1ffe70628d02bb5a648100220931dfbea",
+  "silent_install_exit": 0,
+  "captured_pcm_frames": 144000,
+  "dropped_pcm_frames": 0,
+  "defaults_preserved": true,
+  "automatic_scm_start": true,
+  "scm_restarted": true,
+  "gateway_restarted": true,
+  "uninstall_exit": 0,
+  "service_removed": true,
+  "data_preserved": true,
+  "scope": "Original Windows installer accepted on hosted Windows Server 2022. Clean Win11 reboot and maintenance of an existing deployment have separate acceptance."
+}
